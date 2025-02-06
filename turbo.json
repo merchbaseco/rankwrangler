@@ -1,0 +1,47 @@
+{
+    "$schema": "https://turborepo.org/schema.json",
+    "globalEnv": [],
+    "globalDependencies": ["**/.env"],
+    "tasks": {
+        "build": {},
+        "@rankwrangler/icons#build": {
+            "outputs": ["dist/**"]
+        },
+        "@rankwrangler/extension#build": {
+            "dependsOn": ["@rankwrangler/icons#build"],
+            "outputs": ["dist/**"]
+        },
+        "@rankwrangler/safari-app#build": {
+            "dependsOn": ["@rankwrangler/extension#build"],
+            "outputs": ["**/Resources/**"]
+        },
+        "clean": {
+            "cache": false,
+            "outputs": ["dist/**"],
+            "dependsOn": [
+                "@rankwrangler/extension#clean",
+                "@rankwrangler/safari-app#clean",
+                "@rankwrangler/icons#clean"
+            ]
+        },
+        "@rankwrangler/icons#clean": {
+            "cache": false,
+            "outputs": ["dist/**", ".turbo/**"]
+        },
+        "@rankwrangler/extension#clean": {
+            "cache": false,
+            "outputs": ["dist/**", ".turbo/**"]
+        },
+        "@rankwrangler/safari-app#clean": {
+            "cache": false,
+            "outputs": ["**/Resources/**", "build/**", "DerivedData/**", ".turbo/**"]
+        },
+        "uninstall": {
+            "cache": false
+        },
+        "dev": {
+            "cache": false,
+            "persistent": true
+        }
+    }
+}

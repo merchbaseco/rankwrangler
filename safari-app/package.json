@@ -1,0 +1,11 @@
+{
+    "name": "@rankwrangler/safari-app",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "node ../scripts/build-safari.js",
+        "clean": "rm -rf 'Shared (Extension)/Resources' build DerivedData .turbo && xcodebuild clean -project rankwrangler.xcodeproj -scheme 'rankwrangler (macOS)' -configuration Debug",
+        "uninstall": "node ../scripts/uninstall.js"
+    }
+}

@@ -1,0 +1,20 @@
+# Build output
+dist/
+build/
+
+# Dependencies
+node_modules/
+.yarn/
+
+# Package files
+package-lock.json
+yarn.lock
+
+# Cache
+.cache/
+.eslintcache
+
+# Misc
+.DS_Store
+coverage/
+*.log 

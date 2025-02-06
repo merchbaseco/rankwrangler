@@ -1,0 +1,13 @@
+{
+    "name": "@rankwrangler/icons",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "node src/generate-icons.js",
+        "clean": "rm -rf dist .turbo"
+    },
+    "dependencies": {
+        "sharp": "^0.33.5"
+    }
+}
