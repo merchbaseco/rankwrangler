@@ -1,223 +1,223 @@
 /// <reference types="chrome"/>
-
-interface FetchProductPageRequest {
-    type: 'fetchProductPage';
-    url?: string;
-    headers?: Record<string, string>;
-    success?: boolean;
-    fromCache?: boolean;
-}
-
-interface GetRequestHeadersRequest {
-    type: 'getRequestHeaders';
-}
-
 interface GetStatsRequest {
-    type: 'getStats';
+	type: "getStats";
 }
 
 interface ResetStatsRequest {
-    type: 'resetStats';
+	type: "resetStats";
 }
 
 interface UpdateQueueRequest {
-    type: 'updateQueue';
-    action: 'add' | 'remove' | 'clear';
-    asin?: string;
+	type: "updateQueue";
+	action: "add" | "remove" | "clear";
+	asin?: string;
+}
+
+interface FetchProductInfoRequest {
+	type: "fetchProductInfo";
+	asin: string;
+	marketplaceId: string;
 }
 
 type Message =
-    | FetchProductPageRequest
-    | GetRequestHeadersRequest
-    | GetStatsRequest
-    | ResetStatsRequest
-    | UpdateQueueRequest;
+	| GetStatsRequest
+	| ResetStatsRequest
+	| UpdateQueueRequest
+	| FetchProductInfoRequest;
 
 interface Stats {
-    totalRequests: number;
-    liveSuccessCount: number;
-    cacheSuccessCount: number;
-    failureCount: number;
-    captchaCount: number;
+	totalRequests: number;
+	liveSuccessCount: number;
+	cacheSuccessCount: number;
+	failureCount: number;
 }
 
 // Track active requests
 const activeQueue = new Set<string>();
 
 // Initialize statistics in storage
-chrome.storage.local.get(['stats'], result => {
-    if (!result.stats) {
-        chrome.storage.local.set({
-            stats: {
-                totalRequests: 0,
-                liveSuccessCount: 0,
-                cacheSuccessCount: 0,
-                failureCount: 0,
-                captchaCount: 0,
-            },
-        });
-    }
+chrome.storage.local.get(["stats"], (result) => {
+	if (!result.stats) {
+		chrome.storage.local.set({
+			stats: {
+				totalRequests: 0,
+				liveSuccessCount: 0,
+				cacheSuccessCount: 0,
+				failureCount: 0,
+			},
+		});
+	}
 });
-
-// Store the most recent request headers
-let lastRequestHeaders: Record<string, string> = {};
-
-// Function to check if HTML contains a captcha
-function containsCaptcha(html: string): boolean {
-    return (
-        html.includes('Enter the characters you see below') ||
-        html.includes('Type the characters you see in this image') ||
-        html.includes('Continue shopping')
-    );
-}
 
 // Function to broadcast queue count to all popups
 function broadcastQueueCount() {
-    chrome.runtime.sendMessage({ type: 'queueUpdate', count: activeQueue.size });
+	chrome.runtime.sendMessage({ type: "queueUpdate", count: activeQueue.size });
 }
-
-// Capture headers from web requests
-chrome.webRequest.onSendHeaders.addListener(
-    details => {
-        if (details.type === 'main_frame' && details.url.includes('amazon.com')) {
-            lastRequestHeaders = {};
-            details.requestHeaders?.forEach(header => {
-                lastRequestHeaders[header.name] = header.value || '';
-            });
-        }
-    },
-    { urls: ['*://*.amazon.com/*'] },
-    ['requestHeaders']
-);
 
 // Listen for messages from the content script
 chrome.runtime.onMessage.addListener(
-    (
-        request: Message,
-        sender: chrome.runtime.MessageSender,
-        sendResponse: (
-            response:
-                | {
-                      html?: string;
-                      error?: string;
-                      stats?: Stats;
-                      captcha?: boolean;
-                      queueCount?: number;
-                  }
-                | Record<string, string>
-        ) => void
-    ) => {
-        if (request.type === 'getRequestHeaders') {
-            sendResponse(lastRequestHeaders);
-            return true;
-        }
+	(
+		request: Message,
+		sender: chrome.runtime.MessageSender,
+		sendResponse: (
+			response:
+				| {
+						html?: string;
+						error?: string;
+						stats?: Stats;
+						queueCount?: number;
+						success?: boolean;
+						data?: any;
+				  }
+				| Record<string, string>,
+		) => void,
+	) => {
+		if (request.type === "resetStats") {
+			chrome.storage.local.set(
+				{
+					stats: {
+						totalRequests: 0,
+						liveSuccessCount: 0,
+						cacheSuccessCount: 0,
+						failureCount: 0,
+					},
+				},
+				() => {
+					sendResponse({});
+				},
+			);
+			return true;
+		}
 
-        if (request.type === 'resetStats') {
-            chrome.storage.local.set(
-                {
-                    stats: {
-                        totalRequests: 0,
-                        liveSuccessCount: 0,
-                        cacheSuccessCount: 0,
-                        failureCount: 0,
-                        captchaCount: 0,
-                    },
-                },
-                () => {
-                    sendResponse({});
-                }
-            );
-            return true;
-        }
+		if (request.type === "updateQueue") {
+			if (request.action === "add" && request.asin) {
+				activeQueue.add(request.asin);
+			} else if (request.action === "remove" && request.asin) {
+				activeQueue.delete(request.asin);
+			} else if (request.action === "clear") {
+				activeQueue.clear();
+			}
+			broadcastQueueCount();
+			sendResponse({ queueCount: activeQueue.size });
+			return true;
+		}
 
-        if (request.type === 'updateQueue') {
-            if (request.action === 'add' && request.asin) {
-                activeQueue.add(request.asin);
-            } else if (request.action === 'remove' && request.asin) {
-                activeQueue.delete(request.asin);
-            } else if (request.action === 'clear') {
-                activeQueue.clear();
-            }
-            broadcastQueueCount();
-            sendResponse({ queueCount: activeQueue.size });
-            return true;
-        }
 
-        if (request.type === 'fetchProductPage') {
-            if ('url' in request && request.url) {
-                fetch(request.url, {
-                    headers: request.headers || {},
-                    credentials: 'include',
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.text();
-                    })
-                    .then(async html => {
-                        if (!html) {
-                            throw new Error('Empty response received');
-                        }
+		if (request.type === "fetchProductInfo") {
+			// Update stats - increment total requests
+			chrome.storage.local.get(["stats"], (result) => {
+				const stats: Stats = result.stats || {
+					totalRequests: 0,
+					liveSuccessCount: 0,
+					cacheSuccessCount: 0,
+					failureCount: 0,
+				};
+				stats.totalRequests++;
+				chrome.storage.local.set({ stats });
+			});
+			
+			// Get license key from storage and make request
+			chrome.storage.sync.get(['licenseKey'], (result) => {
+				const headers: Record<string, string> = {
+					"Content-Type": "application/json",
+				};
+				
+				// Add authorization header if license key exists
+				if (result.licenseKey) {
+					headers.Authorization = `Bearer ${result.licenseKey}`;
+				}
+				
+				fetch("https://merchbase.co/api/getProductInfo", {
+					method: "POST",
+					headers,
+					body: JSON.stringify({
+						asin: request.asin,
+						marketplaceId: request.marketplaceId,
+					}),
+				})
+					.then(async (response) => {
+						if (!response.ok) {
+							// Handle different HTTP error codes
+							if (response.status === 401) {
+								throw new Error("Invalid or missing license key. Please check your license settings.");
+							} else if (response.status === 429) {
+								throw new Error("Daily usage limit exceeded. License will reset at midnight UTC.");
+							} else {
+								throw new Error(`Server error (${response.status}). Please try again later.`);
+							}
+						}
+						return response.json();
+					})
+					.then((response) => {
+						if (response.success && response.data) {
+							// Update success stats
+							chrome.storage.local.get(["stats"], (result) => {
+								const stats: Stats = result.stats || {
+									totalRequests: 0,
+									liveSuccessCount: 0,
+									cacheSuccessCount: 0,
+									failureCount: 0,
+								};
+								
+								// Check if data was cached using the cached flag
+								if (response.data.metadata.cached) {
+									stats.cacheSuccessCount++;
+								} else {
+									stats.liveSuccessCount++;
+								}
+								
+								chrome.storage.local.set({ stats });
+							});
+							
+							sendResponse({ success: true, data: response.data });
+						} else {
+							// Update failure stats
+							chrome.storage.local.get(["stats"], (result) => {
+								const stats: Stats = result.stats || {
+									totalRequests: 0,
+									liveSuccessCount: 0,
+									cacheSuccessCount: 0,
+									failureCount: 0,
+								};
+								stats.failureCount++;
+								chrome.storage.local.set({ stats });
+							});
+							
+							// Provide more specific error messages
+							let errorMessage = response.error || "API returned error";
+							if (errorMessage.includes("license")) {
+								errorMessage = "License issue: " + errorMessage + " Please check your license settings.";
+							} else if (errorMessage.includes("limit") || errorMessage.includes("quota")) {
+								errorMessage = "Usage limit reached: " + errorMessage;
+							}
+							
+							sendResponse({ success: false, error: errorMessage });
+						}
+					})
+					.catch((error) => {
+						// Update failure stats
+						chrome.storage.local.get(["stats"], (result) => {
+							const stats: Stats = result.stats || {
+								totalRequests: 0,
+								liveSuccessCount: 0,
+								cacheSuccessCount: 0,
+								failureCount: 0,
+							};
+							stats.failureCount++;
+							chrome.storage.local.set({ stats });
+						});
+						
+						sendResponse({ success: false, error: error.message });
+					});
+			});
+			return true;
+		}
 
-                        // Check for captcha
-                        if (containsCaptcha(html)) {
-                            chrome.storage.local.get(['stats'], result => {
-                                const stats = result.stats || {
-                                    totalRequests: 0,
-                                    liveSuccessCount: 0,
-                                    cacheSuccessCount: 0,
-                                    failureCount: 0,
-                                    captchaCount: 0,
-                                };
-                                stats.captchaCount++;
-                                chrome.storage.local.set({ stats });
-                            });
-                            sendResponse({ error: 'Captcha detected', captcha: true });
-                            return;
-                        }
-
-                        sendResponse({ html });
-                    })
-                    .catch(error => {
-                        sendResponse({ error: error.message });
-                    });
-
-                return true;
-            } else {
-                // This is a stats update from the content script
-                chrome.storage.local.get(['stats'], async result => {
-                    const stats: Stats = result.stats || {
-                        totalRequests: 0,
-                        liveSuccessCount: 0,
-                        cacheSuccessCount: 0,
-                        failureCount: 0,
-                        captchaCount: 0,
-                    };
-
-                    stats.totalRequests++;
-                    if (request.success) {
-                        if (request.fromCache) {
-                            stats.cacheSuccessCount++;
-                        } else {
-                            stats.liveSuccessCount++;
-                        }
-                    } else {
-                        stats.failureCount++;
-                    }
-
-                    await chrome.storage.local.set({ stats });
-                    sendResponse({});
-                });
-                return true;
-            }
-        }
-
-        if (request.type === 'getStats') {
-            chrome.storage.local.get(['stats'], result => {
-                sendResponse({ stats: result.stats, queueCount: activeQueue.size });
-            });
-            return true;
-        }
-    }
+		if (request.type === "getStats") {
+			chrome.storage.local.get(["stats"], (result) => {
+				sendResponse({ stats: result.stats, queueCount: activeQueue.size });
+			});
+			return true;
+		}
+	},
 );

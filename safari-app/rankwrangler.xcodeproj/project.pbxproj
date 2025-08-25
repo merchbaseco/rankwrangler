@@ -109,12 +109,10 @@
 		D5B250272D554A9800209EF5 /* Exceptions for "Shared (Extension)" folder in "rankwrangler Extension (iOS)" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Resources/_locales,
 				Resources/background.js,
 				Resources/content.js,
 				Resources/images,
 				Resources/manifest.json,
-				Resources/popup.css,
 				Resources/popup.html,
 				Resources/popup.js,
 				SafariWebExtensionHandler.swift,
@@ -124,12 +122,10 @@
 		D5B250282D554A9800209EF5 /* Exceptions for "Shared (Extension)" folder in "rankwrangler Extension (macOS)" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Resources/_locales,
 				Resources/background.js,
 				Resources/content.js,
 				Resources/images,
 				Resources/manifest.json,
-				Resources/popup.css,
 				Resources/popup.html,
 				Resources/popup.js,
 				SafariWebExtensionHandler.swift,
@@ -155,7 +151,6 @@
 				D5B250282D554A9800209EF5 /* Exceptions for "Shared (Extension)" folder in "rankwrangler Extension (macOS)" target */,
 			);
 			explicitFolders = (
-				Resources/_locales,
 				Resources/images,
 			);
 			path = "Shared (Extension)";
