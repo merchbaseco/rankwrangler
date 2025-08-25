@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "RankWrangler",
+  "version": "1.0",
+  "description": "Track and analyze Amazon product rankings and metrics in real-time",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["*://*.amazon.com/*", "https://merchbase.co/api/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.amazon.com/s*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

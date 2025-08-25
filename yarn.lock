@@ -366,9 +366,26 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@rankwrangler/extension@workspace:extension":
+"@rankwrangler/icons@workspace:*, @rankwrangler/icons@workspace:packages/icons":
   version: 0.0.0-use.local
-  resolution: "@rankwrangler/extension@workspace:extension"
+  resolution: "@rankwrangler/icons@workspace:packages/icons"
+  dependencies:
+    "@biomejs/biome": "npm:^2.2.2"
+    sharp: "npm:^0.33.5"
+  languageName: unknown
+  linkType: soft
+
+"@rankwrangler/safari-extension@workspace:apps/safari-extension":
+  version: 0.0.0-use.local
+  resolution: "@rankwrangler/safari-extension@workspace:apps/safari-extension"
+  dependencies:
+    "@biomejs/biome": "npm:^2.2.2"
+  languageName: unknown
+  linkType: soft
+
+"@rankwrangler/web-extension@workspace:packages/web-extension":
+  version: 0.0.0-use.local
+  resolution: "@rankwrangler/web-extension@workspace:packages/web-extension"
   dependencies:
     "@biomejs/biome": "npm:^2.2.2"
     "@rankwrangler/icons": "workspace:*"
@@ -381,23 +398,6 @@ __metadata:
     typescript: "npm:^5.3.3"
     webpack: "npm:^5.90.1"
     webpack-cli: "npm:^5.1.4"
-  languageName: unknown
-  linkType: soft
-
-"@rankwrangler/icons@workspace:*, @rankwrangler/icons@workspace:packages/icons":
-  version: 0.0.0-use.local
-  resolution: "@rankwrangler/icons@workspace:packages/icons"
-  dependencies:
-    "@biomejs/biome": "npm:^2.2.2"
-    sharp: "npm:^0.33.5"
-  languageName: unknown
-  linkType: soft
-
-"@rankwrangler/safari-app@workspace:safari-app":
-  version: 0.0.0-use.local
-  resolution: "@rankwrangler/safari-app@workspace:safari-app"
-  dependencies:
-    "@biomejs/biome": "npm:^2.2.2"
   languageName: unknown
   linkType: soft
 

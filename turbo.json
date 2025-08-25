@@ -7,20 +7,20 @@
     "@rankwrangler/icons#build": {
       "outputs": ["dist/**"]
     },
-    "@rankwrangler/extension#build": {
+    "@rankwrangler/web-extension#build": {
       "dependsOn": ["@rankwrangler/icons#build"],
       "outputs": ["dist/**"]
     },
-    "@rankwrangler/safari-app#build": {
-      "dependsOn": ["@rankwrangler/extension#build"],
+    "@rankwrangler/safari-extension#build": {
+      "dependsOn": ["@rankwrangler/web-extension#build"],
       "outputs": ["**/Resources/**"]
     },
     "clean": {
       "cache": false,
       "outputs": ["dist/**"],
       "dependsOn": [
-        "@rankwrangler/extension#clean",
-        "@rankwrangler/safari-app#clean",
+        "@rankwrangler/web-extension#clean",
+        "@rankwrangler/safari-extension#clean",
         "@rankwrangler/icons#clean"
       ]
     },
@@ -28,11 +28,11 @@
       "cache": false,
       "outputs": ["dist/**", ".turbo/**"]
     },
-    "@rankwrangler/extension#clean": {
+    "@rankwrangler/web-extension#clean": {
       "cache": false,
       "outputs": ["dist/**", ".turbo/**"]
     },
-    "@rankwrangler/safari-app#clean": {
+    "@rankwrangler/safari-extension#clean": {
       "cache": false,
       "outputs": ["**/Resources/**", "build/**", "DerivedData/**", ".turbo/**"]
     },

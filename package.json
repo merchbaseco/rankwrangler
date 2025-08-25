@@ -3,13 +3,12 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "extension",
-    "safari-app",
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "clean": "rm -rf ./dist",
-    "uninstall": "cd safari-app && node ../scripts/uninstall.js",
+    "uninstall": "cd apps/safari-extension && node ../../scripts/uninstall.js",
     "lint": "biome check .",
     "format": "biome check --write ."
   },

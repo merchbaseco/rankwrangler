@@ -26,10 +26,10 @@ console.log('🏗  Building RankWrangler...\n');
 
 // Build the web extension using turbo (this will also build icons)
 console.log('📦 Building web extension...');
-execSync('turbo run build --filter=@rankwrangler/extension', { stdio: 'inherit' });
+execSync('turbo run build --filter=@rankwrangler/web-extension', { stdio: 'inherit' });
 
-const RESOURCES_DIR = join(workspaceRoot, 'safari-app/Shared (Extension)/Resources');
-const EXTENSION_DIST = join(workspaceRoot, 'extension/dist');
+const RESOURCES_DIR = join(workspaceRoot, 'apps/safari-extension/Shared (Extension)/Resources');
+const EXTENSION_DIST = join(workspaceRoot, 'packages/web-extension/dist');
 const ICONS_DIST = join(workspaceRoot, 'packages/icons/dist');
 
 console.log('\n📋 Copying extension to Safari...');
@@ -48,7 +48,7 @@ console.log('\n🚀 Building Safari app...');
 try {
     execSync('xcodebuild -project rankwrangler.xcodeproj -scheme "rankwrangler (macOS)" build', {
         stdio: 'inherit',
-        cwd: join(workspaceRoot, 'safari-app'),
+        cwd: join(workspaceRoot, 'apps/safari-extension'),
     });
 } catch (_error) {
     console.error('\n❌ Failed to build Safari app!');

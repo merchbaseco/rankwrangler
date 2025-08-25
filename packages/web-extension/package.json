@@ -1,5 +1,5 @@
 {
-  "name": "@rankwrangler/extension",
+  "name": "@rankwrangler/web-extension",
   "version": "1.0.0",
   "private": true,
   "type": "module",
