@@ -8,8 +8,9 @@
   ],
   "scripts": {
     "build:server": "turbo build --filter=@rankwrangler/server",
-    "build:safari": "turbo build --filter=@rankwrangler/safari-extension",
     "deploy:server": "turbo deploy --filter=@rankwrangler/server",
+    "build:safari": "turbo build --filter=@rankwrangler/safari-extension",
+    "cli": "yarn --cwd apps/cli dev",
     "clean": "rm -rf ./dist",
     "uninstall": "cd apps/safari-extension && node ../../scripts/uninstall.js",
     "lint": "biome check .",
