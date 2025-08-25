@@ -7,7 +7,7 @@ import * as schema from './schema.js';
 const queryClient = postgres({
   host: env.DATABASE_HOST || 'postgres',
   port: env.DATABASE_PORT || 5432,
-  database: env.DATABASE_NAME || 'licenses',
+  database: env.DATABASE_NAME || 'rankwrangler',
   username: env.DATABASE_USER || 'rankwrangler',
   password: env.DATABASE_PASSWORD || 'SecurePass123',
   max: 5,

@@ -23,11 +23,26 @@ RankWrangler Server is a Docker-deployable Node.js service that provides Amazon 
 - `yarn start` - Start the production server (requires build first)
 - `yarn type-check` - Run TypeScript type checking without emitting files
 - `yarn deploy` - Deploy server (runs through turborepo)
+- `yarn deploy:stack` - Deploy complete stack (Caddy + PostgreSQL + Server)
+- `yarn deploy:stack --fresh` - Fresh stack deployment (wipes database)
 
 ## Architecture
 
+### Stack Architecture
+Self-contained Docker stack with automatic SSL and database persistence:
+
+```
+Server-level Caddy (ports 80/443) 
+    ↓ automatic SSL termination
+Stack Caddy (port 8090) ← → PostgreSQL (persistent data)
+    ↓ internal routing
+RankWrangler Server (port 8080)
+```
+
 ### Core Structure
 - **Framework**: Fastify web server with TypeScript
+- **Reverse Proxy**: Caddy with automatic HTTPS and health checks
+- **Database**: PostgreSQL with Drizzle ORM migrations
 - **Build Tool**: Vite configured for Node.js library builds with ES modules
 - **Environment**: Type-safe environment variables using @t3-oss/env-core and Zod
 - **Path Aliases**: Uses `@/` prefix for `src/` directory imports
@@ -47,7 +62,7 @@ RankWrangler Server is a Docker-deployable Node.js service that provides Amazon 
 - **Health check**: `GET /api/health` returns service status (note: under /api prefix)
 - Built-in CORS for merchbase.co, localhost:3000, and localhost:5173
 - Error handling with structured JSON responses
-- All API endpoints use `/api/*` prefix for consistent routing through Nginx
+- All API endpoints use `/api/*` prefix for consistent routing through Caddy
 
 ### SP-API Integration
 - Searches Amazon catalog with pagination (max 5 pages, 20 items per page)
@@ -84,11 +99,27 @@ Required for SP-API access:
 
 ## Deployment
 
-### Production Deployment
-Uses Docker deployment to Hetzner server (5.161.181.165) with:
-- Container port 8081 mapped through Nginx Proxy Manager  
-- Production environment variables in `.env.production`
-- Management scripts: `./deploy.sh`, `./commands.sh` for logs/status/restart
+### Stack Deployment (Recommended)
+Complete Docker stack with Caddy, PostgreSQL, and server:
+```bash
+# Deploy stack (preserves database)
+yarn deploy:stack
+
+# Fresh deployment (interactive, wipes database)
+./scripts/deploy-stack.sh --fresh
+```
+
+Stack includes:
+- **Caddy**: Internal reverse proxy on port 8090
+- **PostgreSQL**: Persistent database with automatic migrations
+- **Server**: RankWrangler API service
+- **Networks**: Internal communication + external webserver network
+
+### Server-Only Deployment
+For quick updates without touching proxy/database:
+```bash
+yarn deploy:server
+```
 
 ### Deployment Process
 1. **Turborepo integration**: Deploy script copies `yarn.lock` and `.yarnrc.yml` from turborepo root before Docker build
@@ -103,7 +134,8 @@ Uses Docker deployment to Hetzner server (5.161.181.165) with:
 ### Available Endpoints (Production)
 - **Health**: `https://merchbase.co/api/health`
 - **Search**: `https://merchbase.co/api/searchCatalog` (POST with JSON body: `{"keywords": ["search", "terms"]}`)
-- **Direct server access**: `http://5.161.181.165:8081/api/*` (if needed for debugging)
+- **Direct stack access**: `http://5.161.181.165:8090/api/*` (for debugging)
+- **Management**: `https://portainer.merchbase.co` (Portainer UI)
 
 ## Build Configuration
 
@@ -120,17 +152,25 @@ Uses Docker deployment to Hetzner server (5.161.181.165) with:
 - Deploy script copies yarn configuration from turborepo root for Docker builds
 - Server directory should NOT have its own `node_modules` or `yarn.lock` (conflicts with turborepo)
 
-### Docker Networking
-- **MUST** be connected to `webserver` network for Nginx Proxy Manager communication
-- Production docker-compose.yml includes both `default` and `webserver` networks
-- Container runs on internal port 8080, exposed as 8081 externally
+### Docker Stack Configuration
+- **Stack network**: Internal communication between Caddy, PostgreSQL, and server
+- **Webserver network**: External communication with server-level Caddy
+- **Volumes**: Persistent PostgreSQL data and Caddy certificates
+- **Health checks**: All services monitored with automatic restarts
 
-## Nginx Configuration
+## Proxy Configuration
 
-### Proxy Setup
-- All `/api/*` requests from merchbase.co are routed to `rankwrangler-server:8080`
-- No URL rewriting needed - endpoints already use `/api/*` prefix
-- Nginx location block: `location /api/` forwards to container on webserver network
+### Server-Level Caddy
+Located at `~/caddy-proxy/` on server:
+- **Automatic SSL**: Let's Encrypt certificates for merchbase.co domains
+- **Domain routing**: Routes `/api/*` to stack Caddy on port 8090
+- **Portainer access**: `portainer.merchbase.co` → Portainer container
+
+### Stack Caddy  
+Located at `~/rankwrangler-stack/Caddyfile`:
+- **Internal routing**: Routes `/api/*` to server on port 8080
+- **Health endpoints**: `/caddy-health`, `/nginx-health` (legacy)
+- **Rate limiting**: Built-in request throttling
 
 ## Data Architecture
 
