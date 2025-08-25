@@ -16,7 +16,6 @@
     "@rankwrangler/server#build": {
       "outputs": ["dist/**"]
     },
-    "@rankwrangler/server#type-check": {},
     "@rankwrangler/server#start": {
       "dependsOn": ["@rankwrangler/server#build"]
     },

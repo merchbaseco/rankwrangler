@@ -7,7 +7,6 @@
   "scripts": {
     "build": "vite build",
     "start": "dotenv -e .env node dist/index.js",
-    "type-check": "tsc --noEmit",
     "deploy": "./scripts/deploy.sh",
     "logs": "./scripts/commands.sh logs",
     "status": "./scripts/commands.sh status",
