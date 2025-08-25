@@ -57,7 +57,7 @@ async function generateSafariAppIcons() {
     const sourceIcon = join(rootDir, 'src/icon.svg');
     const safariIconsDir = join(
         rootDir,
-        '../../safari-app/Shared (App)/Assets.xcassets/AppIcon.appiconset'
+        '../../apps/safari-extension/Shared (App)/Assets.xcassets/AppIcon.appiconset'
     );
 
     try {
