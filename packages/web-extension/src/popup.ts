@@ -95,7 +95,7 @@ async function updateLicenseStatus() {
         const stored = await chrome.storage.sync.get(['licenseKey']);
 
         if (!stored.licenseKey) {
-            licenseStatus.textContent = 'No license key configured';
+            licenseStatus.textContent = 'No license key configured!';
             licenseStatus.className = 'license-status invalid';
             return;
         }
