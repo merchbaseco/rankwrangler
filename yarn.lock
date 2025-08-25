@@ -866,8 +866,6 @@ __metadata:
     react: "npm:^19.1.0"
     tsx: "npm:^4.7.0"
     typescript: "npm:^5.3.3"
-  bin:
-    rankwrangler-admin: ./bin/cli.js
   languageName: unknown
   linkType: soft
 
