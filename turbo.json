@@ -1,9 +1,10 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "globalEnv": [],
   "globalDependencies": ["**/.env"],
   "tasks": {
-    "build": {},
+    "build": {
+      "dependsOn": ["^build"]
+    },
     "@rankwrangler/icons#build": {
       "outputs": ["dist/**"]
     },
@@ -16,38 +17,9 @@
       "outputs": ["**/Resources/**"]
     },
     "clean": {
-      "cache": false,
-      "outputs": ["dist/**"],
-      "dependsOn": [
-        "@rankwrangler/web-extension#clean",
-        "@rankwrangler/safari-extension#clean",
-        "@rankwrangler/icons#clean"
-      ]
-    },
-    "@rankwrangler/icons#clean": {
-      "cache": false,
-      "outputs": ["dist/**", ".turbo/**"]
-    },
-    "@rankwrangler/web-extension#clean": {
-      "cache": false,
-      "outputs": ["dist/**", ".turbo/**"]
-    },
-    "@rankwrangler/safari-extension#clean": {
-      "cache": false,
-      "outputs": ["**/Resources/**", "build/**", "DerivedData/**", ".turbo/**"]
-    },
-    "uninstall": {
       "cache": false
     },
-    "dev": {
-      "cache": false,
-      "persistent": true
-    },
-    "lint": {
-      "outputs": []
-    },
-    "format": {
-      "outputs": []
-    }
+    "lint": {},
+    "format": {}
   }
 }
