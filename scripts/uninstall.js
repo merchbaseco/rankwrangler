@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { rm, readdir, readFile } from 'fs/promises';
-import { homedir } from 'os';
-import { join } from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import { readdir, readFile, rm } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 async function inspectExtensionResources(derivedDataPath) {
     if (!derivedDataPath) return;
@@ -38,7 +38,7 @@ async function findDerivedDataPath() {
         if (rankwranglerDir) {
             return join(derivedDataBase, rankwranglerDir, 'Build/Products/Debug');
         }
-    } catch (error) {
+    } catch (_error) {
         console.log('⚠️  Could not find DerivedData directory');
     }
     return null;
@@ -81,7 +81,7 @@ async function uninstall() {
     try {
         execSync('killall "rankwrangler" 2>/dev/null || true');
         console.log('✅ Killed any running instances');
-    } catch (error) {
+    } catch (_error) {
         // Ignore errors if no processes were found
     }
 
@@ -94,7 +94,7 @@ async function uninstall() {
             }
         );
         console.log('✅ Cleaned Xcode build state');
-    } catch (error) {
+    } catch (_error) {
         console.error('❌ Error cleaning Xcode build state');
     }
 

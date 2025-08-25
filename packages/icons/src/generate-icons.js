@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { mkdirSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { mkdirSync, copyFileSync } from 'fs';
-import { writeFile } from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

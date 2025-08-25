@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
-import { rmSync, cpSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { execSync } from 'node:child_process';
+import { cpSync, mkdirSync, rmSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Get the workspace root directory
 const __filename = fileURLToPath(import.meta.url);
@@ -13,7 +13,7 @@ const workspaceRoot = join(__dirname, '..');
 // Check if Xcode is properly set up
 try {
     execSync('xcode-select -p', { stdio: 'pipe' });
-} catch (error) {
+} catch (_error) {
     console.error('\n❌ Xcode not properly configured!');
     console.error('Please run these commands:');
     console.error('1. Install Xcode from the App Store if not already installed');
@@ -50,7 +50,7 @@ try {
         stdio: 'inherit',
         cwd: join(workspaceRoot, 'safari-app'),
     });
-} catch (error) {
+} catch (_error) {
     console.error('\n❌ Failed to build Safari app!');
     console.error('Make sure Xcode is properly configured:');
     console.error('1. Open Xcode and accept the license agreement');

@@ -93,7 +93,7 @@ async function updateLicenseStatus() {
 
     try {
         const stored = await chrome.storage.sync.get(['licenseKey']);
-        
+
         if (!stored.licenseKey) {
             licenseStatus.textContent = 'No license key configured';
             licenseStatus.className = 'license-status invalid';
@@ -106,7 +106,7 @@ async function updateLicenseStatus() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ licenseKey: stored.licenseKey })
+            body: JSON.stringify({ licenseKey: stored.licenseKey }),
         });
 
         const result = await response.json();
@@ -119,7 +119,7 @@ async function updateLicenseStatus() {
             licenseStatus.textContent = result.error || 'Invalid license key';
             licenseStatus.className = 'license-status invalid';
         }
-    } catch (error) {
+    } catch (_error) {
         licenseStatus.textContent = 'Unable to check license status';
         licenseStatus.className = 'license-status invalid';
     }
@@ -137,8 +137,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (settingsButton && settingsSection) {
         settingsButton.addEventListener('click', () => {
             settingsSection.classList.toggle('expanded');
-            settingsButton.textContent = settingsSection.classList.contains('expanded') 
-                ? 'Hide License Settings' 
+            settingsButton.textContent = settingsSection.classList.contains('expanded')
+                ? 'Hide License Settings'
                 : 'License Settings';
         });
     }
@@ -237,7 +237,10 @@ async function loadLicenseSettings() {
     }
 }
 
-async function validateLicenseKey(licenseKey: string, showLoading: boolean = true): Promise<boolean> {
+async function validateLicenseKey(
+    licenseKey: string,
+    showLoading: boolean = true
+): Promise<boolean> {
     const validateButton = document.getElementById('validateLicense') as HTMLButtonElement;
     const licenseInfoDiv = document.getElementById('licenseInfo');
 
@@ -253,47 +256,47 @@ async function validateLicenseKey(licenseKey: string, showLoading: boolean = tru
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ licenseKey })
+            body: JSON.stringify({ licenseKey }),
         });
 
         const result = await response.json();
 
         if (result.success && result.data) {
             const license = result.data;
-            
+
             // Show license information
             const emailEl = document.getElementById('licenseEmail');
             const usageEl = document.getElementById('licenseUsage');
             const expiresEl = document.getElementById('licenseExpires');
-            
+
             if (emailEl) emailEl.textContent = license.email;
             if (usageEl) usageEl.textContent = `${license.usageToday}/${license.dailyLimit}`;
             if (expiresEl) expiresEl.textContent = new Date(license.expiresAt).toLocaleDateString();
-            
+
             if (licenseInfoDiv) licenseInfoDiv.style.display = 'block';
-            
+
             if (showLoading) {
                 showStatusMessage('License is valid and active!', 'success');
             }
-            
+
             return true;
         } else {
             if (licenseInfoDiv) licenseInfoDiv.style.display = 'none';
-            
+
             if (showLoading) {
                 showStatusMessage(result.error || 'Invalid license key', 'error');
             }
-            
+
             return false;
         }
     } catch (error) {
         console.error('Error validating license:', error);
         if (licenseInfoDiv) licenseInfoDiv.style.display = 'none';
-        
+
         if (showLoading) {
             showStatusMessage('Failed to validate license key', 'error');
         }
-        
+
         return false;
     } finally {
         if (showLoading && validateButton) {
