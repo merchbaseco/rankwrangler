@@ -8,6 +8,7 @@
     "build": "vite build",
     "start": "dotenv -e .env node dist/index.js",
     "deploy": "./scripts/deploy.sh",
+    "deploy:stack": "./scripts/deploy-stack.sh",
     "logs": "./scripts/commands.sh logs",
     "status": "./scripts/commands.sh status",
     "restart": "./scripts/commands.sh restart",
