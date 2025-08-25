@@ -29,15 +29,17 @@ RankWrangler Server is a Docker-deployable Node.js service that provides Amazon 
 ## Architecture
 
 ### Stack Architecture
-Self-contained Docker stack with automatic SSL and database persistence:
+Self-contained Docker stack with external server-level reverse proxy:
 
 ```
-Server-level Caddy (ports 80/443) 
-    ↓ automatic SSL termination
+External Server-level Caddy (managed separately)
+    ↓ routes merchbase.co/api/* to port 8090
 Stack Caddy (port 8090) ← → PostgreSQL (persistent data)
     ↓ internal routing
 RankWrangler Server (port 8080)
 ```
+
+**Note**: Server-level Caddy configuration is now managed in the separate `server-config` repository.
 
 ### Core Structure
 - **Framework**: Fastify web server with TypeScript

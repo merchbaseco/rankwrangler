@@ -33,5 +33,5 @@ yarn-error.log*
 # Safari Extension
 build/
 DerivedData/
-/safari-app/Shared (Extension)/Resources
-/safari-app/Shared (App)/Assets.xcassets
+/apps/safari-extension/Shared (Extension)/Resources
+/apps/safari-extension/Shared (App)/Assets.xcassets
