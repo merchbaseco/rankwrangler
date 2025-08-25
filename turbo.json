@@ -2,9 +2,6 @@
   "$schema": "https://turborepo.org/schema.json",
   "globalDependencies": ["**/.env"],
   "tasks": {
-    "build": {
-      "dependsOn": ["^build"]
-    },
     "@rankwrangler/icons#build": {
       "outputs": ["dist/**"]
     },
@@ -15,6 +12,16 @@
     "@rankwrangler/safari-extension#build": {
       "dependsOn": ["@rankwrangler/web-extension#build"],
       "outputs": ["**/Resources/**"]
+    },
+    "@rankwrangler/server#build": {
+      "outputs": ["dist/**"]
+    },
+    "@rankwrangler/server#type-check": {},
+    "@rankwrangler/server#start": {
+      "dependsOn": ["@rankwrangler/server#build"]
+    },
+    "@rankwrangler/server#deploy": {
+      "dependsOn": ["@rankwrangler/server#build"]
     },
     "clean": {
       "cache": false

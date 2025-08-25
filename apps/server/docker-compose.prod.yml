@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  rankwrangler-server:
+    image: rankwrangler-server:latest
+    container_name: rankwrangler-server
+    restart: always
+    ports:
+      - "8081:8080"  # Using 8081 to avoid conflict with nginx-proxy-manager
+    env_file:
+      - .env
+    networks:
+      - default
+      - webserver
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"  # Disable auto-updates by watchtower
+    healthcheck:
+      test: ["CMD", "node", "-e", "http.get('http://localhost:8080/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  webserver:
+    external: true
