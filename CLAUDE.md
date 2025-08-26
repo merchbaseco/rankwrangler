@@ -191,3 +191,4 @@ When migrating the CLI:
 - Version packages independently with changesets
 - Automated dependency updates between packages
 - We never use yarn workspace. We always use turborepo features instead.
+- USE YARN

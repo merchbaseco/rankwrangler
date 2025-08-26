@@ -16,6 +16,15 @@
       "matches": ["https://www.amazon.com/s*"],
       "js": ["content.js"],
       "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://www.amazon.com/dp/*",
+        "https://www.amazon.com/*/dp/*",
+        "https://www.amazon.com/gp/product/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
     }
   ]
 }
