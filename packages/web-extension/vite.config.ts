@@ -1,8 +1,13 @@
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import path from 'node:path';
 
 export default defineConfig({
+  base: './',
+  resolve: {
+    alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }]
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -14,9 +19,8 @@ export default defineConfig({
     },
     rollupOptions: {
       input: {
-        content: path.resolve(__dirname, 'src/content.ts'),
-        background: path.resolve(__dirname, 'src/background.ts'),
-        popup: path.resolve(__dirname, 'src/popup.ts'),
+        background: path.resolve(__dirname, 'src/scripts/service-worker/service-worker.ts'),
+        popup: path.resolve(__dirname, 'src/scripts/popup/index.tsx'),
       },
       output: {
         entryFileNames: '[name].js',
@@ -24,10 +28,11 @@ export default defineConfig({
     },
   },
   plugins: [
+    react(),
     viteStaticCopy({
       targets: [
         {
-          src: 'src/popup.html',
+          src: 'src/scripts/popup/popup.html',
           dest: '.',
         },
         {
