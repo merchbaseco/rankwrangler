@@ -28,10 +28,5 @@
       "run_at": "document_end"
     }
   ],
-  "web_accessible_resources": [
-    {
-      "matches": ["https://*/*", "http://*/*"],
-      "resources": ["popup.js", "background.js"]
-    }
-  ]
+  "web_accessible_resources": ["assets/logo.png"]
 }

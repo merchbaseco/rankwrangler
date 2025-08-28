@@ -44,6 +44,10 @@ export default defineConfig(async () => ({
                     src: 'manifest.json',
                     dest: '.',
                 },
+                {
+                    src: '../../assets/logo.png',
+                    dest: 'images',
+                },
             ],
         }),
         {

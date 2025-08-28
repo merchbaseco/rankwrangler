@@ -3,8 +3,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { useBSRCache } from "../hooks/useBSRCache";
 import { useProductInfo } from "../hooks/useProductInfo";
 import { useProductObserver } from "../hooks/useProductObserver";
-import { BSRDisplay } from "./BSRDisplay";
-import { LoadingIndicator } from "./LoadingIndicator";
+import { BSRDisplay } from "./bsr-display";
+import { LoadingIndicator } from "./loading-indicator";
 
 interface ProductInfoWrapperProps {
 	asin: string;
