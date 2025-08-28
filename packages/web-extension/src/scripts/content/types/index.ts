@@ -75,6 +75,25 @@ export interface BackgroundPingMessage {
   type: 'background-ping';
 }
 
+// License management messages
+export interface ValidateLicenseMessage {
+  type: 'validateLicense';
+  licenseKey?: string;
+}
+
+export interface SetLicenseMessage {
+  type: 'setLicense';
+  licenseKey: string;
+}
+
+export interface RemoveLicenseMessage {
+  type: 'removeLicense';
+}
+
+export interface GetLicenseStatusMessage {
+  type: 'getLicenseStatus';
+}
+
 export type BackgroundMessage =
   | GetStatsMessage
   | ResetStatsMessage
@@ -82,7 +101,11 @@ export type BackgroundMessage =
   | FetchProductInfoMessage
   | QueueUpdateMessage
   | PingMessage
-  | BackgroundPingMessage;
+  | BackgroundPingMessage
+  | ValidateLicenseMessage
+  | SetLicenseMessage
+  | RemoveLicenseMessage
+  | GetLicenseStatusMessage;
 
 // API response types
 export interface ProductInfoResponse {
@@ -94,6 +117,35 @@ export interface ProductInfoResponse {
 export interface StatsResponse {
   stats?: Stats;
   queueCount?: number;
+}
+
+// License status and response types
+export interface LicenseData {
+  email: string;
+  expiresAt: string; // ISO date string
+  usageToday: number;
+  dailyLimit: number;
+}
+
+export interface LicenseStatus {
+  isValid: boolean;
+  licenseKey: string | null;
+  lastValidated?: number;
+  error?: string;
+  licenseData?: LicenseData;
+}
+
+export interface LicenseResponse {
+  success: boolean;
+  status?: LicenseStatus;
+  error?: string;
+}
+
+export interface ValidationResponse {
+  success: boolean;
+  valid: boolean;
+  error?: string;
+  data?: LicenseData;
 }
 
 // Component props types

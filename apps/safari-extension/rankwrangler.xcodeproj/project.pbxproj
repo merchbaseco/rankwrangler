@@ -7,18 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D5B24FE62D554A9800209EF5 /* rankwrangler Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D5B24FE52D554A9800209EF5 /* rankwrangler Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D5B24FF02D554A9800209EF5 /* rankwrangler Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D5B24FEF2D554A9800209EF5 /* rankwrangler Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		D5B24FE72D554A9800209EF5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D5B24FAB2D554A9700209EF5 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = D5B24FE42D554A9800209EF5;
-			remoteInfo = "rankwrangler Extension (iOS)";
-		};
 		D5B24FF12D554A9800209EF5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = D5B24FAB2D554A9700209EF5 /* Project object */;
@@ -29,17 +21,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		D5B250192D554A9800209EF5 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				D5B24FE62D554A9800209EF5 /* rankwrangler Extension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		D5B250232D554A9800209EF5 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -54,39 +35,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		D5B24FC72D554A9800209EF5 /* rankwrangler.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rankwrangler.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5B24FD92D554A9800209EF5 /* rankwrangler.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = rankwrangler.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		D5B24FE52D554A9800209EF5 /* rankwrangler Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "rankwrangler Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5B24FEF2D554A9800209EF5 /* rankwrangler Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "rankwrangler Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		D5B250142D554A9800209EF5 /* Exceptions for "Shared (App)" folder in "rankwrangler (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"/Localized: Resources/Main.html",
-				Assets.xcassets,
-				Resources/Icon.png,
-				Resources/Script.js,
-				Resources/Style.css,
-				ViewController.swift,
-			);
-			target = D5B24FC62D554A9800209EF5 /* rankwrangler (iOS) */;
-		};
-		D5B250182D554A9800209EF5 /* Exceptions for "iOS (Extension)" folder in "rankwrangler Extension (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = D5B24FE42D554A9800209EF5 /* rankwrangler Extension (iOS) */;
-		};
-		D5B2501D2D554A9800209EF5 /* Exceptions for "iOS (App)" folder in "rankwrangler (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = D5B24FC62D554A9800209EF5 /* rankwrangler (iOS) */;
-		};
 		D5B2501E2D554A9800209EF5 /* Exceptions for "Shared (App)" folder in "rankwrangler (macOS)" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -105,19 +58,6 @@
 				Info.plist,
 			);
 			target = D5B24FEE2D554A9800209EF5 /* rankwrangler Extension (macOS) */;
-		};
-		D5B250272D554A9800209EF5 /* Exceptions for "Shared (Extension)" folder in "rankwrangler Extension (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Resources/background.js,
-				Resources/content.js,
-				Resources/images,
-				Resources/manifest.json,
-				Resources/popup.html,
-				Resources/popup.js,
-				SafariWebExtensionHandler.swift,
-			);
-			target = D5B24FE42D554A9800209EF5 /* rankwrangler Extension (iOS) */;
 		};
 		D5B250282D554A9800209EF5 /* Exceptions for "Shared (Extension)" folder in "rankwrangler Extension (macOS)" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -138,7 +78,6 @@
 		D5B24FAF2D554A9700209EF5 /* Shared (App) */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				D5B250142D554A9800209EF5 /* Exceptions for "Shared (App)" folder in "rankwrangler (iOS)" target */,
 				D5B2501E2D554A9800209EF5 /* Exceptions for "Shared (App)" folder in "rankwrangler (macOS)" target */,
 			);
 			path = "Shared (App)";
@@ -147,7 +86,6 @@
 		D5B24FB82D554A9800209EF5 /* Shared (Extension) */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				D5B250272D554A9800209EF5 /* Exceptions for "Shared (Extension)" folder in "rankwrangler Extension (iOS)" target */,
 				D5B250282D554A9800209EF5 /* Exceptions for "Shared (Extension)" folder in "rankwrangler Extension (macOS)" target */,
 			);
 			explicitFolders = (
@@ -158,9 +96,6 @@
 		};
 		D5B24FC92D554A9800209EF5 /* iOS (App) */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				D5B2501D2D554A9800209EF5 /* Exceptions for "iOS (App)" folder in "rankwrangler (iOS)" target */,
-			);
 			path = "iOS (App)";
 			sourceTree = "<group>";
 		};
@@ -171,9 +106,6 @@
 		};
 		D5B24FE92D554A9800209EF5 /* iOS (Extension) */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				D5B250182D554A9800209EF5 /* Exceptions for "iOS (Extension)" folder in "rankwrangler Extension (iOS)" target */,
-			);
 			path = "iOS (Extension)";
 			sourceTree = "<group>";
 		};
@@ -188,21 +120,7 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		D5B24FC42D554A9800209EF5 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		D5B24FD62D554A9800209EF5 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D5B24FE22D554A9800209EF5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -235,9 +153,7 @@
 		D5B24FC82D554A9800209EF5 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				D5B24FC72D554A9800209EF5 /* rankwrangler.app */,
 				D5B24FD92D554A9800209EF5 /* rankwrangler.app */,
-				D5B24FE52D554A9800209EF5 /* rankwrangler Extension.appex */,
 				D5B24FEF2D554A9800209EF5 /* rankwrangler Extension.appex */,
 			);
 			name = Products;
@@ -246,30 +162,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		D5B24FC62D554A9800209EF5 /* rankwrangler (iOS) */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D5B2501A2D554A9800209EF5 /* Build configuration list for PBXNativeTarget "rankwrangler (iOS)" */;
-			buildPhases = (
-				D5B24FC32D554A9800209EF5 /* Sources */,
-				D5B24FC42D554A9800209EF5 /* Frameworks */,
-				D5B24FC52D554A9800209EF5 /* Resources */,
-				D5B250192D554A9800209EF5 /* Embed Foundation Extensions */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				D5B24FE82D554A9800209EF5 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				D5B24FC92D554A9800209EF5 /* iOS (App) */,
-			);
-			name = "rankwrangler (iOS)";
-			packageProductDependencies = (
-			);
-			productName = "rankwrangler (iOS)";
-			productReference = D5B24FC72D554A9800209EF5 /* rankwrangler.app */;
-			productType = "com.apple.product-type.application";
-		};
 		D5B24FD82D554A9800209EF5 /* rankwrangler (macOS) */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D5B250242D554A9800209EF5 /* Build configuration list for PBXNativeTarget "rankwrangler (macOS)" */;
@@ -293,28 +185,6 @@
 			productName = "rankwrangler (macOS)";
 			productReference = D5B24FD92D554A9800209EF5 /* rankwrangler.app */;
 			productType = "com.apple.product-type.application";
-		};
-		D5B24FE42D554A9800209EF5 /* rankwrangler Extension (iOS) */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D5B250152D554A9800209EF5 /* Build configuration list for PBXNativeTarget "rankwrangler Extension (iOS)" */;
-			buildPhases = (
-				D5B24FE12D554A9800209EF5 /* Sources */,
-				D5B24FE22D554A9800209EF5 /* Frameworks */,
-				D5B24FE32D554A9800209EF5 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				D5B24FE92D554A9800209EF5 /* iOS (Extension) */,
-			);
-			name = "rankwrangler Extension (iOS)";
-			packageProductDependencies = (
-			);
-			productName = "rankwrangler Extension (iOS)";
-			productReference = D5B24FE52D554A9800209EF5 /* rankwrangler Extension.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 		D5B24FEE2D554A9800209EF5 /* rankwrangler Extension (macOS) */ = {
 			isa = PBXNativeTarget;
@@ -348,13 +218,7 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1620;
 				TargetAttributes = {
-					D5B24FC62D554A9800209EF5 = {
-						CreatedOnToolsVersion = 16.2;
-					};
 					D5B24FD82D554A9800209EF5 = {
-						CreatedOnToolsVersion = 16.2;
-					};
-					D5B24FE42D554A9800209EF5 = {
 						CreatedOnToolsVersion = 16.2;
 					};
 					D5B24FEE2D554A9800209EF5 = {
@@ -376,30 +240,14 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D5B24FC62D554A9800209EF5 /* rankwrangler (iOS) */,
 				D5B24FD82D554A9800209EF5 /* rankwrangler (macOS) */,
-				D5B24FE42D554A9800209EF5 /* rankwrangler Extension (iOS) */,
 				D5B24FEE2D554A9800209EF5 /* rankwrangler Extension (macOS) */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		D5B24FC52D554A9800209EF5 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		D5B24FD72D554A9800209EF5 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D5B24FE32D554A9800209EF5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -416,21 +264,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		D5B24FC32D554A9800209EF5 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		D5B24FD52D554A9800209EF5 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D5B24FE12D554A9800209EF5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -447,11 +281,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		D5B24FE82D554A9800209EF5 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = D5B24FE42D554A9800209EF5 /* rankwrangler Extension (iOS) */;
-			targetProxy = D5B24FE72D554A9800209EF5 /* PBXContainerItemProxy */;
-		};
 		D5B24FF22D554A9800209EF5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = D5B24FEE2D554A9800209EF5 /* rankwrangler Extension (macOS) */;
@@ -460,144 +289,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		D5B250162D554A9800209EF5 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XJ8RZZT99R;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "rankwrangler Extension";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = merchbase.rankwrangler.Extension;
-				PRODUCT_NAME = "rankwrangler Extension";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		D5B250172D554A9800209EF5 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XJ8RZZT99R;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "rankwrangler Extension";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = merchbase.rankwrangler.Extension;
-				PRODUCT_NAME = "rankwrangler Extension";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		D5B2501B2D554A9800209EF5 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XJ8RZZT99R;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (App)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = rankwrangler;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-					"-framework",
-					WebKit,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = merchbase.rankwrangler;
-				PRODUCT_NAME = rankwrangler;
-				SDKROOT = iphoneos;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		D5B2501C2D554A9800209EF5 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = XJ8RZZT99R;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (App)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = rankwrangler;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-					"-framework",
-					WebKit,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = merchbase.rankwrangler;
-				PRODUCT_NAME = rankwrangler;
-				SDKROOT = iphoneos;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
 		D5B250202D554A9800209EF5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -852,24 +543,6 @@
 			buildConfigurations = (
 				D5B250292D554A9800209EF5 /* Debug */,
 				D5B2502A2D554A9800209EF5 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		D5B250152D554A9800209EF5 /* Build configuration list for PBXNativeTarget "rankwrangler Extension (iOS)" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D5B250162D554A9800209EF5 /* Debug */,
-				D5B250172D554A9800209EF5 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		D5B2501A2D554A9800209EF5 /* Build configuration list for PBXNativeTarget "rankwrangler (iOS)" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D5B2501B2D554A9800209EF5 /* Debug */,
-				D5B2501C2D554A9800209EF5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

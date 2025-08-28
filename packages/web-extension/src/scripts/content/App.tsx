@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ProductEnhancer } from './components/ProductEnhancer';
+import { ProductEnhancer } from './components/product-enhancer';
 
 const App = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
