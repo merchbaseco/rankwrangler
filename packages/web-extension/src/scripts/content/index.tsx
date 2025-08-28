@@ -1,4 +1,4 @@
-import React from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import styles from "@/styles/index.css?inline";
 import App from "./App";
@@ -31,12 +31,12 @@ const injectReact = (rootId: string): void => {
 		const root = createRoot(target!);
 
 		root.render(
-			<React.StrictMode>
+			<StrictMode>
 				<>
 					{isProduction && <style>{styles.toString()}</style>}
 					<App />
 				</>
-			</React.StrictMode>,
+			</StrictMode>,
 		);
 	} catch (error) {
 		console.error("Error Injecting React", error);

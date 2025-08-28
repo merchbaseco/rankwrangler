@@ -1,4 +1,4 @@
-import React from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@/styles/index.css";
 
@@ -14,7 +14,7 @@ const container = document.getElementById("onInstalled");
 const root = createRoot(container!);
 
 root.render(
-	<React.StrictMode>
+	<StrictMode>
 		<OnInstalled />
-	</React.StrictMode>,
+	</StrictMode>,
 );
