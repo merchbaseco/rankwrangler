@@ -10,8 +10,8 @@ const { name }: { name: string } = packageJson;
 
 console.info(' ---> Starting Content Script Build 🤞 <---');
 
-const config = defineConfig({
-    plugins: [react()],
+const config = defineConfig(async () => ({
+    plugins: [(await import('@tailwindcss/vite')).default(), react()],
 
     resolve: {
         alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
@@ -40,6 +40,6 @@ const config = defineConfig({
             },
         },
     } as BuildOptions,
-});
+}));
 
 export default config;
