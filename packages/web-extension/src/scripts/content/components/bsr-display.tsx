@@ -1,5 +1,4 @@
 import { useState } from "react";
-import type { BSRDisplayProps } from "../types";
 
 /**
  * BSR Display component showing rank, category, date, and ASIN
@@ -13,7 +12,15 @@ export function BSRDisplay({
 	isLoading = false,
 	error,
 	onCopyAsin,
-}: BSRDisplayProps) {
+}: {
+	asin: string;
+	rank: string;
+	category: string;
+	dateFirstAvailable: string;
+	isLoading?: boolean;
+	error?: string;
+	onCopyAsin?: (asin: string) => void;
+}) {
 	const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied">(
 		"idle",
 	);

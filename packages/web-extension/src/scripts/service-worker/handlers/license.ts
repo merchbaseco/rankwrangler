@@ -22,7 +22,7 @@ export class LicenseHandler {
   async handleValidateLicense(
     message: ValidateLicenseMessage,
     sendResponse: (response: ValidationResponse) => void
-  ): Promise<void> {
+  ) {
     try {
       let licenseKey = message.licenseKey;
       
@@ -99,7 +99,7 @@ export class LicenseHandler {
   async handleSetLicense(
     message: SetLicenseMessage,
     sendResponse: (response: LicenseResponse) => void
-  ): Promise<void> {
+  ) {
     try {
       const { licenseKey } = message;
       
@@ -139,7 +139,7 @@ export class LicenseHandler {
   async handleRemoveLicense(
     message: RemoveLicenseMessage,
     sendResponse: (response: LicenseResponse) => void
-  ): Promise<void> {
+  ) {
     try {
       // Remove from both sync and local storage
       await chrome.storage.sync.remove(['licenseKey']);
@@ -164,7 +164,7 @@ export class LicenseHandler {
   async handleGetLicenseStatus(
     message: GetLicenseStatusMessage,
     sendResponse: (response: LicenseResponse) => void
-  ): Promise<void> {
+  ) {
     try {
       const status = await this.getCurrentLicenseStatus();
       
@@ -182,7 +182,7 @@ export class LicenseHandler {
     }
   }
 
-  private async getCurrentLicenseStatus(): Promise<LicenseStatus> {
+  private async getCurrentLicenseStatus() {
     const syncResult = await chrome.storage.sync.get(['licenseKey']);
     const localResult = await chrome.storage.local.get(['licenseValidation']);
 
@@ -221,7 +221,7 @@ export class LicenseHandler {
   }
 
   // Get fresh license status from server
-  private async fetchFreshLicenseStatus(licenseKey: string): Promise<any> {
+  private async fetchFreshLicenseStatus(licenseKey: string) {
     try {
       const response = await fetch(`${this.API_BASE_URL}/license/status`, {
         method: 'GET',
@@ -241,7 +241,7 @@ export class LicenseHandler {
     }
   }
 
-  private async validateLicenseKey(licenseKey: string): Promise<void> {
+  private async validateLicenseKey(licenseKey: string) {
     try {
       const response = await fetch(`${this.API_BASE_URL}/license/validate`, {
         method: 'POST',
