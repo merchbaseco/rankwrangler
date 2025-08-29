@@ -2,11 +2,15 @@ import type {
   ProductInfoResponse,
   StatsResponse
 } from '../types';
-import { apiRateLimiter } from './rateLimiter';
+import { RateLimiter } from 'limiter';
 
 export class ApiService {
   private static instance: ApiService;
   private readonly defaultMarketplaceId = 'ATVPDKIKX0DER';
+  private readonly rateLimiter = new RateLimiter({
+    tokensPerInterval: 10,
+    interval: 'second'
+  });
 
   static getInstance(): ApiService {
     if (!ApiService.instance) {
@@ -28,7 +32,7 @@ export class ApiService {
     console.log(`[apiService] Starting fetchProductInfo for ASIN: ${asin}`);
     
     // Apply rate limiting
-    await apiRateLimiter.removeTokens(1);
+    await this.rateLimiter.removeTokens(1);
     console.log(`[apiService] Rate limiting passed for ASIN: ${asin}`);
 
     return new Promise((resolve) => {
@@ -156,17 +160,6 @@ export class ApiService {
     });
   }
 
-  /**
-   * Gets rate limiter status
-   * @returns Rate limiter information
-   */
-  getRateLimiterStatus() {
-    return {
-      availableTokens: apiRateLimiter.getAvailableTokens(),
-      waitTime: apiRateLimiter.getWaitTime(1),
-      hasTokens: apiRateLimiter.hasTokens(1),
-    };
-  }
 }
 
 // Export singleton instance for convenience
