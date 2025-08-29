@@ -35,10 +35,27 @@ export function useBSRCache() {
         };
 
         await chrome.storage.local.set({ [CACHE_KEY]: cache });
+        
+        // Update cache count for popup stats
+        const cacheCount = Object.keys(cache).length;
+        await chrome.storage.local.set({ 
+            bsrCacheCount: {
+                count: cacheCount,
+                timestamp: Date.now()
+            }
+        });
     }, []);
 
     const clearCache = useCallback(async (): Promise<void> => {
         await chrome.storage.local.set({ [CACHE_KEY]: {} });
+        
+        // Reset cache count
+        await chrome.storage.local.set({ 
+            bsrCacheCount: {
+                count: 0,
+                timestamp: Date.now()
+            }
+        });
     }, []);
 
     return {

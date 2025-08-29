@@ -1,6 +1,6 @@
 interface SearchBadgeProps {
     asin: string;
-    state: 'loading' | 'success' | 'error';
+    state: 'loading' | 'success' | 'error' | 'no-data';
     bsr?: number;
 }
 
@@ -52,6 +52,21 @@ export function SearchBadge({ asin, state, bsr }: SearchBadgeProps) {
         );
     }
 
+    if (state === 'no-data') {
+        return (
+            <div 
+                style={{
+                    ...parseStyleString(baseStyles),
+                    background: 'linear-gradient(to right, rgba(156, 163, 175, 0.1), rgba(156, 163, 175, 0.05))',
+                    border: '1px solid rgba(156, 163, 175, 0.2)',
+                    color: 'rgb(75, 85, 99)'
+                }}
+            >
+                <span>No BSR</span>
+            </div>
+        );
+    }
+
     if (state === 'error') {
         return (
             <div 
@@ -62,7 +77,7 @@ export function SearchBadge({ asin, state, bsr }: SearchBadgeProps) {
                     color: 'rgb(185, 28, 28)'
                 }}
             >
-                <span>BSR unavailable</span>
+                <span>Error</span>
             </div>
         );
     }

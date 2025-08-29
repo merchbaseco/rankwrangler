@@ -3,10 +3,79 @@ import { createRoot, type Root } from 'react-dom/client';
 
 /**
  * Utility service for rendering React components into the DOM
- * Used by services that need to inject React components into existing pages
+ * Uses MutationObserver for automatic cleanup when elements are removed
  */
 class ReactRenderer {
     private roots = new Map<HTMLElement, Root>();
+    private observer: MutationObserver;
+
+    constructor() {
+        // Set up MutationObserver for automatic cleanup
+        this.observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                    mutation.removedNodes.forEach((node) => {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            this.cleanupRemovedElement(node as HTMLElement);
+                        }
+                    });
+                }
+            });
+        });
+
+        // Start observing document.body for removed nodes
+        this.observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        // Initialize roots count in storage
+        this.updateRootsCountInStorage();
+    }
+
+    /**
+     * Update the roots count in chrome.storage.local for popup to read
+     */
+    private updateRootsCountInStorage(): void {
+        const count = this.roots.size;
+        chrome.storage.local.set({
+            reactRootsCount: {
+                count,
+                timestamp: Date.now()
+            }
+        });
+    }
+
+    /**
+     * Check if a removed element or its descendants had React roots and clean them up
+     */
+    private cleanupRemovedElement(element: HTMLElement): void {
+        let removedCount = 0;
+
+        // Check if this element itself has a root
+        const root = this.roots.get(element);
+        if (root) {
+            console.log('[ReactRenderer] Auto-unmounting root for removed element');
+            root.unmount();
+            this.roots.delete(element);
+            removedCount++;
+        }
+
+        // Check all descendants for roots
+        this.roots.forEach((rootInstance, container) => {
+            if (element.contains(container)) {
+                console.log('[ReactRenderer] Auto-unmounting root for descendant element');
+                rootInstance.unmount();
+                this.roots.delete(container);
+                removedCount++;
+            }
+        });
+
+        // Update storage if any roots were removed
+        if (removedCount > 0) {
+            this.updateRootsCountInStorage();
+        }
+    }
 
     /**
      * Render a React component into a DOM element
@@ -14,6 +83,7 @@ class ReactRenderer {
     public render(component: ReactElement, container: HTMLElement): void {
         // If we already have a root for this container, use it
         let root = this.roots.get(container);
+        const isNewRoot = !root;
 
         if (!root) {
             root = createRoot(container);
@@ -21,16 +91,10 @@ class ReactRenderer {
         }
 
         root.render(component);
-    }
 
-    /**
-     * Unmount and clean up a rendered component
-     */
-    public unmount(container: HTMLElement): void {
-        const root = this.roots.get(container);
-        if (root) {
-            root.unmount();
-            this.roots.delete(container);
+        // Update storage if this was a new root
+        if (isNewRoot) {
+            this.updateRootsCountInStorage();
         }
     }
 
@@ -43,16 +107,6 @@ class ReactRenderer {
             container.className = className;
         }
         return container;
-    }
-
-    /**
-     * Clean up all roots
-     */
-    public cleanup(): void {
-        this.roots.forEach(root => {
-            root.unmount();
-        });
-        this.roots.clear();
     }
 }
 

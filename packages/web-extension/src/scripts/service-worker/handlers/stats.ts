@@ -13,7 +13,7 @@ export class StatsHandler {
     }
 
     private async initializeStats() {
-        const result = await chrome.storage.local.get(['stats']);
+        const result = await chrome.storage.local.get(['stats', 'activeQueue']);
         if (!result.stats) {
             await chrome.storage.local.set({
                 stats: {
@@ -22,6 +22,14 @@ export class StatsHandler {
                     cacheSuccessCount: 0,
                     failureCount: 0,
                 },
+            });
+        }
+        if (!result.activeQueue) {
+            await chrome.storage.local.set({
+                activeQueue: {
+                    count: 0,
+                    timestamp: Date.now()
+                }
             });
         }
     }
@@ -68,6 +76,18 @@ export class StatsHandler {
         }
     }
 
+    /**
+     * Update the queue count in chrome.storage.local for popup to read
+     */
+    private updateQueueCountInStorage(): void {
+        chrome.storage.local.set({
+            activeQueue: {
+                count: this.activeQueue.size,
+                timestamp: Date.now()
+            }
+        });
+    }
+
     handleUpdateQueue(
         message: UpdateQueueMessage,
         sendResponse: (response: StatsResponse) => void
@@ -81,7 +101,10 @@ export class StatsHandler {
                 this.activeQueue.clear();
             }
 
-            // Broadcast queue count to all listeners
+            // Update storage for popup to read
+            this.updateQueueCountInStorage();
+
+            // Broadcast queue count to all listeners (legacy support)
             this.broadcastQueueCount();
 
             sendResponse({ queueCount: this.activeQueue.size });

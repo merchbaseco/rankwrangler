@@ -1,9 +1,8 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { Database01Icon, HierarchySquare03Icon, Loading03Icon } from 'hugeicons-react';
 import { Button } from '@/components/ui/button';
-import { 
-    Database01Icon,
-    Loading03Icon
-} from 'hugeicons-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { useReactRootsCount } from '../hooks/useReactRootsCount';
 import { useStats } from '../hooks/useStats';
 
 interface StatCardProps {
@@ -13,30 +12,26 @@ interface StatCardProps {
     colorClass: string;
 }
 
-const StatCard = ({ icon: Icon, label, value, colorClass }: StatCardProps) => (
-    <Card className="relative overflow-hidden">
-        <CardContent className="p-3">
-            <div className="flex items-center space-x-2">
-                <div className="flex-shrink-0">
-                    <div className={`w-8 h-8 bg-gradient-to-r ${colorClass} rounded-lg flex items-center justify-center`}>
-                        <Icon className="w-4 h-4" />
-                    </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground truncate">{label}</p>
-                    <p className="text-lg font-semibold text-foreground">{value}</p>
-                </div>
+const StatRow = ({ icon: Icon, label, value, colorClass }: StatCardProps) => (
+    <div className="flex items-center justify-between py-2 px-2 border-b last:border-b-0">
+        <div className="flex items-center gap-3">
+            <div
+                className={`size-6 bg-gradient-to-r ${colorClass} rounded-sm flex items-center justify-center flex-shrink-0`}
+            >
+                <Icon className="size-4" />
             </div>
-        </CardContent>
-    </Card>
+            <span className="text-sm text-foreground">{label}</span>
+        </div>
+        <span className="text-lg font-bold text-foreground">{value}</span>
+    </div>
 );
 
 const StatsDisplay = () => {
     const { data: stats, isLoading, refetch } = useStats();
-
+    const { data: reactRootsCount } = useReactRootsCount();
 
     return (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Extension Stats</span>
                 <Button
@@ -54,25 +49,50 @@ const StatsDisplay = () => {
                     <CardContent className="p-4">
                         <div className="flex items-center justify-center">
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                            <span className="ml-2 text-sm text-muted-foreground">Loading stats...</span>
+                            <span className="ml-2 text-sm text-muted-foreground">
+                                Loading stats...
+                            </span>
                         </div>
                     </CardContent>
                 </Card>
             ) : (
-                <div className="grid grid-cols-2 gap-2">
-                    <StatCard
-                        icon={(props) => <Database01Icon {...props} className="text-blue-600" />}
-                        label="Cached Products"
-                        value={stats?.cacheSuccessCount ?? 0}
-                        colorClass="from-blue-500/20 to-blue-500/10"
-                    />
-                    <StatCard
-                        icon={(props) => <Loading03Icon {...props} className="text-orange-600" />}
-                        label="Active Queue"
-                        value={stats?.queueCount ?? 0}
-                        colorClass="from-orange-500/20 to-orange-500/10"
-                    />
-                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <StatRow
+                            icon={props => (
+                                <Database01Icon
+                                    {...props}
+                                    className={cn(props.className, 'text-blue-600')}
+                                />
+                            )}
+                            label="Local Cache"
+                            value={stats?.localCacheCount ?? 0}
+                            colorClass="from-blue-500/20 to-blue-500/10"
+                        />
+                        <StatRow
+                            icon={props => (
+                                <Loading03Icon
+                                    {...props}
+                                    className={cn(props.className, 'text-orange-600')}
+                                />
+                            )}
+                            label="Active Queue"
+                            value={stats?.queueCount ?? 0}
+                            colorClass="from-orange-500/20 to-orange-500/10"
+                        />
+                        <StatRow
+                            icon={props => (
+                                <HierarchySquare03Icon
+                                    {...props}
+                                    className={cn(props.className, 'text-purple-600')}
+                                />
+                            )}
+                            label="React Roots"
+                            value={reactRootsCount ?? 0}
+                            colorClass="from-purple-500/20 to-purple-500/10"
+                        />
+                    </CardContent>
+                </Card>
             )}
         </div>
     );

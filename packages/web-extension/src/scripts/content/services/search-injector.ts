@@ -1,12 +1,10 @@
 import { createElement } from 'react';
-import { SearchBadge } from '../components/search-badge';
-import { apiService } from './api';
+import { CachedSearchBadge } from '../components/cached-search-badge';
 import { reactRenderer } from './react-renderer';
 
 interface BsrBadge {
     element: HTMLElement;
     asin: string;
-    isLoading: boolean;
 }
 
 class SearchInjector {
@@ -61,12 +59,11 @@ class SearchInjector {
         // Create container for React component
         const badge = reactRenderer.createContainer('rw-bsr-badge');
 
-        // Render loading state
-        const loadingComponent = createElement(SearchBadge, {
+        // Render cached search badge component
+        const cachedBadgeComponent = createElement(CachedSearchBadge, {
             asin,
-            state: 'loading',
         });
-        reactRenderer.render(loadingComponent, badge);
+        reactRenderer.render(cachedBadgeComponent, badge);
 
         // Insert before title-recipe
         const titleRecipe = injectionPoint.querySelector('[data-cy="title-recipe"]');
@@ -77,63 +74,7 @@ class SearchInjector {
         }
 
         // Store badge reference
-        this.badges.set(asin, { element: badge, asin, isLoading: true });
-
-        // Fetch BSR data
-        this.fetchAndUpdateBadge(asin);
-    }
-
-    /**
-     * Fetch BSR data and update the badge
-     */
-    private async fetchAndUpdateBadge(asin: string): Promise<void> {
-        const badgeInfo = this.badges.get(asin);
-        if (!badgeInfo) return;
-
-        try {
-            console.log(`[SearchInjector] Fetching BSR for ASIN: ${asin}`);
-
-            // Add to queue
-            await apiService.updateQueue('add', asin);
-
-            // Fetch product info
-            const response = await apiService.fetchProductInfo(asin);
-
-            // Remove from queue
-            await apiService.updateQueue('remove', asin);
-
-            if (response.success && response.data?.bsr) {
-                console.log(`[SearchInjector] Got BSR ${response.data.bsr} for ASIN: ${asin}`);
-
-                // Update badge to success state
-                const successComponent = createElement(SearchBadge, {
-                    asin,
-                    state: 'success',
-                    bsr: response.data.bsr,
-                });
-                reactRenderer.render(successComponent, badgeInfo.element);
-
-                // Update badge reference
-                badgeInfo.isLoading = false;
-            } else {
-                throw new Error(response.error || 'No BSR data');
-            }
-        } catch (error) {
-            console.error(`[SearchInjector] Error fetching BSR for ASIN ${asin}:`, error);
-
-            // Update badge to error state
-            const errorComponent = createElement(SearchBadge, {
-                asin,
-                state: 'error',
-            });
-            reactRenderer.render(errorComponent, badgeInfo.element);
-
-            // Update badge reference
-            badgeInfo.isLoading = false;
-
-            // Remove from queue on error
-            await apiService.updateQueue('remove', asin);
-        }
+        this.badges.set(asin, { element: badge, asin });
     }
 
     /**
@@ -141,16 +82,12 @@ class SearchInjector {
      */
     public reset(): void {
         this.processedAsins.clear();
-
-        // Clean up React components
-        this.badges.forEach(badgeInfo => {
-            reactRenderer.unmount(badgeInfo.element);
-        });
         this.badges.clear();
 
-        // Remove all existing badges
+        // Remove all existing badges - React roots will be auto-cleaned by MutationObserver
         document.querySelectorAll('.rw-bsr-badge').forEach(badge => badge.remove());
     }
+
 }
 
 // Add CSS animation for loading spinner
