@@ -1,4 +1,4 @@
-import type { Stats, StatsResponse, UpdateQueueMessage } from '../../content/types';
+import type { StatsResponse, UpdateQueueMessage } from '../../content/types';
 
 export class StatsHandler {
     private static instance: StatsHandler;
@@ -13,17 +13,7 @@ export class StatsHandler {
     }
 
     private async initializeStats() {
-        const result = await chrome.storage.local.get(['stats', 'activeQueue']);
-        if (!result.stats) {
-            await chrome.storage.local.set({
-                stats: {
-                    totalRequests: 0,
-                    liveSuccessCount: 0,
-                    cacheSuccessCount: 0,
-                    failureCount: 0,
-                },
-            });
-        }
+        const result = await chrome.storage.local.get(['activeQueue']);
         if (!result.activeQueue) {
             await chrome.storage.local.set({
                 activeQueue: {
@@ -34,47 +24,6 @@ export class StatsHandler {
         }
     }
 
-    async getStats() {
-        const result = await chrome.storage.local.get(['stats']);
-        return (
-            result.stats || {
-                totalRequests: 0,
-                liveSuccessCount: 0,
-                cacheSuccessCount: 0,
-                failureCount: 0,
-            }
-        );
-    }
-
-    async handleGetStats(sendResponse: (response: StatsResponse) => void) {
-        try {
-            const stats = await this.getStats();
-            sendResponse({
-                stats,
-                queueCount: this.activeQueue.size,
-            });
-        } catch (error) {
-            console.error('StatsHandler getStats error:', error);
-            sendResponse({});
-        }
-    }
-
-    async handleResetStats(sendResponse: (response: StatsResponse) => void) {
-        try {
-            const resetStats = {
-                totalRequests: 0,
-                liveSuccessCount: 0,
-                cacheSuccessCount: 0,
-                failureCount: 0,
-            };
-
-            await chrome.storage.local.set({ stats: resetStats });
-            sendResponse({});
-        } catch (error) {
-            console.error('StatsHandler resetStats error:', error);
-            sendResponse({});
-        }
-    }
 
     /**
      * Update the queue count in chrome.storage.local for popup to read
@@ -104,9 +53,6 @@ export class StatsHandler {
             // Update storage for popup to read
             this.updateQueueCountInStorage();
 
-            // Broadcast queue count to all listeners (legacy support)
-            this.broadcastQueueCount();
-
             sendResponse({ queueCount: this.activeQueue.size });
         } catch (error) {
             console.error('StatsHandler updateQueue error:', error);
@@ -114,19 +60,4 @@ export class StatsHandler {
         }
     }
 
-    private broadcastQueueCount(): void {
-        // Send queue update to all tabs/popups
-        chrome.runtime
-            .sendMessage({
-                type: 'queueUpdate',
-                count: this.activeQueue.size,
-            })
-            .catch(() => {
-                // Ignore errors when no listeners are present
-            });
-    }
-
-    getQueueSize(): number {
-        return this.activeQueue.size;
-    }
 }

@@ -1,4 +1,4 @@
-import type { FetchProductInfoMessage, ProductInfoResponse, Stats } from '../../content/types';
+import type { FetchProductInfoMessage, ProductInfoResponse } from '../../content/types';
 
 export class ProductInfoHandler {
     private static instance: ProductInfoHandler;
@@ -16,9 +16,6 @@ export class ProductInfoHandler {
         sendResponse: (response: ProductInfoResponse) => void
     ) {
         try {
-            // Update stats - increment total requests
-            await this.incrementTotalRequests();
-
             // Get license key from storage
             const result = await chrome.storage.sync.get(['licenseKey']);
 
@@ -56,7 +53,6 @@ export class ProductInfoHandler {
                         errorMessage = `Server error (${response.status}). Please try again later.`;
                 }
 
-                await this.incrementFailureCount();
                 sendResponse({
                     success: false,
                     error: errorMessage,
@@ -66,20 +62,12 @@ export class ProductInfoHandler {
 
             const responseJson = await response.json();
 
-            // Determine if this was a cache hit based on the response metadata
-            if (responseJson.metadata?.cached) {
-                await this.incrementCacheSuccessCount();
-            } else {
-                await this.incrementLiveSuccessCount();
-            }
-
             sendResponse({
                 success: true,
                 data: responseJson.data,
             });
         } catch (error) {
             console.error('ProductInfoHandler error:', error);
-            await this.incrementFailureCount();
 
             sendResponse({
                 success: false,
@@ -89,43 +77,5 @@ export class ProductInfoHandler {
                         : 'Network error. Please check your connection.',
             });
         }
-    }
-
-    private async getStats() {
-        const result = await chrome.storage.local.get(['stats']);
-        return (
-            result.stats || {
-                totalRequests: 0,
-                liveSuccessCount: 0,
-                cacheSuccessCount: 0,
-                failureCount: 0,
-            }
-        );
-    }
-
-    private async updateStats(updates: Partial<Stats>) {
-        const currentStats = await this.getStats();
-        const newStats = { ...currentStats, ...updates };
-        await chrome.storage.local.set({ stats: newStats });
-    }
-
-    private async incrementTotalRequests() {
-        const stats = await this.getStats();
-        await this.updateStats({ totalRequests: stats.totalRequests + 1 });
-    }
-
-    private async incrementLiveSuccessCount() {
-        const stats = await this.getStats();
-        await this.updateStats({ liveSuccessCount: stats.liveSuccessCount + 1 });
-    }
-
-    private async incrementCacheSuccessCount() {
-        const stats = await this.getStats();
-        await this.updateStats({ cacheSuccessCount: stats.cacheSuccessCount + 1 });
-    }
-
-    private async incrementFailureCount() {
-        const stats = await this.getStats();
-        await this.updateStats({ failureCount: stats.failureCount + 1 });
     }
 }

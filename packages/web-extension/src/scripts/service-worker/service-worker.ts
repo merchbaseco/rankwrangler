@@ -1,7 +1,7 @@
 import type { BackgroundMessage } from '../content/types';
-import { ProductInfoHandler } from './handlers/productInfo';
-import { StatsHandler } from './handlers/stats';
 import { LicenseHandler } from './handlers/license';
+import { ProductInfoHandler } from './handlers/product-info';
+import { StatsHandler } from './handlers/stats';
 
 console.log('RankWrangler Background Service Worker Loaded');
 
@@ -21,18 +21,6 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
     switch (message.type) {
         case 'ping':
             sendResponse({ alive: true });
-            return true;
-
-        case 'background-ping':
-            sendResponse({ alive: true });
-            return true;
-
-        case 'getStats':
-            statsHandler.handleGetStats(sendResponse);
-            return true;
-
-        case 'resetStats':
-            statsHandler.handleResetStats(sendResponse);
             return true;
 
         case 'updateQueue':

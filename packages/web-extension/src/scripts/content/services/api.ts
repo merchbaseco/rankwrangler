@@ -72,50 +72,6 @@ export class ApiService {
   }
 
   /**
-   * Gets extension statistics
-   * @returns Promise resolving to stats response
-   */
-  async getStats(): Promise<StatsResponse> {
-    return new Promise((resolve) => {
-      const message = {
-        type: 'getStats',
-      };
-
-      chrome.runtime.sendMessage(message, (response: StatsResponse) => {
-        if (chrome.runtime.lastError) {
-          console.error('getStats error:', chrome.runtime.lastError);
-          resolve({});
-          return;
-        }
-
-        resolve(response || {});
-      });
-    });
-  }
-
-  /**
-   * Resets extension statistics
-   * @returns Promise resolving to stats response
-   */
-  async resetStats(): Promise<StatsResponse> {
-    return new Promise((resolve) => {
-      const message = {
-        type: 'resetStats',
-      };
-
-      chrome.runtime.sendMessage(message, (response: StatsResponse) => {
-        if (chrome.runtime.lastError) {
-          console.error('resetStats error:', chrome.runtime.lastError);
-          resolve({});
-          return;
-        }
-
-        resolve(response || {});
-      });
-    });
-  }
-
-  /**
    * Updates the queue (add/remove/clear ASINs)
    * @param action - Queue action to perform
    * @param asin - ASIN for add/remove actions

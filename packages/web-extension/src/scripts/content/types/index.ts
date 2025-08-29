@@ -50,10 +50,6 @@ export interface FetchProductInfoMessage {
     marketplaceId: string;
 }
 
-export interface QueueUpdateMessage {
-    type: 'queueUpdate';
-    count: number;
-}
 
 // License management messages
 export interface ValidateLicenseMessage {
@@ -76,13 +72,9 @@ export interface GetLicenseStatusMessage {
 
 
 export type BackgroundMessage =
-    | { type: 'getStats' }
-    | { type: 'resetStats' }
     | UpdateQueueMessage
     | FetchProductInfoMessage
-    | QueueUpdateMessage
     | { type: 'ping' }
-    | { type: 'background-ping' }
     | ValidateLicenseMessage
     | SetLicenseMessage
     | RemoveLicenseMessage
