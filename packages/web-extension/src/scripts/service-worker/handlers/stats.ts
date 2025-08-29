@@ -12,7 +12,7 @@ export class StatsHandler {
         return StatsHandler.instance;
     }
 
-    private async initializeStats(): Promise<void> {
+    private async initializeStats() {
         const result = await chrome.storage.local.get(['stats']);
         if (!result.stats) {
             await chrome.storage.local.set({
@@ -21,12 +21,12 @@ export class StatsHandler {
                     liveSuccessCount: 0,
                     cacheSuccessCount: 0,
                     failureCount: 0,
-                } as Stats,
+                },
             });
         }
     }
 
-    async getStats(): Promise<Stats> {
+    async getStats() {
         const result = await chrome.storage.local.get(['stats']);
         return (
             result.stats || {
@@ -38,7 +38,7 @@ export class StatsHandler {
         );
     }
 
-    async handleGetStats(sendResponse: (response: StatsResponse) => void): Promise<void> {
+    async handleGetStats(sendResponse: (response: StatsResponse) => void) {
         try {
             const stats = await this.getStats();
             sendResponse({
@@ -51,9 +51,9 @@ export class StatsHandler {
         }
     }
 
-    async handleResetStats(sendResponse: (response: StatsResponse) => void): Promise<void> {
+    async handleResetStats(sendResponse: (response: StatsResponse) => void) {
         try {
-            const resetStats: Stats = {
+            const resetStats = {
                 totalRequests: 0,
                 liveSuccessCount: 0,
                 cacheSuccessCount: 0,

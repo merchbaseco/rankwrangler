@@ -1,12 +1,6 @@
 import type { 
-  ProductInfo,
   ProductInfoResponse,
-  Stats,
-  StatsResponse,
-  FetchProductInfoMessage,
-  GetStatsMessage,
-  ResetStatsMessage,
-  UpdateQueueMessage
+  StatsResponse
 } from '../types';
 import { apiRateLimiter } from './rateLimiter';
 
@@ -38,7 +32,7 @@ export class ApiService {
     console.log(`[apiService] Rate limiting passed for ASIN: ${asin}`);
 
     return new Promise((resolve) => {
-      const message: FetchProductInfoMessage = {
+      const message = {
         type: 'fetchProductInfo',
         asin,
         marketplaceId,
@@ -79,7 +73,7 @@ export class ApiService {
    */
   async getStats(): Promise<StatsResponse> {
     return new Promise((resolve) => {
-      const message: GetStatsMessage = {
+      const message = {
         type: 'getStats',
       };
 
@@ -101,7 +95,7 @@ export class ApiService {
    */
   async resetStats(): Promise<StatsResponse> {
     return new Promise((resolve) => {
-      const message: ResetStatsMessage = {
+      const message = {
         type: 'resetStats',
       };
 
@@ -128,7 +122,7 @@ export class ApiService {
     asin?: string
   ): Promise<number> {
     return new Promise((resolve) => {
-      const message: UpdateQueueMessage = {
+      const message = {
         type: 'updateQueue',
         action,
         asin,
