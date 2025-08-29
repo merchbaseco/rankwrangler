@@ -1,0 +1,1 @@
+- Use a naming convention like "search-badge.tsx" instead of "SearchBadge.tsx" for component file names. For the actual components, use "SearchBadge".

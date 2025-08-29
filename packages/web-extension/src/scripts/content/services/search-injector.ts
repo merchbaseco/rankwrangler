@@ -1,4 +1,7 @@
+import { createElement } from 'react';
+import { SearchBadge } from '../components/search-badge';
 import { apiService } from './api';
+import { reactRenderer } from './react-renderer';
 
 interface BsrBadge {
     element: HTMLElement;
@@ -55,9 +58,16 @@ class SearchInjector {
      * Create and inject a BSR badge for the given ASIN
      */
     private createAndInjectBadge(asin: string, injectionPoint: HTMLElement): void {
-        // Create loading badge
-        const badge = this.createBadgeElement(asin, 'loading');
-        
+        // Create container for React component
+        const badge = reactRenderer.createContainer('rw-bsr-badge');
+
+        // Render loading state
+        const loadingComponent = createElement(SearchBadge, {
+            asin,
+            state: 'loading',
+        });
+        reactRenderer.render(loadingComponent, badge);
+
         // Insert before title-recipe
         const titleRecipe = injectionPoint.querySelector('[data-cy="title-recipe"]');
         if (titleRecipe) {
@@ -74,61 +84,6 @@ class SearchInjector {
     }
 
     /**
-     * Create a badge HTML element
-     */
-    private createBadgeElement(asin: string, state: 'loading' | 'success' | 'error', bsr?: number): HTMLElement {
-        const badge = document.createElement('div');
-        badge.className = 'rw-bsr-badge';
-        badge.style.cssText = `
-            margin: 4px 0;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            backdrop-filter: blur(4px);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            max-width: fit-content;
-            z-index: 1;
-            position: relative;
-        `;
-
-        switch (state) {
-            case 'loading':
-                badge.style.background = 'linear-gradient(to right, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))';
-                badge.style.border = '1px solid rgba(59, 130, 246, 0.2)';
-                badge.style.color = 'rgb(37, 99, 235)';
-                badge.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                        <div style="width: 10px; height: 10px; border: 2px solid rgba(59, 130, 246, 0.3); border-top-color: rgb(59, 130, 246); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                        <span>Loading BSR...</span>
-                    </div>
-                `;
-                break;
-
-            case 'success':
-                badge.style.background = 'linear-gradient(to right, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))';
-                badge.style.border = '1px solid rgba(34, 197, 94, 0.2)';
-                badge.style.color = 'rgb(21, 128, 61)';
-                badge.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                        <span style="font-weight: 700;">#${bsr?.toLocaleString()}</span>
-                        <span style="font-size: 10px; opacity: 0.8;">BSR</span>
-                    </div>
-                `;
-                break;
-
-            case 'error':
-                badge.style.background = 'linear-gradient(to right, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05))';
-                badge.style.border = '1px solid rgba(239, 68, 68, 0.2)';
-                badge.style.color = 'rgb(185, 28, 28)';
-                badge.innerHTML = '<span>BSR unavailable</span>';
-                break;
-        }
-
-        return badge;
-    }
-
-    /**
      * Fetch BSR data and update the badge
      */
     private async fetchAndUpdateBadge(asin: string): Promise<void> {
@@ -137,45 +92,44 @@ class SearchInjector {
 
         try {
             console.log(`[SearchInjector] Fetching BSR for ASIN: ${asin}`);
-            
+
             // Add to queue
             await apiService.updateQueue('add', asin);
 
             // Fetch product info
             const response = await apiService.fetchProductInfo(asin);
-            
+
             // Remove from queue
             await apiService.updateQueue('remove', asin);
 
             if (response.success && response.data?.bsr) {
                 console.log(`[SearchInjector] Got BSR ${response.data.bsr} for ASIN: ${asin}`);
-                
-                // Replace loading badge with success badge
-                const newBadge = this.createBadgeElement(asin, 'success', response.data.bsr);
-                badgeInfo.element.replaceWith(newBadge);
-                
-                // Update badge reference
-                this.badges.set(asin, { 
-                    element: newBadge, 
-                    asin, 
-                    isLoading: false 
+
+                // Update badge to success state
+                const successComponent = createElement(SearchBadge, {
+                    asin,
+                    state: 'success',
+                    bsr: response.data.bsr,
                 });
+                reactRenderer.render(successComponent, badgeInfo.element);
+
+                // Update badge reference
+                badgeInfo.isLoading = false;
             } else {
                 throw new Error(response.error || 'No BSR data');
             }
         } catch (error) {
             console.error(`[SearchInjector] Error fetching BSR for ASIN ${asin}:`, error);
-            
-            // Replace loading badge with error badge
-            const errorBadge = this.createBadgeElement(asin, 'error');
-            badgeInfo.element.replaceWith(errorBadge);
-            
-            // Update badge reference
-            this.badges.set(asin, { 
-                element: errorBadge, 
-                asin, 
-                isLoading: false 
+
+            // Update badge to error state
+            const errorComponent = createElement(SearchBadge, {
+                asin,
+                state: 'error',
             });
+            reactRenderer.render(errorComponent, badgeInfo.element);
+
+            // Update badge reference
+            badgeInfo.isLoading = false;
 
             // Remove from queue on error
             await apiService.updateQueue('remove', asin);
@@ -187,7 +141,13 @@ class SearchInjector {
      */
     public reset(): void {
         this.processedAsins.clear();
+
+        // Clean up React components
+        this.badges.forEach(badgeInfo => {
+            reactRenderer.unmount(badgeInfo.element);
+        });
         this.badges.clear();
+
         // Remove all existing badges
         document.querySelectorAll('.rw-bsr-badge').forEach(badge => badge.remove());
     }
