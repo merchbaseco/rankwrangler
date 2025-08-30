@@ -390,6 +390,47 @@ fastify.register(async function (fastify) {
     }
   });
 
+  // Admin endpoint to clear product cache
+  fastify.post('/api/admin/cache/clear', async (request, reply) => {
+    const { z } = await import('zod');
+    
+    const clearCacheSchema = z.object({
+      adminKey: z.string().min(1, 'Admin key is required'),
+    });
+
+    try {
+      const { adminKey } = clearCacheSchema.parse(request.body);
+      
+      if (adminKey !== env.LICENSE_SECRET) {
+        reply.status(401);
+        return {
+          success: false,
+          error: 'Invalid admin key'
+        };
+      }
+      
+      // Clear all cached products
+      const { productCache } = await import('@/db/schema.js');
+      const deletedCount = await db.delete(productCache);
+      
+      console.log(`[Admin] Cleared product cache: ${deletedCount.rowCount || 0} entries removed`);
+      
+      return {
+        success: true,
+        data: {
+          clearedCount: deletedCount.rowCount || 0
+        }
+      };
+    } catch (error) {
+      console.error(`[Admin] Error clearing cache:`, error);
+      reply.status(400);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Invalid request',
+      };
+    }
+  });
+
   // Admin endpoint to reset license usage
   fastify.post('/api/admin/license/reset', async (request, reply) => {
     const { z } = await import('zod');

@@ -1,5 +1,11 @@
+export interface ProductIdentifier {
+    asin: string;
+    marketplaceId: string;
+}
+
 export interface Product {
     asin: string;
+    marketplaceId: string;
     creationDate?: string;
     bsr?: number;
     metadata: {
@@ -9,9 +15,10 @@ export interface Product {
     };
 }
 
-export const getErrorProduct = (asin: string): Product => {
+export const getErrorProduct = (productIdentifier: ProductIdentifier): Product => {
     return {
-        asin: asin,
+        asin: productIdentifier.asin,
+        marketplaceId: productIdentifier.marketplaceId,
         metadata: {
             success: false,
         },

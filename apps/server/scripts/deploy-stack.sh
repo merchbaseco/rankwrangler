@@ -92,6 +92,8 @@ echo "🔄 Deploying complete stack on server..."
 ssh -i "$SSH_KEY" "$SERVER" << EOF
     # Stop any existing old deployment to avoid conflicts
     echo "⏹️  Stopping old standalone server..."
+    docker stop rankwrangler-server 2>/dev/null || true
+    docker rm rankwrangler-server 2>/dev/null || true
     cd /opt/rankwrangler-server && docker compose down 2>/dev/null || echo "No old deployment running"
     
     # Ensure webserver network exists

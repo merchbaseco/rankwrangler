@@ -7,7 +7,7 @@ import { log } from '../../../utils/logger';
  * Uses MutationObserver for automatic cleanup when elements are removed
  */
 class ReactRenderer {
-    private roots = new Map<HTMLElement, Root>();
+    private roots = new Map<HTMLElement | ShadowRoot, Root>();
     private observer: MutationObserver;
 
     constructor() {
@@ -79,9 +79,9 @@ class ReactRenderer {
     }
 
     /**
-     * Render a React component into a DOM element
+     * Render a React component into a DOM element or shadow root
      */
-    public render(component: ReactElement, container: HTMLElement): void {
+    public render(component: ReactElement, container: HTMLElement | ShadowRoot): void {
         // If we already have a root for this container, use it
         let root = this.roots.get(container);
         const isNewRoot = !root;
