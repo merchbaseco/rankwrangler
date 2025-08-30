@@ -1,27 +1,28 @@
-import type { ValidateLicenseMessage, ValidationResponse } from "../../content/types";
-import { log } from '../../../utils/logger';
-import { LicenseUtils } from './license-utils';
+import { browser } from "webextension-polyfill-ts";
+import { log } from "../../../utils/logger";
+import type {
+	ValidateLicenseMessage,
+	ValidationResponse,
+} from "../../content/types";
 
 export async function handleValidateLicense(
 	message: ValidateLicenseMessage,
-	sendResponse: (response: ValidationResponse) => void,
-) {
+): Promise<ValidationResponse> {
 	try {
 		let licenseKey = message.licenseKey;
 
 		// If no license key provided, get from storage
 		if (!licenseKey) {
-			const result = await chrome.storage.sync.get(["licenseKey"]);
+			const result = await browser.storage.sync.get(["licenseKey"]);
 			licenseKey = result.licenseKey;
 		}
 
 		if (!licenseKey) {
-			sendResponse({
+			return {
 				success: true,
 				valid: false,
 				error: "No license key provided",
-			});
-			return;
+			};
 		}
 
 		// Validate against API using dedicated validation endpoint
@@ -39,7 +40,7 @@ export async function handleValidateLicense(
 			const data = await response.json();
 
 			// Store validation result with timestamp and license data
-			await chrome.storage.local.set({
+			await browser.storage.local.set({
 				licenseValidation: {
 					isValid: true,
 					lastValidated: Date.now(),
@@ -48,11 +49,11 @@ export async function handleValidateLicense(
 				},
 			});
 
-			sendResponse({
+			return {
 				success: true,
 				valid: true,
 				data: data.data,
-			});
+			};
 		} else {
 			// Handle different error codes
 			let error = "Invalid license key";
@@ -62,21 +63,21 @@ export async function handleValidateLicense(
 				error = "Invalid or expired license key";
 			}
 
-			sendResponse({
+			return {
 				success: true,
 				valid: false,
 				error,
-			});
+			};
 		}
 	} catch (error) {
-		log.error('License validation error:', error);
-		sendResponse({
+		log.error("License validation error:", error);
+		return {
 			success: false,
 			valid: false,
 			error:
 				error instanceof Error
 					? error.message
 					: "Network error during validation",
-		});
+		};
 	}
 }

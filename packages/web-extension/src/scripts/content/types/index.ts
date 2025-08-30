@@ -1,123 +1,123 @@
 // Core product information from API
 export interface ProductInfo {
-    asin: string;
-    creationDate: string | null;
-    bsr: number | null;
-    metadata: {
-        lastFetched: string; // ISO timestamp
-        cached: boolean;
-    };
+	asin: string;
+	creationDate: string | null;
+	bsr: number | null;
+	metadata: {
+		lastFetched: string; // ISO timestamp
+		cached: boolean;
+	};
 }
 
 export interface FetchProductInfoMessage {
-    type: 'fetchProductInfo';
-    asin: string;
-    marketplaceId: string;
+	type: "fetchProductInfo";
+	asin: string;
+	marketplaceId: string;
 }
 
 export interface ProductInfoResponse {
-    success: boolean;
-    data?: ProductInfo;
-    error?: string;
+	success: boolean;
+	data?: ProductInfo;
+	error?: string;
 }
 
 // BSR information for display
 export interface BSRInfo {
-    rank: string;
-    category: string;
-    dateFirstAvailable: string;
+	rank: string;
+	category: string;
+	dateFirstAvailable: string;
 }
 
 // Cached BSR data with timestamp
 export interface CachedBSR {
-    rank: string;
-    category: string;
-    dateFirstAvailable: string;
-    timestamp: number;
+	rank: string;
+	category: string;
+	dateFirstAvailable: string;
+	timestamp: number;
 }
 
 // Cache storage structure
 export interface BSRCache {
-    [asin: string]: CachedBSR;
+	[asin: string]: CachedBSR;
 }
 
 // Extension statistics
 export interface Stats {
-    totalRequests: number;
-    liveSuccessCount: number;
-    cacheSuccessCount: number;
-    failureCount: number;
+	totalRequests: number;
+	liveSuccessCount: number;
+	cacheSuccessCount: number;
+	failureCount: number;
 }
 
 // License management messages
 export interface ValidateLicenseMessage {
-    type: 'validateLicense';
-    licenseKey?: string;
+	type: "validateLicense";
+	licenseKey?: string;
 }
 
 export interface SetLicenseMessage {
-    type: 'setLicense';
-    licenseKey: string;
+	type: "setLicense";
+	licenseKey: string;
 }
 
 export interface RemoveLicenseMessage {
-    type: 'removeLicense';
+	type: "removeLicense";
 }
 
 export interface GetLicenseStatusMessage {
-    type: 'getLicenseStatus';
+	type: "getLicenseStatus";
 }
 
 export interface ToggleDebugModeMessage {
-    type: 'toggleDebugMode';
-    debugMode: boolean;
+	type: "toggleDebugMode";
+	debugMode: boolean;
 }
 
 export type BackgroundMessage =
-    | FetchProductInfoMessage
-    | { type: 'ping' }
-    | ValidateLicenseMessage
-    | SetLicenseMessage
-    | RemoveLicenseMessage
-    | GetLicenseStatusMessage
-    | ToggleDebugModeMessage;
+	| FetchProductInfoMessage
+	| { type: "ping" }
+	| ValidateLicenseMessage
+	| SetLicenseMessage
+	| RemoveLicenseMessage
+	| GetLicenseStatusMessage
+	| ToggleDebugModeMessage;
 
 // API response type
 export interface StatsResponse {
-    stats?: Stats;
-    queueCount?: number;
+	stats?: Stats;
+	queueCount?: number;
 }
 
 // License status and response types
 export interface LicenseData {
-    email: string;
-    expiresAt: string; // ISO date string
-    usageToday: number;
-    dailyLimit: number;
+	email: string;
+	expiresAt: string; // ISO date string
+	usageToday: number;
+	dailyLimit: number;
 }
 
 export interface LicenseStatus {
-    isValid: boolean;
-    licenseKey: string | null;
-    lastValidated?: number;
-    error?: string;
-    licenseData?: LicenseData;
+	isValid: boolean;
+	licenseKey: string | null;
+	lastValidated?: number;
+	error?: string;
+	licenseData?: LicenseData;
 }
 
 export interface LicenseResponse {
-    success: boolean;
-    status?: LicenseStatus;
-    error?: string;
+	success: boolean;
+	status?: LicenseStatus;
+	error?: string;
 }
 
 export interface ValidationResponse {
-    success: boolean;
-    valid: boolean;
-    error?: string;
-    data?: LicenseData;
+	success: boolean;
+	valid: boolean;
+	error?: string;
+	data?: LicenseData;
 }
 
 // Constants
 export const CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
-export const DEFAULT_MARKETPLACE_ID = 'ATVPDKIKX0DER'; // US marketplace
+export const DEFAULT_MARKETPLACE_ID = "ATVPDKIKX0DER"; // US marketplace
 export const API_RATE_LIMIT = 2; // requests per second

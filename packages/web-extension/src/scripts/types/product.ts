@@ -1,26 +1,28 @@
 export interface ProductIdentifier {
-    asin: string;
-    marketplaceId: string;
+	asin: string;
+	marketplaceId: string;
 }
 
 export interface Product {
-    asin: string;
-    marketplaceId: string;
-    creationDate?: string;
-    bsr?: number;
-    metadata: {
-        success: boolean;
-        lastFetched?: string; // ISO timestamp
-        cached?: boolean;
-    };
+	asin: string;
+	marketplaceId: string;
+	creationDate?: string;
+	bsr?: number;
+	metadata: {
+		success: boolean;
+		lastFetched?: string; // ISO timestamp
+		cached?: boolean;
+	};
 }
 
-export const getErrorProduct = (productIdentifier: ProductIdentifier): Product => {
-    return {
-        asin: productIdentifier.asin,
-        marketplaceId: productIdentifier.marketplaceId,
-        metadata: {
-            success: false,
-        },
-    };
+export const getErrorProduct = (
+	productIdentifier: ProductIdentifier,
+): Product => {
+	return {
+		asin: productIdentifier.asin,
+		marketplaceId: productIdentifier.marketplaceId,
+		metadata: {
+			success: false,
+		},
+	};
 };
