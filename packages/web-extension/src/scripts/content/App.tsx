@@ -1,15 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { log } from '../../utils/logger';
 import { searchInjector } from './services/search-injector';
 
 const App = () => {
-
     useEffect(() => {
-        console.log('RankWrangler: Content script App.tsx loaded');
-        console.log('RankWrangler: BSR enhancement active');
-
         // Initial injection
         const runInjection = () => {
-            console.log('RankWrangler: Running BSR injection...');
+            log.debug('Running BSR injection');
             searchInjector.injectBsrBadges();
         };
 
@@ -20,7 +17,7 @@ const App = () => {
         let currentUrl = window.location.href;
         const urlChangeHandler = () => {
             if (window.location.href !== currentUrl) {
-                console.log('RankWrangler: URL changed, resetting and re-injecting...');
+                log.info('URL changed, re-injecting badges');
                 currentUrl = window.location.href;
                 searchInjector.reset();
                 setTimeout(runInjection, 1000);
@@ -36,7 +33,7 @@ const App = () => {
         });
 
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            console.log('RankWrangler: Message Received', request, sender, sendResponse);
+            log.debug('Message received', { request, sender });
         });
 
         return () => {

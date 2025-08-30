@@ -1,0 +1,1 @@
+export const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';

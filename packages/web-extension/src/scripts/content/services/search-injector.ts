@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { CachedSearchBadge } from '../components/cached-search-badge';
 import { reactRenderer } from './react-renderer';
+import { log } from '../../../utils/logger';
 
 interface BsrBadge {
     element: HTMLElement;
@@ -16,7 +17,7 @@ class SearchInjector {
      */
     public injectBsrBadges(): void {
         const products = this.findSearchProducts();
-        console.log(`[SearchInjector] Found ${products.length} products to process`);
+        log.info(`Injecting ${products.length} BSR badges`);
 
         products.forEach(product => {
             const asin = product.getAttribute('data-asin');

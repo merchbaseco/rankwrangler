@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { log } from '../../../utils/logger';
 
 /**
  * Utility service for rendering React components into the DOM
@@ -55,7 +56,7 @@ class ReactRenderer {
         // Check if this element itself has a root
         const root = this.roots.get(element);
         if (root) {
-            console.log('[ReactRenderer] Auto-unmounting root for removed element');
+            log.debug('Auto-unmounting React root');
             root.unmount();
             this.roots.delete(element);
             removedCount++;
@@ -64,7 +65,7 @@ class ReactRenderer {
         // Check all descendants for roots
         this.roots.forEach((rootInstance, container) => {
             if (element.contains(container)) {
-                console.log('[ReactRenderer] Auto-unmounting root for descendant element');
+                log.debug('Auto-unmounting React root');
                 rootInstance.unmount();
                 this.roots.delete(container);
                 removedCount++;

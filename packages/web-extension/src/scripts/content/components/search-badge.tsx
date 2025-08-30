@@ -2,9 +2,10 @@ interface SearchBadgeProps {
     asin: string;
     state: 'loading' | 'success' | 'error' | 'no-data';
     bsr?: number;
+    creationDate?: string;
 }
 
-export function SearchBadge({ asin, state, bsr }: SearchBadgeProps) {
+export function SearchBadge({ asin, state, bsr, creationDate }: SearchBadgeProps) {
     const baseStyles = "margin: 4px 0; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; backdrop-filter: blur(4px); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); max-width: fit-content; z-index: 1; position: relative;";
 
     if (state === 'loading') {
@@ -44,9 +45,16 @@ export function SearchBadge({ asin, state, bsr }: SearchBadgeProps) {
                     color: 'rgb(21, 128, 61)'
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ fontWeight: '700' }}>#{bsr?.toLocaleString()}</span>
-                    <span style={{ fontSize: '10px', opacity: '0.8' }}>BSR</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontWeight: '700' }}>#{bsr?.toLocaleString()}</span>
+                        <span style={{ fontSize: '10px', opacity: '0.8' }}>BSR</span>
+                    </div>
+                    {creationDate && (
+                        <div style={{ fontSize: '9px', opacity: '0.7' }}>
+                            Listed: {formatDate(creationDate)}
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -98,4 +106,32 @@ function parseStyleString(styleString: string): React.CSSProperties {
     });
     
     return styles;
+}
+
+function formatDate(dateString: string): string {
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffTime = now.getTime() - date.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) {
+            return 'Today';
+        } else if (diffDays === 1) {
+            return 'Yesterday';
+        } else if (diffDays < 7) {
+            return `${diffDays}d ago`;
+        } else if (diffDays < 30) {
+            const weeks = Math.floor(diffDays / 7);
+            return `${weeks}w ago`;
+        } else if (diffDays < 365) {
+            const months = Math.floor(diffDays / 30);
+            return `${months}mo ago`;
+        } else {
+            const years = Math.floor(diffDays / 365);
+            return `${years}y ago`;
+        }
+    } catch {
+        return dateString.split('T')[0]; // fallback to YYYY-MM-DD
+    }
 }
