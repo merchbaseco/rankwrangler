@@ -1,54 +1,49 @@
+import { log } from '../../utils/logger';
 import type { BackgroundMessage } from '../content/types';
-import { LicenseHandler } from './handlers/license';
-import { ProductInfoHandler } from './handlers/product-info';
-import { StatsHandler } from './handlers/stats';
+import { handleFetchProductInfo } from './handlers/fetch-product-info';
+import { handleGetLicenseStatus } from './handlers/get-license-status';
+import { handlePing } from './handlers/ping';
+import { handleRemoveLicense } from './handlers/remove-license';
+import { handleSetLicense } from './handlers/set-license';
+import { handleValidateLicense } from './handlers/validate-license';
 
-console.log('RankWrangler Background Service Worker Loaded');
-
-// Initialize handlers
-const productInfoHandler = ProductInfoHandler.getInstance();
-const statsHandler = StatsHandler.getInstance();
-const licenseHandler = LicenseHandler.getInstance();
+log.ready('Background Service Worker Loaded');
 
 chrome.runtime.onInstalled.addListener(() => {
-    console.log('RankWrangler extension installed');
+    log.success('Extension installed');
 });
 
 // Handle messages from popup and content scripts
 chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
-    console.log('Background received message:', message);
+    log.debug('Received message:', message);
 
     switch (message.type) {
         case 'ping':
-            sendResponse({ alive: true });
-            return true;
-
-        case 'updateQueue':
-            statsHandler.handleUpdateQueue(message, sendResponse);
+            handlePing(message, sendResponse);
             return true;
 
         case 'fetchProductInfo':
-            productInfoHandler.handleFetchProductInfo(message, sendResponse);
+            handleFetchProductInfo(message, sendResponse);
             return true;
 
         case 'validateLicense':
-            licenseHandler.handleValidateLicense(message, sendResponse);
+            handleValidateLicense(message, sendResponse);
             return true;
 
         case 'setLicense':
-            licenseHandler.handleSetLicense(message, sendResponse);
+            handleSetLicense(message, sendResponse);
             return true;
 
         case 'removeLicense':
-            licenseHandler.handleRemoveLicense(message, sendResponse);
+            handleRemoveLicense(message, sendResponse);
             return true;
 
         case 'getLicenseStatus':
-            licenseHandler.handleGetLicenseStatus(message, sendResponse);
+            handleGetLicenseStatus(message, sendResponse);
             return true;
 
         default:
-            console.warn('Unknown message type:', message);
+            log.warn('Unknown message type:', message);
             return false;
     }
 });

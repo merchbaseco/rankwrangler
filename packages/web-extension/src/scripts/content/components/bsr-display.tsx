@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { log } from '../../../utils/logger';
 
 /**
  * BSR Display component showing rank, category, date, and ASIN
@@ -39,7 +40,7 @@ export function BSRDisplay({
 				setCopyStatus("idle");
 			}, 1500);
 		} catch (error) {
-			console.error("Failed to copy ASIN:", error);
+			log.error('Failed to copy ASIN:', error);
 			setCopyStatus("idle");
 		}
 	};

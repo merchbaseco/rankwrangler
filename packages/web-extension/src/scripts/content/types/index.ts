@@ -9,6 +9,18 @@ export interface ProductInfo {
     };
 }
 
+export interface FetchProductInfoMessage {
+    type: 'fetchProductInfo';
+    asin: string;
+    marketplaceId: string;
+}
+
+export interface ProductInfoResponse {
+    success: boolean;
+    data?: ProductInfo;
+    error?: string;
+}
+
 // BSR information for display
 export interface BSRInfo {
     rank: string;
@@ -37,20 +49,6 @@ export interface Stats {
     failureCount: number;
 }
 
-// Message types for background script communication
-export interface UpdateQueueMessage {
-    type: 'updateQueue';
-    action: 'add' | 'remove' | 'clear';
-    asin?: string;
-}
-
-export interface FetchProductInfoMessage {
-    type: 'fetchProductInfo';
-    asin: string;
-    marketplaceId: string;
-}
-
-
 // License management messages
 export interface ValidateLicenseMessage {
     type: 'validateLicense';
@@ -70,9 +68,7 @@ export interface GetLicenseStatusMessage {
     type: 'getLicenseStatus';
 }
 
-
 export type BackgroundMessage =
-    | UpdateQueueMessage
     | FetchProductInfoMessage
     | { type: 'ping' }
     | ValidateLicenseMessage
@@ -80,13 +76,7 @@ export type BackgroundMessage =
     | RemoveLicenseMessage
     | GetLicenseStatusMessage;
 
-// API response types
-export interface ProductInfoResponse {
-    success: boolean;
-    data?: ProductInfo;
-    error?: string;
-}
-
+// API response type
 export interface StatsResponse {
     stats?: Stats;
     queueCount?: number;

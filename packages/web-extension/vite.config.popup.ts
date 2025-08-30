@@ -12,7 +12,7 @@ export default defineConfig(async () => ({
     },
     build: {
         outDir: 'dist',
-        emptyOutDir: true,
+        emptyOutDir: false, // Don't clear dist folder
         minify: 'terser',
         cssCodeSplit: false,
         chunkSizeWarningLimit: 1000000,
@@ -23,13 +23,12 @@ export default defineConfig(async () => ({
         },
         rollupOptions: {
             input: {
-                background: path.resolve(__dirname, 'src/scripts/service-worker/service-worker.ts'),
                 popup: path.resolve(__dirname, 'src/scripts/popup/index.tsx'),
             },
             output: {
                 entryFileNames: '[name].js',
                 assetFileNames: '[name].[ext]',
-                manualChunks: undefined,
+                inlineDynamicImports: true, // This works with single input
             },
         },
     },

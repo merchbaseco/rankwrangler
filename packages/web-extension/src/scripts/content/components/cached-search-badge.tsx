@@ -1,81 +1,58 @@
 import { useEffect, useState } from 'react';
+import { getProduct } from '@/scripts/api/get-product';
+import { getCachedProduct, setCachedProduct } from '@/scripts/api/product-cache';
+import { US_MARKETPLACE_ID } from '@/scripts/types/marketplace';
 import { SearchBadge } from './search-badge';
-import { useBSRCache } from '../hooks/use-bsr-cache';
-import { apiService } from '../services/api';
-import type { BSRInfo } from '../types';
 
 interface CachedSearchBadgeProps {
     asin: string;
 }
 
 export function CachedSearchBadge({ asin }: CachedSearchBadgeProps) {
-    const { getCached, setCached } = useBSRCache();
     const [state, setState] = useState<'loading' | 'success' | 'error' | 'no-data'>('loading');
     const [bsr, setBsr] = useState<number>();
+    const [creationDate, setCreationDate] = useState<string>();
 
     useEffect(() => {
         async function loadBsr() {
             try {
-                console.log(`[CachedSearchBadge] Checking cache for ASIN: ${asin}`);
-                
-                // Check cache first
-                const cached = await getCached(asin);
-                if (cached) {
-                    console.log(`[CachedSearchBadge] Cache hit for ASIN: ${asin}`);
-                    
-                    const cachedBsr = parseInt(cached.rank);
-                    if (cachedBsr > 0) {
+                const cachedProduct = await getCachedProduct(asin);
+
+                if (cachedProduct) {
+                    if (cachedProduct.bsr > 0) {
                         setState('success');
-                        setBsr(cachedBsr);
+                        setBsr(cachedProduct.bsr);
+                        setCreationDate(cachedProduct.creationDate);
                     } else {
                         setState('no-data'); // Cached "no BSR" result
                     }
                     return;
                 }
 
-                console.log(`[CachedSearchBadge] Cache miss, fetching BSR for ASIN: ${asin}`);
-                
-                // Add to queue
-                await apiService.updateQueue('add', asin);
-
                 // Fetch product info
-                const response = await apiService.fetchProductInfo(asin);
-                
-                // Remove from queue
-                await apiService.updateQueue('remove', asin);
+                const product = await getProduct({ asin, marketplaceId: US_MARKETPLACE_ID });
 
-                if (response.success) {
-                    console.log(`[CachedSearchBadge] API response for ASIN ${asin}:`, response.data?.bsr ? `BSR ${response.data.bsr}` : 'No BSR data');
-                    
-                    // Always cache the result, whether BSR exists or not
-                    const bsrInfo: BSRInfo = {
-                        rank: response.data?.bsr ? response.data.bsr.toString() : '0',
-                        category: response.data?.bsr ? 'Products' : 'No Data',
-                        dateFirstAvailable: new Date().toISOString().split('T')[0]
-                    };
-                    await setCached(asin, bsrInfo);
-                    
+                if (product.metadata.success) {
+                    await setCachedProduct(product);
+
                     // Update state based on whether BSR exists
-                    if (response.data?.bsr) {
+                    if (product.bsr) {
                         setState('success');
-                        setBsr(response.data.bsr);
+                        setBsr(product.bsr);
+                        setCreationDate(product.creationDate);
                     } else {
                         setState('no-data'); // Valid response, just no BSR
                     }
                 } else {
-                    throw new Error(response.error || 'API request failed');
+                    throw new Error();
                 }
-            } catch (error) {
-                console.error(`[CachedSearchBadge] Error fetching BSR for ASIN ${asin}:`, error);
+            } catch (_e) {
                 setState('error');
-                
-                // Make sure to remove from queue on error
-                await apiService.updateQueue('remove', asin);
             }
         }
 
         loadBsr();
-    }, [asin, getCached, setCached]);
+    }, [asin]);
 
-    return <SearchBadge asin={asin} state={state} bsr={bsr} />;
+    return <SearchBadge asin={asin} state={state} bsr={bsr} creationDate={creationDate} />;
 }
