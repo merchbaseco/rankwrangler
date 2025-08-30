@@ -3,7 +3,7 @@
   "name": "RankWrangler",
   "version": "1.0",
   "description": "Track and analyze Amazon product rankings and metrics in real-time",
-  "permissions": ["storage", "tabs", "alarms"],
+  "permissions": ["storage", "tabs", "alarms", "scripting"],
   "host_permissions": ["*://*.amazon.com/*", "https://merchbase.co/api/*"],
   "background": {
     "scripts": ["background.js"],

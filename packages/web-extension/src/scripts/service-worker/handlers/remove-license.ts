@@ -1,30 +1,31 @@
-import type { RemoveLicenseMessage, LicenseResponse } from "../../content/types";
-import { log } from '../../../utils/logger';
-import { LicenseUtils } from './license-utils';
+import { browser } from "webextension-polyfill-ts";
+import { log } from "../../../utils/logger";
+import type {
+	LicenseResponse,
+	RemoveLicenseMessage,
+} from "../../content/types";
+import { getCurrentLicenseStatus } from "./license-utils";
 
 export async function handleRemoveLicense(
-	message: RemoveLicenseMessage,
-	sendResponse: (response: LicenseResponse) => void,
-) {
+	_message: RemoveLicenseMessage,
+): Promise<LicenseResponse> {
 	try {
 		// Remove from both sync and local storage
-		await chrome.storage.sync.remove(["licenseKey"]);
-		await chrome.storage.local.remove(["licenseValidation"]);
+		await browser.storage.sync.remove(["licenseKey"]);
+		await browser.storage.local.remove(["licenseValidation"]);
 
-		const status = await LicenseUtils.getCurrentLicenseStatus();
+		const status = await getCurrentLicenseStatus();
 
-		sendResponse({
+		return {
 			success: true,
 			status,
-		});
+		};
 	} catch (error) {
-		log.error('Remove license error:', error);
-		sendResponse({
+		log.error("Remove license error:", error);
+		return {
 			success: false,
 			error:
-				error instanceof Error
-					? error.message
-					: "Failed to remove license key",
-		});
+				error instanceof Error ? error.message : "Failed to remove license key",
+		};
 	}
 }

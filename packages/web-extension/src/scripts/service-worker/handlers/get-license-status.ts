@@ -1,26 +1,26 @@
-import type { GetLicenseStatusMessage, LicenseResponse } from "../../content/types";
-import { log } from '../../../utils/logger';
-import { LicenseUtils } from './license-utils';
+import { log } from "../../../utils/logger";
+import type {
+	GetLicenseStatusMessage,
+	LicenseResponse,
+} from "../../content/types";
+import { getCurrentLicenseStatus } from "./license-utils";
 
 export async function handleGetLicenseStatus(
-	message: GetLicenseStatusMessage,
-	sendResponse: (response: LicenseResponse) => void,
-) {
+	_message: GetLicenseStatusMessage,
+): Promise<LicenseResponse> {
 	try {
-		const status = await LicenseUtils.getCurrentLicenseStatus();
+		const status = await getCurrentLicenseStatus();
 
-		sendResponse({
+		return {
 			success: true,
 			status,
-		});
+		};
 	} catch (error) {
-		log.error('Get license status error:', error);
-		sendResponse({
+		log.error("Get license status error:", error);
+		return {
 			success: false,
 			error:
-				error instanceof Error
-					? error.message
-					: "Failed to get license status",
-		});
+				error instanceof Error ? error.message : "Failed to get license status",
+		};
 	}
 }

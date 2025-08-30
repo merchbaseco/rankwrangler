@@ -192,3 +192,4 @@ When migrating the CLI:
 - Automated dependency updates between packages
 - We never use yarn workspace. We always use turborepo features instead.
 - USE YARN
+- we use yarn to execute build targets in package.json

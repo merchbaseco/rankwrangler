@@ -1,89 +1,97 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { log } from '../../utils/logger';
-import { DebugWidget } from './components/debug-widget';
-import { searchInjector } from './services/search-injector';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { browser } from "webextension-polyfill-ts";
+import { log } from "../../utils/logger";
+import { DebugWidget } from "./components/debug-widget";
+import { searchInjector } from "./services/search-injector";
 
 const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            retry: 1,
-            staleTime: 5 * 1000,
-        },
-    },
+	defaultOptions: {
+		queries: {
+			retry: 1,
+			staleTime: 5 * 1000,
+		},
+	},
 });
 
 const App = () => {
-    const [debugMode, setDebugMode] = useState(false);
+	const [debugMode, setDebugMode] = useState(false);
 
-    useEffect(() => {
-        // Load initial debug mode state
-        chrome.storage.local.get(['debugMode'], result => {
-            setDebugMode(result.debugMode || false);
-        });
+	useEffect(() => {
+		log.info("Content script App component mounted");
 
-        // Initial injection
-        const runInjection = () => {
-            log.debug('Running BSR injection');
-            searchInjector.injectBsrBadges();
-        };
+		// Load initial debug mode state
+		browser.storage.local
+			.get(["debugMode"])
+			.then((result: any) => {
+				const initialDebugMode = result.debugMode || false;
+				log.debug("Initial debug mode from storage:", {
+					debugMode: initialDebugMode,
+				});
+				setDebugMode(initialDebugMode);
+			})
+			.catch((error: any) => {
+				log.error("Failed to get initial debug mode:", error);
+			});
 
-        // Run after a short delay to ensure DOM is ready
-        setTimeout(runInjection, 1000);
+		// Listen for custom event from injected script (immediate response)
+		const handleDebugModeChange = (event: CustomEvent) => {
+			const newDebugMode = event.detail.debugMode;
+			log.info("Debug mode changed via custom event:", {
+				debugMode: newDebugMode,
+			});
+			setDebugMode(newDebugMode);
+		};
 
-        // Watch for URL changes (navigation)
-        let currentUrl = window.location.href;
-        const urlChangeHandler = () => {
-            if (window.location.href !== currentUrl) {
-                log.info('URL changed, re-injecting badges');
-                currentUrl = window.location.href;
-                searchInjector.reset();
-                setTimeout(runInjection, 1000);
-            }
-        };
+		window.addEventListener(
+			"debugModeChanged",
+			handleDebugModeChange as EventListener,
+		);
 
-        // Check for URL changes periodically
-        const urlWatcher = setInterval(urlChangeHandler, 1000);
+		// Initial injection
+		const runInjection = () => {
+			log.debug("Running BSR injection");
+			searchInjector.injectBsrBadges();
+		};
 
-        // Also watch for popstate events (back/forward)
-        window.addEventListener('popstate', () => {
-            setTimeout(urlChangeHandler, 100);
-        });
+		setTimeout(runInjection, 1000);
 
-        return () => {
-            clearInterval(urlWatcher);
-        };
-    }, []);
+		// Watch for URL changes
+		let currentUrl = window.location.href;
+		const urlChangeHandler = () => {
+			if (window.location.href !== currentUrl) {
+				log.info("URL changed, re-injecting badges");
+				currentUrl = window.location.href;
+				searchInjector.reset();
+				setTimeout(runInjection, 1000);
+			}
+		};
 
-    // Separate useEffect for message listener to avoid stale closure
-    useEffect(() => {
-        const handleMessage = (
-            request: any,
-            sender: chrome.runtime.MessageSender,
-            sendResponse: (response?: any) => void
-        ) => {
-            log.debug('Message received', { request, sender });
+		const urlWatcher = setInterval(urlChangeHandler, 1000);
 
-            if (request.type === 'toggleDebugMode') {
-                log.debug('Toggling debug mode via message:', request.debugMode);
-                setDebugMode(request.debugMode);
-                sendResponse({ success: true });
-                return true; // Indicates async response
-            }
-        };
+		window.addEventListener("popstate", () => {
+			setTimeout(urlChangeHandler, 100);
+		});
 
-        chrome.runtime.onMessage.addListener(handleMessage);
+		return () => {
+			clearInterval(urlWatcher);
+			window.removeEventListener(
+				"debugModeChanged",
+				handleDebugModeChange as EventListener,
+			);
+		};
+	}, []);
 
-        return () => {
-            chrome.runtime.onMessage.removeListener(handleMessage);
-        };
-    }, []);
+	// Log debug mode changes
+	useEffect(() => {
+		log.info("Debug mode state changed to:", { debugMode });
+	}, [debugMode]);
 
-    return (
-        <QueryClientProvider client={queryClient}>
-            {debugMode && <DebugWidget />}
-        </QueryClientProvider>
-    );
+	return (
+		<QueryClientProvider client={queryClient}>
+			{debugMode && <DebugWidget />}
+		</QueryClientProvider>
+	);
 };
 
 export default App;
