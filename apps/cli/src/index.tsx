@@ -28,19 +28,39 @@ class SimpleAPIClient {
     }
 
     async post(endpoint: string, body: Record<string, any> = {}) {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        const url = `${this.baseUrl}${endpoint}`;
+        const requestBody = {
+            adminKey: this.adminKey,
+            ...body,
+        };
+        
+        console.log('🔍 DEBUG POST REQUEST:');
+        console.log('  URL:', url);
+        console.log('  Body:', JSON.stringify(requestBody, null, 2));
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                adminKey: this.adminKey,
-                ...body,
-            }),
+            body: JSON.stringify(requestBody),
         });
 
-        // Return server response directly (server already provides success/error structure)
-        return await response.json();
+        console.log('📡 DEBUG RESPONSE:');
+        console.log('  Status:', response.status, response.statusText);
+        console.log('  Headers:', Object.fromEntries(response.headers.entries()));
+        
+        const responseText = await response.text();
+        console.log('  Raw Response:', responseText);
+        
+        try {
+            const jsonResponse = JSON.parse(responseText);
+            console.log('  Parsed JSON:', jsonResponse);
+            return jsonResponse;
+        } catch (err) {
+            console.log('  ❌ Failed to parse as JSON:', err);
+            return { success: false, error: 'Invalid JSON response', rawResponse: responseText };
+        }
     }
 
     async getLicenseStats() {
@@ -56,6 +76,61 @@ class SimpleAPIClient {
             email,
             expiryDays: expirationDays,
         });
+    }
+
+    async testGetProduct(asin: string, marketplaceId: string = 'ATVPDKIKX0DER') {
+        // First get a random active license from the database
+        const licensesResult = await this.getLicenses();
+        if (!licensesResult.success || !licensesResult.data || licensesResult.data.length === 0) {
+            return {
+                success: false,
+                error: 'No licenses available for testing'
+            };
+        }
+
+        // Filter for active licenses
+        const activeLicenses = licensesResult.data.filter((license: any) => 
+            license.expiresAt && new Date(license.expiresAt) > new Date()
+        );
+
+        if (activeLicenses.length === 0) {
+            return {
+                success: false,
+                error: 'No active licenses available for testing'
+            };
+        }
+
+        // Pick a random active license
+        const randomLicense = activeLicenses[Math.floor(Math.random() * activeLicenses.length)];
+        
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${randomLicense.key}`
+        };
+
+        const response = await fetch(`${this.baseUrl}/getProductInfo`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                asin,
+                marketplaceId,
+            }),
+        });
+
+        const result = await response.json();
+        
+        // Add which license was used for reference
+        return {
+            ...result,
+            testInfo: {
+                licenseUsed: randomLicense.email,
+                licenseId: randomLicense.id
+            }
+        };
+    }
+
+    async clearProductCache() {
+        return this.post('/admin/cache/clear');
     }
 }
 
@@ -420,6 +495,401 @@ const CreateLicense: React.FC<{
     );
 };
 
+// API Testing Menu Component
+const ApiTestingMenu: React.FC<{
+    onBack: () => void;
+    onTestGetProduct: () => void;
+    onClearCache: () => void;
+    successMessage?: string;
+}> = ({ onBack, onTestGetProduct, onClearCache, successMessage }) => {
+    useInput((input, key) => {
+        if (key.escape || input === 'b') {
+            onBack();
+        }
+
+        if (input === '1') {
+            onTestGetProduct();
+        }
+
+        if (input === '2') {
+            onClearCache();
+        }
+    });
+
+    return (
+        <Box flexDirection="column" marginY={1}>
+            {/* Header */}
+            <Box flexDirection="column" marginBottom={2}>
+                <Gradient name="pastel">
+                    <BigText text="RANKWRANGLER" font="block" />
+                </Gradient>
+
+                <Breadcrumb path={['License Management CLI', 'API Testing']} />
+            </Box>
+
+            {/* Success Message */}
+            <Box marginBottom={1} height={1}>
+                {successMessage ? <Text color="green">{successMessage}</Text> : <Text> </Text>}
+            </Box>
+
+            <Box flexDirection="column" marginY={1}>
+                <Text bold color="cyan" marginBottom={1}>
+                    🔧 Available API Endpoints:
+                </Text>
+
+                <Box borderStyle="single" borderColor="cyan" padding={1}>
+                    <Box flexDirection="column">
+                        <Text color="white">
+                            [1] Get Product Info - Test product data retrieval
+                        </Text>
+                        <Text color="white">
+                            [2] Clear Product Cache - Remove all cached products
+                        </Text>
+                        <Text color="gray" marginTop={1}>
+                            More endpoints coming soon...
+                        </Text>
+                    </Box>
+                </Box>
+            </Box>
+
+            <Box marginTop={1}>
+                <Text color="yellow">
+                    Commands: [1] Test Get Product • [2] Clear Cache • [Esc/b] Back to Dashboard
+                </Text>
+            </Box>
+        </Box>
+    );
+};
+
+// Test Get Product Component
+const TestGetProduct: React.FC<{
+    onBack: () => void;
+}> = ({ onBack }) => {
+    const [asin, setAsin] = useState('');
+    const [marketplaceId, setMarketplaceId] = useState('ATVPDKIKX0DER');
+    const [isTesting, setIsTesting] = useState(false);
+    const [result, setResult] = useState<any>(null);
+    const [error, setError] = useState('');
+    const [step, setStep] = useState<'asin' | 'marketplace' | 'result'>('asin');
+
+    const marketplaceOptions = [
+        { label: 'US (ATVPDKIKX0DER)', id: 'ATVPDKIKX0DER' },
+        { label: 'CA (A2EUQ1WTGCTBG2)', id: 'A2EUQ1WTGCTBG2' },
+        { label: 'MX (A1AM78C64UM0Y8)', id: 'A1AM78C64UM0Y8' },
+        { label: 'UK (A1F83G8C2ARO7P)', id: 'A1F83G8C2ARO7P' },
+    ];
+
+    const [selectedMarketplace, setSelectedMarketplace] = useState(0);
+
+    const testProduct = async () => {
+        setIsTesting(true);
+        setError('');
+        setResult(null);
+
+        try {
+            const startTime = Date.now();
+            const response = await api.testGetProduct(asin.trim(), marketplaceId);
+            const responseTime = Date.now() - startTime;
+
+            setResult({
+                ...response,
+                responseTime
+            });
+            setStep('result');
+        } catch (err) {
+            setError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        } finally {
+            setIsTesting(false);
+        }
+    };
+
+    useInput((input, key) => {
+        if (key.escape && !isTesting) {
+            onBack();
+            return;
+        }
+
+        if (isTesting) return;
+
+        if (step === 'marketplace') {
+            if (key.upArrow || input === 'k') {
+                setSelectedMarketplace(prev => Math.max(0, prev - 1));
+            }
+            if (key.downArrow || input === 'j') {
+                setSelectedMarketplace(prev => Math.min(marketplaceOptions.length - 1, prev + 1));
+            }
+            if (key.return) {
+                setMarketplaceId(marketplaceOptions[selectedMarketplace].id);
+                testProduct();
+            }
+            if (key.leftArrow || input === 'h') {
+                setStep('asin');
+            }
+        }
+
+        if (step === 'asin' && key.return && asin.trim()) {
+            setStep('marketplace');
+        }
+
+        if (step === 'result') {
+            if (input === 'c' && result?.data?.asin) {
+                clipboard.writeSync(result.data.asin);
+            }
+            if (input === 'j' && result) {
+                clipboard.writeSync(JSON.stringify(result, null, 2));
+            }
+            if (input === 'r') {
+                setStep('asin');
+                setResult(null);
+                setError('');
+            }
+        }
+    });
+
+    return (
+        <Box flexDirection="column" marginY={1}>
+            {/* Header */}
+            <Box flexDirection="column" marginBottom={2}>
+                <Gradient name="pastel">
+                    <BigText text="RANKWRANGLER" font="block" />
+                </Gradient>
+
+                <Breadcrumb path={['License Management CLI', 'API Testing', 'Test Get Product']} />
+            </Box>
+
+            {error && (
+                <Box marginBottom={1}>
+                    <Text color="red">❌ {error}</Text>
+                </Box>
+            )}
+
+            <Box flexDirection="column" marginY={1}>
+                {/* ASIN Step */}
+                <Box marginBottom={1}>
+                    <Text bold color={step === 'asin' ? 'cyan' : 'gray'}>
+                        1. Product ASIN:
+                    </Text>
+                </Box>
+                <Box marginBottom={2}>
+                    {step === 'asin' ? (
+                        <TextInput
+                            value={asin}
+                            onChange={setAsin}
+                            placeholder="Enter ASIN (e.g., B0DPYPC75R)..."
+                        />
+                    ) : (
+                        <Text color="green">📦 {asin}</Text>
+                    )}
+                </Box>
+
+                {/* Marketplace Step */}
+                {(step === 'marketplace' || step === 'result') && (
+                    <>
+                        <Box marginBottom={1}>
+                            <Text bold color={step === 'marketplace' ? 'cyan' : 'gray'}>
+                                2. Marketplace:
+                            </Text>
+                        </Box>
+                        {step === 'marketplace' ? (
+                            <Box flexDirection="column" marginBottom={2}>
+                                {marketplaceOptions.map((option, index) => (
+                                    <Text
+                                        key={option.id}
+                                        color={selectedMarketplace === index ? 'cyan' : 'gray'}
+                                        backgroundColor={selectedMarketplace === index ? 'cyan' : undefined}
+                                    >
+                                        {selectedMarketplace === index ? '► ' : '  '}
+                                        {option.label}
+                                    </Text>
+                                ))}
+                            </Box>
+                        ) : (
+                            <Box marginBottom={2}>
+                                <Text color="green">
+                                    🌍 {marketplaceOptions.find(m => m.id === marketplaceId)?.label}
+                                </Text>
+                            </Box>
+                        )}
+                    </>
+                )}
+
+                {/* Results */}
+                {step === 'result' && result && (
+                    <>
+                        <Box marginBottom={1}>
+                            <Text bold color="cyan">
+                                3. API Response:
+                            </Text>
+                        </Box>
+                        <Box borderStyle="single" borderColor={result.success ? 'green' : 'red'} padding={1} marginBottom={2}>
+                            <Box flexDirection="column">
+                                {result.success ? (
+                                    <>
+                                        <Text color="green">✅ Success ({result.responseTime}ms)</Text>
+                                        <Text color="gray">License used: {result.testInfo?.licenseUsed}</Text>
+                                        <Text> </Text>
+                                        <Text color="cyan">Product Data:</Text>
+                                        <Text color="white">• ASIN: {result.data.asin}</Text>
+                                        <Text color="white">• Marketplace: {result.data.marketplaceId}</Text>
+                                        <Text color="white">• BSR: {result.data.bsr || 'N/A'}</Text>
+                                        <Text color="white">• Creation Date: {result.data.creationDate || 'N/A'}</Text>
+                                        <Text color="white">• Cached: {result.data.metadata?.cached ? 'Yes' : 'No'}</Text>
+                                        <Text color="white">• Last Fetched: {result.data.metadata?.lastFetched}</Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Text color="red">❌ Failed ({result.responseTime}ms)</Text>
+                                        <Text color="red">Error: {result.error}</Text>
+                                        {result.testInfo?.licenseUsed && (
+                                            <Text color="gray">License used: {result.testInfo.licenseUsed}</Text>
+                                        )}
+                                    </>
+                                )}
+                            </Box>
+                        </Box>
+                    </>
+                )}
+            </Box>
+
+            {isTesting && (
+                <Box marginY={1}>
+                    <Text color="cyan">
+                        <Spinner type="dots" /> Testing API endpoint...
+                    </Text>
+                </Box>
+            )}
+
+            <Box marginTop={1}>
+                <Text color="yellow">
+                    {step === 'asin' && 'Enter ASIN and press [Enter] • [Esc] to go back'}
+                    {step === 'marketplace' && 'Use [↑/↓] to select • [Enter] to test • [←] to go back • [Esc] to cancel'}
+                    {step === 'result' && 'Commands: [c] copy ASIN • [j] copy JSON • [r] test again • [Esc] back'}
+                </Text>
+            </Box>
+        </Box>
+    );
+};
+
+// Clear Product Cache Component
+const ClearProductCache: React.FC<{
+    onBack: () => void;
+    onSuccess: (message: string) => void;
+}> = ({ onBack, onSuccess }) => {
+    const [isClearing, setIsClearing] = useState(false);
+    const [error, setError] = useState('');
+    const [showConfirm, setShowConfirm] = useState(true);
+
+    const clearCache = async () => {
+        setIsClearing(true);
+        setError('');
+
+        try {
+            const result = await api.clearProductCache();
+            
+            if (result.success) {
+                const clearedCount = result.data?.clearedCount || 0;
+                onSuccess(`✅ Cache cleared! Removed ${clearedCount} cached products.`);
+            } else {
+                setError(result.error || 'Failed to clear cache');
+                setIsClearing(false);
+            }
+        } catch (err) {
+            setError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+            setIsClearing(false);
+        }
+    };
+
+    useInput((input, key) => {
+        if (key.escape && !isClearing) {
+            onBack();
+            return;
+        }
+
+        if (isClearing) return;
+
+        if (showConfirm) {
+            if (input === 'y' || input === 'Y') {
+                setShowConfirm(false);
+                clearCache();
+            }
+            if (input === 'n' || input === 'N') {
+                onBack();
+            }
+        }
+    });
+
+    return (
+        <Box flexDirection="column" marginY={1}>
+            {/* Header */}
+            <Box flexDirection="column" marginBottom={2}>
+                <Gradient name="pastel">
+                    <BigText text="RANKWRANGLER" font="block" />
+                </Gradient>
+
+                <Breadcrumb path={['License Management CLI', 'API Testing', 'Clear Product Cache']} />
+            </Box>
+
+            {error && (
+                <Box marginBottom={1}>
+                    <Text color="red">❌ {error}</Text>
+                </Box>
+            )}
+
+            <Box flexDirection="column" marginY={1}>
+                {showConfirm ? (
+                    <>
+                        <Box marginBottom={2}>
+                            <Text bold color="yellow">
+                                ⚠️  Clear Product Cache?
+                            </Text>
+                        </Box>
+                        
+                        <Box borderStyle="single" borderColor="yellow" padding={1} marginBottom={2}>
+                            <Box flexDirection="column">
+                                <Text color="white">
+                                    This will permanently delete all cached product data from the server.
+                                </Text>
+                                <Text color="gray" marginTop={1}>
+                                    • All products will need to be re-fetched from SP-API
+                                </Text>
+                                <Text color="gray">
+                                    • API calls will be slower until cache rebuilds
+                                </Text>
+                                <Text color="gray">
+                                    • This action cannot be undone
+                                </Text>
+                            </Box>
+                        </Box>
+                        
+                        <Box marginBottom={1}>
+                            <Text color="cyan">
+                                Are you sure you want to clear the product cache?
+                            </Text>
+                        </Box>
+                    </>
+                ) : (
+                    <>
+                        {isClearing && (
+                            <Box marginY={1}>
+                                <Text color="cyan">
+                                    <Spinner type="dots" /> Clearing product cache...
+                                </Text>
+                            </Box>
+                        )}
+                    </>
+                )}
+            </Box>
+
+            <Box marginTop={1}>
+                <Text color="yellow">
+                    {showConfirm && !isClearing && 'Press [Y] to confirm • [N] to cancel • [Esc] to go back'}
+                    {isClearing && 'Clearing cache...'}
+                </Text>
+            </Box>
+        </Box>
+    );
+};
+
 // Simple Licenses Component
 const Licenses: React.FC<{
     onBack: () => void;
@@ -696,7 +1166,7 @@ const Licenses: React.FC<{
 // Main App Component
 const App: React.FC = () => {
     const { exit } = useApp();
-    const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'licenses' | 'create-license'>(
+    const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'licenses' | 'create-license' | 'api-testing' | 'test-get-product' | 'clear-cache'>(
         'dashboard'
     );
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -712,6 +1182,8 @@ const App: React.FC = () => {
                 setCurrentScreen('dashboard');
             } else if (input === '2') {
                 setCurrentScreen('licenses');
+            } else if (input === '3') {
+                setCurrentScreen('api-testing');
             }
         }
     });
@@ -743,11 +1215,42 @@ const App: React.FC = () => {
                     }}
                 />
             )}
+            {currentScreen === 'api-testing' && (
+                <ApiTestingMenu
+                    onBack={() => {
+                        setSuccessMessage('');
+                        setCurrentScreen('dashboard');
+                    }}
+                    onTestGetProduct={() => {
+                        setSuccessMessage('');
+                        setCurrentScreen('test-get-product');
+                    }}
+                    onClearCache={() => {
+                        setSuccessMessage('');
+                        setCurrentScreen('clear-cache');
+                    }}
+                    successMessage={successMessage}
+                />
+            )}
+            {currentScreen === 'test-get-product' && (
+                <TestGetProduct
+                    onBack={() => setCurrentScreen('api-testing')}
+                />
+            )}
+            {currentScreen === 'clear-cache' && (
+                <ClearProductCache
+                    onBack={() => setCurrentScreen('api-testing')}
+                    onSuccess={(message: string) => {
+                        setSuccessMessage(message);
+                        setCurrentScreen('api-testing');
+                    }}
+                />
+            )}
 
             {/* Navigation */}
             {currentScreen === 'dashboard' && (
                 <Box marginTop={1}>
-                    <Text color="yellow">Navigation: [1] Dashboard • [2] Licenses • [q] Quit</Text>
+                    <Text color="yellow">Navigation: [1] Dashboard • [2] Licenses • [3] API Testing • [q] Quit</Text>
                 </Box>
             )}
         </Box>

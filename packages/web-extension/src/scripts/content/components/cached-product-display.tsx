@@ -1,28 +1,22 @@
 import { useEffect, useState } from 'react';
 import { getProduct } from '@/scripts/api/get-product';
-import { getCachedProduct, setCachedProduct } from '@/scripts/api/product-cache';
-import { US_MARKETPLACE_ID } from '@/scripts/types/marketplace';
-import { SearchBadge } from './search-badge';
+import { ProductCache } from '@/scripts/db/product-cache';
+import type { Product, ProductIdentifier } from '@/scripts/types/product';
+import { ProductDisplay } from './product-display';
 
-interface CachedSearchBadgeProps {
-    asin: string;
-}
-
-export function CachedSearchBadge({ asin }: CachedSearchBadgeProps) {
+export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
     const [state, setState] = useState<'loading' | 'success' | 'error' | 'no-data'>('loading');
-    const [bsr, setBsr] = useState<number>();
-    const [creationDate, setCreationDate] = useState<string>();
+    const [product, setProduct] = useState<Product>();
 
     useEffect(() => {
         async function loadBsr() {
             try {
-                const cachedProduct = await getCachedProduct(asin);
+                const cachedProduct = await ProductCache.get(productIdentifier);
 
                 if (cachedProduct) {
                     if (cachedProduct.bsr > 0) {
                         setState('success');
-                        setBsr(cachedProduct.bsr);
-                        setCreationDate(cachedProduct.creationDate);
+                        setProduct(cachedProduct);
                     } else {
                         setState('no-data'); // Cached "no BSR" result
                     }
@@ -30,16 +24,15 @@ export function CachedSearchBadge({ asin }: CachedSearchBadgeProps) {
                 }
 
                 // Fetch product info
-                const product = await getProduct({ asin, marketplaceId: US_MARKETPLACE_ID });
+                const product = await getProduct(productIdentifier);
 
                 if (product.metadata.success) {
-                    await setCachedProduct(product);
+                    await ProductCache.set(product);
 
                     // Update state based on whether BSR exists
                     if (product.bsr) {
                         setState('success');
-                        setBsr(product.bsr);
-                        setCreationDate(product.creationDate);
+                        setProduct(product);
                     } else {
                         setState('no-data'); // Valid response, just no BSR
                     }
@@ -52,7 +45,13 @@ export function CachedSearchBadge({ asin }: CachedSearchBadgeProps) {
         }
 
         loadBsr();
-    }, [asin]);
+    }, [productIdentifier]);
 
-    return <SearchBadge asin={asin} state={state} bsr={bsr} creationDate={creationDate} />;
-}
+    return (
+        <ProductDisplay
+            product={product}
+            isLoading={state === 'loading'}
+            isError={state === 'error'}
+        />
+    );
+};

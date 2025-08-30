@@ -1,10 +1,15 @@
 import { SellingPartner as SellingPartnerAPI } from 'amazon-sp-api';
 import Bottleneck from 'bottleneck';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
 import { productCache, systemStats } from '@/db/schema.js';
-import { and, eq, gte, sql } from 'drizzle-orm';
-import type { SimplifiedCatalogItem, CatalogSearchResponse, ProductInfo, GetCatalogItemResponse } from '@/types/index.js';
+import type {
+    CatalogSearchResponse,
+    GetCatalogItemResponse,
+    ProductInfo,
+    SimplifiedCatalogItem,
+} from '@/types/index.js';
 
 // Rate limiter: 2 requests per second with burst of 2 (matches SP-API limits)
 const spApiLimiter = new Bottleneck({
@@ -18,10 +23,11 @@ const spApiLimiter = new Bottleneck({
 // Helper functions for stats tracking
 async function trackApiCall() {
     try {
-        await db.update(systemStats)
-            .set({ 
+        await db
+            .update(systemStats)
+            .set({
                 totalSpApiCalls: sql`${systemStats.totalSpApiCalls} + 1`,
-                updatedAt: new Date()
+                updatedAt: new Date(),
             })
             .where(eq(systemStats.id, 'current'));
     } catch (error) {
@@ -31,10 +37,11 @@ async function trackApiCall() {
 
 async function trackCacheHit() {
     try {
-        await db.update(systemStats)
-            .set({ 
+        await db
+            .update(systemStats)
+            .set({
                 totalCacheHits: sql`${systemStats.totalCacheHits} + 1`,
-                updatedAt: new Date()
+                updatedAt: new Date(),
             })
             .where(eq(systemStats.id, 'current'));
     } catch (error) {
@@ -66,7 +73,14 @@ export const searchCatalog = async (keywords: string[]): Promise<SimplifiedCatal
                 query: {
                     keywords,
                     marketplaceIds: 'ATVPDKIKX0DER',
-                    includedData: ['attributes', 'identifiers', 'productTypes', 'images', 'salesRanks', 'summaries'],
+                    includedData: [
+                        'attributes',
+                        'identifiers',
+                        'productTypes',
+                        'images',
+                        'salesRanks',
+                        'summaries',
+                    ],
                     classificationIds: ['7147445011'],
                     pageSize: 20,
                     ...(nextToken ? { nextToken } : {}),
@@ -84,10 +98,12 @@ export const searchCatalog = async (keywords: string[]): Promise<SimplifiedCatal
     } while (nextToken && currentPage < maxPages);
 
     // Deduplicate items based on title
-    const uniqueItems = Array.from(new Map(allItems.map((item) => [item.title, item])).values());
+    const uniqueItems = Array.from(new Map(allItems.map(item => [item.title, item])).values());
 
     // Sort by BSR
-    const result = uniqueItems.sort((a, b) => (a.bsr ?? Number.MAX_SAFE_INTEGER) - (b.bsr ?? Number.MAX_SAFE_INTEGER));
+    const result = uniqueItems.sort(
+        (a, b) => (a.bsr ?? Number.MAX_SAFE_INTEGER) - (b.bsr ?? Number.MAX_SAFE_INTEGER)
+    );
     return result;
 };
 
@@ -123,7 +139,9 @@ function parseCatalogItem(item: any): SimplifiedCatalogItem {
     }
 
     // Get the Clothing, Shoes & Jewelry BSR
-    const fashionDisplayRank = item.salesRanks?.[0]?.displayGroupRanks?.find((rank: any) => rank.websiteDisplayGroup === 'fashion_display_on_website');
+    const fashionDisplayRank = item.salesRanks?.[0]?.displayGroupRanks?.find(
+        (rank: any) => rank.websiteDisplayGroup === 'fashion_display_on_website'
+    );
     const bsr = fashionDisplayRank?.rank || null;
 
     return {
@@ -139,7 +157,8 @@ function parseCatalogItem(item: any): SimplifiedCatalogItem {
 export const getProductInfo = async (marketplaceId: string, asin: string): Promise<ProductInfo> => {
     // Check PostgreSQL cache first
     try {
-        const cached = await db.select()
+        const cached = await db
+            .select()
             .from(productCache)
             .where(
                 and(
@@ -152,24 +171,25 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
 
         if (cached.length > 0) {
             // Update access stats
-            await db.update(productCache)
-                .set({ 
+            await db
+                .update(productCache)
+                .set({
                     lastAccessedAt: new Date(),
-                    accessCount: sql`${productCache.accessCount} + 1`
+                    accessCount: sql`${productCache.accessCount} + 1`,
                 })
                 .where(eq(productCache.id, cached[0].id));
-            
+
             // Track cache hit
             await trackCacheHit();
-            
+
             console.log(`[${new Date().toISOString()}] Cache hit for ${asin}`);
-            
+
             return {
                 ...cached[0].data,
                 metadata: {
                     ...cached[0].data.metadata,
-                    cached: true
-                }
+                    cached: true,
+                },
             };
         }
     } catch (error) {
@@ -189,9 +209,9 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
 
     // Track SP-API call
     await trackApiCall();
-    
+
     // Use rate limiter for SP-API call
-    const response: GetCatalogItemResponse = await spApiLimiter.schedule(() => 
+    const response: GetCatalogItemResponse = await spApiLimiter.schedule(() =>
         sellingPartner.callAPI({
             operation: 'getCatalogItem',
             endpoint: 'catalogItems',
@@ -208,18 +228,19 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
         })
     );
 
-    const result = parseProductInfo(response, asin);
-    
+    const result = parseProductInfo(response, asin, marketplaceId);
+
     // Store in PostgreSQL cache
     try {
         const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours
-        
-        await db.insert(productCache)
+
+        await db
+            .insert(productCache)
             .values({
                 marketplaceId,
                 asin,
                 data: result,
-                expiresAt
+                expiresAt,
             })
             .onConflictDoUpdate({
                 target: [productCache.marketplaceId, productCache.asin],
@@ -228,10 +249,10 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
                     expiresAt,
                     createdAt: new Date(),
                     accessCount: 0,
-                    lastAccessedAt: new Date()
-                }
+                    lastAccessedAt: new Date(),
+                },
             });
-            
+
         console.log(`[${new Date().toISOString()}] Cached result for ${asin}`);
     } catch (error) {
         console.error(`[Cache] Error caching result for ${asin}:`, error);
@@ -240,28 +261,28 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
     return result;
 };
 
-function parseProductInfo(response: GetCatalogItemResponse, asin: string): ProductInfo {
+function parseProductInfo(response: GetCatalogItemResponse, asin: string, marketplaceId: string): ProductInfo {
     const item = response;
-    
+
     // Try multiple date field locations
     let creationDate: string | null = null;
-    
+
     // Check attributes for date fields
     if (item.attributes) {
         // Look for various date-related attributes
         const dateFields = [
             'product_site_launch_date',
             'date_first_available',
-            'date_first_listed', 
+            'date_first_listed',
             'street_date',
             'first_available_date',
-            'listing_date'
+            'listing_date',
         ];
-        
+
         for (const field of dateFields) {
             if (item.attributes[field]) {
-                const dateValue = Array.isArray(item.attributes[field]) 
-                    ? item.attributes[field][0]?.value 
+                const dateValue = Array.isArray(item.attributes[field])
+                    ? item.attributes[field][0]?.value
                     : item.attributes[field];
                 if (dateValue) {
                     creationDate = dateValue;
@@ -269,26 +290,26 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string): Produ
                 }
             }
         }
-        
     }
-    
+
     // Fallback to summaries release date if no attribute date found
     if (!creationDate) {
         creationDate = item.summaries?.[0]?.releaseDate || null;
     }
-    
+
     // Extract BSR from salesRanks - look for fashion category rank
     let bsr: number | null = null;
     const salesRanks = item.salesRanks?.[0];
     if (salesRanks?.displayGroupRanks) {
-        const fashionRank = salesRanks.displayGroupRanks.find((rank: any) => 
-            rank.websiteDisplayGroup === 'fashion_display_on_website'
+        const fashionRank = salesRanks.displayGroupRanks.find(
+            (rank: any) => rank.websiteDisplayGroup === 'fashion_display_on_website'
         );
         bsr = fashionRank?.rank || null;
     }
 
     return {
         asin,
+        marketplaceId,
         creationDate,
         bsr,
         metadata: {

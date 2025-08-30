@@ -68,13 +68,19 @@ export interface GetLicenseStatusMessage {
     type: 'getLicenseStatus';
 }
 
+export interface ToggleDebugModeMessage {
+    type: 'toggleDebugMode';
+    debugMode: boolean;
+}
+
 export type BackgroundMessage =
     | FetchProductInfoMessage
     | { type: 'ping' }
     | ValidateLicenseMessage
     | SetLicenseMessage
     | RemoveLicenseMessage
-    | GetLicenseStatusMessage;
+    | GetLicenseStatusMessage
+    | ToggleDebugModeMessage;
 
 // API response type
 export interface StatsResponse {

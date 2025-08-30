@@ -1,7 +1,9 @@
 import { createElement } from 'react';
-import { CachedSearchBadge } from '../components/cached-search-badge';
-import { reactRenderer } from './react-renderer';
+import { US_MARKETPLACE_ID } from '@/scripts/types/marketplace';
+import styles from '@/styles/index.css?inline';
 import { log } from '../../../utils/logger';
+import { CachedProductDisplay } from '../components/cached-product-display';
+import { reactRenderer } from './react-renderer';
 
 interface BsrBadge {
     element: HTMLElement;
@@ -60,11 +62,24 @@ class SearchInjector {
         // Create container for React component
         const badge = reactRenderer.createContainer('rw-bsr-badge');
 
-        // Render cached search badge component
-        const cachedBadgeComponent = createElement(CachedSearchBadge, {
+        // Style the host element to take full width
+        badge.style.display = 'block';
+        badge.style.width = '100%';
+
+        // Create shadow root and inject styles
+        const shadowRoot = badge.attachShadow({ mode: 'open' });
+
+        // Inject styles into shadow root
+        const styleElement = document.createElement('style');
+        styleElement.textContent = styles.toString();
+        shadowRoot.appendChild(styleElement);
+
+        // Render cached search badge component into shadow root
+        const cachedProductDisplayComponent = createElement(CachedProductDisplay, {
             asin,
+            marketplaceId: US_MARKETPLACE_ID,
         });
-        reactRenderer.render(cachedBadgeComponent, badge);
+        reactRenderer.render(cachedProductDisplayComponent, shadowRoot);
 
         // Insert before title-recipe
         const titleRecipe = injectionPoint.querySelector('[data-cy="title-recipe"]');
@@ -88,18 +103,7 @@ class SearchInjector {
         // Remove all existing badges - React roots will be auto-cleaned by MutationObserver
         document.querySelectorAll('.rw-bsr-badge').forEach(badge => badge.remove());
     }
-
 }
-
-// Add CSS animation for loading spinner
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-`;
-document.head.appendChild(style);
 
 // Export singleton instance
 export const searchInjector = new SearchInjector();

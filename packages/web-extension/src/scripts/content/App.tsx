@@ -1,9 +1,27 @@
-import { useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { log } from '../../utils/logger';
+import { DebugWidget } from './components/debug-widget';
 import { searchInjector } from './services/search-injector';
 
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            retry: 1,
+            staleTime: 5 * 1000,
+        },
+    },
+});
+
 const App = () => {
+    const [debugMode, setDebugMode] = useState(false);
+
     useEffect(() => {
+        // Load initial debug mode state
+        chrome.storage.local.get(['debugMode'], result => {
+            setDebugMode(result.debugMode || false);
+        });
+
         // Initial injection
         const runInjection = () => {
             log.debug('Running BSR injection');
@@ -32,16 +50,40 @@ const App = () => {
             setTimeout(urlChangeHandler, 100);
         });
 
-        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            log.debug('Message received', { request, sender });
-        });
-
         return () => {
             clearInterval(urlWatcher);
         };
     }, []);
 
-    return null;
+    // Separate useEffect for message listener to avoid stale closure
+    useEffect(() => {
+        const handleMessage = (
+            request: any,
+            sender: chrome.runtime.MessageSender,
+            sendResponse: (response?: any) => void
+        ) => {
+            log.debug('Message received', { request, sender });
+
+            if (request.type === 'toggleDebugMode') {
+                log.debug('Toggling debug mode via message:', request.debugMode);
+                setDebugMode(request.debugMode);
+                sendResponse({ success: true });
+                return true; // Indicates async response
+            }
+        };
+
+        chrome.runtime.onMessage.addListener(handleMessage);
+
+        return () => {
+            chrome.runtime.onMessage.removeListener(handleMessage);
+        };
+    }, []);
+
+    return (
+        <QueryClientProvider client={queryClient}>
+            {debugMode && <DebugWidget />}
+        </QueryClientProvider>
+    );
 };
 
 export default App;

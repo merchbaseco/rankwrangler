@@ -26,6 +26,7 @@ export type SearchCatalogApiResponse = {
 
 export type ProductInfo = {
     asin: string;
+    marketplaceId: string;
     creationDate: string | null;
     bsr: number | null;
     metadata: {

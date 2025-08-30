@@ -1,8 +1,4 @@
-import type {
-    FetchProductInfoMessage,
-    ProductInfo,
-    ProductInfoResponse,
-} from '@/scripts/content/types';
+import type { FetchProductInfoMessage, ProductInfoResponse } from '@/scripts/content/types';
 import { log } from '../../../utils/logger';
 
 const API_BASE_URL = 'https://merchbase.co/api';

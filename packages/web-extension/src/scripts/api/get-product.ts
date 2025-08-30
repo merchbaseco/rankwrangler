@@ -1,35 +1,18 @@
 import { RateLimiter } from 'limiter';
 import log from '@/utils/logger';
-import { getErrorProduct, type Product } from '../content/types/product';
+import { ProductCache } from '../db/product-cache';
+import { ProductRequestTracker } from '../db/product-request-tracker';
+import { getErrorProduct, type Product, type ProductIdentifier } from '../types/product';
 
 const rateLimiter = new RateLimiter({
     tokensPerInterval: 10,
     interval: 'second',
 });
 
-interface GetProductParams {
-    asin: string;
-    marketplaceId: string;
-}
+export const getProduct = async (productIdentifier: ProductIdentifier): Promise<Product> => {
+    const { asin, marketplaceId } = productIdentifier;
 
-const PRODUCT_PARAMS_REQUEST_KEY = 'productParamsRequest';
-
-class StorageQueue {
-    private queue: Promise<any> = Promise.resolve();
-    
-    async execute<T>(operation: () => Promise<T>): Promise<T> {
-        const result = this.queue.then(operation);
-        this.queue = result.catch(() => {}); // Continue even if one fails
-        return result;
-    }
-}
-
-const storageQueue = new StorageQueue();
-
-export const getProduct = async (params: GetProductParams): Promise<Product> => {
-    const { asin, marketplaceId } = params;
-
-    await recordProductRequestStarted(params);
+    await ProductRequestTracker.markRequestStarted(productIdentifier);
     await rateLimiter.removeTokens(1);
 
     return new Promise(resolve => {
@@ -39,11 +22,14 @@ export const getProduct = async (params: GetProductParams): Promise<Product> => 
             marketplaceId,
         };
 
-        chrome.runtime.sendMessage(message, response => {
-            recordProductRequestCompleted(params);
+        chrome.runtime.sendMessage(message, async response => {
+            log.info(`getProduct(${asin}) response!`, response.data);
+            await ProductRequestTracker.markRequestCompleted(productIdentifier);
+            log.info(`getProduct(${asin}) request marked completed.`);
+
             if (chrome.runtime.lastError) {
                 log.error(`getProduct failed for ${asin}`, { error: chrome.runtime.lastError });
-                resolve(getErrorProduct(asin));
+                resolve(getErrorProduct(productIdentifier));
                 return;
             }
 
@@ -51,7 +37,7 @@ export const getProduct = async (params: GetProductParams): Promise<Product> => 
                 log.error(`getProduct failed for ${asin}`, {
                     error: 'No response from service worker.',
                 });
-                resolve(getErrorProduct(asin));
+                resolve(getErrorProduct(productIdentifier));
                 return;
             }
 
@@ -59,13 +45,14 @@ export const getProduct = async (params: GetProductParams): Promise<Product> => 
                 log.error(`getProduct failed for ${asin}`, {
                     error: `Service worker encountered error. ${response.error}`,
                 });
-                resolve(getErrorProduct(asin));
+                resolve(getErrorProduct(productIdentifier));
                 return;
             }
 
             log.success('API response received', response);
-            resolve({
+            const product = {
                 asin,
+                marketplaceId: response.data.marketplaceId,
                 bsr: response.data.bsr,
                 creationDate: response.data.creationDate,
                 metadata: {
@@ -73,46 +60,11 @@ export const getProduct = async (params: GetProductParams): Promise<Product> => 
                     lastFetched: new Date().toISOString(),
                     cached: false,
                 },
-            });
+            };
+
+            // Cache the successful response
+            await ProductCache.set(product);
+            resolve(product);
         });
-    });
-};
-
-const recordProductRequestStarted = async (params: GetProductParams) => {
-    return storageQueue.execute(async () => {
-        const result = await chrome.storage.local.get([PRODUCT_PARAMS_REQUEST_KEY]);
-        const requestQueue = result[PRODUCT_PARAMS_REQUEST_KEY] || {};
-
-        const newRequestQueue = {
-            ...requestQueue,
-            [params.asin]: {
-                ...params,
-                startedAt: new Date().toISOString(),
-            },
-        };
-
-        log.info(`Setting request requestQueue [STARTED ${params.asin}]`, newRequestQueue);
-        await chrome.storage.local.set({ [PRODUCT_PARAMS_REQUEST_KEY]: newRequestQueue });
-    });
-};
-
-const recordProductRequestCompleted = async (params: GetProductParams) => {
-    return storageQueue.execute(async () => {
-        const result = await chrome.storage.local.get([PRODUCT_PARAMS_REQUEST_KEY]);
-        const requestQueue = result[PRODUCT_PARAMS_REQUEST_KEY] || {};
-        
-        delete requestQueue[params.asin];
-        
-        log.info(`Setting request requestQueue [COMPLETE ${params.asin}]`, requestQueue);
-        await chrome.storage.local.set({ [PRODUCT_PARAMS_REQUEST_KEY]: requestQueue });
-    });
-};
-
-export const getProductRequestCount = async (): Promise<number> => {
-    return storageQueue.execute(async () => {
-        const result = await chrome.storage.local.get([PRODUCT_PARAMS_REQUEST_KEY]);
-        const requestQueue = result[PRODUCT_PARAMS_REQUEST_KEY] || {};
-
-        return Object.keys(requestQueue).length;
     });
 };

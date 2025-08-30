@@ -5,6 +5,7 @@ import { handleGetLicenseStatus } from './handlers/get-license-status';
 import { handlePing } from './handlers/ping';
 import { handleRemoveLicense } from './handlers/remove-license';
 import { handleSetLicense } from './handlers/set-license';
+import { handleToggleDebugMode } from './handlers/toggle-debug-mode';
 import { handleValidateLicense } from './handlers/validate-license';
 
 log.ready('Background Service Worker Loaded');
@@ -40,6 +41,10 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
 
         case 'getLicenseStatus':
             handleGetLicenseStatus(message, sendResponse);
+            return true;
+
+        case 'toggleDebugMode':
+            handleToggleDebugMode(message, sendResponse);
             return true;
 
         default:

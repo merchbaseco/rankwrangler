@@ -1,114 +1,73 @@
-import {
-    Database01Icon,
-    Delete02Icon,
-    HierarchySquare03Icon,
-    Loading03Icon,
-} from 'hugeicons-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import { clearCache } from '@/scripts/api/product-cache';
-import { useProductCache } from '../hooks/use-product-cache';
-import { useProductRequestQueueCount } from '../hooks/use-product-request-queue-count';
-import { useReactRootsCount } from '../hooks/useReactRootsCount';
-
-interface StatCardProps {
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    value: number;
-    colorClass: string;
-}
-
-const StatRow = ({ icon: Icon, label, value, colorClass }: StatCardProps) => (
-    <div className="flex items-center justify-between py-2 px-2 border-b last:border-b-0">
-        <div className="flex items-center gap-3">
-            <div
-                className={`size-6 bg-gradient-to-r ${colorClass} rounded-sm flex items-center justify-center flex-shrink-0`}
-            >
-                <Icon className="size-4" />
-            </div>
-            <span className="text-sm text-foreground">{label}</span>
-        </div>
-        <span className="text-lg font-bold text-foreground">{value}</span>
-    </div>
-);
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const StatsDisplay = () => {
-    const { data: reactRootsCount } = useReactRootsCount();
-    const { cacheSize, refreshStats } = useProductCache();
-    const { queueCount, refreshQueueCount } = useProductRequestQueueCount();
+    const [debugMode, setDebugMode] = useState(false);
 
-    const handleClearCache = async () => {
-        await clearCache();
-        refreshStats();
+    useEffect(() => {
+        // Load initial debug mode state
+        chrome.storage.local.get(['debugMode'], (result) => {
+            setDebugMode(result.debugMode || false);
+        });
+    }, []);
+
+    const toggleDebugMode = async () => {
+        const newDebugMode = !debugMode;
+        setDebugMode(newDebugMode);
+        
+        // Save to storage
+        await chrome.storage.local.set({ debugMode: newDebugMode });
+        
+        // Send message to service worker to relay to all content scripts
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'toggleDebugMode',
+                debugMode: newDebugMode
+            });
+            console.log('Debug mode toggle response:', response);
+        } catch (error) {
+            console.error('Error sending debug mode toggle:', error);
+        }
     };
 
     return (
-        <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Extension Stats</span>
-                <div className="flex gap-1">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearCache}
-                        disabled={cacheSize === 0}
-                        className="text-xs text-muted-foreground hover:text-foreground h-auto p-1"
-                        title="Clear cache"
+        <Card>
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle className="text-base">Debug Mode</CardTitle>
+                        <CardDescription className="text-xs">
+                            Show extension stats on Amazon pages
+                        </CardDescription>
+                    </div>
+                    <button
+                        onClick={toggleDebugMode}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                            debugMode ? 'bg-blue-600' : 'bg-gray-200'
+                        }`}
                     >
-                        <Delete02Icon className="h-3 w-3" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                            refreshQueueCount();
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground h-auto p-1"
-                    >
-                        Refresh
-                    </Button>
+                        <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                debugMode ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                        />
+                    </button>
                 </div>
-            </div>
-
-            <Card>
-                <CardContent className="p-0">
-                    <StatRow
-                        icon={props => (
-                            <Database01Icon
-                                {...props}
-                                className={cn(props.className, 'text-blue-600')}
-                            />
-                        )}
-                        label="Local Cache"
-                        value={cacheSize ?? 0}
-                        colorClass="from-blue-500/20 to-blue-500/10"
-                    />
-                    <StatRow
-                        icon={props => (
-                            <Loading03Icon
-                                {...props}
-                                className={cn(props.className, 'text-orange-600')}
-                            />
-                        )}
-                        label="Active Queue"
-                        value={queueCount ?? 0}
-                        colorClass="from-orange-500/20 to-orange-500/10"
-                    />
-                    <StatRow
-                        icon={props => (
-                            <HierarchySquare03Icon
-                                {...props}
-                                className={cn(props.className, 'text-purple-600')}
-                            />
-                        )}
-                        label="React Roots"
-                        value={reactRootsCount ?? 0}
-                        colorClass="from-purple-500/20 to-purple-500/10"
-                    />
+            </CardHeader>
+            
+            {debugMode && (
+                <CardContent className="pt-0">
+                    <div className="text-xs text-muted-foreground">
+                        Debug widget visible on Amazon pages showing:
+                        <ul className="mt-1 ml-2 space-y-1">
+                            <li>• Cache count</li>
+                            <li>• Active queue</li>
+                            <li>• React roots</li>
+                        </ul>
+                    </div>
                 </CardContent>
-            </Card>
-        </div>
+            )}
+        </Card>
     );
 };
 
