@@ -1,5 +1,4 @@
 import clipboard from 'clipboardy';
-import { formatDistanceToNow } from 'date-fns';
 import { Box, render, Text, useApp, useInput, useStdout } from 'ink';
 import BigText from 'ink-big-text';
 import Gradient from 'ink-gradient';
@@ -34,10 +33,6 @@ class SimpleAPIClient {
             ...body,
         };
 
-        console.log('🔍 DEBUG POST REQUEST:');
-        console.log('  URL:', url);
-        console.log('  Body:', JSON.stringify(requestBody, null, 2));
-
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -46,19 +41,12 @@ class SimpleAPIClient {
             body: JSON.stringify(requestBody),
         });
 
-        console.log('📡 DEBUG RESPONSE:');
-        console.log('  Status:', response.status, response.statusText);
-        console.log('  Headers:', Object.fromEntries(response.headers.entries()));
-
         const responseText = await response.text();
-        console.log('  Raw Response:', responseText);
 
         try {
             const jsonResponse = JSON.parse(responseText);
-            console.log('  Parsed JSON:', jsonResponse);
             return jsonResponse;
-        } catch (err) {
-            console.log('  ❌ Failed to parse as JSON:', err);
+        } catch (_err) {
             return { success: false, error: 'Invalid JSON response', rawResponse: responseText };
         }
     }
@@ -71,10 +59,9 @@ class SimpleAPIClient {
         return this.get('/admin/license/list');
     }
 
-    async createLicense(email: string, expirationDays: number = 30, unlimited: boolean = false) {
+    async createLicense(email: string, unlimited: boolean = false) {
         return this.post('/admin/license/generate', {
             email,
-            expiryDays: expirationDays,
             unlimited,
         });
     }
@@ -95,10 +82,8 @@ class SimpleAPIClient {
             };
         }
 
-        // Filter for active licenses
-        const activeLicenses = licensesResult.data.filter(
-            (license: any) => license.expiresAt && new Date(license.expiresAt) > new Date()
-        );
+        // Get all licenses (no expiry filtering needed since licenses are permanent)
+        const activeLicenses = licensesResult.data;
 
         if (activeLicenses.length === 0) {
             return {
@@ -285,19 +270,10 @@ const CreateLicense: React.FC<{
     onSuccess: (message: string) => void;
 }> = ({ onBack, onSuccess }) => {
     const [email, setEmail] = useState('');
-    const [selectedExpiration, setSelectedExpiration] = useState(0);
-    const [customDays, setCustomDays] = useState('');
     const [selectedUsageLimit, setSelectedUsageLimit] = useState(0);
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState('');
-    const [step, setStep] = useState<'email' | 'expiration' | 'custom' | 'usage'>('email');
-
-    const expirationOptions = [
-        { label: '30 days', days: 30 },
-        { label: '90 days', days: 90 },
-        { label: '1 year', days: 365 },
-        { label: 'Custom', days: -1 },
-    ];
+    const [step, setStep] = useState<'email' | 'usage'>('email');
 
     const usageLimitOptions = [
         { label: 'Standard (10,000 requests/day)', unlimited: false },
@@ -309,49 +285,25 @@ const CreateLicense: React.FC<{
     };
 
     const createLicense = async () => {
-        console.log('=== CREATE LICENSE CALLED ===');
-        console.log('Email:', email);
-        console.log('Selected expiration:', selectedExpiration);
-        console.log('Custom days:', customDays);
-
         if (!validateEmail(email)) {
-            console.log('❌ Email validation failed');
             setError('Please enter a valid email address');
             return;
         }
 
-        const days =
-            selectedExpiration === 3
-                ? parseInt(customDays, 10)
-                : expirationOptions[selectedExpiration].days;
-        console.log('Calculated days:', days);
-
-        if (selectedExpiration === 3 && (Number.isNaN(days) || days < 1 || days > 3650)) {
-            console.log('❌ Custom days validation failed');
-            setError('Custom days must be between 1 and 3650');
-            return;
-        }
-
-        console.log('🔄 Starting license creation...');
         setIsCreating(true);
         setError('');
 
         try {
             const unlimited = usageLimitOptions[selectedUsageLimit].unlimited;
-            console.log('📡 Calling API with:', { email, days, unlimited });
-            const result = await api.createLicense(email, days, unlimited);
-            console.log('📡 API Response:', result);
+            const result = await api.createLicense(email, unlimited);
 
             if (result.success) {
-                console.log('✅ License created successfully!');
                 onSuccess('✅ License created successfully!');
             } else {
-                console.log('❌ API Error:', result.error);
                 setError(result.error || 'Failed to create license');
                 setIsCreating(false);
             }
         } catch (err) {
-            console.error('❌ Network/Catch Error:', err);
             setError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
             setIsCreating(false);
         }
@@ -369,34 +321,7 @@ const CreateLicense: React.FC<{
             return;
         }
 
-        if (step === 'expiration') {
-            if (key.upArrow || input === 'k') {
-                setSelectedExpiration(prev => Math.max(0, prev - 1));
-            }
-            if (key.downArrow || input === 'j') {
-                setSelectedExpiration(prev => Math.min(expirationOptions.length - 1, prev + 1));
-            }
-            if (key.return) {
-                console.log('⚡ Return key pressed in expiration step');
-                console.log('Selected expiration index:', selectedExpiration);
-                if (selectedExpiration === 3) {
-                    console.log('🔄 Moving to custom step');
-                    setStep('custom');
-                } else {
-                    console.log('🔄 Moving to usage limit step');
-                    setStep('usage');
-                }
-            }
-            if (key.leftArrow || input === 'h') {
-                setStep('email');
-            }
-        }
-
         if (step === 'email' && key.return && email.trim()) {
-            setStep('expiration');
-        }
-
-        if (step === 'custom' && key.return && customDays.trim()) {
             setStep('usage');
         }
 
@@ -412,11 +337,7 @@ const CreateLicense: React.FC<{
                 createLicense();
             }
             if (key.leftArrow || input === 'h') {
-                if (selectedExpiration === 3) {
-                    setStep('custom');
-                } else {
-                    setStep('expiration');
-                }
+                setStep('email');
             }
         }
     });
@@ -457,63 +378,12 @@ const CreateLicense: React.FC<{
                     )}
                 </Box>
 
-                {/* Expiration Step */}
-                {(step === 'expiration' || step === 'custom' || step === 'usage') && (
-                    <>
-                        <Box marginBottom={1}>
-                            <Text bold color={step === 'expiration' ? 'cyan' : 'gray'}>
-                                2. License Duration:
-                            </Text>
-                        </Box>
-                        {step === 'expiration' ? (
-                            <Box flexDirection="column" marginBottom={2}>
-                                {expirationOptions.map((option, index) => (
-                                    <Text
-                                        key={option.label}
-                                        color={selectedExpiration === index ? 'cyan' : 'gray'}
-                                        backgroundColor={
-                                            selectedExpiration === index ? 'cyan' : undefined
-                                        }
-                                    >
-                                        {selectedExpiration === index ? '► ' : '  '}
-                                        {option.label}
-                                    </Text>
-                                ))}
-                            </Box>
-                        ) : (
-                            <Box marginBottom={2}>
-                                <Text color="green">
-                                    ⏱️ {expirationOptions[selectedExpiration].label}
-                                </Text>
-                            </Box>
-                        )}
-                    </>
-                )}
-
-                {/* Custom Days Step */}
-                {step === 'custom' && (
-                    <>
-                        <Box marginBottom={1}>
-                            <Text bold color="cyan">
-                                Enter custom days (1-3650):
-                            </Text>
-                        </Box>
-                        <Box marginBottom={2}>
-                            <TextInput
-                                value={customDays}
-                                onChange={setCustomDays}
-                                placeholder="Enter number of days..."
-                            />
-                        </Box>
-                    </>
-                )}
-
                 {/* Usage Limit Step */}
                 {step === 'usage' && (
                     <>
                         <Box marginBottom={1}>
                             <Text bold color="cyan">
-                                3. Usage Limit:
+                                2. Usage Limit:
                             </Text>
                         </Box>
                         <Box flexDirection="column" marginBottom={2}>
@@ -545,9 +415,6 @@ const CreateLicense: React.FC<{
             <Box marginTop={1}>
                 <Text color="yellow">
                     {step === 'email' && 'Press [Enter] to continue • [Esc] to cancel'}
-                    {step === 'expiration' &&
-                        'Use [↑/↓] to select • [Enter] to confirm • [←] to go back • [Esc] to cancel'}
-                    {step === 'custom' && 'Enter days and press [Enter] • [Esc] to cancel'}
                     {step === 'usage' &&
                         'Use [↑/↓] to select • [Enter] to create license • [←] to go back • [Esc] to cancel'}
                 </Text>
@@ -1219,9 +1086,6 @@ const Licenses: React.FC<{
                                 {/* Render actual license rows */}
                                 {currentPageLicenses.map((license, index) => {
                                     const isSelected = index === selectedIndex;
-                                    const isExpired =
-                                        license.expiresAt &&
-                                        new Date(license.expiresAt) < new Date();
 
                                     return (
                                         <Box
@@ -1230,16 +1094,7 @@ const Licenses: React.FC<{
                                             paddingX={1}
                                         >
                                             <Box width="100%" justifyContent="space-between">
-                                                <Text
-                                                    color={
-                                                        isSelected
-                                                            ? 'black'
-                                                            : isExpired
-                                                              ? 'red'
-                                                              : 'green'
-                                                    }
-                                                    bold
-                                                >
+                                                <Text color={isSelected ? 'black' : 'green'} bold>
                                                     📧{' '}
                                                     {truncateText(
                                                         license.email || 'No email',
@@ -1248,14 +1103,10 @@ const Licenses: React.FC<{
                                                 </Text>
                                                 <Text color={isSelected ? 'black' : 'gray'}>
                                                     {truncateText(
-                                                        license.expiresAt
-                                                            ? formatDistanceToNow(
-                                                                  new Date(license.expiresAt),
-                                                                  {
-                                                                      addSuffix: true,
-                                                                  }
-                                                              )
-                                                            : 'No expiry',
+                                                        license.metadata?.limits
+                                                            ?.requests_per_day === -1
+                                                            ? 'Unlimited'
+                                                            : `${license.metadata?.limits?.requests_per_day || 10000}/day`,
                                                         maxTimeWidth
                                                     )}
                                                 </Text>

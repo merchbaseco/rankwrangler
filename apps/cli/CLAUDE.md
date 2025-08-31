@@ -17,15 +17,14 @@ Interactive React-based CLI for RankWrangler license management using Ink framew
 - Clipboard integration for license key management
 
 ### License Creation Flow
-Four-step interactive process with navigation controls:
+Two-step interactive process with navigation controls:
 
 **Key Points:**
 - **Step 1**: Email validation with regex checking
-- **Step 2**: Duration selection (30/90/365 days or custom)
-- **Step 3**: Usage limit selection (Standard 10k/day vs Unlimited)  
-- **Step 4**: License generation with server API call
+- **Step 2**: Usage limit selection (Standard 10k/day vs Unlimited) and license generation
 - **Navigation**: Full bi-directional flow with arrow key controls
 - **Error Handling**: Inline validation with user-friendly error messages
+- **Permanent Licenses**: All licenses are created without expiration and remain valid until explicitly deleted
 
 ### API Integration Pattern
 Direct server communication using fetch with structured error handling:
@@ -64,7 +63,7 @@ Critical commands that must be run from the CLI directory (`apps/cli/`):
 
 **Key Points:**
 - **Linting**: `yarn lint` - Check for issues, `yarn lint --write` - Auto-fix formatting issues
-- **Building**: `yarn build` - Build the CLI application 
+- **TypeScript Type Checking**: `npx tsc --noEmit` - Verify types without emitting files (may show Ink component prop warnings)
 - **Directory Context**: All commands must be run from `apps/cli/` directory, not turborepo root
 - **Common Mistakes**: Don't use turborepo commands for CLI linting - Biome config is local to CLI package
 - **Auto-Fix Strategy**: Always use `yarn lint --write` to fix formatting issues rather than manual fixes
