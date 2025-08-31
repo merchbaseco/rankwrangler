@@ -103,9 +103,9 @@ export const validateLicense = async (
 		// 5. Check and reset daily usage if needed
 		await checkAndResetDailyUsage(license);
 
-		// 6. Check daily rate limits
+		// 6. Check daily rate limits (skip if unlimited)
 		const dailyLimit = license.metadata.limits.requests_per_day;
-		if (license.usageToday >= dailyLimit) {
+		if (dailyLimit !== -1 && license.usageToday >= dailyLimit) {
 			return {
 				valid: false,
 				error: `Daily limit of ${dailyLimit} requests exceeded. Resets at midnight UTC.`,
@@ -171,13 +171,14 @@ const updateUsageStats = async (license: License): Promise<void> => {
 export const createLicense = async (
 	email: string,
 	expiryDays: number = 365,
+	unlimited: boolean = false,
 ): Promise<License> => {
 	try {
 		const key = generateLicenseKey(email, expiryDays);
 		const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
 		const features = ["basic_access"];
-		const requestsPerDay = 1000;
+		const requestsPerDay = unlimited ? -1 : 10000;
 
 		const licenseData = {
 			key,

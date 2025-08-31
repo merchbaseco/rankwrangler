@@ -75,6 +75,12 @@ const LicenseSection = () => {
 			if (licenseStatus.licenseData) {
 				const usage = licenseStatus.licenseData.usageToday;
 				const limit = licenseStatus.licenseData.dailyLimit;
+
+				// Handle unlimited licenses
+				if (limit === -1) {
+					return <Badge variant="default" className="bg-green-600">Unlimited</Badge>;
+				}
+
 				const usagePercent = (usage / limit) * 100;
 
 				if (usagePercent >= 90) {

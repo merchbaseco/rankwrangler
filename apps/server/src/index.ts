@@ -193,6 +193,7 @@ fastify.register(async function (fastify) {
       email: z.string().email('Valid email is required'),
       expiryDays: z.number().int().min(1).max(3650).default(365),
       adminKey: z.string().min(1, 'Admin key is required'),
+      unlimited: z.boolean().optional().default(false),
     });
 
     try {
@@ -209,7 +210,8 @@ fastify.register(async function (fastify) {
       
       const license = await createLicense(
         validatedData.email,
-        validatedData.expiryDays
+        validatedData.expiryDays,
+        validatedData.unlimited
       );
       
       console.log(`[Admin] Generated license for ${validatedData.email}`);
