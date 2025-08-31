@@ -32,8 +32,10 @@ const LicenseInfo = ({ licenseStatus }: LicenseInfoProps) => {
 					<div className="flex items-center justify-between text-xs">
 						<span className="text-muted-foreground">Usage today:</span>
 						<span className="font-mono">
-							{licenseStatus.licenseData.usageToday}/
-							{licenseStatus.licenseData.dailyLimit}
+							{licenseStatus.licenseData.dailyLimit === -1 
+								? `${licenseStatus.licenseData.usageToday} (Unlimited)`
+								: `${licenseStatus.licenseData.usageToday}/${licenseStatus.licenseData.dailyLimit}`
+							}
 						</span>
 					</div>
 					<div className="flex items-center justify-between text-xs">

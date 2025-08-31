@@ -33,11 +33,11 @@ class SimpleAPIClient {
             adminKey: this.adminKey,
             ...body,
         };
-        
+
         console.log('🔍 DEBUG POST REQUEST:');
         console.log('  URL:', url);
         console.log('  Body:', JSON.stringify(requestBody, null, 2));
-        
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -49,10 +49,10 @@ class SimpleAPIClient {
         console.log('📡 DEBUG RESPONSE:');
         console.log('  Status:', response.status, response.statusText);
         console.log('  Headers:', Object.fromEntries(response.headers.entries()));
-        
+
         const responseText = await response.text();
         console.log('  Raw Response:', responseText);
-        
+
         try {
             const jsonResponse = JSON.parse(responseText);
             console.log('  Parsed JSON:', jsonResponse);
@@ -71,10 +71,11 @@ class SimpleAPIClient {
         return this.get('/admin/license/list');
     }
 
-    async createLicense(email: string, expirationDays: number = 30) {
+    async createLicense(email: string, expirationDays: number = 30, unlimited: boolean = false) {
         return this.post('/admin/license/generate', {
             email,
             expiryDays: expirationDays,
+            unlimited,
         });
     }
 
@@ -84,28 +85,28 @@ class SimpleAPIClient {
         if (!licensesResult.success || !licensesResult.data || licensesResult.data.length === 0) {
             return {
                 success: false,
-                error: 'No licenses available for testing'
+                error: 'No licenses available for testing',
             };
         }
 
         // Filter for active licenses
-        const activeLicenses = licensesResult.data.filter((license: any) => 
-            license.expiresAt && new Date(license.expiresAt) > new Date()
+        const activeLicenses = licensesResult.data.filter(
+            (license: any) => license.expiresAt && new Date(license.expiresAt) > new Date()
         );
 
         if (activeLicenses.length === 0) {
             return {
                 success: false,
-                error: 'No active licenses available for testing'
+                error: 'No active licenses available for testing',
             };
         }
 
         // Pick a random active license
         const randomLicense = activeLicenses[Math.floor(Math.random() * activeLicenses.length)];
-        
+
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${randomLicense.key}`
+            Authorization: `Bearer ${randomLicense.key}`,
         };
 
         const response = await fetch(`${this.baseUrl}/getProductInfo`, {
@@ -118,14 +119,14 @@ class SimpleAPIClient {
         });
 
         const result = await response.json();
-        
+
         // Add which license was used for reference
         return {
             ...result,
             testInfo: {
                 licenseUsed: randomLicense.email,
-                licenseId: randomLicense.id
-            }
+                licenseId: randomLicense.id,
+            },
         };
     }
 
@@ -280,15 +281,21 @@ const CreateLicense: React.FC<{
     const [email, setEmail] = useState('');
     const [selectedExpiration, setSelectedExpiration] = useState(0);
     const [customDays, setCustomDays] = useState('');
+    const [selectedUsageLimit, setSelectedUsageLimit] = useState(0);
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState('');
-    const [step, setStep] = useState<'email' | 'expiration' | 'custom'>('email');
+    const [step, setStep] = useState<'email' | 'expiration' | 'custom' | 'usage'>('email');
 
     const expirationOptions = [
         { label: '30 days', days: 30 },
         { label: '90 days', days: 90 },
         { label: '1 year', days: 365 },
         { label: 'Custom', days: -1 },
+    ];
+
+    const usageLimitOptions = [
+        { label: 'Standard (10,000 requests/day)', unlimited: false },
+        { label: 'Unlimited', unlimited: true },
     ];
 
     const validateEmail = (email: string) => {
@@ -324,8 +331,9 @@ const CreateLicense: React.FC<{
         setError('');
 
         try {
-            console.log('📡 Calling API with:', { email, days });
-            const result = await api.createLicense(email, days);
+            const unlimited = usageLimitOptions[selectedUsageLimit].unlimited;
+            console.log('📡 Calling API with:', { email, days, unlimited });
+            const result = await api.createLicense(email, days, unlimited);
             console.log('📡 API Response:', result);
 
             if (result.success) {
@@ -369,8 +377,8 @@ const CreateLicense: React.FC<{
                     console.log('🔄 Moving to custom step');
                     setStep('custom');
                 } else {
-                    console.log('🚀 Calling createLicense()');
-                    createLicense();
+                    console.log('🔄 Moving to usage limit step');
+                    setStep('usage');
                 }
             }
             if (key.leftArrow || input === 'h') {
@@ -383,7 +391,27 @@ const CreateLicense: React.FC<{
         }
 
         if (step === 'custom' && key.return && customDays.trim()) {
-            createLicense();
+            setStep('usage');
+        }
+
+        if (step === 'usage') {
+            if (key.upArrow || input === 'k') {
+                setSelectedUsageLimit(prev => Math.max(0, prev - 1));
+            }
+            if (key.downArrow || input === 'j') {
+                setSelectedUsageLimit(prev => Math.min(usageLimitOptions.length - 1, prev + 1));
+            }
+            if (key.return) {
+                console.log('🚀 Calling createLicense()');
+                createLicense();
+            }
+            if (key.leftArrow || input === 'h') {
+                if (selectedExpiration === 3) {
+                    setStep('custom');
+                } else {
+                    setStep('expiration');
+                }
+            }
         }
     });
 
@@ -424,7 +452,7 @@ const CreateLicense: React.FC<{
                 </Box>
 
                 {/* Expiration Step */}
-                {(step === 'expiration' || step === 'custom') && (
+                {(step === 'expiration' || step === 'custom' || step === 'usage') && (
                     <>
                         <Box marginBottom={1}>
                             <Text bold color={step === 'expiration' ? 'cyan' : 'gray'}>
@@ -473,6 +501,31 @@ const CreateLicense: React.FC<{
                         </Box>
                     </>
                 )}
+
+                {/* Usage Limit Step */}
+                {step === 'usage' && (
+                    <>
+                        <Box marginBottom={1}>
+                            <Text bold color="cyan">
+                                3. Usage Limit:
+                            </Text>
+                        </Box>
+                        <Box flexDirection="column" marginBottom={2}>
+                            {usageLimitOptions.map((option, index) => (
+                                <Text
+                                    key={option.label}
+                                    color={selectedUsageLimit === index ? 'cyan' : 'gray'}
+                                    backgroundColor={
+                                        selectedUsageLimit === index ? 'cyan' : undefined
+                                    }
+                                >
+                                    {selectedUsageLimit === index ? '► ' : '  '}
+                                    {option.label}
+                                </Text>
+                            ))}
+                        </Box>
+                    </>
+                )}
             </Box>
 
             {isCreating && (
@@ -489,6 +542,8 @@ const CreateLicense: React.FC<{
                     {step === 'expiration' &&
                         'Use [↑/↓] to select • [Enter] to confirm • [←] to go back • [Esc] to cancel'}
                     {step === 'custom' && 'Enter days and press [Enter] • [Esc] to cancel'}
+                    {step === 'usage' &&
+                        'Use [↑/↓] to select • [Enter] to create license • [←] to go back • [Esc] to cancel'}
                 </Text>
             </Box>
         </Box>
@@ -593,7 +648,7 @@ const TestGetProduct: React.FC<{
 
             setResult({
                 ...response,
-                responseTime
+                responseTime,
             });
             setStep('result');
         } catch (err) {
@@ -696,7 +751,9 @@ const TestGetProduct: React.FC<{
                                     <Text
                                         key={option.id}
                                         color={selectedMarketplace === index ? 'cyan' : 'gray'}
-                                        backgroundColor={selectedMarketplace === index ? 'cyan' : undefined}
+                                        backgroundColor={
+                                            selectedMarketplace === index ? 'cyan' : undefined
+                                        }
                                     >
                                         {selectedMarketplace === index ? '► ' : '  '}
                                         {option.label}
@@ -721,27 +778,46 @@ const TestGetProduct: React.FC<{
                                 3. API Response:
                             </Text>
                         </Box>
-                        <Box borderStyle="single" borderColor={result.success ? 'green' : 'red'} padding={1} marginBottom={2}>
+                        <Box
+                            borderStyle="single"
+                            borderColor={result.success ? 'green' : 'red'}
+                            padding={1}
+                            marginBottom={2}
+                        >
                             <Box flexDirection="column">
                                 {result.success ? (
                                     <>
-                                        <Text color="green">✅ Success ({result.responseTime}ms)</Text>
-                                        <Text color="gray">License used: {result.testInfo?.licenseUsed}</Text>
+                                        <Text color="green">
+                                            ✅ Success ({result.responseTime}ms)
+                                        </Text>
+                                        <Text color="gray">
+                                            License used: {result.testInfo?.licenseUsed}
+                                        </Text>
                                         <Text> </Text>
                                         <Text color="cyan">Product Data:</Text>
                                         <Text color="white">• ASIN: {result.data.asin}</Text>
-                                        <Text color="white">• Marketplace: {result.data.marketplaceId}</Text>
+                                        <Text color="white">
+                                            • Marketplace: {result.data.marketplaceId}
+                                        </Text>
                                         <Text color="white">• BSR: {result.data.bsr || 'N/A'}</Text>
-                                        <Text color="white">• Creation Date: {result.data.creationDate || 'N/A'}</Text>
-                                        <Text color="white">• Cached: {result.data.metadata?.cached ? 'Yes' : 'No'}</Text>
-                                        <Text color="white">• Last Fetched: {result.data.metadata?.lastFetched}</Text>
+                                        <Text color="white">
+                                            • Creation Date: {result.data.creationDate || 'N/A'}
+                                        </Text>
+                                        <Text color="white">
+                                            • Cached: {result.data.metadata?.cached ? 'Yes' : 'No'}
+                                        </Text>
+                                        <Text color="white">
+                                            • Last Fetched: {result.data.metadata?.lastFetched}
+                                        </Text>
                                     </>
                                 ) : (
                                     <>
                                         <Text color="red">❌ Failed ({result.responseTime}ms)</Text>
                                         <Text color="red">Error: {result.error}</Text>
                                         {result.testInfo?.licenseUsed && (
-                                            <Text color="gray">License used: {result.testInfo.licenseUsed}</Text>
+                                            <Text color="gray">
+                                                License used: {result.testInfo.licenseUsed}
+                                            </Text>
                                         )}
                                     </>
                                 )}
@@ -762,8 +838,10 @@ const TestGetProduct: React.FC<{
             <Box marginTop={1}>
                 <Text color="yellow">
                     {step === 'asin' && 'Enter ASIN and press [Enter] • [Esc] to go back'}
-                    {step === 'marketplace' && 'Use [↑/↓] to select • [Enter] to test • [←] to go back • [Esc] to cancel'}
-                    {step === 'result' && 'Commands: [c] copy ASIN • [j] copy JSON • [r] test again • [Esc] back'}
+                    {step === 'marketplace' &&
+                        'Use [↑/↓] to select • [Enter] to test • [←] to go back • [Esc] to cancel'}
+                    {step === 'result' &&
+                        'Commands: [c] copy ASIN • [j] copy JSON • [r] test again • [Esc] back'}
                 </Text>
             </Box>
         </Box>
@@ -785,7 +863,7 @@ const ClearProductCache: React.FC<{
 
         try {
             const result = await api.clearProductCache();
-            
+
             if (result.success) {
                 const clearedCount = result.data?.clearedCount || 0;
                 onSuccess(`✅ Cache cleared! Removed ${clearedCount} cached products.`);
@@ -826,7 +904,9 @@ const ClearProductCache: React.FC<{
                     <BigText text="RANKWRANGLER" font="block" />
                 </Gradient>
 
-                <Breadcrumb path={['License Management CLI', 'API Testing', 'Clear Product Cache']} />
+                <Breadcrumb
+                    path={['License Management CLI', 'API Testing', 'Clear Product Cache']}
+                />
             </Box>
 
             {error && (
@@ -840,14 +920,15 @@ const ClearProductCache: React.FC<{
                     <>
                         <Box marginBottom={2}>
                             <Text bold color="yellow">
-                                ⚠️  Clear Product Cache?
+                                ⚠️ Clear Product Cache?
                             </Text>
                         </Box>
-                        
+
                         <Box borderStyle="single" borderColor="yellow" padding={1} marginBottom={2}>
                             <Box flexDirection="column">
                                 <Text color="white">
-                                    This will permanently delete all cached product data from the server.
+                                    This will permanently delete all cached product data from the
+                                    server.
                                 </Text>
                                 <Text color="gray" marginTop={1}>
                                     • All products will need to be re-fetched from SP-API
@@ -855,12 +936,10 @@ const ClearProductCache: React.FC<{
                                 <Text color="gray">
                                     • API calls will be slower until cache rebuilds
                                 </Text>
-                                <Text color="gray">
-                                    • This action cannot be undone
-                                </Text>
+                                <Text color="gray">• This action cannot be undone</Text>
                             </Box>
                         </Box>
-                        
+
                         <Box marginBottom={1}>
                             <Text color="cyan">
                                 Are you sure you want to clear the product cache?
@@ -868,21 +947,21 @@ const ClearProductCache: React.FC<{
                         </Box>
                     </>
                 ) : (
-                    <>
-                        {isClearing && (
-                            <Box marginY={1}>
-                                <Text color="cyan">
-                                    <Spinner type="dots" /> Clearing product cache...
-                                </Text>
-                            </Box>
-                        )}
-                    </>
+                    isClearing && (
+                        <Box marginY={1}>
+                            <Text color="cyan">
+                                <Spinner type="dots" /> Clearing product cache...
+                            </Text>
+                        </Box>
+                    )
                 )}
             </Box>
 
             <Box marginTop={1}>
                 <Text color="yellow">
-                    {showConfirm && !isClearing && 'Press [Y] to confirm • [N] to cancel • [Esc] to go back'}
+                    {showConfirm &&
+                        !isClearing &&
+                        'Press [Y] to confirm • [N] to cancel • [Esc] to go back'}
                     {isClearing && 'Clearing cache...'}
                 </Text>
             </Box>
@@ -1166,9 +1245,14 @@ const Licenses: React.FC<{
 // Main App Component
 const App: React.FC = () => {
     const { exit } = useApp();
-    const [currentScreen, setCurrentScreen] = useState<'dashboard' | 'licenses' | 'create-license' | 'api-testing' | 'test-get-product' | 'clear-cache'>(
-        'dashboard'
-    );
+    const [currentScreen, setCurrentScreen] = useState<
+        | 'dashboard'
+        | 'licenses'
+        | 'create-license'
+        | 'api-testing'
+        | 'test-get-product'
+        | 'clear-cache'
+    >('dashboard');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [successMessage, setSuccessMessage] = useState('');
 
@@ -1233,9 +1317,7 @@ const App: React.FC = () => {
                 />
             )}
             {currentScreen === 'test-get-product' && (
-                <TestGetProduct
-                    onBack={() => setCurrentScreen('api-testing')}
-                />
+                <TestGetProduct onBack={() => setCurrentScreen('api-testing')} />
             )}
             {currentScreen === 'clear-cache' && (
                 <ClearProductCache
@@ -1250,7 +1332,9 @@ const App: React.FC = () => {
             {/* Navigation */}
             {currentScreen === 'dashboard' && (
                 <Box marginTop={1}>
-                    <Text color="yellow">Navigation: [1] Dashboard • [2] Licenses • [3] API Testing • [q] Quit</Text>
+                    <Text color="yellow">
+                        Navigation: [1] Dashboard • [2] Licenses • [3] API Testing • [q] Quit
+                    </Text>
                 </Box>
             )}
         </Box>
