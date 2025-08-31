@@ -90,12 +90,7 @@ export const validateLicense = async (
 			keyMatch: license.key === key,
 		});
 
-		// 3. Check if license is revoked
-		if (license.revokedAt) {
-			return { valid: false, error: "License has been revoked" };
-		}
-
-		// 4. Check if license is expired
+		// 3. Check if license is expired
 		if (new Date(license.expiresAt) < new Date()) {
 			return { valid: false, error: "License has expired" };
 		}
@@ -223,9 +218,8 @@ export const createLicense = async (
 	}
 };
 
-export const revokeLicense = async (licenseId: string): Promise<boolean> => {
-	const result = await db.update(licenses)
-		.set({ revokedAt: new Date() })
+export const deleteLicense = async (licenseId: string): Promise<boolean> => {
+	const result = await db.delete(licenses)
 		.where(eq(licenses.id, licenseId))
 		.returning({ id: licenses.id });
 
@@ -236,13 +230,10 @@ export const getLicenseStats = async () => {
 	const [totalCount] = await db.select({ count: sql<number>`count(*)` }).from(licenses);
 	const [activeCount] = await db.select({ count: sql<number>`count(*)` })
 		.from(licenses)
-		.where(isNull(licenses.revokedAt));
+		.where(gt(licenses.expiresAt, new Date()));
 	const [expiredCount] = await db.select({ count: sql<number>`count(*)` })
 		.from(licenses)
-		.where(and(
-			lt(licenses.expiresAt, new Date()),
-			isNull(licenses.revokedAt)
-		));
+		.where(lte(licenses.expiresAt, new Date()));
 
 	const total = totalCount.count;
 	const active = activeCount.count;
@@ -265,7 +256,6 @@ export const getLicenseStats = async () => {
 		total,
 		active,
 		expired,
-		revoked: total - active - expired,
 		productsInCache: cacheCount.count,
 		recentApiCalls: stats?.totalSpApiCalls || 0,
 		totalCacheHits: stats?.totalCacheHits || 0
@@ -273,29 +263,18 @@ export const getLicenseStats = async () => {
 };
 
 export const listLicenses = async (
-	filter: "all" | "active" | "expired" | "revoked" = "all",
+	filter: "all" | "active" | "expired" = "all",
 ): Promise<License[]> => {
 	switch (filter) {
 		case "active":
 			return await db.select()
 				.from(licenses)
-				.where(and(
-					isNull(licenses.revokedAt),
-					gt(licenses.expiresAt, new Date())
-				))
+				.where(gt(licenses.expiresAt, new Date()))
 				.orderBy(sql`${licenses.createdAt} DESC`);
 		case "expired":
 			return await db.select()
 				.from(licenses)
-				.where(and(
-					isNull(licenses.revokedAt),
-					lte(licenses.expiresAt, new Date())
-				))
-				.orderBy(sql`${licenses.createdAt} DESC`);
-		case "revoked":
-			return await db.select()
-				.from(licenses)
-				.where(sql`${licenses.revokedAt} IS NOT NULL`) // revokedAt is not null
+				.where(lte(licenses.expiresAt, new Date()))
 				.orderBy(sql`${licenses.createdAt} DESC`);
 		case "all":
 		default:

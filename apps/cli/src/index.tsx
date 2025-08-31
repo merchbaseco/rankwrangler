@@ -79,6 +79,12 @@ class SimpleAPIClient {
         });
     }
 
+    async deleteLicense(licenseId: string) {
+        return this.post('/admin/license/delete', {
+            licenseId,
+        });
+    }
+
     async testGetProduct(asin: string, marketplaceId: string = 'ATVPDKIKX0DER') {
         // First get a random active license from the database
         const licensesResult = await this.getLicenses();
@@ -983,6 +989,9 @@ const Licenses: React.FC<{
     const [isSearching, setIsSearching] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [message, setMessage] = useState('');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingLicenseId, setDeletingLicenseId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const itemsPerPage = 10;
     const [currentPage, setCurrentPage] = useState(0);
@@ -1039,6 +1048,35 @@ const Licenses: React.FC<{
         setTimeout(() => setMessage(''), 3000);
     }, []);
 
+    const handleDeleteLicense = useCallback(async () => {
+        if (!deletingLicenseId) return;
+
+        setIsDeleting(true);
+        try {
+            const result = await api.deleteLicense(deletingLicenseId);
+            if (result.success) {
+                showMessage('✅ License deleted successfully');
+                // Refresh license list
+                const licensesData = await api.getLicenses();
+                if (licensesData.success) {
+                    setLicenses(licensesData.data || []);
+                    // Reset selection if needed
+                    if (selectedIndex >= (licensesData.data?.length || 0)) {
+                        setSelectedIndex(Math.max(0, (licensesData.data?.length || 1) - 1));
+                    }
+                }
+            } else {
+                showMessage(`❌ Failed to delete license: ${result.error}`);
+            }
+        } catch (_error) {
+            showMessage('❌ Error deleting license');
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteConfirm(false);
+            setDeletingLicenseId(null);
+        }
+    }, [deletingLicenseId, selectedIndex, showMessage]);
+
     // Handle success message from license creation
     useEffect(() => {
         if (successMessage) {
@@ -1061,6 +1099,18 @@ const Licenses: React.FC<{
             return; // Don't handle other keys when searching
         }
 
+        // When in delete confirmation mode
+        if (showDeleteConfirm) {
+            if (input === 'y' || input === 'Y') {
+                handleDeleteLicense();
+            }
+            if (input === 'n' || input === 'N' || key.escape) {
+                setShowDeleteConfirm(false);
+                setDeletingLicenseId(null);
+            }
+            return; // Don't handle other keys when in delete confirmation
+        }
+
         // Normal navigation when not in search mode
         if (key.escape || input === 'b') {
             onBack();
@@ -1079,6 +1129,14 @@ const Licenses: React.FC<{
             if (license?.key) {
                 clipboard.writeSync(license.key);
                 showMessage('✅ License key copied to clipboard');
+            }
+        }
+
+        if (input === 'd') {
+            const license = currentPageLicenses[selectedIndex];
+            if (license?.id) {
+                setDeletingLicenseId(license.id);
+                setShowDeleteConfirm(true);
             }
         }
 
@@ -1135,107 +1193,184 @@ const Licenses: React.FC<{
                 {message ? <Text color="green">{message}</Text> : <Text> </Text>}
             </Box>
 
-            <Box marginBottom={1} flexDirection="row">
-                <Text color="gray">Search: </Text>
-                {isSearching ? (
-                    <TextInput
-                        value={searchQuery}
-                        onChange={setSearchQuery}
-                        placeholder="Type to search..."
-                        onSubmit={() => setIsSearching(false)}
-                    />
-                ) : (
-                    <Text color={searchQuery ? 'white' : 'gray'}>
-                        {searchQuery || '(none) - Press [s] to search'}
-                    </Text>
-                )}
-            </Box>
+            {!showDeleteConfirm ? (
+                <>
+                    <Box marginBottom={1} flexDirection="row">
+                        <Text color="gray">Search: </Text>
+                        {isSearching ? (
+                            <TextInput
+                                value={searchQuery}
+                                onChange={setSearchQuery}
+                                placeholder="Type to search..."
+                                onSubmit={() => setIsSearching(false)}
+                            />
+                        ) : (
+                            <Text color={searchQuery ? 'white' : 'gray'}>
+                                {searchQuery || '(none) - Press [s] to search'}
+                            </Text>
+                        )}
+                    </Box>
 
-            <Box borderStyle="single" borderColor="cyan" padding={1}>
-                {filteredLicenses.length === 0 ? (
-                    <Text color="gray">No licenses found</Text>
-                ) : (
-                    <Box flexDirection="column">
-                        {/* Render actual license rows */}
-                        {currentPageLicenses.map((license, index) => {
-                            const isSelected = index === selectedIndex;
-                            const isExpired =
-                                license.expiresAt && new Date(license.expiresAt) < new Date();
+                    <Box borderStyle="single" borderColor="cyan" padding={1}>
+                        {filteredLicenses.length === 0 ? (
+                            <Text color="gray">No licenses found</Text>
+                        ) : (
+                            <Box flexDirection="column">
+                                {/* Render actual license rows */}
+                                {currentPageLicenses.map((license, index) => {
+                                    const isSelected = index === selectedIndex;
+                                    const isExpired =
+                                        license.expiresAt &&
+                                        new Date(license.expiresAt) < new Date();
 
-                            return (
-                                <Box
-                                    key={license.id || index}
-                                    backgroundColor={isSelected ? 'cyan' : undefined}
-                                    paddingX={1}
-                                >
-                                    <Box width="100%" justifyContent="space-between">
-                                        <Text
-                                            color={
-                                                isSelected ? 'black' : isExpired ? 'red' : 'green'
-                                            }
-                                            bold
+                                    return (
+                                        <Box
+                                            key={license.id || index}
+                                            backgroundColor={isSelected ? 'cyan' : undefined}
+                                            paddingX={1}
                                         >
-                                            📧{' '}
-                                            {truncateText(
-                                                license.email || 'No email',
-                                                maxEmailWidth
-                                            )}
+                                            <Box width="100%" justifyContent="space-between">
+                                                <Text
+                                                    color={
+                                                        isSelected
+                                                            ? 'black'
+                                                            : isExpired
+                                                              ? 'red'
+                                                              : 'green'
+                                                    }
+                                                    bold
+                                                >
+                                                    📧{' '}
+                                                    {truncateText(
+                                                        license.email || 'No email',
+                                                        maxEmailWidth
+                                                    )}
+                                                </Text>
+                                                <Text color={isSelected ? 'black' : 'gray'}>
+                                                    {truncateText(
+                                                        license.expiresAt
+                                                            ? formatDistanceToNow(
+                                                                  new Date(license.expiresAt),
+                                                                  {
+                                                                      addSuffix: true,
+                                                                  }
+                                                              )
+                                                            : 'No expiry',
+                                                        maxTimeWidth
+                                                    )}
+                                                </Text>
+                                            </Box>
+                                        </Box>
+                                    );
+                                })}
+
+                                {/* Fill remaining space with empty rows to maintain consistent height */}
+                                {Array.from(
+                                    { length: itemsPerPage - currentPageLicenses.length },
+                                    (_, index) => (
+                                        <Box
+                                            key={`page-${currentPage}-spacer-${startIndex + currentPageLicenses.length + index}`}
+                                            paddingX={1}
+                                        >
+                                            <Text> </Text>
+                                        </Box>
+                                    )
+                                )}
+                            </Box>
+                        )}
+                    </Box>
+
+                    {/* Pagination Info */}
+                    {filteredLicenses.length > 0 && (
+                        <Box marginTop={1}>
+                            <Text color="gray">
+                                Showing {startIndex + 1}-
+                                {Math.min(endIndex, filteredLicenses.length)} of{' '}
+                                {filteredLicenses.length} licenses
+                                {totalPages > 1 && (
+                                    <Text color="cyan">
+                                        {' '}
+                                        • Page {currentPage + 1} of {totalPages}
+                                    </Text>
+                                )}
+                            </Text>
+                        </Box>
+                    )}
+                </>
+            ) : (
+                /* Delete Confirmation Modal */
+                <Box marginTop={1} marginBottom={1}>
+                    <Box borderStyle="single" borderColor="red" padding={1}>
+                        <Box flexDirection="column">
+                            <Box marginBottom={1}>
+                                <Text bold color="red">
+                                    ⚠️ Delete License?
+                                </Text>
+                            </Box>
+
+                            {(() => {
+                                const selectedLicense = currentPageLicenses[selectedIndex];
+                                return (
+                                    <Box flexDirection="column" marginBottom={1}>
+                                        <Text color="white">
+                                            This will permanently delete the following license:
                                         </Text>
-                                        <Text color={isSelected ? 'black' : 'gray'}>
-                                            {truncateText(
-                                                license.expiresAt
-                                                    ? formatDistanceToNow(
-                                                          new Date(license.expiresAt),
-                                                          {
-                                                              addSuffix: true,
-                                                          }
-                                                      )
-                                                    : 'No expiry',
-                                                maxTimeWidth
+                                        <Text color="gray" marginTop={1}>
+                                            • Email: {selectedLicense?.email || 'Unknown'}
+                                        </Text>
+                                        <Text color="gray">
+                                            • License ID:{' '}
+                                            {selectedLicense?.id
+                                                ? `${selectedLicense.id.substring(0, 8)}...`
+                                                : 'Unknown'}
+                                        </Text>
+                                        <Text color="gray">
+                                            • Created:{' '}
+                                            {selectedLicense?.createdAt
+                                                ? new Date(
+                                                      selectedLicense.createdAt
+                                                  ).toLocaleDateString()
+                                                : 'Unknown'}
+                                        </Text>
+
+                                        <Text color="white" marginTop={1}>
+                                            After deletion:
+                                        </Text>
+                                        <Text color="gray">
+                                            • The license will be permanently removed from the
+                                            database
+                                        </Text>
+                                        <Text color="gray">
+                                            • The user will no longer be able to use it
+                                        </Text>
+                                        <Text color="gray">• This action cannot be undone</Text>
+
+                                        <Text color="white" marginTop={1}>
+                                            {isDeleting ? (
+                                                <>
+                                                    <Spinner type="dots" /> Deleting license...
+                                                </>
+                                            ) : (
+                                                'Are you sure you want to delete this license?'
                                             )}
                                         </Text>
                                     </Box>
-                                </Box>
-                            );
-                        })}
-
-                        {/* Fill remaining space with empty rows to maintain consistent height */}
-                        {Array.from(
-                            { length: itemsPerPage - currentPageLicenses.length },
-                            (_, index) => (
-                                <Box
-                                    key={`page-${currentPage}-spacer-${startIndex + currentPageLicenses.length + index}`}
-                                    paddingX={1}
-                                >
-                                    <Text> </Text>
-                                </Box>
-                            )
-                        )}
+                                );
+                            })()}
+                        </Box>
                     </Box>
-                )}
-            </Box>
-
-            {/* Pagination Info */}
-            {filteredLicenses.length > 0 && (
-                <Box marginTop={1}>
-                    <Text color="gray">
-                        Showing {startIndex + 1}-{Math.min(endIndex, filteredLicenses.length)} of{' '}
-                        {filteredLicenses.length} licenses
-                        {totalPages > 1 && (
-                            <Text color="cyan">
-                                {' '}
-                                • Page {currentPage + 1} of {totalPages}
-                            </Text>
-                        )}
-                    </Text>
                 </Box>
             )}
 
             <Box marginTop={1}>
                 <Text color="yellow">
-                    {isSearching
-                        ? 'Type to search • [Enter] confirm • [Esc] cancel'
-                        : 'Commands: [↑/↓] or [j/k] navigate • [c] copy key • [s] search • [n] new license • [Esc/b] back'}
+                    {showDeleteConfirm && !isDeleting
+                        ? '[Y] to confirm • [N] to cancel • [Esc] to go back'
+                        : isDeleting
+                          ? 'Deleting license...'
+                          : isSearching
+                            ? 'Type to search • [Enter] confirm • [Esc] cancel'
+                            : 'Commands: [↑/↓] or [j/k] navigate • [c] copy key • [d] delete • [s] search • [n] new license • [Esc/b] back'}
                 </Text>
             </Box>
         </Box>
