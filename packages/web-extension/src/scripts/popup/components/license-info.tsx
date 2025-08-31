@@ -38,14 +38,6 @@ const LicenseInfo = ({ licenseStatus }: LicenseInfoProps) => {
 							}
 						</span>
 					</div>
-					<div className="flex items-center justify-between text-xs">
-						<span className="text-muted-foreground">Expires:</span>
-						<span className="font-mono">
-							{new Date(
-								licenseStatus.licenseData.expiresAt,
-							).toLocaleDateString()}
-						</span>
-					</div>
 				</div>
 			)}
 		</div>

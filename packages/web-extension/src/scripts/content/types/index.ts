@@ -91,7 +91,6 @@ export interface StatsResponse {
 // License status and response types
 export interface LicenseData {
 	email: string;
-	expiresAt: string; // ISO date string
 	usageToday: number;
 	dailyLimit: number;
 }

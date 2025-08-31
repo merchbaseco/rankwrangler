@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
+import { sql } from 'drizzle-orm';
 import { env } from '@/config/env.js';
 import { runMigrations } from '@/db/migrate.js';
 import { testConnection, db } from '@/db/index.js';
@@ -191,7 +192,6 @@ fastify.register(async function (fastify) {
     
     const generateLicenseSchema = z.object({
       email: z.string().email('Valid email is required'),
-      expiryDays: z.number().int().min(1).max(3650).default(365),
       adminKey: z.string().min(1, 'Admin key is required'),
       unlimited: z.boolean().optional().default(false),
     });
@@ -210,7 +210,6 @@ fastify.register(async function (fastify) {
       
       const license = await createLicense(
         validatedData.email,
-        validatedData.expiryDays,
         validatedData.unlimited
       );
       
@@ -220,8 +219,7 @@ fastify.register(async function (fastify) {
         success: true,
         data: {
           licenseKey: license.key,
-          email: license.email,
-          expiresAt: license.expiresAt
+          email: license.email
         }
       };
     } catch (error) {
@@ -273,12 +271,11 @@ fastify.register(async function (fastify) {
     const { z } = await import('zod');
     
     const listLicensesSchema = z.object({
-      adminKey: z.string().min(1),
-      filter: z.enum(['all', 'active', 'expired']).optional().default('all')
+      adminKey: z.string().min(1)
     });
 
     try {
-      const { adminKey, filter } = listLicensesSchema.parse(request.query);
+      const { adminKey } = listLicensesSchema.parse(request.query);
       
       if (adminKey !== env.LICENSE_SECRET) {
         reply.status(401);
@@ -288,7 +285,7 @@ fastify.register(async function (fastify) {
         };
       }
       
-      const licenses = await listLicenses(filter);
+      const licenses = await listLicenses();
       
       return {
         success: true,
@@ -413,14 +410,20 @@ fastify.register(async function (fastify) {
       
       // Clear all cached products
       const { productCache } = await import('@/db/schema.js');
-      const deletedCount = await db.delete(productCache);
       
-      console.log(`[Admin] Cleared product cache: ${deletedCount.rowCount || 0} entries removed`);
+      // First get count before deleting
+      const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(productCache);
+      const countBefore = countResult.count;
+      
+      // Delete all cache entries
+      await db.delete(productCache);
+      
+      console.log(`[Admin] Cleared product cache: ${countBefore} entries removed`);
       
       return {
         success: true,
         data: {
-          clearedCount: deletedCount.rowCount || 0
+          clearedCount: countBefore
         }
       };
     } catch (error) {

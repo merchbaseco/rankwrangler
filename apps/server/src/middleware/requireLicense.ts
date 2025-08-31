@@ -6,7 +6,6 @@ declare module 'fastify' {
   interface FastifyRequest {
     license?: {
       email: string;
-      expiresAt: Date;
       usageToday: number;
       dailyLimit: number;
     };

@@ -10,7 +10,6 @@ export interface LicensePayload {
 	sub: string; // License ID
 	email: string; // User email
 	iat: number; // Issued at
-	exp: number; // Expiry
 }
 
 export interface ValidationResult {
@@ -18,7 +17,6 @@ export interface ValidationResult {
 	error?: string;
 	data?: {
 		email: string;
-		expiresAt: Date;
 		usageToday: number;
 		dailyLimit: number;
 	};
@@ -26,7 +24,6 @@ export interface ValidationResult {
 
 export const generateLicenseKey = (
 	email: string,
-	expiryDays: number = 365,
 ): string => {
 	const licenseId = nanoid(12);
 
@@ -34,7 +31,6 @@ export const generateLicenseKey = (
 		sub: licenseId,
 		email,
 		iat: Math.floor(Date.now() / 1000),
-		exp: Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60,
 	};
 
 	return jwt.sign(payload, env.LICENSE_SECRET);
@@ -54,7 +50,6 @@ export const validateLicense = async (
 			sub: decoded.sub,
 			email: decoded.email,
 			iat: decoded.iat,
-			exp: decoded.exp,
 		});
 
 		// 2. Find license in database
@@ -90,12 +85,7 @@ export const validateLicense = async (
 			keyMatch: license.key === key,
 		});
 
-		// 3. Check if license is expired
-		if (new Date(license.expiresAt) < new Date()) {
-			return { valid: false, error: "License has expired" };
-		}
-
-		// 5. Check and reset daily usage if needed
+		// 3. Check and reset daily usage if needed
 		await checkAndResetDailyUsage(license);
 
 		// 6. Check daily rate limits (skip if unlimited)
@@ -114,7 +104,6 @@ export const validateLicense = async (
 			valid: true,
 			data: {
 				email: license.email,
-				expiresAt: license.expiresAt,
 				usageToday: license.usageToday + 1, // Include current request
 				dailyLimit: dailyLimit,
 			},
@@ -165,12 +154,10 @@ const updateUsageStats = async (license: License): Promise<void> => {
 
 export const createLicense = async (
 	email: string,
-	expiryDays: number = 365,
 	unlimited: boolean = false,
 ): Promise<License> => {
 	try {
-		const key = generateLicenseKey(email, expiryDays);
-		const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
+		const key = generateLicenseKey(email);
 
 		const features = ["basic_access"];
 		const requestsPerDay = unlimited ? -1 : 10000;
@@ -178,7 +165,6 @@ export const createLicense = async (
 		const licenseData = {
 			key,
 			email,
-			expiresAt,
 			metadata: {
 				features,
 				limits: {
@@ -228,16 +214,8 @@ export const deleteLicense = async (licenseId: string): Promise<boolean> => {
 
 export const getLicenseStats = async () => {
 	const [totalCount] = await db.select({ count: sql<number>`count(*)` }).from(licenses);
-	const [activeCount] = await db.select({ count: sql<number>`count(*)` })
-		.from(licenses)
-		.where(gt(licenses.expiresAt, new Date()));
-	const [expiredCount] = await db.select({ count: sql<number>`count(*)` })
-		.from(licenses)
-		.where(lte(licenses.expiresAt, new Date()));
 
 	const total = totalCount.count;
-	const active = activeCount.count;
-	const expired = expiredCount.count;
 
 	// Get products in cache count (live count)
 	const [cacheCount] = await db.select({ 
@@ -254,34 +232,16 @@ export const getLicenseStats = async () => {
 
 	return {
 		total,
-		active,
-		expired,
 		productsInCache: cacheCount.count,
 		recentApiCalls: stats?.totalSpApiCalls || 0,
 		totalCacheHits: stats?.totalCacheHits || 0
 	};
 };
 
-export const listLicenses = async (
-	filter: "all" | "active" | "expired" = "all",
-): Promise<License[]> => {
-	switch (filter) {
-		case "active":
-			return await db.select()
-				.from(licenses)
-				.where(gt(licenses.expiresAt, new Date()))
-				.orderBy(sql`${licenses.createdAt} DESC`);
-		case "expired":
-			return await db.select()
-				.from(licenses)
-				.where(lte(licenses.expiresAt, new Date()))
-				.orderBy(sql`${licenses.createdAt} DESC`);
-		case "all":
-		default:
-			return await db.select()
-				.from(licenses)
-				.orderBy(sql`${licenses.createdAt} DESC`);
-	}
+export const listLicenses = async (): Promise<License[]> => {
+	return await db.select()
+		.from(licenses)
+		.orderBy(sql`${licenses.createdAt} DESC`);
 };
 
 export const getLicenseById = async (

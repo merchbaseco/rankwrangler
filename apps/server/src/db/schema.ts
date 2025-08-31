@@ -18,7 +18,6 @@ export const licenses = pgTable('licenses', {
     limits: { requests_per_day: 1000 }
   }),
   createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
-  expiresAt: timestamp('expiresAt', { mode: 'date' }).notNull(),
   revokedAt: timestamp('revokedAt', { mode: 'date' }),
   lastUsedAt: timestamp('lastUsedAt', { mode: 'date' }),
   usageCount: integer('usageCount').notNull().default(0),
@@ -28,7 +27,6 @@ export const licenses = pgTable('licenses', {
   // Indexes to match Sequelize model
   keyIdx: uniqueIndex('licenses_key_unique').on(table.key),
   emailIdx: index('licenses_email_idx').on(table.email),
-  expiresIdx: index('licenses_expires_at_idx').on(table.expiresAt),
   revokedIdx: index('licenses_revoked_at_idx').on(table.revokedAt)
 }));
 
@@ -43,7 +41,6 @@ export interface LicenseAttributes {
   email: string;
   metadata: LicenseMetadata;
   createdAt: Date;
-  expiresAt: Date;
   revokedAt?: Date | null;
   lastUsedAt?: Date | null;
   usageCount: number;
