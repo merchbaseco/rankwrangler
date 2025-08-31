@@ -14,14 +14,16 @@ RankWrangler Server is a Docker-deployable Node.js service that provides Amazon 
 - `yarn build:server` - Build the server
 - `yarn deploy:server` - Deploy the server
 - `turbo build --filter=@rankwrangler/server` - Build server with turbo
-- `turbo type-check --filter=@rankwrangler/server` - Type check server
 - `turbo start --filter=@rankwrangler/server` - Start server (requires build first)
 - `turbo deploy --filter=@rankwrangler/server` - Deploy server
+
+**TypeScript Type Checking**:
+- `cd apps/server && npx tsc --noEmit` - Must be run from server directory
 
 **From this directory** (apps/server/):
 - `yarn build` - Build for production using Vite
 - `yarn start` - Start the production server (requires build first)
-- `yarn type-check` - Run TypeScript type checking without emitting files
+- `npx tsc --noEmit` - Run TypeScript type checking without emitting files
 - `yarn deploy` - Deploy server (runs through turborepo)
 - `yarn deploy:stack` - Deploy complete stack (Caddy + PostgreSQL + Server)
 - `yarn deploy:stack --fresh` - Fresh stack deployment (wipes database)
@@ -80,16 +82,16 @@ RankWrangler Server (port 8080)
 - **BSR Handling**: Products with null/undefined BSR are set to `null` (not filtered out) and sorted to end of results using `Number.MAX_SAFE_INTEGER` fallback
 
 ### License System Architecture
-Multi-tier license system with flexible usage limits and validation:
+Permanent license system with flexible usage limits and validation:
 
 **Key Points:**
+- **Permanent Licenses**: All licenses are created without expiration and remain valid until explicitly deleted
 - **Limit Encoding**: Uses `-1` in `metadata.limits.requests_per_day` to indicate unlimited licenses
 - **Default Limits**: New licenses default to 10,000 requests/day (configurable via `unlimited` parameter)
 - **Validation Strategy**: `validateLicense()` in `src/services/license.ts` skips limit checks when `dailyLimit === -1`
 - **Usage Tracking**: Always tracks `usageToday` and `usageCount` for analytics, regardless of limit enforcement
 - **Daily Reset**: Automatic UTC midnight reset of daily counters using date comparison
 - **Database Design**: License metadata stored as JSON in PostgreSQL with flexible schema for future limit types
-- **Backward Compatibility**: All existing licenses continue working unchanged during limit system updates
 - **Deletion Strategy**: Hard delete pattern - licenses are permanently removed from database via `deleteLicense()` at `/api/admin/license/delete`
 - **No Soft Delete**: System does not support license revocation or soft deletion - once deleted, licenses are gone entirely
 

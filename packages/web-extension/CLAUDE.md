@@ -1,3 +1,10 @@
+## Development Commands
+
+**TypeScript Type Checking**:
+- `cd packages/web-extension && npx tsc --noEmit` - Must be run from web-extension directory
+- Verifies TypeScript types without emitting files
+- Critical for catching type errors in content scripts, popup components, and service workers
+
 ## Component Architecture
 
 ### File Naming Convention
