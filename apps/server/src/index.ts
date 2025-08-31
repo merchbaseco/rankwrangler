@@ -6,7 +6,7 @@ import { runMigrations } from '@/db/migrate.js';
 import { testConnection, db } from '@/db/index.js';
 import { systemStats } from '@/db/schema.js';
 import { requireLicense } from '@/middleware/requireLicense.js';
-import { validateLicense, createLicense, getLicenseStats, listLicenses, getLicenseById, revokeLicense, resetLicenseUsage } from '@/services/license.js';
+import { validateLicense, createLicense, getLicenseStats, listLicenses, getLicenseById, deleteLicense, resetLicenseUsage } from '@/services/license.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -274,7 +274,7 @@ fastify.register(async function (fastify) {
     
     const listLicensesSchema = z.object({
       adminKey: z.string().min(1),
-      filter: z.enum(['all', 'active', 'expired', 'revoked']).optional().default('all')
+      filter: z.enum(['all', 'active', 'expired']).optional().default('all')
     });
 
     try {
@@ -347,17 +347,17 @@ fastify.register(async function (fastify) {
     }
   });
 
-  // Admin endpoint to revoke license
-  fastify.post('/api/admin/license/revoke', async (request, reply) => {
+  // Admin endpoint to delete license
+  fastify.post('/api/admin/license/delete', async (request, reply) => {
     const { z } = await import('zod');
     
-    const revokeLicenseSchema = z.object({
+    const deleteLicenseSchema = z.object({
       adminKey: z.string().min(1),
       licenseId: z.string().min(1)
     });
 
     try {
-      const { adminKey, licenseId } = revokeLicenseSchema.parse(request.body);
+      const { adminKey, licenseId } = deleteLicenseSchema.parse(request.body);
       
       if (adminKey !== env.LICENSE_SECRET) {
         reply.status(401);
@@ -367,21 +367,21 @@ fastify.register(async function (fastify) {
         };
       }
       
-      const success = await revokeLicense(licenseId);
+      const success = await deleteLicense(licenseId);
       
       if (!success) {
         reply.status(404);
         return {
           success: false,
-          error: 'License not found or already revoked'
+          error: 'License not found'
         };
       }
       
-      console.log(`[Admin] Revoked license ID: ${licenseId}`);
+      console.log(`[Admin] Deleted license ID: ${licenseId}`);
       
       return {
         success: true,
-        message: 'License revoked successfully'
+        message: 'License deleted successfully'
       };
     } catch (error) {
       reply.status(400);

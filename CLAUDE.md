@@ -9,18 +9,12 @@ This document defines the target architecture for the RankWrangler turborepo, su
 rankwrangler/
 ├── apps/                      # All deployable applications
 │   ├── safari-extension/      # Safari extension & app wrapper
-│   ├── server/                # RankWrangler server (migrated)
-│   └── cli/                   # Future: rankwrangler-cli migration
+│   ├── server/                # RankWrangler server
+│   └── cli/                   # RankWrangler CLI
 │
 ├── packages/                  # Shared packages
 │   ├── icons/                 # Icon generation
-│   ├── web-extension/         # Web extension shared code
-│   ├── shared-extension/      # Future: shared extension logic (background, content scripts)
-│   ├── ui/                    # Future: shared UI components (popup, settings)
-│   ├── core/                  # Future: core business logic
-│   ├── config-typescript/     # Future: shared TypeScript configs
-│   ├── config-eslint/         # Future: shared ESLint configs
-│   └── api-client/            # Future: API client for server communication
+│   └── web-extension/         # Web extension shared code
 │
 ├── turbo.json                 # Turborepo configuration
 ├── package.json               # Root workspace configuration
@@ -56,12 +50,9 @@ rankwrangler/
 All packages follow the `@rankwrangler/[name]` convention:
 - `@rankwrangler/safari-extension`
 - `@rankwrangler/server`
+- `@rankwrangler/cli`
 - `@rankwrangler/icons`
 - `@rankwrangler/web-extension`
-- `@rankwrangler/shared-extension` (future)
-- `@rankwrangler/ui` (future)
-- `@rankwrangler/core` (future)
-- `@rankwrangler/cli` (future)
 
 ## Build Pipeline
 
@@ -70,13 +61,7 @@ All packages follow the `@rankwrangler/[name]` convention:
 icons → web-extension → safari-extension
 
 server (standalone, no dependencies)
-
-Future:
-core → shared-extension → chrome-extension
-    ↘                  ↘
-      cli                safari-extension
-    ↘
-      server
+cli (standalone, no dependencies)
 ```
 
 ### Turbo Tasks
@@ -101,25 +86,22 @@ core → shared-extension → chrome-extension
 - `format`: Format code across all packages  
 - `clean`: Removes all build artifacts
 
-## Migration Phases
+**CRITICAL: Package-Specific Commands**:
+- **CLI Linting**: Must be run from `apps/cli/` directory using `yarn lint` or `yarn lint --write`
+- **Server Operations**: Use turborepo commands from root (`yarn build:server`, `yarn deploy:server`)
+- **Never mix contexts**: Don't use turborepo commands for CLI linting or local CLI commands for server operations
 
-### Phase 1: Core Restructuring ✅ COMPLETED
-1. ✅ Create `apps/` and new package structure
-2. ✅ Move Safari app to `apps/safari-extension/`
-3. ✅ Create `packages/icons/` and `packages/web-extension/`
-4. ✅ **NEW**: Migrate `rankwrangler-server` to `apps/server/`
+## Future Expansion
 
-### Phase 2: Shared Infrastructure (Future)
-1. Create `packages/config-typescript/` and `packages/config-eslint/`
-2. Extract UI components to `packages/ui/`
-3. Create `packages/core/` for business logic
-4. Update all apps to use shared packages
+### Potential Shared Infrastructure
+- `packages/config-typescript/` and `packages/config-eslint/` for unified configuration
+- `packages/ui/` for shared React components across extensions
+- `packages/core/` for business logic shared between CLI, server, and extensions
+- `packages/api-client/` for standardized server communication
 
-### Phase 3: Future Integrations
-1. Migrate `rankwrangler-cli` from `Programming/tools/rankwrangler-cli/` to `apps/cli/`
-2. Create Chrome/Edge extension in `apps/chrome-extension/`
-3. Create `packages/api-client/` for server communication
-4. Ensure all apps can share core business logic
+### Potential New Applications
+- Chrome/Edge extension in `apps/chrome-extension/`
+- Additional platform-specific extensions as needed
 
 ## Benefits
 
@@ -161,21 +143,27 @@ turbo deploy --filter=@rankwrangler/server
 3. Test affected apps individually
 4. Shared changes automatically available to all apps
 
-## Server Integration Notes
+## Current Applications
 
-The RankWrangler server has been successfully migrated to `apps/server/`:
-- Maintains all existing API contracts and functionality
-- Uses Docker deployment with turborepo integration
-- Deploy script handles copying yarn workspace files for Docker builds
-- All server functionality preserved while gaining turborepo benefits
+### Server (`apps/server/`)
+Docker-deployable Node.js service providing Amazon SP-API functionality:
+- Fastify web server with license validation system
+- PostgreSQL database with Drizzle ORM
+- Docker deployment with turborepo integration
+- Production deployment at `https://merchbase.co/api`
 
-## Notes for Future CLI Migration
+### CLI (`apps/cli/`)
+React-based interactive terminal application for license management:
+- Ink framework for terminal UI components
+- Multi-step license creation and management workflows  
+- Direct server API integration for license operations
+- Biome linting with package-specific configuration
 
-When migrating the CLI:
-1. **CLI Migration** (`Programming/tools/rankwrangler-cli/` → `apps/cli/`)
-   - Maintain existing CLI interface
-   - Extract shared logic to `packages/core/`
-   - Use `packages/api-client/` for server communication
+### Safari Extension (`apps/safari-extension/`)
+macOS Safari extension with web extension components:
+- Uses shared web extension code from `packages/web-extension/`
+- Native macOS app wrapper for Safari extension delivery
+- Icon generation from `packages/icons/`
 
 ## Testing Strategy
 
