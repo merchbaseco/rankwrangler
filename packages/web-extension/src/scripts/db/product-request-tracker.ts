@@ -24,8 +24,13 @@ export async function getRequestsInProgressCount(): Promise<number> {
 	return await db.productRequests.count();
 }
 
+export async function clearAllRequests(): Promise<void> {
+	await db.productRequests.clear();
+}
+
 export const ProductRequestTracker = {
 	markRequestStarted,
 	markRequestCompleted,
 	getRequestsInProgressCount,
+	clearAllRequests,
 };

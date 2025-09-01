@@ -31,8 +31,6 @@ export const getProduct = async (
 
 		const response = await browser.runtime.sendMessage(message);
 		log.info(`getProduct(${asin}) response!`, response.data);
-		await ProductRequestTracker.markRequestCompleted(productIdentifier);
-		log.info(`getProduct(${asin}) request marked completed.`);
 
 		if (!response) {
 			log.error(`getProduct failed for ${asin}`, {
@@ -69,7 +67,14 @@ export const getProduct = async (
 		return product;
 	} catch (error) {
 		log.error(`getProduct failed for ${asin}`, { error });
-		await ProductRequestTracker.markRequestCompleted(productIdentifier);
 		return getErrorProduct(productIdentifier);
+	} finally {
+		// Always mark request as completed, regardless of success or failure
+		try {
+			await ProductRequestTracker.markRequestCompleted(productIdentifier);
+			log.info(`getProduct(${asin}) request marked completed.`);
+		} catch (cleanupError) {
+			log.error(`Failed to mark request completed for ${asin}:`, cleanupError);
+		}
 	}
 };
