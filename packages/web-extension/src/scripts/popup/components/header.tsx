@@ -2,7 +2,7 @@ export const Header = () => {
 	return (
 		<div className="pb-8 flex gap-3">
 			<div className="shrink-0">
-				<div className="p-0.5 bg-gradient-to-b from-orange-100 to-orange-200 rounded-lg border border-orange-300 shadow-md aspect-square">
+				<div className="p-[3px] bg-gradient-to-b from-orange-100 to-orange-200 rounded-lg border border-orange-200 shadow-sm aspect-square">
 					<img
 						src="images/icon.png"
 						alt="RankWrangler"
