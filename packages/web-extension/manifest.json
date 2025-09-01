@@ -5,6 +5,12 @@
   "description": "Track and analyze Amazon product rankings and metrics in real-time",
   "permissions": ["storage", "tabs", "alarms", "scripting"],
   "host_permissions": ["*://*.amazon.com/*", "https://merchbase.co/api/*"],
+  "icons": {
+    "32": "images/icon-32.png",
+    "64": "images/icon-64.png",
+    "128": "images/icon-128.png",
+    "512": "images/icon-512.png"
+  },
   "background": {
     "scripts": ["background.js"],
     "type": "module"

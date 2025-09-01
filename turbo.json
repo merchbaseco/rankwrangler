@@ -2,11 +2,7 @@
   "$schema": "https://turborepo.org/schema.json",
   "globalDependencies": ["**/.env"],
   "tasks": {
-    "@rankwrangler/icons#build": {
-      "outputs": ["dist/**"]
-    },
     "@rankwrangler/web-extension#build": {
-      "dependsOn": ["@rankwrangler/icons#build"],
       "outputs": ["dist/**"]
     },
     "@rankwrangler/safari-extension#build": {

@@ -57,16 +57,35 @@ class ReactRenderer {
 		// Check if this element itself has a root
 		const root = this.roots.get(element);
 		if (root) {
-			log.debug("Auto-unmounting React root");
+			log.debug("Auto-unmounting React root from host element");
 			root.unmount();
 			this.roots.delete(element);
 			removedCount++;
 		}
 
-		// Check all descendants for roots
+		// Check if this element has a shadow root with a React root
+		if (element.shadowRoot) {
+			const shadowRoot = this.roots.get(element.shadowRoot);
+			if (shadowRoot) {
+				log.debug("Auto-unmounting React root from shadow root");
+				shadowRoot.unmount();
+				this.roots.delete(element.shadowRoot);
+				removedCount++;
+			}
+		}
+
+		// Check all descendants for roots (both regular elements and shadow roots)
 		this.roots.forEach((rootInstance, container) => {
-			if (element.contains(container)) {
-				log.debug("Auto-unmounting React root");
+			if (container instanceof ShadowRoot) {
+				// For shadow roots, check if their host element is being removed
+				if (element.contains(container.host) || element === container.host) {
+					log.debug("Auto-unmounting React root from descendant shadow root");
+					rootInstance.unmount();
+					this.roots.delete(container);
+					removedCount++;
+				}
+			} else if (element.contains(container)) {
+				log.debug("Auto-unmounting React root from descendant element");
 				rootInstance.unmount();
 				this.roots.delete(container);
 				removedCount++;
@@ -112,6 +131,42 @@ class ReactRenderer {
 			container.className = className;
 		}
 		return container;
+	}
+
+	/**
+	 * Explicitly cleanup all React roots matching the given selector
+	 * Useful for immediate cleanup during navigation
+	 */
+	public forceCleanupBySelector(selector: string): void {
+		const elements = document.querySelectorAll<HTMLElement>(selector);
+		let removedCount = 0;
+
+		elements.forEach((element) => {
+			// Clean up direct root on the element
+			const root = this.roots.get(element);
+			if (root) {
+				log.debug("Force unmounting React root from element");
+				root.unmount();
+				this.roots.delete(element);
+				removedCount++;
+			}
+
+			// Clean up shadow root
+			if (element.shadowRoot) {
+				const shadowRoot = this.roots.get(element.shadowRoot);
+				if (shadowRoot) {
+					log.debug("Force unmounting React root from shadow root");
+					shadowRoot.unmount();
+					this.roots.delete(element.shadowRoot);
+					removedCount++;
+				}
+			}
+		});
+
+		// Update storage if any roots were removed
+		if (removedCount > 0) {
+			this.updateRootsCountInStorage();
+		}
 	}
 }
 

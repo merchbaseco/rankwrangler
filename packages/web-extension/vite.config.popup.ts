@@ -45,11 +45,11 @@ export default defineConfig(async () => ({
                     dest: '.',
                 },
                 {
-                    src: '../../assets/logo.png',
+                    src: '../../assets/*.png',
                     dest: 'images',
                 },
                 {
-                    src: '../../assets/icon.png',
+                    src: '../../assets/*.ico',
                     dest: 'images',
                 },
             ],
