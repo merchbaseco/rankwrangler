@@ -13,15 +13,15 @@ export interface Product {
 	asin: string;
 	marketplaceId: string;
 	creationDate?: string;
-	
+
 	// Primary BSR for filtering/sorting (display group rank if available)
 	bsr?: number;
 	bsrCategory?: string;
-	
+
 	// Detailed rankings matching SP-API structure
-	displayGroupRanks: ProductRanking[];  
+	displayGroupRanks: ProductRanking[];
 	classificationRanks: ProductRanking[];
-	
+
 	metadata: {
 		success: boolean;
 		lastFetched?: string; // ISO timestamp

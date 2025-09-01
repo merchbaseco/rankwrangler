@@ -5,9 +5,9 @@ import type { Product, ProductIdentifier } from "@/scripts/types/product";
 import { ProductDisplay } from "./product-display";
 
 export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
-	const [state, setState] = useState<
-		"loading" | "success" | "error"
-	>("loading");
+	const [state, setState] = useState<"loading" | "success" | "error">(
+		"loading",
+	);
 	const [product, setProduct] = useState<Product>();
 
 	useEffect(() => {

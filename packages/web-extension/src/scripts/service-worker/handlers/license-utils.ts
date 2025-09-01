@@ -1,6 +1,6 @@
 import { browser } from "webextension-polyfill-ts";
 import { log } from "../../../utils/logger";
-import { License } from "../../types/license";
+import type { License } from "../../types/license";
 
 const API_BASE_URL = "https://merchbase.co/api";
 
@@ -27,7 +27,7 @@ export async function getCurrentLicenseStatus(): Promise<License | null> {
 	// If no recent validation, return invalid license object
 	return {
 		key: licenseKey,
-		email: storedLicense?.email || '',
+		email: storedLicense?.email || "",
 		isValid: false,
 		lastValidated: storedLicense?.lastValidated || 0,
 		usage: storedLicense?.usage || 0,
@@ -67,7 +67,7 @@ export async function validateLicenseKey(licenseKey: string): Promise<void> {
 			await browser.storage.local.set({
 				license: {
 					key: licenseKey,
-					email: '',
+					email: "",
 					isValid: false,
 					lastValidated: Date.now(),
 					usage: 0,
@@ -81,7 +81,7 @@ export async function validateLicenseKey(licenseKey: string): Promise<void> {
 		await browser.storage.local.set({
 			license: {
 				key: licenseKey,
-				email: '',
+				email: "",
 				isValid: false,
 				lastValidated: Date.now(),
 				usage: 0,
