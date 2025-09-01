@@ -3,9 +3,15 @@ import { createRoot } from "react-dom/client";
 import { browser } from "webextension-polyfill-ts";
 import styles from "@/styles/index.css?inline";
 import { log } from "../../utils/logger";
+import { ProductRequestTracker } from "../db/product-request-tracker";
 import App from "./app";
 
 console.log("RankWrangler content script loading...");
+
+// Clear any stale product requests from previous sessions
+ProductRequestTracker.clearAllRequests().catch((error) => {
+	log.error("Failed to clear stale product requests:", error);
+});
 
 const isProduction: boolean = process.env.NODE_ENV === "production";
 const ROOT_ID = "rankwrangler-content-root";
