@@ -107,7 +107,10 @@ class SearchInjector {
 		this.processedAsins.clear();
 		this.badges.clear();
 
-		// Remove all existing badges - React roots will be auto-cleaned by MutationObserver
+		// Explicitly cleanup React roots before removing DOM elements
+		reactRenderer.forceCleanupBySelector(".rw-bsr-badge");
+
+		// Remove all existing badges
 		document.querySelectorAll(".rw-bsr-badge").forEach((badge) => {
 			badge.remove();
 		});

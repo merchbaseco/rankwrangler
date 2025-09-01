@@ -24,23 +24,18 @@ try {
 
 console.log('🏗  Building RankWrangler...\n');
 
-// Build the web extension using turbo (this will also build icons)
+// Build the web extension using turbo
 console.log('📦 Building web extension...');
 execSync('turbo run build --filter=@rankwrangler/web-extension', { stdio: 'inherit' });
 
 const RESOURCES_DIR = join(workspaceRoot, 'apps/safari-extension/Shared (Extension)/Resources');
 const EXTENSION_DIST = join(workspaceRoot, 'packages/web-extension/dist');
-const ICONS_DIST = join(workspaceRoot, 'packages/icons/dist');
 
 console.log('\n📋 Copying extension to Safari...');
 rmSync(RESOURCES_DIR, { recursive: true, force: true });
 mkdirSync(RESOURCES_DIR, { recursive: true });
 
-// First copy the icons
-console.log('🎨 Copying icons...');
-cpSync(join(ICONS_DIST, 'images'), join(RESOURCES_DIR, 'images'), { recursive: true });
-
-// Then copy the extension files
+// Copy the extension files (includes icons)
 console.log('📦 Copying extension files...');
 cpSync(EXTENSION_DIST, RESOURCES_DIR, { recursive: true });
 
