@@ -62,21 +62,17 @@ export function ProductDisplay({
 	}
 
 	const { asin, bsr, creationDate } = product;
-
-	if (!bsr) {
-		return (
-			<div className="w-full bg-gradient-to-r from-white/[0.98] to-white/[0.95] backdrop-blur border border-gray-200 rounded-lg px-3 py-2 shadow-sm animate-in fade-in duration-300 z-[1]">
-				<span className="text-gray-800 text-sm font-medium">No rank data</span>
-			</div>
-		);
-	}
+	const bsrString = bsr ? `#${bsr.toLocaleString()}` : "N/A";
+	const categoryString = bsr ? `in Clothing` : "";
 
 	return (
 		<div className="w-full bg-gradient-to-r from-white/[0.98] to-white/[0.95] backdrop-blur border border-gray-200 rounded-lg px-3 py-2 shadow-sm animate-in fade-in duration-300 z-[1] flex flex-col gap-1.5">
 			{/* BSR Rank and Category - matches .rw-success */}
 			<div className="text-green-700 flex items-baseline gap-0.5">
-				<span className="text-base font-semibold text-gray-800">#{bsr}</span>
-				<span className="text-xs text-gray-600 ml-1">in Clothing</span>
+				<span className="text-base font-semibold text-gray-800">
+					{bsrString}
+				</span>
+				<span className="text-xs text-gray-600 ml-1">{categoryString}</span>
 			</div>
 
 			{/* Metadata: Date and ASIN - matches .rw-meta */}
