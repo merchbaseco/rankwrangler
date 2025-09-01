@@ -6,7 +6,7 @@ import { ProductDisplay } from "./product-display";
 
 export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
 	const [state, setState] = useState<
-		"loading" | "success" | "error" | "no-data"
+		"loading" | "success" | "error"
 	>("loading");
 	const [product, setProduct] = useState<Product>();
 
@@ -16,12 +16,8 @@ export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
 				const cachedProduct = await ProductCache.get(productIdentifier);
 
 				if (cachedProduct) {
-					if (cachedProduct.bsr > 0) {
-						setState("success");
-						setProduct(cachedProduct);
-					} else {
-						setState("no-data"); // Cached "no BSR" result
-					}
+					setState("success");
+					setProduct(cachedProduct);
 					return;
 				}
 
@@ -30,14 +26,8 @@ export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
 
 				if (product.metadata.success) {
 					await ProductCache.set(product);
-
-					// Update state based on whether BSR exists
-					if (product.bsr) {
-						setState("success");
-						setProduct(product);
-					} else {
-						setState("no-data"); // Valid response, just no BSR
-					}
+					setState("success");
+					setProduct(product);
 				} else {
 					throw new Error();
 				}
