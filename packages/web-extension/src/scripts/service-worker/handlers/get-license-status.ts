@@ -9,11 +9,11 @@ export async function handleGetLicenseStatus(
 	_message: GetLicenseStatusMessage,
 ): Promise<LicenseResponse> {
 	try {
-		const status = await getCurrentLicenseStatus();
+		const license = await getCurrentLicenseStatus();
 
 		return {
 			success: true,
-			status,
+			license,
 		};
 	} catch (error) {
 		log.error("Get license status error:", error);

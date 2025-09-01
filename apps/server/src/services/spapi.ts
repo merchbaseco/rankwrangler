@@ -297,14 +297,53 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
         creationDate = item.summaries?.[0]?.releaseDate || null;
     }
 
-    // Extract BSR from salesRanks - look for fashion category rank
-    let bsr: number | null = null;
+    // Extract rankings separately by type
+    const displayGroupRanks: Array<{ rank: number; category: string; link?: string }> = [];
+    const classificationRanks: Array<{ rank: number; category: string; link?: string }> = [];
     const salesRanks = item.salesRanks?.[0];
-    if (salesRanks?.displayGroupRanks) {
-        const fashionRank = salesRanks.displayGroupRanks.find(
-            (rank: any) => rank.websiteDisplayGroup === 'fashion_display_on_website'
-        );
-        bsr = fashionRank?.rank || null;
+    
+    if (salesRanks) {
+        // Add displayGroupRanks (broader categories)
+        if (salesRanks.displayGroupRanks) {
+            for (const displayRank of salesRanks.displayGroupRanks) {
+                if (displayRank.rank && displayRank.title) {
+                    displayGroupRanks.push({
+                        rank: displayRank.rank,
+                        category: displayRank.title,
+                        link: displayRank.link,
+                    });
+                }
+            }
+        }
+        
+        // Add classificationRanks (subcategories)
+        if (salesRanks.classificationRanks) {
+            for (const classificationRank of salesRanks.classificationRanks) {
+                if (classificationRank.rank && classificationRank.title) {
+                    classificationRanks.push({
+                        rank: classificationRank.rank,
+                        category: classificationRank.title,
+                        link: classificationRank.link,
+                    });
+                }
+            }
+        }
+    }
+    
+    // Sort both arrays by rank (lowest/best first)
+    displayGroupRanks.sort((a, b) => a.rank - b.rank);
+    classificationRanks.sort((a, b) => a.rank - b.rank);
+    
+    // Determine primary BSR (prefer display group, fallback to first classification)
+    let bsr: number | null = null;
+    let bsrCategory: string | null = null;
+    
+    if (displayGroupRanks.length > 0) {
+        bsr = displayGroupRanks[0].rank;
+        bsrCategory = displayGroupRanks[0].category;
+    } else if (classificationRanks.length > 0) {
+        bsr = classificationRanks[0].rank;
+        bsrCategory = classificationRanks[0].category;
     }
 
     return {
@@ -312,6 +351,9 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
         marketplaceId,
         creationDate,
         bsr,
+        bsrCategory,
+        displayGroupRanks,
+        classificationRanks,
         metadata: {
             lastFetched: new Date().toISOString(),
             cached: false,

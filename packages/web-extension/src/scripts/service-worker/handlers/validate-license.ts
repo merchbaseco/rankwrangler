@@ -39,13 +39,15 @@ export async function handleValidateLicense(
 		if (response.ok) {
 			const data = await response.json();
 
-			// Store validation result with timestamp and license data
+			// Store flat license structure
 			await browser.storage.local.set({
-				licenseValidation: {
+				license: {
+					key: licenseKey,
+					email: data.data.email,
 					isValid: true,
 					lastValidated: Date.now(),
-					licenseKey,
-					licenseData: data.data, // Store license info from server
+					usage: data.data.usage,
+					usageLimit: data.data.usageLimit,
 				},
 			});
 

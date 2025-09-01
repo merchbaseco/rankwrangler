@@ -1,33 +1,19 @@
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import LicenseSection from "./components/license-section";
-import StatsDisplay from "./components/stats-display";
+import { Separator } from '@/components/ui/separator';
+import { DebugToggle } from './components/debug-toggle';
+import { Header } from './components/header';
+import { License } from './components/license';
 
 const Popup = () => {
-	return (
-		<Card className="w-96">
-			<CardHeader className="pb-4">
-				<CardTitle className="flex items-center justify-between">
-					<img
-						src="images/logo.png"
-						alt="RankWrangler"
-						className="h-8 w-auto object-contain drop-shadow-sm"
-					/>
-				</CardTitle>
-				<CardDescription>Amazon BSR tracker and analyzer</CardDescription>
-			</CardHeader>
-
-			<CardContent className="space-y-4">
-				<StatsDisplay />
-				<LicenseSection />
-			</CardContent>
-		</Card>
-	);
+    return (
+        <div className="w-[340px] p-4">
+            <Header />
+            <div className="flex flex-col gap-3">
+                <License />
+                <Separator />
+                <DebugToggle />
+            </div>
+        </div>
+    );
 };
 
 export default Popup;

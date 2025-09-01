@@ -12,13 +12,13 @@ export async function handleRemoveLicense(
 	try {
 		// Remove from both sync and local storage
 		await browser.storage.sync.remove(["licenseKey"]);
-		await browser.storage.local.remove(["licenseValidation"]);
+		await browser.storage.local.remove(["license"]);
 
-		const status = await getCurrentLicenseStatus();
+		const license = await getCurrentLicenseStatus();
 
 		return {
 			success: true,
-			status,
+			license,
 		};
 	} catch (error) {
 		log.error("Remove license error:", error);
