@@ -53,6 +53,9 @@ export const getProduct = async (
 			asin,
 			marketplaceId: response.data.marketplaceId,
 			bsr: response.data.bsr,
+			bsrCategory: response.data.bsrCategory,
+			displayGroupRanks: response.data.displayGroupRanks,
+			classificationRanks: response.data.classificationRanks,
 			creationDate: response.data.creationDate,
 			metadata: {
 				success: true,

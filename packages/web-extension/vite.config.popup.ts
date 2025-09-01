@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import utwm from 'unplugin-tailwindcss-mangle/vite';
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
@@ -47,6 +46,10 @@ export default defineConfig(async () => ({
                 },
                 {
                     src: '../../assets/logo.png',
+                    dest: 'images',
+                },
+                {
+                    src: '../../assets/icon.png',
                     dest: 'images',
                 },
             ],

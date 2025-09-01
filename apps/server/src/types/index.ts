@@ -24,11 +24,25 @@ export type SearchCatalogApiResponse = {
     error?: string;
 };
 
+export type ProductRanking = {
+    rank: number;
+    category: string;
+    link?: string;
+};
+
 export type ProductInfo = {
     asin: string;
     marketplaceId: string;
     creationDate: string | null;
+    
+    // Primary BSR for filtering/sorting (display group rank if available)
     bsr: number | null;
+    bsrCategory: string | null;
+    
+    // Detailed rankings matching SP-API structure
+    displayGroupRanks: ProductRanking[];  
+    classificationRanks: ProductRanking[]; 
+    
     metadata: {
         lastFetched: string; // ISO timestamp when data was fetched from SP-API
         cached: boolean;     // true if served from cache, false if fresh from SP-API
@@ -55,6 +69,15 @@ export type GetCatalogItemResponse = {
     salesRanks?: Array<{
         displayGroupRanks?: Array<{
             websiteDisplayGroup?: string;
+            title?: string;
+            link?: string;
+            rank?: number;
+            [key: string]: any;
+        }>;
+        classificationRanks?: Array<{
+            classificationId?: string;
+            title?: string;
+            link?: string;
             rank?: number;
             [key: string]: any;
         }>;

@@ -89,23 +89,11 @@ export interface StatsResponse {
 }
 
 // License status and response types
-export interface LicenseData {
-	email: string;
-	usageToday: number;
-	dailyLimit: number;
-}
-
-export interface LicenseStatus {
-	isValid: boolean;
-	licenseKey: string | null;
-	lastValidated?: number;
-	error?: string;
-	licenseData?: LicenseData;
-}
+import type { License } from '../../types/license';
 
 export interface LicenseResponse {
 	success: boolean;
-	status?: LicenseStatus;
+	license?: License | null;
 	error?: string;
 }
 
@@ -113,7 +101,11 @@ export interface ValidationResponse {
 	success: boolean;
 	valid: boolean;
 	error?: string;
-	data?: LicenseData;
+	data?: {
+		email: string;
+		usage: number;
+		usageLimit: number;
+	};
 }
 
 // Constants

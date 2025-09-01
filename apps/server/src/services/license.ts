@@ -104,8 +104,8 @@ export const validateLicense = async (
 			valid: true,
 			data: {
 				email: license.email,
-				usageToday: license.usageToday + 1, // Include current request
-				dailyLimit: dailyLimit,
+				usage: license.usageToday + 1, // Include current request
+				usageLimit: dailyLimit,
 			},
 		};
 	} catch (error) {

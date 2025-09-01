@@ -1,50 +1,37 @@
 import { browser } from "webextension-polyfill-ts";
 import { log } from "../../../utils/logger";
-
-export interface LicenseStatus {
-	isValid: boolean;
-	licenseKey: string | null;
-	lastValidated?: number;
-	error?: string;
-	licenseData?: any;
-}
+import { License } from "../../types/license";
 
 const API_BASE_URL = "https://merchbase.co/api";
 
-export async function getCurrentLicenseStatus(): Promise<LicenseStatus> {
+export async function getCurrentLicenseStatus(): Promise<License | null> {
 	const syncResult = await browser.storage.sync.get(["licenseKey"]);
-	const localResult = await browser.storage.local.get(["licenseValidation"]);
+	const localResult = await browser.storage.local.get(["license"]);
 
 	const licenseKey = syncResult.licenseKey || null;
-	const validation = localResult.licenseValidation;
+	const storedLicense = localResult.license;
 
 	if (!licenseKey) {
-		return {
-			isValid: false,
-			licenseKey: null,
-		};
+		return null;
 	}
 
 	// Check if we have recent validation data (within 1 hour)
 	const oneHourAgo = Date.now() - 60 * 60 * 1000;
 	const isRecentValidation =
-		validation?.lastValidated && validation.lastValidated > oneHourAgo;
+		storedLicense?.lastValidated && storedLicense.lastValidated > oneHourAgo;
 
-	if (isRecentValidation && validation.licenseKey === licenseKey) {
-		return {
-			isValid: validation.isValid,
-			licenseKey,
-			lastValidated: validation.lastValidated,
-			error: validation.error,
-			licenseData: validation.licenseData,
-		};
+	if (isRecentValidation && storedLicense.key === licenseKey) {
+		return storedLicense;
 	}
 
-	// If no recent validation, we need to check
+	// If no recent validation, return invalid license object
 	return {
-		isValid: false, // Unknown until validated
-		licenseKey,
-		error: "License needs validation",
+		key: licenseKey,
+		email: storedLicense?.email || '',
+		isValid: false,
+		lastValidated: storedLicense?.lastValidated || 0,
+		usage: storedLicense?.usage || 0,
+		usageLimit: storedLicense?.usageLimit || 0,
 	};
 }
 
@@ -61,30 +48,44 @@ export async function validateLicenseKey(licenseKey: string): Promise<void> {
 		});
 
 		const isValid = response.ok;
-		let licenseData = null;
 
 		if (isValid) {
 			const data = await response.json();
-			licenseData = data.data;
+			// Store flat license structure
+			await browser.storage.local.set({
+				license: {
+					key: licenseKey,
+					email: data.data.email,
+					isValid: true,
+					lastValidated: Date.now(),
+					usage: data.data.usage,
+					usageLimit: data.data.usageLimit,
+				},
+			});
+		} else {
+			// Store invalid license
+			await browser.storage.local.set({
+				license: {
+					key: licenseKey,
+					email: '',
+					isValid: false,
+					lastValidated: Date.now(),
+					usage: 0,
+					usageLimit: 0,
+				},
+			});
 		}
-
-		await browser.storage.local.set({
-			licenseValidation: {
-				isValid,
-				lastValidated: Date.now(),
-				licenseKey,
-				licenseData,
-			},
-		});
 	} catch (error) {
 		log.error("License validation failed:", error);
 		// Store failed validation
 		await browser.storage.local.set({
-			licenseValidation: {
+			license: {
+				key: licenseKey,
+				email: '',
 				isValid: false,
 				lastValidated: Date.now(),
-				licenseKey,
-				error: "Validation failed",
+				usage: 0,
+				usageLimit: 0,
 			},
 		});
 	}

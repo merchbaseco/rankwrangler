@@ -1,47 +1,27 @@
-import type { LicenseStatus } from "../../content/types";
+import type { License } from '@/scripts/types/license';
 
-interface LicenseInfoProps {
-	licenseStatus: LicenseStatus;
-}
+const LicenseInfo = ({ license }: { license: License }) => {
+    const { key, email, usage, usageLimit } = license;
+    const truncatedLicenseKey = `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
 
-const LicenseInfo = ({ licenseStatus }: LicenseInfoProps) => {
-	const getLicenseDisplayText = () => {
-		if (!licenseStatus?.licenseKey) return "No license key set";
-
-		const key = licenseStatus.licenseKey;
-		if (key.length <= 8) return key;
-
-		return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
-	};
-
-	return (
-		<div className="space-y-2">
-			<div className="flex items-center justify-between">
-				<span className="text-sm font-medium">License:</span>
-				<span className="text-sm text-muted-foreground">
-					{getLicenseDisplayText()}
-				</span>
-			</div>
-
-			{licenseStatus?.licenseData && (
-				<div className="space-y-1">
-					<div className="flex items-center justify-between text-xs">
-						<span className="text-muted-foreground">Email:</span>
-						<span className="font-mono">{licenseStatus.licenseData.email}</span>
-					</div>
-					<div className="flex items-center justify-between text-xs">
-						<span className="text-muted-foreground">Usage today:</span>
-						<span className="font-mono">
-							{licenseStatus.licenseData.dailyLimit === -1 
-								? `${licenseStatus.licenseData.usageToday} (Unlimited)`
-								: `${licenseStatus.licenseData.usageToday}/${licenseStatus.licenseData.dailyLimit}`
-							}
-						</span>
-					</div>
-				</div>
-			)}
-		</div>
-	);
+    return (
+        <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">License:</span>
+                <span className="">{truncatedLicenseKey}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Email:</span>
+                <span className="font-mono">{email}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Usage today:</span>
+                <span className="font-mono">
+                    {usageLimit === -1 ? `${usage} Requests` : `${usage}/${usageLimit} Requests`}
+                </span>
+            </div>
+        </div>
+    );
 };
 
 export default LicenseInfo;

@@ -20,16 +20,16 @@ export async function handleSetLicense(
 		await browser.storage.sync.set({ licenseKey: licenseKey.trim() });
 
 		// Clear any previous validation cache
-		await browser.storage.local.remove(["licenseValidation"]);
+		await browser.storage.local.remove(["license"]);
 
 		// Validate the new license
 		await validateLicenseKey(licenseKey.trim());
 
-		const status = await getCurrentLicenseStatus();
+		const license = await getCurrentLicenseStatus();
 
 		return {
 			success: true,
-			status,
+			license,
 		};
 	} catch (error) {
 		log.error("Set license error:", error);
