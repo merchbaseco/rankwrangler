@@ -89,7 +89,7 @@ export interface StatsResponse {
 }
 
 // License status and response types
-import type { License } from '../../types/license';
+import type { License } from "../../types/license";
 
 export interface LicenseResponse {
 	success: boolean;
