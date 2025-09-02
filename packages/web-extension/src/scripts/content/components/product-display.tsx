@@ -48,10 +48,25 @@ export function ProductDisplay({
 
     if (isLoading || !product) {
         return (
-            <div className="w-full bg-gradient-to-r from-white/95 to-white/90 backdrop-blur border border-gray-200 rounded-lg px-3 py-2 shadow-sm animate-pulse">
-                <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
-                    <span className="text-sm font-medium text-gray-800">Loading BSR...</span>
+            <div className="w-full bg-gradient-to-r from-white/[0.98] to-white/[0.95] backdrop-blur border border-gray-200 rounded-lg px-3 py-2 shadow-sm flex flex-col gap-1.5">
+                {/* Skeleton for BSR rank and category */}
+                <div className="flex items-baseline gap-0.5">
+                    <span className="text-base font-semibold text-transparent bg-gray-200 rounded animate-pulse">
+                        #99,999
+                    </span>
+                    <span className="text-xs text-transparent bg-gray-200 rounded ml-1 animate-pulse">
+                        in Example Category
+                    </span>
+                </div>
+                
+                {/* Skeleton for metadata row */}
+                <div className="flex items-center gap-2 pt-1.5 mt-1 border-t border-gray-200 w-full">
+                    <span className="text-xs text-transparent bg-gray-200 rounded flex-1 animate-pulse">
+                        December 31, 2024
+                    </span>
+                    <span className="text-xs text-transparent bg-gray-200 rounded px-1.5 py-0.5 animate-pulse">
+                        B0EXAMPLE1
+                    </span>
                 </div>
             </div>
         );

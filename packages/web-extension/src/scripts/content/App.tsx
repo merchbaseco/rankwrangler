@@ -64,7 +64,7 @@ const App = () => {
 							
 						products.forEach(product => {
 							const asin = product.getAttribute('data-asin');
-							if (asin && asin.length === 10 && /^[A-Z0-9]{10}$/.test(asin) && !searchInjector.isProcessed(asin)) {
+							if (asin && asin.length === 10 && /^[A-Z0-9]{10}$/.test(asin) && !searchInjector.isProcessed(product as HTMLElement)) {
 								log.debug(`New product detected: ${asin}`);
 								searchInjector.injectSingleBadge(product as HTMLElement, asin);
 							}
@@ -81,10 +81,8 @@ const App = () => {
 		});
 		
 		// Initial injection for products already on page
-		setTimeout(() => {
-			log.debug("Running initial BSR injection");
-			searchInjector.injectBsrBadges();
-		}, 1000);
+		log.debug("Running initial BSR injection");
+		searchInjector.injectBsrBadges();
 
 		// Handle browser back/forward cache restoration
 		const handlePageHide = () => {
@@ -104,11 +102,9 @@ const App = () => {
 				// Reopen database connection
 				db.open();
 				
-				// Re-inject fresh components after DB is ready
-				setTimeout(() => {
-					log.info("Re-injecting fresh BSR badges after back navigation");
-					searchInjector.injectBsrBadges();
-				}, 100);
+				// Re-inject fresh components immediately after DB is ready
+				log.info("Re-injecting fresh BSR badges after back navigation");
+				searchInjector.injectBsrBadges();
 				
 				queryClient.invalidateQueries();
 			}
