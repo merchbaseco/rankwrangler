@@ -11,7 +11,7 @@ interface BsrBadge {
 }
 
 class SearchInjector {
-	private processedAsins = new Set<string>();
+	private processedUuids = new Set<string>();
 	private badges = new Map<string, BsrBadge>();
 
 	/**
@@ -23,7 +23,8 @@ class SearchInjector {
 
 		products.forEach((product) => {
 			const asin = product.getAttribute("data-asin");
-			if (!asin || this.processedAsins.has(asin)) {
+			const uuid = product.getAttribute("data-uuid");
+			if (!asin || !uuid || this.processedUuids.has(uuid)) {
 				return;
 			}
 
@@ -32,24 +33,26 @@ class SearchInjector {
 	}
 
 	/**
-	 * Check if an ASIN has already been processed
+	 * Check if an element has already been processed
 	 */
-	public isProcessed(asin: string): boolean {
-		return this.processedAsins.has(asin);
+	public isProcessed(element: HTMLElement): boolean {
+		const uuid = element.getAttribute("data-uuid");
+		return uuid ? this.processedUuids.has(uuid) : false;
 	}
 
 	/**
 	 * Inject a single badge for a specific product element and ASIN
 	 */
 	public injectSingleBadge(product: HTMLElement, asin: string): void {
-		if (this.processedAsins.has(asin)) {
+		const uuid = product.getAttribute("data-uuid");
+		if (!uuid || this.processedUuids.has(uuid)) {
 			return;
 		}
 
 		const injectionPoint = this.findInjectionPoint(product);
 		if (injectionPoint) {
 			this.createAndInjectBadge(asin, injectionPoint);
-			this.processedAsins.add(asin);
+			this.processedUuids.add(uuid);
 		}
 	}
 
@@ -119,10 +122,10 @@ class SearchInjector {
 	}
 
 	/**
-	 * Clear all processed ASINs (for page navigation)
+	 * Clear all processed UUIDs (for page navigation)
 	 */
 	public reset(): void {
-		this.processedAsins.clear();
+		this.processedUuids.clear();
 		this.badges.clear();
 
 		// Explicitly cleanup React roots before removing DOM elements
