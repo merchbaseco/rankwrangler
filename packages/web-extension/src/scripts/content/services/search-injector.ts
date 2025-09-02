@@ -27,12 +27,30 @@ class SearchInjector {
 				return;
 			}
 
-			const injectionPoint = this.findInjectionPoint(product);
-			if (injectionPoint) {
-				this.createAndInjectBadge(asin, injectionPoint);
-				this.processedAsins.add(asin);
-			}
+			this.injectSingleBadge(product, asin);
 		});
+	}
+
+	/**
+	 * Check if an ASIN has already been processed
+	 */
+	public isProcessed(asin: string): boolean {
+		return this.processedAsins.has(asin);
+	}
+
+	/**
+	 * Inject a single badge for a specific product element and ASIN
+	 */
+	public injectSingleBadge(product: HTMLElement, asin: string): void {
+		if (this.processedAsins.has(asin)) {
+			return;
+		}
+
+		const injectionPoint = this.findInjectionPoint(product);
+		if (injectionPoint) {
+			this.createAndInjectBadge(asin, injectionPoint);
+			this.processedAsins.add(asin);
+		}
 	}
 
 	/**

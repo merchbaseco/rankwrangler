@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { browser } from "webextension-polyfill-ts";
 import { log } from "../../utils/logger";
 import { DebugWidget } from "./components/debug-widget";
+import { db } from "../db";
 import { searchInjector } from "./services/search-injector";
 
 const queryClient = new QueryClient({
@@ -48,33 +49,78 @@ const App = () => {
 			handleDebugModeChange as EventListener,
 		);
 
-		// Initial injection
-		const runInjection = () => {
-			log.debug("Running BSR injection");
+		// Set up MutationObserver to watch for new products
+		const observer = new MutationObserver((mutations) => {
+			mutations.forEach((mutation) => {
+				// Check for added nodes with data-asin
+				mutation.addedNodes.forEach((node) => {
+					if (node.nodeType === Node.ELEMENT_NODE) {
+						const element = node as HTMLElement;
+						
+						// Check if this element or its children have data-asin
+						const products = element.matches('[data-asin]') 
+							? [element]
+							: Array.from(element.querySelectorAll('[data-asin]'));
+							
+						products.forEach(product => {
+							const asin = product.getAttribute('data-asin');
+							if (asin && asin.length === 10 && /^[A-Z0-9]{10}$/.test(asin) && !searchInjector.isProcessed(asin)) {
+								log.debug(`New product detected: ${asin}`);
+								searchInjector.injectSingleBadge(product as HTMLElement, asin);
+							}
+						});
+					}
+				});
+			});
+		});
+		
+		// Observe entire body for changes
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true
+		});
+		
+		// Initial injection for products already on page
+		setTimeout(() => {
+			log.debug("Running initial BSR injection");
 			searchInjector.injectBsrBadges();
+		}, 1000);
+
+		// Handle browser back/forward cache restoration
+		const handlePageHide = () => {
+			// Close IndexedDB connection before navigation to allow bfcache
+			log.info("Page being hidden, closing IndexedDB connection");
+			db.close();
 		};
 
-		setTimeout(runInjection, 1000);
-
-		// Watch for URL changes
-		let currentUrl = window.location.href;
-		const urlChangeHandler = () => {
-			if (window.location.href !== currentUrl) {
-				log.info("URL changed, re-injecting badges");
-				currentUrl = window.location.href;
+		const handlePageShow = async (event: PageTransitionEvent) => {
+			if (event.persisted) {
+				// Page was restored from bfcache - components are suspended with stale async operations
+				log.info("Page restored from cache, forcing complete component refresh");
+				
+				// Clear all existing components (removes suspended components)
 				searchInjector.reset();
-				setTimeout(runInjection, 1000);
+				
+				// Reopen database connection
+				db.open();
+				
+				// Re-inject fresh components after DB is ready
+				setTimeout(() => {
+					log.info("Re-injecting fresh BSR badges after back navigation");
+					searchInjector.injectBsrBadges();
+				}, 100);
+				
+				queryClient.invalidateQueries();
 			}
 		};
 
-		const urlWatcher = setInterval(urlChangeHandler, 1000);
-
-		window.addEventListener("popstate", () => {
-			setTimeout(urlChangeHandler, 100);
-		});
+		window.addEventListener('pagehide', handlePageHide);
+		window.addEventListener('pageshow', handlePageShow);
 
 		return () => {
-			clearInterval(urlWatcher);
+			observer.disconnect();
+			window.removeEventListener('pagehide', handlePageHide);
+			window.removeEventListener('pageshow', handlePageShow);
 			window.removeEventListener(
 				"debugModeChanged",
 				handleDebugModeChange as EventListener,
