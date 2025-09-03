@@ -2,11 +2,11 @@
   "manifest_version": 3,
   "name": "RankWrangler",
   "version": "1.0",
-  "description": "Track and analyze Amazon product rankings and metrics in real-time",
+  "description": "Get product rankings and metrics in Amazon search results.",
   "permissions": ["storage", "tabs", "alarms", "scripting"],
   "host_permissions": ["*://*.amazon.com/*", "https://merchbase.co/api/*"],
   "icons": {
-    "32": "images/icon-32.png",
+    "32": "images/icon-32-safari.png",
     "64": "images/icon-64.png",
     "128": "images/icon-128.png",
     "512": "images/icon-512.png"
