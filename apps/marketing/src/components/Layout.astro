@@ -1,0 +1,31 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'RankWrangler | Tame your Amazon rankings',
+  description = 'RankWrangler gives Amazon sellers a modern command center for real-time rankings, deeper analytics, and license tooling. Built for multi-marketplace operators.'
+} = Astro.props as Props;
+---
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <meta name="theme-color" content="#f3a46d" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content="/logo.png" />
+    <meta property="og:type" content="website" />
+  </head>
+  <body class="bg-[#0f0b09] text-[#fdf6ee]">
+    <slot />
+  </body>
+</html>

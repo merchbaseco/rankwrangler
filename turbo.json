@@ -1,28 +1,48 @@
 {
   "$schema": "https://turborepo.org/schema.json",
-  "globalDependencies": ["**/.env"],
+  "globalDependencies": [
+    "**/.env"
+  ],
   "tasks": {
     "@rankwrangler/web-extension#build": {
-      "outputs": ["dist/**"]
+      "outputs": [
+        "dist/**"
+      ]
     },
     "@rankwrangler/safari-extension#build": {
-      "dependsOn": ["@rankwrangler/web-extension#build"],
-      "outputs": ["**/Resources/**"]
+      "dependsOn": [
+        "@rankwrangler/web-extension#build"
+      ],
+      "outputs": [
+        "**/Resources/**"
+      ]
     },
     "@rankwrangler/server#build": {
-      "outputs": ["dist/**"]
+      "outputs": [
+        "dist/**"
+      ]
     },
     "@rankwrangler/server#start": {
-      "dependsOn": ["@rankwrangler/server#build"]
+      "dependsOn": [
+        "@rankwrangler/server#build"
+      ]
     },
     "@rankwrangler/server#deploy": {
-      "dependsOn": ["@rankwrangler/server#build"]
+      "dependsOn": [
+        "@rankwrangler/server#build"
+      ]
     },
     "clean": {
       "cache": false
     },
     "lint": {},
-    "format": {}
+    "format": {},
+    "@rankwrangler/marketing#build": {
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "@rankwrangler/marketing#dev": {}
   },
   "ui": "tui"
 }
