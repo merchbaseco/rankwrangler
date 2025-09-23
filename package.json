@@ -14,7 +14,10 @@
     "clean": "turbo clean",
     "uninstall": "cd apps/safari-extension && node ../../scripts/uninstall.js",
     "lint": "biome check .",
-    "format": "biome check --write ."
+    "format": "biome check --write .",
+    "build:marketing": "turbo build --filter=@rankwrangler/marketing",
+    "dev:marketing": "yarn --cwd apps/marketing dev",
+    "preview:marketing": "yarn --cwd apps/marketing preview"
   },
   "devDependencies": {
     "turbo": "^2.5.6"

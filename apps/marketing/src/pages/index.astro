@@ -1,0 +1,259 @@
+---
+import CloudCanvas from 'src/components/CloudCanvas.astro';
+import Layout from '../components/Layout.astro';
+
+const features = [
+  {
+    icon: '📊',
+    title: 'Live rank telemetry',
+    description: 'Stream Amazon search positions across marketplaces with throttling-safe SP-API calls and buttery dashboards.'
+  },
+  {
+    icon: '🤠',
+    title: 'Wrangle your catalog',
+    description: 'Group ASINs by rodeo-ready segments, surface anomalies instantly, and keep buyers corralled with alerts.'
+  },
+  {
+    icon: '⚡️',
+    title: 'Automated briefings',
+    description: 'Deliver daily snapshots, slack alerts, and CSV roundups that highlight movers, laggards, and stock tension.'
+  },
+  {
+    icon: '🪝',
+    title: 'Integrations that latch on',
+    description: 'Tie in Licenses, Fastify server actions, and your data warehouse for one trailhead that never breaks stride.'
+  }
+];
+
+const highlights = [
+  {
+    title: 'High-frequency rank tracking',
+    body: 'Hit the API as often as every 15 minutes with adaptive bottlenecking tuned for each marketplace.'
+  },
+  {
+    title: 'Signal-based dashboards',
+    body: 'Blend velocity, buy box share, and review deltas into a single canyon-view of product health.'
+  },
+  {
+    title: 'No-sweat onboarding',
+    body: 'Bring your Seller Central credentials, our CLI spins licenses, and RankWrangler does the rest.'
+  }
+];
+---
+<Layout>
+    <main class="relative min-h-screen overflow-hidden text-[#fdf6ee]">
+      <div class="h-screen w-full absolute inset-0">
+        <img class="absolute top-0 right-0 h-[1080px]" src="/background-2.png" alt="A blue sky." />
+        <CloudCanvas />
+        <img class="absolute top-0 right-0 h-[1080px]" src="/background-1.png" alt="A cowboy overlooking a valley." />
+        <!-- <video
+          class="absolute top-0 right-0 w-2/3 object-cover"
+          src="/clouds.webm"
+          autoplay
+          loop
+          muted
+          playsinline
+        ></video> -->
+    </div>
+
+      <!-- <div class="pointer-events-none absolute inset-0 -z-10">
+      <div class="absolute inset-x-0 top-[-30%] h-[680px] blur-[120px]" style="background: radial-gradient(circle at 20% 20%, rgba(243,164,109,0.35), transparent 65%);"></div>
+      <div class="absolute inset-x-0 bottom-[-50%] h-[720px] blur-[160px]" style="background: radial-gradient(circle at 80% 10%, rgba(234,111,78,0.28), transparent 60%);"></div>
+      <div class="absolute left-1/2 top-1/2 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-[#f3a46d1a] via-[#d97d5414] to-transparent blur-[140px]"></div>
+    </div> -->
+
+    <header class="relative z-10 mx-auto w-full max-w-6xl px-6 pt-6">
+      <nav class="flex items-center justify-between gap-4 rounded-full border border-white/10 bg-black/20 px-6 py-4 backdrop-blur">
+        <a href="#" class="flex items-center gap-3">
+          <img src="/logo.png" alt="RankWrangler" class="h-9 w-auto" />
+          <span class="font-semibold text-sm uppercase tracking-[0.26em] text-white/70">Command the ranks</span>
+        </a>
+        <a href="mailto:hey@rankwrangler.com" class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/15">
+          <span>Book a demo</span>
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 7.5h9m0 0v9m0-9L6 18" /></svg>
+        </a>
+      </nav>
+    </header>
+
+    <section class="relative z-10 mx-auto w-full max-w-6xl px-6 pb-20 pt-16 sm:pt-24">
+      <div class="flex max-w-3xl flex-col gap-5">
+        <span class="inline-flex items-center gap-2 self-start rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium uppercase tracking-[0.3em] text-white/60">
+          <span class="h-2 w-2 rounded-full bg-[#f3a46d]"></span>
+          Real-time Amazon telemetry
+        </span>
+        <h1 class="font-display text-4xl font-semibold leading-tight tracking-tight text-white sm:text-5xl lg:text-[56px]">
+          Wrangle your <span class="text-[#f3a46d]">Amazon rankings</span> with a command center that feels like the open range.
+        </h1>
+        <p class="max-w-2xl text-base text-white/70 sm:text-lg">
+          RankWrangler keeps a lasso on every keyword, listing, and marketplace without the spreadsheet rodeo. Benchmark competitors, sync with your stack, and let our automation corral the busywork.
+        </p>
+        <div class="flex flex-wrap items-center gap-3 pt-3">
+          <a class="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-br from-[#f2a65a] via-[#d97d54] to-[#6f3810] px-6 py-3 text-base font-semibold text-[#1a0f0a] shadow-[0_18px_40px_rgba(217,125,84,0.35)] transition hover:-translate-y-0.5" href="https://calendar.app.google/">Request early access</a>
+          <a class="inline-flex items-center gap-3 rounded-2xl border border-white/20 px-6 py-3 text-base font-semibold text-white/80 transition hover:border-white/40 hover:text-white" href="#product">Tour the product
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m0 0-6 6m6-6-6-6" /></svg>
+          </a>
+        </div>
+        <div class="mt-10 grid gap-4 sm:grid-cols-3">
+          <div class="backdrop-card flex flex-col gap-2">
+            <span class="text-xs uppercase tracking-[0.3em] text-white/50">Keywords watched</span>
+            <span class="text-3xl font-semibold text-white">12,850+</span>
+            <p class="text-sm text-white/60">Automated observers keep you alerted on every rank swing.</p>
+          </div>
+          <div class="backdrop-card flex flex-col gap-2">
+            <span class="text-xs uppercase tracking-[0.3em] text-white/50">Marketplaces corralled</span>
+            <span class="text-3xl font-semibold text-white">8 regions</span>
+            <p class="text-sm text-white/60">Built for multi-ASIN operators across North America & EU.</p>
+          </div>
+          <div class="backdrop-card flex flex-col gap-2">
+            <span class="text-xs uppercase tracking-[0.3em] text-white/50">Alerts delivered</span>
+            <span class="text-3xl font-semibold text-white">5K+/mo</span>
+            <p class="text-sm text-white/60">Focus on strategy while we ping you when it matters.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="product" class="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24">
+      <div class="flex flex-col gap-6 text-center">
+        <span class="mx-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium uppercase tracking-[0.28em] text-[#f3a46d]">Why sellers saddle up</span>
+        <h2 class="text-3xl font-semibold tracking-tight sm:text-[42px]">An ops hub made for the wild west of Amazon</h2>
+        <p class="mx-auto max-w-3xl text-base text-white/65 sm:text-lg">
+          Inspired by the smooth flow of UserJot, RankWrangler mixes cinematic gradients, tactile cards, and actionable data so teams feel in control from the first glance.
+        </p>
+      </div>
+      <div class="mt-12 grid gap-6 md:grid-cols-2">
+        {features.map((feature) => (
+          <div class="backdrop-card text-left" key={feature.title}>
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f3a46d1a] text-2xl">
+              <span>{feature.icon}</span>
+            </div>
+            <h3 class="mt-5 text-2xl font-semibold text-white">{feature.title}</h3>
+            <p class="mt-3 text-base text-white/70">{feature.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24">
+      <div class="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+        <div class="space-y-6">
+          <span class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium uppercase tracking-[0.28em] text-[#f3a46d]">Telemetry + tooling</span>
+          <h2 class="text-3xl font-semibold tracking-tight sm:text-[40px]">Tie RankWrangler into your existing stack with zero friction</h2>
+          <p class="max-w-xl text-base text-white/65 sm:text-lg">
+            Our Fastify server already powers licensing and SP-API orchestration. Drop in the Astro marketing app, wire the CLI for credential provisioning, and you have a cohesive product narrative from prospect to power user.
+          </p>
+          <div class="grid gap-6">
+            {highlights.map((item) => (
+              <div class="rounded-3xl border border-white/10 bg-white/5 p-6" key={item.title}>
+                <strong class="text-lg font-semibold text-white">{item.title}</strong>
+                <p class="mt-2 text-sm text-white/65 sm:text-base">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div class="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#241712] via-[#1b120e] to-[#130b08] p-8 shadow-[0_40px_120px_rgba(10,5,3,0.55)]">
+          <div class="flex items-center justify-between text-xs uppercase tracking-[0.3em] text-white/40">
+            <span>Daily skyline report</span>
+            <span>05:30 MST</span>
+          </div>
+          <div class="mt-6 space-y-5">
+            <div class="flex items-start justify-between rounded-2xl bg-black/30 p-5">
+              <div>
+                <p class="text-sm text-white/50">Top mover</p>
+                <h3 class="text-lg font-semibold text-white">Sunset Roast Beans</h3>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-[#7de194]">+12 spots</p>
+                <p class="text-xs text-white/40">Rank #8 · Grocery</p>
+              </div>
+            </div>
+            <div class="flex items-start justify-between rounded-2xl bg-black/20 p-5">
+              <div>
+                <p class="text-sm text-white/50">Risk alert</p>
+                <h3 class="text-lg font-semibold text-white">Trailhead Hoodie</h3>
+              </div>
+              <div class="text-right">
+                <p class="text-sm text-[#f3a46d]">Inventory ≤ 5 days</p>
+                <p class="text-xs text-white/40">Rank #32 · Apparel</p>
+              </div>
+            </div>
+            <div class="rounded-2xl border border-dashed border-[#f3a46d55] bg-black/10 p-5">
+              <p class="text-xs uppercase tracking-[0.35em] text-[#f3a46d]">Automation queue</p>
+              <ul class="mt-3 space-y-3 text-sm text-white/65">
+                <li class="flex items-center justify-between">
+                  <span>Sync fresh ASIN batch</span>
+                  <span class="text-white/40">In progress</span>
+                </li>
+                <li class="flex items-center justify-between">
+                  <span>Push Slack alert to Ops</span>
+                  <span class="text-white/40">Queued</span>
+                </li>
+                <li class="flex items-center justify-between">
+                  <span>Export catalog digest</span>
+                  <span class="text-white/40">Completed</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="relative z-10 mx-auto w-full max-w-6xl px-6 pb-24">
+      <div class="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+        <div class="rounded-[28px] border border-white/10 bg-white/5 p-8 shadow-[0_24px_90px_rgba(8,4,2,0.6)]">
+          <p class="text-sm uppercase tracking-[0.3em] text-white/50">Field notes</p>
+          <blockquote class="mt-5 text-xl font-medium text-white sm:text-[26px]">
+            “RankWrangler gives us a frontier view into rankings we’ve never had. Alerts hit Slack before our sellers notice, and the dashboards make us feel like we’re watching the sunrise over revenue.”
+          </blockquote>
+          <cite class="mt-6 block text-sm text-white/60">Sierra Campbell · Lead Marketplace Wrangler at RangeGoods</cite>
+        </div>
+        <div class="space-y-6">
+          <h2 class="text-3xl font-semibold tracking-tight sm:text-[40px]">A polished flow from discovery to deployment</h2>
+          <p class="max-w-2xl text-base text-white/65 sm:text-lg">
+            This marketing site lives alongside our CLI, Fastify API, and browser extension inside the Turbo monorepo. Ship copy tweaks, assets, and product updates from one pipeline so storytelling never lags behind shipping.
+          </p>
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div class="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/65">
+              <span class="text-xs uppercase tracking-[0.3em] text-[#f3a46d]">Launch stack</span>
+              <p class="mt-3 text-base font-medium text-white">Astro + Tailwind 4 + Turbo</p>
+              <p class="mt-2">Static-first performance with a sprinkle of dynamic storytelling.</p>
+            </div>
+            <div class="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/65">
+              <span class="text-xs uppercase tracking-[0.3em] text-[#f3a46d]">Ready for scale</span>
+              <p class="mt-3 text-base font-medium text-white">Deployed as a sibling workspace</p>
+              <p class="mt-2">Builds run via Turbo commands and fit neatly into existing CI stages.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="relative z-10 mx-auto w-full max-w-5xl px-6 pb-24">
+      <div class="rounded-[36px] border border-white/15 bg-gradient-to-br from-[#f8ba80]/20 via-[#23150f]/80 to-[#120907]/80 p-10 text-center shadow-[0_28px_120px_rgba(10,5,3,0.55)]">
+        <h2 class="text-3xl font-semibold tracking-tight text-white sm:text-[44px]">Ready to saddle up?</h2>
+        <p class="mx-auto mt-4 max-w-2xl text-base text-white/70 sm:text-lg">
+          Book a discovery ride with the RankWrangler team and see how fast we can bring your Amazon ops out of the spreadsheets and onto the open range.
+        </p>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <a class="inline-flex items-center gap-3 rounded-2xl bg-[#f3a46d] px-6 py-3 text-base font-semibold text-[#2a1308] shadow-[0_16px_40px_rgba(234,132,76,0.35)] transition hover:-translate-y-0.5" href="mailto:hey@rankwrangler.com">Book a demo</a>
+          <a class="inline-flex items-center gap-3 rounded-2xl border border-white/25 px-6 py-3 text-base font-semibold text-white/80 transition hover:border-white/50 hover:text-white" href="https://docs.rankwrangler.com">View docs</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="relative z-10 px-6 pb-12">
+      <div class="mx-auto flex w-full max-w-6xl flex-col gap-6 rounded-3xl border border-white/10 bg-white/5 px-6 py-6 text-sm text-white/55 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3 text-white/70">
+          <img src="/logo.png" alt="RankWrangler" class="h-8 w-auto" />
+          <span>© {new Date().getFullYear()} RankWrangler. Built in the open range.</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-4 text-white/60">
+          <a href="mailto:hey@rankwrangler.com" class="hover:text-white">Contact</a>
+          <a href="https://github.com/rankwrangler" class="hover:text-white">GitHub</a>
+          <a href="/privacy" class="hover:text-white">Privacy</a>
+        </div>
+      </div>
+    </footer>
+  </main>
+</Layout>
