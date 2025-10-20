@@ -86,15 +86,15 @@ jobs:
             git pull --ff-only
             cd stack/rankwrangler
             {
-              echo "RANKWRANGLER_IMAGE_TAG=${IMAGE_TAG}"
-              echo "DATABASE_PASSWORD=${DATABASE_PASSWORD}"
-              echo "LICENSE_SECRET=${LICENSE_SECRET}"
-              echo "SESSION_SECRET=${SESSION_SECRET}"
-              echo "ADMIN_EMAIL=${ADMIN_EMAIL}"
-              echo "ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}"
-              echo "SPAPI_REFRESH_TOKEN=${SPAPI_REFRESH_TOKEN}"
-              echo "SPAPI_CLIENT_ID=${SPAPI_CLIENT_ID}"
-              echo "SPAPI_APP_CLIENT_SECRET=${SPAPI_APP_CLIENT_SECRET}"
+              printf 'RANKWRANGLER_IMAGE_TAG=%q\n' "${IMAGE_TAG}"
+              printf 'DATABASE_PASSWORD=%q\n' "${DATABASE_PASSWORD}"
+              printf 'LICENSE_SECRET=%q\n' "${LICENSE_SECRET}"
+              printf 'SESSION_SECRET=%q\n' "${SESSION_SECRET}"
+              printf 'ADMIN_EMAIL=%q\n' "${ADMIN_EMAIL}"
+              printf 'ADMIN_PASSWORD_HASH=%q\n' "${ADMIN_PASSWORD_HASH}"
+              printf 'SPAPI_REFRESH_TOKEN=%q\n' "${SPAPI_REFRESH_TOKEN}"
+              printf 'SPAPI_CLIENT_ID=%q\n' "${SPAPI_CLIENT_ID}"
+              printf 'SPAPI_APP_CLIENT_SECRET=%q\n' "${SPAPI_APP_CLIENT_SECRET}"
             } > .env
             chmod 600 .env
             if [[ -n "${GHCR_USERNAME:-}" && -n "${GHCR_TOKEN:-}" ]]; then
