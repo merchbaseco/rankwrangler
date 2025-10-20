@@ -3,7 +3,7 @@
 
 __metadata:
   version: 8
-  cacheKey: 10
+  cacheKey: 10c0
 
 "@alcalzone/ansi-tokenize@npm:^0.1.3":
   version: 0.1.3
