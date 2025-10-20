@@ -1,0 +1,26 @@
+# Dependency directories
+node_modules
+.pnpm-store
+.yarn/cache
+.yarn/unplugged
+
+# Build outputs
+apps/server/dist
+apps/cli/dist
+packages/web-extension/dist
+packages/icons/dist
+
+# Logs and coverage
+*.log
+coverage
+.nyc_output
+
+# Editor and OS cruft
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.swp
+
+# Git metadata
+.git

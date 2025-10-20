@@ -3,9 +3,14 @@
 
 set -e  # Exit on any error
 
+echo "❌ Legacy script detected."
+echo "This stack now deploys via GHCR using merchbase-infra/stack/rankwrangler under the rankwrangler user."
+echo "Run the GitHub Actions workflow or execute stack/rankwrangler/deploy.sh on the server."
+exit 1
+
 SERVER="zknicker@5.161.181.165"
 SSH_KEY="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Business/MerchBase/SSH/hetzner"
-REMOTE_DIR="~/rankwrangler-stack"  # Use home directory to avoid permission issues
+REMOTE_DIR="~/merchbase-infra/stack/rankwrangler"  # Legacy value (script is deprecated)
 
 # Check for --fresh flag
 FRESH_DEPLOY=false
@@ -98,7 +103,7 @@ ssh -i "$SSH_KEY" "$SERVER" << EOF
     echo "🌐 Ensuring webserver network exists..."
     docker network create webserver 2>/dev/null || echo "Network already exists"
     
-    cd ~/rankwrangler-stack
+    cd ~/merchbase-infra/stack/rankwrangler
     
     # Backup database if it exists (unless fresh deploy)
     if [ "$FRESH_DEPLOY" != "true" ] && docker ps -a --format '{{.Names}}' | grep -q "rankwrangler-postgres"; then
@@ -111,7 +116,7 @@ ssh -i "$SSH_KEY" "$SERVER" << EOF
     if [ "$FRESH_DEPLOY" = "true" ]; then
         echo "🧹 Fresh deployment: removing all volumes and data..."
         docker compose down -v --remove-orphans || true
-        docker volume rm rankwrangler-stack_postgres_data 2>/dev/null || echo "Volume already removed"
+        docker volume rm rankwrangler_postgres_data 2>/dev/null || echo "Volume already removed"
     else
         echo "💾 Safe deployment: preserving database volumes..."
         docker compose down --remove-orphans || true
