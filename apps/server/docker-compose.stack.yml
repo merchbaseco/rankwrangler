@@ -17,8 +17,6 @@ services:
     networks:
       - rankwrangler-internal
       - webserver  # Connect to external webserver network
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/api/health"]
       interval: 30s
@@ -39,15 +37,13 @@ services:
     environment:
       POSTGRES_DB: rankwrangler
       POSTGRES_USER: rankwrangler
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-SecurePass123}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD not set}
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - rankwrangler-internal
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rankwrangler -d rankwrangler"]
       interval: 10s
@@ -62,7 +58,7 @@ services:
 
   # RankWrangler Server
   server:
-    image: rankwrangler-server:latest
+    image: ghcr.io/merchbaseco/rankwrangler-server:${RANKWRANGLER_IMAGE_TAG:-latest}
     container_name: rankwrangler-server
     restart: always
     environment:
@@ -85,7 +81,7 @@ services:
       - DATABASE_PORT=5432
       - DATABASE_NAME=rankwrangler
       - DATABASE_USER=rankwrangler
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-SecurePass123}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:?DATABASE_PASSWORD not set}
     env_file:
       - .env
     depends_on:
@@ -93,10 +89,8 @@ services:
         condition: service_healthy
     networks:
       - rankwrangler-internal
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
     healthcheck:
-      test: ["CMD", "node", "-e", "http.get('http://localhost:8080/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(res=>process.exit(res.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

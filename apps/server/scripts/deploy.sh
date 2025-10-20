@@ -3,6 +3,11 @@
 
 set -e  # Exit on any error
 
+echo "❌ Legacy script detected."
+echo "Deployment now runs via GitHub Actions using merchbase-infra/stack/rankwrangler under the rankwrangler user."
+echo "Run the workflow or execute stack/rankwrangler/deploy.sh on the server instead."
+exit 1
+
 SERVER="zknicker@5.161.181.165"
 SSH_KEY="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Business/MerchBase/SSH/hetzner"
 REMOTE_DIR="/opt/rankwrangler-server"

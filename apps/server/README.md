@@ -1,173 +1,70 @@
 # RankWrangler Server
 
-A Docker-deployable Node.js service for Amazon SP-API catalog search functionality, designed to run at `merchbase.co/api/searchCatalog`.
-
-## Features
-
-- 🚀 Express.js server with TypeScript
-- 🔍 Amazon SP-API catalog search integration
-- 🐳 Docker containerization for easy deployment
-- 🛡️ Security headers and CORS configuration
-- 📊 Health check endpoint
-- ⚡ Built with Vite for optimized production builds
-- 🧶 Latest Yarn package manager
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- Yarn 4.0+
-- Docker (for containerized deployment)
-- Amazon SP-API credentials
-
-### Development
-
-1. **Clone and install dependencies:**
-   ```bash
-   cd /Users/zknicker/Programming/tools/rankwrangler-server
-   yarn install
-   ```
-
-2. **Set up environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your SP-API credentials
-   ```
-
-3. **Start development server:**
-   ```bash
-   yarn dev
-   ```
-
-### Production Build
-
-```bash
-yarn build
-yarn start
-```
-
-### Production Deployment (Hetzner Server)
-
-### Prerequisites
-- Access to Hetzner server (5.161.181.165)
-- SSH key configured
-- Nginx Proxy Manager running on server
-- SP-API credentials
-
-### Deployment Steps
-
-1. **First Time Setup:**
-   ```bash
-   # Run initial setup
-   ./setup.sh
-   
-   # Configure your SP-API credentials
-   cp .env.example .env.production
-   # Edit .env.production with your actual SP-API credentials
-   ```
-
-2. **Deploy to Server:**
-   ```bash
-   ./deploy.sh
-   ```
-
-3. **Configure Nginx Proxy Manager:**
-   - Access Nginx Proxy Manager: `http://5.161.181.165:81`
-   - Add new Proxy Host:
-     - Domain: `merchbase.co`
-     - Forward IP: `172.17.0.1` (Docker host)
-     - Forward Port: `8081`
-     - Custom Location: `/api/searchCatalog`
-   - Enable SSL with Let's Encrypt
-
-4. **Test Deployment:**
-   ```bash
-   ./commands.sh test
-   ```
-
-### Management Commands
-
-```bash
-./commands.sh logs        # View live logs
-./commands.sh status      # Check container status
-./commands.sh restart     # Restart container
-./commands.sh monitor     # Monitor resource usage
-./commands.sh shell       # Access container shell
-```
+API backend for RankWrangler’s Amazon SP-API integration. The service is deployed as a container from GitHub Container Registry (GHCR) and fronted by the shared Caddy proxy at `merchbase.co/api/*`.
 
 ## Local Development
 
-For local development and testing:
+```bash
+yarn install
+cp apps/server/.env.example apps/server/.env
+# populate apps/server/.env with valid SP-API credentials
+docker compose -f apps/server/docker-compose.yml up --build
+```
+
+The compose file now builds with the repository root as the build context, so recompiles pick up changes across the workspace.
+
+## Docker Image
+
+- Dockerfile: `apps/server/Dockerfile`
+- Image name: `ghcr.io/merchbaseco/rankwrangler-server`
+- Health endpoint: `GET /api/health`
+
+The image is multi-stage: Turbo builds the server, `yarn workspaces focus` trims dependencies, and the runtime stage runs as an unprivileged user with `dumb-init`.
+
+## Deployment
+
+1. Commits on `main` trigger `.github/workflows/deploy.yml`.
+2. The workflow builds and pushes the image to GHCR with tags `latest` and the commit SHA.
+3. It SSHes to the Hetzner host as the `rankwrangler` user, pulls `merchbase-infra`, and runs `stack/rankwrangler/deploy.sh` to roll the stack.
+
+## Stack Layout
+
+The production stack (defined in `merchbase-infra/stack/rankwrangler/docker-compose.yml`) runs three containers:
+
+- `rankwrangler-postgres`: persistent database (`postgres_data` volume)
+- `rankwrangler-server`: Fastify API running the GHCR image
+- `rankwrangler-caddy`: internal reverse proxy that exposes the API on port 8090 for the edge Caddy
+
+## Configuration
+
+Environment variables are loaded from the stack `.env` file and include:
+
+| Variable | Purpose |
+| --- | --- |
+| `RANKWRANGLER_IMAGE_TAG` | Image tag to deploy (commit SHA or `latest`) |
+| `DATABASE_PASSWORD` | Postgres password shared by the server and DB |
+| `LICENSE_SECRET`, `SESSION_SECRET` | Secrets for licensing/session management |
+| `SPAPI_*` | Amazon SP-API credentials |
+
+The server itself also respects optional `ADMIN_EMAIL` and `ADMIN_PASSWORD_HASH` for bootstrap login.
 
 ## API Endpoints
 
-### Search Catalog
-**POST** `/api/searchCatalog`
+- `POST /api/searchCatalog` – search Amazon’s catalog (requires auth)
+- `GET /api/health` – liveness probe used by Docker and infrastructure health checks
 
-Search Amazon's catalog for products using keywords.
+## Useful Commands
 
-**Request Body:**
-```json
-{
-  "keywords": ["t-shirt", "cotton"]
-}
+```bash
+yarn build:server              # Turbo build for the server package
+docker compose -f apps/server/docker-compose.yml build
+docker build -f apps/server/Dockerfile . --target runtime  # one-off image build
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "asin": "B08XYZ123",
-      "title": "Cotton T-Shirt",
-      "brand": "Example Brand",
-      "bulletPoints": ["100% Cotton", "Machine Washable"],
-      "thumbnailUrl": "https://...",
-      "bsr": 1234
-    }
-  ]
-}
+To deploy a specific tag manually from the stack directory on the server:
+
+```bash
+cd ~/merchbase-infra/stack/rankwrangler
+export RANKWRANGLER_IMAGE_TAG=<sha or tag>
+./deploy.sh
 ```
-
-### Health Check
-**GET** `/health`
-
-Returns service status and timestamp.
-
-## Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `PORT` | Server port (default: 8080) | No |
-| `SPAPI_REFRESH_TOKEN` | Amazon SP-API refresh token | Yes |
-| `SPAPI_CLIENT_ID` | Amazon SP-API client ID | Yes |
-| `SPAPI_APP_CLIENT_SECRET` | Amazon SP-API client secret | Yes |
-
-## Architecture
-
-- **Server**: Hetzner VPS (5.161.181.165)
-- **Reverse Proxy**: Nginx Proxy Manager
-- **Container Port**: 8081 (to avoid conflicts)
-- **Domain**: merchbase.co/api/searchCatalog
-- **Management**: CLI scripts for deployment and monitoring
-
-## Server Infrastructure
-
-The service integrates with your existing server setup:
-- **Nginx Proxy Manager**: Routes traffic from merchbase.co to container
-- **Portainer**: Container management (port 9000)
-- **Watchtower**: Disabled for this service (manual updates)
-- **Health Checks**: Built-in container health monitoring
-
-## Development Scripts
-
-- `yarn dev` - Start development server with hot reload
-- `yarn build` - Build for production
-- `yarn start` - Start production server
-- `yarn type-check` - Run TypeScript type checking
-
-## Docker Health Checks
-
-The container includes built-in health checks that ping the `/health` endpoint every 30 seconds.
