@@ -1,4 +1,5 @@
 import { Separator } from "@/components/ui/separator";
+import { CacheControls } from "./components/cache-controls";
 import { DebugToggle } from "./components/debug-toggle";
 import { Header } from "./components/header";
 import { License } from "./components/license";
@@ -9,6 +10,7 @@ const Popup = () => {
 			<Header />
 			<div className="flex flex-col gap-3">
 				<License />
+				<CacheControls />
 				<Separator />
 				<DebugToggle />
 			</div>

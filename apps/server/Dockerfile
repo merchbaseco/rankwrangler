@@ -13,7 +13,6 @@ COPY .yarn ./.yarn
 COPY apps/cli/package.json ./apps/cli/package.json
 COPY apps/safari-extension/package.json ./apps/safari-extension/package.json
 COPY apps/server/package.json ./apps/server/package.json
-COPY packages/icons/package.json ./packages/icons/package.json
 COPY packages/web-extension/package.json ./packages/web-extension/package.json
 RUN yarn install --immutable
 
