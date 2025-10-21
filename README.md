@@ -1,56 +1,64 @@
-# RankWrangler
+# RankWrangler Server
 
-A Safari extension that helps you track and analyze Amazon product rankings and metrics in real-time.
+Fastify-based API for RankWrangler’s Amazon SP-API integration. The service is distributed as a Docker container via GitHub Container Registry (GHCR) and fronts the `/api/*` routes behind the public Caddy proxy at `merchbase.co`.
 
-## Project Structure
+## Requirements
 
-This repository contains both the web extension code and the Safari app wrapper:
+- Node.js 18+
+- Yarn 4 (Corepack enabled)
+- Docker (optional, for container builds)
 
-- `/extension` - The core web extension code (TypeScript)
-
-  - Contains all the logic for fetching and displaying Amazon rankings
-  - Built using TypeScript, Webpack, and modern web technologies
-  - Can be developed and tested independently
-
-- `/safari-app` - The Safari app wrapper (Swift/Xcode)
-  - Xcode project that packages the web extension for Safari
-  - Handles Safari-specific extension requirements
-  - Manages code signing and distribution
-
-## Development
-
-### Web Extension Development
+## Setup
 
 ```bash
-cd extension
 yarn install
-yarn watch
+cp .env.example .env
+# fill .env with valid SP-API credentials before starting
 ```
 
-See the [extension README](./extension/README.md) for more details.
+## Local Development
 
-### Safari App Development
+Run the API in development mode with Docker and PostgreSQL:
 
-1. Open `/safari-app/RankWrangler.xcodeproj` in Xcode
-2. Build the web extension first: `cd extension && yarn build`
-3. Copy the built files from `extension/dist` to the Safari extension's Resources folder
-4. Build and run the Safari app in Xcode
+```bash
+docker compose up --build
+```
 
-See the [Safari app README](./safari-app/README.md) for more details.
+This uses the local `docker-compose.yml`, which builds the server image from the current workspace and wires the exposed port `8080`.
 
-## Building for Production
+To build and run the service manually:
 
-1. Build the web extension:
+```bash
+yarn build
+NODE_ENV=production yarn start
+```
 
-   ```bash
-   cd extension
-   yarn build
-   ```
+## Scripts
 
-2. Open the Xcode project in `/safari-app`
-3. Update the extension resources with the new build
-4. Archive and distribute through Xcode
+- `yarn build` – bundle the server with Vite
+- `yarn start` – run the compiled server using `dotenv-cli` (expects `dist/index.js`)
+- `yarn deploy` – helper script for the legacy standalone deployment (exits with guidance)
+- `./scripts/commands.sh` – utilities for managing the production container over SSH (`logs`, `status`, `restart`, etc.)
+- `./test-api.sh` – quick smoke tests for the health check and `searchCatalog` endpoint
 
-## License
+## Docker
 
-MIT
+- Dockerfile: `./Dockerfile`
+- Compose files for local testing and stack orchestration: `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.stack.yml`
+- Health endpoint: `GET /api/health`
+
+The default GitHub Actions workflow (`.github/workflows/deploy.yml`) builds and pushes `ghcr.io/merchbaseco/rankwrangler-server` and triggers the infrastructure deployment in `merchbase-infra`.
+
+## Database Migrations
+
+Drizzle migrations live under `./drizzle`. Update the schema in `src/db/schema.ts`, run `yarn drizzle-kit generate`, and commit the generated SQL alongside `init.sql`.
+
+## Testing
+
+Manual smoke tests:
+
+```bash
+./test-api.sh
+```
+
+This script hits the health endpoint and exercises sample payloads for `searchCatalog`. Add new automated tests when extending the API surface.
