@@ -27,11 +27,5 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Turbo
-.turbo/
-
-# Safari Extension
-build/
-DerivedData/
-/apps/safari-extension/Shared (Extension)/Resources
-/apps/safari-extension/Shared (App)/Assets.xcassets
+# Docker artifacts
+stack.env

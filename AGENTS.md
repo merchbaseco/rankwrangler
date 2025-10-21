@@ -1,27 +1,22 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-RankWrangler is a Yarn 4 monorepo. Core code lives under `apps/` (Fastify API in `apps/server`, React Ink CLI in `apps/cli`, and the Xcode wrapper in `apps/safari-extension`). Shared browser code resides in `packages/web-extension`; icons and static assets live in `packages/icons` and `/assets`. Automation helpers sit in `/scripts` and service-specific `/apps/*/scripts`. Database migrations and seeds are tracked in `apps/server/drizzle` alongside `init.sql`.
+This repository now hosts only the RankWrangler server. Source lives under `src/`, database artifacts in `drizzle/`, and deployment helpers in `scripts/`. Environment templates (`.env.example`, `.env.production`) sit at the project root alongside Docker and Compose files.
 
 ## Build, Test, and Development Commands
-Run these from the repo root unless noted:
-- `yarn build:server` – Vite build for the Fastify service orchestrated by Turbo.
-- `yarn build:safari` – bundles the web extension, then packages the Safari wrapper.
-- `yarn cli` – launches the Ink-based license management CLI in watch mode.
-- `yarn lint` / `yarn format` – enforce Biome rules across all workspaces.
-For workspace-specific flows:
-- `yarn --cwd apps/server start` – boots the API with `.env`; migrations run on startup.
-- `yarn --cwd packages/web-extension dev` – Vite dev server for the browser extension with Tailwind output.
-- `yarn --cwd apps/safari-extension clean` – resets Xcode artifacts before rebuilding.
+- `yarn build` – Vite bundle targeting Node 18.
+- `yarn start` – run the compiled server with `dotenv-cli`.
+- `docker compose up --build` – spin up the local stack using the provided compose file.
+- `./test-api.sh` – manual smoke test against the local API.
 
 ## Coding Style & Naming Conventions
-Biome enforces 4-space indentation, single quotes, semicolons, 100-character lines, and LF endings (`biome.json`). Keep TypeScript strict mode and the `@/` path alias in sync across workspaces. Use kebab-case for scripts, camelCase for variables, PascalCase for React components, and suffix service modules with `*.service.ts`. Run `yarn format` before committing large rewrites.
+Biome enforces 4-space indentation, single quotes, semicolons, 100-character lines, and LF endings (`biome.json`). Keep TypeScript strict mode enabled and preserve the `@/` alias pointing at `src/`.
 
 ## Testing Guidelines
-Automated coverage is limited; add tests for any new API surface. Exercise the server endpoints with `apps/server/test-api.sh` after `yarn --cwd apps/server start`. Document manual verification steps in the relevant README until a proper suite (e.g., Vitest with Fastify inject) accompanies the change. Include sample payloads when touching SP-API integrations.
+Add automated coverage for any new endpoint or infrastructure surface. Until a full suite exists, document manual verification steps in `README.md` and extend `test-api.sh` with representative payloads.
 
 ## Commit & Pull Request Guidelines
-Follow the observed Conventional Commit prefixes (`feat:`, `fix:`, `refactor:`) and keep each commit scoped to a single package when possible. Pull requests should outline business impact, list validation commands, link the tracking issue, and attach screenshots or CLI output for UX changes. Call out schema or environment updates and refresh docs/CHANGELOG entries when behavior shifts.
+Use Conventional Commit prefixes (`feat:`, `fix:`, `refactor:`). Call out schema changes, new environment variables, and updated deployment steps. Attach logs or curl output when modifying API behaviour.
 
 ## Environment & Security Notes
-Use Node ≥18 with Yarn 4 Plug'n'Play; install dependencies once at the root via `yarn install`. Secrets stay in `.env` files that are ignored—never commit SP-API credentials. Ship database tweaks with matching files in `apps/server/drizzle` and `init.sql`. Maintain executable bits on deployment scripts (`chmod +x scripts/*.sh`) and keep Docker compose configs in sync with server updates.
+Run on Node ≥18 with Yarn 4 (Corepack). Keep secrets in `.env` files—never commit production credentials. Ship database changes with matching SQL in `drizzle/` and `init.sql`. Deployment scripts under `scripts/` must remain executable.

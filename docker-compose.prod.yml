@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  rankwrangler-server:
+    image: ghcr.io/merchbaseco/rankwrangler-server:${RANKWRANGLER_IMAGE_TAG:-latest}
+    container_name: rankwrangler-server
+    restart: always
+    ports:
+      - "8081:8080"  # Using 8081 to avoid conflict with nginx-proxy-manager
+    env_file:
+      - .env
+    networks:
+      - default
+      - webserver
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(res=>process.exit(res.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  webserver:
+    external: true
