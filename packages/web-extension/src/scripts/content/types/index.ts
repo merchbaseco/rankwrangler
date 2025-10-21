@@ -73,6 +73,10 @@ export interface ToggleDebugModeMessage {
 	debugMode: boolean;
 }
 
+export interface ClearCacheMessage {
+	type: "clearCache";
+}
+
 export type BackgroundMessage =
 	| FetchProductInfoMessage
 	| { type: "ping" }
@@ -80,7 +84,8 @@ export type BackgroundMessage =
 	| SetLicenseMessage
 	| RemoveLicenseMessage
 	| GetLicenseStatusMessage
-	| ToggleDebugModeMessage;
+	| ToggleDebugModeMessage
+	| ClearCacheMessage;
 
 // API response type
 export interface StatsResponse {
@@ -106,6 +111,11 @@ export interface ValidationResponse {
 		usage: number;
 		usageLimit: number;
 	};
+}
+
+export interface ClearCacheResponse {
+	success: boolean;
+	error?: string;
 }
 
 // Constants

@@ -1,6 +1,7 @@
 import { browser } from "webextension-polyfill-ts";
 import { log } from "../../utils/logger";
 import type { BackgroundMessage } from "../content/types";
+import { handleClearCache } from "./handlers/clear-cache";
 import { handleFetchProductInfo } from "./handlers/fetch-product-info";
 import { handleGetLicenseStatus } from "./handlers/get-license-status";
 import { handlePing } from "./handlers/ping";
@@ -41,6 +42,9 @@ browser.runtime.onMessage.addListener(
 
 			case "toggleDebugMode":
 				return handleToggleDebugMode(message);
+
+			case "clearCache":
+				return handleClearCache(message);
 
 			default:
 				log.warn("Unknown message type:", message);
