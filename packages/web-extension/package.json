@@ -35,6 +35,7 @@
     "prettier": "^3.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "rollup": "^4.44.1",
     "tailwindcss": "^4.0.0",
     "tailwindcss-patch": "^7.1.4",
     "terser": "^5.43.1",
