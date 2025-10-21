@@ -81,7 +81,8 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
           source: stack.env
-          target: stack.env
+          target: .
+          overwrite: true
 
       - name: Deploy RankWrangler stack
         uses: appleboy/ssh-action@v1.0.3
@@ -110,7 +111,16 @@ jobs:
             cd "${REPO_DIR}"
             git pull --ff-only
             cd stack/rankwrangler
-            mv "${HOME}/stack.env" .env
+            STACK_ENV_PATH="${HOME}/stack.env"
+            if [[ -d "${STACK_ENV_PATH}" ]]; then
+              STACK_ENV_FILE="${STACK_ENV_PATH}/stack.env"
+            else
+              STACK_ENV_FILE="${STACK_ENV_PATH}"
+            fi
+            mv "${STACK_ENV_FILE}" .env
+            if [[ -d "${STACK_ENV_PATH}" ]]; then
+              rm -rf "${STACK_ENV_PATH}"
+            fi
             chmod 600 .env
             if [[ -n "${GHCR_USERNAME:-}" && -n "${GHCR_TOKEN:-}" ]]; then
               echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
