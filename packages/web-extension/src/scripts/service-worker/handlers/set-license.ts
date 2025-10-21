@@ -1,7 +1,7 @@
 import { browser } from "webextension-polyfill-ts";
 import { log } from "../../../utils/logger";
 import type { LicenseResponse, SetLicenseMessage } from "../../content/types";
-import { getCurrentLicenseStatus, validateLicenseKey } from "./license-utils";
+import { validateLicenseKey } from "./license-utils";
 
 export async function handleSetLicense(
 	message: SetLicenseMessage,
@@ -16,20 +16,30 @@ export async function handleSetLicense(
 			};
 		}
 
-		// Save to sync storage
-		await browser.storage.sync.set({ licenseKey: licenseKey.trim() });
+		const trimmedKey = licenseKey.trim();
 
-		// Clear any previous validation cache
-		await browser.storage.local.remove(["license"]);
+		// Validate the new license before persisting it
+		const validation = await validateLicenseKey(trimmedKey);
 
-		// Validate the new license
-		await validateLicenseKey(licenseKey.trim());
+		if (!validation.isValid) {
+			// Remove stored key if validation definitively failed
+			if (validation.status === 401) {
+				await browser.storage.sync.remove(["licenseKey"]);
+			}
 
-		const license = await getCurrentLicenseStatus();
+			return {
+				success: false,
+				error: validation.error || "Invalid license key",
+				license: validation.license,
+			};
+		}
+
+		// Persist the validated key for future sessions
+		await browser.storage.sync.set({ licenseKey: trimmedKey });
 
 		return {
 			success: true,
-			license,
+			license: validation.license,
 		};
 	} catch (error) {
 		log.error("Set license error:", error);

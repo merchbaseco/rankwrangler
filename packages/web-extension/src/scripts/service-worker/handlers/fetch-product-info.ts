@@ -1,9 +1,9 @@
-import { browser } from "webextension-polyfill-ts";
 import type {
 	FetchProductInfoMessage,
 	ProductInfoResponse,
 } from "@/scripts/content/types";
 import { log } from "../../../utils/logger";
+import { resolveStoredLicenseKey } from "./license-utils";
 
 const API_BASE_URL = "https://merchbase.co/api";
 
@@ -11,16 +11,23 @@ export async function handleFetchProductInfo(
 	message: FetchProductInfoMessage,
 ): Promise<ProductInfoResponse> {
 	try {
-		// Get license key from storage
-		const result = await browser.storage.sync.get(["licenseKey"]);
+		// Get the active license key (sync or local fallback)
+		const activeLicenseKey = await resolveStoredLicenseKey();
 
 		const headers: Record<string, string> = {
 			"Content-Type": "application/json",
 		};
 
 		// Add authorization header if license key exists
-		if (result.licenseKey) {
-			headers.Authorization = `Bearer ${result.licenseKey}`;
+		if (activeLicenseKey) {
+			headers.Authorization = `Bearer ${activeLicenseKey}`;
+		} else {
+			log.warn(
+				"Attempting to fetch product info without an active license key",
+				{
+					asin: message.asin,
+				},
+			);
 		}
 
 		const response = await fetch(`${API_BASE_URL}/getProductInfo`, {

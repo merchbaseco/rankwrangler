@@ -155,6 +155,9 @@ function parseCatalogItem(item: any): SimplifiedCatalogItem {
 }
 
 export const getProductInfo = async (marketplaceId: string, asin: string): Promise<ProductInfo> => {
+    if (!marketplaceId || typeof marketplaceId !== 'string') {
+        throw new Error('Marketplace ID is required');
+    }
     // Check PostgreSQL cache first
     try {
         const cached = await db
