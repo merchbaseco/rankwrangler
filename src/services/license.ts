@@ -160,7 +160,7 @@ export const createLicense = async (
 		const key = generateLicenseKey(email);
 
 		const features = ["basic_access"];
-		const requestsPerDay = unlimited ? -1 : 10000;
+		const requestsPerDay = unlimited ? -1 : 100000;
 
 		const licenseData = {
 			key,
@@ -280,6 +280,37 @@ export const resetLicenseUsage = async (
 		.set({
 			usageToday: 0,
 			lastResetAt: new Date(),
+		})
+		.where(eq(licenses.id, licenseId))
+		.returning({ id: licenses.id });
+
+	return result.length > 0;
+};
+
+export const updateLicenseLimit = async (
+	licenseId: string,
+	requestsPerDay: number,
+): Promise<boolean> => {
+	const [license] = await db.select()
+		.from(licenses)
+		.where(eq(licenses.id, licenseId))
+		.limit(1);
+
+	if (!license) {
+		return false;
+	}
+
+	const updatedMetadata: LicenseMetadata = {
+		...license.metadata,
+		limits: {
+			...license.metadata.limits,
+			requests_per_day: requestsPerDay,
+		},
+	};
+
+	const result = await db.update(licenses)
+		.set({
+			metadata: updatedMetadata,
 		})
 		.where(eq(licenses.id, licenseId))
 		.returning({ id: licenses.id });

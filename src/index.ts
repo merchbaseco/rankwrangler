@@ -7,7 +7,7 @@ import { runMigrations } from '@/db/migrate.js';
 import { testConnection, db } from '@/db/index.js';
 import { systemStats } from '@/db/schema.js';
 import { requireLicense } from '@/middleware/requireLicense.js';
-import { validateLicense, createLicense, getLicenseStats, listLicenses, getLicenseById, deleteLicense, resetLicenseUsage } from '@/services/license.js';
+import { validateLicense, createLicense, getLicenseStats, listLicenses, getLicenseById, deleteLicense, resetLicenseUsage, updateLicenseLimit } from '@/services/license.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -472,6 +472,57 @@ fastify.register(async function (fastify) {
       return {
         success: true,
         message: 'License usage reset successfully'
+      };
+    } catch (error) {
+      reply.status(400);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Invalid request',
+      };
+    }
+  });
+
+  // Admin endpoint to reset or update license limit
+  fastify.post('/api/admin/license/reset-limit', async (request, reply) => {
+    const { z } = await import('zod');
+
+    const resetLimitSchema = z.object({
+      adminKey: z.string().min(1),
+      licenseId: z.string().min(1),
+      limit: z.number().int().min(-1).max(1_000_000).optional(),
+    });
+
+    try {
+      const { adminKey, licenseId, limit } = resetLimitSchema.parse(request.body);
+
+      if (adminKey !== env.LICENSE_SECRET) {
+        reply.status(401);
+        return {
+          success: false,
+          error: 'Invalid admin key'
+        };
+      }
+
+      const targetLimit = limit ?? 100_000;
+      const success = await updateLicenseLimit(licenseId, targetLimit);
+
+      if (!success) {
+        reply.status(404);
+        return {
+          success: false,
+          error: 'License not found'
+        };
+      }
+
+      console.log(`[Admin] Updated limit for license ID: ${licenseId} to ${targetLimit}`);
+
+      return {
+        success: true,
+        message: 'License limit updated successfully',
+        data: {
+          licenseId,
+          limit: targetLimit
+        }
       };
     } catch (error) {
       reply.status(400);

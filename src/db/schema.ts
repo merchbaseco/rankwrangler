@@ -15,7 +15,7 @@ export const licenses = pgTable('licenses', {
   email: text('email').notNull(),
   metadata: json('metadata').$type<LicenseMetadata>().notNull().default({
     features: [],
-    limits: { requests_per_day: 1000 }
+    limits: { requests_per_day: 100000 }
   }),
   createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
   revokedAt: timestamp('revokedAt', { mode: 'date' }),
