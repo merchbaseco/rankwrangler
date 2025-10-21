@@ -77,6 +77,12 @@ export interface ClearCacheMessage {
 	type: "clearCache";
 }
 
+export interface CacheClearedNotification {
+	type: "cacheCleared";
+	cacheSize: number;
+	queueCount: number;
+}
+
 export type BackgroundMessage =
 	| FetchProductInfoMessage
 	| { type: "ping" }
@@ -116,6 +122,8 @@ export interface ValidationResponse {
 export interface ClearCacheResponse {
 	success: boolean;
 	error?: string;
+	cacheSize?: number;
+	queueCount?: number;
 }
 
 // Constants
