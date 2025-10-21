@@ -190,7 +190,7 @@ Located at `~/caddy-proxy/` on server:
 - **Portainer access**: `portainer.merchbase.co` → Portainer container
 
 ### Stack Caddy  
-Located at `~/rankwrangler-stack/Caddyfile`:
+Located at `~/merchbase-infra/stack/rankwrangler/Caddyfile`:
 - **Internal routing**: Routes `/api/*` to server on port 8080
 - **Health endpoints**: `/caddy-health`, `/nginx-health` (legacy)
 - **Rate limiting**: Built-in request throttling
