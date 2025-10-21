@@ -286,34 +286,3 @@ export const resetLicenseUsage = async (
 
 	return result.length > 0;
 };
-
-export const updateLicenseLimit = async (
-	licenseId: string,
-	requestsPerDay: number,
-): Promise<boolean> => {
-	const [license] = await db.select()
-		.from(licenses)
-		.where(eq(licenses.id, licenseId))
-		.limit(1);
-
-	if (!license) {
-		return false;
-	}
-
-	const updatedMetadata: LicenseMetadata = {
-		...license.metadata,
-		limits: {
-			...license.metadata.limits,
-			requests_per_day: requestsPerDay,
-		},
-	};
-
-	const result = await db.update(licenses)
-		.set({
-			metadata: updatedMetadata,
-		})
-		.where(eq(licenses.id, licenseId))
-		.returning({ id: licenses.id });
-
-	return result.length > 0;
-};
