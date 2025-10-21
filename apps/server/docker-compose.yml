@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   rankwrangler-server:
-    build: .
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
     container_name: rankwrangler-server
     ports:
       - "8080:8080"
@@ -15,7 +17,7 @@ services:
       - .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "http.get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(res=>process.exit(res.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

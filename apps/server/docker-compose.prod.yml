@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   rankwrangler-server:
-    image: rankwrangler-server:latest
+    image: ghcr.io/merchbaseco/rankwrangler-server:${RANKWRANGLER_IMAGE_TAG:-latest}
     container_name: rankwrangler-server
     restart: always
     ports:
@@ -12,10 +12,8 @@ services:
     networks:
       - default
       - webserver
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"  # Disable auto-updates by watchtower
     healthcheck:
-      test: ["CMD", "node", "-e", "http.get('http://localhost:8080/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(res=>process.exit(res.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
