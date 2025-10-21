@@ -1,23 +1,18 @@
-import { browser } from "webextension-polyfill-ts";
 import { log } from "../../../utils/logger";
 import type {
 	ValidateLicenseMessage,
 	ValidationResponse,
 } from "../../content/types";
+import { resolveStoredLicenseKey, validateLicenseKey } from "./license-utils";
 
 export async function handleValidateLicense(
 	message: ValidateLicenseMessage,
 ): Promise<ValidationResponse> {
 	try {
-		let licenseKey = message.licenseKey;
-
-		// If no license key provided, get from storage
-		if (!licenseKey) {
-			const result = await browser.storage.sync.get(["licenseKey"]);
-			licenseKey = result.licenseKey;
-		}
+		const licenseKey = await resolveStoredLicenseKey(message.licenseKey);
 
 		if (!licenseKey) {
+			log.warn("License validation requested without a stored license key");
 			return {
 				success: true,
 				valid: false,
@@ -25,52 +20,33 @@ export async function handleValidateLicense(
 			};
 		}
 
-		// Validate against API using dedicated validation endpoint
-		const response = await fetch("https://merchbase.co/api/license/validate", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				licenseKey,
-			}),
+		const validation = await validateLicenseKey(licenseKey);
+
+		log.info("License validation completed", {
+			isValid: validation.isValid,
+			hasError: !!validation.error,
+			status: validation.status,
+			networkError: validation.networkError,
 		});
 
-		if (response.ok) {
-			const data = await response.json();
+		const response: ValidationResponse = {
+			success: !validation.networkError,
+			valid: validation.isValid,
+		};
 
-			// Store flat license structure
-			await browser.storage.local.set({
-				license: {
-					key: licenseKey,
-					email: data.data.email,
-					isValid: true,
-					lastValidated: Date.now(),
-					usage: data.data.usage,
-					usageLimit: data.data.usageLimit,
-				},
-			});
+		if (validation.error) {
+			response.error = validation.error;
+		}
 
-			return {
-				success: true,
-				valid: true,
-				data: data.data,
-			};
-		} else {
-			// Handle different error codes
-			let error = "Invalid license key";
-			if (response.status === 429) {
-				error = "Daily usage limit exceeded";
-			} else if (response.status === 401) {
-				error = "Invalid or expired license key";
-			}
-
-			return {
-				success: true,
-				valid: false,
-				error,
+		if (validation.isValid) {
+			response.data = {
+				email: validation.license.email,
+				usage: validation.license.usage,
+				usageLimit: validation.license.usageLimit,
 			};
 		}
+
+		return response;
 	} catch (error) {
 		log.error("License validation error:", error);
 		return {

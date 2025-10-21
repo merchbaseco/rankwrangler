@@ -45,18 +45,41 @@ export const getProduct = async (
 			return getErrorProduct(productIdentifier);
 		}
 
-		const product = {
+		const responseData = response.data ?? {};
+		const displayGroupRanks = Array.isArray(responseData.displayGroupRanks)
+			? responseData.displayGroupRanks
+			: [];
+		const classificationRanks = Array.isArray(responseData.classificationRanks)
+			? responseData.classificationRanks
+			: [];
+
+		if (typeof responseData.marketplaceId !== "string") {
+			log.error(`getProduct failed for ${asin}`, {
+				error: "Response missing marketplaceId",
+				raw: responseData,
+			});
+			return getErrorProduct(productIdentifier);
+		}
+
+		const product: Product = {
 			asin,
-			marketplaceId: response.data.marketplaceId,
-			bsr: response.data.bsr,
-			bsrCategory: response.data.bsrCategory,
-			displayGroupRanks: response.data.displayGroupRanks,
-			classificationRanks: response.data.classificationRanks,
-			creationDate: response.data.creationDate,
+			marketplaceId: responseData.marketplaceId,
+			...(typeof responseData.creationDate === "string"
+				? { creationDate: responseData.creationDate }
+				: {}),
+			...(typeof responseData.bsr === "number"
+				? { bsr: responseData.bsr }
+				: {}),
+			...(typeof responseData.bsrCategory === "string"
+				? { bsrCategory: responseData.bsrCategory }
+				: {}),
+			displayGroupRanks,
+			classificationRanks,
 			metadata: {
 				success: true,
-				lastFetched: new Date().toISOString(),
-				cached: false,
+				lastFetched:
+					responseData.metadata?.lastFetched || new Date().toISOString(),
+				cached: Boolean(responseData.metadata?.cached),
 			},
 		};
 
