@@ -187,13 +187,22 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
 
             console.log(`[${new Date().toISOString()}] Cache hit for ${asin}`);
 
-            return {
-                ...cached[0].data,
+            const cachedData = cached[0].data as ProductInfo;
+            const normalized = normalizeProductInfo({
+                ...cachedData,
                 metadata: {
-                    ...cached[0].data.metadata,
+                    ...cachedData.metadata,
                     cached: true,
                 },
-            };
+            });
+
+            console.log(
+                `[${new Date().toISOString()}] Cache payload for ${asin}: ${JSON.stringify(
+                    normalized
+                )}`
+            );
+
+            return normalized;
         }
     } catch (error) {
         console.error(`[Cache] Error checking cache for ${asin}:`, error);
@@ -231,7 +240,18 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
         })
     );
 
-    const result = parseProductInfo(response, asin, marketplaceId);
+    const parsedResult = parseProductInfo(response, asin, marketplaceId);
+    const result = normalizeProductInfo({
+        ...parsedResult,
+        metadata: {
+            ...parsedResult.metadata,
+            cached: false,
+        },
+    });
+
+    console.log(
+        `[${new Date().toISOString()}] SP-API payload for ${asin}: ${JSON.stringify(result)}`
+    );
 
     // Store in PostgreSQL cache
     try {
@@ -361,5 +381,59 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
             lastFetched: new Date().toISOString(),
             cached: false,
         },
+    };
+}
+
+function normalizeProductInfo(data: ProductInfo): ProductInfo {
+    const displayGroupRanks = Array.isArray(data.displayGroupRanks)
+        ? data.displayGroupRanks
+        : [];
+    const classificationRanks = Array.isArray(data.classificationRanks)
+        ? data.classificationRanks
+        : [];
+
+    let bsr =
+        typeof data.bsr === 'number' && Number.isFinite(data.bsr) ? data.bsr : null;
+    let bsrCategory =
+        typeof data.bsrCategory === 'string' && data.bsrCategory.length > 0
+            ? data.bsrCategory
+            : null;
+
+    if (bsr === null && displayGroupRanks.length > 0) {
+        bsr = displayGroupRanks[0].rank ?? null;
+        bsrCategory = displayGroupRanks[0].category ?? bsrCategory;
+    }
+
+    if (bsr === null && classificationRanks.length > 0) {
+        bsr = classificationRanks[0].rank ?? null;
+        if (!bsrCategory) {
+            bsrCategory = classificationRanks[0].category ?? null;
+        }
+    }
+
+    if (!bsrCategory && displayGroupRanks.length > 0) {
+        bsrCategory = displayGroupRanks[0].category ?? null;
+    }
+
+    if (!bsrCategory && classificationRanks.length > 0) {
+        bsrCategory = classificationRanks[0].category ?? null;
+    }
+
+    if (bsr !== null && !bsrCategory) {
+        bsrCategory = 'Unknown Category';
+    }
+
+    const metadata = {
+        lastFetched: data.metadata?.lastFetched ?? new Date().toISOString(),
+        cached: Boolean(data.metadata?.cached),
+    };
+
+    return {
+        ...data,
+        bsr,
+        bsrCategory,
+        displayGroupRanks,
+        classificationRanks,
+        metadata,
     };
 }
