@@ -59,19 +59,37 @@ jobs:
       SPAPI_APP_CLIENT_SECRET: ${{ secrets.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET }}
     steps:
       - name: Create stack env file
-        uses: SpicyPizza/create-envfile@v2
-        with:
-          envkey_RANKWRANGLER_IMAGE_TAG: ${{ env.IMAGE_TAG }}
-          envkey_DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
-          envkey_LICENSE_SECRET: ${{ env.LICENSE_SECRET }}
-          envkey_SESSION_SECRET: ${{ env.SESSION_SECRET }}
-          envkey_ADMIN_EMAIL: ${{ env.ADMIN_EMAIL }}
-          envkey_ADMIN_PASSWORD_HASH: ${{ env.ADMIN_PASSWORD_HASH }}
-          envkey_SPAPI_REFRESH_TOKEN: ${{ env.SPAPI_REFRESH_TOKEN }}
-          envkey_SPAPI_CLIENT_ID: ${{ env.SPAPI_CLIENT_ID }}
-          envkey_SPAPI_APP_CLIENT_SECRET: ${{ env.SPAPI_APP_CLIENT_SECRET }}
-          file_name: stack.env
-          fail_on_empty: true
+        run: |
+          python - <<'PY'
+          import os
+          import shlex
+
+          keys = [
+              ("RANKWRANGLER_IMAGE_TAG", os.environ.get("IMAGE_TAG", "")),
+              ("DATABASE_PASSWORD", os.environ.get("DATABASE_PASSWORD", "")),
+              ("LICENSE_SECRET", os.environ.get("LICENSE_SECRET", "")),
+              ("SESSION_SECRET", os.environ.get("SESSION_SECRET", "")),
+              ("ADMIN_EMAIL", os.environ.get("ADMIN_EMAIL", "")),
+              ("ADMIN_PASSWORD_HASH", os.environ.get("ADMIN_PASSWORD_HASH", "")),
+              ("SPAPI_REFRESH_TOKEN", os.environ.get("SPAPI_REFRESH_TOKEN", "")),
+              ("SPAPI_CLIENT_ID", os.environ.get("SPAPI_CLIENT_ID", "")),
+              ("SPAPI_APP_CLIENT_SECRET", os.environ.get("SPAPI_APP_CLIENT_SECRET", "")),
+          ]
+
+          with open("stack.env", "w", encoding="utf-8") as env_file:
+              for key, value in keys:
+                  env_file.write(f"{key}={shlex.quote(value)}\n")
+          PY
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
+          LICENSE_SECRET: ${{ env.LICENSE_SECRET }}
+          SESSION_SECRET: ${{ env.SESSION_SECRET }}
+          ADMIN_EMAIL: ${{ env.ADMIN_EMAIL }}
+          ADMIN_PASSWORD_HASH: ${{ env.ADMIN_PASSWORD_HASH }}
+          SPAPI_REFRESH_TOKEN: ${{ env.SPAPI_REFRESH_TOKEN }}
+          SPAPI_CLIENT_ID: ${{ env.SPAPI_CLIENT_ID }}
+          SPAPI_APP_CLIENT_SECRET: ${{ env.SPAPI_APP_CLIENT_SECRET }}
 
       - name: Remove previous stack env artifact
         uses: appleboy/ssh-action@v1.0.3
