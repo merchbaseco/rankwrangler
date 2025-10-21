@@ -1,4 +1,4 @@
-# CLAUDE.md
+# agent.md
 
 This document guides AI coding assistants working in the RankWrangler Server repository.
 

@@ -127,6 +127,7 @@ fastify.register(async function (fastify) {
       const productInfo = await getProductInfo(validatedData.marketplaceId, validatedData.asin);
       
       console.log(`[${new Date().toISOString()}] Retrieved product info for ASIN: ${validatedData.asin}`);
+      console.log(`[${new Date().toISOString()}] Product info payload: ${JSON.stringify(productInfo)}`);
       
       return {
         success: true,
