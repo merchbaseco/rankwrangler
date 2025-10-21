@@ -58,6 +58,21 @@ jobs:
       SPAPI_CLIENT_ID: ${{ secrets.RANKWRANGLER_SPAPI_CLIENT_ID }}
       SPAPI_APP_CLIENT_SECRET: ${{ secrets.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET }}
     steps:
+      - name: Create stack env file
+        uses: SpicyPizza/create-envfile@v2
+        with:
+          envkey_RANKWRANGLER_IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          envkey_DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
+          envkey_LICENSE_SECRET: ${{ env.LICENSE_SECRET }}
+          envkey_SESSION_SECRET: ${{ env.SESSION_SECRET }}
+          envkey_ADMIN_EMAIL: ${{ env.ADMIN_EMAIL }}
+          envkey_ADMIN_PASSWORD_HASH: ${{ env.ADMIN_PASSWORD_HASH }}
+          envkey_SPAPI_REFRESH_TOKEN: ${{ env.SPAPI_REFRESH_TOKEN }}
+          envkey_SPAPI_CLIENT_ID: ${{ env.SPAPI_CLIENT_ID }}
+          envkey_SPAPI_APP_CLIENT_SECRET: ${{ env.SPAPI_APP_CLIENT_SECRET }}
+          file_name: stack.env
+          fail_on_empty: true
+
       - name: Deploy RankWrangler stack
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -65,7 +80,7 @@ jobs:
           username: ${{ secrets.DEPLOY_SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.DEPLOY_SSH_PASSPHRASE }}
-          envs: IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN,DATABASE_PASSWORD,LICENSE_SECRET,SESSION_SECRET,ADMIN_EMAIL,ADMIN_PASSWORD_HASH,SPAPI_REFRESH_TOKEN,SPAPI_CLIENT_ID,SPAPI_APP_CLIENT_SECRET
+          envs: IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -euo pipefail
             REPO_DIR="${HOME}/merchbase-infra"
@@ -85,17 +100,10 @@ jobs:
             cd "${REPO_DIR}"
             git pull --ff-only
             cd stack/rankwrangler
-            {
-              printf 'RANKWRANGLER_IMAGE_TAG=%q\n' "${IMAGE_TAG}"
-              printf 'DATABASE_PASSWORD=%q\n' "${DATABASE_PASSWORD}"
-              printf 'LICENSE_SECRET=%q\n' "${LICENSE_SECRET}"
-              printf 'SESSION_SECRET=%q\n' "${SESSION_SECRET}"
-              printf 'ADMIN_EMAIL=%q\n' "${ADMIN_EMAIL}"
-              printf 'ADMIN_PASSWORD_HASH=%q\n' "${ADMIN_PASSWORD_HASH}"
-              printf 'SPAPI_REFRESH_TOKEN=%q\n' "${SPAPI_REFRESH_TOKEN}"
-              printf 'SPAPI_CLIENT_ID=%q\n' "${SPAPI_CLIENT_ID}"
-              printf 'SPAPI_APP_CLIENT_SECRET=%q\n' "${SPAPI_APP_CLIENT_SECRET}"
-            } > .env
+            cat <<'EOF' > .env
+$(cat stack.env)
+EOF
+            rm stack.env
             chmod 600 .env
             if [[ -n "${GHCR_USERNAME:-}" && -n "${GHCR_TOKEN:-}" ]]; then
               echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
