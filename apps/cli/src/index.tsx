@@ -6,41 +6,144 @@ import Gradient from 'ink-gradient';
 import Spinner from 'ink-spinner';
 import TextInput from 'ink-text-input';
 import type React from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // import Divider from 'ink-divider'; // Has build issues with Vite
 // import { Badge, StatusMessage } from '@inkjs/ui'; // Causing issues, will revisit later
 
 // Simple API client
 class SimpleAPIClient {
-    private baseUrl = 'https://merchbase.co/api';
-    private adminKey = '2d94ee23d7dcebc15412be11735ae0b0f8dcf3ba0eccb12cb310c7c49548fb06';
+    private readonly baseUrl: string;
+    private readonly legacyAdminKey = '2d94ee23d7dcebc15412be11735ae0b0f8dcf3ba0eccb12cb310c7c49548fb06';
 
-    async get(endpoint: string, params: Record<string, any> = {}) {
-        const queryParams = new URLSearchParams({
-            adminKey: this.adminKey,
-            ...params,
-        });
-
-        const response = await fetch(`${this.baseUrl}${endpoint}?${queryParams}`);
-        // Return server response directly (server already provides success/error structure)
-        return await response.json();
+    constructor() {
+        const configuredBaseUrl =
+            process.env.RANKWRANGLER_API_BASE_URL ??
+            process.env.RANKWRANGLER_API_URL ??
+            'https://merchbase.co/api';
+        this.baseUrl = configuredBaseUrl.replace(/\/$/, '');
     }
 
-    async post(endpoint: string, body: Record<string, any> = {}) {
-        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    private resolveAdminKey(explicit?: string) {
+        return (
+            explicit?.trim() ||
+            process.env.RANKWRANGLER_ADMIN_KEY?.trim() ||
+            process.env.LICENSE_SECRET?.trim() ||
+            this.legacyAdminKey
+        );
+    }
+
+    private normalizeEndpoint(endpoint: string) {
+        return endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    }
+
+    private buildGetUrl(
+        endpoint: string,
+        params: Record<string, any>,
+        includeAdminKey: boolean
+    ): string | { error: string } {
+        const normalizedEndpoint = this.normalizeEndpoint(endpoint);
+        const mergedParams: Record<string, any> = { ...params };
+
+        if (includeAdminKey && mergedParams.adminKey === undefined) {
+            const adminKey = this.resolveAdminKey();
+            if (!adminKey) {
+                return { error: 'RANKWRANGLER_ADMIN_KEY is not configured.' };
+            }
+            mergedParams.adminKey = adminKey;
+        }
+
+        const searchParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(mergedParams)) {
+            if (value !== undefined && value !== null) {
+                searchParams.append(key, String(value));
+            }
+        }
+
+        const queryString = searchParams.toString();
+        return queryString
+            ? `${this.baseUrl}${normalizedEndpoint}?${queryString}`
+            : `${this.baseUrl}${normalizedEndpoint}`;
+    }
+
+    private async request(urlOrError: string | { error: string }, init?: RequestInit) {
+        if (typeof urlOrError !== 'string') {
+            return {
+                success: false,
+                error: urlOrError.error,
+            };
+        }
+
+        try {
+            const response = await fetch(urlOrError, init);
+            const rawBody = await response.text();
+
+            if (!rawBody.trim()) {
+                return {
+                    success: false,
+                    error: `Empty response (HTTP ${response.status})`,
+                    status: response.status,
+                };
+            }
+
+            try {
+                const parsed = JSON.parse(rawBody);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                    return {
+                        status: response.status,
+                        ...parsed,
+                    };
+                }
+                return parsed;
+            } catch (parseError) {
+                const preview = rawBody.length > 200 ? `${rawBody.slice(0, 200)}…` : rawBody;
+                return {
+                    success: false,
+                    error: `Response was not valid JSON (HTTP ${response.status})`,
+                    details: preview,
+                    status: response.status,
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown fetch error',
+            };
+        }
+    }
+
+    async get(
+        endpoint: string,
+        params: Record<string, any> = {},
+        options: { includeAdminKey?: boolean } = {}
+    ) {
+        const url = this.buildGetUrl(endpoint, params, options.includeAdminKey !== false);
+        return this.request(url);
+    }
+
+    async post(
+        endpoint: string,
+        body: Record<string, any> = {},
+        options: { includeAdminKey?: boolean } = {}
+    ) {
+        const normalizedEndpoint = this.normalizeEndpoint(endpoint);
+        const payload: Record<string, any> = { ...body };
+
+        if (options.includeAdminKey !== false && payload.adminKey === undefined) {
+            const adminKey = this.resolveAdminKey();
+            if (!adminKey) {
+                return { success: false, error: 'RANKWRANGLER_ADMIN_KEY is not configured.' };
+            }
+            payload.adminKey = adminKey;
+        }
+
+        return this.request(`${this.baseUrl}${normalizedEndpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                adminKey: this.adminKey,
-                ...body,
-            }),
+            body: JSON.stringify(payload),
         });
-
-        // Return server response directly (server already provides success/error structure)
-        return await response.json();
     }
 
     async getLicenseStats() {
@@ -97,29 +200,59 @@ const Dashboard: React.FC = () => {
     const halfWidth = Math.floor((terminalWidth - 6) / 2); // Space for 2 boxes side by side
 
     useEffect(() => {
-        // Initial load
-        api.getLicenseStats().then(result => {
-            if (result.success) {
-                setStats(result.data);
-            } else {
-                setError(result.error || 'Failed to load stats');
+        let cancelled = false;
+
+        const applyResult = (result: any, updateLoading = false) => {
+            if (cancelled) return;
+            if (result?.success) {
+                setStats(result.data ?? null);
+                setError('');
+            } else if (result) {
+                const errorMessage =
+                    [result.error, result.details].filter(Boolean).join(' — ') ||
+                    'Failed to load stats';
+                setError(errorMessage);
             }
-            setLoading(false);
-        });
+            if (updateLoading) {
+                setLoading(false);
+            }
+        };
 
-        // Set up auto-refresh every 10 seconds
-        const intervalId = setInterval(() => {
-            api.getLicenseStats().then(result => {
-                if (result.success) {
-                    setStats(result.data);
-                    setError(''); // Clear any previous errors
+        const loadInitial = async () => {
+            try {
+                const result = await api.getLicenseStats();
+                applyResult(result, true);
+            } catch (error) {
+                if (!cancelled) {
+                    setError(
+                        error instanceof Error ? error.message : 'Failed to load stats (unexpected)'
+                    );
+                    setLoading(false);
                 }
-                // Don't set loading state for background refreshes
-            });
-        }, 10000); // 10 seconds
+            }
+        };
 
-        // Cleanup interval on component unmount
-        return () => clearInterval(intervalId);
+        void loadInitial();
+
+        const intervalId = setInterval(async () => {
+            try {
+                const result = await api.getLicenseStats();
+                applyResult(result);
+            } catch (error) {
+                if (!cancelled) {
+                    setError(
+                        error instanceof Error
+                            ? error.message
+                            : 'Failed to refresh stats (unexpected)'
+                    );
+                }
+            }
+        }, 10000);
+
+        return () => {
+            cancelled = true;
+            clearInterval(intervalId);
+        };
     }, []);
 
     if (loading) {
@@ -434,29 +567,53 @@ const Licenses: React.FC<{
     const [isSearching, setIsSearching] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [message, setMessage] = useState('');
+    const messageTimer = useRef<NodeJS.Timeout | null>(null);
+
+    const showMessage = useCallback((msg: string, timeoutMs = 3000) => {
+        setMessage(msg);
+        if (messageTimer.current) {
+            clearTimeout(messageTimer.current);
+        }
+        messageTimer.current = setTimeout(() => {
+            setMessage('');
+            messageTimer.current = null;
+        }, timeoutMs);
+    }, []);
 
     const itemsPerPage = 10;
     const [currentPage, setCurrentPage] = useState(0);
 
     const loadLicenses = useCallback(async () => {
         setLoading(true);
-        const result = await api.getLicenses();
+        try {
+            const result = await api.getLicenses();
 
-        if (result.success) {
-            const licenseData = result.data;
+            if (result?.success) {
+                const licenseData = result.data;
 
-            if (Array.isArray(licenseData)) {
-                setLicenses(licenseData);
-            } else if (licenseData?.licenses && Array.isArray(licenseData.licenses)) {
-                setLicenses(licenseData.licenses);
+                if (Array.isArray(licenseData)) {
+                    setLicenses(licenseData);
+                } else if (licenseData?.licenses && Array.isArray(licenseData.licenses)) {
+                    setLicenses(licenseData.licenses);
+                } else {
+                    setLicenses([]);
+                }
             } else {
                 setLicenses([]);
+                const errorMessage =
+                    [result?.error, result?.details].filter(Boolean).join(' — ') ||
+                    'Failed to load licenses';
+                showMessage(`❌ ${errorMessage}`, 5000);
             }
-        } else {
+        } catch (error) {
             setLicenses([]);
+            const errorMessage =
+                error instanceof Error ? error.message : 'Failed to load licenses';
+            showMessage(`❌ ${errorMessage}`, 5000);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, []);
+    }, [showMessage]);
 
     // Calculate responsive dimensions
     const terminalWidth = stdout.columns;
@@ -479,15 +636,12 @@ const Licenses: React.FC<{
     const endIndex = startIndex + itemsPerPage;
     const currentPageLicenses = filteredLicenses.slice(startIndex, endIndex);
 
+    const messageColor = message.startsWith('❌') ? 'red' : 'green';
+
     // Reset pagination when search changes
     useEffect(() => {
         setCurrentPage(0);
         setSelectedIndex(0);
-    }, []);
-
-    const showMessage = useCallback((msg: string) => {
-        setMessage(msg);
-        setTimeout(() => setMessage(''), 3000);
     }, []);
 
     // Handle success message from license creation
@@ -496,6 +650,15 @@ const Licenses: React.FC<{
             showMessage(successMessage);
         }
     }, [successMessage, showMessage]);
+
+    useEffect(
+        () => () => {
+            if (messageTimer.current) {
+                clearTimeout(messageTimer.current);
+            }
+        },
+        []
+    );
 
     // Helper function to truncate text
     const truncateText = (text: string, maxWidth: number) => {
@@ -583,7 +746,7 @@ const Licenses: React.FC<{
 
             {/* Always reserve space for status messages */}
             <Box marginBottom={1} height={1}>
-                {message ? <Text color="green">{message}</Text> : <Text> </Text>}
+                {message ? <Text color={messageColor}>{message}</Text> : <Text> </Text>}
             </Box>
 
             <Box marginBottom={1} flexDirection="row">
