@@ -60,6 +60,18 @@ export type ProductInfoApiResponse = {
     error?: string;
 };
 
+export type ProductInfoBulkRequest = {
+    marketplaceId: string;
+    asins: string[];
+};
+
+export type ProductInfoBulkApiResponse = {
+    success: boolean;
+    data?: ProductInfo[];
+    missing?: string[];
+    error?: string;
+};
+
 export type GetCatalogItemResponse = {
     asin?: string;
     summaries?: Array<{

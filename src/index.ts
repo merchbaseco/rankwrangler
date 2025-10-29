@@ -144,6 +144,60 @@ fastify.register(async function (fastify) {
     }
   });
 
+  fastify.post('/api/getProductInfoBulk', {
+    preHandler: requireLicense
+  }, async (request, reply) => {
+    const { getProductInfoBulk } = await import('@/services/spapi.js');
+    const { z } = await import('zod');
+
+    const getProductInfoBulkSchema = z.object({
+      marketplaceId: z.string().min(1, 'Marketplace ID is required'),
+      asins: z.array(
+        z.string()
+          .min(1, 'ASIN is required')
+          .regex(/^[A-Z0-9]{10}$/i, 'ASIN must be 10 alphanumeric characters')
+          .transform(value => value.toUpperCase())
+      )
+        .min(1, 'At least one ASIN is required')
+        .max(20, 'You can request up to 20 ASINs at a time'),
+    });
+
+    try {
+      const validatedData = getProductInfoBulkSchema.parse(request.body);
+      const uniqueAsins = Array.from(new Set(validatedData.asins));
+
+      console.log(
+        `[${new Date().toISOString()}] Getting bulk product info for ${uniqueAsins.length} ASINs: ${uniqueAsins.join(', ')}`
+      );
+
+      const { products, missing } = await getProductInfoBulk(
+        validatedData.marketplaceId,
+        uniqueAsins
+      );
+
+      return {
+        success: true,
+        data: products,
+        ...(missing.length > 0 ? { missing } : {})
+      };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        reply.status(400);
+        return {
+          success: false,
+          error: error.issues.map(issue => issue.message).join(', ')
+        };
+      }
+
+      console.error(`[${new Date().toISOString()}] Error getting bulk product info:`, error);
+      reply.status(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  });
+
   // License validation endpoint (for extension)
   fastify.post('/api/license/validate', async (request, reply) => {
     const { z } = await import('zod');
@@ -513,7 +567,7 @@ try {
   
   console.log(`[${new Date().toISOString()}] RankWrangler Server running on port ${port}`);
   console.log(`[${new Date().toISOString()}] Health check: http://localhost:${port}/api/health`);
-  console.log(`[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/searchCatalog, http://localhost:${port}/api/getProductInfo`);
+  console.log(`[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/searchCatalog, http://localhost:${port}/api/getProductInfo, http://localhost:${port}/api/getProductInfoBulk`);
 } catch (err) {
   console.error('Failed to start server:', err);
   process.exit(1);
