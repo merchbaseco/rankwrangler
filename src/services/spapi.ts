@@ -1,6 +1,6 @@
 import { SellingPartner as SellingPartnerAPI } from 'amazon-sp-api';
 import Bottleneck from 'bottleneck';
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
 import { productCache, systemStats } from '@/db/schema.js';
@@ -282,6 +282,206 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
     }
 
     return result;
+};
+
+export const getProductInfoBulk = async (
+    marketplaceId: string,
+    asins: string[]
+): Promise<{ products: ProductInfo[]; missing: string[] }> => {
+    if (!marketplaceId || typeof marketplaceId !== 'string') {
+        throw new Error('Marketplace ID is required');
+    }
+
+    const normalizedAsins = Array.from(
+        new Set(
+            asins
+                .map(asin => asin.trim().toUpperCase())
+                .filter(asin => asin.length > 0)
+        )
+    );
+
+    if (normalizedAsins.length === 0) {
+        return {
+            products: [],
+            missing: [],
+        };
+    }
+
+    const now = new Date();
+    const cachedResults: ProductInfo[] = [];
+
+    try {
+        const cachedEntries = await db
+            .select()
+            .from(productCache)
+            .where(
+                and(
+                    eq(productCache.marketplaceId, marketplaceId),
+                    inArray(productCache.asin, normalizedAsins),
+                    gte(productCache.expiresAt, now)
+                )
+            );
+
+        const cachedAsins: string[] = [];
+
+        for (const entry of cachedEntries) {
+            const cachedData = entry.data as ProductInfo;
+            const normalized = normalizeProductInfo({
+                ...cachedData,
+                metadata: {
+                    ...cachedData.metadata,
+                    cached: true,
+                },
+            });
+
+            cachedResults.push(normalized);
+            cachedAsins.push(entry.asin);
+
+            // Track cache hit per ASIN to keep stats accurate
+            await trackCacheHit();
+        }
+
+        if (cachedAsins.length > 0) {
+            await db
+                .update(productCache)
+                .set({
+                    lastAccessedAt: new Date(),
+                    accessCount: sql`${productCache.accessCount} + 1`,
+                })
+                .where(
+                    and(
+                        eq(productCache.marketplaceId, marketplaceId),
+                        inArray(productCache.asin, cachedAsins)
+                    )
+                );
+        }
+
+        const missingAsins = normalizedAsins.filter(asin => !cachedAsins.includes(asin));
+
+        if (missingAsins.length === 0) {
+            const ordered = normalizedAsins
+                .map(asin => cachedResults.find(item => item.asin === asin))
+                .filter((item): item is ProductInfo => Boolean(item));
+
+            return {
+                products: ordered,
+                missing: [],
+            };
+        }
+
+        console.log(
+            `[${new Date().toISOString()}] Cache miss for bulk request: ${missingAsins.join(', ')}`
+        );
+
+        const sellingPartner = new SellingPartnerAPI({
+            region: 'na',
+            refresh_token: env.SPAPI_REFRESH_TOKEN,
+            credentials: {
+                SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
+                SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
+            },
+        });
+
+        // Track SP-API call for this bulk request
+        await trackApiCall();
+
+        const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>
+            sellingPartner.callAPI({
+                operation: 'searchCatalogItems',
+                endpoint: 'catalogItems',
+                path: {},
+                query: {
+                    identifiers: missingAsins.join(','),
+                    identifiersType: 'ASIN',
+                    marketplaceIds: marketplaceId,
+                    includedData: ['summaries', 'salesRanks', 'attributes'],
+                    pageSize: Math.min(20, missingAsins.length),
+                },
+                options: {
+                    version: '2022-04-01',
+                },
+            })
+        );
+
+        const freshResults: ProductInfo[] = [];
+        const missingSet = new Set(missingAsins);
+
+        for (const item of response.items ?? []) {
+            const asin = item.asin;
+
+            if (!asin || !missingSet.has(asin)) {
+                continue;
+            }
+
+            const parsed = parseProductInfo(item, asin, marketplaceId);
+            const normalized = normalizeProductInfo({
+                ...parsed,
+                metadata: {
+                    ...parsed.metadata,
+                    cached: false,
+                },
+            });
+
+            freshResults.push(normalized);
+        }
+
+        const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours
+
+        for (const product of freshResults) {
+            try {
+                await db
+                    .insert(productCache)
+                    .values({
+                        marketplaceId,
+                        asin: product.asin,
+                        data: product,
+                        expiresAt,
+                    })
+                    .onConflictDoUpdate({
+                        target: [productCache.marketplaceId, productCache.asin],
+                        set: {
+                            data: product,
+                            expiresAt,
+                            createdAt: new Date(),
+                            accessCount: 0,
+                            lastAccessedAt: new Date(),
+                        },
+                    });
+
+                console.log(`[${new Date().toISOString()}] Cached bulk result for ${product.asin}`);
+            } catch (error) {
+                console.error(`[Cache] Error caching bulk result for ${product.asin}:`, error);
+            }
+        }
+
+        const allResultsMap = new Map<string, ProductInfo>();
+
+        for (const product of [...cachedResults, ...freshResults]) {
+            allResultsMap.set(product.asin, product);
+        }
+
+        const orderedResults = normalizedAsins
+            .map(asin => allResultsMap.get(asin))
+            .filter((item): item is ProductInfo => Boolean(item));
+
+        const missing = normalizedAsins.filter(asin => !allResultsMap.has(asin));
+
+        if (missing.length > 0) {
+            console.warn(
+                `[${new Date().toISOString()}] No catalog data returned for ASINs: ${missing.join(
+                    ', '
+                )}`
+            );
+        }
+
+        return {
+            products: orderedResults,
+            missing,
+        };
+    } catch (error) {
+        console.error('[Bulk] Error retrieving product info in bulk:', error);
+        throw error;
+    }
 };
 
 function parseProductInfo(response: GetCatalogItemResponse, asin: string, marketplaceId: string): ProductInfo {
