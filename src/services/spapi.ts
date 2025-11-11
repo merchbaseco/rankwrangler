@@ -284,6 +284,54 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
     return result;
 };
 
+// Pure SP-API call function (no caching, no stats tracking)
+export const getProductInfoFromSpApi = async (
+    marketplaceId: string,
+    asin: string
+): Promise<ProductInfo> => {
+    if (!marketplaceId || typeof marketplaceId !== 'string') {
+        throw new Error('Marketplace ID is required');
+    }
+
+    const sellingPartner = new SellingPartnerAPI({
+        region: 'na',
+        refresh_token: env.SPAPI_REFRESH_TOKEN,
+        credentials: {
+            SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
+            SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
+        },
+    });
+
+    // Use rate limiter for SP-API call
+    const response: GetCatalogItemResponse = await spApiLimiter.schedule(() =>
+        sellingPartner.callAPI({
+            operation: 'getCatalogItem',
+            endpoint: 'catalogItems',
+            path: {
+                asin: asin,
+            },
+            query: {
+                marketplaceIds: [marketplaceId],
+                includedData: 'attributes,summaries,salesRanks',
+            },
+            options: {
+                version: '2022-04-01',
+            },
+        })
+    );
+
+    const parsedResult = parseProductInfo(response, asin, marketplaceId);
+    const result = normalizeProductInfo({
+        ...parsedResult,
+        metadata: {
+            ...parsedResult.metadata,
+            cached: false,
+        },
+    });
+
+    return result;
+};
+
 export const getProductInfoBulk = async (
     marketplaceId: string,
     asins: string[]
@@ -482,6 +530,92 @@ export const getProductInfoBulk = async (
         console.error('[Bulk] Error retrieving product info in bulk:', error);
         throw error;
     }
+};
+
+// Pure SP-API bulk call function (no caching, no stats tracking)
+export const getProductInfoBulkFromSpApi = async (
+    marketplaceId: string,
+    asins: string[]
+): Promise<{ products: ProductInfo[]; missing: string[] }> => {
+    if (!marketplaceId || typeof marketplaceId !== 'string') {
+        throw new Error('Marketplace ID is required');
+    }
+
+    const normalizedAsins = Array.from(
+        new Set(
+            asins
+                .map(asin => asin.trim().toUpperCase())
+                .filter(asin => asin.length > 0)
+        )
+    );
+
+    if (normalizedAsins.length === 0) {
+        return {
+            products: [],
+            missing: [],
+        };
+    }
+
+    const sellingPartner = new SellingPartnerAPI({
+        region: 'na',
+        refresh_token: env.SPAPI_REFRESH_TOKEN,
+        credentials: {
+            SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
+            SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
+        },
+    });
+
+    const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>
+        sellingPartner.callAPI({
+            operation: 'searchCatalogItems',
+            endpoint: 'catalogItems',
+            path: {},
+            query: {
+                identifiers: normalizedAsins.join(','),
+                identifiersType: 'ASIN',
+                marketplaceIds: marketplaceId,
+                includedData: ['summaries', 'salesRanks', 'attributes'],
+                pageSize: Math.min(20, normalizedAsins.length),
+            },
+            options: {
+                version: '2022-04-01',
+            },
+        })
+    );
+
+    const results: ProductInfo[] = [];
+    const foundAsins = new Set<string>();
+
+    for (const item of response.items ?? []) {
+        const asin = item.asin;
+
+        if (!asin || !normalizedAsins.includes(asin)) {
+            continue;
+        }
+
+        const parsed = parseProductInfo(item, asin, marketplaceId);
+        const normalized = normalizeProductInfo({
+            ...parsed,
+            metadata: {
+                ...parsed.metadata,
+                cached: false,
+            },
+        });
+
+        results.push(normalized);
+        foundAsins.add(asin);
+    }
+
+    const orderedResults = normalizedAsins
+        .map(asin => results.find(item => item.asin === asin))
+        .filter((item): item is ProductInfo => Boolean(item));
+
+    const missing = normalizedAsins.filter(asin => !foundAsins.has(asin));
+
+    return {
+        products: orderedResults,
+        missing,
+    };
 };
 
 function parseProductInfo(response: GetCatalogItemResponse, asin: string, marketplaceId: string): ProductInfo {

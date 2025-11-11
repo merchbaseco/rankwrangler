@@ -51,14 +51,16 @@ echo ""
 
 # License-gated endpoints
 if [ -n "$RR_LICENSE_KEY" ]; then
-    echo "🔐 Testing getProductInfoBulk endpoint..."
-    curl -s -X POST "$API_BASE/api/getProductInfoBulk" \
+    echo "🔐 Testing private Amazon API endpoints..."
+    echo ""
+    echo "📦 Testing api/amazon/getProductInfoBulk..."
+    curl -s -X POST "$API_BASE/api/amazon/getProductInfoBulk" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_LICENSE_KEY" \
       -d '{"marketplaceId": "ATVPDKIKX0DER", "asins": ["B0DV53VS61", "B0B9PWCVSC"]}' | jq '.'
     echo ""
 else
-    echo "⚠️ Skipping getProductInfoBulk test - set RR_LICENSE_KEY to exercise license-gated endpoints."
+    echo "⚠️ Skipping private API tests - set RR_LICENSE_KEY to exercise license-gated endpoints."
     echo ""
 fi
 
