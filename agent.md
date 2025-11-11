@@ -22,7 +22,13 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 ## Deployment
 
 - Docker image built from `./Dockerfile`, tagged `ghcr.io/merchbaseco/rankwrangler-server`.
-- GitHub Actions workflow (`.github/workflows/deploy.yml`) handles build + push and orchestrates infrastructure rollout via `merchbase-infra`.
+- GitHub Actions workflow (`.github/workflows/deploy.yml`) handles:
+  - Build and push of server image to GHCR
+  - Pulling latest infra repo changes
+  - Authenticating Docker to GHCR using `GHCR_USERNAME` and `GHCR_TOKEN` secrets
+  - Running `deploy.sh` which pulls all images and starts services
+  - Updating server-level Caddy configuration if changed
+- Infra changes: Add new services to `stack/rankwrangler/docker-compose.yml` in the infra repo. The deployment workflow automatically pulls and starts them.
 - Manual deploy scripts under `scripts/` remain for reference but exit early with guidance.
 
 ## Expectations When Editing
