@@ -43,6 +43,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO rankwrangler
 -- Enable the uuid-ossp extension for UUID generation (required by Drizzle schema)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Note: Table schemas are created by Drizzle migrations (see drizzle/ directory)
+-- Key tables: licenses, product_cache, product_request_queue, system_stats
+
 -- Log successful initialization
 \echo 'PostgreSQL initialization completed successfully'
 \echo 'Database: rankwrangler'

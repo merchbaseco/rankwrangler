@@ -76,8 +76,22 @@ export const systemStats = pgTable('system_stats', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow()
 });
 
+// Product request queue table
+export const productRequestQueue = pgTable('product_request_queue', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    marketplaceId: text('marketplace_id').notNull(),
+    asin: text('asin').notNull(),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+}, (table) => ({
+    marketplaceAsinIdx: uniqueIndex('product_request_queue_marketplace_asin_idx')
+        .on(table.marketplaceId, table.asin),
+    createdAtIdx: index('product_request_queue_created_at_idx').on(table.createdAt),
+}));
+
 // Export types for new tables
 export type ProductCache = InferSelectModel<typeof productCache>;
 export type NewProductCache = InferInsertModel<typeof productCache>;
 export type SystemStats = InferSelectModel<typeof systemStats>;
 export type NewSystemStats = InferInsertModel<typeof systemStats>;
+export type ProductRequestQueue = InferSelectModel<typeof productRequestQueue>;
+export type NewProductRequestQueue = InferInsertModel<typeof productRequestQueue>;

@@ -15,6 +15,13 @@
       "when": 1756097674593,
       "tag": "0001_stale_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762896129204,
+      "tag": "0002_same_silver_samurai",
+      "breakpoints": true
     }
   ]
 }
