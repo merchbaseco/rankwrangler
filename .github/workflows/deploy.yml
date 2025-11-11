@@ -154,3 +154,10 @@ jobs:
             fi
             export RANKWRANGLER_IMAGE_TAG="$IMAGE_TAG"
             ./deploy.sh
+            
+            # Update server-level Caddy if Caddyfile changed
+            if [[ -f "${REPO_DIR}/caddy-proxy/Caddyfile" ]] && [[ -d "${HOME}/caddy-proxy" ]]; then
+              cp "${REPO_DIR}/caddy-proxy/Caddyfile" "${HOME}/caddy-proxy/Caddyfile"
+              cd "${HOME}/caddy-proxy"
+              docker compose restart caddy || docker compose up -d
+            fi
