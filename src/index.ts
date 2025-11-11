@@ -40,6 +40,9 @@ const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
 console.log('[Server] pg-boss initialized');
 
+// Create queue if it doesn't exist
+await boss.createQueue('product-request-queue');
+
 // Register job handlers
 const { processProductQueue } = await import('@/jobs/process-product-queue.js');
 boss.work('product-request-queue', processProductQueue);
