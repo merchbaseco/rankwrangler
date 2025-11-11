@@ -4,7 +4,7 @@ import { eq, lt, lte, gt, ne, isNull, and, gte } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { env } from "@/config/env.js";
 import { db } from "@/db/index.js";
-import { licenses, productCache, systemStats, type License, type LicenseMetadata } from "@/db/schema.js";
+import { licenses, products, systemStats, type License, type LicenseMetadata } from "@/db/schema.js";
 
 export interface LicensePayload {
 	sub: string; // License ID
@@ -217,12 +217,12 @@ export const getLicenseStats = async () => {
 
 	const total = totalCount.count;
 
-	// Get products in cache count (live count)
-	const [cacheCount] = await db.select({ 
+	// Get products in store count (live count)
+	const [productCount] = await db.select({ 
 		count: sql<number>`count(*)` 
 	})
-	.from(productCache)
-	.where(gte(productCache.expiresAt, new Date()));
+	.from(products)
+	.where(gte(products.expiresAt, new Date()));
 
 	// Get system stats (counters)
 	const [stats] = await db.select()
@@ -232,7 +232,7 @@ export const getLicenseStats = async () => {
 
 	return {
 		total,
-		productsInCache: cacheCount.count,
+		productsInStore: productCount.count,
 		recentApiCalls: stats?.totalSpApiCalls || 0,
 		totalCacheHits: stats?.totalCacheHits || 0
 	};

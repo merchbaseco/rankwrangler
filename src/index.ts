@@ -20,7 +20,7 @@ try {
   await db.insert(systemStats)
     .values({
       id: 'current',
-      productsInCache: 0,
+      productsInStore: 0,
       totalSpApiCalls: 0,
       totalCacheHits: 0
     })
@@ -410,17 +410,17 @@ fastify.register(async function (fastify) {
         };
       }
       
-      // Clear all cached products
-      const { productCache } = await import('@/db/schema.js');
+      // Clear all products
+      const { products } = await import('@/db/schema.js');
       
       // First get count before deleting
-      const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(productCache);
+      const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(products);
       const countBefore = countResult.count;
       
-      // Delete all cache entries
-      await db.delete(productCache);
+      // Delete all product entries
+      await db.delete(products);
       
-      console.log(`[Admin] Cleared product cache: ${countBefore} entries removed`);
+      console.log(`[Admin] Cleared products: ${countBefore} entries removed`);
       
       return {
         success: true,

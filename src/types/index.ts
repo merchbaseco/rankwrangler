@@ -40,12 +40,11 @@ export type ProductInfo = {
     bsrCategory: string | null;
     
     // Detailed rankings matching SP-API structure
-    displayGroupRanks: ProductRanking[];  
-    classificationRanks: ProductRanking[]; 
+    displayGroupRanks: ProductRanking[];
     
     metadata: {
         lastFetched: string; // ISO timestamp when data was fetched from SP-API
-        cached: boolean;     // true if served from cache, false if fresh from SP-API
+        cached: boolean;     // true if served from product store, false if fresh from SP-API
     };
 };
 

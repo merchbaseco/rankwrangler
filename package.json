@@ -19,6 +19,8 @@
     "@t3-oss/env-core": "^0.13.8",
     "amazon-sp-api": "^1.1.6",
     "bottleneck": "^2.19.5",
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "drizzle-orm": "^0.44.4",
     "fastify": "^5.5.0",
     "jsonwebtoken": "^9.0.2",

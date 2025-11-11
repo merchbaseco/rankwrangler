@@ -2,7 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import { and, eq, gte } from 'drizzle-orm';
 import { requireLicense } from '@/middleware/requireLicense.js';
 import { db } from '@/db/index.js';
-import { productCache, productRequestQueue } from '@/db/schema.js';
+import { products, displayGroups, productRankHistory, productRequestQueue } from '@/db/schema.js';
+import type { ProductInfo } from '@/types/index.js';
+import { getPacificDateString } from '@/utils/date.js';
 
 export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
     fastify.post(
@@ -22,24 +24,65 @@ export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
                 const validatedData = getProductInfoSchema.parse(request.body);
                 const { marketplaceId, asin } = validatedData;
 
-                // Check cache first
-                const cached = await db
+                // Check product store first
+                const productRows = await db
                     .select()
-                    .from(productCache)
+                    .from(products)
                     .where(
                         and(
-                            eq(productCache.marketplaceId, marketplaceId),
-                            eq(productCache.asin, asin),
-                            gte(productCache.expiresAt, new Date())
+                            eq(products.marketplaceId, marketplaceId),
+                            eq(products.asin, asin),
+                            gte(products.expiresAt, new Date())
                         )
                     )
                     .limit(1);
 
-                if (cached.length > 0) {
-                    const cachedData = cached[0].data;
+                if (productRows.length > 0) {
+                    const product = productRows[0];
+                    const today = getPacificDateString();
+
+                    // Get today's rank history for this product
+                    const rankHistory = await db
+                        .select({
+                            rank: productRankHistory.bsr,
+                            category: displayGroups.category,
+                            link: displayGroups.link,
+                        })
+                        .from(productRankHistory)
+                        .innerJoin(displayGroups, eq(productRankHistory.displayGroupId, displayGroups.id))
+                        .where(
+                            and(
+                                eq(productRankHistory.productId, product.id),
+                                eq(productRankHistory.date, today)
+                            )
+                        )
+                        .orderBy(productRankHistory.bsr);
+
+                    const displayGroupRanks = rankHistory.map(rh => ({
+                        rank: rh.rank,
+                        category: rh.category,
+                        link: rh.link || undefined,
+                    }));
+
+                    const bsr = displayGroupRanks.length > 0 ? displayGroupRanks[0].rank : null;
+                    const bsrCategory = displayGroupRanks.length > 0 ? displayGroupRanks[0].category : null;
+
+                    const productInfo: ProductInfo = {
+                        asin: product.asin,
+                        marketplaceId: product.marketplaceId,
+                        creationDate: product.creationDate?.toISOString() || null,
+                        bsr,
+                        bsrCategory,
+                        displayGroupRanks,
+                        metadata: {
+                            lastFetched: product.lastFetched.toISOString(),
+                            cached: true,
+                        },
+                    };
+
                     return {
                         success: true,
-                        data: cachedData,
+                        data: productInfo,
                     };
                 }
 
@@ -49,27 +92,69 @@ export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
                     .values({ marketplaceId, asin })
                     .onConflictDoNothing();
 
-                // Poll cache every 200ms for up to 10 seconds
+                // Poll product store every 200ms for up to 10 seconds
                 const maxAttempts = 50;
+                const today = getPacificDateString();
                 for (let attempt = 0; attempt < maxAttempts; attempt++) {
                     await new Promise(resolve => setTimeout(resolve, 200));
 
-                    const result = await db
+                    const productRows = await db
                         .select()
-                        .from(productCache)
+                        .from(products)
                         .where(
                             and(
-                                eq(productCache.marketplaceId, marketplaceId),
-                                eq(productCache.asin, asin),
-                                gte(productCache.expiresAt, new Date())
+                                eq(products.marketplaceId, marketplaceId),
+                                eq(products.asin, asin),
+                                gte(products.expiresAt, new Date())
                             )
                         )
                         .limit(1);
 
-                    if (result.length > 0) {
+                    if (productRows.length > 0) {
+                        const product = productRows[0];
+
+                        // Get today's rank history for this product
+                        const rankHistory = await db
+                            .select({
+                                rank: productRankHistory.bsr,
+                                category: displayGroups.category,
+                                link: displayGroups.link,
+                            })
+                            .from(productRankHistory)
+                            .innerJoin(displayGroups, eq(productRankHistory.displayGroupId, displayGroups.id))
+                            .where(
+                                and(
+                                    eq(productRankHistory.productId, product.id),
+                                    eq(productRankHistory.date, today)
+                                )
+                            )
+                            .orderBy(productRankHistory.bsr);
+
+                        const displayGroupRanks = rankHistory.map(rh => ({
+                            rank: rh.rank,
+                            category: rh.category,
+                            link: rh.link || undefined,
+                        }));
+
+                        const bsr = displayGroupRanks.length > 0 ? displayGroupRanks[0].rank : null;
+                        const bsrCategory = displayGroupRanks.length > 0 ? displayGroupRanks[0].category : null;
+
+                        const productInfo: ProductInfo = {
+                            asin: product.asin,
+                            marketplaceId: product.marketplaceId,
+                            creationDate: product.creationDate?.toISOString() || null,
+                            bsr,
+                            bsrCategory,
+                            displayGroupRanks,
+                            metadata: {
+                                lastFetched: product.lastFetched.toISOString(),
+                                cached: true,
+                            },
+                        };
+
                         return {
                             success: true,
-                            data: result[0].data,
+                            data: productInfo,
                         };
                     }
                 }
