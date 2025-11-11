@@ -1,11 +1,12 @@
 import Fastify from 'fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
-import { sql } from 'drizzle-orm';
+import { sql, and, eq, gte } from 'drizzle-orm';
+import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { runMigrations } from '@/db/migrate.js';
 import { testConnection, db } from '@/db/index.js';
-import { systemStats } from '@/db/schema.js';
+import { systemStats, productCache, productRequestQueue } from '@/db/schema.js';
 import { requireLicense } from '@/middleware/requireLicense.js';
 import { validateLicense, createLicense, getLicenseStats, listLicenses, getLicenseById, deleteLicense, resetLicenseUsage } from '@/services/license.js';
 
@@ -32,6 +33,24 @@ try {
 
 // Test database connection
 await testConnection();
+
+// Initialize pg-boss
+const databaseUrl = `postgresql://${env.DATABASE_USER || 'rankwrangler'}:${env.DATABASE_PASSWORD || 'SecurePass123'}@${env.DATABASE_HOST || 'postgres'}:${env.DATABASE_PORT || 5432}/${env.DATABASE_NAME || 'rankwrangler'}`;
+const boss = new PgBoss({ connectionString: databaseUrl });
+await boss.start();
+console.log('[Server] pg-boss initialized');
+
+// Register job handlers
+const { processProductQueue } = await import('@/jobs/process-product-queue.js');
+boss.work('product-request-queue', processProductQueue);
+
+// Send job to process queue every second
+setInterval(async () => {
+    await boss.send('product-request-queue', {}, {
+        singletonKey: 'process-product-queue',
+        retryLimit: 1,
+    });
+}, 1000);
 
 const fastify = Fastify({
   logger: false  // Disable Pino logger to avoid bundling issues
@@ -116,7 +135,6 @@ fastify.register(async function (fastify) {
   fastify.post('/api/getProductInfo', {
     preHandler: requireLicense
   }, async (request, reply) => {
-    const { getProductInfo } = await import('@/services/spapi.js');
     const { z } = await import('zod');
     
     const getProductInfoSchema = z.object({
@@ -126,17 +144,64 @@ fastify.register(async function (fastify) {
 
     try {
       const validatedData = getProductInfoSchema.parse(request.body);
+      const { marketplaceId, asin } = validatedData;
       
-      console.log(`[${new Date().toISOString()}] Getting product info for ASIN: ${validatedData.asin}, Marketplace: ${validatedData.marketplaceId}`);
-      
-      const productInfo = await getProductInfo(validatedData.marketplaceId, validatedData.asin);
-      
-      console.log(`[${new Date().toISOString()}] Retrieved product info for ASIN: ${validatedData.asin}`);
-      console.log(`[${new Date().toISOString()}] Product info payload: ${JSON.stringify(productInfo)}`);
-      
+      // Check cache first
+      const cached = await db
+        .select()
+        .from(productCache)
+        .where(
+          and(
+            eq(productCache.marketplaceId, marketplaceId),
+            eq(productCache.asin, asin),
+            gte(productCache.expiresAt, new Date())
+          )
+        )
+        .limit(1);
+
+      if (cached.length > 0) {
+        const cachedData = cached[0].data;
+        return {
+          success: true,
+          data: cachedData,
+        };
+      }
+
+      // Insert into queue
+      await db
+        .insert(productRequestQueue)
+        .values({ marketplaceId, asin })
+        .onConflictDoNothing();
+
+      // Poll cache every 200ms for up to 10 seconds
+      const maxAttempts = 50;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        const result = await db
+          .select()
+          .from(productCache)
+          .where(
+            and(
+              eq(productCache.marketplaceId, marketplaceId),
+              eq(productCache.asin, asin),
+              gte(productCache.expiresAt, new Date())
+            )
+          )
+          .limit(1);
+
+        if (result.length > 0) {
+          return {
+            success: true,
+            data: result[0].data,
+          };
+        }
+      }
+
+      reply.status(504);
       return {
-        success: true,
-        data: productInfo,
+        success: false,
+        error: 'Request timeout: product info not available after 10 seconds',
       };
     } catch (error) {
       console.error(`[${new Date().toISOString()}] Error getting product info:`, error);
