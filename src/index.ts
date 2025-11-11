@@ -63,6 +63,9 @@ const fastify = Fastify({
 await fastify.register(helmet);
 await fastify.register(cors, {
   origin: (origin, callback) => {
+    // Log origin for debugging
+    console.log(`[CORS] Request origin: ${origin === null ? 'null' : origin === undefined ? 'undefined' : origin}`);
+    
     const allowedOrigins = [
       'https://merchbase.co',
       'http://localhost:3000',
@@ -87,6 +90,7 @@ await fastify.register(cors, {
       return callback(null, true);
     }
     
+    console.log(`[CORS] Rejected origin: ${origin}`);
     return callback(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
