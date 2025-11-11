@@ -52,6 +52,11 @@ await fastify.register(cors, {
       return callback(null, true);
     }
     
+    // Allow Chrome extension origins
+    if (origin && origin.startsWith('chrome-extension://')) {
+      return callback(null, true);
+    }
+    
     // Allow requests with no origin (e.g., mobile apps, server-to-server)
     if (!origin) return callback(null, true);
     
