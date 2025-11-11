@@ -1,12 +1,12 @@
 import Fastify from 'fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
-import { sql, and, eq, gte } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { runMigrations } from '@/db/migrate.js';
 import { testConnection, db } from '@/db/index.js';
-import { systemStats, productCache, productRequestQueue } from '@/db/schema.js';
+import { systemStats, productRequestQueue } from '@/db/schema.js';
 import { requireLicense } from '@/middleware/requireLicense.js';
 import { validateLicense, createLicense, getLicenseStats, listLicenses, getLicenseById, deleteLicense, resetLicenseUsage } from '@/services/license.js';
 
@@ -135,141 +135,15 @@ fastify.register(async function (fastify) {
     }
   });
 
-  fastify.post('/api/getProductInfo', {
-    preHandler: requireLicense
-  }, async (request, reply) => {
-    const { z } = await import('zod');
-    
-    const getProductInfoSchema = z.object({
-      marketplaceId: z.string().min(1, 'Marketplace ID is required'),
-      asin: z.string().min(1, 'ASIN is required'),
-    });
+  // Register API routes
+  const { registerGetProductInfoRoute } = await import('@/api/getProductInfo.js');
+  await registerGetProductInfoRoute(fastify);
 
-    try {
-      const validatedData = getProductInfoSchema.parse(request.body);
-      const { marketplaceId, asin } = validatedData;
-      
-      // Check cache first
-      const cached = await db
-        .select()
-        .from(productCache)
-        .where(
-          and(
-            eq(productCache.marketplaceId, marketplaceId),
-            eq(productCache.asin, asin),
-            gte(productCache.expiresAt, new Date())
-          )
-        )
-        .limit(1);
+  const { registerAmazonGetProductInfoRoute } = await import('@/api/amazon/getProductInfo.js');
+  await registerAmazonGetProductInfoRoute(fastify);
 
-      if (cached.length > 0) {
-        const cachedData = cached[0].data;
-        return {
-          success: true,
-          data: cachedData,
-        };
-      }
-
-      // Insert into queue
-      await db
-        .insert(productRequestQueue)
-        .values({ marketplaceId, asin })
-        .onConflictDoNothing();
-
-      // Poll cache every 200ms for up to 10 seconds
-      const maxAttempts = 50;
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        const result = await db
-          .select()
-          .from(productCache)
-          .where(
-            and(
-              eq(productCache.marketplaceId, marketplaceId),
-              eq(productCache.asin, asin),
-              gte(productCache.expiresAt, new Date())
-            )
-          )
-          .limit(1);
-
-        if (result.length > 0) {
-          return {
-            success: true,
-            data: result[0].data,
-          };
-        }
-      }
-
-      reply.status(504);
-      return {
-        success: false,
-        error: 'Request timeout: product info not available after 10 seconds',
-      };
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] Error getting product info:`, error);
-      
-      reply.status(500);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  });
-
-  fastify.post('/api/getProductInfoBulk', {
-    preHandler: requireLicense
-  }, async (request, reply) => {
-    const { getProductInfoBulk } = await import('@/services/spapi.js');
-    const { z } = await import('zod');
-
-    const getProductInfoBulkSchema = z.object({
-      marketplaceId: z.string().min(1, 'Marketplace ID is required'),
-      asins: z.array(
-        z.string()
-          .min(1, 'ASIN is required')
-          .regex(/^[A-Z0-9]{10}$/i, 'ASIN must be 10 alphanumeric characters')
-          .transform(value => value.toUpperCase())
-      )
-        .min(1, 'At least one ASIN is required')
-        .max(20, 'You can request up to 20 ASINs at a time'),
-    });
-
-    try {
-      const validatedData = getProductInfoBulkSchema.parse(request.body);
-      const uniqueAsins = Array.from(new Set(validatedData.asins));
-
-      console.log(
-        `[${new Date().toISOString()}] Getting bulk product info for ${uniqueAsins.length} ASINs: ${uniqueAsins.join(', ')}`
-      );
-
-      const { products, missing } = await getProductInfoBulk(
-        validatedData.marketplaceId,
-        uniqueAsins
-      );
-
-      return {
-        success: true,
-        data: products,
-        ...(missing.length > 0 ? { missing } : {})
-      };
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        reply.status(400);
-        return {
-          success: false,
-          error: error.issues.map(issue => issue.message).join(', ')
-        };
-      }
-
-      console.error(`[${new Date().toISOString()}] Error getting bulk product info:`, error);
-      reply.status(500);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  });
+  const { registerGetProductInfoBulkRoute } = await import('@/api/amazon/getProductInfoBulk.js');
+  await registerGetProductInfoBulkRoute(fastify);
 
   // License validation endpoint (for extension)
   fastify.post('/api/license/validate', async (request, reply) => {
@@ -640,7 +514,7 @@ try {
   
   console.log(`[${new Date().toISOString()}] RankWrangler Server running on port ${port}`);
   console.log(`[${new Date().toISOString()}] Health check: http://localhost:${port}/api/health`);
-  console.log(`[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/searchCatalog, http://localhost:${port}/api/getProductInfo, http://localhost:${port}/api/getProductInfoBulk`);
+  console.log(`[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/searchCatalog, http://localhost:${port}/api/getProductInfo, http://localhost:${port}/api/amazon/getProductInfo, http://localhost:${port}/api/amazon/getProductInfoBulk`);
 } catch (err) {
   console.error('Failed to start server:', err);
   process.exit(1);
