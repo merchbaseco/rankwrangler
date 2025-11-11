@@ -1,10 +1,9 @@
 import { SellingPartner as SellingPartnerAPI } from 'amazon-sp-api';
 import Bottleneck from 'bottleneck';
-import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
-import { products, displayGroups, productRankHistory, systemStats } from '@/db/schema.js';
-import { getPacificDateString } from '@/utils/date.js';
+import { systemStats } from '@/db/schema.js';
 import type {
     CatalogSearchResponse,
     GetCatalogItemResponse,
@@ -36,44 +35,7 @@ async function trackApiCall() {
     }
 }
 
-async function trackCacheHit() {
-    try {
-        await db
-            .update(systemStats)
-            .set({
-                totalCacheHits: sql`${systemStats.totalCacheHits} + 1`,
-                updatedAt: new Date(),
-            })
-            .where(eq(systemStats.id, 'current'));
-    } catch (error) {
-        console.error('[Stats] Failed to track cache hit:', error);
-    }
-}
 
-// Helper function to upsert display group (find or create)
-async function upsertDisplayGroup(category: string, link?: string): Promise<string> {
-    const existing = await db
-        .select()
-        .from(displayGroups)
-        .where(
-            and(
-                eq(displayGroups.category, category),
-                link ? eq(displayGroups.link, link) : isNull(displayGroups.link)
-            )
-        )
-        .limit(1);
-
-    if (existing.length > 0) {
-        return existing[0].id;
-    }
-
-    const [newGroup] = await db
-        .insert(displayGroups)
-        .values({ category, link: link || null })
-        .returning({ id: displayGroups.id });
-
-    return newGroup.id;
-}
 
 
 export const searchCatalog = async (keywords: string[]): Promise<SimplifiedCatalogItem[]> => {
@@ -185,80 +147,6 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
     }
-    // Check product store first
-    try {
-        const productRows = await db
-            .select()
-            .from(products)
-            .where(
-                and(
-                    eq(products.marketplaceId, marketplaceId),
-                    eq(products.asin, asin),
-                    gte(products.expiresAt, new Date())
-                )
-            )
-            .limit(1);
-
-        if (productRows.length > 0) {
-            const product = productRows[0];
-            const today = getPacificDateString();
-
-            // Get today's rank history for this product
-            const rankHistory = await db
-                .select({
-                    rank: productRankHistory.bsr,
-                    category: displayGroups.category,
-                    link: displayGroups.link,
-                })
-                .from(productRankHistory)
-                .innerJoin(displayGroups, eq(productRankHistory.displayGroupId, displayGroups.id))
-                .where(
-                    and(
-                        eq(productRankHistory.productId, product.id),
-                        eq(productRankHistory.date, today)
-                    )
-                )
-                .orderBy(productRankHistory.bsr);
-
-            // Track cache hit
-            await trackCacheHit();
-
-            console.log(`[${new Date().toISOString()}] Product found in store for ${asin}`);
-
-            // Determine primary BSR (lowest rank)
-            const displayGroupRanks = rankHistory.map(rh => ({
-                rank: rh.rank,
-                category: rh.category,
-                link: rh.link || undefined,
-            }));
-
-            const bsr = displayGroupRanks.length > 0 ? displayGroupRanks[0].rank : null;
-            const bsrCategory = displayGroupRanks.length > 0 ? displayGroupRanks[0].category : null;
-
-            const result: ProductInfo = {
-                asin: product.asin,
-                marketplaceId: product.marketplaceId,
-                creationDate: product.creationDate?.toISOString() || null,
-                bsr,
-                bsrCategory,
-                displayGroupRanks,
-                metadata: {
-                    lastFetched: product.lastFetched.toISOString(),
-                    cached: true,
-                },
-            };
-
-            console.log(
-                `[${new Date().toISOString()}] Product payload for ${asin}: ${JSON.stringify(result)}`
-            );
-
-            return result;
-        }
-    } catch (error) {
-        console.error(`[Product Store] Error checking product store for ${asin}:`, error);
-    }
-
-    console.log(`[${new Date().toISOString()}] Product not found in store for ${asin}, fetching from SP-API`);
 
     const sellingPartner = new SellingPartnerAPI({
         region: 'na',
@@ -302,63 +190,6 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
     console.log(
         `[${new Date().toISOString()}] SP-API payload for ${asin}: ${JSON.stringify(result)}`
     );
-
-    // Store in product store
-    try {
-        const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours
-        const today = getPacificDateString();
-        const creationDate = result.creationDate ? new Date(result.creationDate) : null;
-
-        // Insert or update product
-        const [product] = await db
-            .insert(products)
-            .values({
-                marketplaceId,
-                asin,
-                creationDate,
-                lastFetched: new Date(),
-                expiresAt,
-            })
-            .onConflictDoUpdate({
-                target: [products.marketplaceId, products.asin],
-                set: {
-                    creationDate,
-                    lastFetched: new Date(),
-                    expiresAt,
-                    createdAt: new Date(),
-                },
-            })
-            .returning({ id: products.id });
-
-        // Upsert display groups and insert rank history for today
-        for (const rank of result.displayGroupRanks) {
-            const displayGroupId = await upsertDisplayGroup(rank.category, rank.link);
-
-            // Insert rank history for today (on conflict, update)
-            await db
-                .insert(productRankHistory)
-                .values({
-                    productId: product.id,
-                    displayGroupId,
-                    date: today,
-                    bsr: rank.rank,
-                })
-                .onConflictDoUpdate({
-                    target: [
-                        productRankHistory.productId,
-                        productRankHistory.displayGroupId,
-                        productRankHistory.date,
-                    ],
-                    set: {
-                        bsr: rank.rank,
-                    },
-                });
-        }
-
-        console.log(`[${new Date().toISOString()}] Stored product result for ${asin}`);
-    } catch (error) {
-        console.error(`[Product Store] Error storing result for ${asin}:`, error);
-    }
 
     return result;
 };
@@ -434,226 +265,75 @@ export const getProductInfoBulk = async (
         };
     }
 
-    const now = new Date();
-    const today = getPacificDateString();
-    const cachedResults: ProductInfo[] = [];
+    const sellingPartner = new SellingPartnerAPI({
+        region: 'na',
+        refresh_token: env.SPAPI_REFRESH_TOKEN,
+        credentials: {
+            SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
+            SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
+        },
+    });
 
-    try {
-        const productEntries = await db
-            .select()
-            .from(products)
-            .where(
-                and(
-                    eq(products.marketplaceId, marketplaceId),
-                    inArray(products.asin, normalizedAsins),
-                    gte(products.expiresAt, now)
-                )
-            );
+    // Track SP-API call for this bulk request
+    await trackApiCall();
 
-        const foundAsins: string[] = [];
+    const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>
+        sellingPartner.callAPI({
+            operation: 'searchCatalogItems',
+            endpoint: 'catalogItems',
+            path: {},
+            query: {
+                identifiers: normalizedAsins.join(','),
+                identifiersType: 'ASIN',
+                marketplaceIds: marketplaceId,
+                includedData: ['summaries', 'salesRanks', 'attributes'],
+                pageSize: Math.min(20, normalizedAsins.length),
+            },
+            options: {
+                version: '2022-04-01',
+            },
+        })
+    );
 
-        for (const product of productEntries) {
-            // Get today's rank history for this product
-            const rankHistory = await db
-                .select({
-                    rank: productRankHistory.bsr,
-                    category: displayGroups.category,
-                    link: displayGroups.link,
-                })
-                .from(productRankHistory)
-                .innerJoin(displayGroups, eq(productRankHistory.displayGroupId, displayGroups.id))
-                .where(
-                    and(
-                        eq(productRankHistory.productId, product.id),
-                        eq(productRankHistory.date, today)
-                    )
-                )
-                .orderBy(productRankHistory.bsr);
+    const results: ProductInfo[] = [];
+    const foundAsins = new Set<string>();
 
-            // Track cache hit per ASIN to keep stats accurate
-            await trackCacheHit();
+    for (const item of response.items ?? []) {
+        const asin = item.asin;
 
-            const displayGroupRanks = rankHistory.map(rh => ({
-                rank: rh.rank,
-                category: rh.category,
-                link: rh.link || undefined,
-            }));
-
-            const bsr = displayGroupRanks.length > 0 ? displayGroupRanks[0].rank : null;
-            const bsrCategory = displayGroupRanks.length > 0 ? displayGroupRanks[0].category : null;
-
-            const result: ProductInfo = {
-                asin: product.asin,
-                marketplaceId: product.marketplaceId,
-                creationDate: product.creationDate?.toISOString() || null,
-                bsr,
-                bsrCategory,
-                displayGroupRanks,
-                metadata: {
-                    lastFetched: product.lastFetched.toISOString(),
-                    cached: true,
-                },
-            };
-
-            cachedResults.push(result);
-            foundAsins.push(product.asin);
+        if (!asin || !normalizedAsins.includes(asin)) {
+            continue;
         }
 
-        const missingAsins = normalizedAsins.filter(asin => !foundAsins.includes(asin));
-
-        if (missingAsins.length === 0) {
-            const ordered = normalizedAsins
-                .map(asin => cachedResults.find(item => item.asin === asin))
-                .filter((item): item is ProductInfo => Boolean(item));
-
-            return {
-                products: ordered,
-                missing: [],
-            };
-        }
-
-        console.log(
-            `[${new Date().toISOString()}] Product store miss for bulk request: ${missingAsins.join(', ')}`
-        );
-
-        const sellingPartner = new SellingPartnerAPI({
-            region: 'na',
-            refresh_token: env.SPAPI_REFRESH_TOKEN,
-            credentials: {
-                SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
-                SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
+        const parsed = parseProductInfo(item, asin, marketplaceId);
+        const normalized = normalizeProductInfo({
+            ...parsed,
+            metadata: {
+                ...parsed.metadata,
+                cached: false,
             },
         });
 
-        // Track SP-API call for this bulk request
-        await trackApiCall();
-
-        const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>
-            sellingPartner.callAPI({
-                operation: 'searchCatalogItems',
-                endpoint: 'catalogItems',
-                path: {},
-                query: {
-                    identifiers: missingAsins.join(','),
-                    identifiersType: 'ASIN',
-                    marketplaceIds: marketplaceId,
-                    includedData: ['summaries', 'salesRanks', 'attributes'],
-                    pageSize: Math.min(20, missingAsins.length),
-                },
-                options: {
-                    version: '2022-04-01',
-                },
-            })
-        );
-
-        const freshResults: ProductInfo[] = [];
-        const missingSet = new Set(missingAsins);
-
-        for (const item of response.items ?? []) {
-            const asin = item.asin;
-
-            if (!asin || !missingSet.has(asin)) {
-                continue;
-            }
-
-            const parsed = parseProductInfo(item, asin, marketplaceId);
-            const normalized = normalizeProductInfo({
-                ...parsed,
-                metadata: {
-                    ...parsed.metadata,
-                    cached: false,
-                },
-            });
-
-            freshResults.push(normalized);
-        }
-
-        const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours
-
-        for (const product of freshResults) {
-            try {
-                const creationDate = product.creationDate ? new Date(product.creationDate) : null;
-
-                // Insert or update product
-                const [productRow] = await db
-                    .insert(products)
-                    .values({
-                        marketplaceId,
-                        asin: product.asin,
-                        creationDate,
-                        lastFetched: new Date(),
-                        expiresAt,
-                    })
-                    .onConflictDoUpdate({
-                        target: [products.marketplaceId, products.asin],
-                        set: {
-                            creationDate,
-                            lastFetched: new Date(),
-                            expiresAt,
-                            createdAt: new Date(),
-                        },
-                    })
-                    .returning({ id: products.id });
-
-                // Upsert display groups and insert rank history for today
-                for (const rank of product.displayGroupRanks) {
-                    const displayGroupId = await upsertDisplayGroup(rank.category, rank.link);
-
-                    // Insert rank history for today (on conflict, update)
-                    await db
-                        .insert(productRankHistory)
-                        .values({
-                            productId: productRow.id,
-                            displayGroupId,
-                            date: today,
-                            bsr: rank.rank,
-                        })
-                        .onConflictDoUpdate({
-                            target: [
-                                productRankHistory.productId,
-                                productRankHistory.displayGroupId,
-                                productRankHistory.date,
-                            ],
-                            set: {
-                                bsr: rank.rank,
-                            },
-                        });
-                }
-
-                console.log(`[${new Date().toISOString()}] Stored bulk result for ${product.asin}`);
-            } catch (error) {
-                console.error(`[Product Store] Error storing bulk result for ${product.asin}:`, error);
-            }
-        }
-
-        const allResultsMap = new Map<string, ProductInfo>();
-
-        for (const product of [...cachedResults, ...freshResults]) {
-            allResultsMap.set(product.asin, product);
-        }
-
-        const orderedResults = normalizedAsins
-            .map(asin => allResultsMap.get(asin))
-            .filter((item): item is ProductInfo => Boolean(item));
-
-        const missing = normalizedAsins.filter(asin => !allResultsMap.has(asin));
-
-        if (missing.length > 0) {
-            console.warn(
-                `[${new Date().toISOString()}] No catalog data returned for ASINs: ${missing.join(
-                    ', '
-                )}`
-            );
-        }
-
-        return {
-            products: orderedResults,
-            missing,
-        };
-    } catch (error) {
-        console.error('[Bulk] Error retrieving product info in bulk:', error);
-        throw error;
+        results.push(normalized);
+        foundAsins.add(asin);
     }
+
+    const orderedResults = normalizedAsins
+        .map(asin => results.find(item => item.asin === asin))
+        .filter((item): item is ProductInfo => Boolean(item));
+
+    const missing = normalizedAsins.filter(asin => !foundAsins.has(asin));
+
+    if (missing.length > 0) {
+        console.warn(
+            `[${new Date().toISOString()}] No catalog data returned for ASINs: ${missing.join(', ')}`
+        );
+    }
+
+    return {
+        products: orderedResults,
+        missing,
+    };
 };
 
 // Pure SP-API bulk call function (no caching, no stats tracking)

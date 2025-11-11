@@ -59,4 +59,14 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 
 This is essential for accurate time-series BSR tracking that aligns with Amazon's day boundaries.
 
+### Cache TTL and Rank History Interaction
+
+**IMPORTANT**: The product TTL (`expiresAt`) is time-based (12 hours from fetch), but rank history is date-based (Pacific day). To ensure fresh data for each new Pacific day:
+
+- If a product exists and is not expired, check if rank history exists for **today's Pacific date**
+- If rank history doesn't exist for today's Pacific date, treat as cache miss and fetch fresh data
+- This ensures we always have rank data for the current Pacific day, even if the product entry hasn't expired yet
+
+Example: Product fetched at 11 PM PST on Jan 1st expires at 11 AM PST on Jan 2nd. A query at 1 AM PST on Jan 2nd will find the product valid but no rank history for Jan 2nd, so it will fetch fresh data to populate today's ranks.
+
 If unsure, ask for clarification instead of guessing—deployment touches live infrastructure.
