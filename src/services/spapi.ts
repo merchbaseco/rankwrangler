@@ -1,9 +1,10 @@
 import { SellingPartner as SellingPartnerAPI } from 'amazon-sp-api';
 import Bottleneck from 'bottleneck';
-import { and, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
-import { productCache, systemStats } from '@/db/schema.js';
+import { products, displayGroups, productRankHistory, systemStats } from '@/db/schema.js';
+import { getPacificDateString } from '@/utils/date.js';
 import type {
     CatalogSearchResponse,
     GetCatalogItemResponse,
@@ -48,6 +49,32 @@ async function trackCacheHit() {
         console.error('[Stats] Failed to track cache hit:', error);
     }
 }
+
+// Helper function to upsert display group (find or create)
+async function upsertDisplayGroup(category: string, link?: string): Promise<string> {
+    const existing = await db
+        .select()
+        .from(displayGroups)
+        .where(
+            and(
+                eq(displayGroups.category, category),
+                link ? eq(displayGroups.link, link) : isNull(displayGroups.link)
+            )
+        )
+        .limit(1);
+
+    if (existing.length > 0) {
+        return existing[0].id;
+    }
+
+    const [newGroup] = await db
+        .insert(displayGroups)
+        .values({ category, link: link || null })
+        .returning({ id: displayGroups.id });
+
+    return newGroup.id;
+}
+
 
 export const searchCatalog = async (keywords: string[]): Promise<SimplifiedCatalogItem[]> => {
     const sellingPartner = new SellingPartnerAPI({
@@ -158,57 +185,80 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
     }
-    // Check PostgreSQL cache first
+    // Check product store first
     try {
-        const cached = await db
+        const productRows = await db
             .select()
-            .from(productCache)
+            .from(products)
             .where(
                 and(
-                    eq(productCache.marketplaceId, marketplaceId),
-                    eq(productCache.asin, asin),
-                    gte(productCache.expiresAt, new Date())
+                    eq(products.marketplaceId, marketplaceId),
+                    eq(products.asin, asin),
+                    gte(products.expiresAt, new Date())
                 )
             )
             .limit(1);
 
-        if (cached.length > 0) {
-            // Update access stats
-            await db
-                .update(productCache)
-                .set({
-                    lastAccessedAt: new Date(),
-                    accessCount: sql`${productCache.accessCount} + 1`,
+        if (productRows.length > 0) {
+            const product = productRows[0];
+            const today = getPacificDateString();
+
+            // Get today's rank history for this product
+            const rankHistory = await db
+                .select({
+                    rank: productRankHistory.bsr,
+                    category: displayGroups.category,
+                    link: displayGroups.link,
                 })
-                .where(eq(productCache.id, cached[0].id));
+                .from(productRankHistory)
+                .innerJoin(displayGroups, eq(productRankHistory.displayGroupId, displayGroups.id))
+                .where(
+                    and(
+                        eq(productRankHistory.productId, product.id),
+                        eq(productRankHistory.date, today)
+                    )
+                )
+                .orderBy(productRankHistory.bsr);
 
             // Track cache hit
             await trackCacheHit();
 
-            console.log(`[${new Date().toISOString()}] Cache hit for ${asin}`);
+            console.log(`[${new Date().toISOString()}] Product found in store for ${asin}`);
 
-            const cachedData = cached[0].data as ProductInfo;
-            const normalized = normalizeProductInfo({
-                ...cachedData,
+            // Determine primary BSR (lowest rank)
+            const displayGroupRanks = rankHistory.map(rh => ({
+                rank: rh.rank,
+                category: rh.category,
+                link: rh.link || undefined,
+            }));
+
+            const bsr = displayGroupRanks.length > 0 ? displayGroupRanks[0].rank : null;
+            const bsrCategory = displayGroupRanks.length > 0 ? displayGroupRanks[0].category : null;
+
+            const result: ProductInfo = {
+                asin: product.asin,
+                marketplaceId: product.marketplaceId,
+                creationDate: product.creationDate?.toISOString() || null,
+                bsr,
+                bsrCategory,
+                displayGroupRanks,
                 metadata: {
-                    ...cachedData.metadata,
+                    lastFetched: product.lastFetched.toISOString(),
                     cached: true,
                 },
-            });
+            };
 
             console.log(
-                `[${new Date().toISOString()}] Cache payload for ${asin}: ${JSON.stringify(
-                    normalized
-                )}`
+                `[${new Date().toISOString()}] Product payload for ${asin}: ${JSON.stringify(result)}`
             );
 
-            return normalized;
+            return result;
         }
     } catch (error) {
-        console.error(`[Cache] Error checking cache for ${asin}:`, error);
+        console.error(`[Product Store] Error checking product store for ${asin}:`, error);
     }
 
-    console.log(`[${new Date().toISOString()}] Cache miss for ${asin}, fetching from SP-API`);
+    console.log(`[${new Date().toISOString()}] Product not found in store for ${asin}, fetching from SP-API`);
 
     const sellingPartner = new SellingPartnerAPI({
         region: 'na',
@@ -253,32 +303,61 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
         `[${new Date().toISOString()}] SP-API payload for ${asin}: ${JSON.stringify(result)}`
     );
 
-    // Store in PostgreSQL cache
+    // Store in product store
     try {
         const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours
+        const today = getPacificDateString();
+        const creationDate = result.creationDate ? new Date(result.creationDate) : null;
 
-        await db
-            .insert(productCache)
+        // Insert or update product
+        const [product] = await db
+            .insert(products)
             .values({
                 marketplaceId,
                 asin,
-                data: result,
+                creationDate,
+                lastFetched: new Date(),
                 expiresAt,
             })
             .onConflictDoUpdate({
-                target: [productCache.marketplaceId, productCache.asin],
+                target: [products.marketplaceId, products.asin],
                 set: {
-                    data: result,
+                    creationDate,
+                    lastFetched: new Date(),
                     expiresAt,
                     createdAt: new Date(),
-                    accessCount: 0,
-                    lastAccessedAt: new Date(),
                 },
-            });
+            })
+            .returning({ id: products.id });
 
-        console.log(`[${new Date().toISOString()}] Cached result for ${asin}`);
+        // Upsert display groups and insert rank history for today
+        for (const rank of result.displayGroupRanks) {
+            const displayGroupId = await upsertDisplayGroup(rank.category, rank.link);
+
+            // Insert rank history for today (on conflict, update)
+            await db
+                .insert(productRankHistory)
+                .values({
+                    productId: product.id,
+                    displayGroupId,
+                    date: today,
+                    bsr: rank.rank,
+                })
+                .onConflictDoUpdate({
+                    target: [
+                        productRankHistory.productId,
+                        productRankHistory.displayGroupId,
+                        productRankHistory.date,
+                    ],
+                    set: {
+                        bsr: rank.rank,
+                    },
+                });
+        }
+
+        console.log(`[${new Date().toISOString()}] Stored product result for ${asin}`);
     } catch (error) {
-        console.error(`[Cache] Error caching result for ${asin}:`, error);
+        console.error(`[Product Store] Error storing result for ${asin}:`, error);
     }
 
     return result;
@@ -356,55 +435,71 @@ export const getProductInfoBulk = async (
     }
 
     const now = new Date();
+    const today = getPacificDateString();
     const cachedResults: ProductInfo[] = [];
 
     try {
-        const cachedEntries = await db
+        const productEntries = await db
             .select()
-            .from(productCache)
+            .from(products)
             .where(
                 and(
-                    eq(productCache.marketplaceId, marketplaceId),
-                    inArray(productCache.asin, normalizedAsins),
-                    gte(productCache.expiresAt, now)
+                    eq(products.marketplaceId, marketplaceId),
+                    inArray(products.asin, normalizedAsins),
+                    gte(products.expiresAt, now)
                 )
             );
 
-        const cachedAsins: string[] = [];
+        const foundAsins: string[] = [];
 
-        for (const entry of cachedEntries) {
-            const cachedData = entry.data as ProductInfo;
-            const normalized = normalizeProductInfo({
-                ...cachedData,
-                metadata: {
-                    ...cachedData.metadata,
-                    cached: true,
-                },
-            });
-
-            cachedResults.push(normalized);
-            cachedAsins.push(entry.asin);
+        for (const product of productEntries) {
+            // Get today's rank history for this product
+            const rankHistory = await db
+                .select({
+                    rank: productRankHistory.bsr,
+                    category: displayGroups.category,
+                    link: displayGroups.link,
+                })
+                .from(productRankHistory)
+                .innerJoin(displayGroups, eq(productRankHistory.displayGroupId, displayGroups.id))
+                .where(
+                    and(
+                        eq(productRankHistory.productId, product.id),
+                        eq(productRankHistory.date, today)
+                    )
+                )
+                .orderBy(productRankHistory.bsr);
 
             // Track cache hit per ASIN to keep stats accurate
             await trackCacheHit();
+
+            const displayGroupRanks = rankHistory.map(rh => ({
+                rank: rh.rank,
+                category: rh.category,
+                link: rh.link || undefined,
+            }));
+
+            const bsr = displayGroupRanks.length > 0 ? displayGroupRanks[0].rank : null;
+            const bsrCategory = displayGroupRanks.length > 0 ? displayGroupRanks[0].category : null;
+
+            const result: ProductInfo = {
+                asin: product.asin,
+                marketplaceId: product.marketplaceId,
+                creationDate: product.creationDate?.toISOString() || null,
+                bsr,
+                bsrCategory,
+                displayGroupRanks,
+                metadata: {
+                    lastFetched: product.lastFetched.toISOString(),
+                    cached: true,
+                },
+            };
+
+            cachedResults.push(result);
+            foundAsins.push(product.asin);
         }
 
-        if (cachedAsins.length > 0) {
-            await db
-                .update(productCache)
-                .set({
-                    lastAccessedAt: new Date(),
-                    accessCount: sql`${productCache.accessCount} + 1`,
-                })
-                .where(
-                    and(
-                        eq(productCache.marketplaceId, marketplaceId),
-                        inArray(productCache.asin, cachedAsins)
-                    )
-                );
-        }
-
-        const missingAsins = normalizedAsins.filter(asin => !cachedAsins.includes(asin));
+        const missingAsins = normalizedAsins.filter(asin => !foundAsins.includes(asin));
 
         if (missingAsins.length === 0) {
             const ordered = normalizedAsins
@@ -418,7 +513,7 @@ export const getProductInfoBulk = async (
         }
 
         console.log(
-            `[${new Date().toISOString()}] Cache miss for bulk request: ${missingAsins.join(', ')}`
+            `[${new Date().toISOString()}] Product store miss for bulk request: ${missingAsins.join(', ')}`
         );
 
         const sellingPartner = new SellingPartnerAPI({
@@ -477,28 +572,57 @@ export const getProductInfoBulk = async (
 
         for (const product of freshResults) {
             try {
-                await db
-                    .insert(productCache)
+                const creationDate = product.creationDate ? new Date(product.creationDate) : null;
+
+                // Insert or update product
+                const [productRow] = await db
+                    .insert(products)
                     .values({
                         marketplaceId,
                         asin: product.asin,
-                        data: product,
+                        creationDate,
+                        lastFetched: new Date(),
                         expiresAt,
                     })
                     .onConflictDoUpdate({
-                        target: [productCache.marketplaceId, productCache.asin],
+                        target: [products.marketplaceId, products.asin],
                         set: {
-                            data: product,
+                            creationDate,
+                            lastFetched: new Date(),
                             expiresAt,
                             createdAt: new Date(),
-                            accessCount: 0,
-                            lastAccessedAt: new Date(),
                         },
-                    });
+                    })
+                    .returning({ id: products.id });
 
-                console.log(`[${new Date().toISOString()}] Cached bulk result for ${product.asin}`);
+                // Upsert display groups and insert rank history for today
+                for (const rank of product.displayGroupRanks) {
+                    const displayGroupId = await upsertDisplayGroup(rank.category, rank.link);
+
+                    // Insert rank history for today (on conflict, update)
+                    await db
+                        .insert(productRankHistory)
+                        .values({
+                            productId: productRow.id,
+                            displayGroupId,
+                            date: today,
+                            bsr: rank.rank,
+                        })
+                        .onConflictDoUpdate({
+                            target: [
+                                productRankHistory.productId,
+                                productRankHistory.displayGroupId,
+                                productRankHistory.date,
+                            ],
+                            set: {
+                                bsr: rank.rank,
+                            },
+                        });
+                }
+
+                console.log(`[${new Date().toISOString()}] Stored bulk result for ${product.asin}`);
             } catch (error) {
-                console.error(`[Cache] Error caching bulk result for ${product.asin}:`, error);
+                console.error(`[Product Store] Error storing bulk result for ${product.asin}:`, error);
             }
         }
 
@@ -654,9 +778,8 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
         creationDate = item.summaries?.[0]?.releaseDate || null;
     }
 
-    // Extract rankings separately by type
+    // Extract display group rankings only
     const displayGroupRanks: Array<{ rank: number; category: string; link?: string }> = [];
-    const classificationRanks: Array<{ rank: number; category: string; link?: string }> = [];
     const salesRanks = item.salesRanks?.[0];
     
     if (salesRanks) {
@@ -672,35 +795,18 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
                 }
             }
         }
-        
-        // Add classificationRanks (subcategories)
-        if (salesRanks.classificationRanks) {
-            for (const classificationRank of salesRanks.classificationRanks) {
-                if (classificationRank.rank && classificationRank.title) {
-                    classificationRanks.push({
-                        rank: classificationRank.rank,
-                        category: classificationRank.title,
-                        link: classificationRank.link,
-                    });
-                }
-            }
-        }
     }
     
-    // Sort both arrays by rank (lowest/best first)
+    // Sort by rank (lowest/best first)
     displayGroupRanks.sort((a, b) => a.rank - b.rank);
-    classificationRanks.sort((a, b) => a.rank - b.rank);
     
-    // Determine primary BSR (prefer display group, fallback to first classification)
+    // Determine primary BSR (first display group rank)
     let bsr: number | null = null;
     let bsrCategory: string | null = null;
     
     if (displayGroupRanks.length > 0) {
         bsr = displayGroupRanks[0].rank;
         bsrCategory = displayGroupRanks[0].category;
-    } else if (classificationRanks.length > 0) {
-        bsr = classificationRanks[0].rank;
-        bsrCategory = classificationRanks[0].category;
     }
 
     return {
@@ -710,7 +816,6 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
         bsr,
         bsrCategory,
         displayGroupRanks,
-        classificationRanks,
         metadata: {
             lastFetched: new Date().toISOString(),
             cached: false,
@@ -721,9 +826,6 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
 function normalizeProductInfo(data: ProductInfo): ProductInfo {
     const displayGroupRanks = Array.isArray(data.displayGroupRanks)
         ? data.displayGroupRanks
-        : [];
-    const classificationRanks = Array.isArray(data.classificationRanks)
-        ? data.classificationRanks
         : [];
 
     let bsr =
@@ -738,19 +840,8 @@ function normalizeProductInfo(data: ProductInfo): ProductInfo {
         bsrCategory = displayGroupRanks[0].category ?? bsrCategory;
     }
 
-    if (bsr === null && classificationRanks.length > 0) {
-        bsr = classificationRanks[0].rank ?? null;
-        if (!bsrCategory) {
-            bsrCategory = classificationRanks[0].category ?? null;
-        }
-    }
-
     if (!bsrCategory && displayGroupRanks.length > 0) {
         bsrCategory = displayGroupRanks[0].category ?? null;
-    }
-
-    if (!bsrCategory && classificationRanks.length > 0) {
-        bsrCategory = classificationRanks[0].category ?? null;
     }
 
     if (bsr !== null && !bsrCategory) {
@@ -767,7 +858,6 @@ function normalizeProductInfo(data: ProductInfo): ProductInfo {
         bsr,
         bsrCategory,
         displayGroupRanks,
-        classificationRanks,
         metadata,
     };
 }

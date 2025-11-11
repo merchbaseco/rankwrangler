@@ -1,6 +1,5 @@
-import { pgTable, uuid, text, json, timestamp, integer, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, json, timestamp, integer, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { InferSelectModel, InferInsertModel } from 'drizzle-orm';
-import type { ProductInfo } from '@/types/index.js';
 
 // Define the metadata type to match the Sequelize model
 export type LicenseMetadata = {
@@ -48,28 +47,54 @@ export interface LicenseAttributes {
   lastResetAt: Date;
 }
 
-// Product cache table for persistent caching
-export const productCache = pgTable('product_cache', {
+// Products table - local product store populated from SP-API
+export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
   marketplaceId: text('marketplace_id').notNull(),
   asin: text('asin').notNull(),
-  data: json('data').$type<ProductInfo>().notNull(),
+  creationDate: timestamp('creation_date', { mode: 'date' }),
+  lastFetched: timestamp('last_fetched', { mode: 'date' }).notNull().defaultNow(),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
-  lastAccessedAt: timestamp('last_accessed_at', { mode: 'date' }).notNull().defaultNow(),
-  accessCount: integer('access_count').notNull().default(0)
 }, (table) => ({
   // Composite unique index for marketplace + asin
-  marketplaceAsinIdx: uniqueIndex('product_cache_marketplace_asin_idx')
+  marketplaceAsinIdx: uniqueIndex('products_marketplace_asin_idx')
     .on(table.marketplaceId, table.asin),
   // Index for cleanup of expired entries
-  expiresAtIdx: index('product_cache_expires_at_idx').on(table.expiresAt)
+  expiresAtIdx: index('products_expires_at_idx').on(table.expiresAt)
+}));
+
+// Display groups table - stores display group categories and links
+export const displayGroups = pgTable('display_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  category: text('category').notNull(),
+  link: text('link'),
+}, (table) => ({
+  // Unique index to prevent duplicate display groups
+  categoryLinkIdx: uniqueIndex('display_groups_category_link_idx')
+    .on(table.category, table.link)
+}));
+
+// Product rank history table - tracks BSR over time per product/display group
+export const productRankHistory = pgTable('product_rank_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+  displayGroupId: uuid('display_group_id').notNull().references(() => displayGroups.id),
+  date: date('date').notNull(),
+  bsr: integer('bsr').notNull(),
+}, (table) => ({
+  // Unique index - one rank per product/display_group/date
+  productDisplayGroupDateIdx: uniqueIndex('product_rank_history_product_display_group_date_idx')
+    .on(table.productId, table.displayGroupId, table.date),
+  // Indexes for queries
+  productIdIdx: index('product_rank_history_product_id_idx').on(table.productId),
+  dateIdx: index('product_rank_history_date_idx').on(table.date)
 }));
 
 // System stats table with efficient single-row counter design
 export const systemStats = pgTable('system_stats', {
   id: text('id').primaryKey(), // 'current' for live stats
-  productsInCache: integer('products_in_cache').notNull().default(0),
+  productsInStore: integer('products_in_store').notNull().default(0),
   totalSpApiCalls: integer('total_sp_api_calls').notNull().default(0),
   totalCacheHits: integer('total_cache_hits').notNull().default(0),
   lastResetAt: timestamp('last_reset_at', { mode: 'date' }).notNull().defaultNow(),
@@ -88,9 +113,13 @@ export const productRequestQueue = pgTable('product_request_queue', {
     createdAtIdx: index('product_request_queue_created_at_idx').on(table.createdAt),
 }));
 
-// Export types for new tables
-export type ProductCache = InferSelectModel<typeof productCache>;
-export type NewProductCache = InferInsertModel<typeof productCache>;
+// Export types for tables
+export type Product = InferSelectModel<typeof products>;
+export type NewProduct = InferInsertModel<typeof products>;
+export type DisplayGroup = InferSelectModel<typeof displayGroups>;
+export type NewDisplayGroup = InferInsertModel<typeof displayGroups>;
+export type ProductRankHistory = InferSelectModel<typeof productRankHistory>;
+export type NewProductRankHistory = InferInsertModel<typeof productRankHistory>;
 export type SystemStats = InferSelectModel<typeof systemStats>;
 export type NewSystemStats = InferInsertModel<typeof systemStats>;
 export type ProductRequestQueue = InferSelectModel<typeof productRequestQueue>;

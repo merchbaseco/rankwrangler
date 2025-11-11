@@ -46,4 +46,17 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 - License management lives in `src/services/license.ts`
 - SP-API integration lives in `src/services/spapi.ts`
 
+## Important Implementation Details
+
+### Timezone Handling for BSR Rank History
+
+**CRITICAL**: Amazon US marketplace (`ATVPDKIKX0DER`) uses Pacific timezone (America/Los_Angeles) for business day boundaries. When recording BSR ranks in `product_rank_history`, always use Pacific date, not UTC or server local time.
+
+- Use `getPacificDateString()` from `src/utils/date.ts` to get the current date in Pacific timezone
+- This ensures ranks fetched at 11 PM PST on Jan 1st are recorded as Jan 1st (not Jan 2nd in UTC)
+- The function automatically handles PST/PDT transitions
+- Never use `new Date().toISOString().split('T')[0]` or similar UTC-based date extraction for rank history dates
+
+This is essential for accurate time-series BSR tracking that aligns with Amazon's day boundaries.
+
 If unsure, ask for clarification instead of guessing—deployment touches live infrastructure.
