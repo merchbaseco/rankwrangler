@@ -2,6 +2,7 @@ import { inArray } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { productRequestQueue } from '@/db/schema.js';
 import { storeProductInfoBulk } from '@/db/products.js';
+import { getProductInfoBulk } from '@/services/spapi.js';
 
 export async function processProductQueue() {
     const queueItems = await db
@@ -25,13 +26,9 @@ export async function processProductQueue() {
         itemIds.push(item.id);
     }
 
-    const { getProductInfoBulk } = await import('@/services/spapi.js');
-
     for (const [marketplaceId, asins] of groupedByMarketplace) {
-        // Call SP-API to fetch product info
         const { products: fetchedProducts } = await getProductInfoBulk(marketplaceId, asins);
         
-        // Store the fetched products in the database
         if (fetchedProducts.length > 0) {
             await storeProductInfoBulk(fetchedProducts);
         }
