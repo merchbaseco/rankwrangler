@@ -96,11 +96,11 @@ fastify.register(async function (fastify) {
 
     try {
       const validatedData = searchCatalogSchema.parse(request.body);
-      const userEmail = (request as any).license?.email || null;
+      const uid = (request as any).license?.email || 'anonymous';
       
       // Track API request
       trackApiRequest({
-        userEmail,
+        uid,
         endpoint: '/api/searchCatalog',
       });
       

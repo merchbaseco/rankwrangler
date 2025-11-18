@@ -11,7 +11,7 @@ const client = new PostHog(
  * Track an API request event
  */
 export function trackApiRequest(params: {
-    userEmail: string | null;
+    uid: string;
     endpoint: string;
     marketplaceId?: string;
     asin?: string;
@@ -19,10 +19,8 @@ export function trackApiRequest(params: {
     cached?: boolean;
 }) {
     try {
-        const distinctId = params.userEmail || 'anonymous';
-        
         client.capture({
-            distinctId,
+            distinctId: params.uid,
             event: 'api_request',
             properties: {
                 endpoint: params.endpoint,
@@ -42,15 +40,13 @@ export function trackApiRequest(params: {
  * Track an SP-API call event
  */
 export function trackSpApiCall(params: {
-    userEmail: string | null;
+    uid: string;
     apiName: string;
     source?: 'user-request' | 'background-job';
 }) {
     try {
-        const distinctId = params.userEmail || 'background-job';
-        
         client.capture({
-            distinctId,
+            distinctId: params.uid,
             event: 'sp_api_call',
             properties: {
                 apiName: params.apiName,
