@@ -92,16 +92,16 @@ export const productRankHistory = pgTable('product_rank_history', {
   dateIdx: index('product_rank_history_date_idx').on(table.date)
 }));
 
-// Product request queue table
-export const productRequestQueue = pgTable('product_request_queue', {
+// Product ingest queue table
+export const productIngestQueue = pgTable('product_ingest_queue', {
     id: uuid('id').primaryKey().defaultRandom(),
     marketplaceId: text('marketplace_id').notNull(),
     asin: text('asin').notNull(),
     createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
 }, (table) => ({
-    marketplaceAsinIdx: uniqueIndex('product_request_queue_marketplace_asin_idx')
+    marketplaceAsinIdx: uniqueIndex('product_ingest_queue_marketplace_asin_idx')
         .on(table.marketplaceId, table.asin),
-    createdAtIdx: index('product_request_queue_created_at_idx').on(table.createdAt),
+    createdAtIdx: index('product_ingest_queue_created_at_idx').on(table.createdAt),
 }));
 
 // Export types for tables
@@ -111,5 +111,5 @@ export type DisplayGroup = InferSelectModel<typeof displayGroups>;
 export type NewDisplayGroup = InferInsertModel<typeof displayGroups>;
 export type ProductRankHistory = InferSelectModel<typeof productRankHistory>;
 export type NewProductRankHistory = InferInsertModel<typeof productRankHistory>;
-export type ProductRequestQueue = InferSelectModel<typeof productRequestQueue>;
-export type NewProductRequestQueue = InferInsertModel<typeof productRequestQueue>;
+export type ProductIngestQueue = InferSelectModel<typeof productIngestQueue>;
+export type NewProductIngestQueue = InferInsertModel<typeof productIngestQueue>;
