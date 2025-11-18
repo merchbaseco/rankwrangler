@@ -22,11 +22,11 @@ export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
             try {
                 const validatedData = getProductInfoSchema.parse(request.body);
                 const { marketplaceId, asin } = validatedData;
-                const userEmail = request.license?.email || null;
+                const uid = request.license?.email || 'anonymous';
 
                 // Track API request
                 trackApiRequest({
-                    userEmail,
+                    uid,
                     endpoint: '/api/getProductInfo',
                     marketplaceId,
                     asin,

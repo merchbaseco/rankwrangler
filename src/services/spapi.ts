@@ -17,9 +17,6 @@ const spApiLimiter = new Bottleneck({
     reservoirRefreshInterval: 1000, // Refresh every second
 });
 
-
-
-
 export const searchCatalog = async (keywords: string[]): Promise<SimplifiedCatalogItem[]> => {
     const sellingPartner = new SellingPartnerAPI({
         region: 'na',
@@ -129,7 +126,7 @@ function parseCatalogItem(item: any): SimplifiedCatalogItem {
 export const getProductInfoBulk = async (
     marketplaceId: string,
     asins: string[],
-    options?: { trackStats?: boolean; userEmail?: string | null }
+    options?: { uid?: string }
 ): Promise<{ products: ProductInfo[]; missing: string[] }> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
@@ -159,14 +156,12 @@ export const getProductInfoBulk = async (
         },
     });
 
-    // Track SP-API call if requested
-    if (options?.trackStats) {
-        trackSpApiCall({
-            userEmail: options.userEmail || null,
-            apiName: 'searchCatalogItems',
-            source: options.userEmail ? 'user-request' : 'background-job',
-        });
-    }
+    // Always track SP-API call
+    trackSpApiCall({
+        uid: options?.uid || 'rankwrangler_job_process-product-queue',
+        apiName: 'searchCatalogItems',
+        source: options?.uid && !options.uid.startsWith('rankwrangler_job_') ? 'user-request' : 'background-job',
+    });
 
     const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>
         sellingPartner.callAPI({
@@ -225,14 +220,6 @@ export const getProductInfoBulk = async (
         products: orderedResults,
         missing,
     };
-};
-
-// Alias for backward compatibility (no stats tracking)
-export const getProductInfoBulkFromSpApi = async (
-    marketplaceId: string,
-    asins: string[]
-): Promise<{ products: ProductInfo[]; missing: string[] }> => {
-    return getProductInfoBulk(marketplaceId, asins, { trackStats: false });
 };
 
 function parseProductInfo(item: any, asin: string, marketplaceId: string): ProductInfo {

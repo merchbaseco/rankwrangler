@@ -14,16 +14,6 @@ export type CatalogSearchResponse = {
     };
 };
 
-export type SearchCatalogRequest = {
-    keywords: string[];
-};
-
-export type SearchCatalogApiResponse = {
-    success: boolean;
-    data?: SimplifiedCatalogItem[];
-    error?: string;
-};
-
 export type ProductRanking = {
     rank: number;
     category: string;
@@ -49,53 +39,4 @@ export type ProductInfo = {
         lastFetched: string; // ISO timestamp when data was fetched from SP-API
         cached: boolean;     // true if served from product store, false if fresh from SP-API
     };
-};
-
-export type ProductInfoRequest = {
-    marketplaceId: string;
-    asin: string;
-};
-
-export type ProductInfoApiResponse = {
-    success: boolean;
-    data?: ProductInfo;
-    error?: string;
-};
-
-export type ProductInfoBulkRequest = {
-    marketplaceId: string;
-    asins: string[];
-};
-
-export type ProductInfoBulkApiResponse = {
-    success: boolean;
-    data?: ProductInfo[];
-    missing?: string[];
-    error?: string;
-};
-
-export type GetCatalogItemResponse = {
-    asin?: string;
-    summaries?: Array<{
-        releaseDate?: string;
-        [key: string]: any;
-    }>;
-    salesRanks?: Array<{
-        displayGroupRanks?: Array<{
-            websiteDisplayGroup?: string;
-            title?: string;
-            link?: string;
-            rank?: number;
-            [key: string]: any;
-        }>;
-        classificationRanks?: Array<{
-            classificationId?: string;
-            title?: string;
-            link?: string;
-            rank?: number;
-            [key: string]: any;
-        }>;
-        [key: string]: any;
-    }>;
-    [key: string]: any;
 };

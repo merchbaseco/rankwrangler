@@ -23,8 +23,7 @@ export async function processProductQueue() {
 
     for (const [marketplaceId, asins] of groupedByMarketplace) {
         const { products: fetchedProducts } = await getProductInfoBulk(marketplaceId, asins, { 
-            trackStats: true,
-            userEmail: null // Background job, no user context
+            uid: 'rankwrangler_job_process-product-queue'
         });
         
         if (fetchedProducts.length > 0) {
