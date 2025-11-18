@@ -6,7 +6,7 @@ import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { runMigrations } from '@/db/migrate.js';
 import { testConnection, db } from '@/db/index.js';
-import { productRequestQueue } from '@/db/schema.js';
+import { productIngestQueue } from '@/db/schema.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -23,15 +23,15 @@ await boss.start();
 console.log('[Server] pg-boss initialized');
 
 // Create queue if it doesn't exist
-await boss.createQueue('product-request-queue');
+await boss.createQueue('product-ingest-queue');
 
 // Register job handlers
 const { processProductQueue } = await import('@/jobs/process-product-queue.js');
-boss.work('product-request-queue', processProductQueue);
+boss.work('product-ingest-queue', processProductQueue);
 
 // Send job to process queue every second
 setInterval(async () => {
-    await boss.send('product-request-queue', {}, {
+    await boss.send('product-ingest-queue', {}, {
         singletonKey: 'process-product-queue',
         retryLimit: 1,
     });

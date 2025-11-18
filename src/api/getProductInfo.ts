@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requireLicense } from '@/middleware/requireLicense.js';
 import { db } from '@/db/index.js';
-import { productRequestQueue } from '@/db/schema.js';
+import { productIngestQueue } from '@/db/schema.js';
 import { getProductInfoFromStore } from '@/db/product/get-product.js';
 import { trackApiRequest } from '@/services/posthog.js';
 
@@ -43,7 +43,7 @@ export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
 
                 // Insert into queue
                 await db
-                    .insert(productRequestQueue)
+                    .insert(productIngestQueue)
                     .values({ marketplaceId, asin })
                     .onConflictDoNothing();
 

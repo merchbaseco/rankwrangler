@@ -1,6 +1,6 @@
 import { storeProductInfo } from '@/db/product/store-product.js';
-import { getQueueItems } from '@/db/product-request-queue/get-queue-items.js';
-import { deleteQueueItems } from '@/db/product-request-queue/delete-queue-items.js';
+import { getQueueItems } from '@/db/product-ingest-queue/get-queue-items.js';
+import { deleteQueueItems } from '@/db/product-ingest-queue/delete-queue-items.js';
 import { getProductInfoBulk } from '@/services/spapi.js';
 
 export async function processProductQueue() {
