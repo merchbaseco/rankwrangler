@@ -21,34 +21,6 @@ fi
 
 echo ""
 
-# Test searchCatalog endpoint
-echo "🔍 Testing searchCatalog endpoint..."
-echo ""
-
-# Test 1: T-shirt search
-echo "📦 Searching for: t-shirt"
-curl -s -X POST "$API_BASE/api/searchCatalog" \
-  -H "Content-Type: application/json" \
-  -d '{"keywords": ["t-shirt"]}' | jq '.'
-
-echo ""
-
-# Test 2: Coffee mug search  
-echo "📦 Searching for: coffee, mug"
-curl -s -X POST "$API_BASE/api/searchCatalog" \
-  -H "Content-Type: application/json" \
-  -d '{"keywords": ["coffee", "mug"]}' | jq '.'
-
-echo ""
-
-# Test 3: Wireless headphones search
-echo "📦 Searching for: wireless, headphones" 
-curl -s -X POST "$API_BASE/api/searchCatalog" \
-  -H "Content-Type: application/json" \
-  -d '{"keywords": ["wireless", "headphones"]}' | jq '.'
-
-echo ""
-
 # License-gated endpoints
 if [ -n "$RR_LICENSE_KEY" ]; then
     echo "🔐 Testing private Amazon API endpoints..."

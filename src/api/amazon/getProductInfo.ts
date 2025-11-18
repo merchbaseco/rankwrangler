@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { requireLicense } from '@/middleware/requireLicense.js';
-import { getProductInfoBulk } from '@/services/spapi.js';
+import { searchCatalogItems } from '@/services/spapi.js';
 import { trackApiRequest } from '@/services/posthog.js';
 
 export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance) {
@@ -29,11 +29,11 @@ export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance
             try {
                 const validatedData = getProductInfoSchema.parse(request.body);
                 const uniqueAsins = Array.from(new Set(validatedData.asins));
-                const uid = request.license?.email || 'anonymous';
+                const caller = request.license?.email || 'anonymous';
 
                 // Track API request
                 trackApiRequest({
-                    uid,
+                    uid: caller,
                     endpoint: '/api/amazon/getProductInfo',
                     marketplaceId: validatedData.marketplaceId,
                     asins: uniqueAsins,
@@ -44,11 +44,11 @@ export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance
                     `[${new Date().toISOString()}] Getting product info from SP-API for ${uniqueAsins.length} ASIN(s): ${uniqueAsins.join(', ')}`
                 );
 
-                // Use getProductInfoBulk with user context
-                const { products, missing } = await getProductInfoBulk(
+                // Use searchCatalogItems with user context
+                const { products, missing } = await searchCatalogItems(
                     validatedData.marketplaceId,
                     uniqueAsins,
-                    { uid }
+                    caller
                 );
 
                 // If only one ASIN was requested, return single product for backward compatibility

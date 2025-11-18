@@ -5,7 +5,6 @@ import { trackSpApiCall } from '@/services/posthog.js';
 import type {
     CatalogSearchResponse,
     ProductInfo,
-    SimplifiedCatalogItem,
 } from '@/types/index.js';
 
 // Rate limiter: 2 requests per second with burst of 2 (matches SP-API limits)
@@ -17,116 +16,11 @@ const spApiLimiter = new Bottleneck({
     reservoirRefreshInterval: 1000, // Refresh every second
 });
 
-export const searchCatalog = async (keywords: string[]): Promise<SimplifiedCatalogItem[]> => {
-    const sellingPartner = new SellingPartnerAPI({
-        region: 'na',
-        refresh_token: env.SPAPI_REFRESH_TOKEN,
-        credentials: {
-            SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
-            SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
-        },
-    });
-
-    let allItems: SimplifiedCatalogItem[] = [];
-    let nextToken: string | undefined;
-    let currentPage = 0;
-    const maxPages = 5;
-
-    do {
-        const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>
-            sellingPartner.callAPI({
-                operation: 'searchCatalogItems',
-                endpoint: 'catalogItems',
-                path: {},
-                query: {
-                    keywords,
-                    marketplaceIds: 'ATVPDKIKX0DER',
-                    includedData: [
-                        'attributes',
-                        'identifiers',
-                        'productTypes',
-                        'images',
-                        'salesRanks',
-                        'summaries',
-                    ],
-                    classificationIds: ['7147445011'],
-                    pageSize: 20,
-                    ...(nextToken ? { nextToken } : {}),
-                },
-                options: {
-                    version: '2022-04-01',
-                },
-            })
-        );
-
-        const items = response.items?.map(parseCatalogItem) || [];
-        allItems = [...allItems, ...items];
-        nextToken = response.pagination?.nextToken;
-        currentPage++;
-    } while (nextToken && currentPage < maxPages);
-
-    // Deduplicate items based on title
-    const uniqueItems = Array.from(new Map(allItems.map(item => [item.title, item])).values());
-
-    // Sort by BSR
-    const result = uniqueItems.sort(
-        (a, b) => (a.bsr ?? Number.MAX_SAFE_INTEGER) - (b.bsr ?? Number.MAX_SAFE_INTEGER)
-    );
-    return result;
-};
-
-function parseCatalogItem(item: any): SimplifiedCatalogItem {
-    const asin = item.asin;
-    const title = item.attributes?.item_name?.[0]?.value || '';
-    const brand = item.attributes?.brand?.[0]?.value || '';
-
-    // Filter out standard Merch by Amazon bullets.
-    const standardBullets = [
-        'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
-        'Solid colors: 100% Cotton; Heather Grey: 90% Cotton, 10% Polyester; All Other Heathers: 50% Cotton, 50% Polyester',
-        '8.5 oz, Classic fit, Twill-taped neck',
-        'Machine Wash',
-        'Solid color t-shirts are 100% cotton, heather grey is 90% cotton/10% polyester, denim heather is 50% cotton/ 50% polyester',
-    ];
-
-    const bulletPoints = (item.attributes?.bullet_point || [])
-        .map((bullet: any) => bullet.value)
-        .filter((bullet: string) => bullet && !standardBullets.includes(bullet.trim()));
-
-    // Find a medium-sized image (around 500px) or fallback to first available
-    const images = item.images?.[0]?.images || [];
-    let thumbnailUrl = '';
-
-    // Try to find an image around 500px width first
-    const mediumImage = images.find((img: any) => img.width >= 400 && img.width <= 600);
-    if (mediumImage) {
-        thumbnailUrl = mediumImage.link;
-    } else if (images.length > 0) {
-        // Fallback to first image
-        thumbnailUrl = images[0].link;
-    }
-
-    // Get the Clothing, Shoes & Jewelry BSR
-    const fashionDisplayRank = item.salesRanks?.[0]?.displayGroupRanks?.find(
-        (rank: any) => rank.websiteDisplayGroup === 'fashion_display_on_website'
-    );
-    const bsr = fashionDisplayRank?.rank || null;
-
-    return {
-        asin,
-        title,
-        brand,
-        bulletPoints,
-        thumbnailUrl,
-        bsr,
-    };
-}
-
 // Get product info using searchCatalogItems API (supports single or multiple ASINs)
-export const getProductInfoBulk = async (
+export const searchCatalogItems = async (
     marketplaceId: string,
     asins: string[],
-    options?: { uid?: string }
+    caller: string
 ): Promise<{ products: ProductInfo[]; missing: string[] }> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
@@ -158,9 +52,8 @@ export const getProductInfoBulk = async (
 
     // Always track SP-API call
     trackSpApiCall({
-        uid: options?.uid || 'rankwrangler_job_process-product-ingest-queue',
+        caller,
         apiName: 'searchCatalogItems',
-        source: options?.uid && !options.uid.startsWith('rankwrangler_job_') ? 'user-request' : 'background-job',
     });
 
     const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>

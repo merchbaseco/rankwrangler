@@ -56,11 +56,6 @@ case "$1" in
     echo "🧪 Testing API endpoint..."
     echo "Health check:"
     curl -s "http://5.161.181.165:8081/health" | jq . || echo "❌ Health check failed"
-    echo ""
-    echo "API test (if proxy is configured):"
-    curl -s -X POST "https://merchbase.co/api/searchCatalog" \
-      -H "Content-Type: application/json" \
-      -d '{"keywords": ["test"]}' | jq . || echo "❌ API test failed"
     ;;
   monitor)
     echo "📈 Monitoring container (Ctrl+C to stop)..."

@@ -1,12 +1,3 @@
-export type SimplifiedCatalogItem = {
-    asin: string;
-    title: string;
-    brand: string;
-    bulletPoints: string[];
-    thumbnailUrl: string;
-    bsr: number | null;
-};
-
 export type CatalogSearchResponse = {
     items?: any[];
     pagination?: {

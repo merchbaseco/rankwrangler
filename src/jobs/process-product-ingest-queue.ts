@@ -1,7 +1,7 @@
 import { upsertProductInfo } from '@/db/product/upsert-product.js';
 import { getQueueItems } from '@/db/product-ingest-queue/get-queue-items.js';
 import { deleteQueueItems } from '@/db/product-ingest-queue/delete-queue-items.js';
-import { getProductInfoBulk } from '@/services/spapi.js';
+import { searchCatalogItems } from '@/services/spapi.js';
 
 export async function processProductIngestQueue() {
     const queueItems = await getQueueItems(20);
@@ -16,9 +16,11 @@ export async function processProductIngestQueue() {
     const itemIds = queueItems.map(item => item.id);
 
     // Process products from the selected marketplace
-    const { products: fetchedProducts } = await getProductInfoBulk(marketplaceId, asins, { 
-        uid: 'rankwrangler_job_process-product-ingest-queue'
-    });
+    const { products: fetchedProducts } = await searchCatalogItems(
+        marketplaceId,
+        asins,
+        'rankwrangler_job_process-product-ingest-queue'
+    );
     
     if (fetchedProducts.length > 0) {
         for (const productInfo of fetchedProducts) {
