@@ -1,7 +1,7 @@
 import { inArray } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { productRequestQueue } from '@/db/schema.js';
-import { storeProductInfoBulk } from '@/db/products.js';
+import { storeProductInfo } from '@/db/products.js';
 import { getProductInfoBulk } from '@/services/spapi.js';
 
 export async function processProductQueue() {
@@ -27,10 +27,12 @@ export async function processProductQueue() {
     }
 
     for (const [marketplaceId, asins] of groupedByMarketplace) {
-        const { products: fetchedProducts } = await getProductInfoBulk(marketplaceId, asins);
+        const { products: fetchedProducts } = await getProductInfoBulk(marketplaceId, asins, { trackStats: true });
         
         if (fetchedProducts.length > 0) {
-            await storeProductInfoBulk(fetchedProducts);
+            for (const productInfo of fetchedProducts) {
+                await storeProductInfo(productInfo);
+            }
         }
     }
 
