@@ -4,8 +4,8 @@ import { getPacificDateString } from '@/utils/date.js';
 import type { ProductInfo } from '@/types/index.js';
 import { findOrCreateDisplayGroup } from '@/db/display-group/find-or-create-display-group.js';
 
-// Store a single product and its rank history in the database
-export async function storeProductInfo(productInfo: ProductInfo): Promise<void> {
+// Upsert a single product and its rank history in the database
+export async function upsertProductInfo(productInfo: ProductInfo): Promise<void> {
     try {
         const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours
         const today = getPacificDateString();

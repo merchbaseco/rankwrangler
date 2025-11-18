@@ -158,7 +158,7 @@ export const getProductInfoBulk = async (
 
     // Always track SP-API call
     trackSpApiCall({
-        uid: options?.uid || 'rankwrangler_job_process-product-queue',
+        uid: options?.uid || 'rankwrangler_job_process-product-ingest-queue',
         apiName: 'searchCatalogItems',
         source: options?.uid && !options.uid.startsWith('rankwrangler_job_') ? 'user-request' : 'background-job',
     });

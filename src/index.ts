@@ -26,13 +26,13 @@ console.log('[Server] pg-boss initialized');
 await boss.createQueue('product-ingest-queue');
 
 // Register job handlers
-const { processProductQueue } = await import('@/jobs/process-product-queue.js');
-boss.work('product-ingest-queue', processProductQueue);
+const { processProductIngestQueue } = await import('@/jobs/process-product-ingest-queue.js');
+boss.work('product-ingest-queue', processProductIngestQueue);
 
 // Send job to process queue every second
 setInterval(async () => {
     await boss.send('product-ingest-queue', {}, {
-        singletonKey: 'process-product-queue',
+        singletonKey: 'process-product-ingest-queue',
         retryLimit: 1,
     });
 }, 1000);
