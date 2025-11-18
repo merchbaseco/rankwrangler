@@ -92,16 +92,6 @@ export const productRankHistory = pgTable('product_rank_history', {
   dateIdx: index('product_rank_history_date_idx').on(table.date)
 }));
 
-// System stats table with efficient single-row counter design
-export const systemStats = pgTable('system_stats', {
-  id: text('id').primaryKey(), // 'current' for live stats
-  productsInStore: integer('products_in_store').notNull().default(0),
-  totalSpApiCalls: integer('total_sp_api_calls').notNull().default(0),
-  totalCacheHits: integer('total_cache_hits').notNull().default(0),
-  lastResetAt: timestamp('last_reset_at', { mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow()
-});
-
 // Product request queue table
 export const productRequestQueue = pgTable('product_request_queue', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -121,7 +111,5 @@ export type DisplayGroup = InferSelectModel<typeof displayGroups>;
 export type NewDisplayGroup = InferInsertModel<typeof displayGroups>;
 export type ProductRankHistory = InferSelectModel<typeof productRankHistory>;
 export type NewProductRankHistory = InferInsertModel<typeof productRankHistory>;
-export type SystemStats = InferSelectModel<typeof systemStats>;
-export type NewSystemStats = InferInsertModel<typeof systemStats>;
 export type ProductRequestQueue = InferSelectModel<typeof productRequestQueue>;
 export type NewProductRequestQueue = InferInsertModel<typeof productRequestQueue>;

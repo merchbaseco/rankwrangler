@@ -9,7 +9,6 @@ import { listLicenses as dbListLicenses } from "@/db/license/list-licenses.js";
 import { resetLicenseUsage as dbResetLicenseUsage } from "@/db/license/reset-license-usage.js";
 import { checkAndResetDailyUsage } from "@/db/license/check-and-reset-daily-usage.js";
 import { updateUsageStats } from "@/db/license/update-usage-stats.js";
-import { getLicenseStats as dbGetLicenseStats } from "@/db/license/get-license-stats.js";
 
 export interface LicensePayload {
 	sub: string; // License ID
@@ -174,10 +173,6 @@ export const createLicense = async (
 
 export const deleteLicense = async (licenseId: string): Promise<boolean> => {
 	return await dbDeleteLicense(licenseId);
-};
-
-export const getLicenseStats = async () => {
-	return await dbGetLicenseStats();
 };
 
 export const listLicenses = async (): Promise<License[]> => {

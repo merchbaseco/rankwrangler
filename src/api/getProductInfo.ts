@@ -3,6 +3,7 @@ import { requireLicense } from '@/middleware/requireLicense.js';
 import { db } from '@/db/index.js';
 import { productRequestQueue } from '@/db/schema.js';
 import { getProductInfoFromStore } from '@/db/product/get-product.js';
+import { trackApiRequest } from '@/services/posthog.js';
 
 export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
     fastify.post(
@@ -21,6 +22,15 @@ export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
             try {
                 const validatedData = getProductInfoSchema.parse(request.body);
                 const { marketplaceId, asin } = validatedData;
+                const userEmail = request.license?.email || null;
+
+                // Track API request
+                trackApiRequest({
+                    userEmail,
+                    endpoint: '/api/getProductInfo',
+                    marketplaceId,
+                    asin,
+                });
 
                 // Check product store first
                 const cachedProduct = await getProductInfoFromStore(marketplaceId, asin);

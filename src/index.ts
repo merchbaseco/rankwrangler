@@ -6,28 +6,12 @@ import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { runMigrations } from '@/db/migrate.js';
 import { testConnection, db } from '@/db/index.js';
-import { systemStats, productRequestQueue } from '@/db/schema.js';
+import { productRequestQueue } from '@/db/schema.js';
 
 console.log('Starting RankWrangler Server...');
 
 // Run database migrations before starting server
 await runMigrations();
-
-// Initialize system stats row if it doesn't exist
-try {
-  await db.insert(systemStats)
-    .values({
-      id: 'current',
-      productsInStore: 0,
-      totalSpApiCalls: 0,
-      totalCacheHits: 0
-    })
-    .onConflictDoNothing();
-  console.log('[Server] System stats initialized');
-} catch (error) {
-  console.error('[Server] Failed to initialize system stats:', error);
-  // Non-critical, continue server startup
-}
 
 // Test database connection
 await testConnection();
@@ -103,6 +87,7 @@ fastify.get('/api/health', async (request, reply) => {
 fastify.register(async function (fastify) {
   fastify.post('/api/searchCatalog', async (request, reply) => {
     const { searchCatalog } = await import('@/services/spapi.js');
+    const { trackApiRequest } = await import('@/services/posthog.js');
     const { z } = await import('zod');
     
     const searchCatalogSchema = z.object({
@@ -111,6 +96,13 @@ fastify.register(async function (fastify) {
 
     try {
       const validatedData = searchCatalogSchema.parse(request.body);
+      const userEmail = (request as any).license?.email || null;
+      
+      // Track API request
+      trackApiRequest({
+        userEmail,
+        endpoint: '/api/searchCatalog',
+      });
       
       console.log(`[${new Date().toISOString()}] Searching catalog for keywords:`, validatedData.keywords);
       
@@ -150,9 +142,6 @@ fastify.register(async function (fastify) {
   // Register admin license routes
   const { registerAdminLicenseGenerateRoute } = await import('@/api/admin/license/generate.js');
   await registerAdminLicenseGenerateRoute(fastify);
-
-  const { registerAdminLicenseStatsRoute } = await import('@/api/admin/license/stats.js');
-  await registerAdminLicenseStatsRoute(fastify);
 
   const { registerAdminLicenseListRoute } = await import('@/api/admin/license/list.js');
   await registerAdminLicenseListRoute(fastify);
