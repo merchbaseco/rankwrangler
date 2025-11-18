@@ -34,10 +34,11 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 ## Expectations When Editing
 
 1. Keep TypeScript strictness and Biome formatting intact (`biome.json` enforces 4-space indentation, single quotes, semicolons, 100-character lines).
-2. Update both Drizzle SQL migrations and `init.sql` whenever schema changes.
-3. Document new behaviour in `README.md` and extend `test-api.sh` or add automated coverage for new endpoints.
-4. Maintain executable flags on shell scripts (`chmod +x`).
-5. Secrets stay out of version control—use `.env.production` for deployment overrides if needed.
+2. **NEVER create migration files manually** - When schema changes are made, update `src/db/schema.ts` and inform the user to run `yarn drizzle-kit generate` to create migrations. The user will always generate migrations themselves.
+3. Update `init.sql` whenever schema changes (after migrations are generated).
+4. Document new behaviour in `README.md` and extend `test-api.sh` or add automated coverage for new endpoints.
+5. Maintain executable flags on shell scripts (`chmod +x`).
+6. Secrets stay out of version control—use `.env.production` for deployment overrides if needed.
 
 ## Reference
 
