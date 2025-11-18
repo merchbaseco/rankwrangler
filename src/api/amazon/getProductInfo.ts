@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { requireLicense } from '@/middleware/requireLicense.js';
-import { getProductInfoFromSpApi } from '@/services/spapi.js';
+import { getProductInfoBulkFromSpApi } from '@/services/spapi.js';
 
 export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance) {
     fastify.post(
@@ -13,29 +13,52 @@ export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance
 
             const getProductInfoSchema = z.object({
                 marketplaceId: z.string().min(1, 'Marketplace ID is required'),
-                asin: z.string().min(1, 'ASIN is required'),
+                asins: z
+                    .array(
+                        z
+                            .string()
+                            .min(1, 'ASIN is required')
+                            .regex(/^[A-Z0-9]{10}$/i, 'ASIN must be 10 alphanumeric characters')
+                            .transform(value => value.toUpperCase())
+                    )
+                    .min(1, 'At least one ASIN is required')
+                    .max(20, 'You can request up to 20 ASINs at a time'),
             });
 
             try {
                 const validatedData = getProductInfoSchema.parse(request.body);
-                const { marketplaceId, asin } = validatedData;
+                const uniqueAsins = Array.from(new Set(validatedData.asins));
 
                 console.log(
-                    `[${new Date().toISOString()}] Getting product info from SP-API for ${asin}`
+                    `[${new Date().toISOString()}] Getting product info from SP-API for ${uniqueAsins.length} ASIN(s): ${uniqueAsins.join(', ')}`
                 );
 
-                const productInfo = await getProductInfoFromSpApi(marketplaceId, asin);
+                const { products, missing } = await getProductInfoBulkFromSpApi(
+                    validatedData.marketplaceId,
+                    uniqueAsins
+                );
+
+                // If only one ASIN was requested, return single product for backward compatibility
+                if (uniqueAsins.length === 1) {
+                    if (products.length === 0) {
+                        reply.status(404);
+                        return {
+                            success: false,
+                            error: 'Product not found',
+                        };
+                    }
+                    return {
+                        success: true,
+                        data: products[0],
+                    };
+                }
 
                 return {
                     success: true,
-                    data: productInfo,
+                    data: products,
+                    ...(missing.length > 0 ? { missing } : {}),
                 };
             } catch (error) {
-                console.error(
-                    `[${new Date().toISOString()}] Error getting product info from SP-API:`,
-                    error
-                );
-
                 const { z: zod } = await import('zod');
                 if (error instanceof zod.ZodError) {
                     reply.status(400);
@@ -45,6 +68,10 @@ export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance
                     };
                 }
 
+                console.error(
+                    `[${new Date().toISOString()}] Error getting product info from SP-API:`,
+                    error
+                );
                 reply.status(500);
                 return {
                     success: false,

@@ -51,9 +51,6 @@ export async function storeProductInfo(productInfo: ProductInfo): Promise<void> 
         const today = getPacificDateString();
         const creationDate = productInfo.creationDate ? new Date(productInfo.creationDate) : null;
 
-        // Log what we're storing
-        console.log(`[Product Store] Storing product ${productInfo.asin} with thumbnailUrl:`, productInfo.thumbnailUrl);
-        
         // Insert or update product
         const [product] = await db
             .insert(products)
@@ -76,8 +73,6 @@ export async function storeProductInfo(productInfo: ProductInfo): Promise<void> 
                 },
             })
             .returning({ id: products.id });
-        
-        console.log(`[Product Store] Stored product ${productInfo.asin} with id ${product.id}, thumbnailUrl in DB:`, productInfo.thumbnailUrl || null);
 
         // Upsert display groups and insert rank history for today
         for (const rank of productInfo.displayGroupRanks) {
@@ -107,13 +102,6 @@ export async function storeProductInfo(productInfo: ProductInfo): Promise<void> 
         console.log(`[${new Date().toISOString()}] Stored product result for ${productInfo.asin}`);
     } catch (error) {
         console.error(`[Product Store] Error storing result for ${productInfo.asin}:`, error);
-    }
-}
-
-// Store multiple products in bulk
-export async function storeProductInfoBulk(productInfos: ProductInfo[]): Promise<void> {
-    for (const productInfo of productInfos) {
-        await storeProductInfo(productInfo);
     }
 }
 

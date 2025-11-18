@@ -6,7 +6,6 @@ import { db } from '@/db/index.js';
 import { systemStats } from '@/db/schema.js';
 import type {
     CatalogSearchResponse,
-    GetCatalogItemResponse,
     ProductInfo,
     SimplifiedCatalogItem,
 } from '@/types/index.js';
@@ -143,108 +142,11 @@ function parseCatalogItem(item: any): SimplifiedCatalogItem {
     };
 }
 
-export const getProductInfo = async (marketplaceId: string, asin: string): Promise<ProductInfo> => {
-    if (!marketplaceId || typeof marketplaceId !== 'string') {
-        throw new Error('Marketplace ID is required');
-    }
-
-    const sellingPartner = new SellingPartnerAPI({
-        region: 'na',
-        refresh_token: env.SPAPI_REFRESH_TOKEN,
-        credentials: {
-            SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
-            SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
-        },
-    });
-
-    // Track SP-API call
-    await trackApiCall();
-
-    // Use rate limiter for SP-API call
-    const response: GetCatalogItemResponse = await spApiLimiter.schedule(() =>
-        sellingPartner.callAPI({
-            operation: 'getCatalogItem',
-            endpoint: 'catalogItems',
-            path: {
-                asin: asin,
-            },
-            query: {
-                marketplaceIds: [marketplaceId],
-                includedData: 'attributes,summaries,salesRanks,images',
-            },
-            options: {
-                version: '2022-04-01',
-            },
-        })
-    );
-
-    const parsedResult = parseProductInfo(response, asin, marketplaceId);
-    const result = normalizeProductInfo({
-        ...parsedResult,
-        metadata: {
-            ...parsedResult.metadata,
-            cached: false,
-        },
-    });
-
-    console.log(
-        `[${new Date().toISOString()}] SP-API payload for ${asin}: ${JSON.stringify(result)}`
-    );
-
-    return result;
-};
-
-// Pure SP-API call function (no caching, no stats tracking)
-export const getProductInfoFromSpApi = async (
-    marketplaceId: string,
-    asin: string
-): Promise<ProductInfo> => {
-    if (!marketplaceId || typeof marketplaceId !== 'string') {
-        throw new Error('Marketplace ID is required');
-    }
-
-    const sellingPartner = new SellingPartnerAPI({
-        region: 'na',
-        refresh_token: env.SPAPI_REFRESH_TOKEN,
-        credentials: {
-            SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
-            SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
-        },
-    });
-
-    // Use rate limiter for SP-API call
-    const response: GetCatalogItemResponse = await spApiLimiter.schedule(() =>
-        sellingPartner.callAPI({
-            operation: 'getCatalogItem',
-            endpoint: 'catalogItems',
-            path: {
-                asin: asin,
-            },
-            query: {
-                marketplaceIds: [marketplaceId],
-                includedData: 'attributes,summaries,salesRanks,images',
-            },
-            options: {
-                version: '2022-04-01',
-            },
-        })
-    );
-
-    const parsedResult = parseProductInfo(response, asin, marketplaceId);
-    const result = normalizeProductInfo({
-        ...parsedResult,
-        metadata: {
-            ...parsedResult.metadata,
-            cached: false,
-        },
-    });
-
-    return result;
-};
-
+// Get product info using searchCatalogItems API (supports single or multiple ASINs)
 export const getProductInfoBulk = async (
     marketplaceId: string,
-    asins: string[]
+    asins: string[],
+    options?: { trackStats?: boolean }
 ): Promise<{ products: ProductInfo[]; missing: string[] }> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
@@ -274,8 +176,10 @@ export const getProductInfoBulk = async (
         },
     });
 
-    // Track SP-API call for this bulk request
-    await trackApiCall();
+    // Track SP-API call if requested
+    if (options?.trackStats) {
+        await trackApiCall();
+    }
 
     const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>
         sellingPartner.callAPI({
@@ -336,94 +240,15 @@ export const getProductInfoBulk = async (
     };
 };
 
-// Pure SP-API bulk call function (no caching, no stats tracking)
+// Alias for backward compatibility (no stats tracking)
 export const getProductInfoBulkFromSpApi = async (
     marketplaceId: string,
     asins: string[]
 ): Promise<{ products: ProductInfo[]; missing: string[] }> => {
-    if (!marketplaceId || typeof marketplaceId !== 'string') {
-        throw new Error('Marketplace ID is required');
-    }
-
-    const normalizedAsins = Array.from(
-        new Set(
-            asins
-                .map(asin => asin.trim().toUpperCase())
-                .filter(asin => asin.length > 0)
-        )
-    );
-
-    if (normalizedAsins.length === 0) {
-        return {
-            products: [],
-            missing: [],
-        };
-    }
-
-    const sellingPartner = new SellingPartnerAPI({
-        region: 'na',
-        refresh_token: env.SPAPI_REFRESH_TOKEN,
-        credentials: {
-            SELLING_PARTNER_APP_CLIENT_ID: env.SPAPI_CLIENT_ID,
-            SELLING_PARTNER_APP_CLIENT_SECRET: env.SPAPI_APP_CLIENT_SECRET,
-        },
-    });
-
-    const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>
-        sellingPartner.callAPI({
-            operation: 'searchCatalogItems',
-            endpoint: 'catalogItems',
-            path: {},
-            query: {
-                identifiers: normalizedAsins.join(','),
-                identifiersType: 'ASIN',
-                marketplaceIds: marketplaceId,
-                includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
-                pageSize: Math.min(20, normalizedAsins.length),
-            },
-            options: {
-                version: '2022-04-01',
-            },
-        })
-    );
-
-    const results: ProductInfo[] = [];
-    const foundAsins = new Set<string>();
-
-    for (const item of response.items ?? []) {
-        const asin = item.asin;
-
-        if (!asin || !normalizedAsins.includes(asin)) {
-            continue;
-        }
-
-        const parsed = parseProductInfo(item, asin, marketplaceId);
-        const normalized = normalizeProductInfo({
-            ...parsed,
-            metadata: {
-                ...parsed.metadata,
-                cached: false,
-            },
-        });
-
-        results.push(normalized);
-        foundAsins.add(asin);
-    }
-
-    const orderedResults = normalizedAsins
-        .map(asin => results.find(item => item.asin === asin))
-        .filter((item): item is ProductInfo => Boolean(item));
-
-    const missing = normalizedAsins.filter(asin => !foundAsins.has(asin));
-
-    return {
-        products: orderedResults,
-        missing,
-    };
+    return getProductInfoBulk(marketplaceId, asins, { trackStats: false });
 };
 
-function parseProductInfo(response: GetCatalogItemResponse, asin: string, marketplaceId: string): ProductInfo {
-    const item = response;
+function parseProductInfo(item: any, asin: string, marketplaceId: string): ProductInfo {
 
     // Try multiple date field locations
     let creationDate: string | null = null;
@@ -491,49 +316,9 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
 
     // Extract thumbnail URL from images
     let thumbnailUrl: string | undefined;
-    
-    // Log images structure for debugging
-    console.log(`[SP-API] Images structure for ${asin}:`, JSON.stringify({
-        hasImages: !!item.images,
-        imagesLength: item.images?.length ?? 0,
-        firstImageSet: item.images?.[0] ? {
-            hasImages: !!item.images[0].images,
-            imagesLength: item.images[0].images?.length ?? 0,
-            firstImage: item.images[0].images?.[0] ? {
-                link: item.images[0].images[0].link,
-                width: item.images[0].images[0].width,
-                height: item.images[0].images[0].height,
-            } : null,
-        } : null,
-        rawImages: item.images,
-    }, null, 2));
-    
-    // Debug the extraction step by step
-    const hasImages = !!item.images;
-    const hasFirstImageSet = !!item.images?.[0];
-    const hasImagesArray = !!item.images?.[0]?.images;
-    const hasFirstImage = !!item.images?.[0]?.images?.[0];
-    const linkValue = item.images?.[0]?.images?.[0]?.link;
-    
-    console.log(`[SP-API] Extraction check for ${asin}:`, {
-        hasImages,
-        hasFirstImageSet,
-        hasImagesArray,
-        hasFirstImage,
-        linkValue,
-        linkType: typeof linkValue,
-        linkTruthy: !!linkValue,
-    });
-    
     if (item.images?.[0]?.images?.[0]?.link) {
         thumbnailUrl = item.images[0].images[0].link;
-        console.log(`[SP-API] Extracted thumbnailUrl for ${asin}: ${thumbnailUrl}`);
-    } else {
-        console.log(`[SP-API] No thumbnailUrl found for ${asin} - condition failed`);
     }
-    
-    // Also log what we're returning
-    console.log(`[SP-API] Returning ProductInfo for ${asin} with thumbnailUrl:`, thumbnailUrl);
 
     return {
         asin,
