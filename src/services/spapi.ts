@@ -1,7 +1,7 @@
 import { SellingPartner as SellingPartnerAPI } from 'amazon-sp-api';
 import Bottleneck from 'bottleneck';
 import { env } from '@/config/env.js';
-import { trackApiCall } from '@/db/system-stats/track-api-call.js';
+import { trackSpApiCall } from '@/services/posthog.js';
 import type {
     CatalogSearchResponse,
     ProductInfo,
@@ -129,7 +129,7 @@ function parseCatalogItem(item: any): SimplifiedCatalogItem {
 export const getProductInfoBulk = async (
     marketplaceId: string,
     asins: string[],
-    options?: { trackStats?: boolean }
+    options?: { trackStats?: boolean; userEmail?: string | null }
 ): Promise<{ products: ProductInfo[]; missing: string[] }> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
@@ -161,7 +161,11 @@ export const getProductInfoBulk = async (
 
     // Track SP-API call if requested
     if (options?.trackStats) {
-        await trackApiCall();
+        trackSpApiCall({
+            userEmail: options.userEmail || null,
+            apiName: 'searchCatalogItems',
+            source: options.userEmail ? 'user-request' : 'background-job',
+        });
     }
 
     const response: CatalogSearchResponse = await spApiLimiter.schedule(() =>

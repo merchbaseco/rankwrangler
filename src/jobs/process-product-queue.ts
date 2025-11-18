@@ -22,7 +22,10 @@ export async function processProductQueue() {
     }
 
     for (const [marketplaceId, asins] of groupedByMarketplace) {
-        const { products: fetchedProducts } = await getProductInfoBulk(marketplaceId, asins, { trackStats: true });
+        const { products: fetchedProducts } = await getProductInfoBulk(marketplaceId, asins, { 
+            trackStats: true,
+            userEmail: null // Background job, no user context
+        });
         
         if (fetchedProducts.length > 0) {
             for (const productInfo of fetchedProducts) {

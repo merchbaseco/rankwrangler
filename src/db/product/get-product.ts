@@ -3,7 +3,6 @@ import { db } from '@/db/index.js';
 import { products, displayGroups, productRankHistory } from '@/db/schema.js';
 import { getPacificDateString } from '@/utils/date.js';
 import type { ProductInfo } from '@/types/index.js';
-import { trackCacheHit } from '@/db/system-stats/track-cache-hit.js';
 
 // Retrieve product info from store (if exists and has today's rank history)
 export async function getProductInfoFromStore(
@@ -51,9 +50,6 @@ export async function getProductInfoFromStore(
         if (rankHistory.length === 0) {
             return null;
         }
-
-        // Track cache hit
-        await trackCacheHit();
 
         const displayGroupRanks = rankHistory.map(rh => ({
             rank: rh.rank,
