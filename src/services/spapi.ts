@@ -491,8 +491,28 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
 
     // Extract thumbnail URL from images
     let thumbnailUrl: string | undefined;
+    
+    // Log images structure for debugging
+    console.log(`[SP-API] Images structure for ${asin}:`, JSON.stringify({
+        hasImages: !!item.images,
+        imagesLength: item.images?.length ?? 0,
+        firstImageSet: item.images?.[0] ? {
+            hasImages: !!item.images[0].images,
+            imagesLength: item.images[0].images?.length ?? 0,
+            firstImage: item.images[0].images?.[0] ? {
+                link: item.images[0].images[0].link,
+                width: item.images[0].images[0].width,
+                height: item.images[0].images[0].height,
+            } : null,
+        } : null,
+        rawImages: item.images,
+    }, null, 2));
+    
     if (item.images?.[0]?.images?.[0]?.link) {
         thumbnailUrl = item.images[0].images[0].link;
+        console.log(`[SP-API] Extracted thumbnailUrl for ${asin}: ${thumbnailUrl}`);
+    } else {
+        console.log(`[SP-API] No thumbnailUrl found for ${asin}`);
     }
 
     return {
