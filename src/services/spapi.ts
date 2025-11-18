@@ -1,9 +1,7 @@
 import { SellingPartner as SellingPartnerAPI } from 'amazon-sp-api';
 import Bottleneck from 'bottleneck';
-import { eq, sql } from 'drizzle-orm';
 import { env } from '@/config/env.js';
-import { db } from '@/db/index.js';
-import { systemStats } from '@/db/schema.js';
+import { trackApiCall } from '@/db/system-stats/track-api-call.js';
 import type {
     CatalogSearchResponse,
     ProductInfo,
@@ -18,21 +16,6 @@ const spApiLimiter = new Bottleneck({
     reservoirRefreshAmount: 2,
     reservoirRefreshInterval: 1000, // Refresh every second
 });
-
-// Helper functions for stats tracking
-async function trackApiCall() {
-    try {
-        await db
-            .update(systemStats)
-            .set({
-                totalSpApiCalls: sql`${systemStats.totalSpApiCalls} + 1`,
-                updatedAt: new Date(),
-            })
-            .where(eq(systemStats.id, 'current'));
-    } catch (error) {
-        console.error('[Stats] Failed to track API call:', error);
-    }
-}
 
 
 
