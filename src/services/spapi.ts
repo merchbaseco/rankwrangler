@@ -489,6 +489,12 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
         bsrCategory = displayGroupRanks[0].category;
     }
 
+    // Extract thumbnail URL from images
+    let thumbnailUrl: string | undefined;
+    if (item.images?.[0]?.images?.[0]?.link) {
+        thumbnailUrl = item.images[0].images[0].link;
+    }
+
     return {
         asin,
         marketplaceId,
@@ -496,6 +502,7 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
         bsr,
         bsrCategory,
         displayGroupRanks,
+        thumbnailUrl,
         metadata: {
             lastFetched: new Date().toISOString(),
             cached: false,

@@ -42,6 +42,9 @@ export type ProductInfo = {
     // Detailed rankings matching SP-API structure
     displayGroupRanks: ProductRanking[];
     
+    // Thumbnail URL from SP-API
+    thumbnailUrl?: string;
+    
     metadata: {
         lastFetched: string; // ISO timestamp when data was fetched from SP-API
         cached: boolean;     // true if served from product store, false if fresh from SP-API

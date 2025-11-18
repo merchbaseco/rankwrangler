@@ -58,6 +58,7 @@ export async function storeProductInfo(productInfo: ProductInfo): Promise<void> 
                 marketplaceId: productInfo.marketplaceId,
                 asin: productInfo.asin,
                 creationDate,
+                thumbnailUrl: productInfo.thumbnailUrl || null,
                 lastFetched: new Date(),
                 expiresAt,
             })
@@ -65,6 +66,7 @@ export async function storeProductInfo(productInfo: ProductInfo): Promise<void> 
                 target: [products.marketplaceId, products.asin],
                 set: {
                     creationDate,
+                    thumbnailUrl: productInfo.thumbnailUrl || null,
                     lastFetched: new Date(),
                     expiresAt,
                     createdAt: new Date(),
@@ -173,6 +175,7 @@ export async function getProductInfoFromStore(
             asin: product.asin,
             marketplaceId: product.marketplaceId,
             creationDate: product.creationDate?.toISOString() || null,
+            thumbnailUrl: product.thumbnailUrl || undefined,
             bsr,
             bsrCategory,
             displayGroupRanks,
