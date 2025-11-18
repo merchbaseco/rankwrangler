@@ -1,15 +1,10 @@
-import { inArray } from 'drizzle-orm';
-import { db } from '@/db/index.js';
-import { productRequestQueue } from '@/db/schema.js';
-import { storeProductInfo } from '@/db/products.js';
+import { storeProductInfo } from '@/db/product/store-product.js';
+import { getQueueItems } from '@/db/product-request-queue/get-queue-items.js';
+import { deleteQueueItems } from '@/db/product-request-queue/delete-queue-items.js';
 import { getProductInfoBulk } from '@/services/spapi.js';
 
 export async function processProductQueue() {
-    const queueItems = await db
-        .select()
-        .from(productRequestQueue)
-        .orderBy(productRequestQueue.createdAt)
-        .limit(20);
+    const queueItems = await getQueueItems(20);
 
     if (queueItems.length === 0) {
         return;
@@ -36,7 +31,7 @@ export async function processProductQueue() {
         }
     }
 
-    await db.delete(productRequestQueue).where(inArray(productRequestQueue.id, itemIds));
+    await deleteQueueItems(itemIds);
     console.log(`[Queue] Processed ${itemIds.length} queue items`);
 }
 

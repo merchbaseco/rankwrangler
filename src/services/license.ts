@@ -1,10 +1,15 @@
 import jwt from "jsonwebtoken";
 import { nanoid } from "nanoid";
-import { eq, lt, lte, gt, ne, isNull, and, gte } from "drizzle-orm";
-import { sql } from "drizzle-orm";
 import { env } from "@/config/env.js";
-import { db } from "@/db/index.js";
-import { licenses, products, systemStats, type License, type LicenseMetadata } from "@/db/schema.js";
+import { type License, type LicenseMetadata } from "@/db/schema.js";
+import { createLicense as dbCreateLicense } from "@/db/license/create-license.js";
+import { deleteLicense as dbDeleteLicense } from "@/db/license/delete-license.js";
+import { getLicenseById as dbGetLicenseById } from "@/db/license/get-license-by-id.js";
+import { listLicenses as dbListLicenses } from "@/db/license/list-licenses.js";
+import { resetLicenseUsage as dbResetLicenseUsage } from "@/db/license/reset-license-usage.js";
+import { checkAndResetDailyUsage } from "@/db/license/check-and-reset-daily-usage.js";
+import { updateUsageStats } from "@/db/license/update-usage-stats.js";
+import { getLicenseStats as dbGetLicenseStats } from "@/db/license/get-license-stats.js";
 
 export interface LicensePayload {
 	sub: string; // License ID
@@ -56,7 +61,7 @@ export const validateLicense = async (
 		console.log(
 			`[License Validation] Searching database for license with key...`,
 		);
-		const [license] = await db.select().from(licenses).where(eq(licenses.key, key));
+		let license = await dbGetLicenseById('key', key);
 		console.log('[License Validation] License query result:', JSON.stringify(license));
 		if (!license) {
 			console.log(
@@ -65,7 +70,7 @@ export const validateLicense = async (
 
 			// Try to find by JWT subject (license ID)
 			console.log(`[License Validation] Trying to find by ID: ${decoded.sub}`);
-			const [licenseById] = await db.select().from(licenses).where(eq(licenses.id, decoded.sub));
+			const licenseById = await dbGetLicenseById('id', decoded.sub);
 
 			if (licenseById) {
 				console.log(
@@ -87,6 +92,12 @@ export const validateLicense = async (
 
 		// 3. Check and reset daily usage if needed
 		await checkAndResetDailyUsage(license);
+		
+		// Refresh license data after potential reset
+		license = await dbGetLicenseById('id', license.id);
+		if (!license) {
+			return { valid: false, error: "License not found after reset" };
+		}
 
 		// 6. Check daily rate limits (skip if unlimited)
 		const dailyLimit = license.metadata.limits.requests_per_day;
@@ -121,36 +132,6 @@ export const validateLicense = async (
 	}
 };
 
-const checkAndResetDailyUsage = async (license: License): Promise<void> => {
-	const now = new Date();
-	const lastReset = new Date(license.lastResetAt);
-
-	// Check if it's a new day (UTC)
-	const isNewDay =
-		now.getUTCDate() !== lastReset.getUTCDate() ||
-		now.getUTCMonth() !== lastReset.getUTCMonth() ||
-		now.getUTCFullYear() !== lastReset.getUTCFullYear();
-
-	if (isNewDay) {
-		await db.update(licenses)
-			.set({
-				usageToday: 0,
-				lastResetAt: now,
-			})
-			.where(eq(licenses.id, license.id));
-	}
-};
-
-const updateUsageStats = async (license: License): Promise<void> => {
-	// Increment usage counters and update last used timestamp
-	await db.update(licenses)
-		.set({
-			usageCount: sql`${licenses.usageCount} + 1`,
-			usageToday: sql`${licenses.usageToday} + 1`,
-			lastUsedAt: new Date()
-		})
-		.where(eq(licenses.id, license.id));
-};
 
 export const createLicense = async (
 	email: string,
@@ -162,27 +143,14 @@ export const createLicense = async (
 		const features = ["basic_access"];
 		const requestsPerDay = unlimited ? -1 : 100000;
 
-		const licenseData = {
-			key,
-			email,
-			metadata: {
-				features,
-				limits: {
-					requests_per_day: requestsPerDay,
-				},
-			} as LicenseMetadata,
-			usageCount: 0,
-			usageToday: 0,
-			lastResetAt: new Date(),
+		const metadata: LicenseMetadata = {
+			features,
+			limits: {
+				requests_per_day: requestsPerDay,
+			},
 		};
 
-		const [license] = await db.insert(licenses).values(licenseData).returning();
-
-		console.log(`[License Service] License created:`, {
-			id: license.id,
-			hasKey: !!license.key,
-			keyLength: license.key ? license.key.length : 0,
-		});
+		const license = await dbCreateLicense(key, email, metadata);
 
 		return license;
 	} catch (error) {
@@ -205,84 +173,26 @@ export const createLicense = async (
 };
 
 export const deleteLicense = async (licenseId: string): Promise<boolean> => {
-	const result = await db.delete(licenses)
-		.where(eq(licenses.id, licenseId))
-		.returning({ id: licenses.id });
-
-	return result.length > 0;
+	return await dbDeleteLicense(licenseId);
 };
 
 export const getLicenseStats = async () => {
-	const [totalCount] = await db.select({ count: sql<number>`count(*)` }).from(licenses);
-
-	const total = totalCount.count;
-
-	// Get products in store count (live count)
-	const [productCount] = await db.select({ 
-		count: sql<number>`count(*)` 
-	})
-	.from(products)
-	.where(gte(products.expiresAt, new Date()));
-
-	// Get system stats (counters)
-	const [stats] = await db.select()
-		.from(systemStats)
-		.where(eq(systemStats.id, 'current'))
-		.limit(1);
-
-	return {
-		total,
-		productsInStore: productCount.count,
-		recentApiCalls: stats?.totalSpApiCalls || 0,
-		totalCacheHits: stats?.totalCacheHits || 0
-	};
+	return await dbGetLicenseStats();
 };
 
 export const listLicenses = async (): Promise<License[]> => {
-	return await db.select()
-		.from(licenses)
-		.orderBy(sql`${licenses.createdAt} DESC`);
+	return await dbListLicenses();
 };
 
 export const getLicenseById = async (
 	searchBy: "id" | "email" | "key",
 	value: string,
 ): Promise<License | null> => {
-	let whereClause;
-
-	switch (searchBy) {
-		case "id":
-			whereClause = eq(licenses.id, value); // UUID, not parseInt
-			break;
-		case "email":
-			whereClause = eq(licenses.email, value);
-			break;
-		case "key":
-			whereClause = eq(licenses.key, value);
-			break;
-		default:
-			throw new Error("Invalid search type");
-	}
-
-	const results = await db.select()
-		.from(licenses)
-		.where(whereClause)
-		.orderBy(sql`${licenses.createdAt} DESC`)
-		.limit(1);
-
-	return results[0] || null;
+	return await dbGetLicenseById(searchBy, value);
 };
 
 export const resetLicenseUsage = async (
 	licenseId: string,
 ): Promise<boolean> => {
-	const result = await db.update(licenses)
-		.set({
-			usageToday: 0,
-			lastResetAt: new Date(),
-		})
-		.where(eq(licenses.id, licenseId))
-		.returning({ id: licenses.id });
-
-	return result.length > 0;
+	return await dbResetLicenseUsage(licenseId);
 };

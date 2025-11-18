@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { requireLicense } from '@/middleware/requireLicense.js';
 import { db } from '@/db/index.js';
 import { productRequestQueue } from '@/db/schema.js';
-import { getProductInfoFromStore } from '@/db/products.js';
+import { getProductInfoFromStore } from '@/db/product/get-product.js';
 
 export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
     fastify.post(
