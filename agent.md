@@ -43,7 +43,6 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 ## Reference
 
 - Health endpoint: `GET /api/health`
-- Catalog search: `POST /api/searchCatalog`
 - License management lives in `src/services/license.ts`
 - SP-API integration lives in `src/services/spapi.ts`
 

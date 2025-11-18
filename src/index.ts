@@ -85,46 +85,6 @@ fastify.get('/api/health', async (request, reply) => {
 
 // API routes
 fastify.register(async function (fastify) {
-  fastify.post('/api/searchCatalog', async (request, reply) => {
-    const { searchCatalog } = await import('@/services/spapi.js');
-    const { trackApiRequest } = await import('@/services/posthog.js');
-    const { z } = await import('zod');
-    
-    const searchCatalogSchema = z.object({
-      keywords: z.array(z.string()).min(1, 'At least one keyword is required'),
-    });
-
-    try {
-      const validatedData = searchCatalogSchema.parse(request.body);
-      const uid = (request as any).license?.email || 'anonymous';
-      
-      // Track API request
-      trackApiRequest({
-        uid,
-        endpoint: '/api/searchCatalog',
-      });
-      
-      console.log(`[${new Date().toISOString()}] Searching catalog for keywords:`, validatedData.keywords);
-      
-      const results = await searchCatalog(validatedData.keywords);
-      
-      console.log(`[${new Date().toISOString()}] Found ${results.length} catalog items`);
-      
-      return {
-        success: true,
-        data: results,
-      };
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] Error searching catalog:`, error);
-      
-      reply.status(500);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  });
-
   // Register API routes
   const { registerGetProductInfoRoute } = await import('@/api/getProductInfo.js');
   await registerGetProductInfoRoute(fastify);
@@ -233,7 +193,7 @@ try {
   
   console.log(`[${new Date().toISOString()}] RankWrangler Server running on port ${port}`);
   console.log(`[${new Date().toISOString()}] Health check: http://localhost:${port}/api/health`);
-  console.log(`[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/searchCatalog, http://localhost:${port}/api/getProductInfo, http://localhost:${port}/api/amazon/getProductInfo`);
+  console.log(`[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/getProductInfo, http://localhost:${port}/api/amazon/getProductInfo`);
 } catch (err) {
   console.error('Failed to start server:', err);
   process.exit(1);

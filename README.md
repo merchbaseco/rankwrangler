@@ -39,7 +39,7 @@ NODE_ENV=production yarn start
 - `yarn start` – run the compiled server using `dotenv-cli` (expects `dist/index.js`)
 - `yarn deploy` – helper script for the legacy standalone deployment (exits with guidance)
 - `./scripts/commands.sh` – utilities for managing the production container over SSH (`logs`, `status`, `restart`, etc.)
-- `./test-api.sh` – quick smoke tests for the health check and `searchCatalog` endpoint
+- `./test-api.sh` – quick smoke tests for the health check endpoint
 
 ## Docker
 
@@ -61,4 +61,4 @@ Manual smoke tests:
 ./test-api.sh
 ```
 
-This script hits the health endpoint and exercises sample payloads for `searchCatalog`. Add new automated tests when extending the API surface.
+This script hits the health endpoint. Add new automated tests when extending the API surface.

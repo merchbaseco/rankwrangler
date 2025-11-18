@@ -40,17 +40,15 @@ export function trackApiRequest(params: {
  * Track an SP-API call event
  */
 export function trackSpApiCall(params: {
-    uid: string;
+    caller: string;
     apiName: string;
-    source?: 'user-request' | 'background-job';
 }) {
     try {
         client.capture({
-            distinctId: params.uid,
+            distinctId: params.caller,
             event: 'sp_api_call',
             properties: {
                 apiName: params.apiName,
-                source: params.source || 'background-job',
             }
         });
     } catch (error) {
