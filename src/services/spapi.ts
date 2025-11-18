@@ -508,12 +508,32 @@ function parseProductInfo(response: GetCatalogItemResponse, asin: string, market
         rawImages: item.images,
     }, null, 2));
     
+    // Debug the extraction step by step
+    const hasImages = !!item.images;
+    const hasFirstImageSet = !!item.images?.[0];
+    const hasImagesArray = !!item.images?.[0]?.images;
+    const hasFirstImage = !!item.images?.[0]?.images?.[0];
+    const linkValue = item.images?.[0]?.images?.[0]?.link;
+    
+    console.log(`[SP-API] Extraction check for ${asin}:`, {
+        hasImages,
+        hasFirstImageSet,
+        hasImagesArray,
+        hasFirstImage,
+        linkValue,
+        linkType: typeof linkValue,
+        linkTruthy: !!linkValue,
+    });
+    
     if (item.images?.[0]?.images?.[0]?.link) {
         thumbnailUrl = item.images[0].images[0].link;
         console.log(`[SP-API] Extracted thumbnailUrl for ${asin}: ${thumbnailUrl}`);
     } else {
-        console.log(`[SP-API] No thumbnailUrl found for ${asin}`);
+        console.log(`[SP-API] No thumbnailUrl found for ${asin} - condition failed`);
     }
+    
+    // Also log what we're returning
+    console.log(`[SP-API] Returning ProductInfo for ${asin} with thumbnailUrl:`, thumbnailUrl);
 
     return {
         asin,
