@@ -20,3 +20,10 @@ Use Conventional Commit prefixes (`feat:`, `fix:`, `refactor:`). Call out schema
 
 ## Environment & Security Notes
 Run on Node ≥18 with Yarn 4 (Corepack). Keep secrets in `.env` files—never commit production credentials. Ship database changes with matching SQL in `drizzle/` and `init.sql`. Deployment scripts under `scripts/` must remain executable.
+
+## Database Migrations
+**CRITICAL**: NEVER create migration files manually. When making schema changes:
+1. Update `src/db/schema.ts` with your changes
+2. Inform the user to run `yarn drizzle-kit generate` to create migrations
+3. The user will always generate migrations themselves
+4. After migrations are generated, update `init.sql` to match the new schema
