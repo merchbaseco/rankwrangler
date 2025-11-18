@@ -51,6 +51,9 @@ export async function storeProductInfo(productInfo: ProductInfo): Promise<void> 
         const today = getPacificDateString();
         const creationDate = productInfo.creationDate ? new Date(productInfo.creationDate) : null;
 
+        // Log what we're storing
+        console.log(`[Product Store] Storing product ${productInfo.asin} with thumbnailUrl:`, productInfo.thumbnailUrl);
+        
         // Insert or update product
         const [product] = await db
             .insert(products)
@@ -73,6 +76,8 @@ export async function storeProductInfo(productInfo: ProductInfo): Promise<void> 
                 },
             })
             .returning({ id: products.id });
+        
+        console.log(`[Product Store] Stored product ${productInfo.asin} with id ${product.id}, thumbnailUrl in DB:`, productInfo.thumbnailUrl || null);
 
         // Upsert display groups and insert rank history for today
         for (const rank of productInfo.displayGroupRanks) {
