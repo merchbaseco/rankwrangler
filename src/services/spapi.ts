@@ -170,7 +170,7 @@ export const getProductInfo = async (marketplaceId: string, asin: string): Promi
             },
             query: {
                 marketplaceIds: [marketplaceId],
-                includedData: 'attributes,summaries,salesRanks',
+                includedData: 'attributes,summaries,salesRanks,images',
             },
             options: {
                 version: '2022-04-01',
@@ -222,7 +222,7 @@ export const getProductInfoFromSpApi = async (
             },
             query: {
                 marketplaceIds: [marketplaceId],
-                includedData: 'attributes,summaries,salesRanks',
+                includedData: 'attributes,summaries,salesRanks,images',
             },
             options: {
                 version: '2022-04-01',
@@ -286,7 +286,7 @@ export const getProductInfoBulk = async (
                 identifiers: normalizedAsins.join(','),
                 identifiersType: 'ASIN',
                 marketplaceIds: marketplaceId,
-                includedData: ['summaries', 'salesRanks', 'attributes'],
+                includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
                 pageSize: Math.min(20, normalizedAsins.length),
             },
             options: {
@@ -378,7 +378,7 @@ export const getProductInfoBulkFromSpApi = async (
                 identifiers: normalizedAsins.join(','),
                 identifiersType: 'ASIN',
                 marketplaceIds: marketplaceId,
-                includedData: ['summaries', 'salesRanks', 'attributes'],
+                includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
                 pageSize: Math.min(20, normalizedAsins.length),
             },
             options: {
