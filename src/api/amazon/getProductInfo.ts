@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { requireLicense } from '@/middleware/requireLicense.js';
-import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 import { trackApiRequest } from '@/services/posthog.js';
+import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 
 export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance) {
     fastify.post(
@@ -45,11 +45,15 @@ export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance
                 );
 
                 // Use searchCatalogItemsByAsins with user context
-                const { products, missing } = await searchCatalogItemsByAsins(
+                const products = await searchCatalogItemsByAsins(
                     validatedData.marketplaceId,
                     uniqueAsins,
                     caller
                 );
+
+                // Calculate missing ASINs (requested but not found)
+                const foundAsins = new Set(products.map(p => p.asin));
+                const missing = uniqueAsins.filter(asin => !foundAsins.has(asin));
 
                 // If only one ASIN was requested, return single product for backward compatibility
                 if (uniqueAsins.length === 1) {
@@ -94,4 +98,3 @@ export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance
         }
     );
 }
-

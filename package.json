@@ -14,10 +14,10 @@
     "stop": "./scripts/commands.sh stop"
   },
   "dependencies": {
+    "@amazon-sp-api-release/amazon-sp-api-sdk-js": "^1.6.0",
     "@fastify/cors": "^11.1.0",
     "@fastify/helmet": "^13.0.1",
     "@t3-oss/env-core": "^0.13.8",
-    "amazon-sp-api": "^1.1.6",
     "bottleneck": "^2.19.5",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
@@ -34,6 +34,7 @@
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.2.2",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.3.0",
     "@types/pg": "^8",

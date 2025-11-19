@@ -1,29 +1,20 @@
-import { SellingPartner as SellingPartnerAPI } from 'amazon-sp-api';
-import Bottleneck from 'bottleneck';
-import { env } from '@/config/env.js';
+import { z } from 'zod';
 import { trackSpApiCall } from '@/services/posthog.js';
-import type {
-    CatalogSearchResponse,
-    ProductInfo,
-} from '@/types/index.js';
-import { sellingPartnerApiClient, spApiRateLimiter } from '.';
-
+import type { ProductInfo } from '@/types/index.js';
+import { catalogApi, spApiRateLimiter } from './index.js';
 
 // Get product info using searchCatalogItems API (supports single or multiple ASINs)
 export const searchCatalogItemsByAsins = async (
     marketplaceId: string,
     asins: string[],
     caller: string
-): Promise<{ products: ProductInfo[]; missing: string[] }> => {
+): Promise<ProductInfo[]> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
     }
 
     if (asins.length === 0) {
-        return {
-            products: [],
-            missing: [],
-        };
+        throw new Error('ASINs are required');
     }
 
     // Always track SP-API call
@@ -32,136 +23,75 @@ export const searchCatalogItemsByAsins = async (
         apiName: 'searchCatalogItems',
     });
 
-    const response: CatalogSearchResponse = await spApiRateLimiter.schedule(() =>
-        sellingPartnerApiClient.callAPI({
-            operation: 'searchCatalogItems',
-            endpoint: 'catalogItems',
-            path: {},
-            query: {
-                identifiers: normalizedAsins.join(','),
-                identifiersType: 'ASIN',
-                marketplaceIds: marketplaceId,
-                includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
-                pageSize: 20,
-            },
-            options: {
-                version: '2022-04-01',
-            },
+    const rawResponse = await spApiRateLimiter.schedule(() =>
+        catalogApi.searchCatalogItems([marketplaceId], {
+            identifiers: asins,
+            identifiersType: 'ASIN',
+            includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
+            pageSize: 20,
         })
     );
+
+    // Validate response with Zod schema
+    const response = ItemSearchResultsSchema.parse(rawResponse);
 
     const results: ProductInfo[] = [];
     const foundAsins = new Set<string>();
 
-    for (const item of response.items ?? []) {
+    const items = response.items;
+
+    for (const rawItem of items) {
+        // Validate each item with Zod schema
+        const item = ItemSchema.parse(rawItem);
         const asin = item.asin;
 
-        if (!asin || !normalizedAsins.includes(asin)) {
+        if (!asins.includes(asin)) {
             continue;
         }
 
-        const parsed = parseProductInfo(item, asin, marketplaceId);
-        const normalized = normalizeProductInfo({
-            ...parsed,
-            metadata: {
-                ...parsed.metadata,
-                cached: false,
-            },
-        });
-
-        results.push(normalized);
+        const productInfo = parseProductInfo(item, asin, marketplaceId);
+        results.push(productInfo);
         foundAsins.add(asin);
     }
 
-    const orderedResults = normalizedAsins
+    const orderedResults = asins
         .map(asin => results.find(item => item.asin === asin))
         .filter((item): item is ProductInfo => Boolean(item));
 
-    const missing = normalizedAsins.filter(asin => !foundAsins.has(asin));
-
-    if (missing.length > 0) {
-        console.warn(
-            `[${new Date().toISOString()}] No catalog data returned for ASINs: ${missing.join(', ')}`
-        );
-    }
-
-    return {
-        products: orderedResults,
-        missing,
-    };
+    return orderedResults ?? [];
 };
 
-function parseProductInfo(item: any, asin: string, marketplaceId: string): ProductInfo {
+function parseProductInfo(item: Item, asin: string, marketplaceId: string): ProductInfo {
+    // Get release date from summaries
+    const summary = item.summaries?.find(s => s.marketplaceId === marketplaceId);
+    const creationDate = summary?.releaseDate
+        ? new Date(summary.releaseDate).toISOString().split('T')[0]
+        : null;
 
-    // Try multiple date field locations
-    let creationDate: string | null = null;
+    // Extract display group rankings
+    const salesRank = item.salesRanks?.find(sr => sr.marketplaceId === marketplaceId);
+    const displayGroupRanks =
+        salesRank?.displayGroupRanks
+            ?.map(rank => ({
+                rank: rank.rank,
+                category: rank.title,
+                link: rank.link,
+            }))
+            .filter(rank => rank.rank && rank.category) ?? [];
 
-    // Check attributes for date fields
-    if (item.attributes) {
-        // Look for various date-related attributes
-        const dateFields = [
-            'product_site_launch_date',
-            'date_first_available',
-            'date_first_listed',
-            'street_date',
-            'first_available_date',
-            'listing_date',
-        ];
-
-        for (const field of dateFields) {
-            if (item.attributes[field]) {
-                const dateValue = Array.isArray(item.attributes[field])
-                    ? item.attributes[field][0]?.value
-                    : item.attributes[field];
-                if (dateValue) {
-                    creationDate = dateValue;
-                    break;
-                }
-            }
-        }
-    }
-
-    // Fallback to summaries release date if no attribute date found
-    if (!creationDate) {
-        creationDate = item.summaries?.[0]?.releaseDate || null;
-    }
-
-    // Extract display group rankings only
-    const displayGroupRanks: Array<{ rank: number; category: string; link?: string }> = [];
-    const salesRanks = item.salesRanks?.[0];
-    
-    if (salesRanks) {
-        // Add displayGroupRanks (broader categories)
-        if (salesRanks.displayGroupRanks) {
-            for (const displayRank of salesRanks.displayGroupRanks) {
-                if (displayRank.rank && displayRank.title) {
-                    displayGroupRanks.push({
-                        rank: displayRank.rank,
-                        category: displayRank.title,
-                        link: displayRank.link,
-                    });
-                }
-            }
-        }
-    }
-    
     // Sort by rank (lowest/best first)
     displayGroupRanks.sort((a, b) => a.rank - b.rank);
-    
-    // Determine primary BSR (first display group rank)
-    let bsr: number | null = null;
-    let bsrCategory: string | null = null;
-    
-    if (displayGroupRanks.length > 0) {
-        bsr = displayGroupRanks[0].rank;
-        bsrCategory = displayGroupRanks[0].category;
-    }
 
-    // Extract thumbnail URL from images
-    let thumbnailUrl: string | undefined;
-    if (item.images?.[0]?.images?.[0]?.link) {
-        thumbnailUrl = item.images[0].images[0].link;
-    }
+    // Determine primary BSR (first display group rank)
+    const bsr = displayGroupRanks[0]?.rank ?? null;
+    const bsrCategory = displayGroupRanks[0]?.category ?? null;
+
+    // Extract thumbnail URL from images (get MAIN variant or first image)
+    const imageGroup = item.images?.find(img => img.marketplaceId === marketplaceId);
+    const mainImage =
+        imageGroup?.images?.find(img => img.variant === VariantSchema.enum.MAIN) ??
+        imageGroup?.images?.[0];
+    const thumbnailUrl = mainImage?.link;
 
     return {
         asin,
@@ -178,41 +108,70 @@ function parseProductInfo(item: any, asin: string, marketplaceId: string): Produ
     };
 }
 
-function normalizeProductInfo(data: ProductInfo): ProductInfo {
-    const displayGroupRanks = Array.isArray(data.displayGroupRanks)
-        ? data.displayGroupRanks
-        : [];
+// ==========================================
+// Zod Schemas - Only fields we actually use
+// ==========================================
 
-    let bsr =
-        typeof data.bsr === 'number' && Number.isFinite(data.bsr) ? data.bsr : null;
-    let bsrCategory =
-        typeof data.bsrCategory === 'string' && data.bsrCategory.length > 0
-            ? data.bsrCategory
-            : null;
+// Image variant enum (used to find MAIN image)
+const VariantSchema = z.enum([
+    'MAIN',
+    'PT01',
+    'PT02',
+    'PT03',
+    'PT04',
+    'PT05',
+    'PT06',
+    'PT07',
+    'PT08',
+    'SWCH',
+]);
 
-    if (bsr === null && displayGroupRanks.length > 0) {
-        bsr = displayGroupRanks[0].rank ?? null;
-        bsrCategory = displayGroupRanks[0].category ?? bsrCategory;
-    }
+// Display group sales rank (used for BSR extraction)
+const ItemDisplayGroupSalesRankSchema = z.object({
+    websiteDisplayGroup: z.string(),
+    title: z.string(),
+    link: z.string().optional(),
+    rank: z.number(),
+});
 
-    if (!bsrCategory && displayGroupRanks.length > 0) {
-        bsrCategory = displayGroupRanks[0].category ?? null;
-    }
+// Sales ranks by marketplace (contains displayGroupRanks)
+const ItemSalesRanksByMarketplaceSchema = z.object({
+    marketplaceId: z.string(),
+    displayGroupRanks: z.array(ItemDisplayGroupSalesRankSchema).optional(),
+});
 
-    if (bsr !== null && !bsrCategory) {
-        bsrCategory = 'Unknown Category';
-    }
+// Summary by marketplace (contains releaseDate)
+const ItemSummaryByMarketplaceSchema = z.object({
+    marketplaceId: z.string(),
+    releaseDate: z.string().optional(),
+});
 
-    const metadata = {
-        lastFetched: data.metadata?.lastFetched ?? new Date().toISOString(),
-        cached: Boolean(data.metadata?.cached),
-    };
+// Image schema (variant and link are used)
+const ItemImageSchema = z.object({
+    variant: VariantSchema,
+    link: z.string(),
+    height: z.number().optional(),
+    width: z.number().optional(),
+});
 
-    return {
-        ...data,
-        bsr,
-        bsrCategory,
-        displayGroupRanks,
-        metadata,
-    };
-}
+// Images by marketplace
+const ItemImagesByMarketplaceSchema = z.object({
+    marketplaceId: z.string(),
+    images: z.array(ItemImageSchema),
+});
+
+// Item schema (only fields we extract)
+const ItemSchema = z.object({
+    asin: z.string(),
+    summaries: z.array(ItemSummaryByMarketplaceSchema).optional(),
+    salesRanks: z.array(ItemSalesRanksByMarketplaceSchema).optional(),
+    images: z.array(ItemImagesByMarketplaceSchema).optional(),
+});
+
+// Response schema (only items array is used)
+const ItemSearchResultsSchema = z.object({
+    items: z.array(ItemSchema),
+});
+
+// Type definitions
+type Item = z.infer<typeof ItemSchema>;
