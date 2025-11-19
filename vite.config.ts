@@ -14,8 +14,8 @@ export default defineConfig({
         'fastify',
         '@fastify/cors',
         '@fastify/helmet',
-        // Amazon SP-API (complex dependencies, doesn't bundle well)
-        'amazon-sp-api',
+        // Amazon SP-API SDK (complex dependencies, doesn't bundle well)
+        '@amazon-sp-api-release/amazon-sp-api-sdk-js',
         // pg-boss (PostgreSQL job queue, uses native modules)
         'pg-boss'
       ],
