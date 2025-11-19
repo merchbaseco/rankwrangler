@@ -1,12 +1,10 @@
-import Fastify from 'fastify';
-import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
-import { sql } from 'drizzle-orm';
+import helmet from '@fastify/helmet';
+import Fastify from 'fastify';
 import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
+import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
-import { testConnection, db } from '@/db/index.js';
-import { productIngestQueue } from '@/db/schema.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -31,156 +29,116 @@ boss.work('product-ingest-queue', processProductIngestQueue);
 
 // Send job to process queue every second
 setInterval(async () => {
-    await boss.send('product-ingest-queue', {}, {
-        singletonKey: 'process-product-ingest-queue',
-        retryLimit: 1,
-    });
+    await boss.send(
+        'product-ingest-queue',
+        {},
+        {
+            singletonKey: 'process-product-ingest-queue',
+            retryLimit: 1,
+        }
+    );
 }, 1000);
 
 const fastify = Fastify({
-  logger: false  // Disable Pino logger to avoid bundling issues
+    logger: false, // Disable Pino logger to avoid bundling issues
 });
 
 // Register Fastify plugins
 await fastify.register(helmet);
 await fastify.register(cors, {
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'https://merchbase.co',
-      'http://localhost:3000',
-      'http://localhost:5173'
-    ];
-    
-    // Allow Safari extension origins
-    if (origin && origin.startsWith('safari-web-extension://')) {
-      return callback(null, true);
-    }
-    
-    // Allow Chrome extension origins
-    if (origin && origin.startsWith('chrome-extension://')) {
-      return callback(null, true);
-    }
-    
-    // Allow requests with no origin (e.g., mobile apps, server-to-server)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    return callback(new Error('Not allowed by CORS'), false);
-  },
-  credentials: true,
+    origin: (origin, callback) => {
+        const allowedOrigins = [
+            'https://merchbase.co',
+            'http://localhost:3000',
+            'http://localhost:5173',
+        ];
+
+        // Allow Safari extension origins
+        if (origin?.startsWith('safari-web-extension://')) {
+            return callback(null, true);
+        }
+
+        // Allow Chrome extension origins
+        if (origin?.startsWith('chrome-extension://')) {
+            return callback(null, true);
+        }
+
+        // Allow requests with no origin (e.g., mobile apps, server-to-server)
+        if (!origin) return callback(null, true);
+
+        // Check if origin is in allowed list
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'), false);
+    },
+    credentials: true,
 });
 
 // Health check endpoint
-fastify.get('/api/health', async (request, reply) => {
-  return {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    service: 'rankwrangler-server'
-  };
+fastify.get('/api/health', async () => {
+    return {
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        service: 'rankwrangler-server',
+    };
 });
 
 // API routes
-fastify.register(async function (fastify) {
-  // Register API routes
-  const { registerGetProductInfoRoute } = await import('@/api/getProductInfo.js');
-  await registerGetProductInfoRoute(fastify);
+fastify.register(async fastify => {
+    // Register API routes
+    const { registerGetProductInfoRoute } = await import('@/api/getProductInfo.js');
+    await registerGetProductInfoRoute(fastify);
 
-  const { registerAmazonGetProductInfoRoute } = await import('@/api/amazon/getProductInfo.js');
-  await registerAmazonGetProductInfoRoute(fastify);
+    const { registerAmazonGetProductInfoRoute } = await import('@/api/amazon/getProductInfo.js');
+    await registerAmazonGetProductInfoRoute(fastify);
 
-  // Register license routes
-  const { registerLicenseValidateRoute } = await import('@/api/license/validate.js');
-  await registerLicenseValidateRoute(fastify);
+    // Register license routes
+    const { registerLicenseValidateRoute } = await import('@/api/license/validate.js');
+    await registerLicenseValidateRoute(fastify);
 
-  const { registerLicenseStatusRoute } = await import('@/api/license/status.js');
-  await registerLicenseStatusRoute(fastify);
+    const { registerLicenseStatusRoute } = await import('@/api/license/status.js');
+    await registerLicenseStatusRoute(fastify);
 
-  // Register admin license routes
-  const { registerAdminLicenseGenerateRoute } = await import('@/api/admin/license/generate.js');
-  await registerAdminLicenseGenerateRoute(fastify);
+    // Register admin license routes
+    const { registerAdminLicenseGenerateRoute } = await import('@/api/admin/license/generate.js');
+    await registerAdminLicenseGenerateRoute(fastify);
 
-  const { registerAdminLicenseListRoute } = await import('@/api/admin/license/list.js');
-  await registerAdminLicenseListRoute(fastify);
+    const { registerAdminLicenseListRoute } = await import('@/api/admin/license/list.js');
+    await registerAdminLicenseListRoute(fastify);
 
-  const { registerAdminLicenseDetailsRoute } = await import('@/api/admin/license/details.js');
-  await registerAdminLicenseDetailsRoute(fastify);
+    const { registerAdminLicenseDetailsRoute } = await import('@/api/admin/license/details.js');
+    await registerAdminLicenseDetailsRoute(fastify);
 
-  const { registerAdminLicenseDeleteRoute } = await import('@/api/admin/license/delete.js');
-  await registerAdminLicenseDeleteRoute(fastify);
+    const { registerAdminLicenseDeleteRoute } = await import('@/api/admin/license/delete.js');
+    await registerAdminLicenseDeleteRoute(fastify);
 
-  const { registerAdminLicenseResetRoute } = await import('@/api/admin/license/reset.js');
-  await registerAdminLicenseResetRoute(fastify);
+    const { registerAdminLicenseResetRoute } = await import('@/api/admin/license/reset.js');
+    await registerAdminLicenseResetRoute(fastify);
 
-  // Admin endpoint to clear product cache
-  fastify.post('/api/admin/cache/clear', async (request, reply) => {
-    const { z } = await import('zod');
-    
-    const clearCacheSchema = z.object({
-      adminKey: z.string().min(1, 'Admin key is required'),
-    });
-
-    try {
-      const { adminKey } = clearCacheSchema.parse(request.body);
-      
-      if (adminKey !== env.LICENSE_SECRET) {
-        reply.status(401);
-        return {
-          success: false,
-          error: 'Invalid admin key'
-        };
-      }
-      
-      // Clear all products
-      const { products } = await import('@/db/schema.js');
-      
-      // First get count before deleting
-      const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(products);
-      const countBefore = countResult.count;
-      
-      // Delete all product entries
-      await db.delete(products);
-      
-      console.log(`[Admin] Cleared products: ${countBefore} entries removed`);
-      
-      return {
-        success: true,
-        data: {
-          clearedCount: countBefore
-        }
-      };
-    } catch (error) {
-      console.error(`[Admin] Error clearing cache:`, error);
-      reply.status(400);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Invalid request',
-      };
-    }
-  });
-
+    // Register admin cache routes
+    const { registerAdminCacheClearRoute } = await import('@/api/admin/cache/clear.js');
+    await registerAdminCacheClearRoute(fastify);
 });
 
 // 404 handler
-fastify.setNotFoundHandler(async (request, reply) => {
-  reply.status(404);
-  return {
-    success: false,
-    error: 'Route not found'
-  };
+fastify.setNotFoundHandler(async (_request, reply) => {
+    reply.status(404);
+    return {
+        success: false,
+        error: 'Route not found',
+    };
 });
 
 // Error handler
-fastify.setErrorHandler(async (error, request, reply) => {
-  console.error(`[${new Date().toISOString()}] Unhandled error:`, error);
-  reply.status(500);
-  return {
-    success: false,
-    error: 'Internal server error'
-  };
+fastify.setErrorHandler(async (error, _request, reply) => {
+    console.error(`[${new Date().toISOString()}] Unhandled error:`, error);
+    reply.status(500);
+    return {
+        success: false,
+        error: 'Internal server error',
+    };
 });
 
 const port = env.PORT;
@@ -188,13 +146,15 @@ const port = env.PORT;
 console.log(`Attempting to start server on port ${port}...`);
 
 try {
-  // Start Fastify server
-  await fastify.listen({ port, host: '0.0.0.0' });
-  
-  console.log(`[${new Date().toISOString()}] RankWrangler Server running on port ${port}`);
-  console.log(`[${new Date().toISOString()}] Health check: http://localhost:${port}/api/health`);
-  console.log(`[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/getProductInfo, http://localhost:${port}/api/amazon/getProductInfo`);
+    // Start Fastify server
+    await fastify.listen({ port, host: '0.0.0.0' });
+
+    console.log(`[${new Date().toISOString()}] RankWrangler Server running on port ${port}`);
+    console.log(`[${new Date().toISOString()}] Health check: http://localhost:${port}/api/health`);
+    console.log(
+        `[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/getProductInfo, http://localhost:${port}/api/amazon/getProductInfo`
+    );
 } catch (err) {
-  console.error('Failed to start server:', err);
-  process.exit(1);
+    console.error('Failed to start server:', err);
+    process.exit(1);
 }

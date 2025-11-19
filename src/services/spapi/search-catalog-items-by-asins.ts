@@ -62,10 +62,12 @@ export const searchCatalogItemsByAsins = async (
 };
 
 function parseProductInfo(item: Item, asin: string, marketplaceId: string): ProductInfo {
-    // Get release date from summaries
-    const summary = item.summaries?.find(s => s.marketplaceId === marketplaceId);
-    const creationDate = summary?.releaseDate
-        ? new Date(summary.releaseDate).toISOString().split('T')[0]
+    // Get product site launch date from attributes
+    const productSiteLaunchDate = item.attributes?.product_site_launch_date?.find(
+        entry => entry.marketplace_id === marketplaceId
+    );
+    const creationDate = productSiteLaunchDate?.value
+        ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
         : null;
 
     // Extract display group rankings
@@ -140,10 +142,15 @@ const ItemSalesRanksByMarketplaceSchema = z.object({
     displayGroupRanks: z.array(ItemDisplayGroupSalesRankSchema).optional(),
 });
 
-// Summary by marketplace (contains releaseDate)
-const ItemSummaryByMarketplaceSchema = z.object({
-    marketplaceId: z.string(),
-    releaseDate: z.string().optional(),
+// Attribute value entry (used for product_site_launch_date)
+const AttributeValueEntrySchema = z.object({
+    value: z.string(),
+    marketplace_id: z.string(),
+});
+
+// Attributes (contains product_site_launch_date)
+const ItemAttributesSchema = z.object({
+    product_site_launch_date: z.array(AttributeValueEntrySchema).optional(),
 });
 
 // Image schema (variant and link are used)
@@ -163,7 +170,7 @@ const ItemImagesByMarketplaceSchema = z.object({
 // Item schema (only fields we extract)
 const ItemSchema = z.object({
     asin: z.string(),
-    summaries: z.array(ItemSummaryByMarketplaceSchema).optional(),
+    attributes: ItemAttributesSchema.optional(),
     salesRanks: z.array(ItemSalesRanksByMarketplaceSchema).optional(),
     images: z.array(ItemImagesByMarketplaceSchema).optional(),
 });
