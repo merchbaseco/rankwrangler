@@ -5,6 +5,8 @@ import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
+import { processProductIngestQueue } from '@/jobs/process-product-ingest-queue.js';
+import { reprocessStaleProducts } from '@/jobs/reprocess-stale-products.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -20,24 +22,36 @@ const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
 console.log('[Server] pg-boss initialized');
 
-// Create queue if it doesn't exist
-await boss.createQueue('product-ingest-queue');
+// Create queues if they don't exist
+await boss.createQueue('process-product-ingest-queue');
+await boss.createQueue('reprocess-stale-products');
 
 // Register job handlers
-const { processProductIngestQueue } = await import('@/jobs/process-product-ingest-queue.js');
-boss.work('product-ingest-queue', processProductIngestQueue);
+boss.work('process-product-ingest-queue', processProductIngestQueue);
+boss.work('reprocess-stale-products', async () => {
+    try {
+        await reprocessStaleProducts();
+    } catch (error) {
+        console.error('[Reprocess Stale Products] Job failed:', error);
+        throw error; // Re-throw to mark job as failed
+    }
+});
 
 // Send job to process queue every second
 setInterval(async () => {
     await boss.send(
-        'product-ingest-queue',
+        'process-product-ingest-queue',
         {},
         {
             singletonKey: 'process-product-ingest-queue',
-            retryLimit: 1,
+            retryLimit: 0,
         }
     );
 }, 1000);
+
+// Schedule reprocess stale products job to run every 10 minutes using pg-boss cron
+await boss.schedule('reprocess-stale-products', '*/10 * * * *', {});
+console.log('[Server] Scheduled reprocess-stale-products job to run every 10 minutes');
 
 const fastify = Fastify({
     logger: false, // Disable Pino logger to avoid bundling issues
