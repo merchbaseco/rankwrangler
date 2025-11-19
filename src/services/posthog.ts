@@ -1,11 +1,11 @@
 import { PostHog } from 'posthog-node';
+import { env } from '@/config/env';
 
-const client = new PostHog(
-    'phc_HOVT8rMHkVhjA1Gz0C3v3CW2UCJuwBDNKSOpe5YQKPZ',
-    {
-        host: 'https://us.i.posthog.com'
-    }
-);
+const client = env.POSTHOG_API_KEY
+    ? new PostHog(env.POSTHOG_API_KEY, {
+          host: 'https://us.i.posthog.com'
+      })
+    : null;
 
 /**
  * Track an API request event
@@ -18,6 +18,7 @@ export function trackApiRequest(params: {
     asins?: string[];
     cached?: boolean;
 }) {
+    if (!client) return;
     try {
         client.capture({
             distinctId: params.uid,
@@ -43,6 +44,7 @@ export function trackSpApiCall(params: {
     caller: string;
     apiName: string;
 }) {
+    if (!client) return;
     try {
         client.capture({
             distinctId: params.caller,
@@ -61,6 +63,8 @@ export function trackSpApiCall(params: {
  * Shutdown PostHog client (call on app shutdown)
  */
 export async function shutdownPostHog() {
-    await client.shutdown();
+    if (client) {
+        await client.shutdown();
+    }
 }
 

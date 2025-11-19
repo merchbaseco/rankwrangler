@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { requireLicense } from '@/middleware/requireLicense.js';
-import { searchCatalogItems } from '@/services/spapi.js';
+import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 import { trackApiRequest } from '@/services/posthog.js';
 
 export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance) {
@@ -44,8 +44,8 @@ export async function registerAmazonGetProductInfoRoute(fastify: FastifyInstance
                     `[${new Date().toISOString()}] Getting product info from SP-API for ${uniqueAsins.length} ASIN(s): ${uniqueAsins.join(', ')}`
                 );
 
-                // Use searchCatalogItems with user context
-                const { products, missing } = await searchCatalogItems(
+                // Use searchCatalogItemsByAsins with user context
+                const { products, missing } = await searchCatalogItemsByAsins(
                     validatedData.marketplaceId,
                     uniqueAsins,
                     caller
