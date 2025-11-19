@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { nanoid } from "nanoid";
 import { env } from "@/config/env.js";
-import { type License, type LicenseMetadata } from "@/db/schema.js";
+import { type License } from "@/db/schema.js";
 import { createLicense as dbCreateLicense } from "@/db/license/create-license.js";
 import { deleteLicense as dbDeleteLicense } from "@/db/license/delete-license.js";
 import { getLicenseById as dbGetLicenseById } from "@/db/license/get-license-by-id.js";
@@ -99,7 +99,7 @@ export const validateLicense = async (
 		}
 
 		// 6. Check daily rate limits (skip if unlimited)
-		const dailyLimit = license.metadata.limits.requests_per_day;
+		const dailyLimit = license.usageLimit;
 		if (dailyLimit !== -1 && license.usageToday >= dailyLimit) {
 			return {
 				valid: false,
@@ -139,17 +139,9 @@ export const createLicense = async (
 	try {
 		const key = generateLicenseKey(email);
 
-		const features = ["basic_access"];
-		const requestsPerDay = unlimited ? -1 : 100000;
+		const usageLimit = unlimited ? -1 : 100000;
 
-		const metadata: LicenseMetadata = {
-			features,
-			limits: {
-				requests_per_day: requestsPerDay,
-			},
-		};
-
-		const license = await dbCreateLicense(key, email, metadata);
+		const license = await dbCreateLicense(key, email, usageLimit);
 
 		return license;
 	} catch (error) {

@@ -57,6 +57,13 @@
       "when": 1763531716624,
       "tag": "0007_redundant_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1763588570879,
+      "tag": "0008_slimy_mach_iv",
+      "breakpoints": true
     }
   ]
 }

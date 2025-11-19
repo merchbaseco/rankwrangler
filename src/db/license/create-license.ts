@@ -1,15 +1,15 @@
 import { db } from '@/db/index.js';
-import { licenses, type License, type LicenseMetadata } from '@/db/schema.js';
+import { licenses, type License } from '@/db/schema.js';
 
 export async function createLicense(
     key: string,
     email: string,
-    metadata: LicenseMetadata
+    usageLimit: number
 ): Promise<License> {
     const licenseData = {
         key,
         email,
-        metadata,
+        usageLimit,
         usageCount: 0,
         usageToday: 0,
         lastResetAt: new Date(),
