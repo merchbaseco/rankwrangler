@@ -1,8 +1,11 @@
+import type { InferSelectModel } from 'drizzle-orm';
 import jwt from "jsonwebtoken";
 import { nanoid } from "nanoid";
 import { env } from "@/config/env.js";
-import { type License } from "@/db/schema.js";
+import { licenses } from "@/db/schema.js";
 import { createLicense as dbCreateLicense } from "@/db/license/create-license.js";
+
+type License = InferSelectModel<typeof licenses>;
 import { deleteLicense as dbDeleteLicense } from "@/db/license/delete-license.js";
 import { getLicenseById as dbGetLicenseById } from "@/db/license/get-license-by-id.js";
 import { listLicenses as dbListLicenses } from "@/db/license/list-licenses.js";

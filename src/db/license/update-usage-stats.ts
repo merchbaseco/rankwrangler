@@ -1,6 +1,9 @@
+import type { InferSelectModel } from 'drizzle-orm';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
-import { licenses, type License } from '@/db/schema.js';
+import { licenses } from '@/db/schema.js';
+
+type License = InferSelectModel<typeof licenses>;
 
 export async function updateUsageStats(license: License): Promise<void> {
     // Increment usage counters and update last used timestamp
