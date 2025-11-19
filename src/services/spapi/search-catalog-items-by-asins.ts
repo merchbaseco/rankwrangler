@@ -66,7 +66,7 @@ function parseProductInfo(item: Item, asin: string, marketplaceId: string): Prod
     const productSiteLaunchDate = item.attributes?.product_site_launch_date?.find(
         entry => entry.marketplace_id === marketplaceId
     );
-    const creationDate = productSiteLaunchDate?.value
+    const dateFirstAvailable = productSiteLaunchDate?.value
         ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
         : null;
 
@@ -98,7 +98,7 @@ function parseProductInfo(item: Item, asin: string, marketplaceId: string): Prod
     return {
         asin,
         marketplaceId,
-        creationDate,
+        dateFirstAvailable,
         bsr,
         bsrCategory,
         displayGroupRanks,

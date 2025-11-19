@@ -50,6 +50,13 @@
       "when": 1763506097762,
       "tag": "0006_strange_korg",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1763531716624,
+      "tag": "0007_redundant_guardian",
+      "breakpoints": true
     }
   ]
 }

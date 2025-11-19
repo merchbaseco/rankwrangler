@@ -14,7 +14,7 @@ export type ProductRanking = {
 export type ProductInfo = {
     asin: string;
     marketplaceId: string;
-    creationDate: string | null;
+    dateFirstAvailable: string | null;
     
     // Primary BSR for filtering/sorting (display group rank if available)
     bsr: number | null;

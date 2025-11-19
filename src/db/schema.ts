@@ -52,7 +52,7 @@ export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
   marketplaceId: text('marketplace_id').notNull(),
   asin: text('asin').notNull(),
-  creationDate: timestamp('creation_date', { mode: 'date' }),
+  dateFirstAvailable: timestamp('date_first_available', { mode: 'date' }),
   thumbnailUrl: text('thumbnail_url'),
   lastFetched: timestamp('last_fetched', { mode: 'date' }).notNull().defaultNow(),
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),

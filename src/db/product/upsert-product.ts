@@ -9,7 +9,7 @@ export async function upsertProductInfo(productInfo: ProductInfo): Promise<void>
     try {
         const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours
         const today = getPacificDateString();
-        const creationDate = productInfo.creationDate ? new Date(productInfo.creationDate) : null;
+        const dateFirstAvailable = productInfo.dateFirstAvailable ? new Date(productInfo.dateFirstAvailable) : null;
 
         // Insert or update product
         const [product] = await db
@@ -17,7 +17,7 @@ export async function upsertProductInfo(productInfo: ProductInfo): Promise<void>
             .values({
                 marketplaceId: productInfo.marketplaceId,
                 asin: productInfo.asin,
-                creationDate,
+                dateFirstAvailable,
                 thumbnailUrl: productInfo.thumbnailUrl || null,
                 lastFetched: new Date(),
                 expiresAt,
@@ -25,7 +25,7 @@ export async function upsertProductInfo(productInfo: ProductInfo): Promise<void>
             .onConflictDoUpdate({
                 target: [products.marketplaceId, products.asin],
                 set: {
-                    creationDate,
+                    dateFirstAvailable,
                     thumbnailUrl: productInfo.thumbnailUrl || null,
                     lastFetched: new Date(),
                     expiresAt,

@@ -1,0 +1,1 @@
+ALTER TABLE "products" RENAME COLUMN "creation_date" TO "date_first_available";
