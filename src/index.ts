@@ -7,8 +7,12 @@ import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
 import { processProductIngestQueue } from '@/jobs/process-product-ingest-queue.js';
 import { reprocessStaleProducts } from '@/jobs/reprocess-stale-products.js';
+import { shutdownPostHog, testPostHog } from '@/services/posthog.js';
 
 console.log('Starting RankWrangler Server...');
+
+// Test PostHog connection
+await testPostHog();
 
 // Run database migrations before starting server
 await runMigrations();
@@ -163,6 +167,35 @@ const port = env.PORT;
 
 console.log(`Attempting to start server on port ${port}...`);
 
+// Graceful shutdown handler
+const shutdown = async (signal: string) => {
+    console.log(`[${new Date().toISOString()}] Received ${signal}, shutting down gracefully...`);
+
+    try {
+        // Shutdown PostHog to flush any pending events
+        await shutdownPostHog();
+        console.log('[Server] PostHog shutdown complete');
+
+        // Stop pg-boss
+        await boss.stop();
+        console.log('[Server] pg-boss stopped');
+
+        // Close Fastify server
+        await fastify.close();
+        console.log('[Server] Fastify server closed');
+
+        console.log(`[${new Date().toISOString()}] Shutdown complete`);
+        process.exit(0);
+    } catch (error) {
+        console.error('[Server] Error during shutdown:', error);
+        process.exit(1);
+    }
+};
+
+// Register shutdown handlers
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 try {
     // Start Fastify server
     await fastify.listen({ port, host: '0.0.0.0' });
@@ -171,5 +204,6 @@ try {
     console.log(`[${new Date().toISOString()}] Health check: http://localhost:${port}/api/health`);
 } catch (err) {
     console.error('Failed to start server:', err);
+    await shutdownPostHog();
     process.exit(1);
 }
