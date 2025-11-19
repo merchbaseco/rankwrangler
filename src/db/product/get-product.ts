@@ -1,10 +1,10 @@
 import { and, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/index.js';
-import { products, displayGroups, productRankHistory } from '@/db/schema.js';
-import { getPacificDateString } from '@/utils/date.js';
+import { products } from '@/db/schema.js';
+import { type AmazonRootCategoryId, getDisplayGroupName } from '@/types/amazon-root-categories.js';
 import type { ProductInfo } from '@/types/index.js';
 
-// Retrieve product info from store (if exists and has today's rank history)
+// Retrieve product info from store (if exists and not expired)
 export async function getProductInfoFromStore(
     marketplaceId: string,
     asin: string
@@ -27,46 +27,33 @@ export async function getProductInfoFromStore(
         }
 
         const product = productRows[0];
-        const today = getPacificDateString();
 
-        // Get today's rank history for this product
-        const rankHistory = await db
-            .select({
-                rank: productRankHistory.bsr,
-                category: displayGroups.category,
-                link: displayGroups.link,
-            })
-            .from(productRankHistory)
-            .innerJoin(displayGroups, eq(productRankHistory.displayGroupId, displayGroups.id))
-            .where(
-                and(
-                    eq(productRankHistory.productId, product.id),
-                    eq(productRankHistory.date, today)
-                )
-            )
-            .orderBy(productRankHistory.bsr);
+        // Get the display group name from the root category ID (if available)
+        const categoryName =
+            product.rootCategoryId !== null
+                ? getDisplayGroupName(product.rootCategoryId as AmazonRootCategoryId) || null
+                : null;
 
-        // If rank history doesn't exist for today's Pacific date, return null (cache miss)
-        if (rankHistory.length === 0) {
-            return null;
-        }
-
-        const displayGroupRanks = rankHistory.map(rh => ({
-            rank: rh.rank,
-            category: rh.category,
-            link: rh.link || undefined,
-        }));
-
-        const bsr = displayGroupRanks.length > 0 ? displayGroupRanks[0].rank : null;
-        const bsrCategory = displayGroupRanks.length > 0 ? displayGroupRanks[0].category : null;
+        // Build displayGroupRanks array with the root category info (if available)
+        // If root category data is missing, return empty array
+        const displayGroupRanks =
+            product.rootCategoryBsr !== null && product.rootCategoryId !== null
+                ? [
+                      {
+                          rank: product.rootCategoryBsr,
+                          category: categoryName || '',
+                          link: undefined,
+                      },
+                  ]
+                : [];
 
         return {
             asin: product.asin,
             marketplaceId: product.marketplaceId,
             dateFirstAvailable: product.dateFirstAvailable?.toISOString() || null,
             thumbnailUrl: product.thumbnailUrl || undefined,
-            bsr,
-            bsrCategory,
+            bsr: product.rootCategoryBsr,
+            bsrCategory: categoryName,
             displayGroupRanks,
             metadata: {
                 lastFetched: product.lastFetched.toISOString(),
@@ -78,4 +65,3 @@ export async function getProductInfoFromStore(
         return null;
     }
 }
-

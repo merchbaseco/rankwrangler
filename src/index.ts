@@ -147,9 +147,6 @@ try {
 
     console.log(`[${new Date().toISOString()}] RankWrangler Server running on port ${port}`);
     console.log(`[${new Date().toISOString()}] Health check: http://localhost:${port}/api/health`);
-    console.log(
-        `[${new Date().toISOString()}] API endpoints: http://localhost:${port}/api/getProductInfo, http://localhost:${port}/api/amazon/getProductInfo`
-    );
 } catch (err) {
     console.error('Failed to start server:', err);
     process.exit(1);

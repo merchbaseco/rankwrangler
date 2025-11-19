@@ -1,6 +1,9 @@
+import type { InferSelectModel } from 'drizzle-orm';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/index.js';
-import { licenses, type License } from '@/db/schema.js';
+import { licenses } from '@/db/schema.js';
+
+type License = InferSelectModel<typeof licenses>;
 
 export async function checkAndResetDailyUsage(license: License): Promise<void> {
     const now = new Date();
