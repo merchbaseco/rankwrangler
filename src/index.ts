@@ -116,10 +116,6 @@ fastify.register(async fastify => {
 
     const { registerAdminLicenseResetRoute } = await import('@/api/admin/license/reset.js');
     await registerAdminLicenseResetRoute(fastify);
-
-    // Register admin cache routes
-    const { registerAdminCacheClearRoute } = await import('@/api/admin/cache/clear.js');
-    await registerAdminCacheClearRoute(fastify);
 });
 
 // 404 handler
