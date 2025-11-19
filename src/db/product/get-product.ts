@@ -63,7 +63,7 @@ export async function getProductInfoFromStore(
         return {
             asin: product.asin,
             marketplaceId: product.marketplaceId,
-            creationDate: product.creationDate?.toISOString() || null,
+            dateFirstAvailable: product.dateFirstAvailable?.toISOString() || null,
             thumbnailUrl: product.thumbnailUrl || undefined,
             bsr,
             bsrCategory,
