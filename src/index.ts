@@ -58,12 +58,12 @@ await boss.schedule('reprocess-stale-products', '*/10 * * * *', {});
 console.log('[Server] Scheduled reprocess-stale-products job to run every 10 minutes');
 
 // Run reprocess stale products job on startup
-try {
-    await reprocessStaleProducts();
-    console.log('[Server] Ran reprocess-stale-products job on startup');
-} catch (error) {
-    console.error('[Server] Failed to run reprocess-stale-products job on startup:', error);
-}
+// try {
+//     await reprocessStaleProducts();
+//     console.log('[Server] Ran reprocess-stale-products job on startup');
+// } catch (error) {
+//     console.error('[Server] Failed to run reprocess-stale-products job on startup:', error);
+// }
 
 const fastify = Fastify({
     logger: false, // Disable Pino logger to avoid bundling issues
