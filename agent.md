@@ -8,7 +8,7 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 - **Purpose**: Amazon SP-API façade that powers RankWrangler clients.
 - **Entry point**: `src/index.ts` (compiled to `dist/index.js`).
 - **Database**: PostgreSQL via Drizzle ORM. SQL migrations live in `drizzle/`; `init.sql` seeds fresh stacks.
-- **Environment**: Variables defined in `.env.example` and validated in `src/config/env.ts`.
+- **Environment**: Variables defined in `.env.example` and validated in `src/config/env.ts`. See "Environment Variable Management" section below.
 - **Paths**: `@/` alias maps to `src/`.
 
 ## Commands
@@ -31,6 +31,48 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 - Infra changes: Add new services to `stack/rankwrangler/docker-compose.yml` in the infra repo. The deployment workflow automatically pulls and starts them.
 - Manual deploy scripts under `scripts/` remain for reference but exit early with guidance.
 
+## Environment Variable Management
+
+**IMPORTANT**: Environment variables are managed through GitHub repository secrets, not local `.env` files in production.
+
+### For Local Development
+- Copy `.env.example` to `.env` and populate values locally
+- The `.env` file is git-ignored and never committed
+- Use `yarn start` which loads `.env` via `dotenv-cli`
+
+### For Production Deployment
+- **Canonical source**: GitHub repository secrets (Settings → Secrets and variables → Actions)
+- Secrets are named with `RANKWRANGLER_` prefix (e.g., `RANKWRANGLER_POSTHOG_API_KEY`)
+- The deployment workflow (`.github/workflows/deploy.yml`) automatically:
+  1. Reads secrets from GitHub Actions
+  2. Creates a `stack.env` file with the values
+  3. Uploads it to the server as `stack/rankwrangler/.env`
+  4. The `.env` file is then used by Docker Compose via `env_file: - .env`
+
+### Adding New Environment Variables
+
+When adding a new environment variable:
+
+1. **Update the code**:
+   - Add to `src/config/env.ts` with appropriate validation
+   - Update `.env.example` with a placeholder value
+
+2. **Update the deployment workflow** (`.github/workflows/deploy.yml`):
+   - Add to the `env:` section: `VAR_NAME: ${{ secrets.RANKWRANGLER_VAR_NAME }}`
+   - Add to the Python script's `keys` list
+   - Add to the step's `env:` section
+
+3. **Update documentation**:
+   - Add to `DEPLOYMENT.md` in the "Runtime Secrets" section
+   - Update `infra/stack/rankwrangler/deploy.sh` if needed (for consistency)
+
+4. **Add the GitHub secret**:
+   - Go to repository Settings → Secrets and variables → Actions
+   - Add `RANKWRANGLER_VAR_NAME` with the actual value
+   - The next deployment will automatically include it
+
+**Note**: The server's `.env` file is managed by the deployment workflow and should not be edited manually. All changes go through GitHub secrets and the deployment process.
+
 ## Expectations When Editing
 
 1. Keep TypeScript strictness and Biome formatting intact (`biome.json` enforces 4-space indentation, single quotes, semicolons, 100-character lines).
@@ -39,6 +81,7 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 4. Document new behaviour in `README.md` and extend `test-api.sh` or add automated coverage for new endpoints.
 5. Maintain executable flags on shell scripts (`chmod +x`).
 6. Secrets stay out of version control—use `.env.production` for deployment overrides if needed.
+7. **Keep startup status summary current** - When adding new services, jobs, or features, update the startup status summary in `src/index.ts` to reflect the current state. This helps operators quickly verify the server is functioning correctly.
 
 ## Reference
 

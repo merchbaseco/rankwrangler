@@ -31,6 +31,7 @@ Store the application secrets as repository secrets; the workflow renders `stack
 - `RANKWRANGLER_SPAPI_REFRESH_TOKEN`
 - `RANKWRANGLER_SPAPI_CLIENT_ID`
 - `RANKWRANGLER_SPAPI_APP_CLIENT_SECRET`
+- `RANKWRANGLER_POSTHOG_API_KEY` (optional)
 
 ## Server Preparation
 
