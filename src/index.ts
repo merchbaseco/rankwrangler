@@ -7,18 +7,18 @@ import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
 import { processProductIngestQueue } from '@/jobs/process-product-ingest-queue.js';
 import { reprocessStaleProducts } from '@/jobs/reprocess-stale-products.js';
-import { shutdownPostHog, testPostHog } from '@/services/posthog.js';
+import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
 
 console.log('Starting RankWrangler Server...');
-
-// Test PostHog connection
-await testPostHog();
 
 // Run database migrations before starting server
 await runMigrations();
 
 // Test database connection
 await testConnection();
+
+// Test PostHog initialization
+const posthogEnabled = isPostHogEnabled();
 
 // Initialize pg-boss
 const databaseUrl = `postgresql://${env.DATABASE_USER || 'rankwrangler'}:${env.DATABASE_PASSWORD || 'SecurePass123'}@${env.DATABASE_HOST || 'postgres'}:${env.DATABASE_PORT || 5432}/${env.DATABASE_NAME || 'rankwrangler'}`;
@@ -200,8 +200,26 @@ try {
     // Start Fastify server
     await fastify.listen({ port, host: '0.0.0.0' });
 
-    console.log(`[${new Date().toISOString()}] RankWrangler Server running on port ${port}`);
-    console.log(`[${new Date().toISOString()}] Health check: http://localhost:${port}/api/health`);
+    // Print startup status summary
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(`[${new Date().toISOString()}] RankWrangler Server Ready`);
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(`✓ Server running on port ${port}`);
+    console.log(`✓ Health check endpoint: /api/health`);
+    console.log('');
+    console.log('Status Summary:');
+    console.log(`  • Database: Connected`);
+    console.log(`  • Migrations: Complete`);
+    console.log(`  • Jobs Registered:`);
+    console.log(`    - process-product-ingest-queue (interval: 1s)`);
+    console.log(`    - reprocess-stale-products (cron: */10 * * * *)`);
+    console.log(
+        `  • PostHog Analytics: ${posthogEnabled ? 'Enabled' : 'Disabled (POSTHOG_API_KEY not set)'}`
+    );
+    console.log(`  • API Routes: Registered`);
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('');
 } catch (err) {
     console.error('Failed to start server:', err);
     await shutdownPostHog();

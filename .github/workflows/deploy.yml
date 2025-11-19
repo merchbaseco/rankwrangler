@@ -57,6 +57,7 @@ jobs:
       SPAPI_REFRESH_TOKEN: ${{ secrets.RANKWRANGLER_SPAPI_REFRESH_TOKEN }}
       SPAPI_CLIENT_ID: ${{ secrets.RANKWRANGLER_SPAPI_CLIENT_ID }}
       SPAPI_APP_CLIENT_SECRET: ${{ secrets.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET }}
+      POSTHOG_API_KEY: ${{ secrets.RANKWRANGLER_POSTHOG_API_KEY }}
     steps:
       - name: Create stack env file
         run: |
@@ -74,6 +75,7 @@ jobs:
               ("SPAPI_REFRESH_TOKEN", os.environ.get("SPAPI_REFRESH_TOKEN", "")),
               ("SPAPI_CLIENT_ID", os.environ.get("SPAPI_CLIENT_ID", "")),
               ("SPAPI_APP_CLIENT_SECRET", os.environ.get("SPAPI_APP_CLIENT_SECRET", "")),
+              ("POSTHOG_API_KEY", os.environ.get("POSTHOG_API_KEY", "")),
           ]
 
           with open("stack.env", "w", encoding="utf-8") as env_file:
@@ -90,6 +92,7 @@ jobs:
           SPAPI_REFRESH_TOKEN: ${{ env.SPAPI_REFRESH_TOKEN }}
           SPAPI_CLIENT_ID: ${{ env.SPAPI_CLIENT_ID }}
           SPAPI_APP_CLIENT_SECRET: ${{ env.SPAPI_APP_CLIENT_SECRET }}
+          POSTHOG_API_KEY: ${{ env.POSTHOG_API_KEY }}
 
       - name: Remove previous stack env artifact
         uses: appleboy/ssh-action@v1.0.3
