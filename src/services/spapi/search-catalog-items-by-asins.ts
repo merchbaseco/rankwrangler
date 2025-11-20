@@ -28,15 +28,6 @@ export const searchCatalogItemsByAsins = async (
         apiName: 'searchCatalogItems',
     });
 
-    trackSpApiError({
-        caller,
-        apiName: 'searchCatalogItems',
-        errorType: 'api_request_failed',
-        errorMessage: 'API request failed',
-        marketplaceId,
-        asins,
-    });
-
     let rawResponse: any;
     try {
         rawResponse = await spApiRateLimiter.schedule(() =>
