@@ -24,6 +24,8 @@ export async function upsertProductInfo(productInfo: ProductInfoWithoutDisplayNa
                 asin: productInfo.asin,
                 dateFirstAvailable,
                 thumbnailUrl: productInfo.thumbnailUrl || null,
+                title: productInfo.title || null,
+                brand: productInfo.brand || null,
                 rootCategoryId,
                 rootCategoryBsr,
                 lastFetched: new Date(),
@@ -33,6 +35,8 @@ export async function upsertProductInfo(productInfo: ProductInfoWithoutDisplayNa
                 set: {
                     dateFirstAvailable,
                     thumbnailUrl: productInfo.thumbnailUrl || null,
+                    title: productInfo.title || null,
+                    brand: productInfo.brand || null,
                     rootCategoryId,
                     rootCategoryBsr,
                     lastFetched: new Date(),

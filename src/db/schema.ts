@@ -39,6 +39,8 @@ export const products = pgTable(
         asin: text('asin').notNull(),
         dateFirstAvailable: timestamp('date_first_available', { mode: 'date' }),
         thumbnailUrl: text('thumbnail_url'),
+        title: text('title'),
+        brand: text('brand'),
         rootCategoryId: bigint('root_category_id', { mode: 'number' }),
         rootCategoryBsr: integer('root_category_bsr'),
         lastFetched: timestamp('last_fetched', { mode: 'date' }).notNull().defaultNow(),

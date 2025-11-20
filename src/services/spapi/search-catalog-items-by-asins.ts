@@ -96,10 +96,17 @@ export const searchCatalogItemsByAsins = async (
                 imageGroup?.images?.[0];
             const thumbnailUrl = mainImage?.link;
 
+            // Extract title and brand from summaries
+            const summary = item.summaries?.find(s => s.marketplaceId === marketplaceId);
+            const title = summary?.itemName || null;
+            const brand = summary?.brandName || null;
+
             const productInfo: SearchCatalogItemsResult = {
                 asin,
                 marketplaceId,
                 dateFirstAvailable,
+                title,
+                brand,
                 rootCategoryId,
                 rootCategoryBsr,
                 thumbnailUrl,
@@ -194,12 +201,20 @@ const ItemImagesByMarketplaceSchema = z.object({
     images: z.array(ItemImageSchema),
 });
 
+// Summaries by marketplace (contains itemName and brandName)
+const ItemSummariesByMarketplaceSchema = z.object({
+    marketplaceId: z.string(),
+    itemName: z.string().optional(),
+    brandName: z.string().optional(),
+});
+
 // Item schema (only fields we extract)
 const ItemSchema = z.object({
     asin: z.string(),
     attributes: ItemAttributesSchema.optional(),
     salesRanks: z.array(ItemSalesRanksByMarketplaceSchema).optional(),
     images: z.array(ItemImagesByMarketplaceSchema).optional(),
+    summaries: z.array(ItemSummariesByMarketplaceSchema).optional(),
 });
 
 // Response schema (only items array is used)
