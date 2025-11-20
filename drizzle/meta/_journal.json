@@ -71,6 +71,13 @@
       "when": 1763592085033,
       "tag": "0009_amusing_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1763612805610,
+      "tag": "0010_open_tyger_tiger",
+      "breakpoints": true
     }
   ]
 }
