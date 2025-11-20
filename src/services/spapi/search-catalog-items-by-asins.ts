@@ -1,14 +1,19 @@
 import { z } from 'zod';
-import { trackSpApiCall } from '@/services/posthog.js';
+import { trackSpApiCall, trackSpApiError } from '@/services/posthog.js';
+import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import type { ProductInfo } from '@/types/index.js';
+import { formatZodErrorMessage, formatZodValidationErrors } from '@/utils/zod.js';
 import { catalogApi, spApiRateLimiter } from './index.js';
+
+// Return type for searchCatalogItemsByAsins (omits rootCategoryDisplayName which is derived from rootCategoryId)
+type SearchCatalogItemsResult = Omit<ProductInfo, 'rootCategoryDisplayName'>;
 
 // Get product info using searchCatalogItems API (supports single or multiple ASINs)
 export const searchCatalogItemsByAsins = async (
     marketplaceId: string,
     asins: string[],
     caller: string
-): Promise<ProductInfo[]> => {
+): Promise<SearchCatalogItemsResult[]> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
     }
@@ -23,92 +28,120 @@ export const searchCatalogItemsByAsins = async (
         apiName: 'searchCatalogItems',
     });
 
-    const rawResponse = await spApiRateLimiter.schedule(() =>
-        catalogApi.searchCatalogItems([marketplaceId], {
-            identifiers: asins,
-            identifiersType: 'ASIN',
-            includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
-            pageSize: 20,
-        })
-    );
+    trackSpApiError({
+        caller,
+        apiName: 'searchCatalogItems',
+        errorType: 'api_request_failed',
+        errorMessage: 'API request failed',
+        marketplaceId,
+        asins,
+    });
 
-    // Validate response with Zod schema
-    const response = ItemSearchResultsSchema.parse(rawResponse);
+    let rawResponse: any;
+    try {
+        rawResponse = await spApiRateLimiter.schedule(() =>
+            catalogApi.searchCatalogItems([marketplaceId], {
+                identifiers: asins,
+                identifiersType: 'ASIN',
+                includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
+                pageSize: 20,
+            })
+        );
+    } catch (error) {
+        trackSpApiError({
+            caller,
+            apiName: 'searchCatalogItems',
+            errorType: 'api_request_failed',
+            errorMessage: 'API request failed',
+            marketplaceId,
+            asins,
+        });
+        throw error;
+    }
 
-    const results: ProductInfo[] = [];
-    const foundAsins = new Set<string>();
+    // Validate response and parse items
+    const results: SearchCatalogItemsResult[] = [];
+    try {
+        // Validate response with Zod schema
+        const response = ItemSearchResultsSchema.parse(rawResponse);
+        const items = response.items;
 
-    const items = response.items;
+        for (const rawItem of items) {
+            // Validate each item with Zod schema
+            const item = ItemSchema.parse(rawItem);
+            const asin = item.asin;
 
-    for (const rawItem of items) {
-        // Validate each item with Zod schema
-        const item = ItemSchema.parse(rawItem);
-        const asin = item.asin;
+            if (!asins.includes(asin)) {
+                continue;
+            }
 
-        if (!asins.includes(asin)) {
-            continue;
+            // Get product site launch date from attributes
+            const productSiteLaunchDate = item.attributes?.product_site_launch_date?.find(
+                entry => entry.marketplace_id === marketplaceId
+            );
+            const dateFirstAvailable = productSiteLaunchDate?.value
+                ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
+                : null;
+
+            // Extract root category ID and BSR from display group rank (only one display group per item)
+            const salesRank = item.salesRanks?.find(sr => sr.marketplaceId === marketplaceId);
+            const displayGroupRank = salesRank?.displayGroupRanks?.[0];
+
+            let rootCategoryId: number | null = null;
+            let rootCategoryBsr: number | null = null;
+
+            if (displayGroupRank?.rank && displayGroupRank?.title) {
+                const categoryId = getRootCategoryId(displayGroupRank.title);
+                if (categoryId !== undefined) {
+                    rootCategoryId = categoryId;
+                    rootCategoryBsr = displayGroupRank.rank;
+                }
+            }
+
+            // Extract thumbnail URL from images (get MAIN variant or first image)
+            const imageGroup = item.images?.find(img => img.marketplaceId === marketplaceId);
+            const mainImage =
+                imageGroup?.images?.find(img => img.variant === VariantSchema.enum.MAIN) ??
+                imageGroup?.images?.[0];
+            const thumbnailUrl = mainImage?.link;
+
+            const productInfo: SearchCatalogItemsResult = {
+                asin,
+                marketplaceId,
+                dateFirstAvailable,
+                rootCategoryId,
+                rootCategoryBsr,
+                thumbnailUrl,
+                metadata: {
+                    lastFetched: new Date().toISOString(),
+                    cached: false,
+                },
+            };
+
+            results.push(productInfo);
         }
-
-        const productInfo = parseProductInfo(item, asin, marketplaceId);
-        results.push(productInfo);
-        foundAsins.add(asin);
+    } catch (error) {
+        const zodError = error instanceof z.ZodError ? error : null;
+        trackSpApiError({
+            caller,
+            apiName: 'searchCatalogItems',
+            errorType: 'validation_failed',
+            errorMessage: zodError ? formatZodErrorMessage(zodError) : 'Validation failed',
+            marketplaceId,
+            asins,
+            additionalProperties: zodError
+                ? { validationErrors: formatZodValidationErrors(zodError) }
+                : undefined,
+        });
+        throw error;
     }
 
     const orderedResults = asins
         .map(asin => results.find(item => item.asin === asin))
-        .filter((item): item is ProductInfo => Boolean(item));
+        .filter((item): item is SearchCatalogItemsResult => Boolean(item));
 
     return orderedResults ?? [];
 };
-
-function parseProductInfo(item: Item, asin: string, marketplaceId: string): ProductInfo {
-    // Get product site launch date from attributes
-    const productSiteLaunchDate = item.attributes?.product_site_launch_date?.find(
-        entry => entry.marketplace_id === marketplaceId
-    );
-    const dateFirstAvailable = productSiteLaunchDate?.value
-        ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
-        : null;
-
-    // Extract display group rankings
-    const salesRank = item.salesRanks?.find(sr => sr.marketplaceId === marketplaceId);
-    const displayGroupRanks =
-        salesRank?.displayGroupRanks
-            ?.map(rank => ({
-                rank: rank.rank,
-                category: rank.title,
-                link: rank.link,
-            }))
-            .filter(rank => rank.rank && rank.category) ?? [];
-
-    // Sort by rank (lowest/best first)
-    displayGroupRanks.sort((a, b) => a.rank - b.rank);
-
-    // Determine primary BSR (first display group rank)
-    const bsr = displayGroupRanks[0]?.rank ?? null;
-    const bsrCategory = displayGroupRanks[0]?.category ?? null;
-
-    // Extract thumbnail URL from images (get MAIN variant or first image)
-    const imageGroup = item.images?.find(img => img.marketplaceId === marketplaceId);
-    const mainImage =
-        imageGroup?.images?.find(img => img.variant === VariantSchema.enum.MAIN) ??
-        imageGroup?.images?.[0];
-    const thumbnailUrl = mainImage?.link;
-
-    return {
-        asin,
-        marketplaceId,
-        dateFirstAvailable,
-        bsr,
-        bsrCategory,
-        displayGroupRanks,
-        thumbnailUrl,
-        metadata: {
-            lastFetched: new Date().toISOString(),
-            cached: false,
-        },
-    };
-}
 
 // ==========================================
 // Zod Schemas - Only fields we actually use
@@ -136,10 +169,13 @@ const ItemDisplayGroupSalesRankSchema = z.object({
     rank: z.number(),
 });
 
-// Sales ranks by marketplace (contains displayGroupRanks)
+// Sales ranks by marketplace (contains displayGroupRanks - only one display group per item)
 const ItemSalesRanksByMarketplaceSchema = z.object({
     marketplaceId: z.string(),
-    displayGroupRanks: z.array(ItemDisplayGroupSalesRankSchema).optional(),
+    displayGroupRanks: z
+        .array(ItemDisplayGroupSalesRankSchema)
+        .max(1, 'Expected at most one display group rank')
+        .optional(),
 });
 
 // Attribute value entry (used for product_site_launch_date)
@@ -179,6 +215,3 @@ const ItemSchema = z.object({
 const ItemSearchResultsSchema = z.object({
     items: z.array(ItemSchema),
 });
-
-// Type definitions
-type Item = z.infer<typeof ItemSchema>;

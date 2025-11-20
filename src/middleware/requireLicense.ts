@@ -33,10 +33,5 @@ export const requireLicense = async (request: FastifyRequest, reply: FastifyRepl
     }
 
     // Attach license info to request for use in handlers
-    request.license = validation.data!;
-
-    // Log license usage for monitoring
-    console.log(
-        `[License] ${validation.data!.email} - ${validation.data!.usageToday}/${validation.data!.dailyLimit} requests today`
-    );
+    request.license = validation.data;
 };

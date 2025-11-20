@@ -59,6 +59,38 @@ export function trackSpApiCall(params: { caller: string; apiName: string }) {
 }
 
 /**
+ * Track an SP-API error event
+ */
+export function trackSpApiError(params: {
+    caller: string;
+    apiName: string;
+    errorType: string;
+    errorMessage: string;
+    marketplaceId?: string;
+    asins?: string[];
+    additionalProperties?: Record<string, any>;
+}) {
+    if (!client) return;
+    try {
+        client.capture({
+            distinctId: params.caller,
+            event: 'sp_api_error',
+            properties: {
+                apiName: params.apiName,
+                errorType: params.errorType,
+                errorMessage: params.errorMessage,
+                ...(params.marketplaceId && { marketplaceId: params.marketplaceId }),
+                ...(params.asins && { asinCount: params.asins.length }),
+                ...params.additionalProperties,
+            },
+        });
+    } catch (error) {
+        // Silently fail - don't break the app if PostHog is down
+        console.error('[PostHog] Failed to track SP-API error:', error);
+    }
+}
+
+/**
  * Test PostHog connection (returns true if initialized, false otherwise)
  */
 export function isPostHogEnabled(): boolean {

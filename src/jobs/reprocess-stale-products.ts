@@ -71,7 +71,6 @@ export async function reprocessStaleProducts() {
         );
 
     if (staleProducts.length === 0) {
-        console.log('[Reprocess Stale Products] No stale products found');
         return;
     }
 
@@ -86,10 +85,6 @@ export async function reprocessStaleProducts() {
                 }))
             )
             .onConflictDoNothing();
-
-        console.log(
-            `[Reprocess Stale Products] Added ${staleProducts.length} stale products to ingest queue`
-        );
     } catch (error) {
         console.error('[Reprocess Stale Products] Error adding products to queue:', error);
     }
