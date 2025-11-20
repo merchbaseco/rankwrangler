@@ -117,9 +117,6 @@ fastify.register(async fastify => {
     const { registerGetProductInfoRoute } = await import('@/api/getProductInfo.js');
     await registerGetProductInfoRoute(fastify);
 
-    const { registerAmazonGetProductInfoRoute } = await import('@/api/amazon/getProductInfo.js');
-    await registerAmazonGetProductInfoRoute(fastify);
-
     // Register license routes
     const { registerLicenseValidateRoute } = await import('@/api/license/validate.js');
     await registerLicenseValidateRoute(fastify);

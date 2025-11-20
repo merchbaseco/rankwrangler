@@ -29,7 +29,4 @@ export async function processProductIngestQueue() {
     }
 
     await deleteQueueItems(itemIds);
-    console.log(
-        `[Queue] Processed ${itemIds.length} queue items from marketplace ${marketplaceId}`
-    );
 }

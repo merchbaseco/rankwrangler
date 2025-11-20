@@ -1,28 +1,20 @@
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
 import type { ProductInfo } from '@/types/index.js';
-import { getRootCategoryId } from '@/types/amazon-root-categories.js';
+
+// Type for product info without rootCategoryDisplayName (derived from rootCategoryId when retrieved)
+type ProductInfoWithoutDisplayName = Omit<ProductInfo, 'rootCategoryDisplayName'>;
 
 // Upsert a single product with root category BSR in the database
-export async function upsertProductInfo(productInfo: ProductInfo): Promise<void> {
+export async function upsertProductInfo(productInfo: ProductInfoWithoutDisplayName): Promise<void> {
     try {
-        const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours
-        const dateFirstAvailable = productInfo.dateFirstAvailable ? new Date(productInfo.dateFirstAvailable) : null;
+        const dateFirstAvailable = productInfo.dateFirstAvailable
+            ? new Date(productInfo.dateFirstAvailable)
+            : null;
 
-        // Find the root category ID from the first display group rank (already sorted by rank)
-        // The first rank is typically the best/most relevant one
-        let rootCategoryId: number | null = null;
-        let rootCategoryBsr: number | null = null;
-
-        if (productInfo.displayGroupRanks.length > 0) {
-            const firstRank = productInfo.displayGroupRanks[0];
-            const categoryId = getRootCategoryId(firstRank.category);
-            
-            if (categoryId !== undefined) {
-                rootCategoryId = categoryId;
-                rootCategoryBsr = firstRank.rank;
-            }
-        }
+        // Use root category information directly from ProductInfo
+        const rootCategoryId = productInfo.rootCategoryId;
+        const rootCategoryBsr = productInfo.rootCategoryBsr;
 
         // Insert or update product with root category info
         await db
@@ -35,7 +27,6 @@ export async function upsertProductInfo(productInfo: ProductInfo): Promise<void>
                 rootCategoryId,
                 rootCategoryBsr,
                 lastFetched: new Date(),
-                expiresAt,
             })
             .onConflictDoUpdate({
                 target: [products.marketplaceId, products.asin],
@@ -45,13 +36,9 @@ export async function upsertProductInfo(productInfo: ProductInfo): Promise<void>
                     rootCategoryId,
                     rootCategoryBsr,
                     lastFetched: new Date(),
-                    expiresAt,
                 },
             });
-
-        console.log(`[${new Date().toISOString()}] Stored product result for ${productInfo.asin}`);
     } catch (error) {
         console.error(`[Product Store] Error storing result for ${productInfo.asin}:`, error);
     }
 }
-

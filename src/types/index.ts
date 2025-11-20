@@ -1,20 +1,12 @@
-export type ProductRanking = {
-    rank: number;
-    category: string;
-    link?: string;
-};
-
 export type ProductInfo = {
     asin: string;
     marketplaceId: string;
     dateFirstAvailable: string | null;
 
-    // Primary BSR for filtering/sorting (display group rank if available)
-    bsr: number | null;
-    bsrCategory: string | null;
-
-    // Detailed rankings matching SP-API structure
-    displayGroupRanks: ProductRanking[];
+    // Root category information from database
+    rootCategoryId: number | null;
+    rootCategoryBsr: number | null;
+    rootCategoryDisplayName: string | null;
 
     // Thumbnail URL from SP-API
     thumbnailUrl?: string;

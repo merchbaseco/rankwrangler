@@ -43,7 +43,6 @@ export const products = pgTable(
         rootCategoryBsr: integer('root_category_bsr'),
         lastFetched: timestamp('last_fetched', { mode: 'date' }).notNull().defaultNow(),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-        expiresAt: timestamp('expires_at', { mode: 'date' }).notNull(),
     },
     table => ({
         // Composite unique index for marketplace + asin
@@ -51,8 +50,6 @@ export const products = pgTable(
             table.marketplaceId,
             table.asin
         ),
-        // Index for cleanup of expired entries
-        expiresAtIdx: index('products_expires_at_idx').on(table.expiresAt),
     })
 );
 

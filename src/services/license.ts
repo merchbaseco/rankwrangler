@@ -47,50 +47,20 @@ export const validateLicense = async (
 	key: string,
 ): Promise<ValidationResult> => {
 	try {
-		console.log(
-			`[License Validation] Starting validation for key: ${key.substring(0, 20)}...`,
-		);
-
 		// 1. Verify JWT signature and decode
 		const decoded = jwt.verify(key, env.LICENSE_SECRET) as LicensePayload;
-		console.log(`[License Validation] JWT decoded successfully:`, {
-			sub: decoded.sub,
-			email: decoded.email,
-			iat: decoded.iat,
-		});
 
 		// 2. Find license in database
-		console.log(
-			`[License Validation] Searching database for license with key...`,
-		);
 		let license = await dbGetLicenseById('key', key);
-		console.log('[License Validation] License query result:', JSON.stringify(license));
 		if (!license) {
-			console.log(
-				`[License Validation] License not found in database for key: ${key.substring(0, 20)}...`,
-			);
-
-			// Try to find by JWT subject (license ID)
-			console.log(`[License Validation] Trying to find by ID: ${decoded.sub}`);
+			// Try to find by JWT subject (license ID) as fallback
+			// If found by ID but not by key, it's still invalid (key mismatch)
 			const licenseById = await dbGetLicenseById('id', decoded.sub);
-
-			if (licenseById) {
-				console.log(
-					`[License Validation] Found license by ID, but key mismatch. DB key: ${licenseById.key ? licenseById.key.substring(0, 20) + "..." : "NULL"}`,
-				);
-			} else {
-				console.log(`[License Validation] License not found by ID either`);
+			if (!licenseById) {
+				return { valid: false, error: "License not found in database" };
 			}
-
 			return { valid: false, error: "License not found in database" };
 		}
-
-		console.log(`[License Validation] License found:`, {
-			id: license.id,
-			email: license.email,
-			hasKey: !!license.key,
-			keyMatch: license.key === key,
-		});
 
 		// 3. Check and reset daily usage if needed
 		await checkAndResetDailyUsage(license);

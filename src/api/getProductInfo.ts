@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { requireLicense } from '@/middleware/requireLicense.js';
 import { db } from '@/db/index.js';
-import { productIngestQueue } from '@/db/schema.js';
 import { getProductInfoFromStore } from '@/db/product/get-product.js';
+import { productIngestQueue } from '@/db/schema.js';
+import { requireLicense } from '@/middleware/requireLicense.js';
 import { trackApiRequest } from '@/services/posthog.js';
 
 export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
@@ -16,7 +16,11 @@ export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
 
             const getProductInfoSchema = z.object({
                 marketplaceId: z.string().min(1, 'Marketplace ID is required'),
-                asin: z.string().min(1, 'ASIN is required'),
+                asin: z
+                    .string()
+                    .min(1, 'ASIN is required')
+                    .regex(/^[A-Z0-9]{10}$/i, 'ASIN must be 10 alphanumeric characters')
+                    .transform(value => value.toUpperCase()),
             });
 
             try {
@@ -67,10 +71,7 @@ export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
                     error: 'Request timeout: product info not available after 10 seconds',
                 };
             } catch (error) {
-                console.error(
-                    `[${new Date().toISOString()}] Error getting product info:`,
-                    error
-                );
+                console.error(`[${new Date().toISOString()}] Error getting product info:`, error);
 
                 const { z: zod } = await import('zod');
                 if (error instanceof zod.ZodError) {
@@ -90,4 +91,3 @@ export async function registerGetProductInfoRoute(fastify: FastifyInstance) {
         }
     );
 }
-
