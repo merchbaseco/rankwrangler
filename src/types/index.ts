@@ -3,6 +3,10 @@ export type ProductInfo = {
     marketplaceId: string;
     dateFirstAvailable: string | null;
 
+    // Product title and brand from SP-API
+    title: string | null;
+    brand: string | null;
+
     // Root category information from database
     rootCategoryId: number | null;
     rootCategoryBsr: number | null;

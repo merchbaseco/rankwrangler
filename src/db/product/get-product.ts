@@ -40,6 +40,8 @@ export async function getProductInfoFromStore(
             asin: product.asin,
             marketplaceId: product.marketplaceId,
             dateFirstAvailable: product.dateFirstAvailable?.toISOString() || null,
+            title: product.title || null,
+            brand: product.brand || null,
             thumbnailUrl: product.thumbnailUrl || undefined,
             rootCategoryId: product.rootCategoryId,
             rootCategoryBsr: product.rootCategoryBsr,
