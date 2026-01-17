@@ -1,64 +1,53 @@
 # RankWrangler Server
 
-Fastify-based API for RankWrangler’s Amazon SP-API integration. The service is distributed as a Docker container via GitHub Container Registry (GHCR) and fronts the `/api/*` routes behind the public Caddy proxy at `merchbase.co`.
+Fastify-based API for RankWrangler's Amazon SP-API integration.
 
-## Requirements
+## Hosting
 
-- Node.js 18+
-- Yarn 4 (Corepack enabled)
-- Docker (optional, for container builds)
+Deployed on Mac Mini via self-hosted GitHub Actions runner.
 
-## Setup
+- **URL:** https://api.merchbase.co
+- **DB Viewer:** https://db.merchbase.co (Drizzle Gateway)
+- **Local port:** 8090
 
+## Deployment
+
+Push to `main` triggers automatic build and deploy via self-hosted runner.
+
+Manual deploy:
 ```bash
-yarn install
-cp .env.example .env
-# fill .env with valid SP-API credentials before starting
+cd /Users/zknicker/srv/rankwrangler
+git pull
+docker compose build
+docker compose up -d
 ```
 
 ## Local Development
 
-Run the API in development mode with Docker and PostgreSQL:
-
 ```bash
+npm install
+cp .env.example .env
+# Fill in .env with your credentials
 docker compose up --build
 ```
 
-This uses the local `docker-compose.yml`, which builds the server image from the current workspace and wires the exposed port `8080`.
-
-To build and run the service manually:
-
-```bash
-yarn build
-NODE_ENV=production yarn start
-```
+The API will be available at `http://localhost:8090/api/health`.
 
 ## Scripts
 
-- `yarn build` – bundle the server with Vite
-- `yarn start` – run the compiled server using `dotenv-cli` (expects `dist/index.js`)
-- `yarn deploy` – helper script for the legacy standalone deployment (exits with guidance)
-- `./scripts/commands.sh` – utilities for managing the production container over SSH (`logs`, `status`, `restart`, etc.)
-- `./test-api.sh` – quick smoke tests for the health check endpoint
-
-## Docker
-
-- Dockerfile: `./Dockerfile`
-- Compose files for local testing and stack orchestration: `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.stack.yml`
-- Health endpoint: `GET /api/health`
-
-The default GitHub Actions workflow (`.github/workflows/deploy.yml`) builds and pushes `ghcr.io/merchbaseco/rankwrangler-server` and triggers the infrastructure deployment in `merchbase-infra`.
+- `npm run build` – bundle the server with Vite
+- `npm run start` – run the compiled server
+- `./test-api.sh` – smoke test the health endpoint
 
 ## Database Migrations
 
-Drizzle migrations live under `./drizzle`. Update the schema in `src/db/schema.ts`, run `yarn drizzle-kit generate`, and commit the generated SQL alongside `init.sql`.
+Drizzle migrations live under `./drizzle`. Update the schema in `src/db/schema.ts`, run `npx drizzle-kit generate`, and commit the generated SQL alongside `init.sql`.
 
-## Testing
+## Docker Services
 
-Manual smoke tests:
+- `rankwrangler-postgres` – PostgreSQL 15 database
+- `rankwrangler-server` – Node.js API server
+- `rankwrangler-caddy` – Reverse proxy (port 8090)
+- `rankwrangler-drizzle-gateway` – DB viewer (port 4983)
 
-```bash
-./test-api.sh
-```
-
-This script hits the health endpoint. Add new automated tests when extending the API surface.
+Health endpoint: `GET /api/health`
