@@ -75,20 +75,6 @@ services:
       retries: 3
       start_period: 10s
 
-  pgweb:
-    image: sosedoff/pgweb
-    container_name: rankwrangler-pgweb
-    restart: unless-stopped
-    ports:
-      - "4983:8081"
-    environment:
-      PGWEB_DATABASE_URL: postgres://rankwrangler:${DATABASE_PASSWORD}@postgres:5432/rankwrangler?sslmode=disable
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - rankwrangler
-
 volumes:
   postgres_data:
   caddy_data:

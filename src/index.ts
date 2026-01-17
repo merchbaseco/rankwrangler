@@ -75,6 +75,7 @@ await fastify.register(cors, {
     origin: (origin, callback) => {
         const allowedOrigins = [
             'https://merchbase.co',
+            'https://rankwrangler.merchbase.co',
             'http://localhost:3000',
             'http://localhost:5173',
         ];
