@@ -6,12 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "vite build",
-    "start": "dotenv -e .env node dist/index.js",
-    "deploy": "./scripts/deploy-stack.sh",
-    "logs": "./scripts/commands.sh logs",
-    "status": "./scripts/commands.sh status",
-    "restart": "./scripts/commands.sh restart",
-    "stop": "./scripts/commands.sh stop"
+    "start": "dotenv -e .env node dist/index.js"
   },
   "dependencies": {
     "@amazon-sp-api-release/amazon-sp-api-sdk-js": "^1.6.0",
