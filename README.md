@@ -2,25 +2,10 @@
 
 Fastify-based API for RankWrangler's Amazon SP-API integration.
 
-## Hosting
+## Production
 
-Deployed on Mac Mini via self-hosted GitHub Actions runner.
-
-- **URL:** https://api.merchbase.co
-- **DB Viewer:** https://db.merchbase.co (Drizzle Gateway)
-- **Local port:** 8090
-
-## Deployment
-
-Push to `main` triggers automatic build and deploy via self-hosted runner.
-
-Manual deploy:
-```bash
-cd /Users/zknicker/srv/rankwrangler
-git pull
-docker compose build
-docker compose up -d
-```
+- **URL:** https://rankwrangler.merchbase.co
+- **Health check:** `GET /api/health`
 
 ## Local Development
 
@@ -45,9 +30,6 @@ Drizzle migrations live under `./drizzle`. Update the schema in `src/db/schema.t
 
 ## Docker Services
 
-- `rankwrangler-postgres` – PostgreSQL 15 database
-- `rankwrangler-server` – Node.js API server
-- `rankwrangler-caddy` – Reverse proxy (port 8090)
-- `rankwrangler-drizzle-gateway` – DB viewer (port 4983)
-
-Health endpoint: `GET /api/health`
+- `postgres` – PostgreSQL 15 database
+- `server` – Node.js API server
+- `caddy` – Reverse proxy (port 8090)
