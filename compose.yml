@@ -75,19 +75,14 @@ services:
       retries: 3
       start_period: 10s
 
-  drizzle-gateway:
-    image: ghcr.io/jlarminern/drizzle-gateway:latest
-    container_name: rankwrangler-drizzle-gateway
+  pgweb:
+    image: sosedoff/pgweb
+    container_name: rankwrangler-pgweb
     restart: unless-stopped
     ports:
-      - "4983:4983"
+      - "4983:8081"
     environment:
-      DRIZZLE_GATEWAY_DATABASE_HOST: postgres
-      DRIZZLE_GATEWAY_DATABASE_PORT: 5432
-      DRIZZLE_GATEWAY_DATABASE_NAME: rankwrangler
-      DRIZZLE_GATEWAY_DATABASE_USER: rankwrangler
-      DRIZZLE_GATEWAY_DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      DRIZZLE_GATEWAY_DATABASE_DRIVER: pg
+      PGWEB_DATABASE_URL: postgres://rankwrangler:${DATABASE_PASSWORD}@postgres:5432/rankwrangler?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
