@@ -18,6 +18,8 @@ docker compose up --build
 
 The API will be available at `http://localhost:8090/api/health`.
 
+Postgres is bound to `HOST_IP` (set in `.env`). Use `127.0.0.1` for local-only access.
+
 ## Scripts
 
 - `npm run build` – bundle the server with Vite
