@@ -18,7 +18,7 @@ docker compose up --build
 
 The API will be available at `http://localhost:8090/api/health`.
 
-Postgres is bound to `HOST_IP` (set in `.env`) on port `5433`. Use `127.0.0.1` for local-only access.
+Postgres is bound to `127.0.0.1` on port `5433` for local-only access.
 
 ## Scripts
 
