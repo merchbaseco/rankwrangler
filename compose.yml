@@ -60,7 +60,7 @@ services:
     container_name: rankwrangler-caddy
     restart: unless-stopped
     ports:
-      - "8090:80"
+      - "127.0.0.1:8090:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
