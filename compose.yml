@@ -4,7 +4,7 @@ services:
     container_name: rankwrangler-postgres
     restart: unless-stopped
     ports:
-      - "${HOST_IP}:5432:5432"
+      - "${HOST_IP}:5433:5432"
     environment:
       POSTGRES_DB: rankwrangler
       POSTGRES_USER: rankwrangler
