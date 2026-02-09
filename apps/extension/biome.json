@@ -1,4 +1,8 @@
 {
+  "extends": ["ultracite/biome/core", "ultracite/biome/react"],
+  "formatter": {
+    "indentStyle": "tab"
+  },
   "linter": {
     "rules": {
       "a11y": {

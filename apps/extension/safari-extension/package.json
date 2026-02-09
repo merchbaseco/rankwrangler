@@ -11,6 +11,7 @@
     "format": "biome check --write ../scripts/"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.2"
+    "@biomejs/biome": "^2.3.13",
+    "ultracite": "^7.1.5"
   }
 }
