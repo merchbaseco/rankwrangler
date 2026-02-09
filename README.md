@@ -1,37 +1,22 @@
-# RankWrangler Server
+# RankWrangler
 
-Fastify-based API for RankWrangler's Amazon SP-API integration.
+Monorepo containing the RankWrangler server, website, and browser extension.
 
-## Production
+## Apps
 
-- **URL:** https://rankwrangler.merchbase.co
-- **Health check:** `GET /api/health`
+- `apps/server` – Fastify-based API for Amazon SP-API integration
+- `apps/website` – Website (hello world placeholder)
+- `apps/extension` – Chrome extension
 
-## Local Development
+## Tooling
+
+- Bun workspaces (`package.json` at repo root)
+
+## Quick Start
 
 ```bash
-npm install
-cp .env.example .env
-# Fill in .env with your credentials
-docker compose up --build
+bun install
+bun --filter @rankwrangler/server run build
 ```
 
-The API will be available at `http://localhost:8090/api/health`.
-
-Postgres is bound to `127.0.0.1` on port `5433` for local-only access.
-
-## Scripts
-
-- `npm run build` – bundle the server with Vite
-- `npm run start` – run the compiled server
-- `./test-api.sh` – smoke test the health endpoint
-
-## Database Migrations
-
-Drizzle migrations live under `./drizzle`. Update the schema in `src/db/schema.ts`, run `npx drizzle-kit generate`, and commit the generated SQL alongside `init.sql`.
-
-## Docker Services
-
-- `postgres` – PostgreSQL 15 database
-- `server` – Node.js API server
-- `caddy` – Reverse proxy (port 8090)
+For server-specific docs, see `apps/server/README.md`.
