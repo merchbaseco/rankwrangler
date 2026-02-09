@@ -20,8 +20,11 @@ jobs:
           git pull --ff-only
 
           # Build and restart
-          docker compose -f apps/server/compose.yml build
-          docker compose -f apps/server/compose.yml up -d
+          # NOTE: compose.yml lives in apps/server/, but the real .env is at repo root.
+          # Without --project-directory, Docker Compose will look for .env in apps/server/
+          # and substitute blanks (causing Postgres to fail).
+          docker compose --project-directory . -f apps/server/compose.yml build
+          docker compose --project-directory . -f apps/server/compose.yml up -d
 
           # Show status
-          docker compose -f apps/server/compose.yml ps
+          docker compose --project-directory . -f apps/server/compose.yml ps
