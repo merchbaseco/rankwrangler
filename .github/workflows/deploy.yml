@@ -21,10 +21,10 @@ jobs:
 
           # Build and restart
           # NOTE: compose.yml lives in apps/server/, but the real .env is at repo root.
-          # Without --project-directory, Docker Compose will look for .env in apps/server/
-          # and substitute blanks (causing Postgres to fail).
-          docker compose --project-directory . -f apps/server/compose.yml build
-          docker compose --project-directory . -f apps/server/compose.yml up -d
+          # Without --env-file, Docker Compose will look for .env in apps/server/ and
+          # substitute blanks (causing Postgres to fail).
+          docker compose --env-file /Users/zknicker/srv/rankwrangler/.env -f apps/server/compose.yml build
+          docker compose --env-file /Users/zknicker/srv/rankwrangler/.env -f apps/server/compose.yml up -d
 
           # Show status
-          docker compose --project-directory . -f apps/server/compose.yml ps
+          docker compose --env-file /Users/zknicker/srv/rankwrangler/.env -f apps/server/compose.yml ps
