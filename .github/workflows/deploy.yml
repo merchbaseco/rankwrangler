@@ -20,8 +20,8 @@ jobs:
           git pull --ff-only
 
           # Build and restart
-          docker compose build
-          docker compose up -d
+          docker compose -f apps/server/compose.yml build
+          docker compose -f apps/server/compose.yml up -d
 
           # Show status
-          docker compose ps
+          docker compose -f apps/server/compose.yml ps

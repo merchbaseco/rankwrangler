@@ -1,0 +1,72 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+safari-extension/node_modules/
+
+# Auto-generated builds
+dist/
+build/
+out/
+*.tgz
+
+# Tooling caches
+.npm/
+.pnpm-debug.log*
+.yarn/
+.eslintcache
+.stylelintcache
+.cache/
+.parcel-cache/
+.vite/
+*.tsbuildinfo
+
+# Coverage
+coverage/
+*.lcov
+
+# Env files
+.env
+.env.*
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Storybook / Chromatic artifacts
+storybook-static/
+
+# Safari / Xcode build artifacts
+DerivedData/
+*.xcworkspace/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/xcshareddata/WorkspaceSettings.xcsettings
+*.xcuserdatad/
+*.dSYM/
+*.ipa
+*.app
+*.xcarchive
