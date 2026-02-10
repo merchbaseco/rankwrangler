@@ -1,6 +1,6 @@
 # RankWrangler Server
 
-Fastify + tRPC API for RankWrangler's Amazon SP-API integration, secured with Clerk.
+Fastify + tRPC API for RankWrangler's Amazon SP-API integration.
 
 ## Production
 
@@ -43,41 +43,70 @@ the `5433` host port is already mapped for you.
 
 - `bun run build` – bundle the server with Vite
 - `bun run start` – run the compiled server
-- `bun run cli -- get-product-info --marketplaceId <id> --asin <asin>` – CLI for tRPC
-- `./test-api.sh` – smoke test the health endpoint and tRPC call
+- `bun run cli -- get-product-info --marketplaceId <id> --asin <asin>` – CLI for public API
+- `./test-api.sh` – smoke test health, public API (license), and app API (Clerk)
 
 ## Authentication
 
-- **Clerk**: All public endpoints require a Clerk JWT in `Authorization: Bearer <token>`.
+- **Public API**: License key in `Authorization: Bearer <licenseKey>`.
+- **App API**: Clerk JWT in `Authorization: Bearer <token>`.
 - **Admin APIs**: Restrict access by setting `ADMIN_EMAIL`.
 
 Required env vars:
 
 - `CLERK_SECRET_KEY`
+- `LICENSE_SECRET`
 - `ADMIN_EMAIL` (optional)
 
-## API
+## API Structure
 
-The tRPC router is exposed at `/api`.
+tRPC router is exposed at `/api` with explicit namespaces:
+
+- `api.public.*` – public API (license key auth)
+- `api.app.*` – app/admin API (Clerk auth)
+
+### Typed Client
+
+- The public API is also exposed via the typed client in `packages/http-client`.
+- When the public router changes, regenerate types with:
+  - `bun run http-client:types`
+  - `bun run http-client:build`
+
+### Router Layout
+
+- Each tRPC procedure lives in its own file under:
+  - `apps/server/src/api/public`
+  - `apps/server/src/api/app`
+- Router files (`router.ts`) should only compose these procedures.
 
 Public procedures:
 
-- `public.getProductInfo`
-- `public.license.validate`
-- `public.license.status`
+- `api.public.getProductInfo`
+- `api.public.license.validate`
+- `api.public.license.status`
 
-Admin procedures:
+App procedures:
 
-- `admin.license.generate`
-- `admin.license.list`
-- `admin.license.details`
-- `admin.license.delete`
-- `admin.license.reset`
+- `api.app.getProductInfo`
+- `api.app.license.generate`
+- `api.app.license.list`
+- `api.app.license.details`
+- `api.app.license.delete`
+- `api.app.license.reset`
 
-Example `curl` (tRPC):
+Example `curl` (public):
 
 ```bash
-curl -s -X POST http://localhost:8080/api/public.getProductInfo \
+curl -s -X POST http://localhost:8080/api/api.public.getProductInfo \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_LICENSE_KEY" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'
+```
+
+Example `curl` (app):
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.getProductInfo \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $RR_CLERK_TOKEN" \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'

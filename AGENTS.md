@@ -100,6 +100,57 @@ docker logs rankwrangler-caddy --tail 50
 - License management lives in `apps/server/src/services/license.ts`
 - SP-API integration lives in `apps/server/src/services/spapi.ts`
 
+## API Design
+
+- **All APIs are tRPC** (no REST surface).
+- Router structure:
+  - `api.public.*` – public API (license key auth)
+  - `api.app.*` – app/admin API (Clerk auth)
+- Shared behavior should live in **utils/libs**, not shared routers.
+  - Example: `apps/server/src/utils/product-info.ts` powers both public + app routes.
+- Each tRPC procedure should live in its own file under `apps/server/src/api/public` or `apps/server/src/api/app`.
+
+## TypeScript Best Practices
+
+- Build types first: define data models and function signatures before implementation.
+- Make illegal states unrepresentable: prefer discriminated unions, branded types, and const assertions over loose optionals.
+- Separate create/update/read shapes explicitly (`CreateX`, `UpdateX`, `X`).
+- Keep modules small and focused; split files when responsibilities diverge or exceed ~200 lines.
+- Prefer immutability: use `const`, `readonly`, `Readonly<T>`, and avoid mutating parameters.
+- Favor functional patterns (`map/filter/reduce`) and isolate side effects.
+- Keep strict typing on; use exhaustive `switch` with `never` checks for safety.
+- Handle errors with context; never swallow exceptions silently.
+- Handle edge cases explicitly (nulls, empty arrays, boundaries).
+- Use `await` for async calls and add context to external errors.
+- Add or update focused tests when behavior changes.
+- Validate runtime inputs at boundaries; treat schemas as source of truth and infer types from them.
+- Use `safeParse` for expected user input failures and `parse` at trusted boundaries.
+- Validate configuration on startup; avoid scattered `process.env` usage.
+
+## React Best Practices
+
+- Apply the TypeScript best practices above to React code as well.
+- Treat Effects as escape hatches; prefer render-time derivation and event handlers over Effects.
+- Use Effects only to sync with external systems (browser APIs, subscriptions, non-React libraries).
+- Avoid Effects for derived state, prop-change resets, or user-triggered actions; use `useMemo`, `key`, or event handlers instead.
+- Never suppress `react-hooks/exhaustive-deps`; fix dependencies by using updater functions or moving objects/functions inside Effects.
+- Always clean up subscriptions and listeners; account for React dev double-invocations by writing correct cleanup, not guard refs.
+- Use refs only for values that don’t affect rendering; never read/write `ref.current` during render.
+- Prefer controlled components; isolate side effects and keep components focused and small.
+- Custom hooks share logic, not state; each hook call is independent.
+### Typed HTTP Client (Public API)
+
+- Package: `packages/http-client`
+- Purpose: provide a typed client for the public API without forcing consumers to depend on tRPC directly.
+- Build types:
+  - `bun run http-client:types`
+  - `bun run http-client:build`
+
+### CLI (Upcoming)
+
+- CLI should use the typed client (`@rankwrangler/http-client`) and the public API surface.
+- Keep CLI surface aligned with `api.public.*` so there is one canonical public API.
+
 ## Important Implementation Details
 
 ### Timezone Handling for BSR Rank History

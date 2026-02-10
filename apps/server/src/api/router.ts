@@ -1,10 +1,12 @@
-import { adminRouter } from './routers/admin.js';
-import { publicRouter } from './routers/public.js';
+import { appApiRouter } from './app/router.js';
+import { publicApiRouter } from './public/router.js';
 import { router } from './trpc.js';
 
 export const appRouter = router({
-    admin: adminRouter,
-    public: publicRouter,
+    api: router({
+        public: publicApiRouter,
+        app: appApiRouter,
+    }),
 });
 
 export type AppRouter = typeof appRouter;
