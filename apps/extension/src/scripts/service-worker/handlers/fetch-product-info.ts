@@ -1,11 +1,13 @@
+import {
+	createRankWranglerClient,
+	DEFAULT_API_BASE_URL,
+} from "@rankwrangler/http-client";
 import type {
 	FetchProductInfoMessage,
 	ProductInfoResponse,
 } from "@/scripts/content/types";
 import { log } from "../../../utils/logger";
 import { resolveStoredLicenseKey } from "./license-utils";
-
-const API_BASE_URL = "https://rankwrangler.merchbase.co/api";
 
 export async function handleFetchProductInfo(
 	message: FetchProductInfoMessage,
@@ -14,61 +16,52 @@ export async function handleFetchProductInfo(
 		// Get the active license key (sync or local fallback)
 		const activeLicenseKey = await resolveStoredLicenseKey();
 
-		const headers: Record<string, string> = {
-			"Content-Type": "application/json",
-		};
-
-		// Add authorization header if license key exists
-		if (activeLicenseKey) {
-			headers.Authorization = `Bearer ${activeLicenseKey}`;
-		} else {
+		if (!activeLicenseKey) {
 			log.warn(
 				"Attempting to fetch product info without an active license key",
 				{
 					asin: message.asin,
 				},
 			);
-		}
-
-		const response = await fetch(`${API_BASE_URL}/getProductInfo`, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({
-				asin: message.asin,
-				marketplaceId: message.marketplaceId,
-			}),
-		});
-
-		if (!response.ok) {
-			let errorMessage: string;
-
-			switch (response.status) {
-				case 401:
-					errorMessage =
-						"Invalid or missing license key. Please check your license settings.";
-					break;
-				case 429:
-					errorMessage =
-						"Daily usage limit exceeded. License will reset at midnight UTC.";
-					break;
-				default:
-					errorMessage = `Server error (${response.status}). Please try again later.`;
-			}
-
 			return {
 				success: false,
-				error: errorMessage,
+				error:
+					"Invalid or missing license key. Please check your license settings.",
 			};
 		}
 
-		const responseJson = await response.json();
+		const apiClient = createRankWranglerClient({
+			baseUrl: DEFAULT_API_BASE_URL,
+			apiKey: activeLicenseKey,
+		});
+
+		const response = await apiClient.getProductInfo.mutate({
+			asin: message.asin,
+			marketplaceId: message.marketplaceId,
+		});
 
 		return {
 			success: true,
-			data: responseJson.data,
+			data: response,
 		};
 	} catch (error) {
 		log.error("ProductInfo fetch failed:", error);
+
+		const errorCode = resolveTrpcErrorCode(error);
+		if (errorCode === "UNAUTHORIZED") {
+			return {
+				success: false,
+				error:
+					"Invalid or missing license key. Please check your license settings.",
+			};
+		}
+
+		if (errorCode === "TOO_MANY_REQUESTS") {
+			return {
+				success: false,
+				error: "Daily usage limit exceeded. License will reset at midnight UTC.",
+			};
+		}
 
 		return {
 			success: false,
@@ -79,3 +72,18 @@ export async function handleFetchProductInfo(
 		};
 	}
 }
+
+const resolveTrpcErrorCode = (error: unknown): string | null => {
+	if (!error || typeof error !== "object") {
+		return null;
+	}
+
+	if ("data" in error) {
+		const data = (error as { data?: { code?: string } }).data;
+		if (data?.code) {
+			return data.code;
+		}
+	}
+
+	return null;
+};

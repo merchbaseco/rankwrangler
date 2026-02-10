@@ -21,18 +21,45 @@ fi
 
 echo ""
 
-# Clerk-authenticated endpoints
-if [ -n "$RR_CLERK_TOKEN" ]; then
-    echo "🔐 Testing Clerk-authenticated API endpoints..."
+# License-authenticated public API
+if [ -n "$RR_LICENSE_KEY" ]; then
+    echo "🔑 Testing License-authenticated public API..."
     echo ""
-    echo "📦 Testing public.getProductInfo..."
-    curl -s -X POST "$API_BASE/api/public.getProductInfo" \
+    echo "✅ Testing api.public.license.validate..."
+    curl -s -X POST "$API_BASE/api/api.public.license.validate" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -d '{"input":null}' | jq '.'
+    echo ""
+    echo "✅ Testing api.public.license.status..."
+    curl -s -X POST "$API_BASE/api/api.public.license.status" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -d '{"input":null}' | jq '.'
+    echo ""
+    echo "📦 Testing api.public.getProductInfo..."
+    curl -s -X POST "$API_BASE/api/api.public.getProductInfo" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}' | jq '.'
+    echo ""
+else
+    echo "⚠️ Skipping public API tests - set RR_LICENSE_KEY to exercise public endpoints."
+    echo ""
+fi
+
+# Clerk-authenticated app API
+if [ -n "$RR_CLERK_TOKEN" ]; then
+    echo "🔐 Testing Clerk-authenticated app API..."
+    echo ""
+    echo "📦 Testing api.app.getProductInfo..."
+    curl -s -X POST "$API_BASE/api/api.app.getProductInfo" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}' | jq '.'
     echo ""
 else
-    echo "⚠️ Skipping Clerk API tests - set RR_CLERK_TOKEN to exercise authenticated endpoints."
+    echo "⚠️ Skipping app API tests - set RR_CLERK_TOKEN to exercise Clerk endpoints."
     echo ""
 fi
 
