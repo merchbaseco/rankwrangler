@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { Product } from "@/scripts/types/product";
 import { log } from "../../../utils/logger";
 
+const TRAILING_ZEROES_REGEX = /\.?0+$/;
+
 /**
  * Format BSR numbers with appropriate display format
  * - Numbers < 1,000,000: Show with commas (e.g., "12,345")
@@ -10,7 +12,7 @@ import { log } from "../../../utils/logger";
 function formatBSR(bsr: number): string {
 	if (bsr >= 1_000_000) {
 		const millions = bsr / 1_000_000;
-		return `${millions.toFixed(2).replace(/\.?0+$/, "")}M`;
+		return `${millions.toFixed(2).replace(TRAILING_ZEROES_REGEX, "")}M`;
 	}
 	return bsr.toLocaleString();
 }
@@ -30,11 +32,13 @@ export function ProductDisplay({
 	isError?: boolean;
 }) {
 	const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied">(
-		"idle",
+		"idle"
 	);
 
 	const handleCopyAsin = async (asinToCopy: string) => {
-		if (copyStatus !== "idle") return;
+		if (copyStatus !== "idle") {
+			return;
+		}
 
 		setCopyStatus("copying");
 
@@ -53,8 +57,8 @@ export function ProductDisplay({
 
 	if (isError) {
 		return (
-			<div className="w-full bg-gradient-to-r from-white/[0.98] to-white/[0.95] backdrop-blur border border-gray-200 rounded-lg px-3 py-2 shadow-sm animate-in fade-in duration-300 z-[1]">
-				<span className="text-red-600 text-sm font-medium">
+			<div className="fade-in z-[1] w-full animate-in rounded-lg border border-gray-200 bg-gradient-to-r from-white/[0.98] to-white/[0.95] px-3 py-2 shadow-sm backdrop-blur duration-300">
+				<span className="font-medium text-red-600 text-sm">
 					Unable to fetch rank
 				</span>
 			</div>
@@ -63,23 +67,23 @@ export function ProductDisplay({
 
 	if (isLoading || !product) {
 		return (
-			<div className="w-full bg-gradient-to-r from-white/[0.98] to-white/[0.95] backdrop-blur border border-gray-200 rounded-lg px-3 py-2 shadow-sm flex flex-col gap-1.5">
+			<div className="flex w-full flex-col gap-1.5 rounded-lg border border-gray-200 bg-gradient-to-r from-white/[0.98] to-white/[0.95] px-3 py-2 shadow-sm backdrop-blur">
 				{/* Skeleton for BSR rank and category */}
 				<div className="flex items-baseline gap-0.5">
-					<span className="text-base font-semibold text-transparent bg-gray-200 rounded animate-pulse whitespace-nowrap">
+					<span className="animate-pulse whitespace-nowrap rounded bg-gray-200 font-semibold text-base text-transparent">
 						#123,456
 					</span>
-					<span className="text-xs text-transparent bg-gray-200 rounded ml-1 animate-pulse">
+					<span className="ml-1 animate-pulse rounded bg-gray-200 text-transparent text-xs">
 						in Example Category
 					</span>
 				</div>
 
 				{/* Skeleton for metadata row */}
-				<div className="flex items-center gap-2 pt-1.5 mt-1 border-t border-gray-200 w-full">
-					<span className="text-xs text-transparent bg-gray-200 rounded flex-1 animate-pulse">
+				<div className="mt-1 flex w-full items-center gap-2 border-gray-200 border-t pt-1.5">
+					<span className="flex-1 animate-pulse rounded bg-gray-200 text-transparent text-xs">
 						December 31, 2024
 					</span>
-					<span className="text-xs text-transparent bg-gray-200 rounded px-1.5 py-0.5 animate-pulse">
+					<span className="animate-pulse rounded bg-gray-200 px-1.5 py-0.5 text-transparent text-xs">
 						B0EXAMPLE1
 					</span>
 				</div>
@@ -87,31 +91,32 @@ export function ProductDisplay({
 		);
 	}
 
-	const { asin, rootCategoryBsr, rootCategoryDisplayName, creationDate } = product;
+	const { asin, rootCategoryBsr, rootCategoryDisplayName, creationDate } =
+		product;
 
-	if (!rootCategoryBsr || !rootCategoryDisplayName) {
+	if (!(rootCategoryBsr && rootCategoryDisplayName)) {
 		return (
-			<div className="w-full bg-gradient-to-r from-white/[0.98] to-white/[0.95] backdrop-blur border border-gray-200 rounded-lg px-3 py-2 shadow-sm animate-in fade-in duration-300 z-[1]">
-				<span className="text-gray-800 text-sm font-medium">No rank data</span>
+			<div className="fade-in z-[1] w-full animate-in rounded-lg border border-gray-200 bg-gradient-to-r from-white/[0.98] to-white/[0.95] px-3 py-2 shadow-sm backdrop-blur duration-300">
+				<span className="font-medium text-gray-800 text-sm">No rank data</span>
 			</div>
 		);
 	}
 
 	return (
-		<div className="w-full bg-gradient-to-r from-white/[0.98] to-white/[0.95] backdrop-blur border border-gray-200 rounded-lg px-3 py-2 shadow-sm animate-in fade-in duration-300 z-[1] flex flex-col gap-1.5">
+		<div className="fade-in z-[1] flex w-full animate-in flex-col gap-1.5 rounded-lg border border-gray-200 bg-gradient-to-r from-white/[0.98] to-white/[0.95] px-3 py-2 shadow-sm backdrop-blur duration-300">
 			{/* BSR Rank and Category - matches .rw-success */}
-			<div className="text-green-700 flex items-baseline gap-0.5">
-				<span className="text-base font-semibold text-gray-800 whitespace-nowrap">
+			<div className="flex items-baseline gap-0.5 text-green-700">
+				<span className="whitespace-nowrap font-semibold text-base text-gray-800">
 					#{formatBSR(rootCategoryBsr)}
 				</span>
-				<span className="text-xs text-gray-600 ml-1 line-clamp-1">
+				<span className="ml-1 line-clamp-1 text-gray-600 text-xs">
 					in {rootCategoryDisplayName}
 				</span>
 			</div>
 
 			{/* Metadata: Date and ASIN - matches .rw-meta */}
-			<div className="flex items-center gap-2 pt-1.5 mt-1 border-t border-gray-200 w-full">
-				<span className="text-xs text-gray-600 flex-1">
+			<div className="mt-1 flex w-full items-center gap-2 border-gray-200 border-t pt-1.5">
+				<span className="flex-1 text-gray-600 text-xs">
 					{creationDate &&
 						new Date(creationDate).toLocaleDateString("en-US", {
 							year: "numeric",
@@ -121,11 +126,11 @@ export function ProductDisplay({
 				</span>
 
 				<button
-					type="button"
-					onClick={() => handleCopyAsin(asin)}
-					className="text-xs text-gray-600 cursor-pointer px-1.5 py-0.5 rounded bg-gray-100 hover:bg-gray-200 hover:text-gray-800 transition-all duration-200"
-					title="Click to copy ASIN"
+					className="cursor-pointer rounded bg-gray-100 px-1.5 py-0.5 text-gray-600 text-xs transition-all duration-200 hover:bg-gray-200 hover:text-gray-800"
 					disabled={copyStatus !== "idle"}
+					onClick={() => handleCopyAsin(asin)}
+					title="Click to copy ASIN"
+					type="button"
 				>
 					{copyStatus === "copied" ? "Copied!" : asin}
 				</button>

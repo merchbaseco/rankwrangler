@@ -1,20 +1,22 @@
 export const Header = () => {
 	return (
-		<div className="pb-8 flex gap-3">
+		<div className="flex gap-3 pb-8">
 			<div className="shrink-0">
-				<div className="p-[3px] bg-gradient-to-b from-orange-100 to-orange-200 rounded-lg border border-orange-200 shadow-sm aspect-square">
+				<div className="aspect-square rounded-lg border border-orange-200 bg-gradient-to-b from-orange-100 to-orange-200 p-[3px] shadow-sm">
 					<img
-						src="images/icon.png"
 						alt="RankWrangler"
 						className="size-8 object-contain"
+						height={32}
+						src="images/icon.png"
+						width={32}
 					/>
 				</div>
 			</div>
 			<div>
-				<div className="text-base font-bold text-primary tracking-tighter -mt-0.5">
+				<div className="-mt-0.5 font-bold text-base text-primary tracking-tighter">
 					Rank Wrangler
 				</div>
-				<div className="text-xs text-secondary tracking-tight">
+				<div className="text-secondary text-xs tracking-tight">
 					{(() => {
 						const taglines = [
 							"Tame the Amazon Jungle",

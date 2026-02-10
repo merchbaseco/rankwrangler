@@ -10,7 +10,7 @@ import { log } from "../../../utils/logger";
 import { resolveStoredLicenseKey } from "./license-utils";
 
 export async function handleFetchProductInfo(
-	message: FetchProductInfoMessage,
+	message: FetchProductInfoMessage
 ): Promise<ProductInfoResponse> {
 	try {
 		// Get the active license key (sync or local fallback)
@@ -21,7 +21,7 @@ export async function handleFetchProductInfo(
 				"Attempting to fetch product info without an active license key",
 				{
 					asin: message.asin,
-				},
+				}
 			);
 			return {
 				success: false,
@@ -59,7 +59,8 @@ export async function handleFetchProductInfo(
 		if (errorCode === "TOO_MANY_REQUESTS") {
 			return {
 				success: false,
-				error: "Daily usage limit exceeded. License will reset at midnight UTC.",
+				error:
+					"Daily usage limit exceeded. License will reset at midnight UTC.",
 			};
 		}
 

@@ -4,7 +4,7 @@ import type { LicenseResponse, SetLicenseMessage } from "../../content/types";
 import { validateLicenseKey } from "./license-utils";
 
 export async function handleSetLicense(
-	message: SetLicenseMessage,
+	message: SetLicenseMessage
 ): Promise<LicenseResponse> {
 	try {
 		const { licenseKey } = message;

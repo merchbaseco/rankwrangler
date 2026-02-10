@@ -21,7 +21,9 @@ export const CacheControls = () => {
 	}, [status]);
 
 	const handleClearCache = async () => {
-		if (status === "clearing") return;
+		if (status === "clearing") {
+			return;
+		}
 
 		setStatus("clearing");
 		setMessage("");
@@ -31,7 +33,7 @@ export const CacheControls = () => {
 				type: "clearCache",
 			})) as ClearCacheResponse | null;
 
-			if (!response || !response.success) {
+			if (!response?.success) {
 				const errorMessage =
 					response?.error || "Failed to clear cached data. Try again.";
 				setStatus("error");
@@ -46,7 +48,7 @@ export const CacheControls = () => {
 			setMessage(
 				error instanceof Error
 					? error.message
-					: "Unexpected error clearing cache.",
+					: "Unexpected error clearing cache."
 			);
 		}
 	};
@@ -54,12 +56,12 @@ export const CacheControls = () => {
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
-				<span className="text-sm font-medium text-foreground">Cache</span>
+				<span className="font-medium text-foreground text-sm">Cache</span>
 				<Button
-					variant="outline"
-					size="sm"
-					onClick={handleClearCache}
 					disabled={status === "clearing"}
+					onClick={handleClearCache}
+					size="sm"
+					variant="outline"
 				>
 					{status === "clearing" ? "Clearing..." : "Clear Cache"}
 				</Button>

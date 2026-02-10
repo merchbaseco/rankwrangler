@@ -21,7 +21,7 @@ Use this document when assisting with the browser extension + Safari wrapper rep
 - `bun run build:safari` – Runs `scripts/build-safari.js` to rebuild the extension and Xcode project. Uses `dist/`.
 - `bun run build:chrome` – Runs `scripts/build-chrome.js` to build Chrome extension. Uses `dist/`.
 - `bun run tailwind` – Regenerate extension styles.
-- `bun run lint` / `bun run format` – Biome checks and autofixes.
+- `bun run lint` / `bun run lint:fix` – Biome checks and autofixes.
 - `bunx tsc --noEmit` – Type-check the entire project.
 
 > Run commands from `apps/extension`, or from the repo root using `bun --filter rankwrangler-extension`.

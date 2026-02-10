@@ -22,7 +22,9 @@ export const LicenseMessage = ({
 		}
 	}, [autoDismiss, autoDismissDelay, onDismiss]);
 
-	if (!message) return null;
+	if (!message) {
+		return null;
+	}
 
 	const isSuccess =
 		type === "success" ||
@@ -31,10 +33,10 @@ export const LicenseMessage = ({
 
 	return (
 		<div
-			className={`text-sm p-2 rounded ${
+			className={`rounded p-2 text-sm ${
 				isSuccess
-					? "bg-green-50 text-green-700 border border-green-200"
-					: "bg-red-50 text-red-700 border border-red-200"
+					? "border border-green-200 bg-green-50 text-green-700"
+					: "border border-red-200 bg-red-50 text-red-700"
 			}`}
 		>
 			{message}

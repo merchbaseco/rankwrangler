@@ -57,18 +57,18 @@ const LicenseEditor = ({
 		<div className="space-y-3">
 			<div className="flex gap-2">
 				<Input
-					placeholder="Enter license key..."
-					value={licenseInput}
+					autoFocus
+					className="text-sm"
+					disabled={isSaving}
 					onChange={(e) => setLicenseInput(e.target.value)}
 					onKeyPress={handleKeyPress}
-					disabled={isSaving}
+					placeholder="Enter license key..."
 					type="password"
-					className="text-sm"
-					autoFocus
+					value={licenseInput}
 				/>
 				<Button
-					onClick={handleSave}
 					disabled={isSaving || !licenseInput.trim()}
+					onClick={handleSave}
 					size="sm"
 				>
 					{isSaving ? "Saving..." : "Save"}
@@ -78,10 +78,10 @@ const LicenseEditor = ({
 			{hasExistingLicense && (
 				<div className="flex">
 					<Button
-						variant="outline"
-						onClick={onCancel}
 						disabled={isSaving}
+						onClick={onCancel}
 						size="sm"
+						variant="outline"
 					>
 						Cancel
 					</Button>
@@ -90,10 +90,10 @@ const LicenseEditor = ({
 
 			{message && (
 				<LicenseMessage
-					message={message}
-					type={saveSuccess ? "success" : "error"}
-					onDismiss={() => setMessage("")}
 					autoDismiss={saveSuccess}
+					message={message}
+					onDismiss={() => setMessage("")}
+					type={saveSuccess ? "success" : "error"}
 				/>
 			)}
 		</div>
