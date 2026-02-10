@@ -1,7 +1,7 @@
 // Core product information from API
 export interface ProductInfo {
 	asin: string;
-	creationDate: string | null;
+	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	metadata: {
