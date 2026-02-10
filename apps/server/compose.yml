@@ -27,7 +27,9 @@ services:
       dockerfile: Dockerfile
     image: rankwrangler-server:local
     container_name: rankwrangler-server
-    restart: unless-stopped
+    # Prevent crash-looping forever if the app fails fast (e.g. missing env vars).
+    # This will retry a few times and then stop.
+    restart: "on-failure:5"
     environment:
       PORT: 8080
       DATABASE_HOST: postgres
