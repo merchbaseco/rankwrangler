@@ -17,7 +17,7 @@
     "build:chrome": "node scripts/build-chrome.js",
     "preview": "vite preview",
     "lint": "biome check src/",
-    "format": "biome check --write --unsafe src/"
+    "lint:fix": "biome check --write --unsafe src/"
   },
   "author": "RankWrangler",
   "license": "ISC",

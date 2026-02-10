@@ -3,7 +3,7 @@ import { log } from "../../../utils/logger";
 import type { ToggleDebugModeMessage } from "../../content/types";
 
 export const handleToggleDebugMode = async (
-	message: ToggleDebugModeMessage,
+	message: ToggleDebugModeMessage
 ) => {
 	try {
 		log.info("Handling toggle debug mode:", { debugMode: message.debugMode });

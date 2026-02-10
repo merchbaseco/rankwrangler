@@ -15,7 +15,7 @@ const rateLimiter = new RateLimiter({
 });
 
 export const getProduct = async (
-	productIdentifier: ProductIdentifier,
+	productIdentifier: ProductIdentifier
 ): Promise<Product> => {
 	const { asin, marketplaceId } = productIdentifier;
 
@@ -50,15 +50,17 @@ export const getProduct = async (
 		const product: Product = {
 			asin,
 			marketplaceId,
-			...(typeof responseData.dateFirstAvailable === "string" && 
-				responseData.dateFirstAvailable !== null && 
-				responseData.dateFirstAvailable !== ""
+			...(typeof responseData.dateFirstAvailable === "string" &&
+			responseData.dateFirstAvailable !== null &&
+			responseData.dateFirstAvailable !== ""
 				? { creationDate: responseData.dateFirstAvailable }
 				: {}),
-			...(typeof responseData.rootCategoryBsr === "number" || responseData.rootCategoryBsr === null
+			...(typeof responseData.rootCategoryBsr === "number" ||
+			responseData.rootCategoryBsr === null
 				? { rootCategoryBsr: responseData.rootCategoryBsr }
 				: {}),
-			...(typeof responseData.rootCategoryDisplayName === "string" || responseData.rootCategoryDisplayName === null
+			...(typeof responseData.rootCategoryDisplayName === "string" ||
+			responseData.rootCategoryDisplayName === null
 				? { rootCategoryDisplayName: responseData.rootCategoryDisplayName }
 				: {}),
 			metadata: {

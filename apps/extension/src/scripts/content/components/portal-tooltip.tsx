@@ -39,18 +39,26 @@ export const PortalTooltip = ({
 	return (
 		<>
 			{/* Trigger element */}
-			<div
-				ref={triggerRef}
+			<button
 				onMouseEnter={onMouseEnter}
 				onMouseLeave={onMouseLeave}
+				ref={triggerRef}
+				style={{
+					background: "none",
+					border: "none",
+					padding: 0,
+				}}
+				type="button"
 			>
 				{children}
-			</div>
+			</button>
 
 			{/* Portal tooltip */}
 			{show &&
 				createPortal(
-					<div
+					<button
+						onMouseEnter={onMouseEnter}
+						onMouseLeave={onMouseLeave}
 						style={{
 							position: "absolute",
 							top: position.top,
@@ -70,9 +78,9 @@ export const PortalTooltip = ({
 							lineHeight: "1.4",
 							transform: "translateY(-100%)", // Position above trigger
 							pointerEvents: "auto",
+							textAlign: "left",
 						}}
-						onMouseEnter={onMouseEnter}
-						onMouseLeave={onMouseLeave}
+						type="button"
 					>
 						{content}
 
@@ -93,8 +101,8 @@ export const PortalTooltip = ({
 								marginLeft: "4px",
 							}}
 						/>
-					</div>,
-					document.body,
+					</button>,
+					document.body
 				)}
 		</>
 	);

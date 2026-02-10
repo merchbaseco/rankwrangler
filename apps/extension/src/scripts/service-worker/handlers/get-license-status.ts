@@ -6,7 +6,7 @@ import type {
 import { getCurrentLicenseStatus } from "./license-utils";
 
 export async function handleGetLicenseStatus(
-	_message: GetLicenseStatusMessage,
+	_message: GetLicenseStatusMessage
 ): Promise<LicenseResponse> {
 	try {
 		const license = await getCurrentLicenseStatus();

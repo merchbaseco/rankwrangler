@@ -6,7 +6,7 @@ import { ProductDisplay } from "./product-display";
 
 export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
 	const [state, setState] = useState<"loading" | "success" | "error">(
-		"loading",
+		"loading"
 	);
 	const [product, setProduct] = useState<Product>();
 
@@ -29,7 +29,7 @@ export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
 					setState("success");
 					setProduct(product);
 				} else {
-					throw new Error();
+					throw new Error("Failed to fetch product metadata.");
 				}
 			} catch (_e) {
 				setState("error");
@@ -41,9 +41,9 @@ export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
 
 	return (
 		<ProductDisplay
-			product={product}
-			isLoading={state === "loading"}
 			isError={state === "error"}
+			isLoading={state === "loading"}
+			product={product}
 		/>
 	);
 };

@@ -3,13 +3,13 @@ import { ProductCache } from "@/scripts/db/product-cache";
 import { ProductRequestTracker } from "@/scripts/db/product-request-tracker";
 import { log } from "../../../utils/logger";
 import type {
+	CacheClearedNotification,
 	ClearCacheMessage,
 	ClearCacheResponse,
-	CacheClearedNotification,
 } from "../../content/types";
 
 export async function handleClearCache(
-	_message: ClearCacheMessage,
+	_message: ClearCacheMessage
 ): Promise<ClearCacheResponse> {
 	try {
 		await Promise.all([
@@ -44,7 +44,7 @@ export async function handleClearCache(
 }
 
 async function notifyTabsCacheCleared(
-	message: CacheClearedNotification,
+	message: CacheClearedNotification
 ): Promise<void> {
 	try {
 		const tabs = await browser.tabs.query({});
@@ -52,17 +52,19 @@ async function notifyTabsCacheCleared(
 		await Promise.all(
 			tabs
 				.filter((tab) => tab.id !== undefined)
-					.map(async (tab) => {
-						try {
-							if (tab.id === undefined) return;
-							await browser.tabs.sendMessage(tab.id, message);
-					} catch (error: unknown) {
-							log.debug("Unable to notify tab about cleared cache", {
-								tabId: tab.id,
-								error,
-							});
+				.map(async (tab) => {
+					try {
+						if (tab.id === undefined) {
+							return;
 						}
-				}),
+						await browser.tabs.sendMessage(tab.id, message);
+					} catch (error: unknown) {
+						log.debug("Unable to notify tab about cleared cache", {
+							tabId: tab.id,
+							error,
+						});
+					}
+				})
 		);
 	} catch (error) {
 		log.warn("Failed to broadcast cache cleared notification", { error });

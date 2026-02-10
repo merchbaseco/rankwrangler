@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { browser } from "webextension-polyfill-ts";
 import type { Runtime } from "webextension-polyfill-ts";
+import { browser } from "webextension-polyfill-ts";
 import { ProductRequestTracker } from "@/scripts/db/product-request-tracker";
 
 export const useProductIngestQueueCount = () => {
@@ -16,10 +16,10 @@ export const useProductIngestQueueCount = () => {
 	useEffect(() => {
 		const listener = (
 			message: { type?: string },
-			_sender: Runtime.MessageSender,
+			_sender: Runtime.MessageSender
 		): void => {
 			if (message?.type === "cacheCleared") {
-				void refetch();
+				refetch().catch(() => undefined);
 			}
 		};
 

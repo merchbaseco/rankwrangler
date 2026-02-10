@@ -9,29 +9,29 @@ export const DebugWidget = () => {
 	const { data: reactRootsCount } = useReactRootsCount();
 
 	return (
-		<div className="fixed bottom-4 right-4 z-[10000] font-sans">
+		<div className="fixed right-4 bottom-4 z-[10000] font-sans">
 			<div
-				className="bg-white/80 backdrop-blur-md border border-white/30 rounded-lg shadow-lg overflow-hidden"
+				className="overflow-hidden rounded-lg border border-white/30 bg-white/80 shadow-lg backdrop-blur-md"
 				style={{ backdropFilter: "blur(12px)" }}
 			>
 				{/* Header */}
 				<div className="flex items-center gap-2 p-2">
-					<span className="text-xs font-medium text-gray-800">
+					<span className="font-medium text-gray-800 text-xs">
 						Rank Wrangler
 					</span>
 				</div>
 
 				{/* Stats content - always visible */}
-				<div className="p-2 space-y-2">
+				<div className="space-y-2 p-2">
 					{/* Cache stat */}
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<div className="w-4 h-4 bg-blue-500/20 backdrop-blur-sm rounded flex items-center justify-center">
-								<Database className="w-3 h-3 text-blue-700" />
+							<div className="flex h-4 w-4 items-center justify-center rounded bg-blue-500/20 backdrop-blur-sm">
+								<Database className="h-3 w-3 text-blue-700" />
 							</div>
-							<span className="text-xs text-gray-700">Cache</span>
+							<span className="text-gray-700 text-xs">Cache</span>
 						</div>
-						<span className="text-xs font-bold text-gray-900">
+						<span className="font-bold text-gray-900 text-xs">
 							{cacheSize ?? 0}
 						</span>
 					</div>
@@ -39,12 +39,12 @@ export const DebugWidget = () => {
 					{/* Queue stat */}
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<div className="w-4 h-4 bg-orange-500/20 backdrop-blur-sm rounded flex items-center justify-center">
-								<LoaderCircle className="w-3 h-3 text-orange-700 animate-spin" />
+							<div className="flex h-4 w-4 items-center justify-center rounded bg-orange-500/20 backdrop-blur-sm">
+								<LoaderCircle className="h-3 w-3 animate-spin text-orange-700" />
 							</div>
-							<span className="text-xs text-gray-700">Queue</span>
+							<span className="text-gray-700 text-xs">Queue</span>
 						</div>
-						<span className="text-xs font-bold text-gray-900">
+						<span className="font-bold text-gray-900 text-xs">
 							{queueCount ?? 0}
 						</span>
 					</div>
@@ -52,12 +52,12 @@ export const DebugWidget = () => {
 					{/* React Roots stat */}
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<div className="w-4 h-4 bg-purple-500/20 backdrop-blur-sm rounded flex items-center justify-center">
-								<GitBranch className="w-3 h-3 text-purple-700" />
+							<div className="flex h-4 w-4 items-center justify-center rounded bg-purple-500/20 backdrop-blur-sm">
+								<GitBranch className="h-3 w-3 text-purple-700" />
 							</div>
-							<span className="text-xs text-gray-700">Roots</span>
+							<span className="text-gray-700 text-xs">Roots</span>
 						</div>
-						<span className="text-xs font-bold text-gray-900">
+						<span className="font-bold text-gray-900 text-xs">
 							{reactRootsCount ?? 0}
 						</span>
 					</div>

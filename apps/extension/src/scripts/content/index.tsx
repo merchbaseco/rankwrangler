@@ -45,7 +45,7 @@ const injectReact = (rootId: string): void => {
 			<StrictMode>
 				{isProduction && <style>{styles.toString()}</style>}
 				<App />
-			</StrictMode>,
+			</StrictMode>
 		);
 	} catch (error: unknown) {
 		log.error("Failed to inject React:", { error });
@@ -57,7 +57,7 @@ console.log("Registering runtime message listener");
 browser.runtime.onMessage.addListener(
 	(
 		message: { type: string; cacheSize?: number; queueCount?: number },
-		_sender: any,
+		_sender: any
 	) => {
 		if (message.type === "ping") {
 			return Promise.resolve({ alive: true });
@@ -77,7 +77,7 @@ browser.runtime.onMessage.addListener(
 				.catch((error: unknown) => {
 					log.error(
 						"Failed to clear local caches after cacheCleared notification",
-						{ error },
+						{ error }
 					);
 
 					return {
@@ -91,7 +91,7 @@ browser.runtime.onMessage.addListener(
 		}
 
 		return undefined;
-	},
+	}
 );
 
 injectReact(ROOT_ID);

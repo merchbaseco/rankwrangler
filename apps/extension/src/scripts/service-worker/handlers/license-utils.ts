@@ -18,7 +18,7 @@ const licensePayloadSchema = z
 const coerceNumber = (
 	value: unknown,
 	fallback: number,
-	options?: { allowNegativeOne?: boolean },
+	options?: { allowNegativeOne?: boolean }
 ): number => {
 	if (typeof value === "number" && Number.isFinite(value)) {
 		return value;
@@ -33,7 +33,7 @@ const coerceNumber = (
 
 const normalizeLicenseSnapshot = (
 	key: string,
-	data?: Partial<License>,
+	data?: Partial<License>
 ): License => {
 	const trimmedKey = key.trim();
 
@@ -49,7 +49,7 @@ const normalizeLicenseSnapshot = (
 
 const saveLicenseSnapshot = async (
 	key: string,
-	overrides?: Partial<License>,
+	overrides?: Partial<License>
 ): Promise<License> => {
 	const normalized = normalizeLicenseSnapshot(key, {
 		...overrides,
@@ -70,7 +70,7 @@ const createClientForKey = (licenseKey: string) =>
 	});
 
 export const resolveStoredLicenseKey = async (
-	providedKey?: string | null,
+	providedKey?: string | null
 ): Promise<string | null> => {
 	if (typeof providedKey === "string" && providedKey.trim().length > 0) {
 		return providedKey.trim();
@@ -115,7 +115,7 @@ export interface LicenseValidationResult {
 }
 
 export async function validateLicenseKey(
-	licenseKey: string,
+	licenseKey: string
 ): Promise<LicenseValidationResult> {
 	const trimmedKey = licenseKey.trim();
 
@@ -126,7 +126,8 @@ export async function validateLicenseKey(
 	const timestamp = Date.now();
 
 	try {
-		const response = await createClientForKey(trimmedKey).license.validate.mutate();
+		const response =
+			await createClientForKey(trimmedKey).license.validate.mutate();
 		const parsed = licensePayloadSchema.safeParse(response);
 		const payload = parsed.success ? parsed.data : undefined;
 
@@ -177,7 +178,7 @@ export async function validateLicenseKey(
 }
 
 export async function fetchFreshLicenseStatus(
-	licenseKey: string,
+	licenseKey: string
 ): Promise<License> {
 	const trimmedKey = licenseKey.trim();
 
@@ -188,7 +189,8 @@ export async function fetchFreshLicenseStatus(
 	const timestamp = Date.now();
 
 	try {
-		const response = await createClientForKey(trimmedKey).license.status.mutate();
+		const response =
+			await createClientForKey(trimmedKey).license.status.mutate();
 		const parsed = licensePayloadSchema.safeParse(response);
 		const payload = parsed.success ? parsed.data : undefined;
 

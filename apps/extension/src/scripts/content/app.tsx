@@ -7,6 +7,51 @@ import { DebugWidget } from "./components/debug-widget";
 import { productDetailInjector } from "./services/product-detail-injector";
 import { searchInjector } from "./services/search-injector";
 
+const ASIN_REGEX = /^[A-Z0-9]{10}$/;
+
+const isValidAsin = (asin: string | null): asin is string => {
+	return Boolean(asin && asin.length === 10 && ASIN_REGEX.test(asin));
+};
+
+const getAsinProductsFromElement = (element: HTMLElement): HTMLElement[] => {
+	return element.matches("[data-asin]")
+		? [element]
+		: Array.from(element.querySelectorAll("[data-asin]"));
+};
+
+const handleProductElement = (product: HTMLElement) => {
+	const asin = product.getAttribute("data-asin");
+	if (!isValidAsin(asin)) {
+		return;
+	}
+
+	if (searchInjector.isProcessed(product)) {
+		return;
+	}
+
+	log.debug(`New product detected: ${asin}`);
+	searchInjector.injectSingleBadge(product, asin);
+};
+
+const handleAddedNode = (node: Node) => {
+	if (node.nodeType !== Node.ELEMENT_NODE) {
+		return;
+	}
+
+	const element = node as HTMLElement;
+	for (const product of getAsinProductsFromElement(element)) {
+		handleProductElement(product);
+	}
+};
+
+const handleSearchMutations = (mutations: MutationRecord[]) => {
+	for (const mutation of mutations) {
+		for (const node of mutation.addedNodes) {
+			handleAddedNode(node);
+		}
+	}
+};
+
 const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
@@ -26,7 +71,7 @@ const App = () => {
 		browser.storage.local
 			.get(["debugMode"])
 			.then((result: any) => {
-				const initialDebugMode = result.debugMode || false;
+				const initialDebugMode = result.debugMode;
 				log.debug("Initial debug mode from storage:", {
 					debugMode: initialDebugMode,
 				});
@@ -47,7 +92,7 @@ const App = () => {
 
 		window.addEventListener(
 			"debugModeChanged",
-			handleDebugModeChange as EventListener,
+			handleDebugModeChange as EventListener
 		);
 
 		// Check if we're on a product detail page or search page
@@ -60,32 +105,7 @@ const App = () => {
 				return;
 			}
 
-			mutations.forEach((mutation) => {
-				// Check for added nodes with data-asin
-				mutation.addedNodes.forEach((node) => {
-					if (node.nodeType === Node.ELEMENT_NODE) {
-						const element = node as HTMLElement;
-
-						// Check if this element or its children have data-asin
-						const products = element.matches("[data-asin]")
-							? [element]
-							: Array.from(element.querySelectorAll("[data-asin]"));
-
-						products.forEach((product) => {
-							const asin = product.getAttribute("data-asin");
-							if (
-								asin &&
-								asin.length === 10 &&
-								/^[A-Z0-9]{10}$/.test(asin) &&
-								!searchInjector.isProcessed(product as HTMLElement)
-							) {
-								log.debug(`New product detected: ${asin}`);
-								searchInjector.injectSingleBadge(product as HTMLElement, asin);
-							}
-						});
-					}
-				});
-			});
+			handleSearchMutations(mutations);
 		});
 
 		// Observe entire body for changes
@@ -100,7 +120,7 @@ const App = () => {
 			// Use a small delay to ensure the target element exists
 			const tryInject = () => {
 				const targetDiv = document.getElementById(
-					"alternativeOfferEligibilityMessaging_feature_div",
+					"alternativeOfferEligibilityMessaging_feature_div"
 				);
 				if (targetDiv) {
 					productDetailInjector.injectBsrBadge();
@@ -122,11 +142,11 @@ const App = () => {
 			db.close();
 		};
 
-		const handlePageShow = async (event: PageTransitionEvent) => {
+		const handlePageShow = (event: PageTransitionEvent) => {
 			if (event.persisted) {
 				// Page was restored from bfcache - components are suspended with stale async operations
 				log.info(
-					"Page restored from cache, forcing complete component refresh",
+					"Page restored from cache, forcing complete component refresh"
 				);
 
 				// Clear all existing components (removes suspended components)
@@ -142,7 +162,7 @@ const App = () => {
 					log.info("Re-injecting fresh BSR badge for product detail page");
 					const tryInject = () => {
 						const targetDiv = document.getElementById(
-							"alternativeOfferEligibilityMessaging_feature_div",
+							"alternativeOfferEligibilityMessaging_feature_div"
 						);
 						if (targetDiv) {
 							productDetailInjector.injectBsrBadge();
@@ -168,17 +188,15 @@ const App = () => {
 		const productDetailObserver = new MutationObserver(() => {
 			if (productDetailInjector.isProductDetailPage()) {
 				const targetDiv = document.getElementById(
-					"alternativeOfferEligibilityMessaging_feature_div",
+					"alternativeOfferEligibilityMessaging_feature_div"
 				);
 				if (targetDiv && !productDetailInjector.hasInjected()) {
 					// Target div exists and we haven't injected yet
 					productDetailInjector.injectBsrBadge();
 				}
-			} else {
+			} else if (productDetailInjector.hasInjected()) {
 				// Not on product detail page, reset if needed
-				if (productDetailInjector.hasInjected()) {
-					productDetailInjector.reset();
-				}
+				productDetailInjector.reset();
 			}
 		});
 
@@ -195,7 +213,7 @@ const App = () => {
 			window.removeEventListener("pageshow", handlePageShow);
 			window.removeEventListener(
 				"debugModeChanged",
-				handleDebugModeChange as EventListener,
+				handleDebugModeChange as EventListener
 			);
 		};
 	}, []);

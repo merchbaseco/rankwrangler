@@ -8,21 +8,21 @@ import { log } from "../../../utils/logger";
  * Uses MutationObserver for automatic cleanup when elements are removed
  */
 class ReactRenderer {
-	private roots = new Map<HTMLElement | ShadowRoot, Root>();
-	private observer: MutationObserver;
+	private readonly roots = new Map<HTMLElement | ShadowRoot, Root>();
+	private readonly observer: MutationObserver;
 
 	constructor() {
 		// Set up MutationObserver for automatic cleanup
 		this.observer = new MutationObserver((mutations) => {
-			mutations.forEach((mutation) => {
+			for (const mutation of mutations) {
 				if (mutation.type === "childList" && mutation.removedNodes.length > 0) {
-					mutation.removedNodes.forEach((node) => {
+					for (const node of mutation.removedNodes) {
 						if (node.nodeType === Node.ELEMENT_NODE) {
 							this.cleanupRemovedElement(node as HTMLElement);
 						}
-					});
+					}
 				}
-			});
+			}
 		});
 
 		// Start observing document.body for removed nodes
@@ -101,10 +101,7 @@ class ReactRenderer {
 	/**
 	 * Render a React component into a DOM element or shadow root
 	 */
-	public render(
-		component: ReactElement,
-		container: HTMLElement | ShadowRoot,
-	): void {
+	render(component: ReactElement, container: HTMLElement | ShadowRoot): void {
 		// If we already have a root for this container, use it
 		let root = this.roots.get(container);
 		const isNewRoot = !root;
@@ -125,7 +122,7 @@ class ReactRenderer {
 	/**
 	 * Create a new container div for rendering React components
 	 */
-	public createContainer(className?: string): HTMLElement {
+	createContainer(className?: string): HTMLElement {
 		const container = document.createElement("div");
 		if (className) {
 			container.className = className;
@@ -137,11 +134,11 @@ class ReactRenderer {
 	 * Explicitly cleanup all React roots matching the given selector
 	 * Useful for immediate cleanup during navigation
 	 */
-	public forceCleanupBySelector(selector: string): void {
+	forceCleanupBySelector(selector: string): void {
 		const elements = document.querySelectorAll<HTMLElement>(selector);
 		let removedCount = 0;
 
-		elements.forEach((element) => {
+		for (const element of elements) {
 			// Clean up direct root on the element
 			const root = this.roots.get(element);
 			if (root) {
@@ -161,7 +158,7 @@ class ReactRenderer {
 					removedCount++;
 				}
 			}
-		});
+		}
 
 		// Update storage if any roots were removed
 		if (removedCount > 0) {

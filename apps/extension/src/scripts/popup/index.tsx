@@ -18,5 +18,5 @@ const root = createRoot(container!);
 root.render(
 	<QueryClientProvider client={queryClient}>
 		<Popup />
-	</QueryClientProvider>,
+	</QueryClientProvider>
 );
