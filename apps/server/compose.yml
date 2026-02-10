@@ -59,13 +59,21 @@ services:
       start_period: 60s
 
   caddy:
-    image: caddy:alpine
+    build:
+      # Build context is repo root so we can build the website workspace.
+      context: ../..
+      dockerfile: apps/server/Dockerfile.caddy
+      args:
+        # Optional (defaults to same-origin /api)
+        VITE_API_URL: ${VITE_API_URL:-}
+        # Required for Clerk login UI to work (public key)
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
+    image: rankwrangler-caddy:local
     container_name: rankwrangler-caddy
     restart: unless-stopped
     ports:
       - "127.0.0.1:8090:80"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

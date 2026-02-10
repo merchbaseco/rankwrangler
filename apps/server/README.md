@@ -6,6 +6,7 @@ Fastify + tRPC API for RankWrangler's Amazon SP-API integration.
 
 - **URL:** https://rankwrangler.merchbase.co
 - **Health check:** `GET /api/health`
+- **Website:** `GET /` (served by the stack's Caddy container)
 
 ## Local Development
 
@@ -23,6 +24,7 @@ docker compose --env-file ../.env up --build
 ```
 
 The API will be available at `http://localhost:8090/api/health`.
+The website will be available at `http://localhost:8090/`.
 
 Postgres is bound to `127.0.0.1` on port `5433` for local-only access.
 
