@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 
 import { execSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Get the workspace root directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const workspaceRoot = join(__dirname, "..");
+const workspaceRoot = resolve(__dirname, "..");
+const repoRoot = resolve(__dirname, "..", "..", "..");
 
 console.log("🏗  Building RankWrangler for Chrome...\n");
+
+console.log("🔧 Building http-client types...");
+execSync("bun run http-client:build", { stdio: "inherit", cwd: repoRoot });
 
 // Build the web extension
 console.log("📦 Building web extension...");

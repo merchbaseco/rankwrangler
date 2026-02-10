@@ -2,13 +2,14 @@
 
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Get the workspace root directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const workspaceRoot = join(__dirname, "..");
+const workspaceRoot = resolve(__dirname, "..");
+const repoRoot = resolve(__dirname, "..", "..", "..");
 
 // Check if Xcode is properly set up
 try {
@@ -25,6 +26,9 @@ try {
 }
 
 console.log("🏗  Building RankWrangler...\n");
+
+console.log("🔧 Building http-client types...");
+execSync("bun run http-client:build", { stdio: "inherit", cwd: repoRoot });
 
 // Build the web extension
 console.log("📦 Building web extension...");
