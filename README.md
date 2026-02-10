@@ -5,7 +5,7 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 ## Apps
 
 - `apps/server` – Fastify-based API for Amazon SP-API integration
-- `apps/website` – Website (hello world placeholder)
+- `apps/website` – Dashboard for API keys and usage
 - `apps/extension` – Chrome extension
 
 ## Tooling
