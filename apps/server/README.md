@@ -1,6 +1,6 @@
 # RankWrangler Server
 
-Fastify-based API for RankWrangler's Amazon SP-API integration.
+Fastify + tRPC API for RankWrangler's Amazon SP-API integration, secured with Clerk.
 
 ## Production
 
@@ -11,15 +11,15 @@ Fastify-based API for RankWrangler's Amazon SP-API integration.
 
 ```bash
 bun install
-cp .env.example .env
-# Fill in .env with your credentials
-docker compose up --build
+cp apps/server/.env.example .env
+# Fill in .env with your credentials (repo root)
+docker compose -f apps/server/compose.yml up --build
 ```
 
-Run these from `apps/server`, or from the repo root:
+If you prefer running from `apps/server`, pass the env file explicitly:
 
 ```bash
-docker compose -f apps/server/compose.yml up --build
+docker compose --env-file ../.env up --build
 ```
 
 The API will be available at `http://localhost:8090/api/health`.
@@ -30,7 +30,45 @@ Postgres is bound to `127.0.0.1` on port `5433` for local-only access.
 
 - `bun run build` – bundle the server with Vite
 - `bun run start` – run the compiled server
-- `./test-api.sh` – smoke test the health endpoint
+- `bun run cli -- get-product-info --marketplaceId <id> --asin <asin>` – CLI for tRPC
+- `./test-api.sh` – smoke test the health endpoint and tRPC call
+
+## Authentication
+
+- **Clerk**: All public endpoints require a Clerk JWT in `Authorization: Bearer <token>`.
+- **Admin APIs**: Restrict access by setting `ADMIN_EMAIL`.
+
+Required env vars:
+
+- `CLERK_SECRET_KEY`
+- `ADMIN_EMAIL` (optional)
+
+## API
+
+The tRPC router is exposed at `/api`.
+
+Public procedures:
+
+- `public.getProductInfo`
+- `public.license.validate`
+- `public.license.status`
+
+Admin procedures:
+
+- `admin.license.generate`
+- `admin.license.list`
+- `admin.license.details`
+- `admin.license.delete`
+- `admin.license.reset`
+
+Example `curl` (tRPC):
+
+```bash
+curl -s -X POST http://localhost:8080/api/public.getProductInfo \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'
+```
 
 ## Database Migrations
 
