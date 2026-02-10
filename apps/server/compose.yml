@@ -23,8 +23,9 @@ services:
 
   server:
     build:
-      context: .
-      dockerfile: Dockerfile
+      # Build from repo root so Bun workspaces (packages/*) are available.
+      context: ../..
+      dockerfile: apps/server/Dockerfile
     image: rankwrangler-server:local
     container_name: rankwrangler-server
     # Prevent crash-looping forever if the app fails fast (e.g. missing env vars).
