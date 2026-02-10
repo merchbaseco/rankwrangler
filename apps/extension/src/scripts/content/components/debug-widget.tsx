@@ -1,8 +1,4 @@
-import {
-	Database01Icon,
-	HierarchySquare03Icon,
-	Loading03Icon,
-} from "hugeicons-react";
+import { Database, GitBranch, LoaderCircle } from "lucide-react";
 import { useProductCache } from "../hooks/use-product-cache";
 import { useProductIngestQueueCount } from "../hooks/use-product-ingest-queue-count";
 import { useReactRootsCount } from "../hooks/use-react-root-count";
@@ -31,7 +27,7 @@ export const DebugWidget = () => {
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
 							<div className="w-4 h-4 bg-blue-500/20 backdrop-blur-sm rounded flex items-center justify-center">
-								<Database01Icon className="w-3 h-3 text-blue-700" />
+								<Database className="w-3 h-3 text-blue-700" />
 							</div>
 							<span className="text-xs text-gray-700">Cache</span>
 						</div>
@@ -44,7 +40,7 @@ export const DebugWidget = () => {
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
 							<div className="w-4 h-4 bg-orange-500/20 backdrop-blur-sm rounded flex items-center justify-center">
-								<Loading03Icon className="w-3 h-3 text-orange-700" />
+								<LoaderCircle className="w-3 h-3 text-orange-700 animate-spin" />
 							</div>
 							<span className="text-xs text-gray-700">Queue</span>
 						</div>
@@ -57,7 +53,7 @@ export const DebugWidget = () => {
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
 							<div className="w-4 h-4 bg-purple-500/20 backdrop-blur-sm rounded flex items-center justify-center">
-								<HierarchySquare03Icon className="w-3 h-3 text-purple-700" />
+								<GitBranch className="w-3 h-3 text-purple-700" />
 							</div>
 							<span className="text-xs text-gray-700">Roots</span>
 						</div>

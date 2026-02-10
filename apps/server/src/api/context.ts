@@ -3,7 +3,7 @@ import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify'
 import { env } from '@/config/env.js';
 import { validateLicense } from '@/services/license.js';
 
-interface ClerkUser {
+export interface ClerkUser {
     sub: string;
     email?: string;
 }
