@@ -26,6 +26,19 @@ The API will be available at `http://localhost:8090/api/health`.
 
 Postgres is bound to `127.0.0.1` on port `5433` for local-only access.
 
+### Dev (no Docker)
+
+If you want to run the server directly (without the Docker stack), make sure your
+database points at localhost:
+
+```bash
+DATABASE_HOST=localhost
+DATABASE_PORT=5433
+```
+
+If you're using the Docker Postgres container but running the server locally,
+the `5433` host port is already mapped for you.
+
 ## Scripts
 
 - `bun run build` – bundle the server with Vite
