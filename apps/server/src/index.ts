@@ -1,6 +1,9 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify from 'fastify';
+import { createContext } from '@/api/context.js';
+import { appRouter } from '@/api/router.js';
 import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { testConnection } from '@/db/index.js';
@@ -21,7 +24,14 @@ await testConnection();
 const posthogEnabled = isPostHogEnabled();
 
 // Initialize pg-boss
-const databaseUrl = `postgresql://${env.DATABASE_USER || 'rankwrangler'}:${env.DATABASE_PASSWORD || 'SecurePass123'}@${env.DATABASE_HOST || 'postgres'}:${env.DATABASE_PORT || 5432}/${env.DATABASE_NAME || 'rankwrangler'}`;
+const databaseUser = env.DATABASE_USER || 'rankwrangler';
+const databasePassword = env.DATABASE_PASSWORD || 'SecurePass123';
+const databaseHost = env.DATABASE_HOST || 'postgres';
+const databasePort = env.DATABASE_PORT || 5432;
+const databaseName = env.DATABASE_NAME || 'rankwrangler';
+const databaseUrl =
+    `postgresql://${databaseUser}:${databasePassword}` +
+    `@${databaseHost}:${databasePort}/${databaseName}`;
 const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
 console.log('[Server] pg-boss initialized');
@@ -112,34 +122,13 @@ fastify.get('/api/health', async () => {
     };
 });
 
-// API routes
-fastify.register(async fastify => {
-    // Register API routes
-    const { registerGetProductInfoRoute } = await import('@/api/getProductInfo.js');
-    await registerGetProductInfoRoute(fastify);
-
-    // Register license routes
-    const { registerLicenseValidateRoute } = await import('@/api/license/validate.js');
-    await registerLicenseValidateRoute(fastify);
-
-    const { registerLicenseStatusRoute } = await import('@/api/license/status.js');
-    await registerLicenseStatusRoute(fastify);
-
-    // Register admin license routes
-    const { registerAdminLicenseGenerateRoute } = await import('@/api/admin/license/generate.js');
-    await registerAdminLicenseGenerateRoute(fastify);
-
-    const { registerAdminLicenseListRoute } = await import('@/api/admin/license/list.js');
-    await registerAdminLicenseListRoute(fastify);
-
-    const { registerAdminLicenseDetailsRoute } = await import('@/api/admin/license/details.js');
-    await registerAdminLicenseDetailsRoute(fastify);
-
-    const { registerAdminLicenseDeleteRoute } = await import('@/api/admin/license/delete.js');
-    await registerAdminLicenseDeleteRoute(fastify);
-
-    const { registerAdminLicenseResetRoute } = await import('@/api/admin/license/reset.js');
-    await registerAdminLicenseResetRoute(fastify);
+// tRPC API routes
+await fastify.register(fastifyTRPCPlugin, {
+    prefix: '/api',
+    trpcOptions: {
+        router: appRouter,
+        createContext,
+    },
 });
 
 // 404 handler
@@ -212,10 +201,12 @@ try {
     console.log(`  • Jobs Registered:`);
     console.log(`    - process-product-ingest-queue (interval: 1s)`);
     console.log(`    - reprocess-stale-products (cron: */10 * * * *)`);
-    console.log(
-        `  • PostHog Analytics: ${posthogEnabled ? 'Enabled' : 'Disabled (POSTHOG_API_KEY not set)'}`
-    );
-    console.log(`  • API Routes: Registered`);
+    const posthogStatus = posthogEnabled
+        ? 'Enabled'
+        : 'Disabled (POSTHOG_API_KEY not set)';
+    console.log(`  • PostHog Analytics: ${posthogStatus}`);
+    console.log('  • API Routes: tRPC (/api)');
+    console.log('  • Auth: Clerk (public + admin)');
     console.log('═══════════════════════════════════════════════════════════════');
     console.log('');
 } catch (err) {
