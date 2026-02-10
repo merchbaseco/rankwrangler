@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api, type RouterOutputs } from '@/lib/trpc';
 
-export type License = RouterOutputs['admin']['license']['details'];
+export type License = RouterOutputs['api']['app']['license']['details'];
 
 const getPrimaryEmail = (user: ReturnType<typeof useUser>['user']) => {
     if (!user) return null;
@@ -16,7 +16,7 @@ export function useLicense() {
     const email = useMemo(() => getPrimaryEmail(user), [user]);
     const hasEmail = Boolean(email);
 
-    const detailsQuery = api.admin.license.details.useQuery(
+    const detailsQuery = api.api.app.license.details.useQuery(
         { searchBy: 'email', value: email ?? '' },
         {
             enabled: hasEmail,
@@ -24,7 +24,7 @@ export function useLicense() {
         }
     );
 
-    const generateMutation = api.admin.license.generate.useMutation({
+    const generateMutation = api.api.app.license.generate.useMutation({
         onSuccess: () => detailsQuery.refetch(),
     });
 

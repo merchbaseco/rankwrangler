@@ -9,9 +9,12 @@
         "server:start": "bun run --filter @rankwrangler/server start",
         "website:dev": "bun run --filter @rankwrangler/website dev",
         "website:build": "bun run --filter @rankwrangler/website build",
-        "website:preview": "bun run --filter @rankwrangler/website preview"
+        "website:preview": "bun run --filter @rankwrangler/website preview",
+        "http-client:types": "dts-bundle-generator --no-check -o packages/http-client/src/app-router.d.ts apps/server/src/api/router-public.ts --project tsconfig.http-client.json",
+        "http-client:build": "bun run http-client:types && tsc -p packages/http-client/tsconfig.json && cp packages/http-client/src/app-router.d.ts packages/http-client/dist/app-router.d.ts"
     },
     "devDependencies": {
-        "concurrently": "^8.2.2"
+        "concurrently": "^8.2.2",
+        "dts-bundle-generator": "^9.5.1"
     }
 }

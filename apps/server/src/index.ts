@@ -206,7 +206,7 @@ try {
         : 'Disabled (POSTHOG_API_KEY not set)';
     console.log(`  • PostHog Analytics: ${posthogStatus}`);
     console.log('  • API Routes: tRPC (/api)');
-    console.log('  • Auth: Clerk (public + admin)');
+    console.log('  • Auth: Clerk (app), License (public)');
     console.log('═══════════════════════════════════════════════════════════════');
     console.log('');
 } catch (err) {

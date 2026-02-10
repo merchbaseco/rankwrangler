@@ -1,0 +1,21 @@
+{
+    "name": "@rankwrangler/http-client",
+    "version": "1.0.0",
+    "description": "Typed tRPC client for RankWrangler",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "files": ["dist", "README.md"],
+    "sideEffects": false,
+    "dependencies": {
+        "@trpc/client": "^11.0.0",
+        "@trpc/server": "^11.0.0"
+    },
+    "packageManager": "bun@1.1.27"
+}

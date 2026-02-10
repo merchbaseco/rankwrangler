@@ -1,14 +1,14 @@
 import { parseArgs } from 'node:util';
-import { createApiClient } from '@/api/client.js';
+import { createRankWranglerClient, DEFAULT_API_BASE_URL } from '@rankwrangler/http-client';
 
-const DEFAULT_API_URL = process.env.RR_API_URL ?? 'http://localhost:8080';
+const DEFAULT_API_URL = process.env.RR_API_URL ?? DEFAULT_API_BASE_URL;
 
 const { positionals, values } = parseArgs({
     args: process.argv.slice(2),
     options: {
         marketplaceId: { type: 'string' },
         asin: { type: 'string' },
-        token: { type: 'string' },
+        licenseKey: { type: 'string' },
         url: { type: 'string' },
         pretty: { type: 'boolean' },
         help: { type: 'boolean' },
@@ -31,7 +31,7 @@ if (command !== 'get-product-info') {
 
 const marketplaceId = values.marketplaceId ?? process.env.RR_MARKETPLACE_ID;
 const asin = values.asin ?? process.env.RR_ASIN;
-const token = values.token ?? process.env.RR_CLERK_TOKEN;
+const licenseKey = values.licenseKey ?? process.env.RR_LICENSE_KEY;
 const apiUrl = values.url ?? DEFAULT_API_URL;
 
 if (!marketplaceId || !asin) {
@@ -40,15 +40,18 @@ if (!marketplaceId || !asin) {
     process.exit(1);
 }
 
-if (!token) {
-    console.error('Missing Clerk token. Provide --token or set RR_CLERK_TOKEN.');
+if (!licenseKey) {
+    console.error('Missing license key. Provide --licenseKey or set RR_LICENSE_KEY.');
     process.exit(1);
 }
 
-const client = createApiClient({ apiUrl, token });
+const client = createRankWranglerClient({
+    baseUrl: apiUrl,
+    apiKey: licenseKey,
+});
 
 try {
-    const result = await client.public.getProductInfo.mutate({ marketplaceId, asin });
+    const result = await client.getProductInfo.mutate({ marketplaceId, asin });
     const pretty = values.pretty ?? true;
     console.log(pretty ? JSON.stringify(result, null, 2) : JSON.stringify(result));
 } catch (error) {
@@ -65,7 +68,7 @@ function printUsage() {
     console.log('Options:');
     console.log('  --marketplaceId   Marketplace ID (or RR_MARKETPLACE_ID env var)');
     console.log('  --asin            ASIN (or RR_ASIN env var)');
-    console.log('  --token           Clerk JWT (or RR_CLERK_TOKEN env var)');
+    console.log('  --licenseKey      License key (or RR_LICENSE_KEY env var)');
     console.log(`  --url             API base URL (default: ${DEFAULT_API_URL})`);
     console.log('  --pretty          Pretty-print JSON (default: true)');
 }

@@ -1,9 +1,11 @@
+import {
+	createRankWranglerClient,
+	DEFAULT_API_BASE_URL,
+} from "@rankwrangler/http-client";
 import { browser } from "webextension-polyfill-ts";
 import z from "zod";
 import { log } from "../../../utils/logger";
 import type { License } from "../../types/license";
-
-const API_BASE_URL = "https://rankwrangler.merchbase.co/api";
 
 const licensePayloadSchema = z
 	.object({
@@ -12,11 +14,6 @@ const licensePayloadSchema = z
 		usageLimit: z.number().int().min(-1).optional(),
 	})
 	.optional();
-
-const licenseResponseSchema = z.object({
-	data: licensePayloadSchema,
-	error: z.string().optional(),
-});
 
 const coerceNumber = (
 	value: unknown,
@@ -65,6 +62,12 @@ const saveLicenseSnapshot = async (
 	await browser.storage.local.set({ license: normalized });
 	return normalized;
 };
+
+const createClientForKey = (licenseKey: string) =>
+	createRankWranglerClient({
+		baseUrl: DEFAULT_API_BASE_URL,
+		apiKey: licenseKey,
+	});
 
 export const resolveStoredLicenseKey = async (
 	providedKey?: string | null,
@@ -123,55 +126,37 @@ export async function validateLicenseKey(
 	const timestamp = Date.now();
 
 	try {
-		const response = await fetch(`${API_BASE_URL}/license/validate`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				licenseKey: trimmedKey,
-			}),
+		const response = await createClientForKey(trimmedKey).license.validate.mutate();
+		const parsed = licensePayloadSchema.safeParse(response);
+		const payload = parsed.success ? parsed.data : undefined;
+
+		const license = await saveLicenseSnapshot(trimmedKey, {
+			email: payload?.email ?? "",
+			isValid: true,
+			lastValidated: timestamp,
+			usage: payload?.usage ?? 0,
+			usageLimit: payload?.usageLimit ?? 0,
 		});
 
-		if (response.ok) {
-			const json = await response.json().catch(() => ({}));
-			const parsed = licenseResponseSchema.safeParse(json);
-			const payload = parsed.success ? parsed.data.data : undefined;
+		return {
+			license,
+			isValid: true,
+		};
+	} catch (error) {
+		log.error("License validation failed:", error);
 
-			const license = await saveLicenseSnapshot(trimmedKey, {
-				email: payload?.email ?? "",
-				isValid: true,
-				lastValidated: timestamp,
-				usage: payload?.usage ?? 0,
-				usageLimit: payload?.usageLimit ?? 0,
-			});
-
-			return {
-				license,
-				isValid: true,
-			};
-		}
+		const errorCode = resolveTrpcErrorCode(error);
+		const status = resolveTrpcHttpStatus(error);
 
 		let message: string | undefined;
-
-		try {
-			const errorJson = await response.json();
-			const parsedError = licenseResponseSchema.safeParse(errorJson);
-			if (parsedError.success && parsedError.data.error) {
-				message = parsedError.data.error;
-			}
-		} catch {
-			// Ignore body parse errors
-		}
-
-		if (!message) {
-			if (response.status === 401) {
-				message = "Invalid or expired license key";
-			} else if (response.status === 429) {
-				message = "Daily usage limit exceeded";
-			} else {
-				message = `License validation failed (${response.status})`;
-			}
+		if (errorCode === "UNAUTHORIZED") {
+			message = "Invalid or expired license key";
+		} else if (errorCode === "TOO_MANY_REQUESTS") {
+			message = "Daily usage limit exceeded";
+		} else if (error instanceof Error) {
+			message = error.message;
+		} else {
+			message = "Network error during validation";
 		}
 
 		const license = await saveLicenseSnapshot(trimmedKey, {
@@ -185,26 +170,8 @@ export async function validateLicenseKey(
 			license,
 			isValid: false,
 			error: message,
-			status: response.status,
-		};
-	} catch (error) {
-		log.error("License validation failed:", error);
-
-		const license = await saveLicenseSnapshot(trimmedKey, {
-			isValid: false,
-			lastValidated: timestamp,
-			usage: 0,
-			usageLimit: 0,
-		});
-
-		return {
-			license,
-			isValid: false,
-			error:
-				error instanceof Error
-					? error.message
-					: "Network error during validation",
-			networkError: true,
+			status: status ?? (errorCode === "TOO_MANY_REQUESTS" ? 429 : 401),
+			networkError: errorCode === null,
 		};
 	}
 }
@@ -221,45 +188,24 @@ export async function fetchFreshLicenseStatus(
 	const timestamp = Date.now();
 
 	try {
-		const response = await fetch(`${API_BASE_URL}/license/status`, {
-			method: "GET",
-			headers: {
-				Authorization: `Bearer ${trimmedKey}`,
-			},
+		const response = await createClientForKey(trimmedKey).license.status.mutate();
+		const parsed = licensePayloadSchema.safeParse(response);
+		const payload = parsed.success ? parsed.data : undefined;
+
+		const license = await saveLicenseSnapshot(trimmedKey, {
+			email: typeof payload?.email === "string" ? payload.email : "",
+			isValid: true,
+			lastValidated: timestamp,
+			usage: coerceNumber(payload?.usage, 0),
+			usageLimit: coerceNumber(payload?.usageLimit, 0, {
+				allowNegativeOne: true,
+			}),
 		});
 
-		let payload:
-			| {
-					data?: Partial<License>;
-					error?: string;
-			  }
-			| undefined;
-
-		try {
-			const json = await response.json();
-			const parsed = licenseResponseSchema.safeParse(json);
-			if (parsed.success) {
-				payload = parsed.data;
-			}
-		} catch {
-			// Ignore JSON parse errors, fall back to defaults below
-		}
-
-		if (response.ok) {
-			const license = await saveLicenseSnapshot(trimmedKey, {
-				email: typeof payload?.data?.email === "string" ? payload.data.email : "",
-				isValid: true,
-				lastValidated: timestamp,
-				usage: coerceNumber(payload?.data?.usage, 0),
-				usageLimit: coerceNumber(payload?.data?.usageLimit, 0, {
-					allowNegativeOne: true,
-				}),
-			});
-
-			return license;
-		}
-
-		if (response.status === 401) {
+		return license;
+	} catch (error) {
+		const errorCode = resolveTrpcErrorCode(error);
+		if (errorCode === "UNAUTHORIZED") {
 			await browser.storage.sync.remove(["licenseKey"]);
 
 			const license = await saveLicenseSnapshot(trimmedKey, {
@@ -274,13 +220,41 @@ export async function fetchFreshLicenseStatus(
 		}
 
 		const message =
-			payload?.error || `Failed to fetch license status (${response.status})`;
+			error instanceof Error
+				? error.message
+				: "Unknown error fetching license status";
 
-		throw new Error(message);
-	} catch (error) {
 		log.error("Failed to fetch license status:", error);
-		throw error instanceof Error
-			? error
-			: new Error("Unknown error fetching license status");
+		throw new Error(message);
 	}
 }
+
+const resolveTrpcErrorCode = (error: unknown): string | null => {
+	if (!error || typeof error !== "object") {
+		return null;
+	}
+
+	if ("data" in error) {
+		const data = (error as { data?: { code?: string } }).data;
+		if (data?.code) {
+			return data.code;
+		}
+	}
+
+	return null;
+};
+
+const resolveTrpcHttpStatus = (error: unknown): number | undefined => {
+	if (!error || typeof error !== "object") {
+		return undefined;
+	}
+
+	if ("data" in error) {
+		const data = (error as { data?: { httpStatus?: number } }).data;
+		if (typeof data?.httpStatus === "number") {
+			return data.httpStatus;
+		}
+	}
+
+	return undefined;
+};

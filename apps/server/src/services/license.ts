@@ -24,8 +24,8 @@ export interface ValidationResult {
 	error?: string;
 	data?: {
 		email: string;
-		usageToday: number;
-		dailyLimit: number;
+		usage: number;
+		usageLimit: number;
 	};
 }
 
