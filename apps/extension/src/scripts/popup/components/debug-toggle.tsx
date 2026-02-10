@@ -1,4 +1,4 @@
-import { Settings01Icon } from "hugeicons-react";
+import { Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { browser } from "webextension-polyfill-ts";
 import { Switch } from "@/components/ui/switch";
@@ -48,8 +48,8 @@ export const DebugToggle = () => {
 	};
 
 	return (
-		<div className="flex items-center w-full gap-1.5">
-			<Settings01Icon className="size-5 text-primary" />
+		<div className="group flex items-center w-full gap-1.5">
+			<Settings className="size-5 text-primary transition-transform duration-300 group-hover:rotate-90" />
 			<div className="text-sm font-medium">Debug Mode</div>
 			<Switch
 				checked={debugMode}

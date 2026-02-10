@@ -15,6 +15,7 @@
     },
     "devDependencies": {
         "concurrently": "^8.2.2",
-        "dts-bundle-generator": "^9.5.1"
+        "dts-bundle-generator": "^9.5.1",
+        "typescript": "^5.9.3"
     }
 }
