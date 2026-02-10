@@ -9,7 +9,7 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 - **Purpose**: Amazon SP-API façade that powers RankWrangler clients.
 - **Entry point**: `apps/server/src/index.ts` (compiled to `apps/server/dist/index.js`).
 - **Database**: PostgreSQL via Drizzle ORM. SQL migrations live in `apps/server/drizzle/`; `init.sql` seeds fresh stacks.
-- **Environment**: Variables defined in `apps/server/.env.example` and validated in `apps/server/src/config/env.ts`. Local `.env` lives at repo root.
+- **Environment**: Variables defined in `.env.example` (repo root) and validated in `apps/server/src/config/env.ts`. Local `.env` lives at repo root.
 - **Paths**: `@/` alias maps to `apps/server/src/`.
 
 ## Commands
@@ -76,13 +76,13 @@ docker logs rankwrangler-caddy --tail 50
 ## Environment Variable Management
 
 ### For Local Development
-- Copy `apps/server/.env.example` to `.env` in the repo root and populate values locally
+- Copy `.env.example` to `.env` in the repo root and populate values locally
 - The `.env` file is git-ignored and never committed
 - Use `bun run start` which loads the repo-root `.env` via `dotenv-cli`
 
 ### Adding New Environment Variables
 1. Add to `apps/server/src/config/env.ts` with appropriate validation
-2. Update `.env.example` with a placeholder value
+2. Update `.env.example` (repo root) with a placeholder value
 
 ## Expectations When Editing
 

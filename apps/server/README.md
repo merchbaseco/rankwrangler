@@ -11,7 +11,7 @@ Fastify + tRPC API for RankWrangler's Amazon SP-API integration, secured with Cl
 
 ```bash
 bun install
-cp apps/server/.env.example .env
+cp .env.example .env
 # Fill in .env with your credentials (repo root)
 docker compose -f apps/server/compose.yml up --build
 ```
