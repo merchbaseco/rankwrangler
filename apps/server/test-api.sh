@@ -10,7 +10,7 @@ echo ""
 
 # Test health check
 echo "🔍 Testing health check..."
-health_response=$(curl -s "$API_BASE/health")
+health_response=$(curl -s "$API_BASE/api/health")
 if [ $? -eq 0 ]; then
     echo "✅ Health check: $health_response"
 else
@@ -21,18 +21,18 @@ fi
 
 echo ""
 
-# License-gated endpoints
-if [ -n "$RR_LICENSE_KEY" ]; then
-    echo "🔐 Testing private Amazon API endpoints..."
+# Clerk-authenticated endpoints
+if [ -n "$RR_CLERK_TOKEN" ]; then
+    echo "🔐 Testing Clerk-authenticated API endpoints..."
     echo ""
-    echo "📦 Testing api/amazon/getProductInfo..."
-    curl -s -X POST "$API_BASE/api/amazon/getProductInfo" \
+    echo "📦 Testing public.getProductInfo..."
+    curl -s -X POST "$API_BASE/api/public.getProductInfo" \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $RR_LICENSE_KEY" \
-      -d '{"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}' | jq '.'
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}' | jq '.'
     echo ""
 else
-    echo "⚠️ Skipping private API tests - set RR_LICENSE_KEY to exercise license-gated endpoints."
+    echo "⚠️ Skipping Clerk API tests - set RR_CLERK_TOKEN to exercise authenticated endpoints."
     echo ""
 fi
 
