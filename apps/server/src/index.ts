@@ -11,6 +11,10 @@ import { runMigrations } from '@/db/migrate.js';
 import { processProductIngestQueue } from '@/jobs/process-product-ingest-queue.js';
 import { reprocessStaleProducts } from '@/jobs/reprocess-stale-products.js';
 import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
+import { validateLicense } from '@/services/license.js';
+import { db } from '@/db/index.js';
+import { productIngestQueue } from '@/db/schema.js';
+import { getProductInfoFromStore } from '@/db/product/get-product.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -120,6 +124,107 @@ fastify.get('/api/health', async () => {
         timestamp: new Date().toISOString(),
         service: 'rankwrangler-server',
     };
+});
+
+// -----------------------------------------------------------------------------
+// Legacy Extension API (v1)
+// These endpoints are used by the browser extension and must remain stable.
+// The newer API is tRPC under /api/*.
+// -----------------------------------------------------------------------------
+const extractBearerToken = (authorization?: string): string | null => {
+    if (!authorization) return null;
+    const match = authorization.match(/^Bearer\s+(.+)$/i);
+    return (match ? match[1] : authorization).trim() || null;
+};
+
+fastify.get('/api/license/status', async (request, reply) => {
+    const key = extractBearerToken(request.headers.authorization);
+    if (!key) {
+        reply.status(401);
+        return { error: 'Invalid or missing license key' };
+    }
+
+    const validation = await validateLicense(key, { consume: false });
+    if (!validation.valid) {
+        reply.status(401);
+        return { error: validation.error ?? 'Invalid license key' };
+    }
+
+    return { data: validation.data };
+});
+
+fastify.post('/api/license/validate', async (request, reply) => {
+    const body = (request.body ?? {}) as { licenseKey?: unknown };
+    const key = typeof body.licenseKey === 'string' ? body.licenseKey.trim() : '';
+
+    if (!key) {
+        reply.status(400);
+        return { error: 'License key is required' };
+    }
+
+    const validation = await validateLicense(key, { consume: false });
+    if (!validation.valid) {
+        reply.status(401);
+        return { error: validation.error ?? 'Invalid license key' };
+    }
+
+    return { data: validation.data };
+});
+
+fastify.post('/api/getProductInfo', async (request, reply) => {
+    const licenseKey = extractBearerToken(request.headers.authorization);
+    if (!licenseKey) {
+        reply.status(401);
+        return { error: 'Invalid or missing license key' };
+    }
+
+    // Validate + consume usage for this request
+    const validation = await validateLicense(licenseKey, { consume: true });
+    if (!validation.valid) {
+        const message = validation.error ?? 'Invalid license key';
+        // Rate limit errors should surface as 429 for the extension UX.
+        if (message.toLowerCase().includes('daily limit')) {
+            reply.status(429);
+            return { error: message };
+        }
+        reply.status(401);
+        return { error: message };
+    }
+
+    const body = (request.body ?? {}) as { marketplaceId?: unknown; asin?: unknown };
+    const marketplaceId = typeof body.marketplaceId === 'string' ? body.marketplaceId.trim() : '';
+    const asinRaw = typeof body.asin === 'string' ? body.asin.trim().toUpperCase() : '';
+
+    if (!marketplaceId || !asinRaw) {
+        reply.status(400);
+        return { error: 'marketplaceId and asin are required' };
+    }
+
+    if (!/^[A-Z0-9]{10}$/.test(asinRaw)) {
+        reply.status(400);
+        return { error: 'Invalid ASIN format' };
+    }
+
+    // 1) Return cached product if present
+    const cachedProduct = await getProductInfoFromStore(marketplaceId, asinRaw);
+    if (cachedProduct) {
+        return { data: cachedProduct };
+    }
+
+    // 2) Enqueue and poll
+    await db.insert(productIngestQueue).values({ marketplaceId, asin: asinRaw }).onConflictDoNothing();
+
+    const maxAttempts = 50;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const polled = await getProductInfoFromStore(marketplaceId, asinRaw);
+        if (polled) {
+            return { data: polled };
+        }
+    }
+
+    reply.status(504);
+    return { error: 'Request timeout: product info not available after 10 seconds' };
 });
 
 // tRPC API routes

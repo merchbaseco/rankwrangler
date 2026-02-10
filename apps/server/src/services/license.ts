@@ -45,8 +45,11 @@ export const generateLicenseKey = (
 
 export const validateLicense = async (
 	key: string,
+	opts?: { consume?: boolean },
 ): Promise<ValidationResult> => {
 	try {
+		const consume = opts?.consume ?? true;
+
 		// 1. Verify JWT signature and decode
 		const decoded = jwt.verify(key, env.LICENSE_SECRET) as LicensePayload;
 
@@ -73,21 +76,23 @@ export const validateLicense = async (
 
 		// 6. Check daily rate limits (skip if unlimited)
 		const dailyLimit = license.usageLimit;
-		if (dailyLimit !== -1 && license.usageToday >= dailyLimit) {
-			return {
-				valid: false,
-				error: `Daily limit of ${dailyLimit} requests exceeded. Resets at midnight UTC.`,
-			};
-		}
+		if (consume) {
+			if (dailyLimit !== -1 && license.usageToday >= dailyLimit) {
+				return {
+					valid: false,
+					error: `Daily limit of ${dailyLimit} requests exceeded. Resets at midnight UTC.`,
+				};
+			}
 
-		// 7. Update usage statistics
-		await updateUsageStats(license);
+			// 7. Update usage statistics
+			await updateUsageStats(license);
+		}
 
 		return {
 			valid: true,
 			data: {
 				email: license.email,
-				usage: license.usageToday + 1, // Include current request
+				usage: consume ? license.usageToday + 1 : license.usageToday,
 				usageLimit: dailyLimit,
 			},
 		};
