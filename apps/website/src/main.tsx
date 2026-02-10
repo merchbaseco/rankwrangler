@@ -12,30 +12,48 @@ import './styles/global.css';
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-if (!publishableKey) {
-    throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable');
-}
-
 const rootElement = document.getElementById('root');
 if (!rootElement) {
     throw new Error('Root element not found');
 }
 
+function MissingConfig() {
+    return (
+        <div className="min-h-screen bg-background">
+            <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center p-6">
+                <div className="rounded-lg border bg-white p-6 shadow-sm">
+                    <h1 className="text-xl font-semibold">RankWrangler website misconfigured</h1>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        Missing <code className="font-mono">VITE_CLERK_PUBLISHABLE_KEY</code>.
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        Fix: add it to <code className="font-mono">/Users/zknicker/srv/rankwrangler/.env</code> and redeploy.
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 createRoot(rootElement).render(
     <StrictMode>
-        <ClerkProvider publishableKey={publishableKey}>
-            <SignedIn>
-                <TRPCProvider>
-                    <App />
-                </TRPCProvider>
-            </SignedIn>
-            <SignedOut>
-                <div className="min-h-screen bg-background">
-                    <div className="flex min-h-screen items-center justify-center">
-                        <SignIn />
+        {publishableKey ? (
+            <ClerkProvider publishableKey={publishableKey}>
+                <SignedIn>
+                    <TRPCProvider>
+                        <App />
+                    </TRPCProvider>
+                </SignedIn>
+                <SignedOut>
+                    <div className="min-h-screen bg-background">
+                        <div className="flex min-h-screen items-center justify-center">
+                            <SignIn />
+                        </div>
                     </div>
-                </div>
-            </SignedOut>
-        </ClerkProvider>
+                </SignedOut>
+            </ClerkProvider>
+        ) : (
+            <MissingConfig />
+        )}
     </StrictMode>
 );

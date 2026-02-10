@@ -54,10 +54,14 @@
         header Content-Type application/json
         respond `{"status":"ok","service":"rankwrangler-caddy"}` 200
     }
-    
-    # Catch-all for non-API requests
+
+    # Website (SPA) for all non-API routes
+    #
+    # Served from /srv, which is baked into the caddy image at build time.
     handle * {
-        header Content-Type application/json
-        respond `{"error": "Not Found", "message": "This endpoint does not exist. Use /api/* endpoints."}` 404
+        root * /srv
+        encode zstd gzip
+        try_files {path} /index.html
+        file_server
     }
 }

@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1.6
+
+# Build the RankWrangler website (Vite -> static assets)
+FROM oven/bun:1.1.27 AS webbuild
+WORKDIR /repo
+
+# Vite exposes env vars prefixed with VITE_ at build time.
+# We do NOT copy the host .env into the image (secrets stay on host).
+ARG VITE_API_URL=""
+ARG VITE_CLERK_PUBLISHABLE_KEY=""
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
+
+COPY package.json bun.lock ./
+COPY apps ./apps
+
+RUN bun install --frozen-lockfile
+RUN bun run --filter @rankwrangler/website build
+
+# Runtime: Caddy serves static website + proxies /api/* to the server container
+FROM caddy:alpine
+
+COPY apps/server/Caddyfile /etc/caddy/Caddyfile
+COPY --from=webbuild /repo/apps/website/dist /srv
