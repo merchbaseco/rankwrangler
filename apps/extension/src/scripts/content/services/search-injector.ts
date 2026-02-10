@@ -10,32 +10,34 @@ interface BsrBadge {
 	asin: string;
 }
 
+const ASIN_REGEX = /^[A-Z0-9]{10}$/;
+
 class SearchInjector {
-	private processedUuids = new Set<string>();
-	private badges = new Map<string, BsrBadge>();
+	private readonly processedUuids = new Set<string>();
+	private readonly badges = new Map<string, BsrBadge>();
 
 	/**
 	 * Find all products on search pages and inject BSR badges
 	 */
-	public injectBsrBadges(): void {
+	injectBsrBadges(): void {
 		const products = this.findSearchProducts();
 		log.info(`Injecting ${products.length} BSR badges`);
 
-		products.forEach((product) => {
+		for (const product of products) {
 			const asin = product.getAttribute("data-asin");
 			const uuid = product.getAttribute("data-uuid");
-			if (!asin || !uuid || this.processedUuids.has(uuid)) {
+			if (!(asin && uuid) || this.processedUuids.has(uuid)) {
 				return;
 			}
 
 			this.injectSingleBadge(product, asin);
-		});
+		}
 	}
 
 	/**
 	 * Check if an element has already been processed
 	 */
-	public isProcessed(element: HTMLElement): boolean {
+	isProcessed(element: HTMLElement): boolean {
 		const uuid = element.getAttribute("data-uuid");
 		return uuid ? this.processedUuids.has(uuid) : false;
 	}
@@ -43,7 +45,7 @@ class SearchInjector {
 	/**
 	 * Inject a single badge for a specific product element and ASIN
 	 */
-	public injectSingleBadge(product: HTMLElement, asin: string): void {
+	injectSingleBadge(product: HTMLElement, asin: string): void {
 		const uuid = product.getAttribute("data-uuid");
 		if (!uuid || this.processedUuids.has(uuid)) {
 			return;
@@ -61,10 +63,10 @@ class SearchInjector {
 	 */
 	private findSearchProducts(): HTMLElement[] {
 		return Array.from(
-			document.querySelectorAll<HTMLElement>('[data-asin]:not([data-asin=""])'),
+			document.querySelectorAll<HTMLElement>('[data-asin]:not([data-asin=""])')
 		).filter((el) => {
 			const asin = el.getAttribute("data-asin");
-			return asin && asin.length === 10 && /^[A-Z0-9]{10}$/.test(asin);
+			return asin && asin.length === 10 && ASIN_REGEX.test(asin);
 		});
 	}
 
@@ -73,7 +75,7 @@ class SearchInjector {
 	 */
 	private findInjectionPoint(productElement: HTMLElement): HTMLElement | null {
 		const titleRecipeContainer = productElement.querySelector(
-			'[data-cy="title-recipe"]',
+			'[data-cy="title-recipe"]'
 		);
 		return titleRecipeContainer?.parentElement || null;
 	}
@@ -83,7 +85,7 @@ class SearchInjector {
 	 */
 	private createAndInjectBadge(
 		asin: string,
-		injectionPoint: HTMLElement,
+		injectionPoint: HTMLElement
 	): void {
 		// Create container for React component
 		const badge = reactRenderer.createContainer("rw-bsr-badge");
@@ -109,7 +111,7 @@ class SearchInjector {
 
 		// Insert before title-recipe
 		const titleRecipe = injectionPoint.querySelector(
-			'[data-cy="title-recipe"]',
+			'[data-cy="title-recipe"]'
 		);
 		if (titleRecipe) {
 			injectionPoint.insertBefore(badge, titleRecipe);
@@ -124,7 +126,7 @@ class SearchInjector {
 	/**
 	 * Clear all processed UUIDs (for page navigation)
 	 */
-	public reset(): void {
+	reset(): void {
 		this.processedUuids.clear();
 		this.badges.clear();
 
@@ -132,9 +134,9 @@ class SearchInjector {
 		reactRenderer.forceCleanupBySelector(".rw-bsr-badge");
 
 		// Remove all existing badges
-		document.querySelectorAll(".rw-bsr-badge").forEach((badge) => {
+		for (const badge of document.querySelectorAll(".rw-bsr-badge")) {
 			badge.remove();
-		});
+		}
 	}
 }
 

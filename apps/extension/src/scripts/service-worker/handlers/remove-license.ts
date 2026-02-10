@@ -7,7 +7,7 @@ import type {
 import { getCurrentLicenseStatus } from "./license-utils";
 
 export async function handleRemoveLicense(
-	_message: RemoveLicenseMessage,
+	_message: RemoveLicenseMessage
 ): Promise<LicenseResponse> {
 	try {
 		// Remove from both sync and local storage

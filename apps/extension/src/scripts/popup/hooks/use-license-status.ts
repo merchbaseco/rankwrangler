@@ -22,7 +22,7 @@ const fetchLicenseStatus = async () => {
 
 	if (!licenseResponse.data.success) {
 		throw new Error(
-			licenseResponse.data.error || "Failed to get license status",
+			licenseResponse.data.error || "Failed to get license status"
 		);
 	}
 

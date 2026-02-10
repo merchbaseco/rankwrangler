@@ -3,7 +3,7 @@ import { browser } from "webextension-polyfill-ts";
 
 // Validate license
 const validateLicense = async (
-	licenseKey: string,
+	licenseKey: string
 ): Promise<{
 	isValid: boolean;
 	error?: string;
@@ -11,7 +11,7 @@ const validateLicense = async (
 }> => {
 	const response = await browser.runtime.sendMessage({
 		type: "validateLicense",
-		licenseKey: licenseKey,
+		licenseKey,
 	});
 
 	if (!response.success) {

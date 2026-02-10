@@ -2,7 +2,7 @@ import type { ProductIdentifier } from "../types/product";
 import { db } from "./index";
 
 export async function markRequestStarted(
-	productIdentifier: ProductIdentifier,
+	productIdentifier: ProductIdentifier
 ): Promise<void> {
 	await db.productRequests.put({
 		asin: productIdentifier.asin,
@@ -12,7 +12,7 @@ export async function markRequestStarted(
 }
 
 export async function markRequestCompleted(
-	productIdentifier: ProductIdentifier,
+	productIdentifier: ProductIdentifier
 ): Promise<void> {
 	await db.productRequests.delete([
 		productIdentifier.asin,

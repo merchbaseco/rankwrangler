@@ -4,14 +4,16 @@ import { db } from "./index";
 const CACHE_DURATION_MS = 1000 * 60 * 60; // 1 hour
 
 const get = async (
-	productIdentifier: ProductIdentifier,
+	productIdentifier: ProductIdentifier
 ): Promise<Product | undefined> => {
 	const cached = await db.cachedProducts.get([
 		productIdentifier.asin,
 		productIdentifier.marketplaceId,
 	]);
 
-	if (!cached) return undefined;
+	if (!cached) {
+		return undefined;
+	}
 
 	const isExpired = new Date(cached.expiresAt) < new Date();
 	if (isExpired) {

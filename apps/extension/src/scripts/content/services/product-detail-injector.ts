@@ -10,6 +10,13 @@ interface BsrBadge {
 	asin: string;
 }
 
+const ASIN_REGEX = /^[A-Z0-9]{10}$/;
+const ASIN_URL_PATTERNS = [
+	/\/dp\/([A-Z0-9]{10})/,
+	/\/gp\/product\/([A-Z0-9]{10})/,
+];
+const PRODUCT_DETAIL_PATH_REGEX = /\/dp\/|\/gp\/product\//;
+
 /**
  * Extract ASIN from Amazon product detail page URL
  * Supports formats:
@@ -19,16 +26,12 @@ interface BsrBadge {
  */
 function extractAsinFromUrl(): string | null {
 	const url = window.location.href;
-	const patterns = [
-		/\/dp\/([A-Z0-9]{10})/,
-		/\/gp\/product\/([A-Z0-9]{10})/,
-	];
 
-	for (const pattern of patterns) {
+	for (const pattern of ASIN_URL_PATTERNS) {
 		const match = url.match(pattern);
-		if (match && match[1]) {
+		if (match?.[1]) {
 			const asin = match[1];
-			if (asin.length === 10 && /^[A-Z0-9]{10}$/.test(asin)) {
+			if (asin.length === 10 && ASIN_REGEX.test(asin)) {
 				return asin;
 			}
 		}
@@ -44,21 +47,21 @@ class ProductDetailInjector {
 	/**
 	 * Check if we're on a product detail page
 	 */
-	public isProductDetailPage(): boolean {
-		return /\/dp\/|\/gp\/product\//.test(window.location.pathname);
+	isProductDetailPage(): boolean {
+		return PRODUCT_DETAIL_PATH_REGEX.test(window.location.pathname);
 	}
 
 	/**
 	 * Check if a badge has been injected
 	 */
-	public hasInjected(): boolean {
+	hasInjected(): boolean {
 		return this.badge !== null;
 	}
 
 	/**
 	 * Inject BSR badge on product detail page
 	 */
-	public injectBsrBadge(): void {
+	injectBsrBadge(): void {
 		const asin = extractAsinFromUrl();
 		if (!asin) {
 			log.debug("Could not extract ASIN from URL");
@@ -73,7 +76,9 @@ class ProductDetailInjector {
 
 		// If ASIN changed, reset the old badge
 		if (this.badge && this.injectedAsin !== asin) {
-			log.debug(`ASIN changed from ${this.injectedAsin} to ${asin}, resetting badge`);
+			log.debug(
+				`ASIN changed from ${this.injectedAsin} to ${asin}, resetting badge`
+			);
 			this.reset();
 		}
 
@@ -92,7 +97,7 @@ class ProductDetailInjector {
 	 */
 	private findInjectionPoint(): HTMLElement | null {
 		const targetDiv = document.getElementById(
-			"alternativeOfferEligibilityMessaging_feature_div",
+			"alternativeOfferEligibilityMessaging_feature_div"
 		);
 		if (!targetDiv) {
 			return null;
@@ -107,7 +112,7 @@ class ProductDetailInjector {
 	 */
 	private createAndInjectBadge(
 		asin: string,
-		injectionPoint: HTMLElement,
+		injectionPoint: HTMLElement
 	): void {
 		// Create container for React component
 		const badge = reactRenderer.createContainer("rw-product-detail-badge");
@@ -135,7 +140,7 @@ class ProductDetailInjector {
 
 		// Find the target div and insert before it
 		const targetDiv = document.getElementById(
-			"alternativeOfferEligibilityMessaging_feature_div",
+			"alternativeOfferEligibilityMessaging_feature_div"
 		);
 		if (targetDiv) {
 			injectionPoint.insertBefore(badge, targetDiv);
@@ -152,7 +157,7 @@ class ProductDetailInjector {
 	/**
 	 * Clear the injected badge (for page navigation)
 	 */
-	public reset(): void {
+	reset(): void {
 		if (this.badge) {
 			// Explicitly cleanup React root before removing DOM element
 			if (this.badge.element.shadowRoot) {
@@ -167,4 +172,3 @@ class ProductDetailInjector {
 
 // Export singleton instance
 export const productDetailInjector = new ProductDetailInjector();
-

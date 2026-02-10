@@ -5,6 +5,8 @@ const compactNumberFormatter = new Intl.NumberFormat("en-US", {
 	maximumFractionDigits: 1,
 });
 
+const COMPACT_UNIT_REGEX = /\.0([A-Za-z]+)$/;
+
 const formatUsageValue = (value: number) => {
 	if (!Number.isFinite(value)) {
 		return "0";
@@ -17,7 +19,7 @@ const formatUsageValue = (value: number) => {
 	}
 
 	const formatted = compactNumberFormatter.format(sanitized);
-	return formatted.replace(/\.0([A-Za-z]+)$/, "$1");
+	return formatted.replace(COMPACT_UNIT_REGEX, "$1");
 };
 
 const formatUsageDisplay = (usage: number, usageLimit: number) => {

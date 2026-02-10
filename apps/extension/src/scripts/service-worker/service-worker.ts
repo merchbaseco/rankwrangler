@@ -17,38 +17,36 @@ browser.runtime.onInstalled.addListener(() => {
 });
 
 // Handle messages from popup and content scripts
-browser.runtime.onMessage.addListener(
-	async (message: BackgroundMessage, _sender) => {
-		log.info("Received message:", message);
+browser.runtime.onMessage.addListener((message: BackgroundMessage, _sender) => {
+	log.info("Received message:", message);
 
-		switch (message.type) {
-			case "ping":
-				return handlePing(message);
+	switch (message.type) {
+		case "ping":
+			return handlePing(message);
 
-			case "fetchProductInfo":
-				return handleFetchProductInfo(message);
+		case "fetchProductInfo":
+			return handleFetchProductInfo(message);
 
-			case "validateLicense":
-				return handleValidateLicense(message);
+		case "validateLicense":
+			return handleValidateLicense(message);
 
-			case "setLicense":
-				return handleSetLicense(message);
+		case "setLicense":
+			return handleSetLicense(message);
 
-			case "removeLicense":
-				return handleRemoveLicense(message);
+		case "removeLicense":
+			return handleRemoveLicense(message);
 
-			case "getLicenseStatus":
-				return handleGetLicenseStatus(message);
+		case "getLicenseStatus":
+			return handleGetLicenseStatus(message);
 
-			case "toggleDebugMode":
-				return handleToggleDebugMode(message);
+		case "toggleDebugMode":
+			return handleToggleDebugMode(message);
 
-			case "clearCache":
-				return handleClearCache(message);
+		case "clearCache":
+			return handleClearCache(message);
 
-			default:
-				log.warn("Unknown message type:", message);
-				return null;
-		}
-	},
-);
+		default:
+			log.warn("Unknown message type:", message);
+			return null;
+	}
+});

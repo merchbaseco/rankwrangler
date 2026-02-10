@@ -11,7 +11,7 @@ export const sendMessageToBackground = async (message: any): Promise<any> => {
 };
 
 export const sendMessageToContentScript = async (
-	message: any,
+	message: any
 ): Promise<any> => {
 	try {
 		const tabs = await browser.tabs.query({

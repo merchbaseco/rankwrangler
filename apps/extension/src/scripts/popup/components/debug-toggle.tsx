@@ -8,7 +8,7 @@ export const DebugToggle = () => {
 
 	useEffect(() => {
 		browser.storage.local.get(["debugMode"]).then((result) => {
-			setDebugMode(result.debugMode || false);
+			setDebugMode(result.debugMode);
 		});
 	}, []);
 
@@ -31,14 +31,14 @@ export const DebugToggle = () => {
 					target: { tabId: tab.id },
 					func: (debugMode) => {
 						// Update storage
-						chrome.storage.local.set({ debugMode });
+						globalThis.chrome.storage.local.set({ debugMode });
 						console.log("Debug mode updated via script injection:", debugMode);
 
 						// Dispatch custom event for React app to detect immediately
 						window.dispatchEvent(
 							new CustomEvent("debugModeChanged", {
 								detail: { debugMode },
-							}),
+							})
 						);
 					},
 					args: [debugMode],
@@ -48,13 +48,13 @@ export const DebugToggle = () => {
 	};
 
 	return (
-		<div className="group flex items-center w-full gap-1.5">
+		<div className="group flex w-full items-center gap-1.5">
 			<Settings className="size-5 text-primary transition-transform duration-300 group-hover:rotate-90" />
-			<div className="text-sm font-medium">Debug Mode</div>
+			<div className="font-medium text-sm">Debug Mode</div>
 			<Switch
 				checked={debugMode}
-				onCheckedChange={toggleDebugMode}
 				className="ml-auto"
+				onCheckedChange={toggleDebugMode}
 			/>
 		</div>
 	);

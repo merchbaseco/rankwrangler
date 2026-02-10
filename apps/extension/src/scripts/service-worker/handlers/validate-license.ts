@@ -6,7 +6,7 @@ import type {
 import { resolveStoredLicenseKey, validateLicenseKey } from "./license-utils";
 
 export async function handleValidateLicense(
-	message: ValidateLicenseMessage,
+	message: ValidateLicenseMessage
 ): Promise<ValidationResponse> {
 	try {
 		const licenseKey = await resolveStoredLicenseKey(message.licenseKey);

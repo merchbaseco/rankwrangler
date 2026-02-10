@@ -25,7 +25,7 @@
         "extension:build:chrome": "bun run --filter rankwrangler-extension build:chrome",
         "extension:preview": "bun run --filter rankwrangler-extension preview",
         "extension:lint": "bun run --filter rankwrangler-extension lint",
-        "extension:format": "bun run --filter rankwrangler-extension format",
+        "extension:lint:fix": "bun run --filter rankwrangler-extension lint:fix",
         "build:clean": "bun run --filter rankwrangler-extension build:clean",
         "build:background": "bun run --filter rankwrangler-extension build:background",
         "build:popup": "bun run --filter rankwrangler-extension build:popup",
@@ -34,7 +34,7 @@
         "build:chrome": "bun run --filter rankwrangler-extension build:chrome",
         "tailwind": "bun run --filter rankwrangler-extension tailwind",
         "lint": "bun run --filter rankwrangler-extension lint",
-        "format": "bun run --filter rankwrangler-extension format",
+        "lint:fix": "bun run --filter rankwrangler-extension lint:fix",
         "http-client:types": "dts-bundle-generator --no-check -o packages/http-client/src/app-router.d.ts apps/server/src/api/router-public.ts --project tsconfig.http-client.json",
         "http-client:build": "bun run http-client:types && tsc -p packages/http-client/tsconfig.json && cp packages/http-client/src/app-router.d.ts packages/http-client/dist/app-router.d.ts"
     },

@@ -20,7 +20,7 @@ export interface Product {
 }
 
 export const getErrorProduct = (
-	productIdentifier: ProductIdentifier,
+	productIdentifier: ProductIdentifier
 ): Product => {
 	return {
 		asin: productIdentifier.asin,

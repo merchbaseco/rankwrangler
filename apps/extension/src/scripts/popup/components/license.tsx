@@ -15,7 +15,7 @@ export const License = () => {
 		if (license && !isLoading) {
 			const hasValidLicense = license.key && license.isValid;
 			setIsEditMode(!hasValidLicense);
-		} else if (!license && !isLoading) {
+		} else if (!(license || isLoading)) {
 			setIsEditMode(true);
 		}
 	}, [license, isLoading]);
@@ -35,9 +35,9 @@ export const License = () => {
 	// Show loading state
 	if (isLoading) {
 		return (
-			<div className="flex flex-col items-center justify-center py-8 space-y-3">
-				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-				<div className="text-sm text-muted-foreground">
+			<div className="flex flex-col items-center justify-center space-y-3 py-8">
+				<div className="h-8 w-8 animate-spin rounded-full border-primary border-b-2" />
+				<div className="text-muted-foreground text-sm">
 					Syncing license status...
 				</div>
 			</div>
@@ -46,7 +46,7 @@ export const License = () => {
 
 	if (isError) {
 		return (
-			<div className="flex flex-col items-center justify-center py-8 space-y-3">
+			<div className="flex flex-col items-center justify-center space-y-3 py-8">
 				<div className="w-full">
 					<LicenseMessage
 						message={
@@ -57,7 +57,7 @@ export const License = () => {
 						type="error"
 					/>
 				</div>
-				<Button variant="outline" size="sm" onClick={() => refetch()}>
+				<Button onClick={() => refetch()} size="sm" variant="outline">
 					Retry
 				</Button>
 			</div>
@@ -67,28 +67,28 @@ export const License = () => {
 	return (
 		<div className="space-y-4">
 			{/* License status badge */}
-			<div className="flex justify-between items-center">
-				<span className="text-sm font-medium">License Status</span>
+			<div className="flex items-center justify-between">
+				<span className="font-medium text-sm">License Status</span>
 				<LicenseStatusBadge license={license} />
 			</div>
 
 			{/* License information or editor */}
 			{isEditMode ? (
 				<LicenseEditor
-					onSuccess={handleEditSuccess}
-					onCancel={handleCancelEdit}
 					hasExistingLicense={!!license?.key}
+					onCancel={handleCancelEdit}
+					onSuccess={handleEditSuccess}
 				/>
 			) : (
 				<>
 					{license && <LicenseInfo license={license} />}
 					{license?.key && license.isValid && (
-						<div className="w-full flex">
+						<div className="flex w-full">
 							<Button
-								variant="outline"
+								className="grow"
 								onClick={handleEnterEditMode}
 								size="sm"
-								className="grow"
+								variant="outline"
 							>
 								Edit License
 							</Button>

@@ -6,7 +6,7 @@ import type { License } from "../../types/license";
 const saveLicense = async (licenseKey: string): Promise<License | null> => {
 	const response = await browser.runtime.sendMessage({
 		type: "setLicense",
-		licenseKey: licenseKey,
+		licenseKey,
 	});
 
 	if (!response.success) {
