@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "vite build",
-    "start": "dotenv -e ../.env node dist/index.js",
+    "dev": "dotenv -e ../../.env -- tsx src/index.ts",
+    "start": "dotenv -e ../../.env node dist/index.js",
     "cli": "tsx src/cli.ts"
   },
   "dependencies": {
