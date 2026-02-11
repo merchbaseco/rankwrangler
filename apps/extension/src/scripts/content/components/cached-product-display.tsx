@@ -2,20 +2,34 @@ import { useEffect, useState } from "react";
 import { getProduct } from "@/scripts/api/get-product";
 import { ProductCache } from "@/scripts/db/product-cache";
 import type { Product, ProductIdentifier } from "@/scripts/types/product";
+import { log } from "../../../utils/logger";
 import { ProductDisplay } from "./product-display";
 
-export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
+export const CachedProductDisplay = ({
+	asin,
+	marketplaceId,
+}: ProductIdentifier) => {
 	const [state, setState] = useState<"loading" | "success" | "error">(
 		"loading"
 	);
 	const [product, setProduct] = useState<Product>();
 
 	useEffect(() => {
+		let isUnmounted = false;
+
 		async function loadBsr() {
+			setState("loading");
+
+			const productIdentifier: ProductIdentifier = { asin, marketplaceId };
+
 			try {
 				const cachedProduct = await ProductCache.get(productIdentifier);
 
 				if (cachedProduct) {
+					if (isUnmounted) {
+						return;
+					}
+
 					setState("success");
 					setProduct(cachedProduct);
 					return;
@@ -25,19 +39,36 @@ export const CachedProductDisplay = (productIdentifier: ProductIdentifier) => {
 				const product = await getProduct(productIdentifier);
 
 				if (product.metadata.success) {
-					await ProductCache.set(product);
+					if (isUnmounted) {
+						return;
+					}
+
 					setState("success");
 					setProduct(product);
 				} else {
 					throw new Error("Failed to fetch product metadata.");
 				}
-			} catch (_e) {
+			} catch (error) {
+				log.error("CachedProductDisplay failed to load BSR", {
+					asin,
+					marketplaceId,
+					error,
+				});
+
+				if (isUnmounted) {
+					return;
+				}
+
 				setState("error");
 			}
 		}
 
 		loadBsr();
-	}, [productIdentifier]);
+
+		return () => {
+			isUnmounted = true;
+		};
+	}, [asin, marketplaceId]);
 
 	return (
 		<ProductDisplay
