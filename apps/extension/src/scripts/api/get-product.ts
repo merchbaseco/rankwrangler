@@ -1,6 +1,10 @@
 import { RateLimiter } from "limiter";
 import { browser } from "webextension-polyfill-ts";
 import log from "@/utils/logger";
+import {
+	finishProductRequestTrace,
+	startProductRequestTrace,
+} from "../content/debug/debug-snapshot";
 import { ProductCache } from "../db/product-cache";
 import { ProductRequestTracker } from "../db/product-request-tracker";
 import {
@@ -18,6 +22,15 @@ export const getProduct = async (
 	productIdentifier: ProductIdentifier
 ): Promise<Product> => {
 	const { asin, marketplaceId } = productIdentifier;
+	const requestTrace = startProductRequestTrace(productIdentifier);
+	let requestCompletion: {
+		status: "success" | "error" | "no_response";
+		response?: unknown;
+		errorMessage?: string;
+	} = {
+		status: "error",
+		errorMessage: "Request did not complete.",
+	};
 
 	await ProductRequestTracker.markRequestStarted(productIdentifier);
 	await rateLimiter.removeTokens(1);
@@ -32,6 +45,11 @@ export const getProduct = async (
 		const response = await browser.runtime.sendMessage(message);
 
 		if (!response) {
+			requestCompletion = {
+				status: "no_response",
+				response: null,
+				errorMessage: "No response from service worker.",
+			};
 			log.error(`getProduct failed for ${asin}`, {
 				error: "No response from service worker.",
 			});
@@ -39,6 +57,14 @@ export const getProduct = async (
 		}
 
 		if (!response.success) {
+			requestCompletion = {
+				status: "error",
+				response,
+				errorMessage:
+					typeof response.error === "string"
+						? response.error
+						: "Service worker returned an unsuccessful response.",
+			};
 			log.error(`getProduct failed for ${asin}`, {
 				error: `Service worker encountered error. ${response.error}`,
 			});
@@ -79,8 +105,20 @@ export const getProduct = async (
 				error: cacheError,
 			});
 		}
+		requestCompletion = {
+			status: "success",
+			response,
+		};
 		return product;
 	} catch (error) {
+		requestCompletion = {
+			status: "error",
+			errorMessage:
+				error instanceof Error
+					? error.message
+					: "Unexpected error during getProduct.",
+			response: error,
+		};
 		log.error(`getProduct failed for ${asin}`, { error });
 		return getErrorProduct(productIdentifier);
 	} finally {
@@ -90,5 +128,7 @@ export const getProduct = async (
 		} catch (cleanupError) {
 			log.error(`Failed to mark request completed for ${asin}:`, cleanupError);
 		}
+
+		finishProductRequestTrace(requestTrace, requestCompletion);
 	}
 };
