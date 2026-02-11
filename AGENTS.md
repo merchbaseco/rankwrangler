@@ -19,6 +19,18 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 - `docker compose up --build` – local stack with PostgreSQL (run from `apps/server`).
 - `./test-api.sh` – curl-based smoke test for the main endpoints (run from `apps/server`).
 
+### Monorepo Build Order (Important)
+
+- The extension depends on the workspace package `@rankwrangler/http-client`.
+- If extension type-check/build fails with `TS2307: Cannot find module '@rankwrangler/http-client'`, build the typed client first from repo root:
+
+```bash
+bun run http-client:build
+bun --filter rankwrangler-extension run build
+```
+
+- Use this same order before running extension-only TypeScript checks in fresh environments.
+
 ## Deployment
 
 ### Build & Deploy
