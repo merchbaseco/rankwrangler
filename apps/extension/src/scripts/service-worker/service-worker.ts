@@ -22,7 +22,7 @@ browser.runtime.onMessage.addListener((message: BackgroundMessage, _sender) => {
 
 	switch (message.type) {
 		case "ping":
-			return handlePing(message);
+			return Promise.resolve(handlePing(message));
 
 		case "fetchProductInfo":
 			return handleFetchProductInfo(message);
@@ -47,6 +47,6 @@ browser.runtime.onMessage.addListener((message: BackgroundMessage, _sender) => {
 
 		default:
 			log.warn("Unknown message type:", message);
-			return null;
+			return Promise.resolve(null);
 	}
 });
