@@ -16,7 +16,7 @@ export const PortalTooltip = ({
 	onMouseEnter,
 	onMouseLeave,
 }: PortalTooltipProps) => {
-	const triggerRef = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
 	const [position, setPosition] = useState({ top: 0, left: 0 });
 
 	// Calculate tooltip position when show state changes
