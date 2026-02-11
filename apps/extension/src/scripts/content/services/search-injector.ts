@@ -10,6 +10,12 @@ interface BsrBadge {
 	asin: string;
 }
 
+interface InjectionTarget {
+	anchor: HTMLElement;
+	parent: HTMLElement;
+	position: "after" | "before";
+}
+
 const ASIN_REGEX = /^[A-Z0-9]{10}$/;
 const SEARCH_RESULT_SELECTOR =
 	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""])';
@@ -53,9 +59,9 @@ class SearchInjector {
 			return;
 		}
 
-		const injectionPoint = this.findInjectionPoint(product);
-		if (injectionPoint) {
-			this.createAndInjectBadge(asin, injectionPoint);
+		const injectionTarget = this.findInjectionTarget(product);
+		if (injectionTarget) {
+			this.createAndInjectBadge(asin, injectionTarget);
 			this.processedProducts.add(productKey);
 		}
 	}
@@ -101,13 +107,60 @@ class SearchInjector {
 	}
 
 	/**
-	 * Find the best place to inject the BSR badge
+	 * Find the best place to inject the BSR badge.
+	 * Priority: directly below product image, then fallback near title.
 	 */
-	private findInjectionPoint(productElement: HTMLElement): HTMLElement | null {
-		const titleRecipeContainer = productElement.querySelector(
+	private findInjectionTarget(
+		productElement: HTMLElement
+	): InjectionTarget | null {
+		const imageAnchor = this.findImageAnchor(productElement);
+		if (imageAnchor?.parentElement) {
+			return {
+				anchor: imageAnchor,
+				parent: imageAnchor.parentElement,
+				position: "after",
+			};
+		}
+
+		const titleRecipeContainer = productElement.querySelector<HTMLElement>(
 			'[data-cy="title-recipe"]'
 		);
-		return titleRecipeContainer?.parentElement || null;
+		if (titleRecipeContainer?.parentElement) {
+			return {
+				anchor: titleRecipeContainer,
+				parent: titleRecipeContainer.parentElement,
+				position: "before",
+			};
+		}
+
+		return null;
+	}
+
+	/**
+	 * Find a stable anchor around the product image for consistent placement.
+	 */
+	private findImageAnchor(productElement: HTMLElement): HTMLElement | null {
+		const imageContainerSelectors = [
+			'[data-cy="image-container"]',
+			".s-product-image-container",
+			'[data-component-type="s-product-image"]',
+			"img.s-image",
+		] as const;
+
+		for (const selector of imageContainerSelectors) {
+			const element = productElement.querySelector<HTMLElement>(selector);
+			if (!element) {
+				continue;
+			}
+
+			const stableContainer = element.closest<HTMLElement>(
+				'[data-cy="image-container"], .s-product-image-container, [data-component-type="s-product-image"]'
+			);
+
+			return stableContainer ?? element;
+		}
+
+		return null;
 	}
 
 	/**
@@ -115,7 +168,7 @@ class SearchInjector {
 	 */
 	private createAndInjectBadge(
 		asin: string,
-		injectionPoint: HTMLElement
+		injectionTarget: InjectionTarget
 	): void {
 		// Create container for React component
 		const badge = reactRenderer.createContainer("rw-bsr-badge");
@@ -139,14 +192,11 @@ class SearchInjector {
 		});
 		reactRenderer.render(cachedProductDisplayComponent, shadowRoot);
 
-		// Insert before title-recipe
-		const titleRecipe = injectionPoint.querySelector(
-			'[data-cy="title-recipe"]'
-		);
-		if (titleRecipe) {
-			injectionPoint.insertBefore(badge, titleRecipe);
+		const { anchor, parent, position } = injectionTarget;
+		if (position === "after") {
+			parent.insertBefore(badge, anchor.nextSibling);
 		} else {
-			injectionPoint.insertBefore(badge, injectionPoint.firstChild);
+			parent.insertBefore(badge, anchor);
 		}
 
 		// Store badge reference
