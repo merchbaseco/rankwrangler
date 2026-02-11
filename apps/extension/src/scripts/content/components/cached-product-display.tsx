@@ -3,6 +3,7 @@ import { getProduct } from "@/scripts/api/get-product";
 import { ProductCache } from "@/scripts/db/product-cache";
 import type { Product, ProductIdentifier } from "@/scripts/types/product";
 import { log } from "../../../utils/logger";
+import { recordCacheLookup } from "../debug/debug-snapshot";
 import { ProductDisplay } from "./product-display";
 
 export const CachedProductDisplay = ({
@@ -30,10 +31,13 @@ export const CachedProductDisplay = ({
 						return;
 					}
 
+					recordCacheLookup(productIdentifier, "hit", cachedProduct);
 					setState("success");
 					setProduct(cachedProduct);
 					return;
 				}
+
+				recordCacheLookup(productIdentifier, "miss");
 
 				// Fetch product info
 				const product = await getProduct(productIdentifier);
