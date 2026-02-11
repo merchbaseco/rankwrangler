@@ -93,11 +93,43 @@ export function ProductDisplay({
 
 	const { asin, rootCategoryBsr, rootCategoryDisplayName, creationDate } =
 		product;
+	const hasRankData =
+		typeof rootCategoryBsr === "number" && rootCategoryDisplayName != null;
 
-	if (!(rootCategoryBsr && rootCategoryDisplayName)) {
+	if (!hasRankData) {
 		return (
-			<div className="fade-in z-[1] w-full animate-in rounded-lg border border-gray-200 bg-gradient-to-r from-white/[0.98] to-white/[0.95] px-3 py-2 shadow-sm backdrop-blur duration-300">
-				<span className="font-medium text-gray-800 text-sm">No rank data</span>
+			<div className="fade-in z-[1] flex w-full animate-in flex-col gap-1.5 rounded-lg border border-gray-200 bg-gradient-to-r from-white/[0.98] to-white/[0.95] px-3 py-2 shadow-sm backdrop-blur duration-300">
+				<div className="flex items-baseline gap-0.5">
+					<span className="whitespace-nowrap font-medium text-gray-800 text-sm">
+						No rank data
+					</span>
+					{rootCategoryDisplayName ? (
+						<span className="ml-1 line-clamp-1 text-gray-600 text-xs">
+							in {rootCategoryDisplayName}
+						</span>
+					) : null}
+				</div>
+
+				<div className="mt-1 flex w-full items-center gap-2 border-gray-200 border-t pt-1.5">
+					<span className="flex-1 text-gray-600 text-xs">
+						{creationDate &&
+							new Date(creationDate).toLocaleDateString("en-US", {
+								year: "numeric",
+								month: "long",
+								day: "numeric",
+							})}
+					</span>
+
+					<button
+						className="cursor-pointer rounded bg-gray-100 px-1.5 py-0.5 text-gray-600 text-xs transition-all duration-200 hover:bg-gray-200 hover:text-gray-800"
+						disabled={copyStatus !== "idle"}
+						onClick={() => handleCopyAsin(asin)}
+						title="Click to copy ASIN"
+						type="button"
+					>
+						{copyStatus === "copied" ? "Copied!" : asin}
+					</button>
+				</div>
 			</div>
 		);
 	}
