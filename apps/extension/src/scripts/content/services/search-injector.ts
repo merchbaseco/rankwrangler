@@ -11,9 +11,11 @@ interface BsrBadge {
 }
 
 const ASIN_REGEX = /^[A-Z0-9]{10}$/;
+const SEARCH_RESULT_SELECTOR =
+	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""])';
 
 class SearchInjector {
-	private readonly processedUuids = new Set<string>();
+	private readonly processedProducts = new Set<string>();
 	private readonly badges = new Map<string, BsrBadge>();
 
 	/**
@@ -25,9 +27,9 @@ class SearchInjector {
 
 		for (const product of products) {
 			const asin = product.getAttribute("data-asin");
-			const uuid = product.getAttribute("data-uuid");
-			if (!(asin && uuid) || this.processedUuids.has(uuid)) {
-				return;
+			const productKey = this.getProductKey(product);
+			if (!(asin && productKey) || this.processedProducts.has(productKey)) {
+				continue;
 			}
 
 			this.injectSingleBadge(product, asin);
@@ -38,23 +40,23 @@ class SearchInjector {
 	 * Check if an element has already been processed
 	 */
 	isProcessed(element: HTMLElement): boolean {
-		const uuid = element.getAttribute("data-uuid");
-		return uuid ? this.processedUuids.has(uuid) : false;
+		const productKey = this.getProductKey(element);
+		return productKey ? this.processedProducts.has(productKey) : false;
 	}
 
 	/**
 	 * Inject a single badge for a specific product element and ASIN
 	 */
 	injectSingleBadge(product: HTMLElement, asin: string): void {
-		const uuid = product.getAttribute("data-uuid");
-		if (!uuid || this.processedUuids.has(uuid)) {
+		const productKey = this.getProductKey(product);
+		if (!productKey || this.processedProducts.has(productKey)) {
 			return;
 		}
 
 		const injectionPoint = this.findInjectionPoint(product);
 		if (injectionPoint) {
 			this.createAndInjectBadge(asin, injectionPoint);
-			this.processedUuids.add(uuid);
+			this.processedProducts.add(productKey);
 		}
 	}
 
@@ -63,11 +65,39 @@ class SearchInjector {
 	 */
 	private findSearchProducts(): HTMLElement[] {
 		return Array.from(
-			document.querySelectorAll<HTMLElement>('[data-asin]:not([data-asin=""])')
+			document.querySelectorAll<HTMLElement>(SEARCH_RESULT_SELECTOR)
 		).filter((el) => {
 			const asin = el.getAttribute("data-asin");
 			return asin && asin.length === 10 && ASIN_REGEX.test(asin);
 		});
+	}
+
+	/**
+	 * Build a stable key to track whether a product card has already been processed.
+	 * Amazon can change per-card attributes, so we fallback to index/component-based keys.
+	 */
+	private getProductKey(productElement: HTMLElement): string | null {
+		const asin = productElement.getAttribute("data-asin");
+		if (!(asin && ASIN_REGEX.test(asin))) {
+			return null;
+		}
+
+		const uuid = productElement.getAttribute("data-uuid");
+		if (uuid) {
+			return `uuid:${uuid}`;
+		}
+
+		const index = productElement.getAttribute("data-index");
+		if (index) {
+			return `asin-index:${asin}:${index}`;
+		}
+
+		const componentId = productElement.getAttribute("data-component-id");
+		if (componentId) {
+			return `asin-component:${asin}:${componentId}`;
+		}
+
+		return `asin:${asin}`;
 	}
 
 	/**
@@ -124,10 +154,10 @@ class SearchInjector {
 	}
 
 	/**
-	 * Clear all processed UUIDs (for page navigation)
+	 * Clear all processed product keys (for page navigation)
 	 */
 	reset(): void {
-		this.processedUuids.clear();
+		this.processedProducts.clear();
 		this.badges.clear();
 
 		// Explicitly cleanup React roots before removing DOM elements
