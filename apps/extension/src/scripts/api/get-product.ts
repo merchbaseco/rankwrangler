@@ -71,8 +71,14 @@ export const getProduct = async (
 			},
 		};
 
-		// Cache the successful response
-		await ProductCache.set(product);
+		// Cache write failures should not block rendering live product data.
+		try {
+			await ProductCache.set(product);
+		} catch (cacheError) {
+			log.warn(`Failed to cache product for ${asin}; returning live data`, {
+				error: cacheError,
+			});
+		}
 		return product;
 	} catch (error) {
 		log.error(`getProduct failed for ${asin}`, { error });
