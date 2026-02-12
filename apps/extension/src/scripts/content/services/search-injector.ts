@@ -3,6 +3,7 @@ import { US_MARKETPLACE_ID } from "@/scripts/types/marketplace";
 import styles from "@/styles/index.css?inline";
 import { log } from "../../../utils/logger";
 import { CachedProductDisplay } from "../components/cached-product-display";
+import { isValidAsin, SEARCH_PRODUCT_SELECTOR } from "../utils/search-products";
 import { reactRenderer } from "./react-renderer";
 
 interface BsrBadge {
@@ -15,11 +16,6 @@ interface InjectionTarget {
 	parent: HTMLElement;
 	position: "after" | "before";
 }
-
-const ASIN_REGEX = /^[A-Z0-9]{10}$/;
-const SEARCH_RESULT_SELECTOR =
-	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""]), ' +
-	'[data-cel-widget^="search_result_"][data-asin]:not([data-asin=""])';
 
 class SearchInjector {
 	private readonly processedProducts = new Set<string>();
@@ -34,8 +30,11 @@ class SearchInjector {
 
 		for (const product of products) {
 			const asin = product.getAttribute("data-asin");
-			const productKey = this.getProductKey(product);
-			if (!(asin && productKey) || this.processedProducts.has(productKey)) {
+			if (!isValidAsin(asin)) {
+				continue;
+			}
+
+			if (this.isProcessed(product)) {
 				continue;
 			}
 
@@ -48,7 +47,18 @@ class SearchInjector {
 	 */
 	isProcessed(element: HTMLElement): boolean {
 		const productKey = this.getProductKey(element);
-		return productKey ? this.processedProducts.has(productKey) : false;
+		if (!(productKey && this.processedProducts.has(productKey))) {
+			return false;
+		}
+
+		// Carousel cards are frequently re-rendered. If the badge host was removed,
+		// drop the processed key so the card can be re-injected.
+		if (!this.hasBadgeHost(element)) {
+			this.processedProducts.delete(productKey);
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
@@ -56,7 +66,12 @@ class SearchInjector {
 	 */
 	injectSingleBadge(product: HTMLElement, asin: string): void {
 		const productKey = this.getProductKey(product);
-		if (!productKey || this.processedProducts.has(productKey)) {
+		if (!productKey || this.isProcessed(product)) {
+			return;
+		}
+
+		if (this.hasBadgeHost(product)) {
+			this.processedProducts.add(productKey);
 			return;
 		}
 
@@ -72,11 +87,17 @@ class SearchInjector {
 	 */
 	private findSearchProducts(): HTMLElement[] {
 		return Array.from(
-			document.querySelectorAll<HTMLElement>(SEARCH_RESULT_SELECTOR)
+			document.querySelectorAll<HTMLElement>(SEARCH_PRODUCT_SELECTOR)
 		).filter((el) => {
-			const asin = el.getAttribute("data-asin");
-			return asin && asin.length === 10 && ASIN_REGEX.test(asin);
+			return isValidAsin(el.getAttribute("data-asin"));
 		});
+	}
+
+	/**
+	 * Check whether a card currently has a RankWrangler badge host.
+	 */
+	private hasBadgeHost(productElement: HTMLElement): boolean {
+		return productElement.querySelector(".rw-bsr-badge") !== null;
 	}
 
 	/**
@@ -85,7 +106,7 @@ class SearchInjector {
 	 */
 	private getProductKey(productElement: HTMLElement): string | null {
 		const asin = productElement.getAttribute("data-asin");
-		if (!(asin && ASIN_REGEX.test(asin))) {
+		if (!isValidAsin(asin)) {
 			return null;
 		}
 
