@@ -3,6 +3,7 @@ const ASIN_REGEX = /^[A-Z0-9]{10}$/;
 const SEARCH_PRODUCT_SELECTOR_PARTS = [
 	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""])',
 	'[data-cel-widget^="search_result_"][data-asin]:not([data-asin=""])',
+	'[data-avar="desc"][data-asin]:not([data-asin=""])',
 ] as const;
 
 export const SEARCH_PRODUCT_SELECTOR = SEARCH_PRODUCT_SELECTOR_PARTS.join(", ");
