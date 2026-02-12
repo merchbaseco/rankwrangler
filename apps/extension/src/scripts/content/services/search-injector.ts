@@ -18,7 +18,8 @@ interface InjectionTarget {
 
 const ASIN_REGEX = /^[A-Z0-9]{10}$/;
 const SEARCH_RESULT_SELECTOR =
-	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""])';
+	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""]), ' +
+	'[data-cel-widget^="search_result_"][data-asin]:not([data-asin=""])';
 
 class SearchInjector {
 	private readonly processedProducts = new Set<string>();
@@ -86,6 +87,11 @@ class SearchInjector {
 		const asin = productElement.getAttribute("data-asin");
 		if (!(asin && ASIN_REGEX.test(asin))) {
 			return null;
+		}
+
+		const celWidget = productElement.getAttribute("data-cel-widget");
+		if (celWidget?.startsWith("search_result_")) {
+			return `cel-widget:${celWidget}`;
 		}
 
 		const uuid = productElement.getAttribute("data-uuid");

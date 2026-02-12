@@ -9,7 +9,8 @@ import { searchInjector } from "./services/search-injector";
 
 const ASIN_REGEX = /^[A-Z0-9]{10}$/;
 const SEARCH_RESULT_SELECTOR =
-	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""])';
+	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""]), ' +
+	'[data-cel-widget^="search_result_"][data-asin]:not([data-asin=""])';
 
 const isValidAsin = (asin: string | null): asin is string => {
 	return Boolean(asin && asin.length === 10 && ASIN_REGEX.test(asin));
