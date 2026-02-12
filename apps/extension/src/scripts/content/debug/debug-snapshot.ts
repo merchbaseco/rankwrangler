@@ -11,7 +11,8 @@ const ASIN_URL_PATTERNS = [
 const PRODUCT_DETAIL_PATH_REGEX = /\/dp\/|\/gp\/product\//;
 const SEARCH_PATH_REGEX = /^\/s(?:$|\/)/;
 const SEARCH_RESULT_SELECTOR =
-	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""])';
+	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""]), ' +
+	'[data-cel-widget^="search_result_"][data-asin]:not([data-asin=""])';
 const PRODUCT_DETAIL_SELECTOR =
 	"#alternativeOfferEligibilityMessaging_feature_div";
 const QUERY_PARAM_ALLOWLIST = [
