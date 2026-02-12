@@ -20,6 +20,7 @@ interface InjectionTarget {
 class SearchInjector {
 	private readonly processedProducts = new Set<string>();
 	private readonly badges = new Map<string, BsrBadge>();
+	private readonly loggedCarouselEvents = new Set<string>();
 
 	/**
 	 * Find all products on search pages and inject BSR badges
@@ -27,6 +28,15 @@ class SearchInjector {
 	injectBsrBadges(): void {
 		const products = this.findSearchProducts();
 		log.info(`Injecting ${products.length} BSR badges`);
+		const carouselProducts = products.filter((product) =>
+			this.isCarouselProduct(product)
+		);
+		if (carouselProducts.length > 0) {
+			log.debug("Carousel products discovered during full scan", {
+				carouselCount: carouselProducts.length,
+				totalCount: products.length,
+			});
+		}
 
 		for (const product of products) {
 			const asin = product.getAttribute("data-asin");
@@ -66,12 +76,19 @@ class SearchInjector {
 	 */
 	injectSingleBadge(product: HTMLElement, asin: string): void {
 		const productKey = this.getProductKey(product);
-		if (!productKey || this.isProcessed(product)) {
+		if (!productKey) {
+			this.logCarouselEvent(product, "missing-product-key", asin);
+			return;
+		}
+
+		if (this.isProcessed(product)) {
+			this.logCarouselEvent(product, "already-processed", asin, productKey);
 			return;
 		}
 
 		if (this.hasBadgeHost(product)) {
 			this.processedProducts.add(productKey);
+			this.logCarouselEvent(product, "badge-host-exists", asin, productKey);
 			return;
 		}
 
@@ -79,7 +96,16 @@ class SearchInjector {
 		if (injectionTarget) {
 			this.createAndInjectBadge(asin, injectionTarget);
 			this.processedProducts.add(productKey);
+			this.logCarouselEvent(product, "injected", asin, productKey);
+			return;
 		}
+
+		this.logCarouselEvent(
+			product,
+			"missing-injection-target",
+			asin,
+			productKey
+		);
 	}
 
 	/**
@@ -100,6 +126,48 @@ class SearchInjector {
 		return productElement.querySelector(".rw-bsr-badge") !== null;
 	}
 
+	private isCarouselProduct(productElement: HTMLElement): boolean {
+		return Boolean(
+			productElement.closest(
+				'[data-component-type="s-searchgrid-carousel"], .s-searchgrid-carousel, .a-carousel-card'
+			)
+		);
+	}
+
+	private logCarouselEvent(
+		productElement: HTMLElement,
+		reason: string,
+		asin: string,
+		productKey?: string
+	): void {
+		if (!this.isCarouselProduct(productElement)) {
+			return;
+		}
+
+		const eventKey = `${reason}:${productKey ?? asin}`;
+		if (reason !== "injected" && this.loggedCarouselEvents.has(eventKey)) {
+			return;
+		}
+
+		if (reason !== "injected") {
+			this.loggedCarouselEvents.add(eventKey);
+		}
+
+		log.debug("Carousel injection diagnostic", {
+			reason,
+			asin,
+			productKey,
+			dataUuid: productElement.getAttribute("data-uuid"),
+			dataCelWidget: productElement.getAttribute("data-cel-widget"),
+			dataIndex: productElement.getAttribute("data-index"),
+			hasTitleRecipe: Boolean(
+				productElement.querySelector('[data-cy="title-recipe"]')
+			),
+			hasImageAnchor: Boolean(this.findImageAnchor(productElement)),
+			hasBadgeHost: this.hasBadgeHost(productElement),
+		});
+	}
+
 	/**
 	 * Build a stable key to track whether a product card has already been processed.
 	 * Amazon can change per-card attributes, so we fallback to index/component-based keys.
@@ -110,14 +178,14 @@ class SearchInjector {
 			return null;
 		}
 
-		const celWidget = productElement.getAttribute("data-cel-widget");
-		if (celWidget?.startsWith("search_result_")) {
-			return `cel-widget:${celWidget}`;
-		}
-
 		const uuid = productElement.getAttribute("data-uuid");
 		if (uuid) {
-			return `uuid:${uuid}`;
+			return `uuid:${asin}:${uuid}`;
+		}
+
+		const celWidget = productElement.getAttribute("data-cel-widget");
+		if (celWidget?.startsWith("search_result_")) {
+			return `cel-widget:${asin}:${celWidget}`;
 		}
 
 		const index = productElement.getAttribute("data-index");
@@ -236,6 +304,7 @@ class SearchInjector {
 	reset(): void {
 		this.processedProducts.clear();
 		this.badges.clear();
+		this.loggedCarouselEvents.clear();
 
 		// Explicitly cleanup React roots before removing DOM elements
 		reactRenderer.forceCleanupBySelector(".rw-bsr-badge");
