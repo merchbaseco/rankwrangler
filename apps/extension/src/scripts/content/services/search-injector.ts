@@ -228,6 +228,19 @@ class SearchInjector {
 			};
 		}
 
+		// Sponsored brand collection cards often expose the body content wrapper.
+		// Inserting before it keeps the badge between the product image and details.
+		const sponsoredContentWrapper = productElement.querySelector<HTMLElement>(
+			'[class*="productWrapper"]'
+		);
+		if (sponsoredContentWrapper?.parentElement) {
+			return {
+				anchor: sponsoredContentWrapper,
+				parent: sponsoredContentWrapper.parentElement,
+				position: "before",
+			};
+		}
+
 		return null;
 	}
 
@@ -239,6 +252,7 @@ class SearchInjector {
 			'[data-cy="image-container"]',
 			".s-product-image-container",
 			'[data-component-type="s-product-image"]',
+			'[class*="imageWrapper"]',
 			"img.s-image",
 		] as const;
 
@@ -249,13 +263,24 @@ class SearchInjector {
 			}
 
 			const stableContainer = element.closest<HTMLElement>(
-				'[data-cy="image-container"], .s-product-image-container, [data-component-type="s-product-image"]'
+				'[data-cy="image-container"], .s-product-image-container, [data-component-type="s-product-image"], [class*="imageWrapper"]'
 			);
 
 			return stableContainer ?? element;
 		}
 
-		return null;
+		// Fallback for ad cards that only expose generic image markup.
+		const genericImage = productElement.querySelector<HTMLElement>(
+			'img[alt]:not([alt=""])'
+		);
+		if (!genericImage) {
+			return null;
+		}
+
+		const genericContainer = genericImage.closest<HTMLElement>(
+			'[class*="imageWrapper"], [data-cy="image-container"], .s-product-image-container, [data-component-type="s-product-image"], a'
+		);
+		return genericContainer ?? genericImage;
 	}
 
 	/**
