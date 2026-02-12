@@ -11,6 +11,20 @@ import {
 	isValidAsin,
 } from "./utils/search-products";
 
+const SEARCH_MUTATION_ATTRIBUTE_FILTER = [
+	"data-asin",
+	"data-cel-widget",
+	"data-component-type",
+] as const;
+
+const isCarouselProduct = (element: HTMLElement): boolean => {
+	return Boolean(
+		element.closest(
+			'[data-component-type="s-searchgrid-carousel"], .s-searchgrid-carousel, .a-carousel-card'
+		)
+	);
+};
+
 const handleProductElement = (product: HTMLElement) => {
 	const asin = product.getAttribute("data-asin");
 	if (!isValidAsin(asin)) {
@@ -23,6 +37,35 @@ const handleProductElement = (product: HTMLElement) => {
 
 	log.debug(`New product detected: ${asin}`);
 	searchInjector.injectSingleBadge(product, asin);
+};
+
+const handleAttributeMutation = (mutation: MutationRecord) => {
+	if (mutation.type !== "attributes") {
+		return;
+	}
+
+	const target = mutation.target;
+	if (!(target instanceof HTMLElement)) {
+		return;
+	}
+
+	const products = getSearchProductsFromMutationNode(target);
+	if (products.length === 0) {
+		return;
+	}
+
+	if (products.some((product) => isCarouselProduct(product))) {
+		log.debug("Search product candidate found via attribute mutation", {
+			attributeName: mutation.attributeName,
+			candidateCount: products.length,
+			targetAsin: target.getAttribute("data-asin"),
+			targetCelWidget: target.getAttribute("data-cel-widget"),
+		});
+	}
+
+	for (const product of products) {
+		handleProductElement(product);
+	}
 };
 
 const handleAddedNode = (node: Node) => {
@@ -38,6 +81,11 @@ const handleAddedNode = (node: Node) => {
 
 const handleSearchMutations = (mutations: MutationRecord[]) => {
 	for (const mutation of mutations) {
+		if (mutation.type === "attributes") {
+			handleAttributeMutation(mutation);
+			continue;
+		}
+
 		for (const node of mutation.addedNodes) {
 			handleAddedNode(node);
 		}
@@ -104,6 +152,8 @@ const App = () => {
 		observer.observe(document.body, {
 			childList: true,
 			subtree: true,
+			attributes: true,
+			attributeFilter: [...SEARCH_MUTATION_ATTRIBUTE_FILTER],
 		});
 
 		// Initial injection based on page type
