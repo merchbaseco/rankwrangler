@@ -6,21 +6,10 @@ import { db } from "../db";
 import { DebugWidget } from "./components/debug-widget";
 import { productDetailInjector } from "./services/product-detail-injector";
 import { searchInjector } from "./services/search-injector";
-
-const ASIN_REGEX = /^[A-Z0-9]{10}$/;
-const SEARCH_RESULT_SELECTOR =
-	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""]), ' +
-	'[data-cel-widget^="search_result_"][data-asin]:not([data-asin=""])';
-
-const isValidAsin = (asin: string | null): asin is string => {
-	return Boolean(asin && asin.length === 10 && ASIN_REGEX.test(asin));
-};
-
-const getAsinProductsFromElement = (element: HTMLElement): HTMLElement[] => {
-	return element.matches(SEARCH_RESULT_SELECTOR)
-		? [element]
-		: Array.from(element.querySelectorAll(SEARCH_RESULT_SELECTOR));
-};
+import {
+	getSearchProductsFromMutationNode,
+	isValidAsin,
+} from "./utils/search-products";
 
 const handleProductElement = (product: HTMLElement) => {
 	const asin = product.getAttribute("data-asin");
@@ -42,7 +31,7 @@ const handleAddedNode = (node: Node) => {
 	}
 
 	const element = node as HTMLElement;
-	for (const product of getAsinProductsFromElement(element)) {
+	for (const product of getSearchProductsFromMutationNode(element)) {
 		handleProductElement(product);
 	}
 };

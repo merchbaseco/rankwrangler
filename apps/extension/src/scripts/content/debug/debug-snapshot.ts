@@ -2,6 +2,7 @@ import { browser } from "webextension-polyfill-ts";
 import { ProductCache } from "@/scripts/db/product-cache";
 import { ProductRequestTracker } from "@/scripts/db/product-request-tracker";
 import type { Product, ProductIdentifier } from "@/scripts/types/product";
+import { SEARCH_PRODUCT_SELECTOR } from "../utils/search-products";
 
 const ASIN_REGEX = /^[A-Z0-9]{10}$/;
 const ASIN_URL_PATTERNS = [
@@ -10,9 +11,6 @@ const ASIN_URL_PATTERNS = [
 ];
 const PRODUCT_DETAIL_PATH_REGEX = /\/dp\/|\/gp\/product\//;
 const SEARCH_PATH_REGEX = /^\/s(?:$|\/)/;
-const SEARCH_RESULT_SELECTOR =
-	'[data-component-type="s-search-result"][data-asin]:not([data-asin=""]), ' +
-	'[data-cel-widget^="search_result_"][data-asin]:not([data-asin=""])';
 const PRODUCT_DETAIL_SELECTOR =
 	"#alternativeOfferEligibilityMessaging_feature_div";
 const QUERY_PARAM_ALLOWLIST = [
@@ -225,7 +223,7 @@ const extractAsinFromUrl = (url: string): string | null => {
 
 const getSearchResultSummary = () => {
 	const cards = Array.from(
-		document.querySelectorAll<HTMLElement>(SEARCH_RESULT_SELECTOR)
+		document.querySelectorAll<HTMLElement>(SEARCH_PRODUCT_SELECTOR)
 	);
 	const samples = cards.slice(0, MAX_SEARCH_SAMPLE).map((card, index) => {
 		const asin = card.getAttribute("data-asin");
