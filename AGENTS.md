@@ -85,6 +85,77 @@ docker logs rankwrangler-caddy --tail 50
    docker compose build --no-cache server
    ```
 
+## Production Database Access (Critical)
+
+Use this workflow whenever you need to inspect or interact with the production
+RankWrangler database.
+
+### Safety Rules
+
+- Treat production as **read-only by default**.
+- Do not run `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`, `ALTER`, `DROP`, or migrations
+  without explicit user approval in the current conversation.
+- Prefer bounded queries (`LIMIT`, explicit date windows) to avoid large scans.
+- Do not print credentials in responses.
+
+### Connection Workflow (Direct `psql`, Preferred)
+
+Run from repo root:
+
+```bash
+# Load DB env vars from repo-root .env
+set -a
+source .env
+set +a
+
+# Enforce read-only at the session level
+export PGOPTIONS='-c default_transaction_read_only=on'
+export PGPASSWORD="$DATABASE_PASSWORD"
+
+# Smoke-test connection
+psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d "$DATABASE_NAME" -c 'SELECT 1;'
+```
+
+Useful commands:
+
+```bash
+# List tables
+psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d "$DATABASE_NAME" -c '\dt'
+
+# Describe a table
+psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d "$DATABASE_NAME" -c '\d products'
+
+# Run a bounded query
+psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d "$DATABASE_NAME" -c \
+  "SELECT marketplace_id, asin, last_fetched FROM products ORDER BY last_fetched DESC LIMIT 25;"
+```
+
+Interactive session:
+
+```bash
+psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USER" -d "$DATABASE_NAME"
+```
+
+If you're running directly on the production host and want container-local access:
+
+```bash
+docker exec rankwrangler-postgres psql -U "$DATABASE_USER" -d "$DATABASE_NAME" -c 'SELECT 1;'
+```
+
+### Write Access Protocol (Only With Approval)
+
+- Keep read-only mode on unless the user explicitly authorizes a write action.
+- After approval, remove read-only guard for that command/session only:
+  - `unset PGOPTIONS`
+- Re-enable it immediately after:
+  - `export PGOPTIONS='-c default_transaction_read_only=on'`
+
+### Query References
+
+- Detailed query playbook: `docs/database-queries.md`
+- Schema source of truth: `apps/server/src/db/schema.ts`
+- Migration SQL history: `apps/server/drizzle/`
+
 ## Environment Variable Management
 
 ### For Local Development
@@ -121,6 +192,37 @@ docker logs rankwrangler-caddy --tail 50
 - Shared behavior should live in **utils/libs**, not shared routers.
   - Example: `apps/server/src/utils/product-info.ts` powers both public + app routes.
 - Each tRPC procedure should live in its own file under `apps/server/src/api/public` or `apps/server/src/api/app`.
+
+## Coding Style Guide
+
+### General
+
+1. **No `.js` extensions in imports** - TypeScript and the bundler handle resolution.
+2. **Helper functions at bottom** - Put main exports first, implementation details below.
+3. **No index re-exports** - Import directly from concrete files; avoid barrel files.
+4. **kebab-case for files** - Use names like `theme-toggle.tsx`, not `ThemeToggle.tsx`.
+5. **Const arrow function syntax** - Prefer `const fn = (...) => { ... }` over `function fn(...) { ... }`.
+
+### TypeScript
+
+1. **Rely on type inference** - Let tRPC, Drizzle, and Zod drive inferred types whenever possible.
+2. **Minimal exports** - Export only what is consumed externally; avoid preemptive exports.
+3. **No underscore-prefix convention** - Do not prefix unused/private identifiers with `_`.
+
+### React Hooks (When React Is Involved)
+
+1. **One hook export per file** - Keep each hook file focused and cohesive.
+2. **Require defined arguments** - Components should guard `null`/`undefined` before calling hooks.
+3. **Prefer simple local state for immediate UI feedback** - Avoid unnecessary complex cache mutation.
+4. **Derive state inline** - Compute derived values in the hook body.
+5. **Memoize `Date` query-key inputs** - Prevent avoidable refetch loops.
+6. **Encapsulate query/effect wiring in hooks** - Keep components mostly presentational.
+
+### Data Fetching (When Applicable)
+
+1. **Prefer database/API-driven UI state** - Invalidate cached queries after successful writes.
+2. **Synchronous flows** - Await server completion, then invalidate relevant queries.
+3. **Background flows** - Use event-driven updates for async work not initiated by the caller.
 
 ## TypeScript Best Practices
 
