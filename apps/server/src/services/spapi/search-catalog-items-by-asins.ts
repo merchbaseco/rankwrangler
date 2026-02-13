@@ -99,7 +99,7 @@ export const searchCatalogItemsByAsins = async (
             // Extract title and brand from summaries
             const summary = item.summaries?.find(s => s.marketplaceId === marketplaceId);
             const title = summary?.itemName || null;
-            const brand = summary?.brandName || null;
+            const brand = summary?.brand || summary?.brandName || null;
 
             const productInfo: SearchCatalogItemsResult = {
                 asin,
@@ -201,10 +201,11 @@ const ItemImagesByMarketplaceSchema = z.object({
     images: z.array(ItemImageSchema),
 });
 
-// Summaries by marketplace (contains itemName and brandName)
+// Summaries by marketplace (brand is current; brandName kept as legacy fallback)
 const ItemSummariesByMarketplaceSchema = z.object({
     marketplaceId: z.string(),
     itemName: z.string().optional(),
+    brand: z.string().optional(),
     brandName: z.string().optional(),
 });
 
