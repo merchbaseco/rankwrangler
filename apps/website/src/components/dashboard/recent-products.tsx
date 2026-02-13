@@ -161,6 +161,7 @@ const columns: ColumnDef<Product>[] = [
             </span>
         ),
         header: 'Updated',
+        invertSorting: true,
         meta: { align: 'right' },
         size: 90,
     },
@@ -181,7 +182,7 @@ export function RecentProducts() {
     );
 
     const [sorting, setSorting] = useState<SortingState>([
-        { desc: false, id: 'rootCategoryBsr' },
+        { desc: false, id: 'lastFetched' },
     ]);
 
     const [tooltip, setTooltip] = useState<{
