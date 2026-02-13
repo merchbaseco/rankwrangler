@@ -1,3 +1,4 @@
+import { AmazonMerchSearchCard } from '@/components/dashboard/amazon-merch-search-card';
 import { ApiKeyCard } from '@/components/dashboard/api-key-card';
 import { UsageCard } from '@/components/dashboard/usage-card';
 import { AppShell } from '@/components/layout/app-shell';
@@ -24,6 +25,8 @@ export function App() {
                     <ApiKeyCard />
                     <UsageCard />
                 </div>
+
+                <AmazonMerchSearchCard />
             </section>
         </AppShell>
     );
