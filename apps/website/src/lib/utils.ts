@@ -10,9 +10,9 @@ export function formatNumber(value: number) {
 }
 
 export function formatRelativeTime(date?: string | Date | null) {
-    if (!date) return '—';
+    if (!date) return 'Never';
     const time = typeof date === 'string' ? new Date(date) : date;
-    if (Number.isNaN(time.getTime())) return '—';
+    if (Number.isNaN(time.getTime())) return 'Never';
 
     const diffSeconds = Math.floor((Date.now() - time.getTime()) / 1000);
     if (diffSeconds < 60) return `${diffSeconds}s ago`;

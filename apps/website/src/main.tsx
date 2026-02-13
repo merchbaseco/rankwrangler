@@ -8,6 +8,9 @@ import '@fontsource/sora/600.css';
 import '@fontsource/sora/700.css';
 import '@fontsource/geist-mono/400.css';
 import '@fontsource/geist-mono/500.css';
+import '@fontsource/playfair-display/700.css';
+import '@fontsource/playfair-display/800.css';
+import '@fontsource/playfair-display/900.css';
 import './styles/global.css';
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -45,10 +48,8 @@ createRoot(rootElement).render(
                     </TRPCProvider>
                 </SignedIn>
                 <SignedOut>
-                    <div className="min-h-screen bg-background">
-                        <div className="flex min-h-screen items-center justify-center">
-                            <SignIn />
-                        </div>
+                    <div className="flex min-h-screen items-center justify-center bg-background">
+                        <SignIn />
                     </div>
                 </SignedOut>
             </ClerkProvider>
