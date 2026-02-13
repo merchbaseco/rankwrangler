@@ -1,28 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Copy, Eye, EyeOff, RefreshCw } from 'lucide-react';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Copy, Eye, EyeOff, RefreshCw, Check } from 'lucide-react';
 import { useCopy } from '@/hooks/use-copy';
 import { useLicense } from '@/hooks/use-license';
 
 const maskKey = (value: string) => {
-    if (value.length <= 10) return '•'.repeat(value.length);
-    return `${value.slice(0, 7)}••••••••••${value.slice(-4)}`;
+    if (value.length <= 10) return '\u2022'.repeat(value.length);
+    return `${value.slice(0, 7)}${'·'.repeat(10)}${value.slice(-4)}`;
 };
 
 export function ApiKeyCard() {
     const [revealed, setRevealed] = useState(false);
-    const { copy } = useCopy();
+    const { copy, copied } = useCopy();
     const {
         license,
         hasEmail,
@@ -46,107 +34,83 @@ export function ApiKeyCard() {
     const showError = error && !showAccessError && !showAuthError && !showNotFound;
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="space-y-1">
-                    <CardTitle>API Key</CardTitle>
-                    <CardDescription>
-                        Use this key to authenticate requests to the RankWrangler API.
-                    </CardDescription>
-                </div>
-                {license && <Badge>Active</Badge>}
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                    {isLoading && (
-                        <Alert>
-                            <AlertTitle>Loading</AlertTitle>
-                            <AlertDescription>Fetching your API key.</AlertDescription>
-                        </Alert>
-                    )}
+        <div className="space-y-4">
+            <div className="flex items-center gap-2.5">
+                <span className="font-mono text-xs uppercase tracking-[0.15em] text-[#A89880]">
+                    API Key
+                </span>
+                {license && (
+                    <span className="inline-block size-2 rounded-full bg-[#34D399]" />
+                )}
+            </div>
 
-                    {showAccessError && (
-                        <Alert variant="warning">
-                            <AlertTitle>Admin access required</AlertTitle>
-                            <AlertDescription>
-                                Update `ADMIN_EMAIL` in the server environment to grant access.
-                            </AlertDescription>
-                        </Alert>
-                    )}
+            {isLoading && (
+                <p className="text-sm text-[#A89880]">Loading...</p>
+            )}
 
-                    {showAuthError && (
-                        <Alert variant="warning">
-                            <AlertTitle>Session expired</AlertTitle>
-                            <AlertDescription>
-                                Please sign out and back in to continue.
-                            </AlertDescription>
-                        </Alert>
-                    )}
+            {showAccessError && (
+                <p className="text-sm text-[#FBBF24]">
+                    Admin access required. Update ADMIN_EMAIL.
+                </p>
+            )}
 
-                    {showMissingKey && (
-                        <Alert>
-                            <AlertTitle>No API key</AlertTitle>
-                            <AlertDescription>
-                                Generate a new key to start making requests.
-                            </AlertDescription>
-                        </Alert>
-                    )}
+            {showAuthError && (
+                <p className="text-sm text-[#FBBF24]">
+                    Session expired. Please sign out and back in.
+                </p>
+            )}
 
-                    {license && (
-                        <div className="space-y-3">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                <Input readOnly value={keyValue} aria-label="API key" />
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => setRevealed(value => !value)}
-                                        aria-label={revealed ? 'Hide API key' : 'Show API key'}
-                                    >
-                                        {revealed ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => license?.key && copy(license.key)}
-                                        aria-label="Copy API key"
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                            <CardDescription>
-                                Keep this key private. You can rotate it at any time.
-                            </CardDescription>
-                        </div>
-                    )}
+            {showMissingKey && (
+                <p className="text-sm text-[#A89880]">
+                    No API key yet. Generate one below.
+                </p>
+            )}
 
-                    {showError && (
-                        <Alert variant="error">
-                            <AlertTitle>Something went wrong</AlertTitle>
-                            <AlertDescription>{error.message}</AlertDescription>
-                        </Alert>
-                    )}
-                </div>
-            </CardContent>
-            <CardFooter>
-                <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                    <CardDescription>
-                        Rotating keys will create a new token and leave existing keys active.
-                    </CardDescription>
-                    <Button
-                        onClick={() => regenerate()}
-                        disabled={isRegenerating || showAccessError || !hasEmail}
+            {license && (
+                <div className="flex items-center gap-2.5 rounded-xl bg-[rgba(245,240,235,0.06)] px-4 py-3">
+                    <code className="min-w-0 flex-1 truncate font-mono text-sm text-[#F5F0EB]/80">
+                        {keyValue}
+                    </code>
+                    <button
+                        type="button"
+                        onClick={() => setRevealed(v => !v)}
+                        className="shrink-0 text-[#A89880] transition-colors hover:text-[#F5F0EB]"
+                        aria-label={revealed ? 'Hide' : 'Show'}
                     >
-                        <RefreshCw className="h-4 w-4" />
-                        {license ? 'Regenerate' : 'Generate'}
-                    </Button>
+                        {revealed ? (
+                            <EyeOff className="size-4" />
+                        ) : (
+                            <Eye className="size-4" />
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => license?.key && copy(license.key)}
+                        className="shrink-0 text-[#A89880] transition-colors hover:text-[#F5F0EB]"
+                        aria-label="Copy"
+                    >
+                        {copied ? (
+                            <Check className="size-4 text-[#34D399]" />
+                        ) : (
+                            <Copy className="size-4" />
+                        )}
+                    </button>
                 </div>
-            </CardFooter>
-        </Card>
+            )}
+
+            {showError && (
+                <p className="text-sm text-[#FCA5A5]">{error.message}</p>
+            )}
+
+            <button
+                type="button"
+                onClick={() => regenerate()}
+                disabled={isRegenerating || showAccessError || !hasEmail}
+                className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-[rgba(245,240,235,0.1)] px-4 py-2.5 text-sm text-[#F5F0EB] transition-colors hover:bg-[rgba(245,240,235,0.06)] disabled:opacity-40"
+            >
+                <RefreshCw className="size-3.5" />
+                {license ? 'Rotate Key' : 'Generate Key'}
+            </button>
+        </div>
     );
 }

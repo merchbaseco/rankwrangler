@@ -1,33 +1,25 @@
 import { AmazonMerchSearchCard } from '@/components/dashboard/amazon-merch-search-card';
 import { ApiKeyCard } from '@/components/dashboard/api-key-card';
+import { RecentProducts } from '@/components/dashboard/recent-products';
+import { SearchBar } from '@/components/dashboard/search-bar';
 import { UsageCard } from '@/components/dashboard/usage-card';
 import { AppShell } from '@/components/layout/app-shell';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
 export function App() {
     return (
-        <AppShell>
-            <section className="space-y-6">
-                <div className="space-y-2">
-                    <Badge>Dashboard</Badge>
-                    <div className="space-y-1">
-                        <h1 className="text-2xl font-semibold">API access and usage</h1>
-                        <p className="text-muted-foreground">
-                            Generate keys, track usage, and manage limits.
-                        </p>
-                    </div>
-                </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <AppShell
+            sidebar={
+                <div className="space-y-8">
                     <ApiKeyCard />
+                    <div className="h-px bg-border" />
                     <UsageCard />
                 </div>
-
-                <AmazonMerchSearchCard />
-            </section>
+            }
+        >
+            <div className="space-y-6">
+                <SearchBar />
+                <RecentProducts />
+            </div>
         </AppShell>
     );
 }
