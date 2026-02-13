@@ -1,10 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     type ColumnDef,
     flexRender,
     getCoreRowModel,
-    getPaginationRowModel,
     getSortedRowModel,
     type SortingState,
     useReactTable,
@@ -168,7 +167,18 @@ const columns: ColumnDef<Product>[] = [
 ];
 
 export function RecentProducts() {
-    const { data: products, isLoading } = api.api.app.recentProducts.useQuery();
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        isLoading,
+    } = api.api.app.recentProducts.useInfiniteQuery(
+        { limit: 50 },
+        {
+            getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
+        }
+    );
 
     const [sorting, setSorting] = useState<SortingState>([
         { desc: false, id: 'rootCategoryBsr' },
@@ -181,17 +191,40 @@ export function RecentProducts() {
         y: number;
     } | null>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+
+    const products = useMemo(
+        () => data?.pages.flatMap(page => page.items) ?? [],
+        [data]
+    );
+
+    useEffect(() => {
+        if (!hasNextPage || isFetchingNextPage) return;
+        const node = loadMoreRef.current;
+        if (!node) return;
+
+        const observer = new IntersectionObserver(
+            entries => {
+                const [entry] = entries;
+                if (!entry?.isIntersecting) return;
+                if (!hasNextPage || isFetchingNextPage) return;
+                fetchNextPage();
+            },
+            {
+                rootMargin: '240px 0px',
+            }
+        );
+
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
     const table = useReactTable({
         columns,
-        data: products ?? [],
+        data: products,
         enableSortingRemoval: false,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
-        initialState: {
-            pagination: { pageIndex: 0, pageSize: 100 },
-        },
         onSortingChange: setSorting,
         state: { sorting },
     });
@@ -338,49 +371,35 @@ export function RecentProducts() {
                             </TableCell>
                         </TableRow>
                     )}
+                    {isFetchingNextPage &&
+                        Array.from({ length: 3 }).map((_, index) => (
+                            <TableRow key={`loading-row-${index}`}>
+                                <TableCell colSpan={columns.length}>
+                                    <div className="h-8 animate-pulse rounded-md bg-muted" />
+                                </TableCell>
+                            </TableRow>
+                        ))}
                 </TableBody>
             </Table>
-            {table.getPageCount() > 1 && (
+            {products.length > 0 && (
                 <FrameFooter>
                     <div className="flex items-center justify-between gap-2">
                         <p className="text-sm text-muted-foreground">
-                            Viewing{' '}
+                            Loaded{' '}
                             <strong className="font-medium text-foreground">
-                                {table.getState().pagination.pageIndex *
-                                    table.getState().pagination.pageSize +
-                                    1}
-                                –
-                                {Math.min(
-                                    (table.getState().pagination.pageIndex + 1) *
-                                        table.getState().pagination.pageSize,
-                                    table.getRowCount()
-                                )}
-                            </strong>{' '}
-                            of{' '}
-                            <strong className="font-medium text-foreground">
-                                {table.getRowCount()}
+                                {products.length}
                             </strong>{' '}
                             products
                         </p>
-                        <div className="flex items-center gap-1">
-                            <button
-                                type="button"
-                                disabled={!table.getCanPreviousPage()}
-                                onClick={() => table.previousPage()}
-                                className="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-40"
-                            >
-                                Previous
-                            </button>
-                            <button
-                                type="button"
-                                disabled={!table.getCanNextPage()}
-                                onClick={() => table.nextPage()}
-                                className="rounded-lg px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-40"
-                            >
-                                Next
-                            </button>
-                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            {hasNextPage
+                                ? 'Scroll to load more'
+                                : 'All products loaded'}
+                        </p>
                     </div>
+                    {hasNextPage && (
+                        <div ref={loadMoreRef} aria-hidden="true" className="h-1 w-full" />
+                    )}
                 </FrameFooter>
             )}
         </Frame>
