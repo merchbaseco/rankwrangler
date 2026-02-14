@@ -98,13 +98,7 @@ const columns: ColumnDef<Product>[] = [
             );
         },
         header: 'Product',
-    },
-    // ── Spacer (eats remaining width) ──
-    {
-        id: 'spacer',
-        cell: () => null,
-        enableSorting: false,
-        header: '',
+        meta: { flex: true },
     },
     // ── Right-aligned group ──
     {
@@ -256,18 +250,17 @@ export function RecentProducts() {
                             key={headerGroup.id}
                         >
                             {headerGroup.headers.map(header => {
-                                const columnSize = header.column.getSize();
-                                const isRight = (header.column.columnDef.meta as { align?: string })?.align === 'right';
+                                const meta = header.column.columnDef.meta as { align?: string; flex?: boolean } | undefined;
+                                const isRight = meta?.align === 'right';
+                                const isFlex = meta?.flex === true;
                                 return (
                                     <TableHead
                                         key={header.id}
                                         className={isRight ? 'text-right' : undefined}
                                         style={
-                                            header.column.columnDef.size
-                                                ? {
-                                                      width: `${columnSize}px`,
-                                                  }
-                                                : undefined
+                                            isFlex
+                                                ? { width: '100%' }
+                                                : { width: header.getSize(), maxWidth: header.getSize() }
                                         }
                                     >
                                         {header.isPlaceholder ? null : header.column.getCanSort() ? (
@@ -346,11 +339,18 @@ export function RecentProducts() {
                                     onMouseLeave={() => setTooltip(null)}
                                 >
                                     {row.getVisibleCells().map(cell => {
-                                        const isRight = (cell.column.columnDef.meta as { align?: string })?.align === 'right';
+                                        const meta = cell.column.columnDef.meta as { align?: string; flex?: boolean } | undefined;
+                                        const isRight = meta?.align === 'right';
+                                        const isFlex = meta?.flex === true;
                                         return (
                                             <TableCell
                                                 key={cell.id}
                                                 className={isRight ? 'text-right' : undefined}
+                                                style={
+                                                    isFlex
+                                                        ? undefined
+                                                        : { width: cell.column.getSize(), maxWidth: cell.column.getSize() }
+                                                }
                                             >
                                                 {flexRender(
                                                     cell.column.columnDef.cell,
