@@ -12,9 +12,8 @@ import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { api } from '@/lib/trpc';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Frame, FrameFooter } from '@/components/ui/frame';
+import { Frame } from '@/components/ui/frame';
 import {
-    Table,
     TableBody,
     TableCell,
     TableHead,
@@ -161,6 +160,20 @@ const columns: ColumnDef<Product>[] = [
     },
 ];
 
+const COL_WIDTHS = columns.map(col => {
+    const meta = col.meta as { flex?: boolean } | undefined;
+    if (meta?.flex) return undefined;
+    return col.size;
+});
+
+const Colgroup = () => (
+    <colgroup>
+        {COL_WIDTHS.map((w, i) => (
+            <col key={i} style={w ? { width: w, maxWidth: w } : undefined} />
+        ))}
+    </colgroup>
+);
+
 export function RecentProducts() {
     const {
         data,
@@ -187,6 +200,7 @@ export function RecentProducts() {
     } | null>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const loadMoreRef = useRef<HTMLDivElement>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     const products = useMemo(
         () => data?.pages.flatMap(page => page.items) ?? [],
@@ -241,9 +255,10 @@ export function RecentProducts() {
 
     return (
         <>
-        <Frame className="bg-[#FCFCFC]">
-            <Table>
-                <TableHeader>
+        <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-[#FCFCFC]">
+            <table className="w-full shrink-0 text-sm" style={{ tableLayout: 'fixed' }}>
+                <Colgroup />
+                <TableHeader className="[&_tr]:border-b-border">
                     {table.getHeaderGroups().map(headerGroup => (
                         <TableRow
                             className="hover:bg-transparent"
@@ -257,11 +272,6 @@ export function RecentProducts() {
                                     <TableHead
                                         key={header.id}
                                         className={isRight ? 'text-right' : undefined}
-                                        style={
-                                            isFlex
-                                                ? { width: '100%' }
-                                                : { width: header.getSize(), maxWidth: header.getSize() }
-                                        }
                                     >
                                         {header.isPlaceholder ? null : header.column.getCanSort() ? (
                                             <div
@@ -318,6 +328,10 @@ export function RecentProducts() {
                         </TableRow>
                     ))}
                 </TableHeader>
+            </table>
+            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+            <table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+                <Colgroup />
                 <TableBody>
                     {table.getRowModel().rows.length ? (
                         table.getRowModel().rows.map(row => {
@@ -346,11 +360,6 @@ export function RecentProducts() {
                                             <TableCell
                                                 key={cell.id}
                                                 className={isRight ? 'text-right' : undefined}
-                                                style={
-                                                    isFlex
-                                                        ? undefined
-                                                        : { width: cell.column.getSize(), maxWidth: cell.column.getSize() }
-                                                }
                                             >
                                                 {flexRender(
                                                     cell.column.columnDef.cell,
@@ -381,9 +390,13 @@ export function RecentProducts() {
                             </TableRow>
                         ))}
                 </TableBody>
-            </Table>
+            </table>
+            {hasNextPage && (
+                <div ref={loadMoreRef} aria-hidden="true" className="h-1 w-full" />
+            )}
+            </div>
             {products.length > 0 && (
-                <FrameFooter>
+                <div className="shrink-0 border-t border-border bg-muted/50 px-4 py-2">
                     <div className="flex items-center justify-between gap-2">
                         <p className="text-sm text-muted-foreground">
                             Loaded{' '}
@@ -398,12 +411,9 @@ export function RecentProducts() {
                                 : 'All products loaded'}
                         </p>
                     </div>
-                    {hasNextPage && (
-                        <div ref={loadMoreRef} aria-hidden="true" className="h-1 w-full" />
-                    )}
-                </FrameFooter>
+                </div>
             )}
-        </Frame>
+        </div>
         {tooltip &&
             createPortal(
                 <div

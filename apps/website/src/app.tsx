@@ -9,15 +9,17 @@ export function App() {
     return (
         <AppShell
             sidebar={
-                <div className="space-y-8">
-                    <ApiKeyCard />
-                    <div className="h-px bg-border" />
+                <div className="space-y-6">
                     <UsageCard />
+                    <div className="h-px bg-[rgba(245,240,235,0.08)]" />
+                    <ApiKeyCard />
                 </div>
             }
         >
-            <div className="space-y-6">
+            <div className="shrink-0">
                 <SearchBar />
+            </div>
+            <div className="mt-3 min-h-0 flex-1">
                 <RecentProducts />
             </div>
         </AppShell>
