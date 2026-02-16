@@ -43,6 +43,12 @@ if [ -n "$RR_LICENSE_KEY" ]; then
       -H "Authorization: Bearer $RR_LICENSE_KEY" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}' | jq '.'
     echo ""
+    echo "📦 Testing api.public.getProductInfoBatch..."
+    curl -s -X POST "$API_BASE/api/api.public.getProductInfoBatch" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asins": ["B0DV53VS61","B0DV53VS62"]}}' | jq '.'
+    echo ""
 else
     echo "⚠️ Skipping public API tests - set RR_LICENSE_KEY to exercise public endpoints."
     echo ""

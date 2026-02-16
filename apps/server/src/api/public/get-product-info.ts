@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { publicApiProcedure } from '@/api/trpc.js';
 import { fetchProductInfo } from '@/utils/product-info.js';
+import { consumeLicenseUsageOrThrow } from './consume-license-usage.js';
 
 const getProductInfoInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),
@@ -14,6 +15,8 @@ const getProductInfoInput = z.object({
 export const getProductInfo = publicApiProcedure
     .input(getProductInfoInput)
     .mutation(async ({ input, ctx }) => {
+        await consumeLicenseUsageOrThrow(ctx, 1);
+
         const uid = ctx.user?.email ?? ctx.user?.sub ?? 'unknown';
         return fetchProductInfo({
             marketplaceId: input.marketplaceId,

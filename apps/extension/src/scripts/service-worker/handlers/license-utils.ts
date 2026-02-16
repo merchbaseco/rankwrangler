@@ -1,7 +1,7 @@
 import {
 	createRankWranglerClient,
 	DEFAULT_API_BASE_URL,
-} from "@rankwrangler/http-client";
+} from "@merchbase/rankwrangler-http-client";
 import { browser } from "webextension-polyfill-ts";
 import z from "zod";
 import { log } from "../../../utils/logger";
