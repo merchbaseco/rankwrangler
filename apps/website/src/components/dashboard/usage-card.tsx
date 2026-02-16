@@ -28,7 +28,7 @@ export function UsageCard() {
     }
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             <span className="font-mono text-xs uppercase tracking-[0.15em] text-[#A89880]">
                 Usage
             </span>
