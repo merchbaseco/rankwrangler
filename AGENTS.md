@@ -21,12 +21,12 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 
 ### Monorepo Build Order (Important)
 
-- The extension depends on the workspace package `@merchbase/rankwrangler-http-client`.
-- If extension type-check/build fails with `TS2307: Cannot find module '@merchbase/rankwrangler-http-client'`, build the typed client first from repo root:
+- The extension installs `@merchbase/rankwrangler-http-client` from npm.
+- If extension type-check/build fails with `TS2307: Cannot find module '@merchbase/rankwrangler-http-client'`, install dependencies and retry:
 
 ```bash
-bun run http-client:build
-bun --filter rankwrangler-extension run build
+bun install
+bun run --filter rankwrangler-extension build
 ```
 
 - Use this same order before running extension-only TypeScript checks in fresh environments.
