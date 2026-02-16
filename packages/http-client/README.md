@@ -1,17 +1,17 @@
-# @rankwrangler/http-client
+# @merchbase/rankwrangler-http-client
 
 Typed tRPC client for the RankWrangler public API.
 
 ## Install
 
 ```bash
-npm install @rankwrangler/http-client
+npm install @merchbase/rankwrangler-http-client
 ```
 
 ## Usage
 
 ```ts
-import { createRankWranglerClient } from '@rankwrangler/http-client';
+import { createRankWranglerClient } from '@merchbase/rankwrangler-http-client';
 
 const client = createRankWranglerClient({
   baseUrl: 'https://rankwrangler.merchbase.co',
@@ -29,7 +29,7 @@ The client is scoped to the public surface (`api.public.*`) so it stays aligned 
 ## Types
 
 ```ts
-import type { PublicRouterInputs, PublicRouterOutputs } from '@rankwrangler/http-client';
+import type { PublicRouterInputs, PublicRouterOutputs } from '@merchbase/rankwrangler-http-client';
 
 type GetProductInput = PublicRouterInputs['getProductInfo'];
 type GetProductOutput = PublicRouterOutputs['getProductInfo'];
@@ -42,3 +42,30 @@ When the public router changes, regenerate the bundled router types:
 ```bash
 bun run http-client:types
 ```
+
+Build the package before publishing:
+
+```bash
+bun run http-client:build
+```
+
+## Publish
+
+From `packages/http-client`:
+
+```bash
+npm login
+npm publish --access public
+```
+
+Before publishing:
+
+1. Bump `version` in `packages/http-client/package.json`.
+2. Run `bun run http-client:build` from repo root.
+3. Run `npm pack --dry-run` from `packages/http-client`.
+
+## Versioning
+
+- App releases are tracked in root `CHANGELOG.md` as `vX.Y.Z` entries.
+- npm client releases are tracked in `packages/http-client/package.json` with SemVer.
+- These two version tracks are related but independent.

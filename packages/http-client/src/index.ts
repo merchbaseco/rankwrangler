@@ -14,9 +14,6 @@ export type RouterOutputs = inferRouterOutputs<PublicAppRouter>;
 export type PublicRouterInputs = RouterInputs['api']['public'];
 export type PublicRouterOutputs = RouterOutputs['api']['public'];
 
-export type CliRouterInputs = RouterInputs['api']['cli'];
-export type CliRouterOutputs = RouterOutputs['api']['cli'];
-
 export type RankWranglerClientOptions = {
     baseUrl: string;
     apiKey?: string;

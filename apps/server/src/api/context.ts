@@ -11,6 +11,7 @@ export interface ClerkUser {
 interface LicenseContext {
     key: string;
     data?: {
+        id: string;
         email: string;
         usage: number;
         usageLimit: number;

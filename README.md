@@ -20,9 +20,18 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 - Shared behavior should live in utilities/libs, then be used by both routers.
 - Each tRPC procedure lives in its own file under `apps/server/src/api/public` or `apps/server/src/api/app`.
 
-## CLI (Upcoming)
+## CLI
 
-- The CLI will use `@rankwrangler/http-client` and the public API surface.
+- The CLI uses `@merchbase/rankwrangler-http-client` and the same `api.public.*` surface as HTTP clients.
+- Command shape is resource-first (`products get`, `license status`).
+- Product commands default marketplace to `ATVPDKIKX0DER` and support `--marketplace` / `-m` override.
+- Spec: `docs/cli-spec.md`
+
+## HTTP Client
+
+- npm package: `@merchbase/rankwrangler-http-client`
+- Build: `bun run http-client:build`
+- Publish guide: `docs/http-client-spec.md`
 
 ## Tooling
 

@@ -9,5 +9,9 @@ export const licenseValidate = publicApiProcedure.mutation(({ ctx }) => {
         });
     }
 
-    return ctx.license.data;
+    return {
+        email: ctx.license.data.email,
+        usage: ctx.license.data.usage,
+        usageLimit: ctx.license.data.usageLimit,
+    };
 });

@@ -45,7 +45,9 @@ the `5433` host port is already mapped for you.
 
 - `bun run build` – bundle the server with Vite
 - `bun run start` – run the compiled server
-- `bun run cli -- get-product-info --marketplaceId <id> --asin <asin>` – CLI for public API
+- `bun run cli -- products get <ASIN...> --marketplace <id>` – product lookup (single or multi-ASIN)
+- `bun run cli -- license status` – show current license usage/limit snapshot
+- `bun run cli -- config set api-key <value>` – configure CLI defaults locally
 - `./test-api.sh` – smoke test health, public API (license), and app API (Clerk)
 
 ## Authentication
@@ -73,6 +75,19 @@ tRPC router is exposed at `/api` with explicit namespaces:
 - When the public router changes, regenerate types with:
   - `bun run http-client:types`
   - `bun run http-client:build`
+- npm publish workflow is documented in `docs/http-client-spec.md`.
+
+### CLI Shape
+
+- CLI is resource-first, verb-second (for example `products get`, `license status`).
+- CLI output is JSON-only and uses a standard envelope:
+  - Success: `{"ok": true, "data": ...}`
+  - Error: `{"ok": false, "error": {"code": "...", "message": "..."}}`
+- CLI command surface maps directly to the public API surface (`api.public.*`).
+- `products get` accepts one or many ASINs; CLI hides single vs batch endpoint choice.
+- Local CLI config is stored at `~/.rankwrangler/config.json`.
+- Product commands use default marketplace `ATVPDKIKX0DER` unless overridden by `--marketplace` / `-m`.
+- CLI spec: `docs/cli-spec.md`.
 
 ### Router Layout
 
@@ -84,6 +99,7 @@ tRPC router is exposed at `/api` with explicit namespaces:
 Public procedures:
 
 - `api.public.getProductInfo`
+- `api.public.getProductInfoBatch`
 - `api.public.license.validate`
 - `api.public.license.status`
 
@@ -103,6 +119,15 @@ curl -s -X POST http://localhost:8080/api/api.public.getProductInfo \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $RR_LICENSE_KEY" \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'
+```
+
+Example `curl` (public batch):
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.public.getProductInfoBatch \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_LICENSE_KEY" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asins":["B0DV53VS61","B0DV53VS62"]}}'
 ```
 
 Example `curl` (app):
