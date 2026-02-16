@@ -8,12 +8,8 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const workspaceRoot = resolve(__dirname, "..");
-const repoRoot = resolve(__dirname, "..", "..", "..");
 
 console.log("🏗  Building RankWrangler for Chrome...\n");
-
-console.log("🔧 Building http-client types...");
-execSync("bun run http-client:build", { stdio: "inherit", cwd: repoRoot });
 
 // Build the web extension
 console.log("📦 Building web extension...");
