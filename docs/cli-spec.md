@@ -6,10 +6,10 @@ Canonical release process: `docs/release-runbook.md`.
 
 ## Package
 
-- Name: `@merchbase/rankwrangler-cli`
+- Name: `@rankwrangler/cli`
 - Location: `packages/cli`
 - Binary: `rankwrangler`
-- Install: `npm install -g @merchbase/rankwrangler-cli`
+- Install: `npm install -g @rankwrangler/cli`
 
 ## Principles
 
@@ -119,7 +119,7 @@ cd packages/cli
 set -a
 source ../../.env
 set +a
-npm access get status @merchbase/rankwrangler-cli --userconfig ../../.npmrc
+npm access get status @rankwrangler/cli --userconfig ../../.npmrc
 ```
 
 ## Troubleshooting

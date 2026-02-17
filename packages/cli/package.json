@@ -1,5 +1,5 @@
 {
-    "name": "@merchbase/rankwrangler-cli",
+    "name": "@rankwrangler/cli",
     "version": "0.1.2",
     "description": "Official RankWrangler command line interface",
     "type": "module",
@@ -19,7 +19,7 @@
         "access": "public"
     },
     "dependencies": {
-        "@merchbase/rankwrangler-http-client": "^0.1.2"
+        "@rankwrangler/http-client": "^0.1.2"
     },
     "devDependencies": {
         "@types/node": "^24.3.0",

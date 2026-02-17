@@ -21,8 +21,8 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 
 ### Monorepo Build Order (Important)
 
-- The extension installs `@merchbase/rankwrangler-http-client` from npm.
-- If extension type-check/build fails with `TS2307: Cannot find module '@merchbase/rankwrangler-http-client'`, install dependencies and retry:
+- The extension installs `@rankwrangler/http-client` from npm.
+- If extension type-check/build fails with `TS2307: Cannot find module '@rankwrangler/http-client'`, install dependencies and retry:
 
 ```bash
 bun install
@@ -262,7 +262,7 @@ docker exec rankwrangler-postgres psql -U "$DATABASE_USER" -d "$DATABASE_NAME" -
 
 ### CLI (Upcoming)
 
-- CLI should use the typed client (`@merchbase/rankwrangler-http-client`) and the public API surface.
+- CLI should use the typed client (`@rankwrangler/http-client`) and the public API surface.
 - Keep CLI surface aligned with `api.public.*` so there is one canonical public API.
 
 ## Important Implementation Details

@@ -1,17 +1,17 @@
-# @merchbase/rankwrangler-http-client
+# @rankwrangler/http-client
 
 Typed tRPC client for the RankWrangler public API.
 
 ## Install
 
 ```bash
-npm install @merchbase/rankwrangler-http-client
+npm install @rankwrangler/http-client
 ```
 
 ## Usage
 
 ```ts
-import { createRankWranglerClient } from '@merchbase/rankwrangler-http-client';
+import { createRankWranglerClient } from '@rankwrangler/http-client';
 
 const client = createRankWranglerClient({
   baseUrl: 'https://rankwrangler.merchbase.co',
@@ -29,7 +29,7 @@ The client is scoped to the public surface (`api.public.*`) so it stays aligned 
 ## Types
 
 ```ts
-import type { PublicRouterInputs, PublicRouterOutputs } from '@merchbase/rankwrangler-http-client';
+import type { PublicRouterInputs, PublicRouterOutputs } from '@rankwrangler/http-client';
 
 type GetProductInput = PublicRouterInputs['getProductInfo'];
 type GetProductOutput = PublicRouterOutputs['getProductInfo'];
@@ -54,8 +54,11 @@ bun run http-client:build
 From `packages/http-client`:
 
 ```bash
-npm login
-npm publish --access public
+set -a
+source ../../.env
+set +a
+npm whoami --userconfig ../../.npmrc
+npm publish --access public --userconfig ../../.npmrc
 ```
 
 Before publishing:
