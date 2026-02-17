@@ -205,6 +205,11 @@ Compatibility posture:
 6. Secrets stay out of version control—use `.env.production` for deployment overrides if needed.
 7. **Keep startup status summary current** - When adding new services, jobs, or features, update the startup status summary in `apps/server/src/index.ts` to reflect the current state. This helps operators quickly verify the server is functioning correctly.
 
+### PR Etiquette
+
+- Before opening or merging a PR, review staged changes for accidental secrets (tokens, keys, passwords, private credentials) and remove them before commit.
+- If a secret is committed, rotate/revoke it first, then remove it from git history.
+
 ## Reference
 
 - Health endpoint: `GET /api/health`
