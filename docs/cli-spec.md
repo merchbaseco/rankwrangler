@@ -2,6 +2,15 @@
 
 This spec defines the public, user-facing shape of the RankWrangler CLI.
 
+Canonical release process: `docs/release-runbook.md`.
+
+## Package
+
+- Name: `@merchbase/rankwrangler-cli`
+- Location: `packages/cli`
+- Binary: `rankwrangler`
+- Install: `npm install -g @merchbase/rankwrangler-cli`
+
 ## Principles
 
 - Config-first state. No prompts or interactive flows.
@@ -81,3 +90,41 @@ Legacy aliases are still accepted:
 - `get-product-info`
 - `get-product-info-batch`
 - `products get-batch`
+
+## Build + Publish
+
+```bash
+bun run cli:build
+```
+
+```bash
+cd packages/cli
+set -a
+source ../../.env
+set +a
+npm whoami --userconfig ../../.npmrc
+npm publish --access public --userconfig ../../.npmrc
+```
+
+## Release Checklist
+
+1. Bump `version` in `packages/cli/package.json` to match the target `vX.Y.Z` in `CHANGELOG.md`.
+2. Run `bun install` from repo root so `bun.lock` stays in sync.
+3. Run `bun run cli:build` from repo root.
+4. Publish from `packages/cli` using the commands above.
+5. Verify package access status:
+
+```bash
+cd packages/cli
+set -a
+source ../../.env
+set +a
+npm access get status @merchbase/rankwrangler-cli --userconfig ../../.npmrc
+```
+
+## Troubleshooting
+
+- `401 Unauthorized` / token errors: ensure repo-root `.env` is loaded before publish so
+  `NPM_TOKEN` is available to `.npmrc`.
+- `403 You cannot publish over the previously published versions`: bump patch/minor version and
+  publish again.

@@ -1,0 +1,29 @@
+{
+    "name": "@merchbase/rankwrangler-cli",
+    "version": "0.1.2",
+    "description": "Official RankWrangler command line interface",
+    "type": "module",
+    "bin": {
+        "rankwrangler": "dist/index.js"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "dependencies": {
+        "@merchbase/rankwrangler-http-client": "^0.1.2"
+    },
+    "devDependencies": {
+        "@types/node": "^24.3.0",
+        "typescript": "^5.9.2"
+    },
+    "packageManager": "bun@1.1.27"
+}
