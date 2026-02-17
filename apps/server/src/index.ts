@@ -205,6 +205,10 @@ try {
         ? 'Enabled'
         : 'Disabled (POSTHOG_API_KEY not set)';
     console.log(`  • PostHog Analytics: ${posthogStatus}`);
+    const keepaStatus = env.KEEPA_API_KEY
+        ? 'Configured'
+        : 'Disabled (KEEPA_API_KEY not set)';
+    console.log(`  • Keepa History Sync: ${keepaStatus}`);
     console.log('  • API Routes: tRPC (/api)');
     console.log('  • Auth: Clerk (app), License (public)');
     console.log('═══════════════════════════════════════════════════════════════');

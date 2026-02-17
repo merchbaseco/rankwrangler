@@ -10,7 +10,7 @@ export function AppShell({ sidebar, children }: AppShellProps) {
         <div className="h-screen overflow-hidden bg-background p-1.5 lg:p-2">
             <div className="flex h-[calc(100vh-12px)] flex-col gap-1.5 lg:h-[calc(100vh-16px)] lg:flex-row lg:gap-2">
                 {/* Left dark panel — ~30%, no scroll */}
-                <aside className="panel-dark flex w-full shrink-0 flex-col overflow-hidden rounded-3xl p-6 lg:w-[30%] lg:min-w-[320px] lg:max-w-[420px] lg:p-7">
+                <aside className="panel-dark flex w-full shrink-0 flex-col overflow-hidden rounded-2xl p-6 lg:w-[30%] lg:min-w-[320px] lg:max-w-[420px] lg:p-7">
                     <div className="panel-dark-decor" />
 
                     {/* Top: Brand + avatar */}
@@ -44,7 +44,7 @@ export function AppShell({ sidebar, children }: AppShellProps) {
                 </aside>
 
                 {/* Right content area */}
-                <main className="flex min-h-0 flex-1 flex-col pt-2 pl-3 lg:pt-3 lg:pl-4">
+                <main className="flex min-h-0 flex-1 flex-col">
                     {children}
                 </main>
             </div>

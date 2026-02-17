@@ -60,6 +60,7 @@ Required env vars:
 
 - `CLERK_SECRET_KEY`
 - `LICENSE_SECRET`
+- `KEEPA_API_KEY` (optional, required for Keepa history import endpoints)
 - `ADMIN_EMAIL` (optional)
 
 ## API Structure
@@ -107,6 +108,8 @@ Public procedures:
 App procedures:
 
 - `api.app.getProductInfo`
+- `api.app.getProductHistory`
+- `api.app.loadProductHistory`
 - `api.app.license.generate`
 - `api.app.license.list`
 - `api.app.license.details`
@@ -140,9 +143,43 @@ curl -s -X POST http://localhost:8080/api/api.app.getProductInfo \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'
 ```
 
+Example `curl` (app Keepa import):
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.loadProductHistory \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","days":365}}'
+```
+
+Example `curl` (app Keepa history query):
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.getProductHistory \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","metric":"bsrMain","limit":1000}}'
+```
+
+`api.app.getProductHistory` returns:
+- `points[]` time-series rows
+- `categoryNames` map (`{ "<categoryId>": "<name>" }`) for resolved Keepa category labels
+
+For `metric: "bsrCategory"`, pass `categoryId` to select one category line:
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.getProductHistory \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","metric":"bsrCategory","categoryId":7141123011,"limit":1000}}'
+```
+
 ## Database Migrations
 
 Drizzle migrations live under `./drizzle`. Update the schema in `src/db/schema.ts`, run `bunx drizzle-kit generate`, and commit the generated SQL alongside `init.sql`.
+
+Keepa category label cache table:
+- `keepa_categories` (`marketplace_id`, `category_id`, `name`) is populated from Keepa Categories API and treated as non-expiring cache.
 
 ## Deployment
 
