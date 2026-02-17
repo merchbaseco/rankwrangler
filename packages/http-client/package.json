@@ -1,6 +1,6 @@
 {
     "name": "@merchbase/rankwrangler-http-client",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "description": "Typed tRPC client for RankWrangler",
     "type": "module",
     "main": "./dist/index.js",

@@ -3,6 +3,8 @@
 This spec defines the public npm client package that exposes typed access to
 the RankWrangler API without duplicating CLI or server logic.
 
+Canonical release process: `docs/release-runbook.md`.
+
 ## Goals
 
 - Provide a stable, typed JavaScript client for external codebases.
@@ -61,12 +63,12 @@ Bump `packages/http-client/package.json` before every publish.
 
 ## Versioning Policy
 
-RankWrangler uses two independent version tracks:
+RankWrangler uses synchronized versions across releases:
 
-- App release versions in `CHANGELOG.md` (for example `v0.1.0`) track product/server/dashboard releases.
-- npm package versions in `packages/http-client/package.json` (for example `0.1.0`) track `@merchbase/rankwrangler-http-client` releases.
+- App release version in `CHANGELOG.md` (for example `v0.1.2`) and
+- npm package version in `packages/http-client/package.json` (for example `0.1.2`)
 
-These versions do not need to match exactly.
+must match for the same release.
 
 Use SemVer for `@merchbase/rankwrangler-http-client`:
 
@@ -77,6 +79,6 @@ Use SemVer for `@merchbase/rankwrangler-http-client`:
 Release checklist for HTTP client changes:
 
 1. Run `bun run http-client:build`.
-2. Bump `packages/http-client/package.json`.
-3. Update `CHANGELOG.md` in the same PR with the new client package version.
+2. Bump `packages/http-client/package.json` to match the target release version.
+3. Update `CHANGELOG.md` in the same PR with the matching `vX.Y.Z` release heading.
 4. Publish with `npm publish --access public`.
