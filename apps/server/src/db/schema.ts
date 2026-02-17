@@ -1,7 +1,9 @@
 import {
     bigint,
+    boolean,
     index,
     integer,
+    jsonb,
     pgTable,
     text,
     timestamp,
@@ -70,5 +72,96 @@ export const productIngestQueue = pgTable(
             table.asin
         ),
         createdAtIdx: index('product_ingest_queue_created_at_idx').on(table.createdAt),
+    })
+);
+
+export const productHistoryImports = pgTable(
+    'product_history_imports',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        productId: uuid('product_id')
+            .references(() => products.id, { onDelete: 'cascade' })
+            .notNull(),
+        marketplaceId: text('marketplace_id').notNull(),
+        asin: text('asin').notNull(),
+        source: text('source').notNull(),
+        status: text('status').notNull(),
+        requestParams: jsonb('request_params').$type<Record<string, unknown>>().notNull(),
+        responsePayload: jsonb('response_payload').$type<Record<string, unknown> | null>(),
+        tokensConsumed: integer('tokens_consumed'),
+        tokensLeft: integer('tokens_left'),
+        refillInMs: integer('refill_in_ms'),
+        refillRate: integer('refill_rate'),
+        errorCode: text('error_code'),
+        errorMessage: text('error_message'),
+        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    },
+    table => ({
+        productCreatedAtIdx: index('product_history_imports_product_created_at_idx').on(
+            table.productId,
+            table.createdAt
+        ),
+        marketplaceAsinCreatedAtIdx: index('product_history_imports_marketplace_asin_created_at_idx').on(
+            table.marketplaceId,
+            table.asin,
+            table.createdAt
+        ),
+    })
+);
+
+export const productHistoryPoints = pgTable(
+    'product_history_points',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        productId: uuid('product_id')
+            .references(() => products.id, { onDelete: 'cascade' })
+            .notNull(),
+        marketplaceId: text('marketplace_id').notNull(),
+        asin: text('asin').notNull(),
+        source: text('source').notNull(),
+        metric: text('metric').notNull(),
+        categoryId: bigint('category_id', { mode: 'number' }).notNull().default(-1),
+        observedAt: timestamp('observed_at', { mode: 'date' }).notNull(),
+        keepaMinutes: integer('keepa_minutes').notNull(),
+        valueInt: integer('value_int'),
+        isMissing: boolean('is_missing').notNull().default(false),
+        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    },
+    table => ({
+        uniquePointIdx: uniqueIndex('product_history_points_unique_idx').on(
+            table.productId,
+            table.source,
+            table.metric,
+            table.categoryId,
+            table.keepaMinutes
+        ),
+        marketplaceAsinMetricObservedAtIdx: index('product_history_points_marketplace_asin_metric_observed_at_idx').on(
+            table.marketplaceId,
+            table.asin,
+            table.metric,
+            table.observedAt
+        ),
+    })
+);
+
+export const keepaCategories = pgTable(
+    'keepa_categories',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        marketplaceId: text('marketplace_id').notNull(),
+        categoryId: bigint('category_id', { mode: 'number' }).notNull(),
+        name: text('name').notNull(),
+        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+        updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    },
+    table => ({
+        marketplaceCategoryIdx: uniqueIndex('keepa_categories_marketplace_category_idx').on(
+            table.marketplaceId,
+            table.categoryId
+        ),
+        marketplaceNameIdx: index('keepa_categories_marketplace_name_idx').on(
+            table.marketplaceId,
+            table.name
+        ),
     })
 );

@@ -16,6 +16,7 @@ export function SearchBar() {
     const [configOpen, setConfigOpen] = useState(false);
     const configRef = useRef<HTMLDivElement>(null);
     const mutation = api.api.app.getProductInfo.useMutation();
+    const historyMutation = api.api.app.loadProductHistory.useMutation();
 
     const selectedMarketplace =
         MARKETPLACES.find(m => m.id === marketplaceId) ?? MARKETPLACES[0];
@@ -24,7 +25,20 @@ export function SearchBar() {
         e.preventDefault();
         const cleaned = query.trim().toUpperCase();
         if (!cleaned || mutation.isPending) return;
+        historyMutation.reset();
         mutation.mutate({ asin: cleaned, marketplaceId });
+    };
+
+    const handleLoadHistory = () => {
+        if (!mutation.data || historyMutation.isPending) {
+            return;
+        }
+
+        historyMutation.mutate({
+            marketplaceId: mutation.data.marketplaceId,
+            asin: mutation.data.asin,
+            days: 365,
+        });
     };
 
     useEffect(() => {
@@ -119,6 +133,28 @@ export function SearchBar() {
                             {mutation.data.rootCategoryBsr && (
                                 <p className="mt-1.5 text-lg font-bold text-[#1C1917]">
                                     #{mutation.data.rootCategoryBsr.toLocaleString()}
+                                </p>
+                            )}
+                            <div className="mt-3 flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleLoadHistory}
+                                    disabled={historyMutation.isPending}
+                                    className="rounded-lg bg-[#141210] px-3 py-1.5 text-xs font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {historyMutation.isPending
+                                        ? 'Loading Keepa history...'
+                                        : 'History'}
+                                </button>
+                                {historyMutation.isSuccess && (
+                                    <p className="text-xs text-[#57534E]">
+                                        Stored {historyMutation.data.pointsStored.toLocaleString()} points.
+                                    </p>
+                                )}
+                            </div>
+                            {historyMutation.isError && (
+                                <p className="mt-2 text-xs font-medium text-red-700">
+                                    {historyMutation.error.message}
                                 </p>
                             )}
                         </div>
