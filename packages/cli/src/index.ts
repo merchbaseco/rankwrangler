@@ -41,19 +41,23 @@ const CONFIG_DIR = path.join(homedir(), '.rankwrangler');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 
 const DEFAULT_OUTPUT_PRETTY = true;
+const SUPPORTED_COMMANDS = new Set([
+    'products:get',
+    'license:status',
+    'license:validate',
+    'config:show',
+    'config:clear',
+    'config:set',
+]);
 
 const { positionals, values } = parseArgs({
     args: process.argv.slice(2),
     options: {
         help: { type: 'boolean', short: 'h' },
         apiKey: { type: 'string' },
-        licenseKey: { type: 'string' },
         baseUrl: { type: 'string' },
-        url: { type: 'string' },
         marketplace: { type: 'string', short: 'm' },
-        marketplaceId: { type: 'string' },
         asin: { type: 'string', multiple: true },
-        asins: { type: 'string', multiple: true },
     },
     allowPositionals: true,
 });
@@ -69,6 +73,10 @@ const main = async () => {
     const command = resolveCommand(positionals);
     if (!command) {
         fail('UNKNOWN_COMMAND', 'Unknown command', { command: positionals.join(' ') });
+        return;
+    }
+    if (!isSupportedCommand(command)) {
+        fail('UNKNOWN_COMMAND', 'Unknown command', { command: `${command.resource} ${command.verb}` });
         return;
     }
 
@@ -161,7 +169,7 @@ const runConfigCommand = async (command: CliCommand, config: CliConfig) => {
             nextConfig.apiKey = value;
         } else if (key === 'base-url') {
             nextConfig.baseUrl = normalizeBaseUrl(value);
-        } else if (key === 'marketplace' || key === 'marketplace-id') {
+        } else if (key === 'marketplace') {
             nextConfig.marketplaceId = value;
         } else {
             fail('INVALID_INPUT', 'unsupported config key', {
@@ -185,11 +193,7 @@ const runConfigCommand = async (command: CliCommand, config: CliConfig) => {
 
 const requireMarketplaceId = (config: CliConfig) => {
     const marketplaceId =
-        values.marketplaceId ??
-        values.marketplace ??
-        config.marketplaceId ??
-        process.env.RR_MARKETPLACE_ID ??
-        DEFAULT_MARKETPLACE_ID;
+        values.marketplace ?? config.marketplaceId ?? process.env.RR_MARKETPLACE_ID ?? DEFAULT_MARKETPLACE_ID;
 
     return marketplaceId;
 };
@@ -205,7 +209,7 @@ const requireAsins = (commandArgs: string[]) => {
 };
 
 const collectAsinCandidates = (commandArgs: string[]) => {
-    const optionAsins = [...(values.asin ?? []), ...(values.asins ?? [])];
+    const optionAsins = [...(values.asin ?? [])];
     const envAsins = process.env.RR_ASINS
         ? process.env.RR_ASINS.split(',').map(value => value.trim())
         : [];
@@ -226,11 +230,11 @@ const normalizeAsin = (value: string) => {
 };
 
 const resolveApiKey = (config: CliConfig) => {
-    return values.apiKey ?? values.licenseKey ?? config.apiKey ?? process.env.RR_LICENSE_KEY;
+    return values.apiKey ?? config.apiKey ?? process.env.RR_LICENSE_KEY;
 };
 
 const resolveBaseUrl = (config: CliConfig) => {
-    const configured = values.baseUrl ?? values.url ?? config.baseUrl ?? process.env.RR_API_URL;
+    const configured = values.baseUrl ?? config.baseUrl ?? process.env.RR_API_URL;
 
     return normalizeBaseUrl(configured ?? DEFAULT_API_BASE_URL);
 };
@@ -250,35 +254,19 @@ const normalizeBaseUrl = (value: string) => {
 const resolveCommand = (inputPositionals: string[]): CliCommand | null => {
     const [first, second, ...rest] = inputPositionals;
 
-    if (!first) {
-        return null;
-    }
-
-    if (first === 'get-product-info') {
-        return {
-            resource: 'products',
-            verb: 'get',
-            args: rest,
-        };
-    }
-
-    if (first === 'get-product-info-batch') {
-        return {
-            resource: 'products',
-            verb: 'get',
-            args: rest,
-        };
-    }
-
-    if (!second) {
+    if (!first || !second) {
         return null;
     }
 
     return {
         resource: first,
-        verb: first === 'products' && second === 'get-batch' ? 'get' : second,
+        verb: second,
         args: rest,
     };
+};
+
+const isSupportedCommand = (command: CliCommand) => {
+    return SUPPORTED_COMMANDS.has(`${command.resource}:${command.verb}`);
 };
 
 const loadConfig = async (): Promise<CliConfig> => {
@@ -367,40 +355,44 @@ const fail = (code: string, message: string, details?: unknown): never => {
 
 const printUsage = () => {
     const usage = [
-        'RankWrangler CLI',
+        'NAME',
+        '  rw, rankwrangler - RankWrangler command line interface',
         '',
-        'Command Shape',
-        '  rankwrangler <resource> <verb> [args...] [flags...]',
+        'SYNOPSIS',
+        '  rw <resource> <verb> [args...] [options]',
+        '  rankwrangler <resource> <verb> [args...] [options]',
         '',
-        'Principles',
-        '  - Resource-first, verb-second commands',
-        '  - JSON-only output with {"ok": true|false, ...} envelope',
-        '  - One command maps to one API capability',
-        '',
-        'API Commands',
-        '  products get <ASIN...> [--marketplace <id>|-m <id>]',
+        'COMMANDS',
+        '  products get <ASIN...>',
         '  license status',
         '  license validate',
-        '',
-        'Config Commands',
         '  config show',
         '  config clear',
         '  config set api-key <value>',
         '  config set base-url <origin>',
         '  config set marketplace <marketplaceId>',
         '',
-        'Global Flags',
-        '  --apiKey <value>         Override API key (alias: --licenseKey)',
-        '  --baseUrl <origin>       Override API origin (alias: --url)',
-        `  --marketplace <id>, -m   Override marketplace (default: ${DEFAULT_MARKETPLACE_ID})`,
-        '  --marketplaceId <id>     Compatibility alias for --marketplace',
+        'OPTIONS',
+        '  -h, --help               Show this help message',
+        '  --apiKey <value>         Override API key',
+        '  --baseUrl <origin>       Override API origin',
+        `  -m, --marketplace <id>   Override marketplace (default: ${DEFAULT_MARKETPLACE_ID})`,
         '  --asin <ASIN>            Add ASIN (repeatable)',
-        '  --asins <ASIN>           Add ASIN (repeatable, compatibility alias)',
         '',
-        'Legacy Aliases (still supported)',
-        '  get-product-info',
-        '  get-product-info-batch',
-        '  products get-batch',
+        'FILES',
+        `  ${CONFIG_PATH}           Local CLI config`,
+        '',
+        'ENVIRONMENT',
+        '  RR_LICENSE_KEY           API key fallback',
+        '  RR_API_URL               API origin fallback',
+        '  RR_MARKETPLACE_ID        Marketplace fallback',
+        '  RR_ASIN                  Single ASIN fallback',
+        '  RR_ASINS                 Comma-separated ASIN fallback',
+        '',
+        'EXAMPLES',
+        '  rw config set api-key rrk_...',
+        '  rw products get B0DV53VS61',
+        '  rankwrangler license status',
     ];
 
     console.log(usage.join('\n'));

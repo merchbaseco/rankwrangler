@@ -26,6 +26,7 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 - npm package: `@rankwrangler/cli`
 - Install globally: `npm install -g @rankwrangler/cli`
 - Build locally: `bun run cli:build`
+- Binaries: `rw` (primary), `rankwrangler` (alias)
 - The CLI uses `@rankwrangler/http-client` and the same `api.public.*` surface as HTTP clients.
 - Command shape is resource-first (`products get`, `license status`).
 - Product commands default marketplace to `ATVPDKIKX0DER` and support `--marketplace` / `-m` override.

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## v0.1.3 - 2026-02-17
+
+### Changed
+
+- Sync release versions across `apps/server`, `packages/http-client`, and `packages/cli` to
+  `0.1.3`.
+- Set `@rankwrangler/cli` to expose both `rw` (primary) and `rankwrangler` binaries.
+- Tighten CLI help output into a concise man-style format and remove principles text from runtime
+  help.
+- Remove legacy CLI command and flag aliases by default (`get-product-info`,
+  `get-product-info-batch`, `products get-batch`, `--licenseKey`, `--url`, `--marketplaceId`,
+  `--asins`).
+- Add explicit CLI policy guidance that legacy aliases/compatibility shims require explicit user
+  direction.
+
 ## v0.1.2 - 2026-02-17
 
 ### Changed
