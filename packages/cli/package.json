@@ -1,9 +1,10 @@
 {
     "name": "@rankwrangler/cli",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "Official RankWrangler command line interface",
     "type": "module",
     "bin": {
+        "rw": "dist/index.js",
         "rankwrangler": "dist/index.js"
     },
     "main": "./dist/index.js",
@@ -19,7 +20,7 @@
         "access": "public"
     },
     "dependencies": {
-        "@rankwrangler/http-client": "^0.1.2"
+        "@rankwrangler/http-client": "^0.1.3"
     },
     "devDependencies": {
         "@types/node": "^24.3.0",

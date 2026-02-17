@@ -8,7 +8,9 @@ Canonical release process: `docs/release-runbook.md`.
 
 - Name: `@rankwrangler/cli`
 - Location: `packages/cli`
-- Binary: `rankwrangler`
+- Binaries:
+  - `rw` (primary)
+  - `rankwrangler` (alias)
 - Install: `npm install -g @rankwrangler/cli`
 
 ## Principles
@@ -18,10 +20,12 @@ Canonical release process: `docs/release-runbook.md`.
 - JSON-only output.
 - One CLI command maps to one API capability.
 - CLI and HTTP public API stay aligned as one canonical surface.
+- No legacy aliases or compatibility command shims unless explicitly requested.
 
 ## Command Shape
 
-- Pattern: `rankwrangler <resource> <verb> [args...] [flags...]`
+- Pattern: `rw <resource> <verb> [args...] [flags...]`
+- Alias pattern: `rankwrangler <resource> <verb> [args...] [flags...]`
 - Current resources:
   - `products`
   - `license`
@@ -53,26 +57,25 @@ Supported keys:
 
 Commands:
 
-- `rankwrangler config show`
-- `rankwrangler config clear`
-- `rankwrangler config set api-key <value>`
-- `rankwrangler config set base-url <origin>`
-- `rankwrangler config set marketplace <marketplaceId>`
+- `rw config show`
+- `rw config clear`
+- `rw config set api-key <value>`
+- `rw config set base-url <origin>`
+- `rw config set marketplace <marketplaceId>`
 
 `base-url` accepts an origin with or without trailing `/api`.
 
 ## API Commands
 
-- `rankwrangler products get <ASIN...> [--marketplace <id>|-m <id>]`
-- `rankwrangler license status`
-- `rankwrangler license validate`
+- `rw products get <ASIN...> [--marketplace <id>|-m <id>]`
+- `rw license status`
+- `rw license validate`
 
 `products get` accepts one or many ASINs and internally chooses the single or batch API call.
 
 Marketplace resolution for product commands:
 
 - `--marketplace <id>` / `-m <id>` (recommended override)
-- `--marketplaceId <id>` (compatibility alias)
 - configured `marketplace` from `~/.rankwrangler/config.json`
 - `RR_MARKETPLACE_ID`
 - default: `ATVPDKIKX0DER`
@@ -83,13 +86,10 @@ These commands map directly to public API capabilities:
 - `license status` -> `api.public.license.status`
 - `license validate` -> `api.public.license.validate`
 
-## Compatibility
+## Compatibility Policy
 
-Legacy aliases are still accepted:
-
-- `get-product-info`
-- `get-product-info-batch`
-- `products get-batch`
+- Legacy command aliases are not supported by default.
+- Backward-compatibility shims require explicit direction.
 
 ## Build + Publish
 
