@@ -55,7 +55,7 @@
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.6",
-    "@merchbase/rankwrangler-http-client": "https://registry.npmjs.org/@merchbase/rankwrangler-http-client/-/rankwrangler-http-client-0.1.2.tgz",
+    "@rankwrangler/http-client": "https://registry.npmjs.org/@rankwrangler/http-client/-/http-client-0.1.2.tgz",
     "@tanstack/react-query": "^5.85.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

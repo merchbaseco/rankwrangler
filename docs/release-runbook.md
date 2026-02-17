@@ -58,13 +58,13 @@ Run from repo root after publish:
 
 ```bash
 HTTP_CLIENT_TARBALL_URL="$(
-  npm view @merchbase/rankwrangler-http-client@0.1.2 dist.tarball --userconfig .npmrc
+  npm view @rankwrangler/http-client@0.1.2 dist.tarball --userconfig .npmrc
 )"
 echo "$HTTP_CLIENT_TARBALL_URL"
 ```
 
 Use this exact URL in `apps/extension/package.json` for
-`@merchbase/rankwrangler-http-client`.
+`@rankwrangler/http-client`.
 
 ## 5. Wait For Tarball Propagation
 
@@ -94,8 +94,8 @@ Run from repo root:
 
 ```bash
 bun install
-npm view @merchbase/rankwrangler-http-client version --userconfig .npmrc
-npm view @merchbase/rankwrangler-cli version --userconfig .npmrc
+npm view @rankwrangler/http-client version --userconfig .npmrc
+npm view @rankwrangler/cli version --userconfig .npmrc
 bun run --filter rankwrangler-extension build
 ```
 

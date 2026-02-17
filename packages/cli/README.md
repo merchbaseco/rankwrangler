@@ -1,11 +1,11 @@
-# @merchbase/rankwrangler-cli
+# @rankwrangler/cli
 
 Official CLI for RankWrangler.
 
 ## Install
 
 ```bash
-npm install -g @merchbase/rankwrangler-cli
+npm install -g @rankwrangler/cli
 ```
 
 ## Usage

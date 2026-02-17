@@ -11,7 +11,7 @@
     "cli": "tsx src/cli.ts"
   },
   "dependencies": {
-    "@merchbase/rankwrangler-http-client": "workspace:*",
+    "@rankwrangler/http-client": "workspace:*",
     "@amazon-sp-api-release/amazon-sp-api-sdk-js": "^1.6.0",
     "@clerk/backend": "^2.29.3",
     "@fastify/cors": "^11.1.0",
