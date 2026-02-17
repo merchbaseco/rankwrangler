@@ -1,7 +1,7 @@
 import {
 	createRankWranglerClient,
 	DEFAULT_API_BASE_URL,
-} from "@merchbase/rankwrangler-http-client";
+} from "@rankwrangler/http-client";
 import type {
 	FetchProductInfoMessage,
 	ProductInfoResponse,

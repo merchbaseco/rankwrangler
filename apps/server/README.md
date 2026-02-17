@@ -79,7 +79,7 @@ tRPC router is exposed at `/api` with explicit namespaces:
 
 ### CLI Shape
 
-- npm package: `@merchbase/rankwrangler-cli` (install with `npm install -g @merchbase/rankwrangler-cli`).
+- npm package: `@rankwrangler/cli` (install with `npm install -g @rankwrangler/cli`).
 - CLI is resource-first, verb-second (for example `products get`, `license status`).
 - CLI output is JSON-only and uses a standard envelope:
   - Success: `{"ok": true, "data": ...}`

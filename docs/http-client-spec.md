@@ -13,7 +13,7 @@ Canonical release process: `docs/release-runbook.md`.
 
 ## Package
 
-- Name: `@merchbase/rankwrangler-http-client`
+- Name: `@rankwrangler/http-client`
 - Location: `packages/http-client`
 - Output: `dist/` (ESM + `.d.ts`)
 
@@ -29,7 +29,7 @@ Canonical release process: `docs/release-runbook.md`.
 - Usage:
 
 ```ts
-import { createRankWranglerClient } from '@merchbase/rankwrangler-http-client';
+import { createRankWranglerClient } from '@rankwrangler/http-client';
 
 const client = createRankWranglerClient({
     baseUrl: 'https://rankwrangler.merchbase.co',
@@ -55,8 +55,11 @@ bun run http-client:build
 
 ```bash
 cd packages/http-client
-npm login
-npm publish --access public
+set -a
+source ../../.env
+set +a
+npm whoami --userconfig ../../.npmrc
+npm publish --access public --userconfig ../../.npmrc
 ```
 
 Bump `packages/http-client/package.json` before every publish.
@@ -70,7 +73,7 @@ RankWrangler uses synchronized versions across releases:
 
 must match for the same release.
 
-Use SemVer for `@merchbase/rankwrangler-http-client`:
+Use SemVer for `@rankwrangler/http-client`:
 
 - `MAJOR`: breaking changes to the published client contract (removed/renamed procedures, incompatible input/output changes).
 - `MINOR`: backward-compatible additions to the public client surface.

@@ -28,7 +28,7 @@ Use this document when assisting with the browser extension + Safari wrapper rep
 
 ## Build Prerequisites (NPM Dependency)
 
-- `rankwrangler-extension` installs `@merchbase/rankwrangler-http-client` from npm.
+- `rankwrangler-extension` installs `@rankwrangler/http-client` from npm.
 - In fresh clones/workspaces, install dependencies before extension type-check/build:
 
 ```bash
@@ -36,7 +36,7 @@ bun install
 bun run --filter rankwrangler-extension build
 ```
 
-- If you see `TS2307: Cannot find module '@merchbase/rankwrangler-http-client'` during extension `tsc`, run `bun install` and retry.
+- If you see `TS2307: Cannot find module '@rankwrangler/http-client'` during extension `tsc`, run `bun install` and retry.
 
 ## Architecture Notes
 

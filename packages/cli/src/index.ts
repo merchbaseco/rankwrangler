@@ -4,7 +4,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { createRankWranglerClient, DEFAULT_API_BASE_URL } from '@merchbase/rankwrangler-http-client';
+import { createRankWranglerClient, DEFAULT_API_BASE_URL } from '@rankwrangler/http-client';
 
 type CliConfig = {
     apiKey?: string;

@@ -13,7 +13,7 @@ ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
 
 COPY package.json bun.lock ./
 #
-# Bun workspaces: apps/server depends on @merchbase/rankwrangler-http-client (workspace:*),
+# Bun workspaces: apps/server depends on @rankwrangler/http-client (workspace:*),
 # so we must include at least that workspace's manifest for `bun install` to resolve.
 #
 COPY packages/http-client/package.json packages/http-client/package.json
