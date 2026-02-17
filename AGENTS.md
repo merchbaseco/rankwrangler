@@ -167,6 +167,34 @@ docker exec rankwrangler-postgres psql -U "$DATABASE_USER" -d "$DATABASE_NAME" -
 1. Add to `apps/server/src/config/env.ts` with appropriate validation
 2. Update `.env.example` (repo root) with a placeholder value
 
+## Version Bump Protocol
+
+When the user requests a version bump, follow this exact flow:
+
+SemVer prompt policy:
+
+- Do not proactively mention a SemVer bump for non-breaking API changes; the user will prompt.
+- If a change is backward-incompatible, always call it out and suggest the SemVer bump.
+- For `0.x.y` releases, treat breaking changes as a `minor` bump.
+- For `1.x.y+` releases, treat breaking changes as a `major` bump.
+
+1. Choose the SemVer bump level (patch/minor/major) based on change scope.
+2. Sync the chosen version across these release surfaces (must stay in lockstep):
+   - `apps/server/package.json`
+   - `packages/http-client/package.json`
+   - `packages/cli/package.json`
+3. Update `CHANGELOG.md` with a new release section (`## vX.Y.Z - YYYY-MM-DD`) in the existing format.
+4. Report completion and wait for explicit user approval before publishing.
+5. Only after approval, publish npm packages in this order:
+   - `@rankwrangler/http-client`
+   - `@rankwrangler/cli`
+
+Compatibility posture:
+
+- Default to clean breaks for API/CLI evolution.
+- Do not add legacy aliases, fallback code paths, compatibility shims, or dual-behavior migration
+  logic unless explicitly requested.
+
 ## Expectations When Editing
 
 1. Keep TypeScript strictness and Biome formatting intact (`biome.json` enforces 4-space indentation, single quotes, semicolons, 100-character lines).
@@ -264,6 +292,7 @@ docker exec rankwrangler-postgres psql -U "$DATABASE_USER" -d "$DATABASE_NAME" -
 
 - CLI should use the typed client (`@rankwrangler/http-client`) and the public API surface.
 - Keep CLI surface aligned with `api.public.*` so there is one canonical public API.
+- Do not add legacy CLI aliases or compatibility shims unless explicitly requested.
 
 ## Important Implementation Details
 
