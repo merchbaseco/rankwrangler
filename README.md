@@ -11,6 +11,7 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 ## Packages
 
 - `packages/http-client` – Typed tRPC client + public API types for extension/CLI
+- `packages/cli` – Publishable CLI package (`@merchbase/rankwrangler-cli`)
 
 ## API Design
 
@@ -22,10 +23,14 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 
 ## CLI
 
+- npm package: `@merchbase/rankwrangler-cli`
+- Install globally: `npm install -g @merchbase/rankwrangler-cli`
+- Build locally: `bun run cli:build`
 - The CLI uses `@merchbase/rankwrangler-http-client` and the same `api.public.*` surface as HTTP clients.
 - Command shape is resource-first (`products get`, `license status`).
 - Product commands default marketplace to `ATVPDKIKX0DER` and support `--marketplace` / `-m` override.
 - Spec: `docs/cli-spec.md`
+- Release workflow: `docs/cli-spec.md`
 
 ## HTTP Client
 
@@ -36,6 +41,10 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 ## Tooling
 
 - Bun workspaces (`package.json` at repo root)
+
+## Release
+
+- Canonical runbook: `docs/release-runbook.md`
 
 ## Quick Start
 
