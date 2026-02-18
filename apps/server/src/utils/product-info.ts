@@ -2,6 +2,7 @@ import { TRPCError } from '@trpc/server';
 import { db } from '@/db/index.js';
 import { getProductInfoFromStore } from '@/db/product/get-product.js';
 import { productIngestQueue } from '@/db/schema.js';
+import { enqueueKeepaHistoryRefreshForAsin } from '@/services/keepa-history-refresh.js';
 import { trackApiRequest } from '@/services/posthog.js';
 
 export type ProductInfoRequest = {
@@ -20,6 +21,11 @@ export const fetchProductInfo = async ({
     try {
         const cachedProduct = await getProductInfoFromStore(marketplaceId, asin);
         if (cachedProduct) {
+            await tryEnqueueKeepaHistoryRefresh({
+                marketplaceId,
+                asin,
+            });
+
             trackApiRequest({
                 uid,
                 endpoint,
@@ -47,6 +53,11 @@ export const fetchProductInfo = async ({
 
             const polledProduct = await getProductInfoFromStore(marketplaceId, asin);
             if (polledProduct) {
+                await tryEnqueueKeepaHistoryRefresh({
+                    marketplaceId,
+                    asin,
+                });
+
                 return polledProduct;
             }
         }
@@ -65,5 +76,22 @@ export const fetchProductInfo = async ({
             code: 'INTERNAL_SERVER_ERROR',
             message: error instanceof Error ? error.message : 'Unknown error occurred',
         });
+    }
+};
+
+const tryEnqueueKeepaHistoryRefresh = async ({
+    marketplaceId,
+    asin,
+}: {
+    marketplaceId: string;
+    asin: string;
+}) => {
+    try {
+        await enqueueKeepaHistoryRefreshForAsin({ marketplaceId, asin });
+    } catch (error) {
+        console.error(
+            `[Keepa Queue] Failed to enqueue ASIN ${asin} (${marketplaceId}):`,
+            error
+        );
     }
 };

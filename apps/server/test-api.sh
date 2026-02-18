@@ -82,6 +82,12 @@ if [ -n "$RR_CLERK_TOKEN" ]; then
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "metric": "bsrCategory", "limit": 100}}' | jq '.'
     echo ""
+    echo "🪙 Testing api.app.getKeepaStatus..."
+    curl -s -X POST "$API_BASE/api/api.app.getKeepaStatus" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      -d '{"input":null}' | jq '.'
+    echo ""
 else
     echo "⚠️ Skipping app API tests - set RR_CLERK_TOKEN to exercise Clerk endpoints."
     echo ""

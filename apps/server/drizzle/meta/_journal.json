@@ -99,6 +99,13 @@
       "when": 1771360886568,
       "tag": "0013_sticky_hellion",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1771450794929,
+      "tag": "0014_empty_slapstick",
+      "breakpoints": true
     }
   ]
 }

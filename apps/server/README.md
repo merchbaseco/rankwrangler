@@ -108,6 +108,7 @@ Public procedures:
 App procedures:
 
 - `api.app.getProductInfo`
+- `api.app.getKeepaStatus`
 - `api.app.getProductHistory`
 - `api.app.loadProductHistory`
 - `api.app.license.generate`
@@ -152,6 +153,20 @@ curl -s -X POST http://localhost:8080/api/api.app.loadProductHistory \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","days":365}}'
 ```
 
+Manual Keepa import behavior:
+- Requests use high-priority Keepa queueing and may wait up to 2 minutes before returning.
+- Retryable Keepa failures are retried with exponential backoff during that 2-minute window.
+- If retries do not succeed within 2 minutes, API returns `TIMEOUT`; retrying is expected.
+
+Example `curl` (app Keepa runtime status):
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.getKeepaStatus \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":null}'
+```
+
 Example `curl` (app Keepa history query):
 
 ```bash
@@ -180,6 +195,10 @@ Drizzle migrations live under `./drizzle`. Update the schema in `src/db/schema.t
 
 Keepa category label cache table:
 - `keepa_categories` (`marketplace_id`, `category_id`, `name`) is populated from Keepa Categories API and treated as non-expiring cache.
+
+Keepa refresh automation details:
+- `docs/keepa-history-refresh.md`
+- Automatic refresh first import window: up to 3650 days, then stale-aware incremental windows (minimum 30 days).
 
 ## Deployment
 

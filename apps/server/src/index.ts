@@ -8,6 +8,8 @@ import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
+import { fetchKeepaHistoryForAsin } from '@/jobs/fetch-keepa-history-for-asin.js';
+import { processKeepaHistoryRefreshQueue } from '@/jobs/process-keepa-history-refresh-queue.js';
 import { processProductIngestQueue } from '@/jobs/process-product-ingest-queue.js';
 import { reprocessStaleProducts } from '@/jobs/reprocess-stale-products.js';
 import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
@@ -39,6 +41,8 @@ console.log('[Server] pg-boss initialized');
 // Create queues if they don't exist
 await boss.createQueue('process-product-ingest-queue');
 await boss.createQueue('reprocess-stale-products');
+await boss.createQueue('process-keepa-history-refresh-queue');
+await boss.createQueue('fetch-keepa-history-for-asin');
 
 // Register job handlers
 boss.work('process-product-ingest-queue', processProductIngestQueue);
@@ -48,6 +52,30 @@ boss.work('reprocess-stale-products', async () => {
     } catch (error) {
         console.error('[Reprocess Stale Products] Job failed:', error);
         throw error; // Re-throw to mark job as failed
+    }
+});
+boss.work('process-keepa-history-refresh-queue', async () => {
+    try {
+        await processKeepaHistoryRefreshQueue(boss);
+    } catch (error) {
+        console.error('[Process Keepa History Refresh Queue] Job failed:', error);
+        throw error;
+    }
+});
+boss.work('fetch-keepa-history-for-asin', async job => {
+    try {
+        const data = job.data as { marketplaceId?: string; asin?: string } | null;
+        if (!data?.marketplaceId || !data?.asin) {
+            throw new Error('Missing marketplaceId or asin in job payload');
+        }
+
+        await fetchKeepaHistoryForAsin({
+            marketplaceId: data.marketplaceId,
+            asin: data.asin,
+        });
+    } catch (error) {
+        console.error('[Fetch Keepa History For ASIN] Job failed:', error);
+        throw error;
     }
 });
 
@@ -62,6 +90,18 @@ setInterval(async () => {
         }
     );
 }, 1000);
+
+// Send Keepa history queue processing job every minute as singleton
+setInterval(async () => {
+    await boss.send(
+        'process-keepa-history-refresh-queue',
+        {},
+        {
+            singletonKey: 'process-keepa-history-refresh-queue',
+            retryLimit: 0,
+        }
+    );
+}, 60 * 1000);
 
 // Schedule reprocess stale products job to run every 10 minutes using pg-boss cron
 await boss.schedule('reprocess-stale-products', '*/10 * * * *', {});
@@ -201,6 +241,8 @@ try {
     console.log(`  • Jobs Registered:`);
     console.log(`    - process-product-ingest-queue (interval: 1s)`);
     console.log(`    - reprocess-stale-products (cron: */10 * * * *)`);
+    console.log(`    - process-keepa-history-refresh-queue (interval: 1m, singleton)`);
+    console.log(`    - fetch-keepa-history-for-asin (triggered by queue processor)`);
     const posthogStatus = posthogEnabled
         ? 'Enabled'
         : 'Disabled (POSTHOG_API_KEY not set)';
