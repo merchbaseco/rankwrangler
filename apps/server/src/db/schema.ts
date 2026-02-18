@@ -75,6 +75,31 @@ export const productIngestQueue = pgTable(
     })
 );
 
+export const keepaHistoryRefreshQueue = pgTable(
+    'keepa_history_refresh_queue',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        marketplaceId: text('marketplace_id').notNull(),
+        asin: text('asin').notNull(),
+        nextAttemptAt: timestamp('next_attempt_at', { mode: 'date' }).notNull().defaultNow(),
+        attemptCount: integer('attempt_count').notNull().default(0),
+        lastAttemptAt: timestamp('last_attempt_at', { mode: 'date' }),
+        lastError: text('last_error'),
+        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+        updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    },
+    table => ({
+        marketplaceAsinIdx: uniqueIndex('keepa_history_refresh_queue_marketplace_asin_idx').on(
+            table.marketplaceId,
+            table.asin
+        ),
+        nextAttemptCreatedIdx: index('keepa_history_refresh_queue_next_attempt_created_idx').on(
+            table.nextAttemptAt,
+            table.createdAt
+        ),
+    })
+);
+
 export const productHistoryImports = pgTable(
     'product_history_imports',
     {

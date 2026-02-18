@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, asc, eq, gte, inArray, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from 'drizzle-orm';
 import Bottleneck from 'bottleneck';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
@@ -24,6 +24,7 @@ type LoadKeepaProductHistoryParams = {
     marketplaceId: string;
     asin: string;
     days: number;
+    queuePriority?: 'manual' | 'background';
 };
 
 type GetProductHistoryPointsParams = {
@@ -73,6 +74,18 @@ type KeepaCategory = {
     contextFreeName?: string;
 };
 
+type KeepaTokenResponse = {
+    tokensConsumed?: number;
+    tokensLeft?: number;
+    refillIn?: number;
+    refillRate?: number;
+    error?: {
+        code?: string;
+        type?: string;
+        message?: string;
+    };
+};
+
 type ParsedPoint = {
     metric: string;
     categoryId: number;
@@ -84,7 +97,7 @@ type ParsedPoint = {
 
 type PointCountSummary = Record<string, number>;
 
-type KeepaImportSummary = {
+export type KeepaImportSummary = {
     importId: string;
     marketplaceId: string;
     asin: string;
@@ -95,6 +108,34 @@ type KeepaImportSummary = {
     tokensLeft: number | null;
     refillInMs: number | null;
     refillRate: number | null;
+    status: 'success' | 'error';
+    cached: boolean;
+    importedAt: string;
+    errorCode: string | null;
+    errorMessage: string | null;
+    responsePayload: Record<string, unknown> | null;
+};
+
+export type KeepaRuntimeTokenState = {
+    tokensConsumed: number | null;
+    tokensLeft: number | null;
+    refillInMs: number | null;
+    refillRate: number | null;
+    updatedAt: string | null;
+};
+
+type KeepaImportRow = {
+    id: string;
+    status: string;
+    requestParams: Record<string, unknown>;
+    responsePayload: Record<string, unknown> | null;
+    tokensConsumed: number | null;
+    tokensLeft: number | null;
+    refillInMs: number | null;
+    refillRate: number | null;
+    errorCode: string | null;
+    errorMessage: string | null;
+    createdAt: Date;
 };
 
 type CategoryNamesById = Record<string, string>;
@@ -103,6 +144,8 @@ const KEEPA_SOURCE = 'keepa';
 const KEEPA_UPDATE_HOURS = 1;
 const KEEPA_MINUTE_EPOCH_OFFSET = 21564000;
 const KEEPA_CATEGORY_BATCH_SIZE = 50;
+const KEEPA_MIN_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const KEEPA_TOKEN_STATE_STALE_MS = 60 * 1000;
 
 const keepaRateLimiter = new Bottleneck({
     maxConcurrent: 1,
@@ -120,10 +163,70 @@ const historyMetricMap: Record<KeepaHistoryMetricKey, string> = {
     priceNewFba: 'price_new_fba',
 };
 
+const keepaTokenState: {
+    tokensConsumed: number | null;
+    tokensLeft: number | null;
+    refillInMs: number | null;
+    refillRate: number | null;
+    updatedAt: Date | null;
+} = {
+    tokensConsumed: null,
+    tokensLeft: null,
+    refillInMs: null,
+    refillRate: null,
+    updatedAt: null,
+};
+
+let keepaTokenRefreshInFlight: Promise<KeepaRuntimeTokenState> | null = null;
+
+export const getKeepaRuntimeTokenState = (): KeepaRuntimeTokenState => {
+    const estimatedTokensLeft = estimateTokensLeft({
+        tokensLeft: keepaTokenState.tokensLeft,
+        refillInMs: keepaTokenState.refillInMs,
+        refillRate: keepaTokenState.refillRate,
+        updatedAt: keepaTokenState.updatedAt,
+    });
+
+    return {
+        tokensConsumed: keepaTokenState.tokensConsumed,
+        tokensLeft: estimatedTokensLeft,
+        refillInMs: keepaTokenState.refillInMs,
+        refillRate: keepaTokenState.refillRate,
+        updatedAt: keepaTokenState.updatedAt ? keepaTokenState.updatedAt.toISOString() : null,
+    };
+};
+
+export const ensureFreshKeepaTokenState = async ({
+    maxAgeMs = KEEPA_TOKEN_STATE_STALE_MS,
+}: {
+    maxAgeMs?: number;
+} = {}): Promise<KeepaRuntimeTokenState> => {
+    if (!env.KEEPA_API_KEY) {
+        return getKeepaRuntimeTokenState();
+    }
+
+    if (keepaTokenRefreshInFlight) {
+        return keepaTokenRefreshInFlight;
+    }
+
+    if (!isKeepaTokenStateStale(maxAgeMs)) {
+        return getKeepaRuntimeTokenState();
+    }
+
+    keepaTokenRefreshInFlight = refreshKeepaTokenStateFromApi(env.KEEPA_API_KEY);
+
+    try {
+        return await keepaTokenRefreshInFlight;
+    } finally {
+        keepaTokenRefreshInFlight = null;
+    }
+};
+
 export const loadKeepaProductHistory = async ({
     marketplaceId,
     asin,
     days,
+    queuePriority = 'background',
 }: LoadKeepaProductHistoryParams): Promise<KeepaImportSummary> => {
     const keepaApiKey = env.KEEPA_API_KEY;
     if (!keepaApiKey) {
@@ -157,6 +260,17 @@ export const loadKeepaProductHistory = async ({
     }
 
     const productId = productRow[0].id;
+    const recentImport = await getRecentSuccessfulKeepaImport(productId);
+    if (recentImport) {
+        return buildKeepaImportSummaryFromCachedImport({
+            productId,
+            marketplaceId,
+            asin,
+            fallbackDays: days,
+            importRow: recentImport,
+        });
+    }
+
     const requestParams = {
         domain: keepaDomainId,
         asin,
@@ -168,16 +282,30 @@ export const loadKeepaProductHistory = async ({
     let keepaResponse: KeepaResponse;
 
     try {
-        keepaResponse = await keepaRateLimiter.schedule(() =>
-            fetchKeepaProduct({
-                apiKey: keepaApiKey,
-                domainId: keepaDomainId,
-                asin,
-                days,
-            })
+        keepaResponse = await keepaRateLimiter.schedule(
+            { priority: getKeepaRateLimiterPriority(queuePriority) },
+            () =>
+                fetchKeepaProduct({
+                    apiKey: keepaApiKey,
+                    domainId: keepaDomainId,
+                    asin,
+                    days,
+                })
         );
+        updateKeepaTokenState({
+            tokensConsumed: keepaResponse.tokensConsumed ?? null,
+            tokensLeft: keepaResponse.tokensLeft ?? null,
+            refillInMs: keepaResponse.refillIn ?? null,
+            refillRate: keepaResponse.refillRate ?? null,
+        });
     } catch (error) {
         const errorDetails = extractKeepaErrorDetails(error);
+        updateKeepaTokenState({
+            tokensConsumed: errorDetails.tokensConsumed,
+            tokensLeft: errorDetails.tokensLeft,
+            refillInMs: errorDetails.refillIn,
+            refillRate: errorDetails.refillRate,
+        });
 
         await db.insert(productHistoryImports).values({
             productId,
@@ -205,6 +333,9 @@ export const loadKeepaProductHistory = async ({
         keepaResponse.products?.find(product => product.asin === asin) ?? keepaResponse.products?.[0];
 
     if (!keepaProduct) {
+        const errorCode = keepaResponse.error?.code ?? 'NO_PRODUCT';
+        const errorMessage = keepaResponse.error?.message ?? 'Keepa returned no product payload';
+
         await db.insert(productHistoryImports).values({
             productId,
             marketplaceId,
@@ -217,8 +348,8 @@ export const loadKeepaProductHistory = async ({
             tokensLeft: keepaResponse.tokensLeft ?? null,
             refillInMs: keepaResponse.refillIn ?? null,
             refillRate: keepaResponse.refillRate ?? null,
-            errorCode: keepaResponse.error?.code ?? 'NO_PRODUCT',
-            errorMessage: keepaResponse.error?.message ?? 'Keepa returned no product payload',
+            errorCode,
+            errorMessage,
         });
 
         throw new TRPCError({
@@ -253,6 +384,7 @@ export const loadKeepaProductHistory = async ({
         })
         .returning({
             id: productHistoryImports.id,
+            createdAt: productHistoryImports.createdAt,
         });
 
     for (let index = 0; index < parsedPoints.length; index += 500) {
@@ -312,6 +444,12 @@ export const loadKeepaProductHistory = async ({
         tokensLeft: keepaResponse.tokensLeft ?? null,
         refillInMs: keepaResponse.refillIn ?? null,
         refillRate: keepaResponse.refillRate ?? null,
+        status: 'success',
+        cached: false,
+        importedAt: insertedImport.createdAt.toISOString(),
+        errorCode: null,
+        errorMessage: null,
+        responsePayload: keepaResponse,
     };
 };
 
@@ -420,6 +558,30 @@ const fetchKeepaProduct = async ({
     return payload;
 };
 
+const fetchKeepaTokenStatus = async ({ apiKey }: { apiKey: string }) => {
+    const params = new URLSearchParams({
+        key: apiKey,
+    });
+
+    const response = await fetch(`https://api.keepa.com/token?${params.toString()}`);
+    const rawPayload = (await response.json()) as KeepaTokenResponse | number;
+    const payload = normalizeKeepaTokenResponse(rawPayload);
+
+    if (!response.ok || payload.error?.message) {
+        throw new KeepaApiError(
+            payload.error?.code ?? payload.error?.type ?? String(response.status),
+            payload.error?.message ?? `HTTP ${response.status}`,
+            payload,
+            payload.tokensConsumed,
+            payload.tokensLeft,
+            payload.refillIn,
+            payload.refillRate
+        );
+    }
+
+    return payload;
+};
+
 const fetchKeepaCategories = async ({
     apiKey,
     domainId,
@@ -505,6 +667,12 @@ const resolveCategoryNames = async ({
                     categoryIds: categoryIdsChunk,
                 })
             );
+            updateKeepaTokenState({
+                tokensConsumed: keepaCategoryResponse.tokensConsumed ?? null,
+                tokensLeft: keepaCategoryResponse.tokensLeft ?? null,
+                refillInMs: keepaCategoryResponse.refillIn ?? null,
+                refillRate: keepaCategoryResponse.refillRate ?? null,
+            });
 
             const resolvedCategoryNames = parseKeepaCategoryNames(keepaCategoryResponse);
             const rowsToUpsert = Object.entries(resolvedCategoryNames).map(
@@ -531,7 +699,14 @@ const resolveCategoryNames = async ({
             for (const [categoryId, name] of Object.entries(resolvedCategoryNames)) {
                 categoryNames[categoryId] = name;
             }
-        } catch {
+        } catch (error) {
+            const errorDetails = extractKeepaErrorDetails(error);
+            updateKeepaTokenState({
+                tokensConsumed: errorDetails.tokensConsumed,
+                tokensLeft: errorDetails.tokensLeft,
+                refillInMs: errorDetails.refillIn,
+                refillRate: errorDetails.refillRate,
+            });
             continue;
         }
     }
@@ -704,6 +879,235 @@ const extractKeepaErrorDetails = (error: unknown) => {
         refillIn: null,
         refillRate: null,
     };
+};
+
+const getRecentSuccessfulKeepaImport = async (
+    productId: string
+): Promise<KeepaImportRow | null> => {
+    const recentThreshold = new Date(Date.now() - KEEPA_MIN_REFRESH_INTERVAL_MS);
+    const rows = await db
+        .select({
+            id: productHistoryImports.id,
+            status: productHistoryImports.status,
+            requestParams: productHistoryImports.requestParams,
+            responsePayload: productHistoryImports.responsePayload,
+            tokensConsumed: productHistoryImports.tokensConsumed,
+            tokensLeft: productHistoryImports.tokensLeft,
+            refillInMs: productHistoryImports.refillInMs,
+            refillRate: productHistoryImports.refillRate,
+            errorCode: productHistoryImports.errorCode,
+            errorMessage: productHistoryImports.errorMessage,
+            createdAt: productHistoryImports.createdAt,
+        })
+        .from(productHistoryImports)
+        .where(
+            and(
+                eq(productHistoryImports.productId, productId),
+                eq(productHistoryImports.source, KEEPA_SOURCE),
+                eq(productHistoryImports.status, 'success'),
+                gte(productHistoryImports.createdAt, recentThreshold)
+            )
+        )
+        .orderBy(desc(productHistoryImports.createdAt))
+        .limit(1);
+
+    return rows[0] ?? null;
+};
+
+const buildKeepaImportSummaryFromCachedImport = async ({
+    productId,
+    marketplaceId,
+    asin,
+    fallbackDays,
+    importRow,
+}: {
+    productId: string;
+    marketplaceId: string;
+    asin: string;
+    fallbackDays: number;
+    importRow: KeepaImportRow;
+}): Promise<KeepaImportSummary> => {
+    const pointCounts =
+        importRow.status === 'success' ? await getStoredPointCountsByMetric(productId) : {};
+    const pointsStored = Object.values(pointCounts).reduce((sum, value) => sum + value, 0);
+
+    return {
+        importId: importRow.id,
+        marketplaceId,
+        asin,
+        days: getDaysFromRequestParams(importRow.requestParams, fallbackDays),
+        pointsStored,
+        pointCounts,
+        tokensConsumed: importRow.tokensConsumed,
+        tokensLeft: importRow.tokensLeft,
+        refillInMs: importRow.refillInMs,
+        refillRate: importRow.refillRate,
+        status: importRow.status === 'success' ? 'success' : 'error',
+        cached: true,
+        importedAt: importRow.createdAt.toISOString(),
+        errorCode: importRow.errorCode,
+        errorMessage: importRow.errorMessage,
+        responsePayload: importRow.responsePayload,
+    };
+};
+
+const getStoredPointCountsByMetric = async (productId: string): Promise<PointCountSummary> => {
+    const rows = await db
+        .select({
+            metric: productHistoryPoints.metric,
+            count: sql<number>`count(*)::int`,
+        })
+        .from(productHistoryPoints)
+        .where(
+            and(
+                eq(productHistoryPoints.productId, productId),
+                eq(productHistoryPoints.source, KEEPA_SOURCE)
+            )
+        )
+        .groupBy(productHistoryPoints.metric);
+
+    const pointCounts: PointCountSummary = {};
+    for (const row of rows) {
+        pointCounts[row.metric] = row.count;
+    }
+
+    return pointCounts;
+};
+
+const getDaysFromRequestParams = (requestParams: Record<string, unknown>, fallbackDays: number) => {
+    const daysValue = requestParams.days;
+    if (typeof daysValue === 'number' && Number.isFinite(daysValue) && daysValue > 0) {
+        return Math.trunc(daysValue);
+    }
+
+    return fallbackDays;
+};
+
+const updateKeepaTokenState = ({
+    tokensConsumed,
+    tokensLeft,
+    refillInMs,
+    refillRate,
+}: {
+    tokensConsumed: number | null;
+    tokensLeft: number | null;
+    refillInMs: number | null;
+    refillRate: number | null;
+}) => {
+    keepaTokenState.tokensConsumed = tokensConsumed;
+    keepaTokenState.tokensLeft = tokensLeft;
+    keepaTokenState.refillInMs = refillInMs;
+    keepaTokenState.refillRate = refillRate;
+    keepaTokenState.updatedAt = new Date();
+};
+
+const estimateTokensLeft = ({
+    tokensLeft,
+    refillInMs,
+    refillRate,
+    updatedAt,
+}: {
+    tokensLeft: number | null;
+    refillInMs: number | null;
+    refillRate: number | null;
+    updatedAt: Date | null;
+}) => {
+    if (
+        typeof tokensLeft !== 'number' ||
+        typeof refillRate !== 'number' ||
+        refillRate <= 0 ||
+        !updatedAt
+    ) {
+        return tokensLeft;
+    }
+
+    const elapsedMs = Date.now() - updatedAt.getTime();
+    if (elapsedMs <= 0) {
+        return tokensLeft;
+    }
+
+    const refillDelayMs =
+        typeof refillInMs === 'number' && refillInMs > 0 ? refillInMs : 0;
+    if (elapsedMs <= refillDelayMs) {
+        return tokensLeft;
+    }
+
+    const regeneratedWindows =
+        Math.floor((elapsedMs - refillDelayMs) / (60 * 1000)) + 1;
+    const regeneratedTokens = regeneratedWindows * refillRate;
+
+    return tokensLeft + regeneratedTokens;
+};
+
+const getKeepaRateLimiterPriority = (queuePriority: 'manual' | 'background') => {
+    return queuePriority === 'manual' ? 1 : 5;
+};
+
+const refreshKeepaTokenStateFromApi = async (apiKey: string): Promise<KeepaRuntimeTokenState> => {
+    try {
+        const keepaTokenResponse = await keepaRateLimiter.schedule({ priority: 0 }, () =>
+            fetchKeepaTokenStatus({ apiKey })
+        );
+        updateKeepaTokenState({
+            tokensConsumed: keepaTokenResponse.tokensConsumed ?? null,
+            tokensLeft: keepaTokenResponse.tokensLeft ?? null,
+            refillInMs: keepaTokenResponse.refillIn ?? null,
+            refillRate: keepaTokenResponse.refillRate ?? null,
+        });
+    } catch (error) {
+        const errorDetails = extractKeepaErrorDetails(error);
+        if (hasKeepaTokenMetadata(errorDetails)) {
+            updateKeepaTokenState({
+                tokensConsumed: errorDetails.tokensConsumed,
+                tokensLeft: errorDetails.tokensLeft,
+                refillInMs: errorDetails.refillIn,
+                refillRate: errorDetails.refillRate,
+            });
+        }
+    }
+
+    return getKeepaRuntimeTokenState();
+};
+
+const normalizeKeepaTokenResponse = (payload: KeepaTokenResponse | number): KeepaTokenResponse => {
+    if (typeof payload === 'number') {
+        return {
+            tokensLeft: payload,
+        };
+    }
+
+    if (payload && typeof payload === 'object') {
+        return payload;
+    }
+
+    return {};
+};
+
+const isKeepaTokenStateStale = (maxAgeMs: number) => {
+    if (!keepaTokenState.updatedAt) {
+        return true;
+    }
+
+    return Date.now() - keepaTokenState.updatedAt.getTime() >= maxAgeMs;
+};
+
+const hasKeepaTokenMetadata = ({
+    tokensConsumed,
+    tokensLeft,
+    refillIn,
+    refillRate,
+}: {
+    tokensConsumed: number | null;
+    tokensLeft: number | null;
+    refillIn: number | null;
+    refillRate: number | null;
+}) => {
+    return (
+        typeof tokensConsumed === 'number' ||
+        typeof tokensLeft === 'number' ||
+        typeof refillIn === 'number' ||
+        typeof refillRate === 'number'
+    );
 };
 
 class KeepaApiError extends Error {
