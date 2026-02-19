@@ -2,10 +2,11 @@ import { UserButton } from '@clerk/clerk-react';
 
 interface AppShellProps {
     sidebar: React.ReactNode;
+    sidebarHeaderActions?: React.ReactNode;
     children: React.ReactNode;
 }
 
-export function AppShell({ sidebar, children }: AppShellProps) {
+export function AppShell({ sidebar, sidebarHeaderActions, children }: AppShellProps) {
     return (
         <div className="h-screen overflow-hidden bg-background p-1.5 lg:p-2">
             <div className="flex h-[calc(100vh-12px)] flex-col gap-1.5 lg:h-[calc(100vh-16px)] lg:flex-row lg:gap-2">
@@ -25,13 +26,16 @@ export function AppShell({ sidebar, children }: AppShellProps) {
                                 Amazon BSR Intelligence
                             </p>
                         </div>
-                        <UserButton
-                            appearance={{
-                                elements: {
-                                    avatarBox: 'w-8 h-8',
-                                },
-                            }}
-                        />
+                        <div className="flex items-center gap-2">
+                            {sidebarHeaderActions}
+                            <UserButton
+                                appearance={{
+                                    elements: {
+                                        avatarBox: 'w-8 h-8',
+                                    },
+                                }}
+                            />
+                        </div>
                     </div>
 
                     {/* Spacer pushes content to bottom */}

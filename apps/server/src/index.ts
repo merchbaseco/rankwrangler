@@ -13,6 +13,7 @@ import { fetchKeepaHistoryForAsin } from '@/jobs/fetch-keepa-history-for-asin.js
 import { processKeepaHistoryRefreshQueue } from '@/jobs/process-keepa-history-refresh-queue.js';
 import { processProductIngestQueue } from '@/jobs/process-product-ingest-queue.js';
 import { reprocessStaleProducts } from '@/jobs/reprocess-stale-products.js';
+import { runTrackedJob } from '@/services/job-executions.js';
 import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
 
 console.log('Starting RankWrangler Server...');
@@ -46,40 +47,103 @@ await boss.createQueue('process-keepa-history-refresh-queue');
 await boss.createQueue('fetch-keepa-history-for-asin');
 
 // Register job handlers
-boss.work('process-product-ingest-queue', processProductIngestQueue);
-boss.work('reprocess-stale-products', async () => {
-    try {
-        await reprocessStaleProducts();
-    } catch (error) {
-        console.error('[Reprocess Stale Products] Job failed:', error);
-        throw error; // Re-throw to mark job as failed
-    }
-});
-boss.work('process-keepa-history-refresh-queue', async () => {
-    try {
-        await processKeepaHistoryRefreshQueue(boss);
-    } catch (error) {
-        console.error('[Process Keepa History Refresh Queue] Job failed:', error);
-        throw error;
-    }
-});
-boss.work('fetch-keepa-history-for-asin', async (jobs: Job<unknown>[]) => {
-    try {
-        for (const queuedJob of jobs) {
-            const payload = getFetchKeepaHistoryJobPayload(queuedJob);
-            if (!payload) {
-                console.error(
-                    `[Fetch Keepa History For ASIN] Skipping job ${queuedJob.id}: missing marketplaceId or asin in job payload`,
-                    queuedJob.data
-                );
-                continue;
+boss.work('process-product-ingest-queue', async job => {
+    await runTrackedJob({
+        jobName: 'process-product-ingest-queue',
+        input: job.data,
+        shouldPersistSuccess: result => result.didWork,
+        run: async logger => {
+            const result = await processProductIngestQueue();
+
+            if (result.didWork) {
+                logger.info('Processed product ingest queue batch', {
+                    marketplaceId: result.marketplaceId,
+                    queueCount: result.queueCount,
+                    upsertedCount: result.upsertedCount,
+                });
             }
 
-            await fetchKeepaHistoryForAsin(payload);
-        }
-    } catch (error) {
-        console.error('[Fetch Keepa History For ASIN] Job failed:', error);
-        throw error;
+            return result;
+        },
+    });
+});
+boss.work('reprocess-stale-products', async job => {
+    await runTrackedJob({
+        jobName: 'reprocess-stale-products',
+        input: job.data,
+        shouldPersistSuccess: result => result.didWork,
+        run: async logger => {
+            const result = await reprocessStaleProducts();
+
+            if (result.errorMessage) {
+                logger.error('Failed to enqueue stale products', {
+                    staleProductCount: result.staleProductCount,
+                    error: result.errorMessage,
+                });
+            } else if (result.didWork) {
+                logger.info('Queued stale products for reprocessing', {
+                    staleProductCount: result.staleProductCount,
+                    enqueuedCount: result.enqueuedCount,
+                });
+            }
+
+            return result;
+        },
+    });
+});
+boss.work('process-keepa-history-refresh-queue', async job => {
+    await runTrackedJob({
+        jobName: 'process-keepa-history-refresh-queue',
+        input: job.data,
+        shouldPersistSuccess: result => result.didWork,
+        run: async logger => {
+            const result = await processKeepaHistoryRefreshQueue(boss);
+
+            if (result.didWork) {
+                logger.info('Dispatched Keepa refresh jobs', {
+                    batchSize: result.batchSize,
+                    dispatchedCount: result.dispatchedCount,
+                });
+            }
+
+            return result;
+        },
+    });
+});
+boss.work('fetch-keepa-history-for-asin', async (jobs: Job<unknown>[]) => {
+    for (const queuedJob of jobs) {
+        await runTrackedJob({
+            jobName: 'fetch-keepa-history-for-asin',
+            input: queuedJob.data,
+            shouldPersistSuccess: result => result.didWork,
+            run: async logger => {
+                const payload = getFetchKeepaHistoryJobPayload(queuedJob);
+                if (!payload) {
+                    logger.warn('Skipping job: missing marketplaceId or asin in job payload', {
+                        jobId: queuedJob.id,
+                        payload: queuedJob.data,
+                    });
+
+                    return {
+                        didWork: false,
+                        jobId: queuedJob.id,
+                        status: 'skipped_invalid_payload',
+                    } as const;
+                }
+
+                logger.info('Processing Keepa history fetch', payload);
+
+                await fetchKeepaHistoryForAsin(payload);
+
+                logger.info('Completed Keepa history fetch', payload);
+
+                return {
+                    didWork: true,
+                    ...payload,
+                    status: 'completed',
+                } as const;
+            },
+        });
     }
 });
 
@@ -255,6 +319,7 @@ try {
         ? 'Configured'
         : 'Disabled (KEEPA_API_KEY not set)';
     console.log(`  • Keepa History Sync: ${keepaStatus}`);
+    console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
     console.log('  • API Routes: tRPC (/api)');
     console.log('  • Auth: Clerk (app), License (public)');
     console.log('═══════════════════════════════════════════════════════════════');

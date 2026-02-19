@@ -335,7 +335,7 @@ export function RecentProducts() {
 
     if (isLoading) {
         return (
-            <Frame className="bg-[#FCFCFC]">
+            <Frame>
                 <div className="space-y-1 p-4">
                     {Array.from({ length: 8 }).map((_, index) => (
                         <div
