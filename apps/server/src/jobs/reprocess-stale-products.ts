@@ -14,6 +14,13 @@ const HOURS_24 = 24 * 60 * 60 * 1000;
 const DAYS_7 = 7 * 24 * 60 * 60 * 1000;
 const DAYS_30 = 30 * 24 * 60 * 60 * 1000;
 
+export type ReprocessStaleProductsResult = {
+    didWork: boolean;
+    staleProductCount: number;
+    enqueuedCount: number;
+    errorMessage: string | null;
+};
+
 export async function reprocessStaleProducts() {
     const now = new Date();
     const threshold24Hours = new Date(now.getTime() - HOURS_24);
@@ -71,7 +78,12 @@ export async function reprocessStaleProducts() {
         );
 
     if (staleProducts.length === 0) {
-        return;
+        return {
+            didWork: false,
+            staleProductCount: 0,
+            enqueuedCount: 0,
+            errorMessage: null,
+        } satisfies ReprocessStaleProductsResult;
     }
 
     // Add stale products to ingest queue (using onConflictDoNothing to avoid duplicates)
@@ -85,7 +97,24 @@ export async function reprocessStaleProducts() {
                 }))
             )
             .onConflictDoNothing();
+
+        return {
+            didWork: true,
+            staleProductCount: staleProducts.length,
+            enqueuedCount: staleProducts.length,
+            errorMessage: null,
+        } satisfies ReprocessStaleProductsResult;
     } catch (error) {
         console.error('[Reprocess Stale Products] Error adding products to queue:', error);
+
+        return {
+            didWork: true,
+            staleProductCount: staleProducts.length,
+            enqueuedCount: 0,
+            errorMessage:
+                error instanceof Error
+                    ? error.message
+                    : 'Failed to enqueue stale products',
+        } satisfies ReprocessStaleProductsResult;
     }
 }

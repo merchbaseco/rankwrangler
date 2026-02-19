@@ -93,4 +93,25 @@ else
     echo ""
 fi
 
+# Clerk-authenticated admin API
+if [ -n "$RR_CLERK_ADMIN_TOKEN" ]; then
+    echo "🛡️ Testing Clerk-authenticated admin API..."
+    echo ""
+    echo "🪪 Testing api.app.adminStatus..."
+    curl -s -X POST "$API_BASE/api/api.app.adminStatus" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
+      -d '{"input":null}' | jq '.'
+    echo ""
+    echo "🧵 Testing api.app.jobExecutions..."
+    curl -s -X POST "$API_BASE/api/api.app.jobExecutions" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
+      -d '{"input":{"limit":10}}' | jq '.'
+    echo ""
+else
+    echo "⚠️ Skipping admin API tests - set RR_CLERK_ADMIN_TOKEN for admin-only procedures."
+    echo ""
+fi
+
 echo "✅ API testing complete!"

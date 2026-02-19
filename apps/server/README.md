@@ -107,8 +107,10 @@ Public procedures:
 
 App procedures:
 
+- `api.app.adminStatus` (admin only)
 - `api.app.getProductInfo`
 - `api.app.getKeepaStatus`
+- `api.app.jobExecutions` (admin only)
 - `api.app.getProductHistory`
 - `api.app.loadProductHistory`
 - `api.app.license.generate`
@@ -116,6 +118,10 @@ App procedures:
 - `api.app.license.details`
 - `api.app.license.delete`
 - `api.app.license.reset`
+
+Admin job observability:
+- Job executions and structured job logs are persisted in `job_executions` and `job_execution_logs`.
+- The dashboard calls `api.app.jobExecutions` and is gated by `ADMIN_EMAIL` (`adminProcedure`).
 
 Example `curl` (public):
 

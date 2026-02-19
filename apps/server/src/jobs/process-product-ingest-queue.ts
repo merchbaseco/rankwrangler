@@ -3,11 +3,23 @@ import { deleteQueueItems } from '@/db/product-ingest-queue/delete-queue-items.j
 import { getQueueItems } from '@/db/product-ingest-queue/get-queue-items.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 
+export type ProcessProductIngestQueueResult = {
+    didWork: boolean;
+    marketplaceId: string | null;
+    queueCount: number;
+    upsertedCount: number;
+};
+
 export async function processProductIngestQueue() {
     const queueItems = await getQueueItems(20);
 
     if (queueItems.length === 0) {
-        return;
+        return {
+            didWork: false,
+            marketplaceId: null,
+            queueCount: 0,
+            upsertedCount: 0,
+        } satisfies ProcessProductIngestQueueResult;
     }
 
     // All items are guaranteed to be from the same marketplace (handled by getQueueItems)
@@ -29,4 +41,11 @@ export async function processProductIngestQueue() {
     }
 
     await deleteQueueItems(itemIds);
+
+    return {
+        didWork: true,
+        marketplaceId,
+        queueCount: queueItems.length,
+        upsertedCount: fetchedProducts.length,
+    } satisfies ProcessProductIngestQueueResult;
 }
