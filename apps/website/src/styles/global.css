@@ -214,35 +214,6 @@ body {
     pointer-events: none;
 }
 
-/* Decorative swirl lines (like the screenshot) */
-.panel-dark-decor {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-}
-
-.panel-dark-decor::before {
-    content: '';
-    position: absolute;
-    bottom: 15%;
-    left: -30%;
-    width: 160%;
-    height: 80%;
-    border: 1px solid rgba(245, 240, 235, 0.05);
-    border-radius: 50%;
-}
-
-.panel-dark-decor::after {
-    content: '';
-    position: absolute;
-    bottom: 25%;
-    left: -20%;
-    width: 140%;
-    height: 60%;
-    border: 1px solid rgba(245, 240, 235, 0.04);
-    border-radius: 50%;
-}
 
 /* ─── Right content panel ─── */
 .panel-warm {
