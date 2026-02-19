@@ -2,6 +2,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify from 'fastify';
+import type { Job } from 'pg-boss';
 import { createContext } from '@/api/context.js';
 import { appRouter } from '@/api/router.js';
 import { PgBoss } from 'pg-boss';
@@ -62,17 +63,20 @@ boss.work('process-keepa-history-refresh-queue', async () => {
         throw error;
     }
 });
-boss.work('fetch-keepa-history-for-asin', async job => {
+boss.work('fetch-keepa-history-for-asin', async (jobs: Job<unknown>[]) => {
     try {
-        const data = job.data as { marketplaceId?: string; asin?: string } | null;
-        if (!data?.marketplaceId || !data?.asin) {
-            throw new Error('Missing marketplaceId or asin in job payload');
-        }
+        for (const queuedJob of jobs) {
+            const payload = getFetchKeepaHistoryJobPayload(queuedJob);
+            if (!payload) {
+                console.error(
+                    `[Fetch Keepa History For ASIN] Skipping job ${queuedJob.id}: missing marketplaceId or asin in job payload`,
+                    queuedJob.data
+                );
+                continue;
+            }
 
-        await fetchKeepaHistoryForAsin({
-            marketplaceId: data.marketplaceId,
-            asin: data.asin,
-        });
+            await fetchKeepaHistoryForAsin(payload);
+        }
     } catch (error) {
         console.error('[Fetch Keepa History For ASIN] Job failed:', error);
         throw error;
@@ -260,3 +264,34 @@ try {
     await shutdownPostHog();
     process.exit(1);
 }
+
+type FetchKeepaHistoryJobPayload = {
+    marketplaceId: string;
+    asin: string;
+};
+
+const getFetchKeepaHistoryJobPayload = (job: Job<unknown>) => {
+    if (!isRecord(job.data)) {
+        return null;
+    }
+
+    const marketplaceId = job.data.marketplaceId;
+    const asin = job.data.asin;
+
+    if (typeof marketplaceId !== 'string' || typeof asin !== 'string') {
+        return null;
+    }
+
+    if (marketplaceId.length === 0 || asin.length === 0) {
+        return null;
+    }
+
+    return {
+        marketplaceId,
+        asin,
+    } satisfies FetchKeepaHistoryJobPayload;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === 'object' && value !== null;
+};
