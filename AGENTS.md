@@ -323,3 +323,32 @@ This is essential for accurate time-series BSR tracking that aligns with Amazon'
 Example: Product fetched at 11 PM PST on Jan 1st. A query at 1 AM PST on Jan 2nd will find the product in cache but no rank history for Jan 2nd, so it will fetch fresh data to populate today's ranks.
 
 If unsure, ask for clarification instead of guessing—deployment touches live infrastructure.
+
+## UI Components (coss ui)
+
+- **Component library**: [coss ui](https://coss.com/ui) — copy-paste components built on [Base UI](https://base-ui.com/) and styled with Tailwind CSS.
+- **Registry**: `https://coss.com/ui/llms.txt` lists all available components with doc links.
+- **Component source**: Fetch `https://coss.com/ui/r/<component-name>.json` for the registry JSON containing full source code.
+- **Local path**: `apps/website/src/components/ui/` — all UI components live here.
+- **Adapting imports**: The coss registry uses `@base-ui/react`; this project uses `@base-ui-components/react`. Swap the import path when adding new components.
+- **Always prefer coss ui components** over custom-styled elements. If a component is missing, fetch it from the registry and add it.
+
+### Color Theme Hierarchy
+
+Colors flow in one direction: **theme tokens → UI components → feature components**.
+
+1. **`apps/website/src/styles/global.css`** defines all design tokens (CSS custom properties).
+2. **`apps/website/src/components/ui/*`** consume tokens via Tailwind classes (`bg-primary`, `text-muted-foreground`, etc.).
+3. **Feature components** use UI components by picking `variant` and `size` — never override colors with `bg-[#hex]` or `text-[#hex]` on UI components.
+
+**Color scheme**: dark black + warm tan. The primary color is dark near-black (`--primary: #141210`), not green. Sage green is reserved for chart data visualization only.
+
+Key token mappings:
+- `bg-primary` / `text-primary-foreground` — dark buttons, active states
+- `bg-background` — page/panel backgrounds (`#FCFCFC`)
+- `text-foreground` — primary text (`#1C1917`)
+- `text-muted-foreground` — secondary/subtle text (`#78716C`)
+- `bg-accent` — light hover backgrounds
+- `bg-secondary` — soft inactive backgrounds
+
+**Never hardcode hex values** in feature components for colors that have theme tokens. If a color doesn't map to an existing token and is needed in multiple places, add a new token to `global.css` rather than scattering raw hex values.

@@ -73,202 +73,204 @@
 }
 
 :root {
-    --radius: 0.625rem;
-    --font-mono: 'Geist Mono', monospace;
-    --font-display: 'Playfair Display', Georgia, serif;
+	--radius: 0.625rem;
+	--font-mono: "Geist Mono", monospace;
+	--font-display: "Playfair Display", Georgia, serif;
 
-    /* Page background */
-    --background: #FCFCFC;
-    --foreground: #1C1917;
+	/* Page background */
+	--background: #fcfcfc;
+	--foreground: #1c1917;
 
-    /* Cards — used inside panels */
-    --card: rgba(0, 0, 0, 0.06);
-    --card-foreground: #1C1917;
+	/* Cards — used inside panels */
+	--card: rgba(0, 0, 0, 0.06);
+	--card-foreground: #1c1917;
 
-    /* Popover */
-    --popover: #FFFFFF;
-    --popover-foreground: #1C1917;
+	/* Popover */
+	--popover: #ffffff;
+	--popover-foreground: #1c1917;
 
-    /* Primary = deep sage */
-    --primary: #5C7248;
-    --primary-foreground: #FAFAF9;
+	/* Primary = dark black */
+	--primary: #141210;
+	--primary-foreground: #fafaf9;
 
-    /* Secondary */
-    --secondary: rgba(0, 0, 0, 0.04);
-    --secondary-foreground: #44403C;
+	/* Secondary */
+	--secondary: rgba(0, 0, 0, 0.04);
+	--secondary-foreground: #44403c;
 
-    /* Muted */
-    --muted: rgba(0, 0, 0, 0.04);
-    --muted-foreground: #78716C;
+	/* Muted */
+	--muted: rgba(0, 0, 0, 0.04);
+	--muted-foreground: #78716c;
 
-    /* Accent */
-    --accent: rgba(0, 0, 0, 0.06);
-    --accent-foreground: #44403C;
+	/* Accent */
+	--accent: rgba(0, 0, 0, 0.06);
+	--accent-foreground: #44403c;
 
-    /* Brand accent — sage */
-    --warm: #7A8F6A;
-    --warm-foreground: #F5F0EB;
-    --warm-muted: #6E7C60;
+	/* Brand accent — sage */
+	--warm: #7a8f6a;
+	--warm-foreground: #f5f0eb;
+	--warm-muted: #6e7c60;
 
-    /* Panel colors */
-    --panel-dark: #141210;
-    --panel-warm: #F3F4F6;
-    --panel-warm-foreground: #1C1917;
-    --panel-warm-muted: #737373;
-    --panel-warm-border: rgba(0, 0, 0, 0.08);
-    --panel-warm-input: rgba(0, 0, 0, 0.04);
+	/* Panel colors */
+	--panel-dark: #141210;
+	--panel-warm: #f3f4f6;
+	--panel-warm-foreground: #1c1917;
+	--panel-warm-muted: #737373;
+	--panel-warm-border: rgba(0, 0, 0, 0.08);
+	--panel-warm-input: rgba(0, 0, 0, 0.04);
 
-    /* Status */
-    --destructive: #EF4444;
-    --destructive-foreground: #DC2626;
-    --info: #3B82F6;
-    --info-foreground: #2563EB;
-    --success: #22C55E;
-    --success-foreground: #16A34A;
-    --warning: #F59E0B;
-    --warning-foreground: #D97706;
+	/* Status */
+	--destructive: #ef4444;
+	--destructive-foreground: #dc2626;
+	--info: #3b82f6;
+	--info-foreground: #2563eb;
+	--success: #22c55e;
+	--success-foreground: #16a34a;
+	--warning: #f59e0b;
+	--warning-foreground: #d97706;
 
-    /* Border & input */
-    --border: rgba(0, 0, 0, 0.08);
-    --input: rgba(0, 0, 0, 0.08);
-    --ring: #7A8F6A;
+	/* Border & input */
+	--border: rgba(0, 0, 0, 0.08);
+	--input: rgba(0, 0, 0, 0.08);
+	--ring: #7a8f6a;
 
-    /* Charts */
-    --chart-1: #7A8F6A;
-    --chart-2: #B8C8A0;
-    --chart-3: #5C7248;
-    --chart-4: #A0B088;
-    --chart-5: #D0DCBC;
+	/* Charts */
+	--chart-1: #7a8f6a;
+	--chart-2: #b8c8a0;
+	--chart-3: #5c7248;
+	--chart-4: #a0b088;
+	--chart-5: #d0dcbc;
 
-    /* Sidebar */
-    --sidebar: #141210;
-    --sidebar-foreground: #F5F0EB;
-    --sidebar-primary: #7A8F6A;
-    --sidebar-primary-foreground: #F5F0EB;
-    --sidebar-accent: #1C1917;
-    --sidebar-accent-foreground: #F5F0EB;
-    --sidebar-border: rgba(181, 194, 164, 0.12);
-    --sidebar-ring: #7A8F6A;
+	/* Sidebar */
+	--sidebar: #141210;
+	--sidebar-foreground: #f5f0eb;
+	--sidebar-primary: #7a8f6a;
+	--sidebar-primary-foreground: #f5f0eb;
+	--sidebar-accent: #1c1917;
+	--sidebar-accent-foreground: #f5f0eb;
+	--sidebar-border: rgba(181, 194, 164, 0.12);
+	--sidebar-ring: #7a8f6a;
 }
 
 @layer base {
-    * {
-        @apply border-border outline-ring/50;
-    }
-    body {
-        @apply bg-background text-foreground;
-    }
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
 }
 
 html {
-    background-color: #FCFCFC;
+	background-color: #fcfcfc;
 }
 
 body {
-    margin: 0;
-    min-height: 100vh;
-    font-family: 'Sora', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-    background-color: inherit;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+	margin: 0;
+	min-height: 100vh;
+	font-family:
+		"Sora", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+		"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+	background-color: inherit;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 .font-mono {
-    font-family: var(--font-mono);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: 'liga' 1, 'calt' 1;
+	font-family: var(--font-mono);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+	font-feature-settings:
+		"liga" 1,
+		"calt" 1;
 }
 
 .font-display {
-    font-family: var(--font-display);
+	font-family: var(--font-display);
 }
 
 #root {
-    min-height: 100vh;
+	min-height: 100vh;
 }
 
 /* ─── Left dark panel ─── */
 .panel-dark {
-    background: #141210;
-    color: #F5F0EB;
-    position: relative;
-    overflow: hidden;
+	background: #141210;
+	color: #f5f0eb;
+	position: relative;
+	overflow: hidden;
 }
 
 /* Subtle sage glow on right edge of dark panel */
 .panel-dark::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: -40px;
-    bottom: 0;
-    width: 120px;
-    background: radial-gradient(
-        ellipse 120px 100% at 100% 50%,
-        rgba(184, 200, 160, 0.06) 0%,
-        transparent 70%
-    );
-    pointer-events: none;
+	content: "";
+	position: absolute;
+	top: 0;
+	right: -40px;
+	bottom: 0;
+	width: 120px;
+	background: radial-gradient(
+		ellipse 120px 100% at 100% 50%,
+		rgba(184, 200, 160, 0.06) 0%,
+		transparent 70%
+	);
+	pointer-events: none;
 }
-
 
 /* ─── Right content panel ─── */
 .panel-warm {
-    background: #F3F4F6;
-    color: #1C1917;
-    position: relative;
-    box-shadow:
-        inset 0 -20px 40px -20px rgba(0, 0, 0, 0.08),
-        inset 0 -40px 60px -30px rgba(0, 0, 0, 0.04);
+	background: #f3f4f6;
+	color: #1c1917;
+	position: relative;
+	box-shadow:
+		inset 0 -20px 40px -20px rgba(0, 0, 0, 0.08),
+		inset 0 -40px 60px -30px rgba(0, 0, 0, 0.04);
 }
 
 /* ─── Animations ─── */
 @keyframes fade-up {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 .animate-fade-up {
-    animation: fade-up 0.5s ease-out both;
+	animation: fade-up 0.5s ease-out both;
 }
 
 /* Product tile — tight grid item */
 .product-tile {
-    cursor: pointer;
-    transition: transform 0.2s ease;
+	cursor: pointer;
+	transition: transform 0.2s ease;
 }
 
 .product-tile:hover {
-    transform: scale(1.03);
-    z-index: 1;
+	transform: scale(1.03);
+	z-index: 1;
 }
 
 /* Stat number display */
 .stat-value {
-    font-feature-settings: 'tnum' 1;
-    letter-spacing: -0.02em;
+	font-feature-settings: "tnum" 1;
+	letter-spacing: -0.02em;
 }
 
 /* Progress bar on dark panel */
 .dark-progress [data-slot="progress-track"] {
-    background: rgba(245, 240, 235, 0.1);
+	background: rgba(245, 240, 235, 0.1);
 }
 
 .dark-progress [data-slot="progress-indicator"] {
-    background: linear-gradient(90deg, #7A8F6A, #B8C8A0);
+	background: linear-gradient(90deg, #7a8f6a, #b8c8a0);
 }
 
 .recharts-wrapper *:focus {
-    outline: none !important;
-    box-shadow: none !important;
-    border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	border: none !important;
 }
