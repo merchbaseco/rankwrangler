@@ -385,13 +385,13 @@ export const getKeepaHistoryRefreshQueueStats = async () => {
             .select({
                 totalQueued: sql<number>`count(*)::int`,
                 dueNow: sql<number>`count(*) filter (where ${keepaHistoryRefreshQueue.nextAttemptAt} <= now())::int`,
-                oldestQueuedAt: sql<Date | null>`min(${keepaHistoryRefreshQueue.createdAt})`,
+                oldestQueuedAt: sql<string | null>`min(${keepaHistoryRefreshQueue.createdAt})::text`,
             })
             .from(keepaHistoryRefreshQueue);
 
         totalQueued = queueStats?.totalQueued ?? 0;
         dueNow = queueStats?.dueNow ?? 0;
-        oldestQueuedAt = queueStats?.oldestQueuedAt?.toISOString() ?? null;
+        oldestQueuedAt = queueStats?.oldestQueuedAt ?? null;
     } catch (error) {
         console.error(
             '[Keepa History Refresh] Failed to read queue stats; returning token state only:',

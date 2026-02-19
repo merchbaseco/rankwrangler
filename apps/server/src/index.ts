@@ -185,6 +185,9 @@ console.log('[Server] Scheduled reprocess-stale-products job to run every 10 min
 
 const fastify = Fastify({
     logger: false, // Disable Pino logger to avoid bundling issues
+    // tRPC batches encode procedure names in a single path segment (comma-separated).
+    // Fastify defaults maxParamLength to 100, which is too small for multi-query batches.
+    maxParamLength: 1000,
 });
 
 // Register Fastify plugins
