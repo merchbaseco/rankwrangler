@@ -9,7 +9,7 @@ const SheetTrigger = Dialog.Trigger;
 const SheetClose = Dialog.Close;
 
 const sheetPopupVariants = cva(
-	"fixed z-50 flex max-h-screen flex-col overflow-hidden bg-background shadow-xl outline-none transition-transform duration-200 ease-out",
+	"fixed z-50 flex max-h-screen flex-col overflow-hidden bg-background shadow-lg outline-none transition-transform duration-300 ease-out",
 	{
 		defaultVariants: {
 			side: "right",
@@ -18,8 +18,8 @@ const sheetPopupVariants = cva(
 		variants: {
 			side: {
 				bottom: "inset-x-0 bottom-0 w-full max-h-[80vh]",
-				left: "left-0 top-0 h-full w-[92vw] sm:max-w-2xl",
-				right: "right-0 top-0 h-full w-[94vw] sm:max-w-3xl",
+				left: "left-0 top-0 h-full w-[88vw] sm:max-w-xl",
+				right: "right-0 top-0 h-full w-[92vw] sm:max-w-xl",
 				top: "inset-x-0 top-0 w-full",
 			},
 			variant: {
@@ -31,7 +31,7 @@ const sheetPopupVariants = cva(
 			{
 				side: "bottom",
 				variant: "default",
-				className: "rounded-t-2xl border-t border-border",
+				className: "border-t border-border",
 			},
 			{
 				side: "left",
@@ -46,30 +46,29 @@ const sheetPopupVariants = cva(
 			{
 				side: "top",
 				variant: "default",
-				className: "rounded-b-2xl border-b border-border",
+				className: "border-b border-border",
 			},
 			{
 				side: "bottom",
 				variant: "inset",
-				className:
-					"bottom-2 max-h-[calc(80vh-0.5rem)] rounded-2xl border border-border sm:bottom-4 sm:max-h-[calc(80vh-1rem)]",
+				className: "bottom-2 rounded-md border border-border sm:bottom-4",
 			},
 			{
 				side: "left",
 				variant: "inset",
 				className:
-					"left-2 top-2 h-[calc(100%-1rem)] rounded-2xl border border-border sm:left-4 sm:top-4 sm:h-[calc(100%-2rem)]",
+					"left-2 top-2 h-[calc(100%-1rem)] rounded-md border border-border sm:left-4 sm:top-4 sm:h-[calc(100%-2rem)]",
 			},
 			{
 				side: "right",
 				variant: "inset",
 				className:
-					"right-2 top-2 h-[calc(100%-1rem)] rounded-2xl border border-border sm:right-4 sm:top-4 sm:h-[calc(100%-2rem)]",
+					"right-2 top-2 h-[calc(100%-1rem)] rounded-md border border-border sm:right-4 sm:top-4 sm:h-[calc(100%-2rem)]",
 			},
 			{
 				side: "top",
 				variant: "inset",
-				className: "top-2 rounded-2xl border border-border sm:top-4",
+				className: "top-2 rounded-md border border-border sm:top-4",
 			},
 		],
 	},
@@ -82,7 +81,7 @@ const SheetPopup = React.forwardRef<
 >(({ className, side, variant, children, ...props }, ref) => {
 	return (
 		<Dialog.Portal>
-			<Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px]" />
+			<Dialog.Backdrop className="fixed inset-0 z-50 bg-black/45" />
 			<Dialog.Viewport className="fixed inset-0 z-50">
 				<Dialog.Popup
 					className={cn(sheetPopupVariants({ side, variant }), className)}
@@ -91,7 +90,7 @@ const SheetPopup = React.forwardRef<
 				>
 					{children}
 					<Dialog.Close
-						className="absolute right-4 top-4 inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+						className="hover:bg-muted hover:text-foreground absolute top-3 right-3 inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors"
 						aria-label="Close"
 					>
 						<X className="size-4" />
@@ -148,7 +147,6 @@ const SheetDescription = React.forwardRef<
 
 SheetDescription.displayName = "SheetDescription";
 
-// Backward-compatible alias while usages migrate to SheetPopup.
 const SheetContent = SheetPopup;
 
 export {
