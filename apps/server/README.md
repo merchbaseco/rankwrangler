@@ -160,6 +160,7 @@ curl -s -X POST http://localhost:8080/api/api.app.loadProductHistory \
 ```
 
 Manual Keepa import behavior:
+- Dashboard history modal auto-requests `api.app.loadProductHistory` when no Keepa import exists or the latest successful import is older than 48 hours.
 - Requests use high-priority Keepa queueing and may wait up to 2 minutes before returning.
 - Retryable Keepa failures are retried with exponential backoff during that 2-minute window.
 - If retries do not succeed within 2 minutes, API returns `TIMEOUT`; retrying is expected.
@@ -184,6 +185,7 @@ curl -s -X POST http://localhost:8080/api/api.app.getProductHistory \
 
 `api.app.getProductHistory` returns:
 - `points[]` time-series rows
+- `latestImportAt` ISO timestamp for the latest successful Keepa import (`null` if none)
 - `categoryNames` map (`{ "<categoryId>": "<name>" }`) for resolved Keepa category labels
 
 For `metric: "bsrCategory"`, pass `categoryId` to select one category line:

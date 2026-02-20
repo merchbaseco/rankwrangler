@@ -14,7 +14,7 @@ import {
 const CLOTHING_SHOES_JEWELRY_CATEGORY_ID = 7141123011;
 const KEEPA_AUTO_BSR_THRESHOLD = 1000000;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const KEEPA_MIN_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 48 * 60 * 60 * 1000;
 const KEEPA_INITIAL_HISTORY_DAYS = 3650;
 const KEEPA_MIN_INCREMENTAL_HISTORY_DAYS = 30;
 const KEEPA_INCREMENTAL_BUFFER_DAYS = 7;
@@ -22,8 +22,6 @@ const KEEPA_DISPATCH_HOLD_MS = 5 * 60 * 1000;
 const KEEPA_MIN_TOKEN_BUFFER = 0;
 const KEEPA_TOKENS_PER_HISTORY_FETCH = 2;
 const KEEPA_PROCESS_MAX_BATCH_SIZE = 10;
-const KEEPA_BASE_RETRY_MS = 5 * 60 * 1000;
-const KEEPA_MAX_RETRY_MS = 24 * 60 * 60 * 1000;
 
 export type KeepaHistoryRefreshQueueItem = {
     id: string;
@@ -63,7 +61,7 @@ export const enqueueKeepaHistoryRefreshForAsin = async ({
         } as const;
     }
 
-    const recentThreshold = new Date(Date.now() - KEEPA_MIN_REFRESH_INTERVAL_MS);
+    const recentThreshold = new Date(Date.now() - KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_MS);
     const recentImport = await db
         .select({
             id: productHistoryImports.id,
@@ -242,91 +240,6 @@ export const getKeepaHistoryDaysForAsin = async ({
     return Math.min(KEEPA_INITIAL_HISTORY_DAYS, neededDays);
 };
 
-export const markKeepaHistoryRefreshSuccess = async ({
-    marketplaceId,
-    asin,
-}: {
-    marketplaceId: string;
-    asin: string;
-}) => {
-    const nextAttemptAt = new Date(Date.now() + KEEPA_MIN_REFRESH_INTERVAL_MS);
-
-    await db
-        .update(keepaHistoryRefreshQueue)
-        .set({
-            nextAttemptAt,
-            attemptCount: 0,
-            lastAttemptAt: new Date(),
-            lastError: null,
-            updatedAt: new Date(),
-        })
-        .where(
-            and(
-                eq(keepaHistoryRefreshQueue.marketplaceId, marketplaceId),
-                eq(keepaHistoryRefreshQueue.asin, asin)
-            )
-        );
-};
-
-export const markKeepaHistoryRefreshDeferred = async ({
-    marketplaceId,
-    asin,
-    nextAttemptAt,
-    reason,
-}: {
-    marketplaceId: string;
-    asin: string;
-    nextAttemptAt: Date;
-    reason: string | null;
-}) => {
-    await db
-        .update(keepaHistoryRefreshQueue)
-        .set({
-            nextAttemptAt,
-            lastAttemptAt: new Date(),
-            lastError: reason,
-            updatedAt: new Date(),
-        })
-        .where(
-            and(
-                eq(keepaHistoryRefreshQueue.marketplaceId, marketplaceId),
-                eq(keepaHistoryRefreshQueue.asin, asin)
-            )
-        );
-};
-
-export const markKeepaHistoryRefreshFailure = async ({
-    marketplaceId,
-    asin,
-    attemptCount,
-    errorMessage,
-}: {
-    marketplaceId: string;
-    asin: string;
-    attemptCount: number;
-    errorMessage: string;
-}) => {
-    const nextAttemptAt = new Date(
-        Date.now() + getRetryDelayMs(attemptCount + 1)
-    );
-
-    await db
-        .update(keepaHistoryRefreshQueue)
-        .set({
-            nextAttemptAt,
-            attemptCount: attemptCount + 1,
-            lastAttemptAt: new Date(),
-            lastError: errorMessage,
-            updatedAt: new Date(),
-        })
-        .where(
-            and(
-                eq(keepaHistoryRefreshQueue.marketplaceId, marketplaceId),
-                eq(keepaHistoryRefreshQueue.asin, asin)
-            )
-        );
-};
-
 export const removeKeepaHistoryRefreshQueueItem = async ({
     marketplaceId,
     asin,
@@ -473,15 +386,4 @@ const isEligibleForKeepaAutoRefresh = (
     }
 
     return rootCategoryBsr < KEEPA_AUTO_BSR_THRESHOLD;
-};
-
-const getRetryDelayMs = (attemptCount: number) => {
-    const tokenState = getKeepaRuntimeTokenState();
-    const refillDelayMs = tokenState.refillInMs ?? 0;
-    const exponentialDelayMs = Math.min(
-        KEEPA_MAX_RETRY_MS,
-        KEEPA_BASE_RETRY_MS * 2 ** Math.min(5, Math.max(0, attemptCount - 1))
-    );
-
-    return Math.max(exponentialDelayMs, refillDelayMs);
 };
