@@ -7,7 +7,7 @@ import {
 	Loader2,
 	RefreshCw,
 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -62,6 +62,7 @@ const INNER_W = VB_W - PAD.l - PAD.r;
 const INNER_H = VB_H - PAD.t - PAD.b;
 const Y_TICK_COUNT = 5;
 const X_TICK_COUNT = 5;
+const KEEPA_STALE_REFRESH_MS = 48 * 60 * 60 * 1000;
 
 // ─── Component ────────────────────────────────────────
 
@@ -271,14 +272,40 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 		},
 	});
 
-	const handleGenerate = () => {
+	const triggerKeepaSync = useCallback(() => {
 		if (loadMutation.isPending) return;
 		loadMutation.mutate({
 			marketplaceId: product.marketplaceId,
 			asin: product.asin,
 			days: 365,
 		});
-	};
+	}, [loadMutation, product.marketplaceId, product.asin]);
+
+	const hasCheckedAutoRefreshRef = useRef(false);
+	useEffect(() => {
+		if (hasCheckedAutoRefreshRef.current) return;
+		if (rankQuery.isLoading) return;
+
+		hasCheckedAutoRefreshRef.current = true;
+		if (rankQuery.isError) {
+			return;
+		}
+
+		const latestImportAt = rankQuery.data?.latestImportAt;
+		const shouldSync =
+			!latestImportAt ||
+			!Number.isFinite(Date.parse(latestImportAt)) ||
+			Date.now() - Date.parse(latestImportAt) > KEEPA_STALE_REFRESH_MS;
+
+		if (shouldSync) {
+			triggerKeepaSync();
+		}
+	}, [
+		rankQuery.isLoading,
+		rankQuery.isError,
+		rankQuery.data?.latestImportAt,
+		triggerKeepaSync,
+	]);
 
 	// ── Render ────────────────────────────────────────
 
@@ -344,7 +371,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 						</a>
 						<button
 							type="button"
-							onClick={handleGenerate}
+							onClick={triggerKeepaSync}
 							disabled={loadMutation.isPending}
 							className={cn(
 								"ml-1 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors",
@@ -609,9 +636,7 @@ const ChartSection = ({
 
 				{!loading && !query.isError && points.length === 0 && (
 					<div className="bg-muted/30 flex items-center justify-center rounded-lg border border-dashed border-border py-8">
-						<p className="text-sm text-muted-foreground">
-							No data yet. Click Sync to fetch history.
-						</p>
+						<p className="text-sm text-muted-foreground">No data for this range yet.</p>
 					</div>
 				)}
 

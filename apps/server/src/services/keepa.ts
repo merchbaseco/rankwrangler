@@ -486,18 +486,21 @@ export const getProductHistoryPoints = async ({
         whereConditions.push(lte(productHistoryPoints.observedAt, endAt));
     }
 
-    const points = await db
-        .select({
-            categoryId: productHistoryPoints.categoryId,
-            observedAt: productHistoryPoints.observedAt,
-            keepaMinutes: productHistoryPoints.keepaMinutes,
-            valueInt: productHistoryPoints.valueInt,
-            isMissing: productHistoryPoints.isMissing,
-        })
-        .from(productHistoryPoints)
-        .where(and(...whereConditions))
-        .orderBy(asc(productHistoryPoints.observedAt))
-        .limit(limit);
+    const [points, latestImportAt] = await Promise.all([
+        db
+            .select({
+                categoryId: productHistoryPoints.categoryId,
+                observedAt: productHistoryPoints.observedAt,
+                keepaMinutes: productHistoryPoints.keepaMinutes,
+                valueInt: productHistoryPoints.valueInt,
+                isMissing: productHistoryPoints.isMissing,
+            })
+            .from(productHistoryPoints)
+            .where(and(...whereConditions))
+            .orderBy(asc(productHistoryPoints.observedAt))
+            .limit(limit),
+        getLatestSuccessfulKeepaImportAt({ marketplaceId, asin }),
+    ]);
 
     const categoryNames = await resolveCategoryNames({
         marketplaceId,
@@ -508,6 +511,7 @@ export const getProductHistoryPoints = async ({
         marketplaceId,
         asin,
         metric,
+        latestImportAt: latestImportAt ? latestImportAt.toISOString() : null,
         categoryNames,
         points: points.map(point => ({
             categoryId: point.categoryId,
@@ -912,6 +916,32 @@ const getRecentSuccessfulKeepaImport = async (
         .limit(1);
 
     return rows[0] ?? null;
+};
+
+const getLatestSuccessfulKeepaImportAt = async ({
+    marketplaceId,
+    asin,
+}: {
+    marketplaceId: string;
+    asin: string;
+}) => {
+    const rows = await db
+        .select({
+            createdAt: productHistoryImports.createdAt,
+        })
+        .from(productHistoryImports)
+        .where(
+            and(
+                eq(productHistoryImports.marketplaceId, marketplaceId),
+                eq(productHistoryImports.asin, asin),
+                eq(productHistoryImports.source, KEEPA_SOURCE),
+                eq(productHistoryImports.status, 'success')
+            )
+        )
+        .orderBy(desc(productHistoryImports.createdAt))
+        .limit(1);
+
+    return rows[0]?.createdAt ?? null;
 };
 
 const buildKeepaImportSummaryFromCachedImport = async ({

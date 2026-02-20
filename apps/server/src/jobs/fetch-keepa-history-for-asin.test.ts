@@ -38,24 +38,7 @@ type FetchKeepaHistoryForAsinDeps = {
         id: string;
         marketplaceId: string;
         asin: string;
-        attemptCount: number;
     } | null>;
-    markKeepaHistoryRefreshDeferred: (params: {
-        marketplaceId: string;
-        asin: string;
-        nextAttemptAt: Date;
-        reason: string | null;
-    }) => Promise<void>;
-    markKeepaHistoryRefreshFailure: (params: {
-        marketplaceId: string;
-        asin: string;
-        attemptCount: number;
-        errorMessage: string;
-    }) => Promise<void>;
-    markKeepaHistoryRefreshSuccess: (params: {
-        marketplaceId: string;
-        asin: string;
-    }) => Promise<void>;
     removeKeepaHistoryRefreshQueueItem: (params: {
         marketplaceId: string;
         asin: string;
@@ -81,7 +64,7 @@ const params = {
 };
 
 describe('fetchKeepaHistoryForAsin', () => {
-    it('marks success when Keepa import succeeds', async () => {
+    it('removes queue item when Keepa import succeeds', async () => {
         const { fetchKeepaHistoryForAsin } = await loadSubject();
         const { deps, calls } = createDeps({
             loadKeepaProductHistory: async () => createSummary({ status: 'success' }),
@@ -89,9 +72,7 @@ describe('fetchKeepaHistoryForAsin', () => {
 
         await fetchKeepaHistoryForAsin(params, deps);
 
-        expect(calls.markKeepaHistoryRefreshSuccess.mock.calls).toHaveLength(1);
-        expect(calls.markKeepaHistoryRefreshFailure.mock.calls).toHaveLength(0);
-        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(0);
+        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
     });
 
     it('removes queue item for non-retryable NOT_FOUND errors', async () => {
@@ -107,10 +88,9 @@ describe('fetchKeepaHistoryForAsin', () => {
 
         await expect(fetchKeepaHistoryForAsin(params, deps)).resolves.toBeUndefined();
         expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
-        expect(calls.markKeepaHistoryRefreshFailure.mock.calls).toHaveLength(0);
     });
 
-    it('marks failure and rethrows retryable BAD_GATEWAY errors', async () => {
+    it('removes queue item and rethrows retryable BAD_GATEWAY errors', async () => {
         const { fetchKeepaHistoryForAsin } = await loadSubject();
         const { deps, calls } = createDeps({
             loadKeepaProductHistory: async () => {
@@ -124,14 +104,19 @@ describe('fetchKeepaHistoryForAsin', () => {
         await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
             'Keepa request failed'
         );
-        expect(calls.markKeepaHistoryRefreshFailure.mock.calls).toHaveLength(1);
-        expect(calls.markKeepaHistoryRefreshFailure.mock.calls[0]?.[0]).toEqual({
-            marketplaceId: params.marketplaceId,
-            asin: params.asin,
-            attemptCount: 2,
-            errorMessage: 'Keepa request failed',
+        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
+    });
+
+    it('removes queue item and throws when Keepa returns non-success summary', async () => {
+        const { fetchKeepaHistoryForAsin } = await loadSubject();
+        const { deps, calls } = createDeps({
+            loadKeepaProductHistory: async () => createSummary({ status: 'error' }),
         });
-        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(0);
+
+        await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
+            'Keepa import failed'
+        );
+        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
     });
 
     it('removes queue item when ASIN is no longer eligible', async () => {
@@ -147,7 +132,6 @@ describe('fetchKeepaHistoryForAsin', () => {
 
         expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
         expect(calls.loadKeepaProductHistory.mock.calls).toHaveLength(0);
-        expect(calls.markKeepaHistoryRefreshFailure.mock.calls).toHaveLength(0);
     });
 });
 
@@ -161,11 +145,7 @@ const createDeps = (
             id: 'queue-1',
             marketplaceId: params.marketplaceId,
             asin: params.asin,
-            attemptCount: 2,
         })),
-        markKeepaHistoryRefreshDeferred: mock(async () => {}),
-        markKeepaHistoryRefreshFailure: mock(async () => {}),
-        markKeepaHistoryRefreshSuccess: mock(async () => {}),
         removeKeepaHistoryRefreshQueueItem: mock(async () => {}),
         shouldKeepaHistoryRefreshAsin: mock(async () => ({
             shouldRefresh: true as const,

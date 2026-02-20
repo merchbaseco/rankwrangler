@@ -33,7 +33,7 @@ Queue table: `keepa_history_refresh_queue`
 
 - ASINs are queued from product lookup flow (`fetchProductInfo`) after cache hit or fresh ingest completion.
 - Queue insert is deduplicated by `(marketplace_id, asin)`.
-- Queue insert is skipped if a Keepa import exists in the last 24 hours.
+- Queue insert is skipped if a Keepa import exists in the last 48 hours.
 
 ## Background Jobs
 
@@ -50,11 +50,12 @@ Queue table: `keepa_history_refresh_queue`
 - Uses `loadKeepaProductHistory()` (which enforces the 24h guard).
 - First successful import fetches up to 3650 days.
 - Follow-up imports use a rolling window based on staleness (minimum 30 days, with buffer).
-- On success, schedules next attempt for 24 hours later.
-- On failure, records error and schedules retry with exponential backoff (also considering Keepa refill delay).
+- Removes the ASIN from queue after the attempt (success or failure).
+- A future refresh requires a new enqueue trigger (product lookup flow or dashboard history modal).
 
 ## Manual Requests
 
+- Dashboard history modal auto-requests Keepa sync when no Keepa import exists or the latest successful import is older than 48 hours.
 - Manual dashboard requests use high-priority Keepa queueing.
 - HTTP request stays open for up to 2 minutes and retries on retryable Keepa failures.
 - Retry policy uses exponential backoff within the 2-minute window.
