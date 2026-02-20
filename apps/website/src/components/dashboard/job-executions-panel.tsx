@@ -1,5 +1,7 @@
 import { ChevronDown, ChevronUp, Loader2, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Frame } from "@/components/ui/frame";
 import { api, type RouterOutputs } from "@/lib/trpc";
 import { cn, formatRelativeTime } from "@/lib/utils";
@@ -7,8 +9,8 @@ import { cn, formatRelativeTime } from "@/lib/utils";
 type JobExecution = RouterOutputs["api"]["app"]["jobExecutions"][number];
 
 const statusDotClassByStatus: Record<string, string> = {
-	success: "bg-emerald-500",
-	failed: "bg-rose-500",
+	success: "bg-success",
+	failed: "bg-destructive",
 };
 
 type JobExecutionsPanelProps = {
@@ -38,64 +40,67 @@ export function JobExecutionsPanel({
 	}
 
 	return (
-		<div className={cn("mt-3 shrink-0", className)}>
+		<div className={cn("shrink-0", className)}>
 			<Frame>
-				<div className="flex items-center justify-between border-b border-[rgba(20,18,16,0.08)] px-4 py-3">
+				<div className="flex items-center justify-between border-b border-border px-3 py-2">
 					<div>
-						<p className="font-mono text-xs uppercase tracking-[0.15em] text-[#706454]">
-							Job Executions
-						</p>
-						<p className="mt-1 text-xs text-[#857869]">
-							Admin-only runtime history and logs
+						<p className="text-foreground text-xs font-medium">Job Executions</p>
+						<p className="text-muted-foreground mt-0.5 text-xs">
+							Admin runtime history and logs
 						</p>
 					</div>
-					<button
-						type="button"
-						onClick={() => {
-							void query.refetch();
-						}}
-						disabled={query.isFetching}
-						className="rounded-md p-1.5 text-[#706454] transition-colors hover:bg-[rgba(20,18,16,0.08)] hover:text-[#221f1b] disabled:opacity-50"
-						aria-label="Refresh job executions"
-					>
-						{query.isFetching ? (
-							<Loader2 className="size-4 animate-spin" />
-						) : (
-							<RefreshCw className="size-4" />
-						)}
-					</button>
+					<div className="flex items-center gap-2">
+						{query.data ? (
+							<Badge variant="secondary" className="h-4 rounded-sm px-1.5 text-xs">
+								{query.data.length} recent
+							</Badge>
+						) : null}
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="h-7 rounded-sm px-2"
+							onClick={() => {
+								void query.refetch();
+							}}
+							disabled={query.isFetching}
+							aria-label="Refresh job executions"
+						>
+							{query.isFetching ? (
+								<Loader2 className="size-3 animate-spin" />
+							) : (
+								<RefreshCw className="size-3" />
+							)}
+						</Button>
+					</div>
 				</div>
 
-				{query.isLoading && (
-					<p className="px-4 py-3 text-sm text-[#857869]">
+				{query.isLoading ? (
+					<p className="text-muted-foreground px-3 py-3 text-sm">
 						Loading recent executions...
 					</p>
-				)}
+				) : null}
 
-				{errorCode === "UNAUTHORIZED" && (
-					<p className="px-4 py-3 text-sm text-[#B45309]">
+				{errorCode === "UNAUTHORIZED" ? (
+					<p className="text-warning-foreground px-3 py-3 text-sm">
 						Session expired. Please sign out and back in.
 					</p>
-				)}
+				) : null}
 
-				{query.error &&
-					errorCode !== "UNAUTHORIZED" &&
-					errorCode !== "FORBIDDEN" && (
-						<p className="px-4 py-3 text-sm text-[#B91C1C]">
-							Failed to load job executions.
-						</p>
-					)}
+				{query.error && errorCode !== "UNAUTHORIZED" && errorCode !== "FORBIDDEN" ? (
+					<p className="text-destructive px-3 py-3 text-sm">
+						Failed to load job executions.
+					</p>
+				) : null}
 
-				{!query.isLoading &&
-					!query.error &&
-					(query.data?.length ?? 0) === 0 && (
-						<p className="px-4 py-3 text-sm text-[#857869]">
-							No recent execution logs recorded.
-						</p>
-					)}
+				{!query.isLoading && !query.error && (query.data?.length ?? 0) === 0 ? (
+					<p className="text-muted-foreground px-3 py-3 text-sm">
+						No recent execution logs recorded.
+					</p>
+				) : null}
 
-				{(query.data?.length ?? 0) > 0 && (
-					<div className={cn("max-h-[340px] overflow-y-auto", rowsClassName)}>
+				{(query.data?.length ?? 0) > 0 ? (
+					<div className={cn("max-h-[420px] overflow-y-auto", rowsClassName)}>
 						{query.data?.map((execution) => {
 							const isExpanded = expandedExecutionId === execution.id;
 
@@ -113,7 +118,7 @@ export function JobExecutionsPanel({
 							);
 						})}
 					</div>
-				)}
+				) : null}
 			</Frame>
 		</div>
 	);
@@ -129,44 +134,42 @@ const ExecutionRow = ({
 	onToggle: () => void;
 }) => {
 	const statusDotClass =
-		statusDotClassByStatus[execution.status] ?? "bg-amber-500";
+		statusDotClassByStatus[execution.status] ?? "bg-warning";
 
 	return (
-		<div className="border-b border-[rgba(20,18,16,0.06)] last:border-b-0">
+		<div className="border-border border-b last:border-b-0">
 			<button
 				type="button"
 				onClick={onToggle}
-				className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[rgba(20,18,16,0.03)]"
+				className="hover:bg-muted/40 flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors"
 			>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<span
-							className={cn("inline-block size-2 rounded-full", statusDotClass)}
-						/>
-						<code className="truncate font-mono text-xs text-[#221f1b]">
+						<span className={cn("inline-block size-2 rounded-full", statusDotClass)} />
+						<code className="text-foreground truncate font-mono text-xs">
 							{execution.jobName}
 						</code>
 					</div>
-					<p className="mt-1 text-xs text-[#857869]">
+					<p className="text-muted-foreground mt-1 text-xs font-mono">
 						{formatRelativeTime(execution.startedAt)}
 						{"  "}({formatDateTime(execution.startedAt)}) {"  "}•{"  "}
 						{formatDuration(execution.durationMs)}
 					</p>
 				</div>
 				{isExpanded ? (
-					<ChevronUp className="mt-0.5 size-4 shrink-0 text-[#857869]" />
+					<ChevronUp className="text-muted-foreground mt-0.5 size-4 shrink-0" />
 				) : (
-					<ChevronDown className="mt-0.5 size-4 shrink-0 text-[#857869]" />
+					<ChevronDown className="text-muted-foreground mt-0.5 size-4 shrink-0" />
 				)}
 			</button>
 
-			{isExpanded && (
-				<div className="space-y-3 border-t border-[rgba(20,18,16,0.06)] px-4 py-3">
-					{execution.errorMessage && (
-						<p className="rounded-md bg-[rgba(185,28,28,0.08)] px-2.5 py-2 text-xs text-[#991B1B]">
+			{isExpanded ? (
+				<div className="border-border space-y-3 border-t bg-muted/20 px-3 py-3">
+					{execution.errorMessage ? (
+						<p className="text-destructive rounded-sm border border-destructive/30 bg-destructive/10 px-2 py-1.5 text-xs">
 							{execution.errorMessage}
 						</p>
-					)}
+					) : null}
 
 					<div className="grid gap-3 lg:grid-cols-2">
 						<JsonBlock label="Input" value={execution.input} />
@@ -174,19 +177,19 @@ const ExecutionRow = ({
 					</div>
 
 					<div className="space-y-1.5">
-						<p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#706454]">
+						<p className="text-muted-foreground font-mono text-xs uppercase tracking-[0.12em]">
 							Logs
 						</p>
 						{execution.logs.length === 0 ? (
-							<p className="text-xs text-[#857869]">No logs captured.</p>
+							<p className="text-muted-foreground text-xs">No logs captured.</p>
 						) : (
-							<div className="max-h-[170px] overflow-y-auto rounded-md bg-[#141210] px-2.5 py-2">
+							<div className="rounded-sm border border-border bg-background px-2 py-2">
 								{execution.logs.map((log) => (
 									<p
 										key={log.id}
-										className="font-mono text-[11px] leading-5 text-[#E5D8C9]"
+										className="text-foreground font-mono text-xs leading-5"
 									>
-										<span className="text-[#B4A491]">
+										<span className="text-muted-foreground">
 											{formatLogTime(log.createdAt)}
 										</span>
 										{"  "}
@@ -202,7 +205,7 @@ const ExecutionRow = ({
 						)}
 					</div>
 				</div>
-			)}
+			) : null}
 		</div>
 	);
 };
@@ -210,10 +213,10 @@ const ExecutionRow = ({
 const JsonBlock = ({ label, value }: { label: string; value: unknown }) => {
 	return (
 		<div className="space-y-1.5">
-			<p className="font-mono text-[11px] uppercase tracking-[0.12em] text-[#706454]">
+			<p className="text-muted-foreground font-mono text-xs uppercase tracking-[0.12em]">
 				{label}
 			</p>
-			<pre className="max-h-[170px] overflow-auto rounded-md bg-[#141210] px-2.5 py-2 font-mono text-[11px] leading-5 text-[#E5D8C9]">
+			<pre className="text-foreground max-h-[170px] overflow-auto rounded-sm border border-border bg-background px-2 py-2 font-mono text-xs leading-5">
 				{formatJson(value)}
 			</pre>
 		</div>
@@ -292,7 +295,11 @@ const formatCompactJson = (value: unknown) => {
 };
 
 const getLogLevelClass = (level: string) => {
-	if (level === "error") return "text-[#FCA5A5]";
-	if (level === "warn") return "text-[#FCD34D]";
-	return "text-[#86EFAC]";
+	if (level === "error") {
+		return "text-destructive";
+	}
+	if (level === "warn") {
+		return "text-warning-foreground";
+	}
+	return "text-success-foreground";
 };

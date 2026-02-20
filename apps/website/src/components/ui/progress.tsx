@@ -1,7 +1,6 @@
 "use client";
 
 import { Progress as ProgressPrimitive } from "@base-ui-components/react/progress";
-
 import { cn } from "../../lib/utils";
 
 function Progress({
@@ -29,7 +28,7 @@ function Progress({
 function ProgressLabel({ className, ...props }: ProgressPrimitive.Label.Props) {
 	return (
 		<ProgressPrimitive.Label
-			className={cn("font-medium text-sm", className)}
+			className={cn("font-medium text-xs", className)}
 			data-slot="progress-label"
 			{...props}
 		/>
@@ -40,7 +39,7 @@ function ProgressTrack({ className, ...props }: ProgressPrimitive.Track.Props) {
 	return (
 		<ProgressPrimitive.Track
 			className={cn(
-				"block h-1.5 w-full overflow-hidden rounded-full bg-input",
+				"bg-primary/20 relative block h-2 w-full overflow-hidden rounded-full",
 				className,
 			)}
 			data-slot="progress-track"
@@ -55,7 +54,7 @@ function ProgressIndicator({
 }: ProgressPrimitive.Indicator.Props) {
 	return (
 		<ProgressPrimitive.Indicator
-			className={cn("bg-primary transition-all duration-500", className)}
+			className={cn("bg-primary h-full transition-all", className)}
 			data-slot="progress-indicator"
 			{...props}
 		/>
@@ -65,7 +64,7 @@ function ProgressIndicator({
 function ProgressValue({ className, ...props }: ProgressPrimitive.Value.Props) {
 	return (
 		<ProgressPrimitive.Value
-			className={cn("text-sm tabular-nums", className)}
+			className={cn("text-xs tabular-nums", className)}
 			data-slot="progress-value"
 			{...props}
 		/>

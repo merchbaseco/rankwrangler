@@ -10,48 +10,35 @@ export function UsageCard() {
 	const dailyLimit = license?.usageLimit ?? 0;
 	const isUnlimited = dailyLimit === -1;
 	const progress =
-		isUnlimited || dailyLimit === 0 ? 0 : (usageToday / dailyLimit) * 100;
-
-	const progressValue = hasLicense ? (isUnlimited ? 100 : progress) : 0;
-
-	if (isLoading) {
-		return (
-			<div className="space-y-3">
-				<span className="font-mono text-xs uppercase tracking-[0.15em] text-[#A89880]">
-					Usage
-				</span>
-				<p className="text-sm text-[#A89880]">Loading...</p>
-			</div>
-		);
-	}
+		isUnlimited || dailyLimit <= 0 ? 0 : Math.min(100, (usageToday / dailyLimit) * 100);
 
 	return (
-		<div className="space-y-4">
-			<span className="font-mono text-xs uppercase tracking-[0.15em] text-[#A89880]">
+		<div className="rounded-sm border border-border bg-card p-3">
+			<p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
 				Usage
-			</span>
-
-			{/* Big stat: requests today */}
-			<div>
-				<p className="stat-value text-5xl font-bold text-[#F5F0EB]">
-					{hasLicense ? formatNumber(usageToday) : "0"}
-				</p>
-				<p className="mt-2 font-mono text-xs uppercase tracking-[0.1em] text-[#A89880]">
-					Requests today
-				</p>
-			</div>
-
-			{/* Progress bar */}
-			<div className="dark-progress space-y-2">
-				<Progress value={progressValue} />
-				<p className="text-xs text-[#A89880]">
-					{hasLicense
-						? isUnlimited
-							? "Unlimited"
-							: `${Math.round(progress)}% of ${formatNumber(dailyLimit)}`
-						: "0%"}
-				</p>
-			</div>
+			</p>
+			{isLoading ? (
+				<p className="text-muted-foreground mt-2 text-xs">Loading...</p>
+			) : (
+				<>
+					<p className="stat-value mt-1 text-3xl font-semibold text-foreground">
+						{hasLicense ? formatNumber(usageToday) : "0"}
+					</p>
+					<p className="text-muted-foreground mt-1 text-xs font-mono uppercase tracking-wide">
+						Requests today
+					</p>
+					<div className="mt-2 space-y-1.5">
+						<Progress value={hasLicense ? (isUnlimited ? 100 : progress) : 0} />
+						<p className="text-muted-foreground text-xs">
+							{hasLicense
+								? isUnlimited
+									? "Unlimited"
+									: `${Math.round(progress)}% of ${formatNumber(dailyLimit)}`
+								: "0%"}
+						</p>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }

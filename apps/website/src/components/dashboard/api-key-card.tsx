@@ -1,11 +1,14 @@
 import { Check, Copy, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useCopy } from "@/hooks/use-copy";
 import { useLicense } from "@/hooks/use-license";
 
 const maskKey = (value: string) => {
-	if (value.length <= 10) return "\u2022".repeat(value.length);
-	return `${value.slice(0, 7)}${"·".repeat(10)}${value.slice(-4)}`;
+	if (value.length <= 10) {
+		return "•".repeat(value.length);
+	}
+	return `${value.slice(0, 7)}${"•".repeat(10)}${value.slice(-4)}`;
 };
 
 export function ApiKeyCard() {
@@ -22,7 +25,9 @@ export function ApiKeyCard() {
 	} = useLicense();
 
 	const keyValue = useMemo(() => {
-		if (!license?.key) return "";
+		if (!license?.key) {
+			return "";
+		}
 		return revealed ? license.key : maskKey(license.key);
 	}, [license?.key, revealed]);
 
@@ -31,83 +36,75 @@ export function ApiKeyCard() {
 	const showNotFound = errorCode === "NOT_FOUND";
 	const showMissingKey =
 		hasEmail && !license && !isLoading && !showAccessError && !showAuthError;
-	const showError =
-		error && !showAccessError && !showAuthError && !showNotFound;
+	const showError = error && !showAccessError && !showAuthError && !showNotFound;
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center gap-2.5">
-				<span className="font-mono text-xs uppercase tracking-[0.15em] text-[#A89880]">
+		<div className="rounded-sm border border-border bg-card p-3">
+			<div className="flex items-center gap-2">
+				<p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
 					API Key
-				</span>
-				{license && (
-					<span className="inline-block size-2 rounded-full bg-[#34D399]" />
-				)}
+				</p>
+				{license ? <span className="size-1.5 rounded-full bg-success" /> : null}
 			</div>
 
-			{isLoading && <p className="text-sm text-[#A89880]">Loading...</p>}
-
-			{showAccessError && (
-				<p className="text-sm text-[#FBBF24]">
+			{isLoading ? <p className="text-muted-foreground mt-2 text-xs">Loading...</p> : null}
+			{showAccessError ? (
+				<p className="text-warning-foreground mt-2 text-xs">
 					Admin access required. Update ADMIN_EMAIL.
 				</p>
-			)}
-
-			{showAuthError && (
-				<p className="text-sm text-[#FBBF24]">
+			) : null}
+			{showAuthError ? (
+				<p className="text-warning-foreground mt-2 text-xs">
 					Session expired. Please sign out and back in.
 				</p>
-			)}
-
-			{showMissingKey && (
-				<p className="text-sm text-[#A89880]">
+			) : null}
+			{showMissingKey ? (
+				<p className="text-muted-foreground mt-2 text-xs">
 					No API key yet. Generate one below.
 				</p>
-			)}
+			) : null}
 
-			{license && (
-				<div className="flex items-center gap-2.5 rounded-xl bg-[rgba(245,240,235,0.06)] px-4 py-3">
-					<code className="min-w-0 flex-1 truncate font-mono text-sm text-[#F5F0EB]/80">
+			{license ? (
+				<div className="mt-2 flex items-center gap-2 rounded-sm border border-border bg-background px-2 py-1.5">
+					<code className="text-foreground min-w-0 flex-1 truncate text-xs font-mono">
 						{keyValue}
 					</code>
 					<button
 						type="button"
-						onClick={() => setRevealed((v) => !v)}
-						className="shrink-0 text-[#A89880] transition-colors hover:text-[#F5F0EB]"
-						aria-label={revealed ? "Hide" : "Show"}
+						onClick={() => setRevealed((current) => !current)}
+						className="text-muted-foreground hover:text-foreground transition-colors"
+						aria-label={revealed ? "Hide API key" : "Show API key"}
 					>
-						{revealed ? (
-							<EyeOff className="size-4" />
-						) : (
-							<Eye className="size-4" />
-						)}
+						{revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
 					</button>
 					<button
 						type="button"
 						onClick={() => license?.key && copy(license.key)}
-						className="shrink-0 text-[#A89880] transition-colors hover:text-[#F5F0EB]"
-						aria-label="Copy"
+						className="text-muted-foreground hover:text-foreground transition-colors"
+						aria-label="Copy API key"
 					>
 						{copied ? (
-							<Check className="size-4 text-[#34D399]" />
+							<Check className="text-success size-3.5" />
 						) : (
-							<Copy className="size-4" />
+							<Copy className="size-3.5" />
 						)}
 					</button>
 				</div>
-			)}
+			) : null}
 
-			{showError && <p className="text-sm text-[#FCA5A5]">{error.message}</p>}
+			{showError ? <p className="text-destructive mt-2 text-xs">{error.message}</p> : null}
 
-			<button
+			<Button
 				type="button"
+				variant="outline"
+				size="sm"
+				className="mt-2 h-7 w-full rounded-sm text-xs"
 				onClick={() => regenerate()}
 				disabled={isRegenerating || showAccessError || !hasEmail}
-				className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-[rgba(245,240,235,0.1)] px-4 py-2.5 text-sm text-[#F5F0EB] transition-colors hover:bg-[rgba(245,240,235,0.06)] disabled:opacity-40"
 			>
-				<RefreshCw className="size-3.5" />
+				<RefreshCw className={isRegenerating ? "size-3 animate-spin" : "size-3"} />
 				{license ? "Rotate Key" : "Generate Key"}
-			</button>
+			</Button>
 		</div>
 	);
 }

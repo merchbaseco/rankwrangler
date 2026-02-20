@@ -26,11 +26,11 @@ export function AppShell({
 
 					{/* Top row: badges + actions — matches search bar height */}
 					<div className="relative z-10 flex items-center gap-1.5 rounded-xl border border-[rgba(245,240,235,0.08)] bg-[rgba(245,240,235,0.03)] px-4 py-3">
-						<span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+						<span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-wider text-emerald-400">
 							<span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
 							Live
 						</span>
-						<span className="rounded-full border border-[rgba(245,240,235,0.12)] px-2 py-0.5 font-mono text-[10px] text-[#A89880]">
+						<span className="rounded-full border border-[rgba(245,240,235,0.12)] px-2 py-0.5 font-mono text-xs text-[#A89880]">
 							v0.1.3
 						</span>
 						<div className="ml-auto flex items-center gap-2">

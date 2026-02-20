@@ -4,15 +4,21 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app";
 import { ToastProvider } from "./components/ui/toast";
 import { TRPCProvider } from "./lib/trpc-provider";
-import "@fontsource/sora/400.css";
-import "@fontsource/sora/600.css";
-import "@fontsource/sora/700.css";
-import "@fontsource/geist-mono/400.css";
-import "@fontsource/geist-mono/500.css";
-import "@fontsource/playfair-display/700.css";
-import "@fontsource/playfair-display/800.css";
-import "@fontsource/playfair-display/900.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource/space-grotesk/400.css";
+import "@fontsource/space-grotesk/500.css";
+import "@fontsource/space-grotesk/600.css";
+import "@fontsource/space-grotesk/700.css";
+import "@fontsource/syne/700.css";
+import "@fontsource/syne/800.css";
 import "./styles/global.css";
+
+// Apply saved theme before first paint to prevent flash
+const savedTheme = localStorage.getItem("rw-theme") ?? "system";
+if (savedTheme === "dark" || (savedTheme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+	document.documentElement.classList.add("dark");
+}
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 

@@ -300,16 +300,16 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 					</div>
 				) : (
 					<div
-						className="flex shrink-0 items-center justify-center rounded-lg border border-border bg-[rgba(0,0,0,0.02)]"
+						className="bg-muted/40 flex shrink-0 items-center justify-center rounded-lg border border-border"
 						style={{ width: 56, aspectRatio: "4/5" }}
 					>
-						<span className="text-lg text-[#D6D3D1]">?</span>
+						<span className="text-muted-foreground text-lg">?</span>
 					</div>
 				)}
 
 				{/* Product info */}
 				<div className="min-w-0 flex-1">
-					<h2 className="line-clamp-2 text-[14px] font-semibold leading-snug text-foreground">
+					<h2 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
 						{product.title ?? "Untitled product"}
 					</h2>
 					{product.brand && (
@@ -576,7 +576,14 @@ const ChartSection = ({
 					{label}
 				</span>
 				{selectOptions.length > 0 && (
-					<Select value={selectValue} onValueChange={onSelectChange}>
+					<Select
+						value={selectValue}
+						onValueChange={(value) => {
+							if (value) {
+								onSelectChange(value);
+							}
+						}}
+					>
 						<SelectTrigger size="sm" className="w-auto">
 							<SelectValue>{selectedOptionLabel}</SelectValue>
 						</SelectTrigger>
@@ -601,7 +608,7 @@ const ChartSection = ({
 				)}
 
 				{!loading && !query.isError && points.length === 0 && (
-					<div className="flex items-center justify-center rounded-lg border border-dashed border-border bg-[rgba(0,0,0,0.01)] py-8">
+					<div className="bg-muted/30 flex items-center justify-center rounded-lg border border-dashed border-border py-8">
 						<p className="text-sm text-muted-foreground">
 							No data yet. Click Sync to fetch history.
 						</p>
@@ -639,12 +646,16 @@ const ChartSection = ({
 									<linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
 										<stop
 											offset="0%"
-											stopColor={isPrice ? "#D97706" : "#5C7248"}
+											stopColor={
+												isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)"
+											}
 											stopOpacity="0.12"
 										/>
 										<stop
 											offset="100%"
-											stopColor={isPrice ? "#D97706" : "#5C7248"}
+											stopColor={
+												isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)"
+											}
 											stopOpacity="0"
 										/>
 									</linearGradient>
@@ -658,14 +669,14 @@ const ChartSection = ({
 											x2={VB_W - PAD.r}
 											y1={tick.y}
 											y2={tick.y}
-											stroke="rgba(0,0,0,0.05)"
+											stroke="var(--color-border)"
 											strokeWidth="1"
 										/>
 										<text
 											x={PAD.l - 10}
 											y={tick.y + 6}
 											textAnchor="end"
-											fill="#78716C"
+											fill="var(--color-muted-foreground)"
 											fontSize="18"
 											style={{ fontFamily: "var(--font-mono)" }}
 										>
@@ -687,7 +698,7 @@ const ChartSection = ({
 													? "end"
 													: "middle"
 										}
-										fill="#78716C"
+										fill="var(--color-muted-foreground)"
 										fontSize="18"
 										style={{ fontFamily: "var(--font-mono)" }}
 									>
@@ -702,7 +713,9 @@ const ChartSection = ({
 								<path
 									d={chartGeo.linePath}
 									fill="none"
-									stroke={isPrice ? "#D97706" : "#5C7248"}
+									stroke={
+										isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)"
+									}
 									strokeLinecap="round"
 									strokeLinejoin="round"
 									strokeWidth="2"
@@ -713,7 +726,9 @@ const ChartSection = ({
 									cx={chartGeo.lastX}
 									cy={chartGeo.lastY}
 									r="3.5"
-									fill={isPrice ? "#D97706" : "#5C7248"}
+									fill={
+										isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)"
+									}
 									stroke="white"
 									strokeWidth="2"
 								/>
@@ -726,7 +741,9 @@ const ChartSection = ({
 											x2={hoverX}
 											y1={PAD.t}
 											y2={VB_H - PAD.b}
-											stroke={isPrice ? "#D97706" : "#5C7248"}
+											stroke={
+												isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)"
+											}
 											strokeWidth="1"
 											strokeDasharray="4 4"
 											opacity="0.4"
@@ -735,7 +752,9 @@ const ChartSection = ({
 											cx={hoverX}
 											cy={hoverY}
 											r="4.5"
-											fill={isPrice ? "#D97706" : "#5C7248"}
+											fill={
+												isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)"
+											}
 											stroke="white"
 											strokeWidth="2.5"
 										/>
@@ -774,9 +793,9 @@ const ChartSection = ({
 
 const ChartSkeleton = () => (
 	<div className="space-y-2">
-		<div className="h-7 w-24 animate-pulse rounded bg-[rgba(0,0,0,0.04)]" />
-		<div className="h-3 w-36 animate-pulse rounded bg-[rgba(0,0,0,0.03)]" />
-		<div className="h-[160px] animate-pulse rounded-lg bg-[rgba(0,0,0,0.03)]" />
+		<div className="bg-muted h-7 w-24 animate-pulse rounded" />
+		<div className="bg-muted h-3 w-36 animate-pulse rounded" />
+		<div className="bg-muted h-[160px] animate-pulse rounded-lg" />
 	</div>
 );
 
