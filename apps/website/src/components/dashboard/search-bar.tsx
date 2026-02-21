@@ -3,13 +3,6 @@ import { useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectItem,
-	SelectPopup,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { api } from "@/lib/trpc";
 
 const MARKETPLACES = [
@@ -22,7 +15,7 @@ const MARKETPLACES = [
 
 export function SearchBar() {
 	const [query, setQuery] = useState("");
-	const [marketplaceId, setMarketplaceId] = useState(MARKETPLACES[0].id);
+	const marketplaceId = MARKETPLACES[0].id;
 	const mutation = api.api.app.getProductInfo.useMutation();
 	const historyMutation = api.api.app.loadProductHistory.useMutation();
 
@@ -64,31 +57,6 @@ export function SearchBar() {
 						className="h-9 rounded-none border-0 bg-transparent pl-9 text-xs font-mono shadow-none focus-within:ring-0"
 						disabled={mutation.isPending}
 					/>
-				</div>
-				<div className="flex items-center gap-1 pr-2">
-				<Select value={marketplaceId} onValueChange={setMarketplaceId}>
-					<SelectTrigger className="h-7 w-[80px] text-xs" size="sm">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectPopup>
-						{MARKETPLACES.map((marketplace) => (
-							<SelectItem key={marketplace.id} value={marketplace.id}>
-								<span className="flex items-center gap-1">
-									<span>{marketplace.flag}</span>
-									<span>{marketplace.label}</span>
-								</span>
-							</SelectItem>
-						))}
-					</SelectPopup>
-				</Select>
-				<Button
-					type="submit"
-					size="sm"
-					className="h-7 rounded-sm px-2 text-xs"
-					disabled={mutation.isPending || query.trim().length === 0}
-				>
-					{mutation.isPending ? <Loader2 className="size-3 animate-spin" /> : "Lookup"}
-				</Button>
 				</div>
 			</form>
 
