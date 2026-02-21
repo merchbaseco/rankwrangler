@@ -88,7 +88,7 @@ export function AdminOperationsPanel() {
 
 			<JobExecutionsPanel
 				className="mt-0 min-h-0 flex-1"
-				rowsClassName="max-h-[520px]"
+				rowsClassName="max-h-[min(68vh,760px)]"
 			/>
 		</div>
 	);

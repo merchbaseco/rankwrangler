@@ -53,7 +53,7 @@ export const SettingsModal = ({
 			<Dialog.Portal>
 				<Dialog.Backdrop className="fixed inset-0 z-50 bg-black/45" />
 				<Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<Dialog.Popup className="flex h-[min(640px,85vh)] w-[min(900px,90vw)] overflow-hidden rounded-md border border-border bg-background shadow-lg outline-none">
+					<Dialog.Popup className="flex h-[min(820px,92vh)] w-[min(1200px,96vw)] overflow-hidden rounded-md border border-border bg-background shadow-lg outline-none">
 						<nav className="flex w-[200px] shrink-0 flex-col border-r border-border bg-sidebar p-2">
 							<Dialog.Title className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 								Settings
