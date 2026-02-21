@@ -10,6 +10,10 @@ import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
 import { startJobs } from '@/jobs/index.js';
 import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
+import {
+    registerProductIngestQueueWakeups,
+    sendProcessProductIngestQueueJob,
+} from '@/services/product-ingest-queue.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -34,9 +38,13 @@ const databaseUrl =
 const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
 console.log('[Server] pg-boss initialized');
+registerProductIngestQueueWakeups(boss);
 
 const jobsRuntime = await startJobs(boss);
 console.log('[Server] Jobs registered');
+
+// Kick the ingest queue once on startup in case rows exist before the server starts.
+await sendProcessProductIngestQueueJob();
 
 // Run reprocess stale products job on startup
 // try {

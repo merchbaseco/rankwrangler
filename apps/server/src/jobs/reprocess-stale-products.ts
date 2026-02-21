@@ -1,7 +1,8 @@
 import { and, eq, gte, isNotNull, isNull, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
-import { productIngestQueue, products } from '@/db/schema.js';
+import { products } from '@/db/schema.js';
+import { enqueueProductIngestQueueItems } from '@/services/product-ingest-queue.js';
 import { defineJob } from '@/jobs/job-router.js';
 
 // Root category ID for "Clothing, Shoes & Jewelry"
@@ -88,22 +89,19 @@ export async function reprocessStaleProducts() {
         } satisfies ReprocessStaleProductsResult;
     }
 
-    // Add stale products to ingest queue (using onConflictDoNothing to avoid duplicates)
+    // Add stale products to ingest queue and trigger an ingest wakeup if any new rows were inserted.
     try {
-        await db
-            .insert(productIngestQueue)
-            .values(
-                staleProducts.map(product => ({
-                    marketplaceId: product.marketplaceId,
-                    asin: product.asin,
-                }))
-            )
-            .onConflictDoNothing();
+        const enqueuedCount = await enqueueProductIngestQueueItems(
+            staleProducts.map(product => ({
+                marketplaceId: product.marketplaceId,
+                asin: product.asin,
+            }))
+        );
 
         return {
             didWork: true,
             staleProductCount: staleProducts.length,
-            enqueuedCount: staleProducts.length,
+            enqueuedCount,
             errorMessage: null,
         } satisfies ReprocessStaleProductsResult;
     } catch (error) {
