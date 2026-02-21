@@ -137,7 +137,7 @@ const createColumns = ({
 						<img
 							src={url}
 							alt={row.original.title ?? row.original.asin}
-							className="h-full w-full object-contain"
+							className="h-full w-auto max-w-none"
 						/>
 					</div>
 				) : (
