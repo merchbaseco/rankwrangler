@@ -2,18 +2,13 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify from 'fastify';
-import type { Job } from 'pg-boss';
 import { createContext } from '@/api/context.js';
 import { appRouter } from '@/api/router.js';
 import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
-import { fetchKeepaHistoryForAsin } from '@/jobs/fetch-keepa-history-for-asin.js';
-import { processKeepaHistoryRefreshQueue } from '@/jobs/process-keepa-history-refresh-queue.js';
-import { processProductIngestQueue } from '@/jobs/process-product-ingest-queue.js';
-import { reprocessStaleProducts } from '@/jobs/reprocess-stale-products.js';
-import { runTrackedJob } from '@/services/job-executions.js';
+import { startJobs } from '@/jobs/index.js';
 import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
 
 console.log('Starting RankWrangler Server...');
@@ -40,140 +35,8 @@ const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
 console.log('[Server] pg-boss initialized');
 
-// Create queues if they don't exist
-await boss.createQueue('process-product-ingest-queue');
-await boss.createQueue('reprocess-stale-products');
-await boss.createQueue('process-keepa-history-refresh-queue');
-await boss.createQueue('fetch-keepa-history-for-asin');
-
-// Register job handlers
-boss.work('process-product-ingest-queue', async job => {
-    await runTrackedJob({
-        jobName: 'process-product-ingest-queue',
-        input: job.data,
-        shouldPersistSuccess: result => result.didWork,
-        run: async logger => {
-            const result = await processProductIngestQueue();
-
-            if (result.didWork) {
-                logger.info('Processed product ingest queue batch', {
-                    marketplaceId: result.marketplaceId,
-                    queueCount: result.queueCount,
-                    upsertedCount: result.upsertedCount,
-                });
-            }
-
-            return result;
-        },
-    });
-});
-boss.work('reprocess-stale-products', async job => {
-    await runTrackedJob({
-        jobName: 'reprocess-stale-products',
-        input: job.data,
-        shouldPersistSuccess: result => result.didWork,
-        run: async logger => {
-            const result = await reprocessStaleProducts();
-
-            if (result.errorMessage) {
-                logger.error('Failed to enqueue stale products', {
-                    staleProductCount: result.staleProductCount,
-                    error: result.errorMessage,
-                });
-            } else if (result.didWork) {
-                logger.info('Queued stale products for reprocessing', {
-                    staleProductCount: result.staleProductCount,
-                    enqueuedCount: result.enqueuedCount,
-                });
-            }
-
-            return result;
-        },
-    });
-});
-boss.work('process-keepa-history-refresh-queue', async job => {
-    await runTrackedJob({
-        jobName: 'process-keepa-history-refresh-queue',
-        input: job.data,
-        shouldPersistSuccess: result => result.didWork,
-        run: async logger => {
-            const result = await processKeepaHistoryRefreshQueue(boss);
-
-            if (result.didWork) {
-                logger.info('Dispatched Keepa refresh jobs', {
-                    batchSize: result.batchSize,
-                    dispatchedCount: result.dispatchedCount,
-                });
-            }
-
-            return result;
-        },
-    });
-});
-boss.work('fetch-keepa-history-for-asin', async (jobs: Job<unknown>[]) => {
-    for (const queuedJob of jobs) {
-        await runTrackedJob({
-            jobName: 'fetch-keepa-history-for-asin',
-            input: queuedJob.data,
-            shouldPersistSuccess: result => result.didWork,
-            run: async logger => {
-                const payload = getFetchKeepaHistoryJobPayload(queuedJob);
-                if (!payload) {
-                    logger.warn('Skipping job: missing marketplaceId or asin in job payload', {
-                        jobId: queuedJob.id,
-                        payload: queuedJob.data,
-                    });
-
-                    return {
-                        didWork: false,
-                        jobId: queuedJob.id,
-                        status: 'skipped_invalid_payload',
-                    } as const;
-                }
-
-                logger.info('Processing Keepa history fetch', payload);
-
-                await fetchKeepaHistoryForAsin(payload);
-
-                logger.info('Completed Keepa history fetch', payload);
-
-                return {
-                    didWork: true,
-                    ...payload,
-                    status: 'completed',
-                } as const;
-            },
-        });
-    }
-});
-
-// Send job to process queue every second
-setInterval(async () => {
-    await boss.send(
-        'process-product-ingest-queue',
-        {},
-        {
-            singletonKey: 'process-product-ingest-queue',
-            retryLimit: 0,
-        }
-    );
-}, 1000);
-
-// Send Keepa history queue processing job every minute as singleton
-setInterval(async () => {
-    await boss.send(
-        'process-keepa-history-refresh-queue',
-        {},
-        {
-            singletonKey: 'process-keepa-history-refresh-queue',
-            retryLimit: 0,
-        }
-    );
-}, 60 * 1000);
-
-// Schedule reprocess stale products job to run every 10 minutes using pg-boss cron
-await boss.schedule('reprocess-stale-products', '*/10 * * * *', {});
-console.log('[Server] Scheduled reprocess-stale-products job to run every 10 minutes');
+const jobsRuntime = await startJobs(boss);
+console.log('[Server] Jobs registered');
 
 // Run reprocess stale products job on startup
 // try {
@@ -274,6 +137,10 @@ const shutdown = async (signal: string) => {
         await shutdownPostHog();
         console.log('[Server] PostHog shutdown complete');
 
+        // Stop job intervals
+        await jobsRuntime.stop();
+        console.log('[Server] Job schedules stopped');
+
         // Stop pg-boss
         await boss.stop();
         console.log('[Server] pg-boss stopped');
@@ -310,10 +177,9 @@ try {
     console.log(`  • Database: Connected`);
     console.log(`  • Migrations: Complete`);
     console.log(`  • Jobs Registered:`);
-    console.log(`    - process-product-ingest-queue (interval: 1s)`);
-    console.log(`    - reprocess-stale-products (cron: */10 * * * *)`);
-    console.log(`    - process-keepa-history-refresh-queue (interval: 1m, singleton)`);
-    console.log(`    - fetch-keepa-history-for-asin (triggered by queue processor)`);
+    for (const jobSummary of jobsRuntime.startupSummary) {
+        console.log(`    - ${jobSummary}`);
+    }
     const posthogStatus = posthogEnabled
         ? 'Enabled'
         : 'Disabled (POSTHOG_API_KEY not set)';
@@ -333,34 +199,3 @@ try {
     await shutdownPostHog();
     process.exit(1);
 }
-
-type FetchKeepaHistoryJobPayload = {
-    marketplaceId: string;
-    asin: string;
-};
-
-const getFetchKeepaHistoryJobPayload = (job: Job<unknown>) => {
-    if (!isRecord(job.data)) {
-        return null;
-    }
-
-    const marketplaceId = job.data.marketplaceId;
-    const asin = job.data.asin;
-
-    if (typeof marketplaceId !== 'string' || typeof asin !== 'string') {
-        return null;
-    }
-
-    if (marketplaceId.length === 0 || asin.length === 0) {
-        return null;
-    }
-
-    return {
-        marketplaceId,
-        asin,
-    } satisfies FetchKeepaHistoryJobPayload;
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-    return typeof value === 'object' && value !== null;
-};

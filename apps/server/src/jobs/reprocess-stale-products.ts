@@ -1,6 +1,8 @@
 import { and, eq, gte, isNotNull, isNull, lt, or } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { productIngestQueue, products } from '@/db/schema.js';
+import { defineJob } from '@/jobs/job-router.js';
 
 // Root category ID for "Clothing, Shoes & Jewelry"
 const CLOTHING_SHOES_JEWELRY_CATEGORY_ID = 7141123011;
@@ -118,3 +120,36 @@ export async function reprocessStaleProducts() {
         } satisfies ReprocessStaleProductsResult;
     }
 }
+
+export const reprocessStaleProductsJob = defineJob('reprocess-stale-products', {
+    persistSuccess: 'didWork',
+})
+    .input(z.record(z.string(), z.unknown()))
+    .cron({
+        cron: '*/10 * * * *',
+        payload: {},
+    })
+    .work(async (job, signal, log) => {
+        void job;
+        void signal;
+
+        const result = await reprocessStaleProducts();
+
+        if (result.errorMessage) {
+            log(
+                'Failed to enqueue stale products',
+                {
+                    staleProductCount: result.staleProductCount,
+                    error: result.errorMessage,
+                },
+                'error'
+            );
+        } else if (result.didWork) {
+            log('Queued stale products for reprocessing', {
+                staleProductCount: result.staleProductCount,
+                enqueuedCount: result.enqueuedCount,
+            });
+        }
+
+        return result;
+    });

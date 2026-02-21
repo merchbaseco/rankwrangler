@@ -1,4 +1,6 @@
 import type { PgBoss } from 'pg-boss';
+import { z } from 'zod';
+import { defineJob } from '@/jobs/job-router.js';
 import {
     getDueKeepaHistoryRefreshQueueItems,
     getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens,
@@ -57,3 +59,32 @@ export async function processKeepaHistoryRefreshQueue(boss: PgBoss) {
         reason: 'dispatched',
     } satisfies ProcessKeepaHistoryRefreshQueueResult;
 }
+
+export const processKeepaHistoryRefreshQueueJob = defineJob(
+    'process-keepa-history-refresh-queue',
+    { persistSuccess: 'didWork' }
+)
+    .input(z.record(z.string(), z.unknown()))
+    .options({
+        singletonKey: 'process-keepa-history-refresh-queue',
+        retryLimit: 0,
+    })
+    .interval({
+        everyMs: 60 * 1000,
+        payload: {},
+    })
+    .work(async (job, signal, log, { boss }) => {
+        void job;
+        void signal;
+
+        const result = await processKeepaHistoryRefreshQueue(boss);
+
+        if (result.didWork) {
+            log('Dispatched Keepa refresh jobs', {
+                batchSize: result.batchSize,
+                dispatchedCount: result.dispatchedCount,
+            });
+        }
+
+        return result;
+    });

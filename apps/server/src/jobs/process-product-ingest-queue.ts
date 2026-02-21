@@ -1,6 +1,8 @@
+import { z } from 'zod';
 import { upsertProductInfo } from '@/db/product/upsert-product.js';
 import { deleteQueueItems } from '@/db/product-ingest-queue/delete-queue-items.js';
 import { getQueueItems } from '@/db/product-ingest-queue/get-queue-items.js';
+import { defineJob } from '@/jobs/job-router.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 
 export type ProcessProductIngestQueueResult = {
@@ -49,3 +51,33 @@ export async function processProductIngestQueue() {
         upsertedCount: fetchedProducts.length,
     } satisfies ProcessProductIngestQueueResult;
 }
+
+export const processProductIngestQueueJob = defineJob(
+    'process-product-ingest-queue',
+    { persistSuccess: 'didWork' }
+)
+    .input(z.record(z.string(), z.unknown()))
+    .options({
+        singletonKey: 'process-product-ingest-queue',
+        retryLimit: 0,
+    })
+    .interval({
+        everyMs: 1000,
+        payload: {},
+    })
+    .work(async (job, signal, log) => {
+        void job;
+        void signal;
+
+        const result = await processProductIngestQueue();
+
+        if (result.didWork) {
+            log('Processed product ingest queue batch', {
+                marketplaceId: result.marketplaceId,
+                queueCount: result.queueCount,
+                upsertedCount: result.upsertedCount,
+            });
+        }
+
+        return result;
+    });
