@@ -1,6 +1,7 @@
-import { desc, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { jobExecutionLogs, jobExecutions } from '@/db/schema.js';
+import { getErrorMessage, toJsonValue } from '@/services/job-executions-utils.js';
 
 type JobStatus = 'success' | 'failed';
 type JobLogLevel = 'info' | 'warn' | 'error';
@@ -29,6 +30,8 @@ type RunTrackedJobInput<TResult> = {
     shouldPersistSuccess?: (result: TResult) => boolean;
     run: (logger: JobLogger) => Promise<TResult>;
 };
+
+type ListRecentJobExecutionsInput = { limit: number; status?: JobStatus; jobNames?: string[] };
 
 export type JobLogger = {
     info: (message: string, context?: unknown) => void;
@@ -84,9 +87,7 @@ export const runTrackedJob = async <TResult>({
     try {
         const result = await run(logger);
         const finishedAt = new Date();
-        const shouldPersist = shouldPersistSuccess
-            ? shouldPersistSuccess(result)
-            : true;
+        const shouldPersist = shouldPersistSuccess ? shouldPersistSuccess(result) : true;
 
         if (!shouldPersist) {
             return result;
@@ -126,9 +127,23 @@ export const runTrackedJob = async <TResult>({
     }
 };
 
-export const listRecentJobExecutions = async (
-    limit: number
-): Promise<JobExecutionRecord[]> => {
+export const listRecentJobExecutions = async ({
+    limit,
+    status,
+    jobNames,
+}: ListRecentJobExecutionsInput): Promise<JobExecutionRecord[]> => {
+    const filter =
+        status && jobNames && jobNames.length > 0
+            ? and(
+                  eq(jobExecutions.status, status),
+                  inArray(jobExecutions.jobName, jobNames)
+              )
+            : status
+              ? eq(jobExecutions.status, status)
+              : jobNames && jobNames.length > 0
+                ? inArray(jobExecutions.jobName, jobNames)
+                : undefined;
+
     const executions = await db
         .select({
             id: jobExecutions.id,
@@ -141,6 +156,7 @@ export const listRecentJobExecutions = async (
             finishedAt: jobExecutions.finishedAt,
         })
         .from(jobExecutions)
+        .where(filter)
         .orderBy(desc(jobExecutions.startedAt))
         .limit(limit);
 
@@ -148,7 +164,7 @@ export const listRecentJobExecutions = async (
         return [];
     }
 
-    const executionIds = executions.map(execution => execution.id);
+    const executionIds = executions.map((execution) => execution.id);
 
     const logs = await db
         .select({
@@ -177,7 +193,7 @@ export const listRecentJobExecutions = async (
         logsByExecutionId.set(log.executionId, existingLogs);
     }
 
-    return executions.map(execution => {
+    return executions.map((execution) => {
         const executionLogs = logsByExecutionId.get(execution.id) ?? [];
 
         return {
@@ -189,8 +205,7 @@ export const listRecentJobExecutions = async (
             errorMessage: execution.errorMessage,
             startedAt: execution.startedAt.toISOString(),
             finishedAt: execution.finishedAt.toISOString(),
-            durationMs:
-                execution.finishedAt.getTime() - execution.startedAt.getTime(),
+            durationMs: execution.finishedAt.getTime() - execution.startedAt.getTime(),
             logs: executionLogs.reverse(),
         };
     });
@@ -226,7 +241,7 @@ const persistJobExecution = async ({
     }
 
     await db.insert(jobExecutionLogs).values(
-        logs.map(log => ({
+        logs.map((log) => ({
             executionId: execution.id,
             level: log.level,
             message: log.message,
@@ -280,31 +295,4 @@ const logToConsole = (
                 console.log(prefix, context);
             }
     }
-};
-
-const toJsonValue = (value: unknown): unknown => {
-    if (value === undefined) {
-        return null;
-    }
-
-    try {
-        return JSON.parse(JSON.stringify(value));
-    } catch {
-        if (value instanceof Error) {
-            return {
-                message: value.message,
-                name: value.name,
-            };
-        }
-
-        return String(value);
-    }
-};
-
-const getErrorMessage = (error: unknown) => {
-    if (error instanceof Error) {
-        return error.message;
-    }
-
-    return 'Unknown job error';
 };
