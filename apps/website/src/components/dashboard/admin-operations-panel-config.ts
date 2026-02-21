@@ -19,7 +19,7 @@ const KEEPA_JOB_NAMES = [
     'fetch-keepa-history-for-asin',
     'process-keepa-history-refresh-queue',
 ] as const;
-const SP_API_JOB_NAMES = ['process-product-ingest-queue'] as const;
+const SP_API_JOB_NAMES = ['process-spapi-sync-queue'] as const;
 
 export const STAT_FILTER_CONFIG: Record<AdminStatLabel, StatFilterConfig> = {
     'Keepa Fetches': {

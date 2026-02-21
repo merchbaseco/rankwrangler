@@ -57,8 +57,8 @@ export const products = pgTable(
     })
 );
 
-// Product ingest queue table
-export const productIngestQueue = pgTable(
+// SP-API sync queue table (backed by legacy `product_ingest_queue` table name)
+export const spApiSyncQueue = pgTable(
     'product_ingest_queue',
     {
         id: uuid('id').primaryKey().defaultRandom(),

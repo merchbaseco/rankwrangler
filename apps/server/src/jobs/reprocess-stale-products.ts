@@ -2,7 +2,7 @@ import { and, eq, gte, isNotNull, isNull, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
-import { enqueueProductIngestQueueItems } from '@/services/product-ingest-queue.js';
+import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue.js';
 import { defineJob } from '@/jobs/job-router.js';
 
 // Root category ID for "Clothing, Shoes & Jewelry"
@@ -89,9 +89,9 @@ export async function reprocessStaleProducts() {
         } satisfies ReprocessStaleProductsResult;
     }
 
-    // Add stale products to ingest queue and trigger an ingest wakeup if any new rows were inserted.
+    // Add stale products to the SP-API sync queue and trigger a wakeup when rows are inserted.
     try {
-        const enqueuedCount = await enqueueProductIngestQueueItems(
+        const enqueuedCount = await enqueueSpApiSyncQueueItems(
             staleProducts.map(product => ({
                 marketplaceId: product.marketplaceId,
                 asin: product.asin,
