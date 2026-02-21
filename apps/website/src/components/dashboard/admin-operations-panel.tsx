@@ -4,6 +4,7 @@ import { useLicense } from "@/hooks/use-license";
 import { api } from "@/lib/trpc";
 import { formatNumber } from "@/lib/utils";
 import { JobExecutionsPanel } from "./job-executions-panel";
+import { KeepaLogPanel } from "./keepa-log-panel";
 
 export function AdminOperationsPanel() {
 	const { license, isLoading: isLicenseLoading } = useLicense();
@@ -85,6 +86,8 @@ export function AdminOperationsPanel() {
 					</div>
 				)}
 			</div>
+
+			<KeepaLogPanel className="mt-0 min-h-0" />
 
 			<JobExecutionsPanel
 				className="mt-0 min-h-0 flex-1"

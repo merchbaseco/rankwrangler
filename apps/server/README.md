@@ -111,6 +111,7 @@ App procedures:
 - `api.app.adminStatus` (admin only)
 - `api.app.getProductInfo`
 - `api.app.getKeepaStatus`
+- `api.app.keepaLog` (admin only)
 - `api.app.jobExecutions` (admin only)
 - `api.app.getProductHistory`
 - `api.app.loadProductHistory`
@@ -123,6 +124,7 @@ App procedures:
 Admin job observability:
 - Job executions and structured job logs are persisted in `job_executions` and `job_execution_logs`.
 - The dashboard calls `api.app.jobExecutions` and is gated by `ADMIN_EMAIL` (`adminProcedure`).
+- Keepa queue + recent processed Keepa jobs are exposed via `api.app.keepaLog` (admin only).
 
 Example `curl` (public):
 
@@ -189,6 +191,15 @@ curl -s -X POST http://localhost:8080/api/api.app.getKeepaStatus \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $RR_CLERK_TOKEN" \
   -d '{"input":null}'
+```
+
+Example `curl` (admin Keepa queue log):
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.keepaLog \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
+  -d '{"input":{"queueLimit":250,"processedLimit":20}}'
 ```
 
 Example `curl` (app Keepa history query):

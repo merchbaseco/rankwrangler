@@ -1,5 +1,6 @@
 import { router } from '@/api/trpc.js';
 import { adminStatus } from './admin-status.js';
+import { keepaLog } from './keepa-log.js';
 import { getKeepaStatus } from './get-keepa-status.js';
 import { jobExecutions } from './job-executions.js';
 import { getProductHistory } from './get-product-history.js';
@@ -10,6 +11,7 @@ import { recentProducts } from './recent-products.js';
 
 export const appApiRouter = router({
     adminStatus,
+    keepaLog,
     getKeepaStatus,
     jobExecutions,
     getProductHistory,

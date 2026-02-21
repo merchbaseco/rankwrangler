@@ -115,6 +115,12 @@ if [ -n "$RR_CLERK_ADMIN_TOKEN" ]; then
       -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
       -d '{"input":{"limit":10}}' | jq '.'
     echo ""
+    echo "🪵 Testing api.app.keepaLog..."
+    curl -s -X POST "$API_BASE/api/api.app.keepaLog" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
+      -d '{"input":{"queueLimit":50,"processedLimit":20}}' | jq '.'
+    echo ""
 else
     echo "⚠️ Skipping admin API tests - set RR_CLERK_ADMIN_TOKEN for admin-only procedures."
     echo ""
