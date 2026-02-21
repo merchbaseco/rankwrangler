@@ -204,6 +204,7 @@ Compatibility posture:
 5. Maintain executable flags on shell scripts (`chmod +x`).
 6. Secrets stay out of version control—use `.env.production` for deployment overrides if needed.
 7. **Keep startup status summary current** - When adding new services, jobs, or features, update the startup status summary in `apps/server/src/index.ts` to reflect the current state. This helps operators quickly verify the server is functioning correctly.
+8. **Enforce file size limits** - Keep source files at **300 lines max** by default. React files should be especially small, focused, and composed from cohesive subcomponents/hooks. Any exception must be explicitly approved by the user in the current conversation before merging.
 
 ### PR Etiquette
 
