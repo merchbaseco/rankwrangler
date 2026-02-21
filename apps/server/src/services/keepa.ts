@@ -854,7 +854,7 @@ const extractKeepaErrorDetails = (error: unknown) => {
         return {
             code: error.code,
             message: error.message,
-            payload: error.payload,
+            payload: normalizeKeepaErrorPayload(error.payload),
             tokensConsumed: error.tokensConsumed ?? null,
             tokensLeft: error.tokensLeft ?? null,
             refillIn: error.refillIn ?? null,
@@ -883,6 +883,14 @@ const extractKeepaErrorDetails = (error: unknown) => {
         refillIn: null,
         refillRate: null,
     };
+};
+
+const normalizeKeepaErrorPayload = (payload: unknown): Record<string, unknown> | null => {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        return null;
+    }
+
+    return payload as Record<string, unknown>;
 };
 
 const getRecentSuccessfulKeepaImport = async (

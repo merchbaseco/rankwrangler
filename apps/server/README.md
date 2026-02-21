@@ -100,6 +100,7 @@ tRPC router is exposed at `/api` with explicit namespaces:
 
 Public procedures:
 
+- `api.public.getProductHistory`
 - `api.public.getProductInfo`
 - `api.public.getProductInfoBatch`
 - `api.public.license.validate`
@@ -140,6 +141,22 @@ curl -s -X POST http://localhost:8080/api/api.public.getProductInfoBatch \
   -H "Authorization: Bearer $RR_LICENSE_KEY" \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asins":["B0DV53VS61","B0DV53VS62"]}}'
 ```
+
+Example `curl` (public BSR history):
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.public.getProductHistory \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_LICENSE_KEY" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","limit":1000,"days":365}}'
+```
+
+`api.public.getProductHistory` behavior:
+- Returns Keepa `bsrMain` history points currently in `product_history_points`.
+- If no history points exist yet, it triggers a high-priority manual Keepa sync and returns:
+  - `collecting: true`
+  - `syncTriggered: true|false` (deduped if a manual sync is already in-flight)
+- Extension clients can poll this endpoint every few seconds until points are available.
 
 Example `curl` (app):
 

@@ -6,10 +6,15 @@ import { log } from "../../../utils/logger";
 import { recordCacheLookup } from "../debug/debug-snapshot";
 import { ProductDisplay } from "./product-display";
 
+type CachedProductDisplayProps = ProductIdentifier & {
+	mode: "detail" | "search";
+};
+
 export const CachedProductDisplay = ({
 	asin,
 	marketplaceId,
-}: ProductIdentifier) => {
+	mode,
+}: CachedProductDisplayProps) => {
 	const [state, setState] = useState<"loading" | "success" | "error">(
 		"loading"
 	);
@@ -78,6 +83,7 @@ export const CachedProductDisplay = ({
 		<ProductDisplay
 			isError={state === "error"}
 			isLoading={state === "loading"}
+			mode={mode}
 			product={product}
 		/>
 	);

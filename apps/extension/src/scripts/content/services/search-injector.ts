@@ -309,6 +309,7 @@ class SearchInjector {
 		const cachedProductDisplayComponent = createElement(CachedProductDisplay, {
 			asin,
 			marketplaceId: US_MARKETPLACE_ID,
+			mode: "search",
 		});
 		reactRenderer.render(cachedProductDisplayComponent, shadowRoot);
 

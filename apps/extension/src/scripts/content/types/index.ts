@@ -16,9 +16,46 @@ export interface FetchProductInfoMessage {
 	marketplaceId: string;
 }
 
+export interface ProductHistoryPoint {
+	categoryId: number;
+	categoryName: string | null;
+	observedAt: string;
+	keepaMinutes: number;
+	value: number | null;
+	isMissing: boolean;
+}
+
+export interface ProductHistory {
+	marketplaceId: string;
+	asin: string;
+	metric:
+		| "bsrMain"
+		| "bsrCategory"
+		| "priceAmazon"
+		| "priceNew"
+		| "priceNewFba";
+	latestImportAt: string | null;
+	categoryNames: Record<string, string>;
+	points: ProductHistoryPoint[];
+	collecting: boolean;
+	syncTriggered: boolean;
+}
+
+export interface FetchProductHistoryMessage {
+	type: "fetchProductHistory";
+	asin: string;
+	marketplaceId: string;
+}
+
 export interface ProductInfoResponse {
 	success: boolean;
 	data?: ProductInfo;
+	error?: string;
+}
+
+export interface ProductHistoryResponse {
+	success: boolean;
+	data?: ProductHistory;
 	error?: string;
 }
 
@@ -86,6 +123,7 @@ export interface CacheClearedNotification {
 
 export type BackgroundMessage =
 	| FetchProductInfoMessage
+	| FetchProductHistoryMessage
 	| { type: "ping" }
 	| ValidateLicenseMessage
 	| SetLicenseMessage

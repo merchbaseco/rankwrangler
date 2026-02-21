@@ -1,3 +1,5 @@
+import type { ProductHistory as ProductHistoryResponse } from "../content/types";
+
 export interface ProductIdentifier {
 	asin: string;
 	marketplaceId: string;
@@ -18,6 +20,8 @@ export interface Product {
 		cached?: boolean;
 	};
 }
+
+export type ProductHistory = ProductHistoryResponse;
 
 export const getErrorProduct = (
 	productIdentifier: ProductIdentifier

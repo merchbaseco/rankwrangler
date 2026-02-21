@@ -2,6 +2,7 @@ import { browser } from "webextension-polyfill-ts";
 import { log } from "../../utils/logger";
 import type { BackgroundMessage } from "../content/types";
 import { handleClearCache } from "./handlers/clear-cache";
+import { handleFetchProductHistory } from "./handlers/fetch-product-history";
 import { handleFetchProductInfo } from "./handlers/fetch-product-info";
 import { handleGetLicenseStatus } from "./handlers/get-license-status";
 import { handlePing } from "./handlers/ping";
@@ -26,6 +27,9 @@ browser.runtime.onMessage.addListener((message: BackgroundMessage, _sender) => {
 
 		case "fetchProductInfo":
 			return handleFetchProductInfo(message);
+
+		case "fetchProductHistory":
+			return handleFetchProductHistory(message);
 
 		case "validateLicense":
 			return handleValidateLicense(message);
