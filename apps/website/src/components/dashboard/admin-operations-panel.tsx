@@ -1,109 +1,97 @@
-import { Loader2, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useLicense } from "@/hooks/use-license";
 import { api } from "@/lib/trpc";
-import { formatNumber } from "@/lib/utils";
-import { JobExecutionsPanel } from "./job-executions-panel";
-import { KeepaLogPanel } from "./keepa-log-panel";
+import { formatNumber, cn } from "@/lib/utils";
 
-export function AdminOperationsPanel() {
-	const { license, isLoading: isLicenseLoading } = useLicense();
-	const {
-		data: keepaStatus,
-		isLoading: isKeepaLoading,
-		isFetching: isKeepaFetching,
-		refetch: refetchKeepaStatus,
-	} = api.api.app.getKeepaStatus.useQuery(undefined, {
-		refetchInterval: 30000,
-		refetchOnWindowFocus: false,
-	});
+const COLS = 3;
 
-	const usageCount = license?.usageCount ?? 0;
-	const keepaTokensLeft = keepaStatus?.tokens.tokensLeft;
-	const keepaQueueDueNow = keepaStatus?.queue.dueNow ?? 0;
-	const keepaFetchesLastHour = keepaStatus?.queue.fetchesLastHour ?? 0;
-	const keepaFetchesLastHourSuccess =
-		keepaStatus?.queue.fetchesLastHourSuccess ?? 0;
-	const keepaFetchesLastHourError = keepaStatus?.queue.fetchesLastHourError ?? 0;
+export const AdminOperationsPanel = () => {
+    const { data, isLoading } = api.api.app.getAdminStats.useQuery(undefined, {
+        refetchInterval: 60_000,
+        refetchOnWindowFocus: false,
+    });
 
-	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-3">
-			<div className="rounded-sm border border-border bg-card">
-				<div className="flex items-center justify-between border-b border-border px-3 py-2">
-					<div>
-						<h2 className="font-display text-sm font-semibold text-foreground">
-							Admin Runtime
-						</h2>
-						<p className="text-muted-foreground mt-0.5 text-xs">
-							System metrics and queue health
-						</p>
-					</div>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						className="h-7 rounded-sm text-xs"
-						onClick={() => {
-							void refetchKeepaStatus();
-						}}
-						disabled={isKeepaFetching}
-					>
-						{isKeepaFetching ? (
-							<Loader2 className="size-3 animate-spin" />
-						) : (
-							<RefreshCw className="size-3" />
-						)}
-						Refresh
-					</Button>
-				</div>
+    const stats = data?.stats ?? [];
+    const rows = Math.ceil(stats.length / COLS);
 
-				{isLicenseLoading && isKeepaLoading ? (
-					<p className="text-muted-foreground px-3 py-3 text-sm">Loading runtime stats...</p>
-				) : (
-					<div className="grid grid-cols-2 gap-2 p-3 md:grid-cols-3 lg:grid-cols-6">
-						<StatCard label="Total Products" value={formatNumber(usageCount)} />
-						<StatCard
-							label="Keepa Attempts (1h)"
-							value={formatNumber(keepaFetchesLastHour)}
-						/>
-						<StatCard
-							label="Keepa Success (1h)"
-							value={formatNumber(keepaFetchesLastHourSuccess)}
-						/>
-						<StatCard
-							label="Keepa Errors (1h)"
-							value={formatNumber(keepaFetchesLastHourError)}
-						/>
-						<StatCard
-							label="Keepa Tokens"
-							value={
-								typeof keepaTokensLeft === "number"
-									? formatNumber(keepaTokensLeft)
-									: "--"
-							}
-						/>
-						<StatCard label="Keepa Queue Due" value={formatNumber(keepaQueueDueNow)} />
-					</div>
-				)}
-			</div>
+    return (
+        <div className="rounded-sm border border-border bg-card overflow-hidden">
+            {isLoading ? (
+                <p className="text-muted-foreground px-3 py-6 text-center text-sm">
+                    Loading stats...
+                </p>
+            ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3">
+                    {stats.map((stat, i) => {
+                        const col = i % COLS;
+                        const row = Math.floor(i / COLS);
+                        const isLastCol = col === COLS - 1;
+                        const isLastRow = row === rows - 1;
 
-			<KeepaLogPanel className="mt-0 min-h-0" />
+                        return (
+                            <div
+                                key={stat.label}
+                                className={cn(
+                                    "flex flex-col justify-between p-3",
+                                    !isLastCol && "border-r border-border",
+                                    !isLastRow && "border-b border-border",
+                                )}
+                            >
+                                <div>
+                                    <p className="text-muted-foreground text-[10px] uppercase tracking-wider">
+                                        {stat.label}
+                                    </p>
+                                    <p className="font-display mt-0.5 text-xl font-semibold text-foreground tabular-nums">
+                                        {formatNumber(stat.total)}
+                                    </p>
+                                </div>
+                                <Sparkline buckets={stat.buckets} />
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+};
 
-			<JobExecutionsPanel
-				className="mt-0 min-h-0 flex-1"
-				rowsClassName="max-h-[min(68vh,760px)]"
-			/>
-		</div>
-	);
-}
+const VB_W = 200;
+const VB_H = 40;
 
-const StatCard = ({ label, value }: { label: string; value: string }) => {
-	return (
-		<div className="flex flex-col rounded-sm border border-border bg-background p-2.5">
-			<p className="stat-value text-lg font-semibold text-foreground">{value}</p>
-			<p className="text-muted-foreground mt-1 text-xs uppercase tracking-wide">
-				{label}
-			</p>
-		</div>
-	);
+const Sparkline = ({ buckets }: { buckets: number[] }) => {
+    if (buckets.length === 0) return null;
+
+    const max = Math.max(...buckets, 1);
+    const stepX = VB_W / (buckets.length - 1 || 1);
+
+    const points = buckets.map((v, i) => ({
+        x: i * stepX,
+        y: VB_H - (v / max) * VB_H * 0.85 - VB_H * 0.05,
+    }));
+
+    const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
+    const areaPath = `${linePath} L${VB_W},${VB_H} L0,${VB_H} Z`;
+
+    return (
+        <svg
+            viewBox={`0 0 ${VB_W} ${VB_H}`}
+            className="mt-2 h-8 w-full"
+            preserveAspectRatio="none"
+        >
+            <defs>
+                <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--color-foreground)" stopOpacity="0.08" />
+                    <stop offset="100%" stopColor="var(--color-foreground)" stopOpacity="0" />
+                </linearGradient>
+            </defs>
+            <path d={areaPath} fill="url(#sparkFill)" />
+            <path
+                d={linePath}
+                fill="none"
+                stroke="var(--color-foreground)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.5"
+            />
+        </svg>
+    );
 };
