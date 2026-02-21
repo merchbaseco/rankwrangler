@@ -5,8 +5,6 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Sheet = Dialog.Root;
-const SheetTrigger = Dialog.Trigger;
-const SheetClose = Dialog.Close;
 
 const sheetPopupVariants = cva(
 	"fixed z-50 flex max-h-screen flex-col overflow-hidden bg-background shadow-lg outline-none transition-transform duration-300 ease-out",
@@ -107,57 +105,4 @@ const SheetPanel = ({ className, ...props }: React.ComponentProps<"div">) => (
 	<div className={cn("flex-1 overflow-y-auto p-4", className)} {...props} />
 );
 
-const SheetHeader = ({ className, ...props }: React.ComponentProps<"div">) => (
-	<div className={cn("flex flex-col gap-1.5 p-4 pb-0", className)} {...props} />
-);
-
-const SheetFooter = ({ className, ...props }: React.ComponentProps<"div">) => (
-	<div
-		className={cn(
-			"mt-auto flex flex-col-reverse gap-2 p-4 pt-0 sm:flex-row sm:justify-end",
-			className,
-		)}
-		{...props}
-	/>
-);
-
-const SheetTitle = React.forwardRef<
-	HTMLHeadingElement,
-	React.ComponentProps<typeof Dialog.Title>
->(({ className, ...props }, ref) => (
-	<Dialog.Title
-		ref={ref}
-		className={cn("font-semibold text-foreground", className)}
-		{...props}
-	/>
-));
-
-SheetTitle.displayName = "SheetTitle";
-
-const SheetDescription = React.forwardRef<
-	HTMLParagraphElement,
-	React.ComponentProps<typeof Dialog.Description>
->(({ className, ...props }, ref) => (
-	<Dialog.Description
-		ref={ref}
-		className={cn("text-muted-foreground text-sm", className)}
-		{...props}
-	/>
-));
-
-SheetDescription.displayName = "SheetDescription";
-
-const SheetContent = SheetPopup;
-
-export {
-	Sheet,
-	SheetClose,
-	SheetContent,
-	SheetDescription,
-	SheetFooter,
-	SheetHeader,
-	SheetPanel,
-	SheetPopup,
-	SheetTitle,
-	SheetTrigger,
-};
+export { Sheet, SheetPanel, SheetPopup };

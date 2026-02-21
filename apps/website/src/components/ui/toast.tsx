@@ -151,4 +151,4 @@ const Toasts = ({ position = "bottom-right" }: { position: ToastPosition }) => {
 	);
 };
 
-export { ToastProvider, type ToastPosition, toastManager };
+export { ToastProvider, toastManager };

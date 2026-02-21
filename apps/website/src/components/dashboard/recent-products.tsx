@@ -87,11 +87,15 @@ export function RecentProducts({
 		[handleSelectHistory, selectedHistoryKey],
 	);
 
-	const columnWidths = useMemo(
+	const colgroupColumns = useMemo(
 		() =>
-			columns.map((column) => {
+			columns.map((column, index) => {
 				const meta = column.meta as { flex?: boolean } | undefined;
-				return meta?.flex ? undefined : column.size;
+				const key =
+					(typeof column.id === 'string' && column.id) ||
+					(typeof column.accessorKey === 'string' && column.accessorKey) ||
+					`column-${index}`;
+				return { key, width: meta?.flex ? undefined : column.size };
 			}),
 		[columns],
 	);
@@ -147,7 +151,7 @@ export function RecentProducts({
 		<>
 			<RecentProductsTableView
 				table={table}
-				columnWidths={columnWidths}
+				colgroupColumns={colgroupColumns}
 				columnsCount={columns.length}
 				selectedHistoryKey={selectedHistoryKey}
 				hasNextPage={Boolean(hasNextPage)}

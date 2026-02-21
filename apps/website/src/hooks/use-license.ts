@@ -1,8 +1,6 @@
 import { useUser } from "@clerk/clerk-react";
 import { useMemo } from "react";
-import { api, type RouterOutputs } from "@/lib/trpc";
-
-export type License = RouterOutputs["api"]["app"]["license"]["details"];
+import { api } from "@/lib/trpc";
 
 const getPrimaryEmail = (user: ReturnType<typeof useUser>["user"]) => {
 	if (!user) return null;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useTransition } from 'react';
+import { useCallback, useMemo, useReducer, useState, useTransition } from 'react';
 import { DashboardFooter } from '@/components/dashboard/app/dashboard-footer';
 import { FACETS } from '@/components/dashboard/app/config';
 import { FiltersSidebar } from '@/components/dashboard/app/filters-sidebar';
@@ -18,14 +18,11 @@ export function App() {
 		lastUpdated: 'all',
 	});
 	const [, startFilterTransition] = useTransition();
-	const [facetSearch, setFacetSearch] = useState('');
-	const [activeFacets, setActiveFacets] = useState<string[]>([]);
-	const [nichesSectionOpen, setNichesSectionOpen] = useState(true);
+	const [uiState, dispatchUiState] = useReducer(appUiStateReducer, INITIAL_APP_UI_STATE);
 	const [productStatus, setProductStatus] = useState<{ count: number; hasMore: boolean }>({
 		count: 0,
 		hasMore: false,
 	});
-	const [settingsOpen, setSettingsOpen] = useState(false);
 	const { license } = useLicense();
 	const { theme, setTheme } = useTheme();
 	const { data: keepaStatus } = api.api.app.getKeepaStatus.useQuery(undefined, {
@@ -89,19 +86,15 @@ export function App() {
 	}, [filters]);
 
 	const filteredFacets = useMemo(() => {
-		if (!facetSearch.trim()) {
+		if (!uiState.facetSearch.trim()) {
 			return FACETS;
 		}
-		const query = facetSearch.toLowerCase();
+		const query = uiState.facetSearch.toLowerCase();
 		return FACETS.filter((facet) => facet.label.toLowerCase().includes(query));
-	}, [facetSearch]);
+	}, [uiState.facetSearch]);
 
 	const toggleFacet = useCallback((facetLabel: string) => {
-		setActiveFacets((current) =>
-			current.includes(facetLabel)
-				? current.filter((facet) => facet !== facetLabel)
-				: [...current, facetLabel],
-		);
+		dispatchUiState({ facetLabel, type: 'toggleFacet' });
 	}, []);
 
 	return (
@@ -110,7 +103,7 @@ export function App() {
 				keepaErrors={keepaStatus?.queue.fetchesLastHourError ?? 0}
 				keepaSuccess={keepaStatus?.queue.fetchesLastHourSuccess ?? 0}
 				keepaTokensLeft={keepaStatus?.tokens.tokensLeft ?? null}
-				onOpenSettings={() => setSettingsOpen(true)}
+				onOpenSettings={() => dispatchUiState({ open: true, type: 'setSettingsOpen' })}
 				onToggleTheme={(event) => setTheme(theme === 'dark' ? 'light' : 'dark', event)}
 				productCount={license?.usageCount ?? null}
 				theme={theme}
@@ -120,16 +113,18 @@ export function App() {
 
 			<div className="flex min-h-0 flex-1 overflow-hidden">
 				<FiltersSidebar
-					activeFacets={activeFacets}
-					facetSearch={facetSearch}
+					activeFacets={uiState.activeFacets}
+					facetSearch={uiState.facetSearch}
 					filteredFacets={filteredFacets}
 					filters={filters}
-					nichesSectionOpen={nichesSectionOpen}
-					onFacetSearchChange={setFacetSearch}
+					nichesSectionOpen={uiState.nichesSectionOpen}
+					onFacetSearchChange={(nextValue) =>
+						dispatchUiState({ nextValue, type: 'setFacetSearch' })
+					}
 					onToggleBsrRange={toggleBsrRange}
 					onToggleFacet={toggleFacet}
 					onToggleMarketplace={toggleMarketplace}
-					onToggleNichesSection={() => setNichesSectionOpen((open) => !open)}
+					onToggleNichesSection={() => dispatchUiState({ type: 'toggleNichesSection' })}
 					onUpdateLastUpdated={updateLastUpdated}
 				/>
 
@@ -153,7 +148,50 @@ export function App() {
 				</div>
 			</div>
 
-			<SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+			<SettingsModal
+				open={uiState.settingsOpen}
+				onOpenChange={(open) => dispatchUiState({ open, type: 'setSettingsOpen' })}
+			/>
 		</div>
 	);
 }
+
+type AppUiState = {
+	facetSearch: string;
+	activeFacets: string[];
+	nichesSectionOpen: boolean;
+	settingsOpen: boolean;
+};
+
+type AppUiAction =
+	| { type: 'setFacetSearch'; nextValue: string }
+	| { type: 'toggleFacet'; facetLabel: string }
+	| { type: 'toggleNichesSection' }
+	| { type: 'setSettingsOpen'; open: boolean };
+
+const INITIAL_APP_UI_STATE: AppUiState = {
+	facetSearch: '',
+	activeFacets: [],
+	nichesSectionOpen: true,
+	settingsOpen: false,
+};
+
+const appUiStateReducer = (state: AppUiState, action: AppUiAction): AppUiState => {
+	switch (action.type) {
+		case 'setFacetSearch':
+			return { ...state, facetSearch: action.nextValue };
+		case 'toggleFacet':
+			return {
+				...state,
+				activeFacets: state.activeFacets.includes(action.facetLabel)
+					? state.activeFacets.filter((facet) => facet !== action.facetLabel)
+					: [...state.activeFacets, action.facetLabel],
+			};
+		case 'toggleNichesSection':
+			return { ...state, nichesSectionOpen: !state.nichesSectionOpen };
+		case 'setSettingsOpen':
+			return { ...state, settingsOpen: action.open };
+		default:
+			return state;
+	}
+};
