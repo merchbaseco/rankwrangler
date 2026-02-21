@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { Product } from "@/scripts/types/product";
 import { log } from "../../../utils/logger";
+import { ProductHistoryPopover } from "./product-history-popover";
+import { ProductHistorySection } from "./product-history-section";
 
 const TRAILING_ZEROES_REGEX = /\.?0+$/;
 
@@ -26,10 +28,12 @@ export function ProductDisplay({
 	product,
 	isLoading = false,
 	isError = false,
+	mode,
 }: {
 	product: Product;
 	isLoading?: boolean;
 	isError?: boolean;
+	mode: "detail" | "search";
 }) {
 	const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied">(
 		"idle"
@@ -93,6 +97,10 @@ export function ProductDisplay({
 
 	const { asin, rootCategoryBsr, rootCategoryDisplayName, creationDate } =
 		product;
+	const productIdentifier = {
+		asin,
+		marketplaceId: product.marketplaceId,
+	};
 	const hasRankData =
 		typeof rootCategoryBsr === "number" && rootCategoryDisplayName != null;
 
@@ -130,6 +138,16 @@ export function ProductDisplay({
 						{copyStatus === "copied" ? "Copied!" : asin}
 					</button>
 				</div>
+
+				{mode === "detail" ? (
+					<ProductHistorySection
+						compact={true}
+						enabled={true}
+						productIdentifier={productIdentifier}
+					/>
+				) : (
+					<ProductHistoryPopover productIdentifier={productIdentifier} />
+				)}
 			</div>
 		);
 	}
@@ -167,6 +185,16 @@ export function ProductDisplay({
 					{copyStatus === "copied" ? "Copied!" : asin}
 				</button>
 			</div>
+
+			{mode === "detail" ? (
+				<ProductHistorySection
+					compact={true}
+					enabled={true}
+					productIdentifier={productIdentifier}
+				/>
+			) : (
+				<ProductHistoryPopover productIdentifier={productIdentifier} />
+			)}
 		</div>
 	);
 }

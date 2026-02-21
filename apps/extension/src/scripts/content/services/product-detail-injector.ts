@@ -135,6 +135,7 @@ class ProductDetailInjector {
 		const cachedProductDisplayComponent = createElement(CachedProductDisplay, {
 			asin,
 			marketplaceId: US_MARKETPLACE_ID,
+			mode: "detail",
 		});
 		reactRenderer.render(cachedProductDisplayComponent, shadowRoot);
 

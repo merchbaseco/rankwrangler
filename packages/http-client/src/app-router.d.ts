@@ -115,6 +115,36 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 			errorShape: import("@trpc/server").TRPCDefaultErrorShape;
 			transformer: false;
 		}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+			getProductHistory: import("@trpc/server").TRPCMutationProcedure<{
+				input: {
+					marketplaceId: string;
+					asin: string;
+					startAt?: unknown;
+					endAt?: unknown;
+					limit?: unknown;
+					days?: unknown;
+				};
+				output: {
+					collecting: boolean;
+					syncTriggered: boolean;
+					marketplaceId: string;
+					asin: string;
+					metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
+					latestImportAt: string | null;
+					categoryNames: {
+						[x: string]: string;
+					};
+					points: {
+						categoryId: number;
+						categoryName: string;
+						observedAt: string;
+						keepaMinutes: number;
+						value: number | null;
+						isMissing: boolean;
+					}[];
+				};
+				meta: object;
+			}>;
 			getProductInfoBatch: import("@trpc/server").TRPCMutationProcedure<{
 				input: {
 					marketplaceId: string;
