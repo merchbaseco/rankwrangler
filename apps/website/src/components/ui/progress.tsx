@@ -25,16 +25,6 @@ function Progress({
 	);
 }
 
-function ProgressLabel({ className, ...props }: ProgressPrimitive.Label.Props) {
-	return (
-		<ProgressPrimitive.Label
-			className={cn("font-medium text-xs", className)}
-			data-slot="progress-label"
-			{...props}
-		/>
-	);
-}
-
 function ProgressTrack({ className, ...props }: ProgressPrimitive.Track.Props) {
 	return (
 		<ProgressPrimitive.Track
@@ -61,20 +51,4 @@ function ProgressIndicator({
 	);
 }
 
-function ProgressValue({ className, ...props }: ProgressPrimitive.Value.Props) {
-	return (
-		<ProgressPrimitive.Value
-			className={cn("text-xs tabular-nums", className)}
-			data-slot="progress-value"
-			{...props}
-		/>
-	);
-}
-
-export {
-	Progress,
-	ProgressLabel,
-	ProgressTrack,
-	ProgressIndicator,
-	ProgressValue,
-};
+export { Progress };

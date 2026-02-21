@@ -14,10 +14,10 @@ const X_TICK_COUNT = 5;
 export const SYNC_VB_W = 400;
 export const SYNC_VB_H = 120;
 export const SYNC_PAD = { l: 0, r: 0, t: 8, b: 8 };
-export const SYNC_INNER_W = SYNC_VB_W - SYNC_PAD.l - SYNC_PAD.r;
+const SYNC_INNER_W = SYNC_VB_W - SYNC_PAD.l - SYNC_PAD.r;
 export const SYNC_INNER_H = SYNC_VB_H - SYNC_PAD.t - SYNC_PAD.b;
 
-export type ChartGeometry = {
+type ChartGeometry = {
 	linePath: string;
 	areaPath: string;
 	lastX: number;
@@ -153,13 +153,6 @@ export const formatDateShort = (timestamp: number) =>
 	new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit' }).format(
 		new Date(timestamp),
 	);
-
-export const formatDateFull = (timestamp: number) =>
-	new Intl.DateTimeFormat('en-US', {
-		month: 'short',
-		day: 'numeric',
-		year: 'numeric',
-	}).format(new Date(timestamp));
 
 export const buildSyncWavePath = () => {
 	const pointCount = 60;

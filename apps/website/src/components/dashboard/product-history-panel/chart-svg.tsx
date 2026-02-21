@@ -24,8 +24,8 @@ export const ChartSvg = ({
 				<stop offset="100%" stopColor={color} stopOpacity="0" />
 			</linearGradient>
 		</defs>
-		{chartGeometry.yTicks.map((tick, index) => (
-			<g key={`y-${index}`}>
+		{chartGeometry.yTicks.map((tick) => (
+			<g key={`y-${tick.y}-${tick.value}`}>
 				<line
 					x1={PAD.l}
 					x2={VB_W - PAD.r}
@@ -48,7 +48,7 @@ export const ChartSvg = ({
 		))}
 		{chartGeometry.xTicks.map((tick, index) => (
 			<text
-				key={`x-${index}`}
+				key={`x-${tick.x}-${tick.ts}`}
 				x={tick.x}
 				y={VB_H - 8}
 				textAnchor={

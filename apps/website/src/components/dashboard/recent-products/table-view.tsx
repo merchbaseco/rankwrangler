@@ -1,7 +1,10 @@
 import type { Table } from '@tanstack/react-table';
 import { flexRender } from '@tanstack/react-table';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
-import { Colgroup } from '@/components/dashboard/recent-products/columns';
+import {
+	Colgroup,
+	type ColgroupColumn,
+} from '@/components/dashboard/recent-products/columns';
 import type { Product } from '@/components/dashboard/recent-products/types';
 import {
 	TableBody,
@@ -14,7 +17,7 @@ import { cn } from '@/lib/utils';
 
 export const RecentProductsTableView = ({
 	table,
-	columnWidths,
+	colgroupColumns,
 	columnsCount,
 	selectedHistoryKey,
 	hasNextPage,
@@ -25,7 +28,7 @@ export const RecentProductsTableView = ({
 	onRowMouseLeave,
 }: {
 	table: Table<Product>;
-	columnWidths: Array<number | undefined>;
+	colgroupColumns: ColgroupColumn[];
 	columnsCount: number;
 	selectedHistoryKey: string | null;
 	hasNextPage: boolean;
@@ -45,7 +48,7 @@ export const RecentProductsTableView = ({
 }) => (
 	<div className="flex h-full min-h-0 flex-col bg-card">
 		<table className="w-full shrink-0 text-sm" style={{ tableLayout: 'fixed' }}>
-			<Colgroup widths={columnWidths} />
+			<Colgroup columns={colgroupColumns} />
 			<TableHeader>
 				{table.getHeaderGroups().map((headerGroup) => (
 					<TableRow className="hover:bg-transparent" key={headerGroup.id}>
@@ -103,7 +106,7 @@ export const RecentProductsTableView = ({
 
 		<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 			<table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
-				<Colgroup widths={columnWidths} />
+				<Colgroup columns={colgroupColumns} />
 				<TableBody>
 					{table.getRowModel().rows.length ? (
 						table.getRowModel().rows.map((row) => {

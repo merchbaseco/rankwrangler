@@ -40,7 +40,7 @@ export const FiltersSidebar = ({
 }) => (
 	<aside className="flex h-full w-[230px] shrink-0 flex-col border-r border-border bg-sidebar">
 		<div className="shrink-0">
-			<FilterSection title="BSR Range" defaultOpen={false}>
+			<FilterSection title="BSR Range">
 				<div className="flex flex-col gap-0.5">
 					{BSR_OPTIONS.map((option) => {
 						const isActive = filters.bsrRanges.includes(option.key);
@@ -73,7 +73,7 @@ export const FiltersSidebar = ({
 				</div>
 			</FilterSection>
 
-			<FilterSection title="Last Updated" defaultOpen={false}>
+			<FilterSection title="Last Updated">
 				<div className="flex flex-col gap-0.5">
 					{LAST_UPDATED_OPTIONS.map((option) => {
 						const isActive = filters.lastUpdated === option.key;
@@ -104,7 +104,7 @@ export const FiltersSidebar = ({
 				</div>
 			</FilterSection>
 
-			<FilterSection title="Marketplace" defaultOpen={false}>
+			<FilterSection title="Marketplace">
 				<div className="flex flex-wrap gap-1 px-1">
 					{MARKETPLACES.map((marketplace) => {
 						const isActive = filters.marketplaceIds.includes(marketplace.id);
@@ -193,14 +193,12 @@ export const FiltersSidebar = ({
 
 const FilterSection = ({
 	title,
-	defaultOpen = true,
 	children,
 }: {
 	title: string;
-	defaultOpen?: boolean;
 	children: React.ReactNode;
 }) => {
-	const [open, setOpen] = useState(defaultOpen);
+	const [open, setOpen] = useState(false);
 
 	return (
 		<div className="border-b border-border last:border-b-0">

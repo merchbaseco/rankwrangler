@@ -160,10 +160,15 @@ export const createColumns = ({
 	},
 ];
 
-export const Colgroup = ({ widths }: { widths: Array<number | undefined> }) => (
+export type ColgroupColumn = {
+	key: string;
+	width: number | undefined;
+};
+
+export const Colgroup = ({ columns }: { columns: ColgroupColumn[] }) => (
 	<colgroup>
-		{widths.map((width, index) => (
-			<col key={index} style={width ? { width, maxWidth: width } : undefined} />
+		{columns.map(({ key, width }) => (
+			<col key={key} style={width ? { width, maxWidth: width } : undefined} />
 		))}
 	</colgroup>
 );
