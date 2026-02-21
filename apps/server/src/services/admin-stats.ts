@@ -22,17 +22,17 @@ export type AdminStatsResponse = {
 const BUCKET_COUNT = 30;
 
 export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
-    const [keepaBuckets, jobBuckets] = await Promise.all([
+    const [keepaBuckets, spApiJobBuckets] = await Promise.all([
         queryKeepaBuckets(),
-        queryJobBuckets(),
+        querySpApiJobBuckets(),
     ]);
 
     const keepaTotal = sum(keepaBuckets.map((b) => b.total));
     const keepaSuccess = sum(keepaBuckets.map((b) => b.success));
     const keepaErrors = sum(keepaBuckets.map((b) => b.errors));
-    const jobTotal = sum(jobBuckets.map((b) => b.total));
-    const jobSuccess = sum(jobBuckets.map((b) => b.success));
-    const jobErrors = sum(jobBuckets.map((b) => b.errors));
+    const spApiJobTotal = sum(spApiJobBuckets.map((b) => b.total));
+    const spApiJobSuccess = sum(spApiJobBuckets.map((b) => b.success));
+    const spApiJobErrors = sum(spApiJobBuckets.map((b) => b.errors));
 
     return {
         stats: [
@@ -52,19 +52,19 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
                 buckets: keepaBuckets.map((b) => b.errors),
             },
             {
-                label: 'Jobs Run',
-                total: jobTotal,
-                buckets: jobBuckets.map((b) => b.total),
+                label: 'SP-API Jobs Run',
+                total: spApiJobTotal,
+                buckets: spApiJobBuckets.map((b) => b.total),
             },
             {
-                label: 'Jobs Success',
-                total: jobSuccess,
-                buckets: jobBuckets.map((b) => b.success),
+                label: 'SP-API Jobs Success',
+                total: spApiJobSuccess,
+                buckets: spApiJobBuckets.map((b) => b.success),
             },
             {
-                label: 'Jobs Failed',
-                total: jobErrors,
-                buckets: jobBuckets.map((b) => b.errors),
+                label: 'SP-API Jobs Failed',
+                total: spApiJobErrors,
+                buckets: spApiJobBuckets.map((b) => b.errors),
             },
         ],
         bucketCount: BUCKET_COUNT,
@@ -97,7 +97,7 @@ const queryKeepaBuckets = async (): Promise<BucketRow[]> => {
     return [...rows];
 };
 
-const queryJobBuckets = async (): Promise<BucketRow[]> => {
+const querySpApiJobBuckets = async (): Promise<BucketRow[]> => {
     const rows = await db.execute<BucketRow>(sql`
         WITH buckets AS (
             SELECT generate_series(
@@ -115,6 +115,7 @@ const queryJobBuckets = async (): Promise<BucketRow[]> => {
         LEFT JOIN job_executions je
             ON je.started_at >= b.bucket_start
             AND je.started_at < b.bucket_start + interval '1 minute'
+            AND je.job_name = 'process-product-ingest-queue'
         GROUP BY b.bucket_start
         ORDER BY b.bucket_start
     `);
