@@ -3,17 +3,21 @@ import { upsertProductInfo } from '@/db/product/upsert-product.js';
 import { deleteQueueItems } from '@/db/product-ingest-queue/delete-queue-items.js';
 import { getQueueItems } from '@/db/product-ingest-queue/get-queue-items.js';
 import { defineJob } from '@/jobs/job-router.js';
+import { sendProcessProductIngestQueueJob } from '@/services/product-ingest-queue.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
+
+const PRODUCT_INGEST_BATCH_SIZE = 20;
 
 export type ProcessProductIngestQueueResult = {
     didWork: boolean;
     marketplaceId: string | null;
     queueCount: number;
     upsertedCount: number;
+    hasMore: boolean;
 };
 
 export async function processProductIngestQueue() {
-    const queueItems = await getQueueItems(20);
+    const queueItems = await getQueueItems(PRODUCT_INGEST_BATCH_SIZE + 1);
 
     if (queueItems.length === 0) {
         return {
@@ -21,13 +25,17 @@ export async function processProductIngestQueue() {
             marketplaceId: null,
             queueCount: 0,
             upsertedCount: 0,
+            hasMore: false,
         } satisfies ProcessProductIngestQueueResult;
     }
 
-    // All items are guaranteed to be from the same marketplace (handled by getQueueItems)
-    const marketplaceId = queueItems[0].marketplaceId;
-    const asins = queueItems.map(item => item.asin);
-    const itemIds = queueItems.map(item => item.id);
+    let hasMore = queueItems.length > PRODUCT_INGEST_BATCH_SIZE;
+    const queueItemsToProcess = hasMore
+        ? queueItems.slice(0, PRODUCT_INGEST_BATCH_SIZE)
+        : queueItems;
+    const marketplaceId = queueItemsToProcess[0].marketplaceId;
+    const asins = queueItemsToProcess.map(item => item.asin);
+    const itemIds = queueItemsToProcess.map(item => item.id);
 
     // Process products from the selected marketplace
     const fetchedProducts = await searchCatalogItemsByAsins(
@@ -44,26 +52,31 @@ export async function processProductIngestQueue() {
 
     await deleteQueueItems(itemIds);
 
+    if (!hasMore) {
+        const remainingItems = await getQueueItems(1);
+        hasMore = remainingItems.length > 0;
+    }
+
     return {
         didWork: true,
         marketplaceId,
-        queueCount: queueItems.length,
+        queueCount: queueItemsToProcess.length,
         upsertedCount: fetchedProducts.length,
+        hasMore,
     } satisfies ProcessProductIngestQueueResult;
 }
 
 export const processProductIngestQueueJob = defineJob(
     'process-product-ingest-queue',
-    { persistSuccess: 'didWork' }
+    {
+        persistSuccess: 'didWork',
+        startupSummary: 'event-driven, singleton + startup kick',
+    }
 )
     .input(z.record(z.string(), z.unknown()))
     .options({
         singletonKey: 'process-product-ingest-queue',
         retryLimit: 0,
-    })
-    .interval({
-        everyMs: 1000,
-        payload: {},
     })
     .work(async (job, signal, log) => {
         void job;
@@ -76,7 +89,12 @@ export const processProductIngestQueueJob = defineJob(
                 marketplaceId: result.marketplaceId,
                 queueCount: result.queueCount,
                 upsertedCount: result.upsertedCount,
+                hasMore: result.hasMore,
             });
+        }
+
+        if (result.hasMore) {
+            await sendProcessProductIngestQueueJob({ singleton: false });
         }
 
         return result;

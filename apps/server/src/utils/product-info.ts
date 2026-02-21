@@ -1,9 +1,8 @@
 import { TRPCError } from '@trpc/server';
-import { db } from '@/db/index.js';
 import { getProductInfoFromStore } from '@/db/product/get-product.js';
-import { productIngestQueue } from '@/db/schema.js';
 import { enqueueKeepaHistoryRefreshForAsin } from '@/services/keepa-history-refresh.js';
 import { trackApiRequest } from '@/services/posthog.js';
+import { enqueueProductIngestQueueItem } from '@/services/product-ingest-queue.js';
 
 export type ProductInfoRequest = {
     marketplaceId: string;
@@ -45,7 +44,7 @@ export const fetchProductInfo = async ({
             cached: false,
         });
 
-        await db.insert(productIngestQueue).values({ marketplaceId, asin }).onConflictDoNothing();
+        await enqueueProductIngestQueueItem({ marketplaceId, asin });
 
         const maxAttempts = 50;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
