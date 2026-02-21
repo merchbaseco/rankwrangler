@@ -11,9 +11,9 @@ import { runMigrations } from '@/db/migrate.js';
 import { startJobs } from '@/jobs/index.js';
 import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
 import {
-    registerProductIngestQueueWakeups,
-    sendProcessProductIngestQueueJob,
-} from '@/services/product-ingest-queue.js';
+    registerSpApiSyncQueueWakeups,
+    sendProcessSpApiSyncQueueJob,
+} from '@/services/spapi-sync-queue.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -38,13 +38,13 @@ const databaseUrl =
 const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
 console.log('[Server] pg-boss initialized');
-registerProductIngestQueueWakeups(boss);
+registerSpApiSyncQueueWakeups(boss);
 
 const jobsRuntime = await startJobs(boss);
 console.log('[Server] Jobs registered');
 
-// Kick the ingest queue once on startup in case rows exist before the server starts.
-await sendProcessProductIngestQueueJob();
+// Kick the SP-API sync queue once on startup in case rows exist before the server starts.
+await sendProcessSpApiSyncQueueJob();
 
 // Run reprocess stale products job on startup
 // try {

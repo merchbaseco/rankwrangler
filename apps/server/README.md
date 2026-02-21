@@ -125,7 +125,7 @@ Admin job observability:
 - Job executions and structured job logs are persisted in `job_executions` and `job_execution_logs`.
 - The dashboard calls `api.app.jobExecutions` and is gated by `ADMIN_EMAIL` (`adminProcedure`).
 - Keepa queue + recent processed Keepa jobs are exposed via `api.app.keepaLog` (admin only).
-- Product ingest queue processing is event-driven (enqueue-triggered + startup kick), not interval-polled.
+- SP-API sync queue processing is event-driven (enqueue-triggered + startup kick), not interval-polled.
 
 Example `curl` (public):
 

@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import { upsertProductInfo } from '@/db/product/upsert-product.js';
-import { deleteQueueItems } from '@/db/product-ingest-queue/delete-queue-items.js';
-import { getQueueItems } from '@/db/product-ingest-queue/get-queue-items.js';
+import { deleteSpApiSyncQueueItems } from '@/db/spapi-sync-queue/delete-queue-items.js';
+import { getSpApiSyncQueueItems } from '@/db/spapi-sync-queue/get-queue-items.js';
 import { defineJob } from '@/jobs/job-router.js';
-import { sendProcessProductIngestQueueJob } from '@/services/product-ingest-queue.js';
+import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 
-const PRODUCT_INGEST_BATCH_SIZE = 20;
+const SP_API_SYNC_BATCH_SIZE = 20;
 
-export type ProcessProductIngestQueueResult = {
+export type ProcessSpApiSyncQueueResult = {
     didWork: boolean;
     marketplaceId: string | null;
     queueCount: number;
@@ -16,8 +16,8 @@ export type ProcessProductIngestQueueResult = {
     hasMore: boolean;
 };
 
-export async function processProductIngestQueue() {
-    const queueItems = await getQueueItems(PRODUCT_INGEST_BATCH_SIZE + 1);
+export async function processSpApiSyncQueue() {
+    const queueItems = await getSpApiSyncQueueItems(SP_API_SYNC_BATCH_SIZE + 1);
 
     if (queueItems.length === 0) {
         return {
@@ -26,12 +26,12 @@ export async function processProductIngestQueue() {
             queueCount: 0,
             upsertedCount: 0,
             hasMore: false,
-        } satisfies ProcessProductIngestQueueResult;
+        } satisfies ProcessSpApiSyncQueueResult;
     }
 
-    let hasMore = queueItems.length > PRODUCT_INGEST_BATCH_SIZE;
+    let hasMore = queueItems.length > SP_API_SYNC_BATCH_SIZE;
     const queueItemsToProcess = hasMore
-        ? queueItems.slice(0, PRODUCT_INGEST_BATCH_SIZE)
+        ? queueItems.slice(0, SP_API_SYNC_BATCH_SIZE)
         : queueItems;
     const marketplaceId = queueItemsToProcess[0].marketplaceId;
     const asins = queueItemsToProcess.map(item => item.asin);
@@ -41,7 +41,7 @@ export async function processProductIngestQueue() {
     const fetchedProducts = await searchCatalogItemsByAsins(
         marketplaceId,
         asins,
-        'rankwrangler_job_process-product-ingest-queue'
+        'rankwrangler_job_process-spapi-sync-queue'
     );
 
     if (fetchedProducts.length > 0) {
@@ -50,10 +50,10 @@ export async function processProductIngestQueue() {
         }
     }
 
-    await deleteQueueItems(itemIds);
+    await deleteSpApiSyncQueueItems(itemIds);
 
     if (!hasMore) {
-        const remainingItems = await getQueueItems(1);
+        const remainingItems = await getSpApiSyncQueueItems(1);
         hasMore = remainingItems.length > 0;
     }
 
@@ -63,11 +63,11 @@ export async function processProductIngestQueue() {
         queueCount: queueItemsToProcess.length,
         upsertedCount: fetchedProducts.length,
         hasMore,
-    } satisfies ProcessProductIngestQueueResult;
+    } satisfies ProcessSpApiSyncQueueResult;
 }
 
-export const processProductIngestQueueJob = defineJob(
-    'process-product-ingest-queue',
+export const processSpApiSyncQueueJob = defineJob(
+    'process-spapi-sync-queue',
     {
         persistSuccess: 'didWork',
         startupSummary: 'event-driven, singleton + startup kick',
@@ -75,17 +75,17 @@ export const processProductIngestQueueJob = defineJob(
 )
     .input(z.record(z.string(), z.unknown()))
     .options({
-        singletonKey: 'process-product-ingest-queue',
+        singletonKey: 'process-spapi-sync-queue',
         retryLimit: 0,
     })
     .work(async (job, signal, log) => {
         void job;
         void signal;
 
-        const result = await processProductIngestQueue();
+        const result = await processSpApiSyncQueue();
 
         if (result.didWork) {
-            log('Processed product ingest queue batch', {
+            log('Processed SP-API sync queue batch', {
                 marketplaceId: result.marketplaceId,
                 queueCount: result.queueCount,
                 upsertedCount: result.upsertedCount,
@@ -94,7 +94,7 @@ export const processProductIngestQueueJob = defineJob(
         }
 
         if (result.hasMore) {
-            await sendProcessProductIngestQueueJob({ singleton: false });
+            await sendProcessSpApiSyncQueueJob({ singleton: false });
         }
 
         return result;

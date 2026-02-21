@@ -115,7 +115,7 @@ const querySpApiJobBuckets = async (): Promise<BucketRow[]> => {
         LEFT JOIN job_executions je
             ON je.started_at >= b.bucket_start
             AND je.started_at < b.bucket_start + interval '1 minute'
-            AND je.job_name = 'process-product-ingest-queue'
+            AND je.job_name = 'process-spapi-sync-queue'
         GROUP BY b.bucket_start
         ORDER BY b.bucket_start
     `);

@@ -12,8 +12,8 @@ import { useState } from "react";
 import { log } from "../../../utils/logger";
 import { copyDebugDumpToClipboard } from "../debug/debug-snapshot";
 import { useProductCache } from "../hooks/use-product-cache";
-import { useProductIngestQueueCount } from "../hooks/use-product-ingest-queue-count";
 import { useReactRootsCount } from "../hooks/use-react-root-count";
+import { useSpApiSyncQueueCount } from "../hooks/use-spapi-sync-queue-count";
 
 type CopyState = "idle" | "copying" | "copied" | "error";
 
@@ -67,7 +67,7 @@ const getCopyButtonIcon = (copyState: CopyState) => {
 
 export const DebugWidget = () => {
 	const { cacheSize } = useProductCache();
-	const { queueCount } = useProductIngestQueueCount();
+	const { queueCount } = useSpApiSyncQueueCount();
 	const { data: reactRootsCount } = useReactRootsCount();
 	const [isExpanded, setIsExpanded] = useState(true);
 	const [copyState, setCopyState] = useState<CopyState>("idle");

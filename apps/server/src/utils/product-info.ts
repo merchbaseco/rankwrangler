@@ -2,7 +2,7 @@ import { TRPCError } from '@trpc/server';
 import { getProductInfoFromStore } from '@/db/product/get-product.js';
 import { enqueueKeepaHistoryRefreshForAsin } from '@/services/keepa-history-refresh.js';
 import { trackApiRequest } from '@/services/posthog.js';
-import { enqueueProductIngestQueueItem } from '@/services/product-ingest-queue.js';
+import { enqueueSpApiSyncQueueItem } from '@/services/spapi-sync-queue.js';
 
 export type ProductInfoRequest = {
     marketplaceId: string;
@@ -44,7 +44,7 @@ export const fetchProductInfo = async ({
             cached: false,
         });
 
-        await enqueueProductIngestQueueItem({ marketplaceId, asin });
+        await enqueueSpApiSyncQueueItem({ marketplaceId, asin });
 
         const maxAttempts = 50;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
