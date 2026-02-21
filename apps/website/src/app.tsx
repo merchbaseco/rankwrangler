@@ -9,7 +9,6 @@ import { SearchBar } from '@/components/dashboard/search-bar';
 import { SettingsModal } from '@/components/dashboard/settings-modal';
 import { useLicense } from '@/hooks/use-license';
 import { useTheme } from '@/hooks/use-theme';
-import { api } from '@/lib/trpc';
 
 export function App() {
 	const [filters, setFilters] = useState<FilterState>({
@@ -25,10 +24,6 @@ export function App() {
 	});
 	const { license } = useLicense();
 	const { theme, setTheme } = useTheme();
-	const { data: keepaStatus } = api.api.app.getKeepaStatus.useQuery(undefined, {
-		refetchInterval: 30_000,
-		refetchOnWindowFocus: false,
-	});
 
 	const handleProductStatusChange = useCallback((info: { count: number; hasMore: boolean }) => {
 		setProductStatus(info);
@@ -100,9 +95,6 @@ export function App() {
 	return (
 		<div className="flex h-screen flex-col overflow-hidden bg-background">
 			<TopBar
-				keepaErrors={keepaStatus?.queue.fetchesLastHourError ?? 0}
-				keepaSuccess={keepaStatus?.queue.fetchesLastHourSuccess ?? 0}
-				keepaTokensLeft={keepaStatus?.tokens.tokensLeft ?? null}
 				onOpenSettings={() => dispatchUiState({ open: true, type: 'setSettingsOpen' })}
 				onToggleTheme={(event) => setTheme(theme === 'dark' ? 'light' : 'dark', event)}
 				productCount={license?.usageCount ?? null}
