@@ -323,6 +323,7 @@ try {
         : 'Disabled (KEEPA_API_KEY not set)';
     console.log(`  • Keepa History Sync: ${keepaStatus}`);
     console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
+    console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
     console.log('  • API Routes: tRPC (/api)');
     console.log('  • Auth: Clerk (app), License (public)');
     console.log('═══════════════════════════════════════════════════════════════');
