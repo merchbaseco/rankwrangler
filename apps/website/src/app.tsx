@@ -267,7 +267,7 @@ export function App() {
 			<div className="flex min-h-0 flex-1 overflow-hidden">
 				<aside className="flex h-full w-[230px] shrink-0 flex-col border-r border-border bg-sidebar">
 					{/* Compact filter sections — fixed at top */}
-					<div className="shrink-0 px-1">
+					<div className="shrink-0">
 						<FilterSection title="BSR Range" defaultOpen={false}>
 							<div className="flex flex-col gap-0.5">
 								{BSR_OPTIONS.map((option) => {
@@ -336,7 +336,7 @@ export function App() {
 							</div>
 						</FilterSection>
 
-						<FilterSection title="Marketplace" defaultOpen>
+						<FilterSection title="Marketplace" defaultOpen={false}>
 							<div className="flex flex-wrap gap-1 px-1">
 								{MARKETPLACES.map((marketplace) => {
 									const isActive = filters.marketplaceIds.includes(marketplace.id);
@@ -362,7 +362,7 @@ export function App() {
 					</div>
 
 					{/* Niches — fills remaining height, scrolls independently */}
-					<div className="flex min-h-0 flex-1 flex-col border-t border-border px-1">
+					<div className="flex min-h-0 flex-1 flex-col border-t border-border">
 						<NichesSectionHeader
 							activeFacets={activeFacets}
 							nichesSectionOpen={nichesSectionOpen}
@@ -477,7 +477,7 @@ const FilterSection = ({
 			<button
 				type="button"
 				onClick={() => setOpen(!open)}
-				className="flex w-full items-center justify-between px-2.5 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+				className="flex h-9 w-full items-center justify-between px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
 			>
 				<span>{title}</span>
 				{open ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
@@ -499,7 +499,7 @@ const NichesSectionHeader = ({
 	<button
 		type="button"
 		onClick={onToggle}
-		className="flex w-full shrink-0 items-center justify-between px-2.5 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+		className="flex h-9 w-full shrink-0 items-center justify-between px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
 	>
 		<span className="flex items-center gap-1.5">
 			Niches
