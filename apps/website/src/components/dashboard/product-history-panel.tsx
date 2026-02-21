@@ -458,6 +458,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 					metric={rankMetric}
 					isPrice={false}
 					gradientId={`rank-${product.asin}`}
+					isSyncing={loadMutation.isPending}
 				/>
 
 				{/* ── Price chart ────────────────────── */}
@@ -470,6 +471,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 					metric="priceAmazon"
 					isPrice={true}
 					gradientId={`price-${product.asin}`}
+					isSyncing={loadMutation.isPending}
 				/>
 			</div>
 		</div>
@@ -498,6 +500,7 @@ type ChartSectionProps = {
 	metric: string;
 	isPrice: boolean;
 	gradientId: string;
+	isSyncing?: boolean;
 };
 
 const ChartSection = ({
@@ -509,6 +512,7 @@ const ChartSection = ({
 	metric,
 	isPrice,
 	gradientId,
+	isSyncing,
 }: ChartSectionProps) => {
 	const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 	const chartRef = useRef<HTMLDivElement>(null);
@@ -634,11 +638,19 @@ const ChartSection = ({
 					</div>
 				)}
 
-				{!loading && !query.isError && points.length === 0 && (
-					<div className="bg-muted/30 flex items-center justify-center rounded-lg border border-dashed border-border py-8">
-						<p className="text-sm text-muted-foreground">No data for this range yet.</p>
-					</div>
-				)}
+				{!loading && !query.isError && points.length === 0 &&
+					(isSyncing ? (
+						<SyncingChartPlaceholder
+							isPrice={isPrice}
+							gradientId={gradientId}
+						/>
+					) : (
+						<div className="bg-muted/30 flex items-center justify-center rounded-lg border border-dashed border-border py-8">
+							<p className="text-sm text-muted-foreground">
+								No data for this range yet.
+							</p>
+						</div>
+					))}
 
 				{hasData && (
 					<>
@@ -823,6 +835,154 @@ const ChartSkeleton = () => (
 		<div className="bg-muted h-[160px] animate-pulse rounded-lg" />
 	</div>
 );
+
+const SYNC_VB_W = 400;
+const SYNC_VB_H = 120;
+const SYNC_PAD = { l: 0, r: 0, t: 8, b: 8 };
+const SYNC_INNER_W = SYNC_VB_W - SYNC_PAD.l - SYNC_PAD.r;
+const SYNC_INNER_H = SYNC_VB_H - SYNC_PAD.t - SYNC_PAD.b;
+
+const buildSyncWavePath = () => {
+	const points = 60;
+	const coords: string[] = [];
+	for (let i = 0; i <= points; i++) {
+		const t = i / points;
+		const x = SYNC_PAD.l + t * SYNC_INNER_W;
+		const y =
+			SYNC_PAD.t +
+			SYNC_INNER_H / 2 +
+			Math.sin(t * Math.PI * 3.5) * (SYNC_INNER_H * 0.35) +
+			Math.sin(t * Math.PI * 7) * (SYNC_INNER_H * 0.08);
+		coords.push(`${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`);
+	}
+	return coords.join(" ");
+};
+
+const SYNC_WAVE_PATH = buildSyncWavePath();
+
+const SyncingChartPlaceholder = ({
+	isPrice,
+	gradientId,
+}: { isPrice: boolean; gradientId: string }) => {
+	const color = isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)";
+	const shimmerGradientId = `sync-shimmer-${gradientId}`;
+	const areaGradientId = `sync-area-${gradientId}`;
+
+	return (
+		<div className="space-y-3">
+			{/* Shimmer stat placeholders */}
+			<div className="space-y-1.5">
+				<div className="relative h-7 w-20 overflow-hidden rounded bg-muted/60">
+					<div
+						className="absolute inset-0"
+						style={{
+							background:
+								"linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+							animation: "sync-shimmer 1.8s ease-in-out infinite",
+						}}
+					/>
+				</div>
+				<div className="relative h-3.5 w-32 overflow-hidden rounded bg-muted/40">
+					<div
+						className="absolute inset-0"
+						style={{
+							background:
+								"linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+							animation: "sync-shimmer 1.8s ease-in-out infinite 0.15s",
+						}}
+					/>
+				</div>
+			</div>
+
+			{/* Animated chart area */}
+			<div className="relative overflow-hidden rounded-lg border border-border">
+				<svg
+					viewBox={`0 0 ${SYNC_VB_W} ${SYNC_VB_H}`}
+					className="block w-full"
+					style={{ aspectRatio: `${SYNC_VB_W}/${SYNC_VB_H}` }}
+				>
+					<defs>
+						<linearGradient id={areaGradientId} x1="0" y1="0" x2="0" y2="1">
+							<stop offset="0%" stopColor={color} stopOpacity="0.08" />
+							<stop offset="100%" stopColor={color} stopOpacity="0" />
+						</linearGradient>
+						<linearGradient id={shimmerGradientId} x1="0" y1="0" x2="1" y2="0">
+							<stop offset="0%" stopColor={color} stopOpacity="0.06" />
+							<stop offset="40%" stopColor={color} stopOpacity="0.18" />
+							<stop offset="50%" stopColor={color} stopOpacity="0.25" />
+							<stop offset="60%" stopColor={color} stopOpacity="0.18" />
+							<stop offset="100%" stopColor={color} stopOpacity="0.06" />
+						</linearGradient>
+					</defs>
+
+					{/* Faint horizontal grid lines */}
+					{[0.25, 0.5, 0.75].map((frac) => (
+						<line
+							key={frac}
+							x1={SYNC_PAD.l}
+							x2={SYNC_VB_W - SYNC_PAD.r}
+							y1={SYNC_PAD.t + frac * SYNC_INNER_H}
+							y2={SYNC_PAD.t + frac * SYNC_INNER_H}
+							stroke="var(--color-border)"
+							strokeWidth="0.5"
+							opacity="0.5"
+						/>
+					))}
+
+					{/* Area fill under the wave */}
+					<path
+						d={`${SYNC_WAVE_PATH} L ${SYNC_VB_W - SYNC_PAD.r} ${SYNC_VB_H - SYNC_PAD.b} L ${SYNC_PAD.l} ${SYNC_VB_H - SYNC_PAD.b} Z`}
+						fill={`url(#${areaGradientId})`}
+						style={{
+							animation: "sync-area-pulse 2.5s ease-in-out infinite",
+						}}
+					/>
+
+					{/* The wave line with draw-on animation */}
+					<path
+						d={SYNC_WAVE_PATH}
+						fill="none"
+						stroke={color}
+						strokeWidth="1.5"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+						opacity="0.3"
+						strokeDasharray="1200"
+						strokeDashoffset="0"
+						style={{
+							animation: "sync-line-draw 2.5s ease-in-out infinite",
+						}}
+					/>
+
+					{/* Traveling highlight shimmer */}
+					<rect
+						x={-100}
+						y={0}
+						width={100}
+						height={SYNC_VB_H}
+						fill={`url(#${shimmerGradientId})`}
+						style={{
+							animation: "sync-sweep 2.5s ease-in-out infinite",
+						}}
+					/>
+				</svg>
+
+				{/* Center overlay message */}
+				<div className="absolute inset-0 flex items-center justify-center">
+					<div className="flex items-center gap-2 rounded-full bg-background/80 px-3.5 py-1.5 shadow-sm ring-1 ring-border/50 backdrop-blur-sm">
+						<Loader2
+							className="size-3.5 animate-spin"
+							style={{ color }}
+						/>
+						<span className="text-xs font-medium text-muted-foreground">
+							Fetching from Keepa&hellip;
+						</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+};
 
 // ─── Helpers ──────────────────────────────────────────
 

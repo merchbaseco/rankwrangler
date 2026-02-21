@@ -210,6 +210,54 @@ body {
     animation: fade-up 0.35s ease-out both;
 }
 
+@keyframes sync-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(200%);
+    }
+}
+
+@keyframes sync-line-draw {
+    0% {
+        stroke-dashoffset: 1200;
+        opacity: 0.1;
+    }
+
+    50% {
+        stroke-dashoffset: 0;
+        opacity: 0.35;
+    }
+
+    100% {
+        stroke-dashoffset: -1200;
+        opacity: 0.1;
+    }
+}
+
+@keyframes sync-area-pulse {
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes sync-sweep {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(600px);
+    }
+}
+
 .recharts-wrapper *:focus {
     outline: none !important;
     box-shadow: none !important;
