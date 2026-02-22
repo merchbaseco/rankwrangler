@@ -21,12 +21,13 @@ const COLS = 3;
 export const AdminOperationsPanel = () => {
     const [selectedStat, setSelectedStat] = useState<AdminStatLabel | null>(null);
 
-    const { data, isLoading } = api.api.app.getAdminStats.useQuery(undefined, {
+    const statsQuery = api.api.app.getAdminStats.useQuery(undefined, {
         refetchInterval: 60_000,
         refetchOnWindowFocus: false,
     });
 
-    const stats = data?.stats ?? [];
+    const stats = statsQuery.data?.stats ?? [];
+    const isLoading = statsQuery.isLoading;
     const rows = Math.ceil(stats.length / COLS);
     const defaultSelectedStat = stats
         .map((stat) => stat.label)
@@ -92,10 +93,11 @@ export const AdminOperationsPanel = () => {
                                     }
 
                                     if (effectiveSelectedStat === stat.label) {
-                                        void jobQuery.refetch();
+                                        void Promise.all([jobQuery.refetch(), statsQuery.refetch()]);
                                         return;
                                     }
 
+                                    void statsQuery.refetch();
                                     setSelectedStat(stat.label);
                                 }}
                                 className={cn(
