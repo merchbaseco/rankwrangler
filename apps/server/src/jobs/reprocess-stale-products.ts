@@ -1,20 +1,21 @@
-import { and, eq, gte, isNotNull, isNull, lt, or } from 'drizzle-orm';
+import { and, gte, isNotNull, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
 import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue.js';
 import { defineJob } from '@/jobs/job-router.js';
 
-// Root category ID for "Clothing, Shoes & Jewelry"
-const CLOTHING_SHOES_JEWELRY_CATEGORY_ID = 7141123011;
-
 // BSR thresholds
-const BSR_THRESHOLD_800K = 800000;
-const BSR_THRESHOLD_2M = 2000000;
+const BSR_THRESHOLD_200K = 200000;
+const BSR_THRESHOLD_500K = 500000;
+const BSR_THRESHOLD_1M = 1000000;
+const BSR_THRESHOLD_3M = 3000000;
 
 // Time thresholds in milliseconds
 const HOURS_24 = 24 * 60 * 60 * 1000;
+const DAYS_3 = 3 * 24 * 60 * 60 * 1000;
 const DAYS_7 = 7 * 24 * 60 * 60 * 1000;
+const DAYS_14 = 14 * 24 * 60 * 60 * 1000;
 const DAYS_30 = 30 * 24 * 60 * 60 * 1000;
 
 export type ReprocessStaleProductsResult = {
@@ -27,16 +28,18 @@ export type ReprocessStaleProductsResult = {
 export async function reprocessStaleProducts() {
     const now = new Date();
     const threshold24Hours = new Date(now.getTime() - HOURS_24);
+    const threshold3Days = new Date(now.getTime() - DAYS_3);
     const threshold7Days = new Date(now.getTime() - DAYS_7);
+    const threshold14Days = new Date(now.getTime() - DAYS_14);
     const threshold30Days = new Date(now.getTime() - DAYS_30);
 
-    // Find stale products:
-    // 1. Products with root category "Clothing, Shoes & Jewelry" using tiered logic based on BSR:
-    //    - BSR < 800k: requeue if lastFetched > 24 hours ago
-    //    - BSR < 2M: requeue if lastFetched > 7 days ago
-    //    - BSR >= 2M or null BSR: requeue if lastFetched > 30 days ago
-    // 2. Products with null root category ID: requeue if lastFetched > 24 hours ago
-    //    (assumed to have had an error and should be refreshed daily)
+    // Find stale merch products using BSR tiers:
+    // - BSR < 200k: refresh if lastFetched > 24 hours ago
+    // - BSR < 500k: refresh if lastFetched > 3 days ago
+    // - BSR < 1M: refresh if lastFetched > 7 days ago
+    // - BSR < 3M: refresh if lastFetched > 14 days ago
+    // - BSR >= 3M: refresh if lastFetched > 30 days ago
+    // - Otherwise (non-merch, null BSR): never by stale job
     const staleProducts = await db
         .select({
             marketplaceId: products.marketplaceId,
@@ -44,39 +47,41 @@ export async function reprocessStaleProducts() {
         })
         .from(products)
         .where(
-            or(
-                // Products with root category "Clothing, Shoes & Jewelry" using tiered logic
+            and(
+                products.isMerchListing,
+                isNotNull(products.rootCategoryBsr),
                 and(
-                    eq(products.rootCategoryId, CLOTHING_SHOES_JEWELRY_CATEGORY_ID),
                     or(
-                        // BSR < 800k: requeue if lastFetched > 24 hours ago
+                        // BSR < 200k: requeue if lastFetched > 24 hours ago
                         and(
-                            isNotNull(products.rootCategoryBsr),
-                            lt(products.rootCategoryBsr, BSR_THRESHOLD_800K),
+                            lt(products.rootCategoryBsr, BSR_THRESHOLD_200K),
                             lt(products.lastFetched, threshold24Hours)
                         ),
-                        // BSR < 2M (but >= 800k): requeue if lastFetched > 7 days ago
+                        // 200k <= BSR < 500k: requeue if lastFetched > 3 days ago
                         and(
-                            isNotNull(products.rootCategoryBsr),
-                            gte(products.rootCategoryBsr, BSR_THRESHOLD_800K),
-                            lt(products.rootCategoryBsr, BSR_THRESHOLD_2M),
+                            gte(products.rootCategoryBsr, BSR_THRESHOLD_200K),
+                            lt(products.rootCategoryBsr, BSR_THRESHOLD_500K),
+                            lt(products.lastFetched, threshold3Days)
+                        ),
+                        // 500k <= BSR < 1M: requeue if lastFetched > 7 days ago
+                        and(
+                            gte(products.rootCategoryBsr, BSR_THRESHOLD_500K),
+                            lt(products.rootCategoryBsr, BSR_THRESHOLD_1M),
                             lt(products.lastFetched, threshold7Days)
                         ),
-                        // BSR >= 2M: requeue if lastFetched > 30 days ago
+                        // 1M <= BSR < 3M: requeue if lastFetched > 14 days ago
                         and(
-                            isNotNull(products.rootCategoryBsr),
-                            gte(products.rootCategoryBsr, BSR_THRESHOLD_2M),
-                            lt(products.lastFetched, threshold30Days)
+                            gte(products.rootCategoryBsr, BSR_THRESHOLD_1M),
+                            lt(products.rootCategoryBsr, BSR_THRESHOLD_3M),
+                            lt(products.lastFetched, threshold14Days)
                         ),
-                        // Null BSR: requeue if lastFetched > 30 days ago (treated like BSR >= 2M)
+                        // BSR >= 3M: requeue if lastFetched > 30 days ago
                         and(
-                            isNull(products.rootCategoryBsr),
+                            gte(products.rootCategoryBsr, BSR_THRESHOLD_3M),
                             lt(products.lastFetched, threshold30Days)
                         )
                     )
-                ),
-                // Products with null root category ID: refresh once per day
-                and(isNull(products.rootCategoryId), lt(products.lastFetched, threshold24Hours))
+                )
             )
         );
 
