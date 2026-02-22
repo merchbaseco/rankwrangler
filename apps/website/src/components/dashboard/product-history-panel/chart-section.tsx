@@ -14,6 +14,7 @@ import {
 	SyncingChartPlaceholder,
 } from '@/components/dashboard/product-history-panel/syncing-chart-placeholder';
 import type {
+	HistoryTimeDomain,
 	HistoryQueryResult,
 	SelectOption,
 } from '@/components/dashboard/product-history-panel/types';
@@ -35,6 +36,7 @@ type ChartSectionProps = {
 	isPrice: boolean;
 	gradientId: string;
 	isSyncing?: boolean;
+	timeDomain?: HistoryTimeDomain | null;
 };
 
 export const ChartSection = ({
@@ -47,19 +49,22 @@ export const ChartSection = ({
 	isPrice,
 	gradientId,
 	isSyncing,
+	timeDomain,
 }: ChartSectionProps) => {
 	const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 	const chartRef = useRef<HTMLDivElement>(null);
 
 	const points = useMemo(() => buildPoints(query), [query]);
 	const { sampledPoints, chartGeometry } = useMemo(
-		() => buildChartState(points),
-		[points],
+		() => buildChartState(points, timeDomain),
+		[points, timeDomain],
 	);
 
 	const latestPoint = points.at(-1) ?? null;
-	const firstPoint = points[0] ?? null;
 	const hoverPoint = hoverIndex !== null ? (sampledPoints[hoverIndex] ?? null) : null;
+	const firstPoint = points[0] ?? null;
+	const rangeStartTimestamp = timeDomain?.startAt ?? firstPoint?.timestamp ?? null;
+	const rangeEndTimestamp = timeDomain?.endAt ?? latestPoint?.timestamp ?? null;
 	const hoverPosition = useMemo(
 		() => getHoverPosition({ chartGeometry, hoverPoint }),
 		[chartGeometry, hoverPoint],
@@ -150,10 +155,10 @@ export const ChartSection = ({
 							<p className="stat-value text-2xl font-bold tracking-tight text-foreground">
 								{latestPoint ? formatValue(metric, latestPoint.value) : '-'}
 							</p>
-							{firstPoint && latestPoint ? (
+							{rangeStartTimestamp !== null && rangeEndTimestamp !== null ? (
 								<p className="mt-0.5 text-sm text-muted-foreground">
-									{formatDateShort(firstPoint.timestamp)} &ndash;{' '}
-									{formatDateShort(latestPoint.timestamp)}
+									{formatDateShort(rangeStartTimestamp)} &ndash;{' '}
+									{formatDateShort(rangeEndTimestamp)}
 								</p>
 							) : null}
 						</div>

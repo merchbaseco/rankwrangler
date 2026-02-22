@@ -1,4 +1,5 @@
 import type { HistoryPoint } from '@/components/dashboard/product-history-panel/types';
+import type { HistoryTimeDomain } from '@/components/dashboard/product-history-panel/types';
 
 export const MAX_CHART_POINTS = 320;
 
@@ -53,17 +54,27 @@ export const downsamplePoints = (points: HistoryPoint[], max: number) => {
 	return output;
 };
 
-export const buildChartGeometry = (points: HistoryPoint[]): ChartGeometry | null => {
+export const buildChartGeometry = (
+	points: HistoryPoint[],
+	timeDomain?: HistoryTimeDomain | null,
+): ChartGeometry | null => {
 	if (points.length === 0) {
 		return null;
 	}
 
 	const timestamps = points.map((point) => point.timestamp);
 	const values = points.map((point) => point.value);
-	const tMin = Math.min(...timestamps);
-	const tMax = Math.max(...timestamps);
+	let tMin = Math.min(...timestamps);
+	let tMax = Math.max(...timestamps);
 	const rawMin = Math.min(...values);
 	const rawMax = Math.max(...values);
+
+	if (timeDomain) {
+		const domainStart = Math.min(timeDomain.startAt, timeDomain.endAt);
+		const domainEnd = Math.max(timeDomain.startAt, timeDomain.endAt);
+		tMin = Math.min(tMin, domainStart);
+		tMax = Math.max(tMax, domainEnd);
+	}
 
 	const rawRange = Math.max(1, rawMax - rawMin);
 	const valuePadding = rawRange * 0.05;

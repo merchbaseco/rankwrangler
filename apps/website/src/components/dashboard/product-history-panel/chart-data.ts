@@ -11,6 +11,7 @@ import {
 import type {
 	HistoryPoint,
 	HistoryQueryResult,
+	HistoryTimeDomain,
 } from '@/components/dashboard/product-history-panel/types';
 
 export const buildPoints = (query: HistoryQueryResult): HistoryPoint[] => {
@@ -24,11 +25,11 @@ export const buildPoints = (query: HistoryQueryResult): HistoryPoint[] => {
 		.filter((point) => Number.isFinite(point.timestamp));
 };
 
-export const buildChartState = (points: HistoryPoint[]) => {
+export const buildChartState = (points: HistoryPoint[], timeDomain?: HistoryTimeDomain | null) => {
 	const sampledPoints = downsamplePoints(points, MAX_CHART_POINTS);
 	return {
 		sampledPoints,
-		chartGeometry: buildChartGeometry(sampledPoints),
+		chartGeometry: buildChartGeometry(sampledPoints, timeDomain),
 	};
 };
 

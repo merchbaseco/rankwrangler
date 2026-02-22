@@ -1,6 +1,7 @@
 import type { DateRange } from 'react-day-picker';
 
 export type HistoryPoint = { timestamp: number; value: number };
+export type HistoryTimeDomain = { startAt: number; endAt: number };
 
 export type CategoryOption = { id: number; name: string | null };
 export type SelectOption = { value: string; label: string };

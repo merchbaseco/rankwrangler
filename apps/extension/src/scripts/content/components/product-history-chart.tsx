@@ -6,6 +6,8 @@ const CHART_PADDING = { top: 8, right: 8, bottom: 20, left: 8 };
 
 const COMPACT_MAX_POINTS = 90;
 const FULL_MAX_POINTS = 180;
+const DISPLAY_WINDOW_DAYS = 90;
+const DISPLAY_WINDOW_MS = DISPLAY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 export const ProductHistoryChart = ({
 	chartId,
@@ -88,17 +90,34 @@ export const ProductHistoryChart = ({
 		);
 	}
 
+	const timeDomain = getDisplayTimeDomain();
+	const visiblePoints = points.filter(
+		(point) =>
+			point.timestamp >= timeDomain.startAt &&
+			point.timestamp <= timeDomain.endAt
+	);
+	if (visiblePoints.length === 0) {
+		return (
+			<div
+				className={`${topMarginClass}rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5`}
+			>
+				<span className="font-medium text-gray-700 text-xs">
+					No BSR history in the last 90 days.
+				</span>
+			</div>
+		);
+	}
+
 	const sampledPoints = downsamplePoints(
-		points,
+		visiblePoints,
 		compact ? COMPACT_MAX_POINTS : FULL_MAX_POINTS
 	);
-	const geometry = buildGeometry(sampledPoints);
+	const geometry = buildGeometry(sampledPoints, timeDomain);
 	if (!geometry) {
 		return null;
 	}
 
 	const latestPoint = sampledPoints.at(-1);
-	const oldestPoint = sampledPoints[0];
 
 	return (
 		<div
@@ -163,12 +182,8 @@ export const ProductHistoryChart = ({
 			</svg>
 
 			<div className="mt-1 flex items-center justify-between text-[10px] text-gray-500">
-				<span>
-					{oldestPoint ? formatShortDate(oldestPoint.timestamp) : "-"}
-				</span>
-				<span>
-					{latestPoint ? formatShortDate(latestPoint.timestamp) : "-"}
-				</span>
+				<span>{formatShortDate(timeDomain.startAt)}</span>
+				<span>{formatShortDate(timeDomain.endAt)}</span>
 			</div>
 		</div>
 	);
@@ -200,15 +215,17 @@ const downsamplePoints = (
 	return sampled;
 };
 
-const buildGeometry = (points: ChartPoint[]) => {
+const buildGeometry = (
+	points: ChartPoint[],
+	timeDomain: { startAt: number; endAt: number }
+) => {
 	if (points.length === 0) {
 		return null;
 	}
 
-	const timestamps = points.map((point) => point.timestamp);
 	const values = points.map((point) => point.value);
-	const minTimestamp = Math.min(...timestamps);
-	const maxTimestamp = Math.max(...timestamps);
+	const minTimestamp = timeDomain.startAt;
+	const maxTimestamp = timeDomain.endAt;
 	const minValue = Math.min(...values);
 	const maxValue = Math.max(...values);
 
@@ -257,3 +274,11 @@ const formatShortDate = (timestamp: number) =>
 		day: "numeric",
 		year: "2-digit",
 	}).format(new Date(timestamp));
+
+const getDisplayTimeDomain = () => {
+	const endAt = Date.now();
+	return {
+		startAt: endAt - DISPLAY_WINDOW_MS,
+		endAt,
+	};
+};

@@ -43,6 +43,23 @@ export const useProductHistoryPanelData = ({
 		return { startAt: date.toISOString(), endAt: undefined };
 	}, [activePreset, customRange]);
 
+	const chartTimeDomain = useMemo(() => {
+		if (!startAt) {
+			return null;
+		}
+
+		const parsedStartAt = Date.parse(startAt);
+		const parsedEndAt = endAt ? Date.parse(endAt) : Date.now();
+		if (!Number.isFinite(parsedStartAt) || !Number.isFinite(parsedEndAt)) {
+			return null;
+		}
+
+		return {
+			startAt: Math.min(parsedStartAt, parsedEndAt),
+			endAt: Math.max(parsedStartAt, parsedEndAt),
+		};
+	}, [startAt, endAt]);
+
 	const handlePresetClick = useCallback((key: DateRangeKey) => {
 		setActivePreset(key);
 		setCustomRange(null);
@@ -245,6 +262,7 @@ export const useProductHistoryPanelData = ({
 
 	return {
 		activePreset,
+		chartTimeDomain,
 		customRange,
 		datePickerRange,
 		handleDayClick,
