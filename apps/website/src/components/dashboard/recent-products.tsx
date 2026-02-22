@@ -21,14 +21,20 @@ import { api } from '@/lib/trpc';
 
 export function RecentProducts({
 	filters,
+	searchValue,
 	onStatusChange,
 }: {
 	filters: FilterState;
+	searchValue: string;
 	onStatusChange?: (info: { count: number; hasMore: boolean }) => void;
 }) {
+	const deferredSearchValue = useDeferredValue(searchValue.trim());
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
 		api.api.app.recentProducts.useInfiniteQuery(
-			{ limit: 50 },
+			{
+				limit: 50,
+				search: deferredSearchValue.length > 0 ? deferredSearchValue : undefined,
+			},
 			{
 				getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
 			},

@@ -11,6 +11,7 @@ import { useLicense } from '@/hooks/use-license';
 import { useTheme } from '@/hooks/use-theme';
 
 export function App() {
+	const [searchValue, setSearchValue] = useState('');
 	const [filters, setFilters] = useState<FilterState>({
 		bsrRanges: [],
 		marketplaceIds: [],
@@ -123,10 +124,14 @@ export function App() {
 				<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 					<div className="min-h-0 flex-1 overflow-hidden">
 						<div className="flex h-full min-h-0 flex-col">
-							<SearchBar />
+							<SearchBar
+								searchValue={searchValue}
+								onSearchValueChange={setSearchValue}
+							/>
 							<div className="min-h-0 flex-1">
 								<RecentProducts
 									filters={filters}
+									searchValue={searchValue}
 									onStatusChange={handleProductStatusChange}
 								/>
 							</div>
