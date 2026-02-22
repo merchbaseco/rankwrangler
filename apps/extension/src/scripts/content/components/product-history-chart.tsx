@@ -44,20 +44,48 @@ export const ProductHistoryChart = ({
 		);
 	}
 
-	if (collecting || points.length === 0) {
+	if (collecting) {
 		return (
 			<div
-				className={`${topMarginClass}rounded-md border border-amber-200 bg-amber-50 px-2 py-2`}
+				className={`${topMarginClass}rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5`}
 			>
 				<div className="flex items-center gap-2">
-					<div className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+					<svg
+						className="h-3.5 w-3.5 animate-spin text-amber-600"
+						fill="none"
+						viewBox="0 0 24 24"
+					>
+						<title>Loading</title>
+						<circle
+							className="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							strokeWidth="4"
+						/>
+						<path
+							className="opacity-75"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+							fill="currentColor"
+						/>
+					</svg>
 					<span className="font-medium text-amber-800 text-xs">
-						Collecting history...
+						Loading BSR history…
 					</span>
 				</div>
-				<p className="mt-1 text-[11px] text-amber-700">
-					Keepa sync is running. This updates every 5 seconds.
-				</p>
+			</div>
+		);
+	}
+
+	if (points.length === 0) {
+		return (
+			<div
+				className={`${topMarginClass}rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5`}
+			>
+				<span className="font-medium text-gray-700 text-xs">
+					No BSR history available.
+				</span>
 			</div>
 		);
 	}

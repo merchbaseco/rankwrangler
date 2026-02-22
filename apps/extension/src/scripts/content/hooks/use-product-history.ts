@@ -44,7 +44,7 @@ export const useProductHistory = ({
 		Boolean(enabled) &&
 		!query.isLoading &&
 		!query.isError &&
-		((query.data?.collecting ?? false) || chartPoints.length === 0);
+		(query.data?.collecting ?? false);
 	const error = resolveHistoryError(query.isError, query.error);
 
 	return {
