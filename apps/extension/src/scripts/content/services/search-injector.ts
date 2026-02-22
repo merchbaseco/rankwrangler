@@ -17,6 +17,9 @@ interface InjectionTarget {
 	position: "after" | "before";
 }
 
+const INTERACTIVE_CONTAINER_SELECTOR =
+	'a, button, [role="button"], input, textarea, select, summary';
+
 class SearchInjector {
 	private readonly processedProducts = new Set<string>();
 	private readonly badges = new Map<string, BsrBadge>();
@@ -210,22 +213,28 @@ class SearchInjector {
 	): InjectionTarget | null {
 		const imageAnchor = this.findImageAnchor(productElement);
 		if (imageAnchor?.parentElement) {
-			return {
+			const target = this.normalizeInjectionTarget({
 				anchor: imageAnchor,
 				parent: imageAnchor.parentElement,
 				position: "after",
-			};
+			});
+			if (target) {
+				return target;
+			}
 		}
 
 		const titleRecipeContainer = productElement.querySelector<HTMLElement>(
 			'[data-cy="title-recipe"]'
 		);
 		if (titleRecipeContainer?.parentElement) {
-			return {
+			const target = this.normalizeInjectionTarget({
 				anchor: titleRecipeContainer,
 				parent: titleRecipeContainer.parentElement,
 				position: "before",
-			};
+			});
+			if (target) {
+				return target;
+			}
 		}
 
 		// Sponsored brand collection cards often expose the body content wrapper.
@@ -234,11 +243,14 @@ class SearchInjector {
 			'[class*="productWrapper"]'
 		);
 		if (sponsoredContentWrapper?.parentElement) {
-			return {
+			const target = this.normalizeInjectionTarget({
 				anchor: sponsoredContentWrapper,
 				parent: sponsoredContentWrapper.parentElement,
 				position: "before",
-			};
+			});
+			if (target) {
+				return target;
+			}
 		}
 
 		return null;
@@ -281,6 +293,33 @@ class SearchInjector {
 			'[class*="imageWrapper"], [data-cy="image-container"], .s-product-image-container, [data-component-type="s-product-image"], a'
 		);
 		return genericContainer ?? genericImage;
+	}
+
+	private normalizeInjectionTarget(
+		injectionTarget: InjectionTarget
+	): InjectionTarget | null {
+		let currentTarget = injectionTarget;
+
+		while (
+			this.isInteractiveContainer(currentTarget.parent) &&
+			currentTarget.parent.parentElement
+		) {
+			currentTarget = {
+				anchor: currentTarget.parent,
+				parent: currentTarget.parent.parentElement,
+				position: "after",
+			};
+		}
+
+		if (!currentTarget.parent.isConnected) {
+			return null;
+		}
+
+		return currentTarget;
+	}
+
+	private isInteractiveContainer(element: HTMLElement): boolean {
+		return element.matches(INTERACTIVE_CONTAINER_SELECTOR);
 	}
 
 	/**

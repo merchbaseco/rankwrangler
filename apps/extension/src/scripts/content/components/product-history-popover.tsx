@@ -1,6 +1,7 @@
 import { LineChart } from "lucide-react";
 import {
 	type MouseEvent as ReactMouseEvent,
+	type PointerEvent as ReactPointerEvent,
 	useCallback,
 	useEffect,
 	useRef,
@@ -90,6 +91,18 @@ export const ProductHistoryPopover = ({
 		event.stopPropagation();
 		setIsOpen((previous) => !previous);
 	};
+	const handleTriggerMouseDown = (
+		event: ReactMouseEvent<HTMLButtonElement>
+	) => {
+		event.preventDefault();
+		event.stopPropagation();
+	};
+	const handleTriggerPointerDown = (
+		event: ReactPointerEvent<HTMLButtonElement>
+	) => {
+		event.preventDefault();
+		event.stopPropagation();
+	};
 	const handleClose = (event: ReactMouseEvent<HTMLButtonElement>) => {
 		event.preventDefault();
 		event.stopPropagation();
@@ -106,6 +119,8 @@ export const ProductHistoryPopover = ({
 					"cursor-pointer rounded bg-transparent px-1 py-0.5 text-gray-500 transition-all duration-200 hover:bg-gray-200 hover:text-gray-800"
 				}
 				onClick={handleToggle}
+				onMouseDown={handleTriggerMouseDown}
+				onPointerDown={handleTriggerPointerDown}
 				ref={buttonRef}
 				title={triggerTitle}
 				type="button"
