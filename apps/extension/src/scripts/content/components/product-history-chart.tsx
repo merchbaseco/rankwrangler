@@ -47,11 +47,11 @@ export const ProductHistoryChart = ({
 	if (collecting) {
 		return (
 			<div
-				className={`${topMarginClass}rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5`}
+				className={`${topMarginClass}rounded-md border border-gray-200 bg-white px-3 py-2.5`}
 			>
 				<div className="flex items-center gap-2">
 					<svg
-						className="h-3.5 w-3.5 animate-spin text-amber-600"
+						className="h-3.5 w-3.5 animate-spin text-gray-400"
 						fill="none"
 						viewBox="0 0 24 24"
 					>
@@ -70,9 +70,7 @@ export const ProductHistoryChart = ({
 							fill="currentColor"
 						/>
 					</svg>
-					<span className="font-medium text-amber-800 text-xs">
-						Loading BSR history…
-					</span>
+					<span className="text-gray-500 text-xs">Loading BSR history…</span>
 				</div>
 			</div>
 		);
