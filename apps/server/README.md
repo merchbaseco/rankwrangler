@@ -184,6 +184,7 @@ Manual Keepa import behavior:
 - Requests use high-priority Keepa queueing and may wait up to 2 minutes before returning.
 - Retryable Keepa failures are retried with exponential backoff during that 2-minute window.
 - If retries do not succeed within 2 minutes, API returns `TIMEOUT`; retrying is expected.
+- Manual import is allowed regardless of clothing/BSR auto-eligibility, but still respects the global 24h Keepa success guard.
 
 Example `curl` (app Keepa runtime status):
 
@@ -236,6 +237,7 @@ Keepa category label cache table:
 Keepa refresh automation details:
 - `docs/keepa-history-refresh.md`
 - Automatic refresh first import window: up to 3650 days, then stale-aware incremental windows (minimum 30 days).
+- Auto enqueue is event-driven from product lookup flow (not a fixed "every N days" scheduler).
 
 ## Deployment
 

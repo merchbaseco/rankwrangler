@@ -12,6 +12,13 @@ An ASIN is eligible for automatic Keepa refresh only when all conditions are tru
 
 Eligibility is evaluated from the cached `products` table.
 
+Plain-English behavior:
+
+- Product lookup still stores SP-API category/BSR data for any category when available.
+- Automatic Keepa enqueue only happens for eligible clothing ASINs.
+- Non-eligible ASINs (non-clothing, missing BSR, or BSR >= 1,000,000) are not auto-enqueued.
+- Non-eligible ASINs can still load Keepa history manually (dashboard/extension history action).
+
 ## Global 24h Keepa Guard
 
 All Keepa product history requests go through `loadKeepaProductHistory()` in
@@ -34,6 +41,17 @@ Queue table: `keepa_history_refresh_queue`
 - ASINs are queued from product lookup flow (`fetchProductInfo`) after cache hit or fresh ingest completion.
 - Queue insert is deduplicated by `(marketplace_id, asin)`.
 - Queue insert is skipped if a Keepa import exists in the last 48 hours.
+
+## Refresh Cadence
+
+- There is no standalone "every N days" Keepa enqueue cron.
+- Auto enqueue is event-driven from product lookup flow and requires eligibility.
+- Even when eligible, enqueue is skipped when a successful Keepa import exists in the last 48 hours.
+- Background queue dispatch runs every 1 minute (`process-keepa-history-refresh-queue`).
+- Keepa fetches are additionally guarded by a global 24-hour successful-import check in
+  `loadKeepaProductHistory()`.
+- The "30 days" value is the minimum incremental history window fetched once a refresh is triggered;
+  it is not an automatic enqueue interval.
 
 ## Background Jobs
 
