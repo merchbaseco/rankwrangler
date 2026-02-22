@@ -7,7 +7,8 @@ import type {
 import { MARKETPLACE_FLAGS } from '@/components/dashboard/recent-products/types';
 import { cn, formatRelativeTime } from '@/lib/utils';
 
-const RowHistoryButton = ({
+const RowBsrButton = ({
+	bsr,
 	asin,
 	marketplaceId,
 	title,
@@ -16,6 +17,7 @@ const RowHistoryButton = ({
 	isActive,
 	onSelect,
 }: {
+	bsr: number;
 	asin: string;
 	marketplaceId: string;
 	title: string | null;
@@ -29,14 +31,18 @@ const RowHistoryButton = ({
 		onClick={() => {
 			onSelect({ asin, marketplaceId, title, thumbnailUrl, brand });
 		}}
-		className={cn(
-			'inline-flex h-6 items-center rounded-sm px-2 text-xs font-medium transition-colors',
-			isActive
-				? 'bg-primary text-primary-foreground'
-				: 'hover:bg-accent border border-input bg-background text-foreground',
-		)}
+		className="focus-visible:ring-ring rounded-sm focus-visible:outline-none focus-visible:ring-1"
+		aria-label="Open BSR history"
 	>
-		History
+		<Badge
+			variant={getBsrBadgeVariant(bsr)}
+			className={cn(
+				'rounded-sm font-mono text-xs transition-colors',
+				isActive && 'bg-primary text-primary-foreground',
+			)}
+		>
+			#{bsr.toLocaleString()}
+		</Badge>
 	</button>
 );
 
@@ -103,10 +109,20 @@ export const createColumns = ({
 			if (bsr === null) {
 				return <span className="text-muted-foreground text-xs">--</span>;
 			}
+			const rowKey = `${row.original.marketplaceId}:${row.original.asin}`;
 			return (
-				<Badge variant={getBsrBadgeVariant(bsr)} className="rounded-sm font-mono text-xs">
-					#{bsr.toLocaleString()}
-				</Badge>
+				<div className="flex items-center justify-end">
+					<RowBsrButton
+						bsr={bsr}
+						asin={row.original.asin}
+						marketplaceId={row.original.marketplaceId}
+						title={row.original.title}
+						thumbnailUrl={row.original.thumbnailUrl}
+						brand={row.original.brand}
+						isActive={selectedHistoryKey === rowKey}
+						onSelect={onSelectHistory}
+					/>
+				</div>
 			);
 		},
 		header: 'BSR',
@@ -134,29 +150,6 @@ export const createColumns = ({
 		invertSorting: true,
 		meta: { align: 'right' },
 		size: 86,
-	},
-	{
-		id: 'history',
-		cell: ({ row }) => {
-			const rowKey = `${row.original.marketplaceId}:${row.original.asin}`;
-			return (
-				<div className="flex items-center justify-end">
-					<RowHistoryButton
-						asin={row.original.asin}
-						marketplaceId={row.original.marketplaceId}
-						title={row.original.title}
-						thumbnailUrl={row.original.thumbnailUrl}
-						brand={row.original.brand}
-						isActive={selectedHistoryKey === rowKey}
-						onSelect={onSelectHistory}
-					/>
-				</div>
-			);
-		},
-		enableSorting: false,
-		header: '',
-		meta: { align: 'right' },
-		size: 88,
 	},
 ];
 
