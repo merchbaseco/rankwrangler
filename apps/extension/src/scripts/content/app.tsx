@@ -4,6 +4,7 @@ import { browser } from "webextension-polyfill-ts";
 import { log } from "../../utils/logger";
 import { db } from "../db";
 import { DebugWidget } from "./components/debug-widget";
+import { GlobalProductHistoryPopover } from "./components/global-product-history-popover";
 import { productDetailInjector } from "./services/product-detail-injector";
 import { queryClient } from "./services/query-client";
 import { searchInjector } from "./services/search-injector";
@@ -259,6 +260,7 @@ const App = () => {
 
 	return (
 		<QueryClientProvider client={queryClient}>
+			<GlobalProductHistoryPopover />
 			{debugMode && <DebugWidget />}
 		</QueryClientProvider>
 	);

@@ -8,6 +8,7 @@ import {
 	useState,
 } from "react";
 import type { ProductIdentifier } from "@/scripts/types/product";
+import { dispatchProductHistoryPopoverToggle } from "../services/product-history-popover-events";
 import { ProductHistorySection } from "./product-history-section";
 
 const POPUP_WIDTH = 340;
@@ -16,9 +17,11 @@ const VIEWPORT_MARGIN = 8;
 
 export const ProductHistoryPopover = ({
 	className,
+	globalHost = false,
 	productIdentifier,
 }: {
 	className?: string;
+	globalHost?: boolean;
 	productIdentifier: ProductIdentifier;
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
@@ -89,6 +92,20 @@ export const ProductHistoryPopover = ({
 	const handleToggle = (event: ReactMouseEvent<HTMLButtonElement>) => {
 		event.preventDefault();
 		event.stopPropagation();
+		if (globalHost) {
+			const rect = event.currentTarget.getBoundingClientRect();
+			dispatchProductHistoryPopoverToggle({
+				productIdentifier,
+				triggerRect: {
+					bottom: rect.bottom,
+					left: rect.left,
+					right: rect.right,
+					top: rect.top,
+				},
+			});
+			return;
+		}
+
 		setIsOpen((previous) => !previous);
 	};
 	const handleTriggerMouseDown = (
@@ -108,11 +125,12 @@ export const ProductHistoryPopover = ({
 		event.stopPropagation();
 		setIsOpen(false);
 	};
+	const triggerAriaExpanded = globalHost ? undefined : isOpen;
 
 	return (
 		<>
 			<button
-				aria-expanded={isOpen}
+				aria-expanded={triggerAriaExpanded}
 				aria-label={triggerTitle}
 				className={
 					className ??
@@ -128,7 +146,7 @@ export const ProductHistoryPopover = ({
 				<LineChart className="h-3.5 w-3.5" />
 			</button>
 
-			{isOpen ? (
+			{!globalHost && isOpen ? (
 				<div
 					className="fixed z-[2147483647] rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
 					ref={panelRef}

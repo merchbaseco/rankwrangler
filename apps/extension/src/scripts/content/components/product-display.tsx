@@ -129,7 +129,10 @@ export function ProductDisplay({
 					</span>
 
 					{mode === "search" ? (
-						<ProductHistoryPopover productIdentifier={productIdentifier} />
+						<ProductHistoryPopover
+							globalHost={true}
+							productIdentifier={productIdentifier}
+						/>
 					) : null}
 
 					<button
@@ -178,7 +181,10 @@ export function ProductDisplay({
 				</span>
 
 				{mode === "search" ? (
-					<ProductHistoryPopover productIdentifier={productIdentifier} />
+					<ProductHistoryPopover
+						globalHost={true}
+						productIdentifier={productIdentifier}
+					/>
 				) : null}
 
 				<button
