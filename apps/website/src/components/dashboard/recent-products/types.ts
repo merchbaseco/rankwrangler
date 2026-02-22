@@ -9,6 +9,8 @@ export type Product = {
 	title: string | null;
 	thumbnailUrl: string | null;
 	brand: string | null;
+	bullet1: string | null;
+	bullet2: string | null;
 	marketplaceId: string;
 	rootCategoryBsr: number | null;
 	lastFetched: string;

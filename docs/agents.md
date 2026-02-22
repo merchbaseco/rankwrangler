@@ -29,3 +29,17 @@ When asked to do a version bump:
 - Prefer clean, intentional breaks over backward-compatibility layers.
 - Do not add legacy aliases, fallback behaviors, compatibility shims, or migration paths unless
   explicitly requested.
+
+## Database Schema Change Flow
+
+When changing database schema, follow this order:
+
+1. Update schema source code first:
+   - `apps/server/src/db/schema.ts`
+2. Generate migration files before opening a PR:
+   - From `apps/server`, run `bunx drizzle-kit generate`
+   - Commit the generated files in `apps/server/drizzle/`
+3. Keep bootstrap SQL aligned:
+   - Update `apps/server/init.sql` to match the new schema
+4. Verify before PR:
+   - Confirm schema changes, generated migration files, and related code changes are all in the branch
