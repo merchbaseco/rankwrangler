@@ -1,5 +1,11 @@
 import { LineChart } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	type MouseEvent as ReactMouseEvent,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import type { ProductIdentifier } from "@/scripts/types/product";
 import { ProductHistorySection } from "./product-history-section";
 
@@ -46,15 +52,11 @@ export const ProductHistoryPopover = ({
 		updatePosition();
 
 		const handlePointerDown = (event: MouseEvent) => {
-			const target = event.target;
-			if (!(target instanceof Node)) {
+			if (isEventInside(event, buttonRef.current)) {
 				return;
 			}
 
-			if (
-				buttonRef.current?.contains(target) ||
-				panelRef.current?.contains(target)
-			) {
+			if (isEventInside(event, panelRef.current)) {
 				return;
 			}
 
@@ -83,6 +85,16 @@ export const ProductHistoryPopover = ({
 	}, [isOpen, updatePosition]);
 
 	const triggerTitle = isOpen ? "Hide graph" : "Show graph";
+	const handleToggle = (event: ReactMouseEvent<HTMLButtonElement>) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setIsOpen((previous) => !previous);
+	};
+	const handleClose = (event: ReactMouseEvent<HTMLButtonElement>) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setIsOpen(false);
+	};
 
 	return (
 		<>
@@ -93,7 +105,7 @@ export const ProductHistoryPopover = ({
 					className ??
 					"cursor-pointer rounded bg-transparent px-1 py-0.5 text-gray-500 transition-all duration-200 hover:bg-gray-200 hover:text-gray-800"
 				}
-				onClick={() => setIsOpen((previous) => !previous)}
+				onClick={handleToggle}
 				ref={buttonRef}
 				title={triggerTitle}
 				type="button"
@@ -117,7 +129,7 @@ export const ProductHistoryPopover = ({
 						</span>
 						<button
 							className="cursor-pointer rounded px-1 py-0.5 text-[11px] text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-							onClick={() => setIsOpen(false)}
+							onClick={handleClose}
 							type="button"
 						>
 							Close
@@ -133,4 +145,16 @@ export const ProductHistoryPopover = ({
 			) : null}
 		</>
 	);
+};
+
+const isEventInside = (
+	event: MouseEvent,
+	element: HTMLElement | HTMLDivElement | null
+) => {
+	if (!element) {
+		return false;
+	}
+
+	const path = event.composedPath();
+	return path.includes(element);
 };
