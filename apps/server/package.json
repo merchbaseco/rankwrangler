@@ -1,6 +1,6 @@
 {
   "name": "@rankwrangler/server",
-  "version": "0.1.3",
+  "version": "0.2.1",
   "description": "Docker-deployable SP-API service for Amazon catalog search",
   "type": "module",
   "main": "dist/index.js",

@@ -4,12 +4,54 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## v0.2.1 - 2026-02-22
+
+### Added
+
+- Add fuzzy dashboard product search and stronger filter-driven sidebar workflows.
+- Add extension BSR history graph flow, including history sheet deep-linking from BSR badges.
+- Add admin job runtime observability, queue log browsing, and per-source drilldown stats.
+- Add Keepa sync loading states and richer history date-range controls.
+
+### Changed
+
+- Move product ingest processing to an event-driven queue flow and align Keepa refresh to one-shot
+  enqueue jobs.
+- Rename ingest queue labeling to the SP-API sync queue across admin surfaces.
+- Refine BSR/history chart interactions, sparse-range handling, and loading/empty-state behavior.
+- Improve extension build prebuild dependency handling and dashboard/admin UI polish.
+- Clarify docs for Keepa automatic vs manual behavior.
+
+## v0.2.0 - 2026-02-20
+
+### Added
+
+- Add Keepa history import flow and dashboard history UI.
+- Add Keepa refresh queue processing and Keepa status metrics in the dashboard.
+- Add admin job runtime observability endpoints and dashboard visibility.
+- Add extension BSR history modal with on-demand history loading flow.
+- Add public + app product history query/load procedures for Keepa-backed BSR history.
+- Add public API usage consumption to history query/load endpoints to enforce API key limits.
+
+### Changed
+
+- Align Keepa refresh behavior to a one-shot enqueue model.
+- Redesign dashboard sidebar header/layout, Keepa history panel, filters, and settings modal UX.
+- Standardize external naming to `API key` across public API routes, CLI commands, extension UI
+  copy, and related docs.
+- Rename CLI auth commands from `license status|validate` to `api-key status|validate`.
+- Rename public API auth namespace from `api.public.license.*` to `api.public.apiKey.*` and app
+  namespace from `api.app.license.*` to `api.app.apiKey.*`.
+- Switch CLI environment fallback from `RR_LICENSE_KEY` to `RR_API_KEY`.
+
+### Fixed
+
+- Fix Keepa fetch worker job payload handling.
+
 ## v0.1.3 - 2026-02-17
 
 ### Changed
 
-- Sync release versions across `apps/server`, `packages/http-client`, and `packages/cli` to
-  `0.1.3`.
 - Set `@rankwrangler/cli` to expose both `rw` (primary) and `rankwrangler` binaries.
 - Tighten CLI help output into a concise man-style format and remove principles text from runtime
   help.
@@ -23,10 +65,6 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Sync all workspace package versions to `0.1.2` (`apps/server`, `apps/website`,
-  `apps/extension`, `apps/extension/safari-extension`, `packages/http-client`,
-  `packages/cli`).
-- Sync CLI and typed HTTP client package versions to `0.1.2`.
 - Update extension's pinned HTTP client tarball dependency to
   `rankwrangler-http-client-0.1.2.tgz`.
 - Update release docs to require synchronized versions between `CHANGELOG.md` releases and npm

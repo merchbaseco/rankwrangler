@@ -1,6 +1,6 @@
 {
     "name": "@rankwrangler/http-client",
-    "version": "0.1.3",
+    "version": "0.2.1",
     "description": "Typed tRPC client for RankWrangler",
     "type": "module",
     "main": "./dist/index.js",

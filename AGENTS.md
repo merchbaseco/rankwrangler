@@ -184,8 +184,26 @@ SemVer prompt policy:
    - `packages/http-client/package.json`
    - `packages/cli/package.json`
 3. Update `CHANGELOG.md` with a new release section (`## vX.Y.Z - YYYY-MM-DD`) in the existing format.
-4. Report completion and wait for explicit user approval before publishing.
-5. Only after approval, publish npm packages in this order:
+   - Changelog entries must be user-facing only (features, bug fixes, behavior changes,
+     significant UX/performance improvements).
+   - Do not include internal release bookkeeping such as "sync versions", dependency pin
+     housekeeping, or package publish mechanics unless they directly affect users.
+4. Report completion and explicitly prompt the user to confirm npm deploy before publishing.
+   - Example prompt: "Version bump and changelog updates are complete. Do you want me to publish
+     to npm now?"
+5. After approval, commit all release-version changes and push directly to `origin/main` before
+   publishing.
+   - This is the explicit exception to normal PR-first workflow for release publishing.
+6. Before publishing, load npm credentials from repo-root `.env` and verify npm auth:
+   ```bash
+   set -a
+   source .env
+   set +a
+   npm whoami
+   ```
+   - If `npm whoami` fails, stop and ask the user to refresh login/token before retrying.
+7. Only after approval, successful push to `origin/main`, and successful auth, publish npm
+   packages in this order:
    - `@rankwrangler/http-client`
    - `@rankwrangler/cli`
 
