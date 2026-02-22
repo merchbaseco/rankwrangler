@@ -7,6 +7,7 @@ import { useProductHistoryPanelData } from '@/components/dashboard/product-histo
 export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 	const {
 		activePreset,
+		chartTimeDomain,
 		customRange,
 		datePickerRange,
 		handleDayClick,
@@ -48,6 +49,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 					isPrice={false}
 					gradientId={`rank-${product.asin}`}
 					isSyncing={loadMutation.isPending}
+					timeDomain={chartTimeDomain}
 				/>
 				<ChartSection
 					label="Price (Amazon)"
@@ -59,6 +61,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 					isPrice={true}
 					gradientId={`price-${product.asin}`}
 					isSyncing={loadMutation.isPending}
+					timeDomain={chartTimeDomain}
 				/>
 			</div>
 		</div>
