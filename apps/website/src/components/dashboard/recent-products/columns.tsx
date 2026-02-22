@@ -103,6 +103,26 @@ export const createColumns = ({
 		meta: { flex: true },
 	},
 	{
+		accessorKey: 'bullet1',
+		cell: ({ row }) => (
+			<span className="text-muted-foreground block truncate text-xs">
+				{row.getValue('bullet1') ?? '--'}
+			</span>
+		),
+		header: 'Bullet 1',
+		size: 220,
+	},
+	{
+		accessorKey: 'bullet2',
+		cell: ({ row }) => (
+			<span className="text-muted-foreground block truncate text-xs">
+				{row.getValue('bullet2') ?? '--'}
+			</span>
+		),
+		header: 'Bullet 2',
+		size: 220,
+	},
+	{
 		accessorKey: 'rootCategoryBsr',
 		cell: ({ row }) => {
 			const bsr = row.getValue('rootCategoryBsr') as number | null;

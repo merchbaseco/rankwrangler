@@ -34,6 +34,8 @@ export const recentProducts = appProcedure
 				title: products.title,
 				thumbnailUrl: products.thumbnailUrl,
 				brand: products.brand,
+				bullet1: products.bullet1,
+				bullet2: products.bullet2,
 				marketplaceId: products.marketplaceId,
 				rootCategoryBsr: products.rootCategoryBsr,
 				lastFetched: products.lastFetched,
