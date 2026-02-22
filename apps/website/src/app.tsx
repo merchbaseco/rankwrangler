@@ -98,7 +98,7 @@ export function App() {
 			<TopBar
 				onOpenSettings={() => dispatchUiState({ open: true, type: 'setSettingsOpen' })}
 				onToggleTheme={(event) => setTheme(theme === 'dark' ? 'light' : 'dark', event)}
-				productCount={license?.usageCount ?? null}
+				lifetimeLookupCount={license?.usageCount ?? null}
 				theme={theme}
 				usageLimit={license?.usageLimit ?? null}
 				usageToday={license?.usageToday ?? null}
