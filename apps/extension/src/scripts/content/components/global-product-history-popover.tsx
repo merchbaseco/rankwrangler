@@ -101,7 +101,7 @@ export const GlobalProductHistoryPopover = () => {
 
 	return (
 		<div
-			className="fixed z-[2147483647] rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
+			className="fixed z-[2147483647]"
 			ref={panelRef}
 			style={{
 				left: `${popoverState.position.left}px`,
@@ -109,21 +109,12 @@ export const GlobalProductHistoryPopover = () => {
 				width: `${POPUP_WIDTH}px`,
 			}}
 		>
-			<div className="flex items-center justify-between">
-				<span className="font-semibold text-gray-900 text-xs">BSR History</span>
-				<button
-					className="cursor-pointer rounded px-1 py-0.5 text-[11px] text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-					onClick={() => setPopoverState(null)}
-					type="button"
-				>
-					Close
-				</button>
-			</div>
-
 			<ProductHistorySection
 				compact={false}
 				enabled={isOpen}
 				productIdentifier={popoverState.productIdentifier}
+				showChartHeader={false}
+				showLastSync={false}
 			/>
 		</div>
 	);

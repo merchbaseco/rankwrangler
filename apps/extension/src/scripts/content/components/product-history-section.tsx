@@ -7,10 +7,14 @@ export const ProductHistorySection = ({
 	compact = false,
 	enabled,
 	productIdentifier,
+	showChartHeader = true,
+	showLastSync = true,
 }: {
 	compact?: boolean;
 	enabled: boolean;
 	productIdentifier: ProductIdentifier;
+	showChartHeader?: boolean;
+	showLastSync?: boolean;
 }) => {
 	const uniqueId = useId();
 	const chartId = `rw-history-${uniqueId.replace(/:/g, "")}`;
@@ -29,8 +33,9 @@ export const ProductHistorySection = ({
 				error={error}
 				isLoading={isLoading}
 				points={chartPoints}
+				showHeader={showChartHeader}
 			/>
-			{latestImportAt ? (
+			{showLastSync && latestImportAt ? (
 				<p className="mt-1 text-[10px] text-gray-500">
 					Last sync: {formatLastSync(latestImportAt)}
 				</p>

@@ -14,6 +14,7 @@ export const ProductHistoryChart = ({
 	error,
 	isLoading,
 	points,
+	showHeader = true,
 }: {
 	chartId: string;
 	collecting: boolean;
@@ -21,16 +22,23 @@ export const ProductHistoryChart = ({
 	error: string | null;
 	isLoading: boolean;
 	points: ChartPoint[];
+	showHeader?: boolean;
 }) => {
+	const topMarginClass = showHeader ? "mt-2 " : "";
+
 	if (isLoading) {
 		return (
-			<div className="mt-2 h-20 animate-pulse rounded-md border border-gray-200 bg-gray-100" />
+			<div
+				className={`${topMarginClass}h-20 animate-pulse rounded-md border border-gray-200 bg-gray-100`}
+			/>
 		);
 	}
 
 	if (error) {
 		return (
-			<div className="mt-2 rounded-md border border-red-200 bg-red-50 px-2 py-1.5 text-red-700 text-xs">
+			<div
+				className={`${topMarginClass}rounded-md border border-red-200 bg-red-50 px-2 py-1.5 text-red-700 text-xs`}
+			>
 				{error}
 			</div>
 		);
@@ -38,7 +46,9 @@ export const ProductHistoryChart = ({
 
 	if (collecting || points.length === 0) {
 		return (
-			<div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-2">
+			<div
+				className={`${topMarginClass}rounded-md border border-amber-200 bg-amber-50 px-2 py-2`}
+			>
 				<div className="flex items-center gap-2">
 					<div className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
 					<span className="font-medium text-amber-800 text-xs">
@@ -65,17 +75,21 @@ export const ProductHistoryChart = ({
 	const oldestPoint = sampledPoints[0];
 
 	return (
-		<div className="mt-2 rounded-md border border-gray-200 bg-white p-2">
-			<div className="mb-1 flex items-center justify-between gap-2">
-				<span className="font-medium text-[11px] text-gray-700">
-					BSR History
-				</span>
-				{latestPoint ? (
-					<span className="font-semibold text-[11px] text-gray-900">
-						#{latestPoint.value.toLocaleString()}
+		<div
+			className={`${topMarginClass}rounded-md border border-gray-200 bg-white p-2`}
+		>
+			{showHeader ? (
+				<div className="mb-1 flex items-center justify-between gap-2">
+					<span className="font-medium text-[11px] text-gray-700">
+						BSR History
 					</span>
-				) : null}
-			</div>
+					{latestPoint ? (
+						<span className="font-semibold text-[11px] text-gray-900">
+							#{latestPoint.value.toLocaleString()}
+						</span>
+					) : null}
+				</div>
+			) : null}
 
 			<svg
 				className="block w-full"
