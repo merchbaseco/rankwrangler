@@ -1,10 +1,11 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { browser } from "webextension-polyfill-ts";
 import { log } from "../../utils/logger";
 import { db } from "../db";
 import { DebugWidget } from "./components/debug-widget";
 import { productDetailInjector } from "./services/product-detail-injector";
+import { queryClient } from "./services/query-client";
 import { searchInjector } from "./services/search-injector";
 import {
 	getSearchProductsFromMutationNode,
@@ -91,15 +92,6 @@ const handleSearchMutations = (mutations: MutationRecord[]) => {
 		}
 	}
 };
-
-const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			retry: 1,
-			staleTime: 5 * 1000,
-		},
-	},
-});
 
 const App = () => {
 	const [debugMode, setDebugMode] = useState(false);
