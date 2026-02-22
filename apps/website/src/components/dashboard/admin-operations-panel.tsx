@@ -28,8 +28,14 @@ export const AdminOperationsPanel = () => {
 
     const stats = data?.stats ?? [];
     const rows = Math.ceil(stats.length / COLS);
+    const defaultSelectedStat = stats
+        .map((stat) => stat.label)
+        .find((label): label is AdminStatLabel => isStatFilterLabel(label));
 
-    const selectedConfig = selectedStat === null ? undefined : STAT_FILTER_CONFIG[selectedStat];
+    const effectiveSelectedStat = selectedStat ?? defaultSelectedStat ?? null;
+
+    const selectedConfig =
+        effectiveSelectedStat === null ? undefined : STAT_FILTER_CONFIG[effectiveSelectedStat];
 
     const queryInput = useMemo(() => {
         if (selectedConfig === undefined) {
@@ -73,7 +79,7 @@ export const AdminOperationsPanel = () => {
                         const isLastCol = col === COLS - 1;
                         const isLastRow = row === rows - 1;
                         const hasDetailView = isStatFilterLabel(stat.label);
-                        const isSelected = selectedStat === stat.label;
+                        const isSelected = effectiveSelectedStat === stat.label;
 
                         return (
                             <button
@@ -85,7 +91,7 @@ export const AdminOperationsPanel = () => {
                                         return;
                                     }
 
-                                    if (selectedStat === stat.label) {
+                                    if (effectiveSelectedStat === stat.label) {
                                         void jobQuery.refetch();
                                         return;
                                     }
