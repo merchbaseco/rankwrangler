@@ -1,7 +1,9 @@
-import type { ReactElement } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createElement, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { browser } from "webextension-polyfill-ts";
 import { log } from "../../../utils/logger";
+import { queryClient } from "./query-client";
 
 /**
  * Utility service for rendering React components into the DOM
@@ -111,7 +113,9 @@ class ReactRenderer {
 			this.roots.set(container, root);
 		}
 
-		root.render(component);
+		root.render(
+			createElement(QueryClientProvider, { client: queryClient }, component)
+		);
 
 		// Update storage if this was a new root
 		if (isNewRoot) {

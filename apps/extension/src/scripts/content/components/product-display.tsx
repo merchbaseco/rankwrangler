@@ -128,6 +128,10 @@ export function ProductDisplay({
 							})}
 					</span>
 
+					{mode === "search" ? (
+						<ProductHistoryPopover productIdentifier={productIdentifier} />
+					) : null}
+
 					<button
 						className="cursor-pointer rounded bg-gray-100 px-1.5 py-0.5 text-gray-600 text-xs transition-all duration-200 hover:bg-gray-200 hover:text-gray-800"
 						disabled={copyStatus !== "idle"}
@@ -145,9 +149,7 @@ export function ProductDisplay({
 						enabled={true}
 						productIdentifier={productIdentifier}
 					/>
-				) : (
-					<ProductHistoryPopover productIdentifier={productIdentifier} />
-				)}
+				) : null}
 			</div>
 		);
 	}
@@ -175,6 +177,10 @@ export function ProductDisplay({
 						})}
 				</span>
 
+				{mode === "search" ? (
+					<ProductHistoryPopover productIdentifier={productIdentifier} />
+				) : null}
+
 				<button
 					className="cursor-pointer rounded bg-gray-100 px-1.5 py-0.5 text-gray-600 text-xs transition-all duration-200 hover:bg-gray-200 hover:text-gray-800"
 					disabled={copyStatus !== "idle"}
@@ -192,9 +198,7 @@ export function ProductDisplay({
 					enabled={true}
 					productIdentifier={productIdentifier}
 				/>
-			) : (
-				<ProductHistoryPopover productIdentifier={productIdentifier} />
-			)}
+			) : null}
 		</div>
 	);
 }

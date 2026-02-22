@@ -1,3 +1,4 @@
+import { LineChart } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProductIdentifier } from "@/scripts/types/product";
 import { ProductHistorySection } from "./product-history-section";
@@ -7,8 +8,10 @@ const POPUP_GAP = 8;
 const VIEWPORT_MARGIN = 8;
 
 export const ProductHistoryPopover = ({
+	className,
 	productIdentifier,
 }: {
+	className?: string;
 	productIdentifier: ProductIdentifier;
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
@@ -79,18 +82,24 @@ export const ProductHistoryPopover = ({
 		};
 	}, [isOpen, updatePosition]);
 
+	const triggerTitle = isOpen ? "Hide graph" : "Show graph";
+
 	return (
 		<>
-			<div className="mt-1 flex w-full justify-end">
-				<button
-					className="cursor-pointer rounded border border-gray-200 bg-gray-50 px-2 py-0.5 font-medium text-[11px] text-gray-700 transition-colors hover:bg-gray-100"
-					onClick={() => setIsOpen((previous) => !previous)}
-					ref={buttonRef}
-					type="button"
-				>
-					{isOpen ? "Hide graph" : "Show graph"}
-				</button>
-			</div>
+			<button
+				aria-expanded={isOpen}
+				aria-label={triggerTitle}
+				className={
+					className ??
+					"cursor-pointer rounded bg-transparent px-1 py-0.5 text-gray-500 transition-all duration-200 hover:bg-gray-200 hover:text-gray-800"
+				}
+				onClick={() => setIsOpen((previous) => !previous)}
+				ref={buttonRef}
+				title={triggerTitle}
+				type="button"
+			>
+				<LineChart className="h-3.5 w-3.5" />
+			</button>
 
 			{isOpen ? (
 				<div
