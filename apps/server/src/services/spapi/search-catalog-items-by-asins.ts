@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { trackSpApiCall, trackSpApiError } from '@/services/posthog.js';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import type { ProductInfo } from '@/types/index.js';
+import { classifyMerchBullets } from '@/utils/merch-bullets.js';
 import { formatZodErrorMessage, formatZodValidationErrors } from '@/utils/zod.js';
 import { catalogApi, spApiRateLimiter } from './index.js';
 
@@ -73,6 +74,11 @@ export const searchCatalogItemsByAsins = async (
             const dateFirstAvailable = productSiteLaunchDate?.value
                 ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
                 : null;
+            const bulletPoints = getMarketplaceBulletPoints(
+                item.attributes?.bullet_point,
+                marketplaceId
+            );
+            const merchClassification = classifyMerchBullets(bulletPoints);
 
             // Extract root category ID and BSR from display group rank (only one display group per item)
             const salesRank = item.salesRanks?.find(sr => sr.marketplaceId === marketplaceId);
@@ -107,6 +113,9 @@ export const searchCatalogItemsByAsins = async (
                 dateFirstAvailable,
                 title,
                 brand,
+                isMerchListing: merchClassification.isMerchListing,
+                bullet1: merchClassification.bullet1,
+                bullet2: merchClassification.bullet2,
                 rootCategoryId,
                 rootCategoryBsr,
                 thumbnailUrl,
@@ -182,9 +191,15 @@ const AttributeValueEntrySchema = z.object({
     marketplace_id: z.string(),
 });
 
+const BulletPointEntrySchema = z.object({
+    value: z.string(),
+    marketplace_id: z.string().optional(),
+});
+
 // Attributes (contains product_site_launch_date)
 const ItemAttributesSchema = z.object({
     product_site_launch_date: z.array(AttributeValueEntrySchema).optional(),
+    bullet_point: z.array(BulletPointEntrySchema).optional(),
 });
 
 // Image schema (variant and link are used)
@@ -222,3 +237,22 @@ const ItemSchema = z.object({
 const ItemSearchResultsSchema = z.object({
     items: z.array(ItemSchema),
 });
+
+const getMarketplaceBulletPoints = (
+    bulletPoints:
+        | Array<{
+              value: string;
+              marketplace_id?: string;
+          }>
+        | undefined,
+    marketplaceId: string
+) => {
+    if (!bulletPoints || bulletPoints.length === 0) {
+        return [];
+    }
+
+    return bulletPoints
+        .filter(bulletPoint => !bulletPoint.marketplace_id || bulletPoint.marketplace_id === marketplaceId)
+        .map(bulletPoint => bulletPoint.value)
+        .filter(Boolean);
+};

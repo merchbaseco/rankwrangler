@@ -106,6 +106,10 @@ Public procedures:
 - `api.public.license.validate`
 - `api.public.license.status`
 
+Product info payload notes:
+- `isMerchListing` is `true` when SP-API bullets match known Amazon Merch template bullets.
+- For merch listings only, `bullet1`/`bullet2` store seller-provided bullets after template bullets are stripped.
+
 App procedures:
 
 - `api.app.adminStatus` (admin only)

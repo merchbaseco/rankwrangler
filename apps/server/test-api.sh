@@ -38,10 +38,13 @@ if [ -n "$RR_LICENSE_KEY" ]; then
       -d '{"input":null}' | jq '.'
     echo ""
     echo "📦 Testing api.public.getProductInfo..."
-    curl -s -X POST "$API_BASE/api/api.public.getProductInfo" \
+    public_product_info_response=$(curl -s -X POST "$API_BASE/api/api.public.getProductInfo" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_LICENSE_KEY" \
-      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}' | jq '.'
+      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}')
+    echo "$public_product_info_response" | jq '.'
+    echo "🧾 Merch fields (public):"
+    echo "$public_product_info_response" | jq '.result.data.json | {isMerchListing, bullet1, bullet2}'
     echo ""
     echo "📈 Testing api.public.getProductHistory..."
     curl -s -X POST "$API_BASE/api/api.public.getProductHistory" \
@@ -65,10 +68,13 @@ if [ -n "$RR_CLERK_TOKEN" ]; then
     echo "🔐 Testing Clerk-authenticated app API..."
     echo ""
     echo "📦 Testing api.app.getProductInfo..."
-    curl -s -X POST "$API_BASE/api/api.app.getProductInfo" \
+    app_product_info_response=$(curl -s -X POST "$API_BASE/api/api.app.getProductInfo" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
-      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}' | jq '.'
+      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}')
+    echo "$app_product_info_response" | jq '.'
+    echo "🧾 Merch fields (app):"
+    echo "$app_product_info_response" | jq '.result.data.json | {isMerchListing, bullet1, bullet2}'
     echo ""
     echo "📈 Testing api.app.loadProductHistory..."
     curl -s -X POST "$API_BASE/api/api.app.loadProductHistory" \
