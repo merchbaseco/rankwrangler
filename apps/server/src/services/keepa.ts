@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, asc, desc, eq, gte, inArray, lte, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
 import Bottleneck from 'bottleneck';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
@@ -464,19 +464,24 @@ export const getProductHistoryPoints = async ({
     limit,
 }: GetProductHistoryPointsParams) => {
     const dbMetric = historyMetricMap[metric];
-    const whereConditions = [
+    const baseWhereConditions = [
         eq(productHistoryPoints.marketplaceId, marketplaceId),
         eq(productHistoryPoints.asin, asin),
         eq(productHistoryPoints.source, KEEPA_SOURCE),
         eq(productHistoryPoints.metric, dbMetric),
     ];
+    const whereConditions = [...baseWhereConditions];
 
-    if (metric === 'priceAmazon' || metric === 'priceNew' || metric === 'priceNewFba') {
+    const isPriceMetric =
+        metric === 'priceAmazon' || metric === 'priceNew' || metric === 'priceNewFba';
+    if (isPriceMetric) {
         whereConditions.push(eq(productHistoryPoints.categoryId, -1));
+        baseWhereConditions.push(eq(productHistoryPoints.categoryId, -1));
     }
 
     if (typeof categoryId === 'number') {
         whereConditions.push(eq(productHistoryPoints.categoryId, categoryId));
+        baseWhereConditions.push(eq(productHistoryPoints.categoryId, categoryId));
     }
 
     if (startAt) {
@@ -487,21 +492,41 @@ export const getProductHistoryPoints = async ({
         whereConditions.push(lte(productHistoryPoints.observedAt, endAt));
     }
 
-    const [points, latestImportAt] = await Promise.all([
-        db
-            .select({
-                categoryId: productHistoryPoints.categoryId,
-                observedAt: productHistoryPoints.observedAt,
-                keepaMinutes: productHistoryPoints.keepaMinutes,
-                valueInt: productHistoryPoints.valueInt,
-                isMissing: productHistoryPoints.isMissing,
-            })
-            .from(productHistoryPoints)
-            .where(and(...whereConditions))
-            .orderBy(asc(productHistoryPoints.observedAt))
-            .limit(limit),
+    const pointsQuery = db
+        .select({
+            categoryId: productHistoryPoints.categoryId,
+            observedAt: productHistoryPoints.observedAt,
+            keepaMinutes: productHistoryPoints.keepaMinutes,
+            valueInt: productHistoryPoints.valueInt,
+            isMissing: productHistoryPoints.isMissing,
+        })
+        .from(productHistoryPoints)
+        .where(and(...whereConditions))
+        .orderBy(desc(productHistoryPoints.observedAt));
+
+    const isRangeBound = Boolean(startAt || endAt);
+    const latestPointsPromise = isRangeBound ? pointsQuery : pointsQuery.limit(limit);
+    const carryPointBeforeStartPromise = startAt
+        ? db
+              .select({
+                  categoryId: productHistoryPoints.categoryId,
+                  observedAt: productHistoryPoints.observedAt,
+                  keepaMinutes: productHistoryPoints.keepaMinutes,
+                  valueInt: productHistoryPoints.valueInt,
+                  isMissing: productHistoryPoints.isMissing,
+              })
+              .from(productHistoryPoints)
+              .where(and(...baseWhereConditions, lt(productHistoryPoints.observedAt, startAt)))
+              .orderBy(desc(productHistoryPoints.observedAt))
+              .limit(1)
+        : Promise.resolve([]);
+
+    const [latestPoints, carryPointBeforeStart, latestImportAt] = await Promise.all([
+        latestPointsPromise,
+        carryPointBeforeStartPromise,
         getLatestSuccessfulKeepaImportAt({ marketplaceId, asin }),
     ]);
+    const points = [...latestPoints, ...carryPointBeforeStart].reverse();
 
     const categoryNames = await resolveCategoryNames({
         marketplaceId,

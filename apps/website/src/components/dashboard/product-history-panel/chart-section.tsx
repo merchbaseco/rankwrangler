@@ -65,7 +65,14 @@ export const ChartSection = ({
     isSyncing,
     timeDomain,
 }: ChartSectionProps) => {
-    const points = useMemo(() => buildPoints(query), [query]);
+    const points = useMemo(
+        () =>
+            buildPoints({
+                query,
+                timeDomain,
+            }),
+        [query, timeDomain],
+    );
     const sampledPoints = useMemo(
         () => downsamplePoints(points, MAX_CHART_POINTS),
         [points],
@@ -304,11 +311,7 @@ export const ChartSection = ({
                                                 }
                                             />
                                             <Area
-                                                type={
-                                                    isPrice
-                                                        ? 'stepAfter'
-                                                        : 'monotone'
-                                                }
+                                                type="stepAfter"
                                                 dataKey="value"
                                                 stroke={color}
                                                 strokeWidth={2.5}
