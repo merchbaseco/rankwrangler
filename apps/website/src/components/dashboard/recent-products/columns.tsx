@@ -107,22 +107,24 @@ export const createColumns = ({
 	{
 		accessorKey: 'bullet1',
 		cell: ({ row }) => (
-			<span className="text-muted-foreground block truncate text-xs">
+			<span className="text-muted-foreground line-clamp-2 text-xs">
 				{row.getValue('bullet1') ?? '--'}
 			</span>
 		),
 		header: 'Bullet 1',
-		size: 220,
+		meta: { wrap: true },
+		size: 280,
 	},
 	{
 		accessorKey: 'bullet2',
 		cell: ({ row }) => (
-			<span className="text-muted-foreground block truncate text-xs">
+			<span className="text-muted-foreground line-clamp-2 text-xs">
 				{row.getValue('bullet2') ?? '--'}
 			</span>
 		),
 		header: 'Bullet 2',
-		size: 220,
+		meta: { wrap: true },
+		size: 280,
 	},
 	{
 		accessorKey: 'rootCategoryBsr',
@@ -183,7 +185,7 @@ export const createColumns = ({
 		header: 'Updated',
 		invertSorting: true,
 		meta: { align: 'right' },
-		size: 86,
+		size: 110,
 	},
 ];
 
