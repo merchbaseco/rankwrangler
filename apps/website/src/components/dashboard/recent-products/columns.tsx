@@ -85,9 +85,18 @@ export const createColumns = ({
 	},
 	{
 		accessorKey: 'asin',
-		cell: ({ row }) => <span className="text-foreground font-mono text-xs">{row.getValue('asin')}</span>,
+		cell: ({ row }) => (
+			<div className="flex items-center gap-1.5">
+				<span className="text-foreground font-mono text-xs">{row.getValue('asin')}</span>
+				{row.original.isMerchListing && (
+					<Badge variant="secondary" className="rounded-sm px-1 py-0 text-[10px] leading-tight">
+						Merch
+					</Badge>
+				)}
+			</div>
+		),
 		header: 'ASIN',
-		size: 120,
+		size: 150,
 	},
 	{
 		accessorKey: 'title',

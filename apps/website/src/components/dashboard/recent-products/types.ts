@@ -14,6 +14,7 @@ export type Product = {
 	marketplaceId: string;
 	rootCategoryBsr: number | null;
 	dateFirstAvailable: string | null;
+	isMerchListing: boolean;
 	lastFetched: string;
 	lastFetchedMs: number;
 };
