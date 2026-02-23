@@ -39,6 +39,7 @@ export const recentProducts = appProcedure
 				marketplaceId: products.marketplaceId,
 				rootCategoryBsr: products.rootCategoryBsr,
 				dateFirstAvailable: products.dateFirstAvailable,
+				isMerchListing: products.isMerchListing,
 				lastFetched: products.lastFetched,
 			})
 			.from(products)
