@@ -12,11 +12,6 @@ export const INNER_H = VB_H - PAD.t - PAD.b;
 const Y_TICK_COUNT = 5;
 const X_TICK_COUNT = 5;
 
-export const SYNC_VB_W = 400;
-export const SYNC_VB_H = 120;
-export const SYNC_PAD = { l: 0, r: 0, t: 8, b: 8 };
-const SYNC_INNER_W = SYNC_VB_W - SYNC_PAD.l - SYNC_PAD.r;
-export const SYNC_INNER_H = SYNC_VB_H - SYNC_PAD.t - SYNC_PAD.b;
 
 type ChartGeometry = {
 	linePath: string;
@@ -207,23 +202,6 @@ export const buildEvenYAxisScale = (
 	};
 };
 
-export const buildSyncWavePath = () => {
-	const pointCount = 60;
-	const coordinates: string[] = [];
-
-	for (let index = 0; index <= pointCount; index += 1) {
-		const fraction = index / pointCount;
-		const x = SYNC_PAD.l + fraction * SYNC_INNER_W;
-		const y =
-			SYNC_PAD.t +
-			SYNC_INNER_H / 2 +
-			Math.sin(fraction * Math.PI * 3.5) * (SYNC_INNER_H * 0.35) +
-			Math.sin(fraction * Math.PI * 7) * (SYNC_INNER_H * 0.08);
-		coordinates.push(`${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
-	}
-
-	return coordinates.join(' ');
-};
 
 const isPriceMetric = (metric: string) =>
 	metric === 'priceAmazon' || metric === 'priceNew' || metric === 'priceNewFba';

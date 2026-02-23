@@ -18,10 +18,7 @@ import {
     formatValue,
     MAX_CHART_POINTS,
 } from '@/components/dashboard/product-history-panel/chart-utils';
-import {
-    ChartSkeleton,
-    SyncingChartPlaceholder,
-} from '@/components/dashboard/product-history-panel/syncing-chart-placeholder';
+import { ChartSkeleton } from '@/components/dashboard/product-history-panel/syncing-chart-placeholder';
 import type {
     HistoryQueryResult,
     HistoryTimeDomain,
@@ -149,170 +146,182 @@ export const ChartSection = ({
                 ) : null}
             </div>
             <div>
-                {isLoading ? (
-                    <div className="px-3 py-3">
-                        <ChartSkeleton />
-                    </div>
-                ) : null}
                 {query.isError ? (
                     <div className="mx-3 my-3 border border-red-200 bg-red-50/50 p-2 font-mono text-xs text-red-700">
                         {query.error?.message}
                     </div>
-                ) : null}
-                {!isLoading &&
-                !query.isError &&
-                sampledPoints.length === 0 ? (
-                    isSyncing ? (
-                        <div className="px-3 py-3">
-                            <SyncingChartPlaceholder
-                                color={color}
-                                gradientId={gradientId}
-                            />
-                        </div>
-                    ) : (
-                        <div className="flex items-center justify-center py-6">
-                            <p className="font-mono text-xs text-muted-foreground">
-                                No data for this range.
-                            </p>
-                        </div>
-                    )
-                ) : null}
-                {hasData ? (
+                ) : !isLoading &&
+                  !hasData &&
+                  !isSyncing ? (
+                    <div className="flex items-center justify-center py-6">
+                        <p className="font-mono text-xs text-muted-foreground">
+                            No data for this range.
+                        </p>
+                    </div>
+                ) : (
                     <>
                         <div className="flex items-baseline gap-2.5 px-3 pt-2 pb-1">
-                            <p
-                                className="font-mono text-xl font-bold tracking-tight"
-                                style={{ color }}
-                            >
-                                {latestPoint
-                                    ? formatValue(
-                                          metric,
-                                          latestPoint.value,
-                                      )
-                                    : '-'}
-                            </p>
-                            {rangeStartTimestamp !== null &&
-                            rangeEndTimestamp !== null ? (
-                                <p className="font-mono text-[10px] text-muted-foreground">
-                                    {formatDateShort(rangeStartTimestamp)}{' '}
-                                    &ndash;{' '}
-                                    {formatDateShort(rangeEndTimestamp)}
-                                </p>
+                            {isLoading || (!hasData && isSyncing) ? (
+                                <ChartSkeleton variant="header" />
+                            ) : (
+                                <>
+                                    <p
+                                        className="font-mono text-xl font-bold tracking-tight"
+                                        style={{ color }}
+                                    >
+                                        {latestPoint
+                                            ? formatValue(
+                                                  metric,
+                                                  latestPoint.value,
+                                              )
+                                            : '-'}
+                                    </p>
+                                    {rangeStartTimestamp !== null &&
+                                    rangeEndTimestamp !== null ? (
+                                        <p className="font-mono text-[10px] text-muted-foreground">
+                                            {formatDateShort(
+                                                rangeStartTimestamp,
+                                            )}{' '}
+                                            &ndash;{' '}
+                                            {formatDateShort(
+                                                rangeEndTimestamp,
+                                            )}
+                                        </p>
+                                    ) : null}
+                                </>
+                            )}
+                        </div>
+                        <div className="h-[180px]">
+                            {isLoading || (!hasData && isSyncing) ? (
+                                <ChartSkeleton variant="chart" />
+                            ) : hasData ? (
+                                <div className="h-full cursor-crosshair">
+                                    <ResponsiveContainer
+                                        width="100%"
+                                        height="100%"
+                                    >
+                                        <AreaChart
+                                            data={chartData}
+                                            margin={{
+                                                top: 4,
+                                                right: 12,
+                                                bottom: 4,
+                                                left: 0,
+                                            }}
+                                        >
+                                            <defs>
+                                                <linearGradient
+                                                    id={gradientId}
+                                                    x1="0"
+                                                    y1="0"
+                                                    x2="0"
+                                                    y2="1"
+                                                >
+                                                    <stop
+                                                        offset="0%"
+                                                        stopColor={color}
+                                                        stopOpacity="0.18"
+                                                    />
+                                                    <stop
+                                                        offset="100%"
+                                                        stopColor={color}
+                                                        stopOpacity="0.01"
+                                                    />
+                                                </linearGradient>
+                                            </defs>
+                                            <XAxis
+                                                type="number"
+                                                dataKey="timestamp"
+                                                domain={
+                                                    xDomain ?? [
+                                                        'auto',
+                                                        'auto',
+                                                    ]
+                                                }
+                                                tickFormatter={
+                                                    formatDateAxis
+                                                }
+                                                axisLine={false}
+                                                tickLine={false}
+                                                minTickGap={48}
+                                                tickMargin={6}
+                                                style={{
+                                                    fill: 'var(--color-muted-foreground)',
+                                                    fontSize: 10,
+                                                    fontFamily:
+                                                        'var(--font-mono)',
+                                                }}
+                                            />
+                                            <YAxis
+                                                type="number"
+                                                domain={yScale.domain}
+                                                ticks={yScale.ticks}
+                                                width={44}
+                                                tickFormatter={(value) =>
+                                                    formatAxisValue(
+                                                        metric,
+                                                        Number(value),
+                                                    )
+                                                }
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tickMargin={4}
+                                                style={{
+                                                    fill: 'var(--color-muted-foreground)',
+                                                    fontSize: 10,
+                                                    fontFamily:
+                                                        'var(--font-mono)',
+                                                }}
+                                            />
+                                            <Tooltip
+                                                isAnimationActive={false}
+                                                cursor={{
+                                                    stroke: color,
+                                                    strokeWidth: 1.5,
+                                                    opacity: 0.3,
+                                                }}
+                                                content={
+                                                    <HistoryTooltip
+                                                        metric={metric}
+                                                        color={color}
+                                                    />
+                                                }
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="value"
+                                                stroke={color}
+                                                strokeWidth={2.5}
+                                                fill={`url(#${gradientId})`}
+                                                isAnimationActive={false}
+                                                dot={false}
+                                                activeDot={{
+                                                    r: 4,
+                                                    fill: color,
+                                                    stroke: 'var(--color-card)',
+                                                    strokeWidth: 2,
+                                                }}
+                                            />
+                                            {latestPoint ? (
+                                                <ReferenceDot
+                                                    x={
+                                                        latestPoint.timestamp
+                                                    }
+                                                    y={latestPoint.value}
+                                                    r={3}
+                                                    fill={color}
+                                                    stroke="var(--color-card)"
+                                                    strokeWidth={2}
+                                                    ifOverflow="hidden"
+                                                />
+                                            ) : null}
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
                             ) : null}
                         </div>
-                        <div className="h-[180px] cursor-crosshair">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart
-                                    data={chartData}
-                                    margin={{
-                                        top: 4,
-                                        right: 12,
-                                        bottom: 4,
-                                        left: 0,
-                                    }}
-                                >
-                                    <defs>
-                                        <linearGradient
-                                            id={gradientId}
-                                            x1="0"
-                                            y1="0"
-                                            x2="0"
-                                            y2="1"
-                                        >
-                                            <stop
-                                                offset="0%"
-                                                stopColor={color}
-                                                stopOpacity="0.18"
-                                            />
-                                            <stop
-                                                offset="100%"
-                                                stopColor={color}
-                                                stopOpacity="0.01"
-                                            />
-                                        </linearGradient>
-                                    </defs>
-                                    <XAxis
-                                        type="number"
-                                        dataKey="timestamp"
-                                        domain={xDomain ?? ['auto', 'auto']}
-                                        tickFormatter={formatDateAxis}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        minTickGap={48}
-                                        tickMargin={6}
-                                        style={{
-                                            fill: 'var(--color-muted-foreground)',
-                                            fontSize: 10,
-                                            fontFamily:
-                                                'var(--font-mono)',
-                                        }}
-                                    />
-                                    <YAxis
-                                        type="number"
-                                        domain={yScale.domain}
-                                        ticks={yScale.ticks}
-                                        width={44}
-                                        tickFormatter={(value) =>
-                                            formatAxisValue(
-                                                metric,
-                                                Number(value),
-                                            )
-                                        }
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tickMargin={4}
-                                        style={{
-                                            fill: 'var(--color-muted-foreground)',
-                                            fontSize: 10,
-                                            fontFamily:
-                                                'var(--font-mono)',
-                                        }}
-                                    />
-                                    <Tooltip
-                                        isAnimationActive={false}
-                                        cursor={{
-                                            stroke: color,
-                                            strokeWidth: 1.5,
-                                            opacity: 0.3,
-                                        }}
-                                        content={
-                                            <HistoryTooltip
-                                                metric={metric}
-                                                color={color}
-                                            />
-                                        }
-                                    />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="value"
-                                        stroke={color}
-                                        strokeWidth={2.5}
-                                        fill={`url(#${gradientId})`}
-                                        isAnimationActive={false}
-                                        dot={false}
-                                        activeDot={{
-                                            r: 4,
-                                            fill: color,
-                                            stroke: 'var(--color-card)',
-                                            strokeWidth: 2,
-                                        }}
-                                    />
-                                    {latestPoint ? (
-                                        <ReferenceDot
-                                            x={latestPoint.timestamp}
-                                            y={latestPoint.value}
-                                            r={3}
-                                            fill={color}
-                                            stroke="var(--color-card)"
-                                            strokeWidth={2}
-                                            ifOverflow="hidden"
-                                        />
-                                    ) : null}
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
                     </>
-                ) : null}
+                )}
             </div>
         </div>
     );
