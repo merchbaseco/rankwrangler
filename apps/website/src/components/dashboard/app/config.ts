@@ -1,12 +1,25 @@
-export type BsrRange = 'top1k' | 'top10k' | 'top100k' | '100k+';
 export type LastUpdated = 'all' | '24h' | '7d' | '30d';
 
-export const BSR_OPTIONS: Array<{ key: BsrRange; label: string }> = [
-	{ key: 'top1k', label: 'Top 1K' },
-	{ key: 'top10k', label: 'Top 10K' },
-	{ key: 'top100k', label: 'Top 100K' },
-	{ key: '100k+', label: '100K+' },
-];
+export const BSR_MIN = 1;
+export const BSR_MAX = 2_000_000;
+const LOG_MIN = Math.log(BSR_MIN);
+const LOG_MAX = Math.log(BSR_MAX);
+
+export const sliderToBsr = (position: number): number => {
+	const bsr = Math.round(Math.exp(LOG_MIN + (position / 100) * (LOG_MAX - LOG_MIN)));
+	return Math.max(BSR_MIN, Math.min(BSR_MAX, bsr));
+};
+
+export const bsrToSlider = (bsr: number): number => {
+	const clamped = Math.max(BSR_MIN, Math.min(BSR_MAX, bsr));
+	return ((Math.log(clamped) - LOG_MIN) / (LOG_MAX - LOG_MIN)) * 100;
+};
+
+export const formatBsr = (bsr: number): string => {
+	if (bsr >= 1_000_000) return `${(bsr / 1_000_000).toFixed(bsr % 1_000_000 === 0 ? 0 : 1)}M`;
+	if (bsr >= 1_000) return `${(bsr / 1_000).toFixed(bsr % 1_000 === 0 ? 0 : 1)}K`;
+	return String(bsr);
+};
 
 export const MARKETPLACES = [
 	{ id: 'ATVPDKIKX0DER', label: 'US', flag: '🇺🇸' },

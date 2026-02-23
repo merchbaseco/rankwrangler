@@ -1,16 +1,18 @@
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import type { FilterState } from '@/components/dashboard/recent-products';
 import {
-	BSR_OPTIONS,
+	BSR_MAX,
+	BSR_MIN,
 	LAST_UPDATED_OPTIONS,
 	MARKETPLACES,
+	bsrToSlider,
+	formatBsr,
+	sliderToBsr,
 } from '@/components/dashboard/app/config';
-import type {
-	BsrRange,
-	LastUpdated,
-} from '@/components/dashboard/app/config';
+import type { LastUpdated } from '@/components/dashboard/app/config';
 import { cn } from '@/lib/utils';
 
 export const FiltersSidebar = ({
@@ -19,8 +21,8 @@ export const FiltersSidebar = ({
 	filteredFacets,
 	filters,
 	nichesSectionOpen,
+	onBsrRangeChange,
 	onFacetSearchChange,
-	onToggleBsrRange,
 	onToggleFacet,
 	onToggleMarketplace,
 	onToggleNichesSection,
@@ -31,8 +33,8 @@ export const FiltersSidebar = ({
 	filteredFacets: Array<{ emoji: string; label: string }>;
 	filters: FilterState;
 	nichesSectionOpen: boolean;
+	onBsrRangeChange: (range: [number, number] | null) => void;
 	onFacetSearchChange: (nextValue: string) => void;
-	onToggleBsrRange: (range: BsrRange) => void;
 	onToggleFacet: (facetLabel: string) => void;
 	onToggleMarketplace: (marketplaceId: string) => void;
 	onToggleNichesSection: () => void;
@@ -41,36 +43,10 @@ export const FiltersSidebar = ({
 	<aside className="flex h-full w-[230px] shrink-0 flex-col border-r border-border bg-sidebar">
 		<div className="shrink-0">
 			<FilterSection title="BSR Range">
-				<div className="flex flex-col gap-0.5">
-					{BSR_OPTIONS.map((option) => {
-						const isActive = filters.bsrRanges.includes(option.key);
-						return (
-							<button
-								key={option.key}
-								type="button"
-								onClick={() => onToggleBsrRange(option.key)}
-								className={cn(
-									'flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-sm transition-colors',
-									isActive
-										? 'bg-primary text-primary-foreground'
-										: 'text-foreground/80 hover:bg-accent',
-								)}
-							>
-								<span
-									className={cn(
-										'flex size-3.5 items-center justify-center rounded-sm border text-xs',
-										isActive
-											? 'border-primary-foreground bg-primary-foreground text-primary'
-											: 'border-input',
-									)}
-								>
-									{isActive ? '✓' : null}
-								</span>
-								<span>{option.label}</span>
-							</button>
-						);
-					})}
-				</div>
+				<BsrRangeSlider
+					bsrRange={filters.bsrRange}
+					onChange={onBsrRangeChange}
+				/>
 			</FilterSection>
 
 			<FilterSection title="Last Updated">
@@ -190,6 +166,88 @@ export const FiltersSidebar = ({
 		</div>
 	</aside>
 );
+
+const SLIDER_MIN = 0;
+const SLIDER_MAX = 100;
+const DEFAULT_SLIDER = [SLIDER_MIN, SLIDER_MAX] as [number, number];
+
+const TICK_MARKS = [
+	{ bsr: 1_000, label: '1K' },
+	{ bsr: 10_000, label: '10K' },
+	{ bsr: 100_000, label: '100K' },
+	{ bsr: 1_000_000, label: '1M' },
+];
+
+const BsrRangeSlider = ({
+	bsrRange,
+	onChange,
+}: {
+	bsrRange: [number, number] | null;
+	onChange: (range: [number, number] | null) => void;
+}) => {
+	const sliderValue = useMemo<[number, number]>(() => {
+		if (!bsrRange) return DEFAULT_SLIDER;
+		return [bsrToSlider(bsrRange[0]), bsrToSlider(bsrRange[1])];
+	}, [bsrRange]);
+
+	const displayMin = bsrRange ? formatBsr(bsrRange[0]) : formatBsr(BSR_MIN);
+	const displayMax = bsrRange ? formatBsr(bsrRange[1]) : formatBsr(BSR_MAX);
+	const isFiltered = bsrRange !== null;
+
+	const handleValueCommitted = useCallback(
+		(value: number | readonly number[]) => {
+			const values = Array.isArray(value) ? value : [value, value];
+			const min = sliderToBsr(values[0]);
+			const max = sliderToBsr(values[1]);
+			if (min <= BSR_MIN && max >= BSR_MAX) {
+				onChange(null);
+			} else {
+				onChange([min, max]);
+			}
+		},
+		[onChange],
+	);
+
+	return (
+		<div className="flex flex-col gap-2.5 px-2.5">
+			<div className="flex items-center justify-between">
+				<span className="font-mono text-xs tabular-nums text-foreground">
+					{displayMin} — {displayMax}
+				</span>
+				{isFiltered ? (
+					<button
+						type="button"
+						onClick={() => onChange(null)}
+						className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+					>
+						Reset
+					</button>
+				) : null}
+			</div>
+			<Slider
+				value={sliderValue}
+				min={SLIDER_MIN}
+				max={SLIDER_MAX}
+				step={0.5}
+				onValueCommitted={handleValueCommitted}
+			/>
+			<div className="relative h-3">
+				{TICK_MARKS.map((tick) => {
+					const position = bsrToSlider(tick.bsr);
+					return (
+						<span
+							key={tick.label}
+							className="absolute -translate-x-1/2 text-[9px] leading-none text-muted-foreground"
+							style={{ left: `${position}%` }}
+						>
+							{tick.label}
+						</span>
+					);
+				})}
+			</div>
+		</div>
+	);
+};
 
 const FilterSection = ({
 	title,
