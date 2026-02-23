@@ -172,7 +172,7 @@ const GeneralSettings = () => {
 						<button
 							key={option.key}
 							type="button"
-							onClick={(e) => setTheme(option.key, e)}
+							onClick={() => setTheme(option.key)}
 							className={cn(
 								"flex flex-1 flex-col items-center gap-2 rounded-sm border p-3 transition-colors",
 								theme === option.key

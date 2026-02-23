@@ -12,7 +12,7 @@ export const TopBar = ({
 	usageToday,
 }: {
 	onOpenSettings: () => void;
-	onToggleTheme: (event: React.MouseEvent<HTMLButtonElement>) => void;
+	onToggleTheme: () => void;
 	totalMerchProducts: number | null;
 	totalProducts: number | null;
 	theme: 'light' | 'dark' | 'system';
