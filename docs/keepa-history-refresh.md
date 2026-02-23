@@ -2,6 +2,34 @@
 
 This document describes the automatic Keepa history refresh system used by the server.
 
+## Keepa History Data Semantics (Important)
+
+Keepa history arrays are event-based, not daily snapshots.
+
+- Product `csv` arrays are encoded as repeating timestamp/value pairs (`[keepaMinute, value, ...]`).
+- Keepa timestamps are "Keepa minutes" and must be converted to Unix time.
+- For price series, `-1` means no offer at that timestamp (commonly out of stock).
+- Rank and price history are both event-driven (change points), not fixed-interval snapshots.
+- Keepa's "last history timestamp" means "last observed value/price change", not "last time Keepa checked the product".
+- `days=X` limits returned history to recent X days, but does not create one point per day.
+
+Practical consequences for RankWrangler:
+
+- Large date windows can still have few points when a price/rank changed infrequently.
+- History charts should be treated as step functions (value persists until next change), not linear interpolation between frequent samples.
+- When querying a bounded date range, include the latest point before `startAt` so the chart can represent the value at range start.
+
+Reference sources used for this behavior:
+
+- Keepa backend SDK `Product.csv` docs and `CsvType` definitions:
+  - <https://github.com/keepacom/api_backend/blob/master/src/main/java/com/keepa/api/backend/structs/Product.java>
+- Keepa backend SDK `ProductAnalyzer` semantics (`getLastTime`, `getValueAtTime`):
+  - <https://github.com/keepacom/api_backend/blob/master/src/main/java/com/keepa/api/backend/helper/ProductAnalyzer.java>
+- Keepa backend SDK `Request.getProductRequest(... days ...)` semantics:
+  - <https://github.com/keepacom/api_backend/blob/master/src/main/java/com/keepa/api/backend/structs/Request.java>
+- Keepa time conversion helper:
+  - <https://github.com/keepacom/api_backend/blob/master/src/main/java/com/keepa/api/backend/helper/KeepaTime.java>
+
 ## Eligibility
 
 An ASIN is eligible for automatic Keepa refresh only when all conditions are true:

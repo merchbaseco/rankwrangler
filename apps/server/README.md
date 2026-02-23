@@ -237,6 +237,13 @@ curl -s -X POST http://localhost:8080/api/api.app.getProductHistory \
 - `latestImportAt` ISO timestamp for the latest successful Keepa import (`null` if none)
 - `categoryNames` map (`{ "<categoryId>": "<name>" }`) for resolved Keepa category labels
 
+Keepa history semantics (important):
+- Keepa returns event-based history points (value changes), not one point per day.
+- Price and rank points can be sparse across long ranges if the value did not change often.
+- Price value `-1` in Keepa means no offer/out of stock; RankWrangler stores negative history values as `isMissing = true`.
+- `days` limits how much history Keepa returns, but does not densify history into daily samples.
+- Bounded range charts are rendered as step/event series and include one carry-in point before `startAt`.
+
 For `metric: "bsrCategory"`, pass `categoryId` to select one category line:
 
 ```bash
