@@ -1,291 +1,352 @@
-import { useMemo } from "react";
+import { useMemo } from 'react';
 import {
-	Area,
-	AreaChart,
-	CartesianGrid,
-	ReferenceDot,
-	ResponsiveContainer,
-	Tooltip,
-	XAxis,
-	YAxis,
-} from "recharts";
-import { buildPoints } from "@/components/dashboard/product-history-panel/chart-data";
+    Area,
+    AreaChart,
+    ReferenceDot,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import { buildPoints } from '@/components/dashboard/product-history-panel/chart-data';
 import {
-	buildEvenYAxisScale,
-	downsamplePoints,
-	formatAxisValue,
-	formatDateAxis,
-	formatDateShort,
-	formatValue,
-	MAX_CHART_POINTS,
-} from "@/components/dashboard/product-history-panel/chart-utils";
+    buildEvenYAxisScale,
+    downsamplePoints,
+    formatAxisValue,
+    formatDateAxis,
+    formatDateShort,
+    formatValue,
+    MAX_CHART_POINTS,
+} from '@/components/dashboard/product-history-panel/chart-utils';
 import {
-	ChartSkeleton,
-	SyncingChartPlaceholder,
-} from "@/components/dashboard/product-history-panel/syncing-chart-placeholder";
+    ChartSkeleton,
+    SyncingChartPlaceholder,
+} from '@/components/dashboard/product-history-panel/syncing-chart-placeholder';
 import type {
-	HistoryQueryResult,
-	HistoryTimeDomain,
-	SelectOption,
-} from "@/components/dashboard/product-history-panel/types";
+    HistoryQueryResult,
+    HistoryTimeDomain,
+    SelectOption,
+} from '@/components/dashboard/product-history-panel/types';
 import {
-	Select,
-	SelectItem,
-	SelectPopup,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+    Select,
+    SelectItem,
+    SelectPopup,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 type ChartSectionProps = {
-	label: string;
-	selectValue: string;
-	onSelectChange: (value: string) => void;
-	selectOptions: SelectOption[];
-	query: HistoryQueryResult;
-	metric: string;
-	isPrice: boolean;
-	gradientId: string;
-	isSyncing?: boolean;
-	timeDomain?: HistoryTimeDomain | null;
+    label: string;
+    selectValue: string;
+    onSelectChange: (value: string) => void;
+    selectOptions: SelectOption[];
+    query: HistoryQueryResult;
+    metric: string;
+    isPrice: boolean;
+    gradientId: string;
+    isSyncing?: boolean;
+    timeDomain?: HistoryTimeDomain | null;
 };
 
 type ChartDatum = {
-	timestamp: number;
-	value: number;
+    timestamp: number;
+    value: number;
 };
 
 export const ChartSection = ({
-	label,
-	selectValue,
-	onSelectChange,
-	selectOptions,
-	query,
-	metric,
-	isPrice,
-	gradientId,
-	isSyncing,
-	timeDomain,
+    label,
+    selectValue,
+    onSelectChange,
+    selectOptions,
+    query,
+    metric,
+    isPrice,
+    gradientId,
+    isSyncing,
+    timeDomain,
 }: ChartSectionProps) => {
-	const points = useMemo(() => buildPoints(query), [query]);
-	const sampledPoints = useMemo(
-		() => downsamplePoints(points, MAX_CHART_POINTS),
-		[points],
-	);
-	const latestPoint = sampledPoints.at(-1) ?? null;
-	const firstPoint = sampledPoints[0] ?? null;
-	const rangeStartTimestamp =
-		timeDomain?.startAt ?? firstPoint?.timestamp ?? null;
-	const rangeEndTimestamp = timeDomain?.endAt ?? latestPoint?.timestamp ?? null;
+    const points = useMemo(() => buildPoints(query), [query]);
+    const sampledPoints = useMemo(
+        () => downsamplePoints(points, MAX_CHART_POINTS),
+        [points],
+    );
+    const latestPoint = sampledPoints.at(-1) ?? null;
+    const firstPoint = sampledPoints[0] ?? null;
+    const rangeStartTimestamp =
+        timeDomain?.startAt ?? firstPoint?.timestamp ?? null;
+    const rangeEndTimestamp =
+        timeDomain?.endAt ?? latestPoint?.timestamp ?? null;
 
-	const selectedOptionLabel = useMemo(
-		() =>
-			selectOptions.find((option) => option.value === selectValue)?.label ??
-			selectValue,
-		[selectOptions, selectValue],
-	);
+    const selectedOptionLabel = useMemo(
+        () =>
+            selectOptions.find((option) => option.value === selectValue)
+                ?.label ?? selectValue,
+        [selectOptions, selectValue],
+    );
 
-	const isLoading = query.isLoading && !query.data;
-	const hasData = sampledPoints.length > 0;
-	const color = isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)";
-	const xDomain = useMemo<[number, number] | undefined>(() => {
-		if (rangeStartTimestamp === null || rangeEndTimestamp === null) {
-			return undefined;
-		}
+    const isLoading = query.isLoading && !query.data;
+    const hasData = sampledPoints.length > 0;
+    const color = isPrice
+        ? 'var(--color-chart-4)'
+        : 'var(--color-chart-1)';
+    const xDomain = useMemo<[number, number] | undefined>(() => {
+        if (rangeStartTimestamp === null || rangeEndTimestamp === null) {
+            return undefined;
+        }
 
-		const min = Math.min(rangeStartTimestamp, rangeEndTimestamp);
-		const max = Math.max(rangeStartTimestamp, rangeEndTimestamp);
-		if (min === max) {
-			return [min - ONE_DAY_IN_MS, max + ONE_DAY_IN_MS];
-		}
-		return [min, max];
-	}, [rangeEndTimestamp, rangeStartTimestamp]);
-	const yScale = useMemo(
-		() =>
-			buildEvenYAxisScale(
-				sampledPoints.map((point) => point.value),
-				{ min: 0, tickCount: 5 },
-			),
-		[sampledPoints],
-	);
+        const min = Math.min(rangeStartTimestamp, rangeEndTimestamp);
+        const max = Math.max(rangeStartTimestamp, rangeEndTimestamp);
+        if (min === max) {
+            return [min - ONE_DAY_IN_MS, max + ONE_DAY_IN_MS];
+        }
+        return [min, max];
+    }, [rangeEndTimestamp, rangeStartTimestamp]);
+    const yScale = useMemo(
+        () =>
+            buildEvenYAxisScale(
+                sampledPoints.map((point) => point.value),
+                { min: 0, tickCount: 5 },
+            ),
+        [sampledPoints],
+    );
 
-	const chartData = sampledPoints as ChartDatum[];
+    const chartData = sampledPoints as ChartDatum[];
 
-	return (
-		<div className="rounded-xl border border-border bg-white">
-			<div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-				<span className="text-xs font-semibold text-secondary-foreground">
-					{label}
-				</span>
-				{selectOptions.length > 0 ? (
-					<Select
-						value={selectValue}
-						onValueChange={(value) => {
-							if (value) {
-								onSelectChange(value);
-							}
-						}}
-					>
-						<SelectTrigger size="sm" className="w-auto">
-							<SelectValue>{selectedOptionLabel}</SelectValue>
-						</SelectTrigger>
-						<SelectPopup>
-							{selectOptions.map((option) => (
-								<SelectItem key={option.value} value={option.value}>
-									{option.label}
-								</SelectItem>
-							))}
-						</SelectPopup>
-					</Select>
-				) : null}
-			</div>
-			<div className="p-4">
-				{isLoading ? <ChartSkeleton /> : null}
-				{query.isError ? (
-					<div className="rounded-lg border border-red-100 bg-red-50/50 p-3 text-xs text-red-700">
-						{query.error?.message}
-					</div>
-				) : null}
-				{!isLoading && !query.isError && sampledPoints.length === 0 ? (
-					isSyncing ? (
-						<SyncingChartPlaceholder color={color} gradientId={gradientId} />
-					) : (
-						<div className="bg-muted/30 flex items-center justify-center rounded-lg border border-dashed border-border py-8">
-							<p className="text-sm text-muted-foreground">
-								No data for this range yet.
-							</p>
-						</div>
-					)
-				) : null}
-				{hasData ? (
-					<>
-						<div className="mb-3">
-							<p className="stat-value text-2xl font-bold tracking-tight text-foreground">
-								{latestPoint ? formatValue(metric, latestPoint.value) : "-"}
-							</p>
-							{rangeStartTimestamp !== null && rangeEndTimestamp !== null ? (
-								<p className="mt-0.5 text-sm text-muted-foreground">
-									{formatDateShort(rangeStartTimestamp)} &ndash;{" "}
-									{formatDateShort(rangeEndTimestamp)}
-								</p>
-							) : null}
-						</div>
-						<div className="h-[220px] cursor-crosshair rounded-lg border border-border">
-							<ResponsiveContainer width="100%" height="100%">
-								<AreaChart
-									data={chartData}
-									margin={{ top: 16, right: 16, bottom: 16, left: 10 }}
-								>
-									<defs>
-										<linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-											<stop offset="0%" stopColor={color} stopOpacity="0.12" />
-											<stop offset="100%" stopColor={color} stopOpacity="0" />
-										</linearGradient>
-									</defs>
-									<CartesianGrid
-										stroke="var(--color-border)"
-										strokeDasharray="0"
-										vertical={false}
-									/>
-									<XAxis
-										type="number"
-										dataKey="timestamp"
-										domain={xDomain ?? ["auto", "auto"]}
-										tickFormatter={formatDateAxis}
-										axisLine={false}
-										tickLine={false}
-										minTickGap={24}
-										tickMargin={8}
-										style={{
-											fill: "var(--color-muted-foreground)",
-											fontSize: 12,
-										}}
-									/>
-										<YAxis
-											type="number"
-											domain={yScale.domain}
-											ticks={yScale.ticks}
-											width={54}
-											tickFormatter={(value) =>
-												formatAxisValue(metric, Number(value))
-										}
-										axisLine={false}
-										tickLine={false}
-										tickMargin={8}
-										style={{
-											fill: "var(--color-muted-foreground)",
-											fontSize: 12,
-										}}
-									/>
-									<Tooltip
-										isAnimationActive={false}
-										cursor={{
-											stroke: color,
-											strokeDasharray: "4 4",
-											strokeWidth: 1,
-											opacity: 0.4,
-										}}
-										content={<HistoryTooltip metric={metric} />}
-									/>
-									<Area
-										type="monotone"
-										dataKey="value"
-										stroke={color}
-										strokeWidth={2}
-										fill={`url(#${gradientId})`}
-										isAnimationActive={false}
-										dot={false}
-										activeDot={{
-											r: 4.5,
-											fill: color,
-											stroke: "white",
-											strokeWidth: 2.5,
-										}}
-									/>
-									{latestPoint ? (
-										<ReferenceDot
-											x={latestPoint.timestamp}
-											y={latestPoint.value}
-											r={3.5}
-											fill={color}
-											stroke="white"
-											strokeWidth={2}
-											ifOverflow="hidden"
-										/>
-									) : null}
-								</AreaChart>
-							</ResponsiveContainer>
-						</div>
-					</>
-				) : null}
-			</div>
-		</div>
-	);
+    return (
+        <div className="border-b border-border bg-card">
+            <div className="flex h-8 items-center justify-between border-b border-border bg-muted/30 pl-3 pr-1.5">
+                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {label}
+                </span>
+                {selectOptions.length > 0 ? (
+                    <Select
+                        value={selectValue}
+                        onValueChange={(value) => {
+                            if (value) {
+                                onSelectChange(value);
+                            }
+                        }}
+                    >
+                        <SelectTrigger
+                            size="sm"
+                            className="h-5 w-auto border-0 bg-transparent px-1 font-mono text-[11px] shadow-none"
+                        >
+                            <SelectValue>
+                                {selectedOptionLabel}
+                            </SelectValue>
+                        </SelectTrigger>
+                        <SelectPopup>
+                            {selectOptions.map((option) => (
+                                <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                >
+                                    {option.label}
+                                </SelectItem>
+                            ))}
+                        </SelectPopup>
+                    </Select>
+                ) : null}
+            </div>
+            <div>
+                {isLoading ? (
+                    <div className="px-3 py-3">
+                        <ChartSkeleton />
+                    </div>
+                ) : null}
+                {query.isError ? (
+                    <div className="mx-3 my-3 border border-red-200 bg-red-50/50 p-2 font-mono text-xs text-red-700">
+                        {query.error?.message}
+                    </div>
+                ) : null}
+                {!isLoading &&
+                !query.isError &&
+                sampledPoints.length === 0 ? (
+                    isSyncing ? (
+                        <div className="px-3 py-3">
+                            <SyncingChartPlaceholder
+                                color={color}
+                                gradientId={gradientId}
+                            />
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center py-6">
+                            <p className="font-mono text-xs text-muted-foreground">
+                                No data for this range.
+                            </p>
+                        </div>
+                    )
+                ) : null}
+                {hasData ? (
+                    <>
+                        <div className="flex items-baseline gap-2.5 px-3 pt-2 pb-1">
+                            <p
+                                className="font-mono text-xl font-bold tracking-tight"
+                                style={{ color }}
+                            >
+                                {latestPoint
+                                    ? formatValue(
+                                          metric,
+                                          latestPoint.value,
+                                      )
+                                    : '-'}
+                            </p>
+                            {rangeStartTimestamp !== null &&
+                            rangeEndTimestamp !== null ? (
+                                <p className="font-mono text-[10px] text-muted-foreground">
+                                    {formatDateShort(rangeStartTimestamp)}{' '}
+                                    &ndash;{' '}
+                                    {formatDateShort(rangeEndTimestamp)}
+                                </p>
+                            ) : null}
+                        </div>
+                        <div className="h-[180px] cursor-crosshair">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart
+                                    data={chartData}
+                                    margin={{
+                                        top: 4,
+                                        right: 12,
+                                        bottom: 4,
+                                        left: 0,
+                                    }}
+                                >
+                                    <defs>
+                                        <linearGradient
+                                            id={gradientId}
+                                            x1="0"
+                                            y1="0"
+                                            x2="0"
+                                            y2="1"
+                                        >
+                                            <stop
+                                                offset="0%"
+                                                stopColor={color}
+                                                stopOpacity="0.18"
+                                            />
+                                            <stop
+                                                offset="100%"
+                                                stopColor={color}
+                                                stopOpacity="0.01"
+                                            />
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis
+                                        type="number"
+                                        dataKey="timestamp"
+                                        domain={xDomain ?? ['auto', 'auto']}
+                                        tickFormatter={formatDateAxis}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        minTickGap={48}
+                                        tickMargin={6}
+                                        style={{
+                                            fill: 'var(--color-muted-foreground)',
+                                            fontSize: 10,
+                                            fontFamily:
+                                                'var(--font-mono)',
+                                        }}
+                                    />
+                                    <YAxis
+                                        type="number"
+                                        domain={yScale.domain}
+                                        ticks={yScale.ticks}
+                                        width={44}
+                                        tickFormatter={(value) =>
+                                            formatAxisValue(
+                                                metric,
+                                                Number(value),
+                                            )
+                                        }
+                                        axisLine={false}
+                                        tickLine={false}
+                                        tickMargin={4}
+                                        style={{
+                                            fill: 'var(--color-muted-foreground)',
+                                            fontSize: 10,
+                                            fontFamily:
+                                                'var(--font-mono)',
+                                        }}
+                                    />
+                                    <Tooltip
+                                        isAnimationActive={false}
+                                        cursor={{
+                                            stroke: color,
+                                            strokeWidth: 1.5,
+                                            opacity: 0.3,
+                                        }}
+                                        content={
+                                            <HistoryTooltip
+                                                metric={metric}
+                                                color={color}
+                                            />
+                                        }
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="value"
+                                        stroke={color}
+                                        strokeWidth={2.5}
+                                        fill={`url(#${gradientId})`}
+                                        isAnimationActive={false}
+                                        dot={false}
+                                        activeDot={{
+                                            r: 4,
+                                            fill: color,
+                                            stroke: 'var(--color-card)',
+                                            strokeWidth: 2,
+                                        }}
+                                    />
+                                    {latestPoint ? (
+                                        <ReferenceDot
+                                            x={latestPoint.timestamp}
+                                            y={latestPoint.value}
+                                            r={3}
+                                            fill={color}
+                                            stroke="var(--color-card)"
+                                            strokeWidth={2}
+                                            ifOverflow="hidden"
+                                        />
+                                    ) : null}
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </>
+                ) : null}
+            </div>
+        </div>
+    );
 };
 
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const HistoryTooltip = ({
-	active,
-	payload,
-	metric,
+    active,
+    payload,
+    metric,
+    color,
 }: {
-	active?: boolean;
-	payload?: Array<{ payload?: ChartDatum }>;
-	metric: string;
+    active?: boolean;
+    payload?: Array<{ payload?: ChartDatum }>;
+    metric: string;
+    color: string;
 }) => {
-	const point = payload?.[0]?.payload;
-	if (!active || !point) {
-		return null;
-	}
+    const point = payload?.[0]?.payload;
+    if (!active || !point) {
+        return null;
+    }
 
-	return (
-		<div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-lg">
-			<p className="stat-value text-sm font-bold text-foreground">
-				{formatValue(metric, point.value)}
-			</p>
-			<p className="text-xs text-muted-foreground">
-				{formatDateShort(point.timestamp)}
-			</p>
-		</div>
-	);
+    return (
+        <div className="border border-border bg-card px-2.5 py-1.5 shadow-sm">
+            <p
+                className="font-mono text-sm font-bold"
+                style={{ color }}
+            >
+                {formatValue(metric, point.value)}
+            </p>
+            <p className="font-mono text-[10px] text-muted-foreground">
+                {formatDateShort(point.timestamp)}
+            </p>
+        </div>
+    );
 };

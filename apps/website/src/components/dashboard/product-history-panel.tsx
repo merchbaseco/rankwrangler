@@ -23,47 +23,47 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 		triggerKeepaSync,
 	} = useProductHistoryPanelData({ product });
 
-	return (
-		<div className="flex h-full flex-col overflow-y-auto bg-background">
-			<PanelHeader
-				product={product}
-				onSync={triggerKeepaSync}
-				isSyncing={loadMutation.isPending}
-			/>
-			<DateRangeSelector
-				activePreset={activePreset}
-				customRange={customRange}
-				datePickerRange={datePickerRange}
-				onDayClick={handleDayClick}
-				onDateRangeSelect={handleDateRangeSelect}
-				onPresetClick={handlePresetClick}
-			/>
-			<div className="mt-4 flex flex-1 flex-col gap-5 px-5 pb-5">
-				<ChartSection
-					label="Rank"
-					selectValue={rankMetricValue}
-					onSelectChange={setRankMetricValue}
-					selectOptions={rankSelectOptions}
-					query={rankQuery}
-					metric={rankMetric}
-					isPrice={false}
-					gradientId={`rank-${product.asin}`}
-					isSyncing={loadMutation.isPending}
-					timeDomain={chartTimeDomain}
-				/>
-				<ChartSection
-					label="Price (Amazon)"
-					selectValue=""
-					onSelectChange={() => {}}
-					selectOptions={[]}
-					query={priceQuery}
-					metric="priceAmazon"
-					isPrice={true}
-					gradientId={`price-${product.asin}`}
-					isSyncing={loadMutation.isPending}
-					timeDomain={chartTimeDomain}
-				/>
-			</div>
-		</div>
-	);
+    return (
+        <div className="flex h-full flex-col overflow-y-auto bg-background">
+            <PanelHeader
+                product={product}
+                onSync={triggerKeepaSync}
+                isSyncing={loadMutation.isPending}
+            />
+            <DateRangeSelector
+                activePreset={activePreset}
+                customRange={customRange}
+                datePickerRange={datePickerRange}
+                onDayClick={handleDayClick}
+                onDateRangeSelect={handleDateRangeSelect}
+                onPresetClick={handlePresetClick}
+            />
+            <div className="flex flex-1 flex-col">
+                <ChartSection
+                    label="Rank"
+                    selectValue={rankMetricValue}
+                    onSelectChange={setRankMetricValue}
+                    selectOptions={rankSelectOptions}
+                    query={rankQuery}
+                    metric={rankMetric}
+                    isPrice={false}
+                    gradientId={`rank-${product.asin}`}
+                    isSyncing={loadMutation.isPending}
+                    timeDomain={chartTimeDomain}
+                />
+                <ChartSection
+                    label="Price (Amazon)"
+                    selectValue=""
+                    onSelectChange={() => {}}
+                    selectOptions={[]}
+                    query={priceQuery}
+                    metric="priceAmazon"
+                    isPrice={true}
+                    gradientId={`price-${product.asin}`}
+                    isSyncing={loadMutation.isPending}
+                    timeDomain={chartTimeDomain}
+                />
+            </div>
+        </div>
+    );
 };

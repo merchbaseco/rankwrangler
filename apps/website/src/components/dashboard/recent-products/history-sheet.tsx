@@ -16,14 +16,17 @@ export const ProductHistorySheet = ({
 		: null;
 
 	return (
-		<Sheet open={isOpen} onOpenChange={onOpenChange}>
-			<SheetPopup side="right" variant="inset" className="p-0 sm:max-w-3xl">
-				<SheetPanel className="h-full p-0">
-					{selectedProduct ? (
-						<ProductHistoryPanel key={selectedKey} product={selectedProduct} />
-					) : null}
-				</SheetPanel>
-			</SheetPopup>
-		</Sheet>
+        <Sheet open={isOpen} onOpenChange={onOpenChange}>
+            <SheetPopup side="right" variant="inset" className="p-0 sm:max-w-2xl">
+                <SheetPanel className="h-full p-0">
+                    {selectedProduct ? (
+                        <ProductHistoryPanel
+                            key={selectedKey}
+                            product={selectedProduct}
+                        />
+                    ) : null}
+                </SheetPanel>
+            </SheetPopup>
+        </Sheet>
 	);
 };
