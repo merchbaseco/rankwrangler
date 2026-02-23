@@ -14,6 +14,7 @@ export const env = createEnv({
     SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters').optional(),
     POSTHOG_API_KEY: z.string().optional(),
     KEEPA_API_KEY: z.string().optional(),
+    DEV_CLERK_SIGN_IN_USER_ID: z.string().optional(),
     // Database configuration
     DATABASE_HOST: z.string().optional(),
     DATABASE_PORT: z.coerce.number().optional(),
@@ -33,6 +34,7 @@ export const env = createEnv({
     SESSION_SECRET: process.env.SESSION_SECRET,
     POSTHOG_API_KEY: process.env.POSTHOG_API_KEY,
     KEEPA_API_KEY: process.env.KEEPA_API_KEY,
+    DEV_CLERK_SIGN_IN_USER_ID: process.env.DEV_CLERK_SIGN_IN_USER_ID,
     // Database configuration
     DATABASE_HOST: process.env.DATABASE_HOST,
     DATABASE_PORT: process.env.DATABASE_PORT,

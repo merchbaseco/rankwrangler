@@ -62,6 +62,19 @@ Required env vars:
 - `LICENSE_SECRET`
 - `KEEPA_API_KEY` (optional, required for Keepa history import endpoints)
 - `ADMIN_EMAIL` (optional)
+- `DEV_CLERK_SIGN_IN_USER_ID` (optional, development-only auto sign-in for local browser automation)
+- `VITE_DEV_CLERK_AUTO_SIGN_IN` (optional website flag, set `true` to auto sign in on localhost)
+
+### Dev Clerk Sign-In Token Flow (Optional)
+
+For local browser automation, the server can mint short-lived Clerk sign-in tickets
+through `api.public.dev.createClerkSignInToken`.
+
+Guardrails:
+- Only enabled when `DEV_CLERK_SIGN_IN_USER_ID` is set.
+- Disabled when `NODE_ENV=production`.
+- Only available from localhost hosts.
+- Ticket TTL is 60 seconds.
 
 ## API Structure
 

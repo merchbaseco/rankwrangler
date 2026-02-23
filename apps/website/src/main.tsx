@@ -2,6 +2,7 @@ import { ClerkProvider, SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app";
+import { DevAutoSignIn } from "./components/auth/dev-auto-sign-in";
 import { ToastProvider } from "./components/ui/toast";
 import { TRPCProvider } from "./lib/trpc-provider";
 import "@fontsource/jetbrains-mono/400.css";
@@ -65,6 +66,7 @@ createRoot(rootElement).render(
 				</SignedIn>
 				<SignedOut>
 					<div className="flex min-h-screen items-center justify-center bg-background">
+						<DevAutoSignIn />
 						<SignIn />
 					</div>
 				</SignedOut>
