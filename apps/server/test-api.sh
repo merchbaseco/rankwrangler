@@ -21,6 +21,23 @@ fi
 
 echo ""
 
+# Optional dev Clerk sign-in token flow
+if [ "$RR_TEST_DEV_CLERK" = "1" ]; then
+    echo "🧪 Testing api.public.dev.createClerkSignInToken (dev only)..."
+    dev_clerk_response=$(curl -s -X POST "$API_BASE/api/api.public.dev.createClerkSignInToken" \
+      -H "Content-Type: application/json" \
+      -d '{"input":null}')
+    echo "$dev_clerk_response" | jq '.'
+
+    dev_ticket=$(echo "$dev_clerk_response" | jq -r '.result.data.ticket // .result.data.json.ticket // empty')
+    if [ -n "$dev_ticket" ]; then
+        echo "✅ Dev Clerk ticket issued (${#dev_ticket} chars)"
+    else
+        echo "ℹ️ Dev Clerk ticket not issued (expected when feature is disabled or not localhost)."
+    fi
+    echo ""
+fi
+
 # License-authenticated public API
 if [ -n "$RR_LICENSE_KEY" ]; then
     echo "🔑 Testing License-authenticated public API..."

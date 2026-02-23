@@ -200,6 +200,10 @@ try {
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
     console.log('  • API Routes: tRPC (/api)');
     console.log('  • Auth: Clerk (app), License (public)');
+    const devClerkSignInStatus = env.DEV_CLERK_SIGN_IN_USER_ID
+        ? `Enabled (user: ${env.DEV_CLERK_SIGN_IN_USER_ID})`
+        : 'Disabled';
+    console.log(`  • Dev Clerk Sign-In Token: ${devClerkSignInStatus}`);
     console.log('═══════════════════════════════════════════════════════════════');
     console.log('');
 } catch (err) {

@@ -19,6 +19,14 @@ This document guides AI coding assistants working in the RankWrangler Server rep
 - `docker compose up --build` – local stack with PostgreSQL (run from `apps/server`).
 - `./test-api.sh` – curl-based smoke test for the main endpoints (run from `apps/server`).
 
+### UI Change Verification Policy (Dev + agent-browser)
+
+For website UX, auth flows, or any user-visible change, run browser self-verification when the user explicitly asks for browser testing.
+
+- Follow `docs/ui-testing-workflow.md` for the full procedure and commands.
+- When requested, minimum verification bar: open the app, exercise changed flows, re-snapshot after UI state changes, capture an annotated screenshot, and close the browser session.
+- When browser testing is requested and run, include verification evidence (screenshot path + what was validated) in handoff notes.
+
 ### Monorepo Build Order (Important)
 
 - The extension installs `@rankwrangler/http-client` from npm.
