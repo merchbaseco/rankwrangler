@@ -132,11 +132,15 @@ export const RecentProductsTableView = ({
 								>
 									{row.getVisibleCells().map((cell) => {
 										const meta = cell.column.columnDef.meta as
-											| { align?: string }
+											| { align?: string; wrap?: boolean }
 											| undefined;
 										const isRight = meta?.align === 'right';
+										const isWrap = meta?.wrap === true;
 										return (
-											<TableCell key={cell.id} className={isRight ? 'text-right' : undefined}>
+											<TableCell
+												key={cell.id}
+												className={cn(isRight && 'text-right', isWrap && 'whitespace-normal')}
+											>
 												{flexRender(cell.column.columnDef.cell, cell.getContext())}
 											</TableCell>
 										);
