@@ -12,6 +12,7 @@ export type ProductHistoryPanelProduct = {
 	title: string | null;
 	thumbnailUrl: string | null;
 	brand: string | null;
+	dateFirstAvailable: string | null;
 };
 
 export type ProductHistoryPanelProps = {

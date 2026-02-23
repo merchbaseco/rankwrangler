@@ -13,6 +13,7 @@ export type Product = {
 	bullet2: string | null;
 	marketplaceId: string;
 	rootCategoryBsr: number | null;
+	dateFirstAvailable: string | null;
 	lastFetched: string;
 	lastFetchedMs: number;
 };
@@ -23,6 +24,7 @@ export type SelectedHistoryProduct = {
 	title: string | null;
 	thumbnailUrl: string | null;
 	brand: string | null;
+	dateFirstAvailable: string | null;
 };
 
 export const MARKETPLACE_FLAGS: Record<string, string> = {

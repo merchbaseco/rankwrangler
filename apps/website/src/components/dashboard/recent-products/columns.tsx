@@ -5,7 +5,7 @@ import type {
 	SelectedHistoryProduct,
 } from '@/components/dashboard/recent-products/types';
 import { MARKETPLACE_FLAGS } from '@/components/dashboard/recent-products/types';
-import { cn, formatRelativeTime } from '@/lib/utils';
+import { cn, formatCalendarDate, formatRelativeTime } from '@/lib/utils';
 
 const RowBsrButton = ({
 	bsr,
@@ -14,6 +14,7 @@ const RowBsrButton = ({
 	title,
 	thumbnailUrl,
 	brand,
+	dateFirstAvailable,
 	isActive,
 	onSelect,
 }: {
@@ -23,13 +24,14 @@ const RowBsrButton = ({
 	title: string | null;
 	thumbnailUrl: string | null;
 	brand: string | null;
+	dateFirstAvailable: string | null;
 	isActive: boolean;
 	onSelect: (product: SelectedHistoryProduct) => void;
 }) => (
 	<button
 		type="button"
 		onClick={() => {
-			onSelect({ asin, marketplaceId, title, thumbnailUrl, brand });
+			onSelect({ asin, marketplaceId, title, thumbnailUrl, brand, dateFirstAvailable });
 		}}
 		className="focus-visible:ring-ring rounded-sm focus-visible:outline-none focus-visible:ring-1"
 		aria-label="Open BSR history"
@@ -139,6 +141,7 @@ export const createColumns = ({
 						title={row.original.title}
 						thumbnailUrl={row.original.thumbnailUrl}
 						brand={row.original.brand}
+						dateFirstAvailable={row.original.dateFirstAvailable}
 						isActive={selectedHistoryKey === rowKey}
 						onSelect={onSelectHistory}
 					/>
@@ -148,6 +151,17 @@ export const createColumns = ({
 		header: 'BSR',
 		meta: { align: 'right' },
 		size: 120,
+	},
+	{
+		accessorKey: 'dateFirstAvailable',
+		cell: ({ row }) => (
+			<span className="text-muted-foreground whitespace-nowrap text-xs">
+				{formatCalendarDate(row.getValue('dateFirstAvailable') as string | null)}
+			</span>
+		),
+		header: 'Created',
+		meta: { align: 'right' },
+		size: 110,
 	},
 	{
 		accessorKey: 'marketplaceId',

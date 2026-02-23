@@ -212,6 +212,8 @@ Compatibility posture:
 - Default to clean breaks for API/CLI evolution.
 - Do not add legacy aliases, fallback code paths, compatibility shims, or dual-behavior migration
   logic unless explicitly requested.
+- Development mode default: this product is actively in development, so prioritize direct changes
+  over compatibility scaffolding; breaking changes are acceptable unless the user asks otherwise.
 
 ## Expectations When Editing
 
