@@ -26,7 +26,12 @@ export function RecentProducts({
 }: {
 	filters: FilterState;
 	searchValue: string;
-	onStatusChange?: (info: { count: number; hasMore: boolean }) => void;
+	onStatusChange?: (info: {
+		count: number;
+		hasMore: boolean;
+		totalProducts: number | null;
+		totalMerchProducts: number | null;
+	}) => void;
 }) {
 	const deferredSearchValue = useDeferredValue(searchValue.trim());
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
@@ -70,10 +75,19 @@ export function RecentProducts({
 			}),
 		[deferredFilters, products],
 	);
+	const trackedTotals = useMemo(
+		() => data?.pages.find((page) => page.trackedTotals !== null)?.trackedTotals ?? null,
+		[data],
+	);
 
 	useEffect(() => {
-		onStatusChange?.({ count: filteredProducts.length, hasMore: hasNextPage ?? false });
-	}, [filteredProducts.length, hasNextPage, onStatusChange]);
+		onStatusChange?.({
+			count: filteredProducts.length,
+			hasMore: hasNextPage ?? false,
+			totalMerchProducts: trackedTotals?.totalMerchProducts ?? null,
+			totalProducts: trackedTotals?.totalProducts ?? null,
+		});
+	}, [filteredProducts.length, hasNextPage, onStatusChange, trackedTotals]);
 
 	const selectedHistoryKey = selectedHistoryProduct
 		? `${selectedHistoryProduct.marketplaceId}:${selectedHistoryProduct.asin}`
