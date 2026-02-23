@@ -6,17 +6,21 @@ This document describes the automatic Keepa history refresh system used by the s
 
 An ASIN is eligible for automatic Keepa refresh only when all conditions are true:
 
-- Product is in root category `Clothing, Shoes & Jewelry` (`7141123011`)
+- Product is classified as merch (`is_merch_listing = true`)
 - Product has a numeric root-category BSR
 - `rootCategoryBsr < 1,000,000`
+
+Policy constants and dashboard labels are centralized in:
+
+- `apps/server/src/services/keepa-refresh-policy.ts`
 
 Eligibility is evaluated from the cached `products` table.
 
 Plain-English behavior:
 
 - Product lookup still stores SP-API category/BSR data for any category when available.
-- Automatic Keepa enqueue only happens for eligible clothing ASINs.
-- Non-eligible ASINs (non-clothing, missing BSR, or BSR >= 1,000,000) are not auto-enqueued.
+- Automatic Keepa enqueue only happens for eligible merch ASINs.
+- Non-eligible ASINs (non-merch, missing BSR, or BSR >= 1,000,000) are not auto-enqueued.
 - Non-eligible ASINs can still load Keepa history manually (dashboard/extension history action).
 
 ## Global 24h Keepa Guard

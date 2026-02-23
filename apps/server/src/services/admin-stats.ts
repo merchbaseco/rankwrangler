@@ -1,5 +1,12 @@
 import { sql } from 'drizzle-orm';
+import {
+    getKeepaRefreshPolicyBuckets,
+    getSpApiRefreshPolicyBuckets,
+    type KeepaRefreshPolicyBucketStat,
+    type SpApiRefreshPolicyBucketStat,
+} from '@/services/admin-refresh-policy-buckets.js';
 import { db } from '@/db/index.js';
+import { KEEPA_FETCH_SUCCESS_GUARD_LABEL } from '@/services/keepa-refresh-policy.js';
 
 type BucketRow = {
     bucket_start: string;
@@ -17,14 +24,24 @@ type StatSeries = {
 export type AdminStatsResponse = {
     stats: StatSeries[];
     bucketCount: number;
+    spApiRefreshPolicyBuckets: SpApiRefreshPolicyBucketStat[];
+    keepaRefreshPolicyBuckets: KeepaRefreshPolicyBucketStat[];
+    keepaFetchGuardLabel: string;
 };
 
 const BUCKET_COUNT = 30;
 
 export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
-    const [keepaBuckets, spApiJobBuckets] = await Promise.all([
+    const [
+        keepaBuckets,
+        spApiJobBuckets,
+        spApiRefreshPolicyBuckets,
+        keepaRefreshPolicyBuckets,
+    ] = await Promise.all([
         queryKeepaBuckets(),
         querySpApiJobBuckets(),
+        getSpApiRefreshPolicyBuckets(),
+        getKeepaRefreshPolicyBuckets(),
     ]);
 
     const keepaTotal = sum(keepaBuckets.map((b) => b.total));
@@ -68,6 +85,9 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
             },
         ],
         bucketCount: BUCKET_COUNT,
+        spApiRefreshPolicyBuckets,
+        keepaRefreshPolicyBuckets,
+        keepaFetchGuardLabel: KEEPA_FETCH_SUCCESS_GUARD_LABEL,
     };
 };
 

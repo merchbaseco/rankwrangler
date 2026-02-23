@@ -9,6 +9,7 @@ import {
     productHistoryPoints,
     products,
 } from '@/db/schema.js';
+import { KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS } from '@/services/keepa-refresh-policy.js';
 
 export const keepaHistoryMetricKeys = [
     'bsrMain',
@@ -144,7 +145,7 @@ const KEEPA_SOURCE = 'keepa';
 const KEEPA_UPDATE_HOURS = 1;
 const KEEPA_MINUTE_EPOCH_OFFSET = 21564000;
 const KEEPA_CATEGORY_BATCH_SIZE = 50;
-const KEEPA_MIN_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const KEEPA_MIN_REFRESH_INTERVAL_MS = KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS;
 const KEEPA_TOKEN_STATE_STALE_MS = 60 * 1000;
 
 const keepaRateLimiter = new Bottleneck({

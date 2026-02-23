@@ -13,6 +13,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { KeepaRefreshPolicyPanel } from '@/components/dashboard/keepa-refresh-policy-panel';
+import { SpApiRefreshPolicyPanel } from '@/components/dashboard/spapi-refresh-policy-panel';
 import { api } from '@/lib/trpc';
 import { cn, formatNumber } from '@/lib/utils';
 
@@ -27,6 +29,9 @@ export const AdminOperationsPanel = () => {
     });
 
     const stats = statsQuery.data?.stats ?? [];
+    const refreshPolicyBuckets = statsQuery.data?.spApiRefreshPolicyBuckets ?? [];
+    const keepaRefreshPolicyBuckets = statsQuery.data?.keepaRefreshPolicyBuckets ?? [];
+    const keepaFetchGuardLabel = statsQuery.data?.keepaFetchGuardLabel ?? '';
     const isLoading = statsQuery.isLoading;
     const rows = Math.ceil(stats.length / COLS);
     const defaultSelectedStat = stats
@@ -123,6 +128,13 @@ export const AdminOperationsPanel = () => {
                     })}
                 </div>
             )}
+
+            <SpApiRefreshPolicyPanel buckets={refreshPolicyBuckets} isLoading={isLoading} />
+            <KeepaRefreshPolicyPanel
+                buckets={keepaRefreshPolicyBuckets}
+                fetchGuardLabel={keepaFetchGuardLabel}
+                isLoading={isLoading}
+            />
 
             {selectedConfig ? (
                 <div className="border-t border-border">
