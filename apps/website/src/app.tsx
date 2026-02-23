@@ -107,7 +107,7 @@ export function App() {
 		<div className="flex h-screen flex-col overflow-hidden bg-background">
 			<TopBar
 				onOpenSettings={() => dispatchUiState({ open: true, type: 'setSettingsOpen' })}
-				onToggleTheme={(event) => setTheme(theme === 'dark' ? 'light' : 'dark', event)}
+				onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
 				totalMerchProducts={productStatus.totalMerchProducts}
 				totalProducts={productStatus.totalProducts}
 				theme={theme}
