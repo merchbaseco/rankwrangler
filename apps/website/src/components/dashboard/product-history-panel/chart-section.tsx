@@ -13,11 +13,14 @@ import {
     buildEvenYAxisScale,
     downsamplePoints,
     formatAxisValue,
-    formatDateAxis,
     formatDateShort,
     formatValue,
     MAX_CHART_POINTS,
 } from '@/components/dashboard/product-history-panel/chart-utils';
+import {
+    buildXAxisFormatter,
+    buildXAxisTicks,
+} from '@/components/dashboard/product-history-panel/chart-x-axis';
 import { ChartSkeleton } from '@/components/dashboard/product-history-panel/syncing-chart-placeholder';
 import type {
     HistoryQueryResult,
@@ -106,6 +109,20 @@ export const ChartSection = ({
             ),
         [sampledPoints],
     );
+
+    const xTicks = useMemo(() => {
+        if (!xDomain) {
+            return undefined;
+        }
+        return buildXAxisTicks(xDomain[0], xDomain[1]);
+    }, [xDomain]);
+
+    const xTickFormatter = useMemo(() => {
+        if (!xDomain) {
+            return formatDateShort;
+        }
+        return buildXAxisFormatter(xDomain[0], xDomain[1]);
+    }, [xDomain]);
 
     const chartData = sampledPoints as ChartDatum[];
 
@@ -204,7 +221,7 @@ export const ChartSection = ({
                                             data={chartData}
                                             margin={{
                                                 top: 4,
-                                                right: 12,
+                                                right: 36,
                                                 bottom: 4,
                                                 left: 0,
                                             }}
@@ -238,9 +255,8 @@ export const ChartSection = ({
                                                         'auto',
                                                     ]
                                                 }
-                                                tickFormatter={
-                                                    formatDateAxis
-                                                }
+                                                ticks={xTicks}
+                                                tickFormatter={xTickFormatter}
                                                 axisLine={false}
                                                 tickLine={false}
                                                 minTickGap={48}
