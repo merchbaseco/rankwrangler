@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, lt, or, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ilike, lt, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import { db } from '@/db/index.js';
@@ -47,6 +47,7 @@ export const recentProducts = appProcedure
 			.limit(limit + 1);
 
 		const items = rows.slice(0, limit);
+		const trackedTotals = cursor ? null : await queryTrackedTotals();
 		const nextRow = rows.length > limit ? items[items.length - 1] : null;
 		const nextCursor = nextRow
 			? {
@@ -59,6 +60,7 @@ export const recentProducts = appProcedure
 		return {
 			items,
 			nextCursor,
+			trackedTotals,
 		};
 	});
 
@@ -111,4 +113,19 @@ const splitSearchTokens = (search: string | undefined) =>
 				.split(/\s+/)
 				.filter(Boolean)
 				.slice(0, 8)
-		: [];
+			: [];
+
+const queryTrackedTotals = async () => {
+	const [totalProductsRows, totalMerchProductsRows] = await Promise.all([
+		db.select({ total: sql<number>`count(*)::int` }).from(products),
+		db
+			.select({ total: sql<number>`count(*)::int` })
+			.from(products)
+			.where(eq(products.isMerchListing, true)),
+	]);
+
+	return {
+		totalMerchProducts: totalMerchProductsRows[0]?.total ?? 0,
+		totalProducts: totalProductsRows[0]?.total ?? 0,
+	};
+};

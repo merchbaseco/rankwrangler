@@ -19,16 +19,31 @@ export function App() {
 	});
 	const [, startFilterTransition] = useTransition();
 	const [uiState, dispatchUiState] = useReducer(appUiStateReducer, INITIAL_APP_UI_STATE);
-	const [productStatus, setProductStatus] = useState<{ count: number; hasMore: boolean }>({
+	const [productStatus, setProductStatus] = useState<{
+		count: number;
+		hasMore: boolean;
+		totalProducts: number | null;
+		totalMerchProducts: number | null;
+	}>({
 		count: 0,
 		hasMore: false,
+		totalMerchProducts: null,
+		totalProducts: null,
 	});
 	const { license } = useLicense();
 	const { theme, setTheme } = useTheme();
 
-	const handleProductStatusChange = useCallback((info: { count: number; hasMore: boolean }) => {
-		setProductStatus(info);
-	}, []);
+	const handleProductStatusChange = useCallback(
+		(info: {
+			count: number;
+			hasMore: boolean;
+			totalProducts: number | null;
+			totalMerchProducts: number | null;
+		}) => {
+			setProductStatus(info);
+		},
+		[],
+	);
 
 	const toggleBsrRange = useCallback(
 		(range: BsrRange) => {
@@ -98,7 +113,8 @@ export function App() {
 			<TopBar
 				onOpenSettings={() => dispatchUiState({ open: true, type: 'setSettingsOpen' })}
 				onToggleTheme={(event) => setTheme(theme === 'dark' ? 'light' : 'dark', event)}
-				lifetimeLookupCount={license?.usageCount ?? null}
+				totalMerchProducts={productStatus.totalMerchProducts}
+				totalProducts={productStatus.totalProducts}
 				theme={theme}
 				usageLimit={license?.usageLimit ?? null}
 				usageToday={license?.usageToday ?? null}

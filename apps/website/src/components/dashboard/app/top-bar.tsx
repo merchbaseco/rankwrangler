@@ -5,14 +5,16 @@ import { formatNumber } from '@/lib/utils';
 export const TopBar = ({
 	onOpenSettings,
 	onToggleTheme,
-	lifetimeLookupCount,
+	totalMerchProducts,
+	totalProducts,
 	theme,
 	usageLimit,
 	usageToday,
 }: {
 	onOpenSettings: () => void;
 	onToggleTheme: (event: React.MouseEvent<HTMLButtonElement>) => void;
-	lifetimeLookupCount: number | null;
+	totalMerchProducts: number | null;
+	totalProducts: number | null;
 	theme: 'light' | 'dark' | 'system';
 	usageLimit: number | null;
 	usageToday: number | null;
@@ -45,9 +47,16 @@ export const TopBar = ({
 					</span>
 					<span className="text-border">|</span>
 					<span>
-						Total Lookups:{' '}
+						Total Products:{' '}
 						<span className="font-medium text-foreground">
-							{lifetimeLookupCount === null ? '--' : formatNumber(lifetimeLookupCount)}
+							{totalProducts === null ? '--' : formatNumber(totalProducts)}
+						</span>
+					</span>
+					<span className="text-border">|</span>
+					<span>
+						Total Merch Products:{' '}
+						<span className="font-medium text-foreground">
+							{totalMerchProducts === null ? '--' : formatNumber(totalMerchProducts)}
 						</span>
 					</span>
 				</div>
