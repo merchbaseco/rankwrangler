@@ -304,7 +304,11 @@ export const ChartSection = ({
                                                 }
                                             />
                                             <Area
-                                                type="monotone"
+                                                type={
+                                                    isPrice
+                                                        ? 'stepAfter'
+                                                        : 'monotone'
+                                                }
                                                 dataKey="value"
                                                 stroke={color}
                                                 strokeWidth={2.5}

@@ -52,12 +52,12 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
                     timeDomain={chartTimeDomain}
                 />
                 <ChartSection
-                    label="Price (Amazon)"
+                    label="Price (New)"
                     selectValue=""
                     onSelectChange={() => {}}
                     selectOptions={[]}
                     query={priceQuery}
-                    metric="priceAmazon"
+                    metric="priceNew"
                     isPrice={true}
                     gradientId={`price-${product.asin}`}
                     isSyncing={loadMutation.isPending}

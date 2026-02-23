@@ -192,7 +192,7 @@ export const useProductHistoryPanelData = ({
 		() => ({
 			marketplaceId: product.marketplaceId,
 			asin: product.asin,
-			metric: 'priceAmazon' as const,
+			metric: 'priceNew' as const,
 			limit: 5000,
 			...(startAt ? { startAt } : {}),
 			...(endAt ? { endAt } : {}),
