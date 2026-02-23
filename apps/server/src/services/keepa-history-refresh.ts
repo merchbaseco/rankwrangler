@@ -10,11 +10,12 @@ import {
     ensureFreshKeepaTokenState,
     getKeepaRuntimeTokenState,
 } from '@/services/keepa.js';
+import {
+    KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
+    isEligibleForKeepaAutoRefresh,
+} from '@/services/keepa-refresh-policy.js';
 
-const CLOTHING_SHOES_JEWELRY_CATEGORY_ID = 7141123011;
-const KEEPA_AUTO_BSR_THRESHOLD = 1000000;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 48 * 60 * 60 * 1000;
 const KEEPA_INITIAL_HISTORY_DAYS = 3650;
 const KEEPA_MIN_INCREMENTAL_HISTORY_DAYS = 30;
 const KEEPA_INCREMENTAL_BUFFER_DAYS = 7;
@@ -54,7 +55,7 @@ export const enqueueKeepaHistoryRefreshForAsin = async ({
         } as const;
     }
 
-    if (!isEligibleForKeepaAutoRefresh(product.rootCategoryId, product.rootCategoryBsr)) {
+    if (!isEligibleForKeepaAutoRefresh(product.isMerchListing, product.rootCategoryBsr)) {
         return {
             enqueued: false,
             reason: 'not_eligible',
@@ -341,7 +342,7 @@ export const shouldKeepaHistoryRefreshAsin = async ({
         } as const;
     }
 
-    if (!isEligibleForKeepaAutoRefresh(product.rootCategoryId, product.rootCategoryBsr)) {
+    if (!isEligibleForKeepaAutoRefresh(product.isMerchListing, product.rootCategoryBsr)) {
         return {
             shouldRefresh: false,
             reason: 'not_eligible',
@@ -363,7 +364,7 @@ const getProductEligibilitySnapshot = async ({
 }) => {
     const rows = await db
         .select({
-            rootCategoryId: products.rootCategoryId,
+            isMerchListing: products.isMerchListing,
             rootCategoryBsr: products.rootCategoryBsr,
         })
         .from(products)
@@ -371,19 +372,4 @@ const getProductEligibilitySnapshot = async ({
         .limit(1);
 
     return rows[0] ?? null;
-};
-
-const isEligibleForKeepaAutoRefresh = (
-    rootCategoryId: number | null,
-    rootCategoryBsr: number | null
-) => {
-    if (rootCategoryId !== CLOTHING_SHOES_JEWELRY_CATEGORY_ID) {
-        return false;
-    }
-
-    if (typeof rootCategoryBsr !== 'number' || !Number.isFinite(rootCategoryBsr)) {
-        return false;
-    }
-
-    return rootCategoryBsr < KEEPA_AUTO_BSR_THRESHOLD;
 };

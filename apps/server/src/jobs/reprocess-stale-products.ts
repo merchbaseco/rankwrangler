@@ -3,20 +3,18 @@ import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
 import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue.js';
+import {
+    BSR_THRESHOLD_1M,
+    BSR_THRESHOLD_200K,
+    BSR_THRESHOLD_3M,
+    BSR_THRESHOLD_500K,
+    REFRESH_AFTER_14_DAYS_MS,
+    REFRESH_AFTER_24_HOURS_MS,
+    REFRESH_AFTER_30_DAYS_MS,
+    REFRESH_AFTER_3_DAYS_MS,
+    REFRESH_AFTER_7_DAYS_MS,
+} from '@/services/spapi-refresh-policy.js';
 import { defineJob } from '@/jobs/job-router.js';
-
-// BSR thresholds
-const BSR_THRESHOLD_200K = 200000;
-const BSR_THRESHOLD_500K = 500000;
-const BSR_THRESHOLD_1M = 1000000;
-const BSR_THRESHOLD_3M = 3000000;
-
-// Time thresholds in milliseconds
-const HOURS_24 = 24 * 60 * 60 * 1000;
-const DAYS_3 = 3 * 24 * 60 * 60 * 1000;
-const DAYS_7 = 7 * 24 * 60 * 60 * 1000;
-const DAYS_14 = 14 * 24 * 60 * 60 * 1000;
-const DAYS_30 = 30 * 24 * 60 * 60 * 1000;
 
 export type ReprocessStaleProductsResult = {
     didWork: boolean;
@@ -27,11 +25,11 @@ export type ReprocessStaleProductsResult = {
 
 export async function reprocessStaleProducts() {
     const now = new Date();
-    const threshold24Hours = new Date(now.getTime() - HOURS_24);
-    const threshold3Days = new Date(now.getTime() - DAYS_3);
-    const threshold7Days = new Date(now.getTime() - DAYS_7);
-    const threshold14Days = new Date(now.getTime() - DAYS_14);
-    const threshold30Days = new Date(now.getTime() - DAYS_30);
+    const threshold24Hours = new Date(now.getTime() - REFRESH_AFTER_24_HOURS_MS);
+    const threshold3Days = new Date(now.getTime() - REFRESH_AFTER_3_DAYS_MS);
+    const threshold7Days = new Date(now.getTime() - REFRESH_AFTER_7_DAYS_MS);
+    const threshold14Days = new Date(now.getTime() - REFRESH_AFTER_14_DAYS_MS);
+    const threshold30Days = new Date(now.getTime() - REFRESH_AFTER_30_DAYS_MS);
 
     // Find stale merch products using BSR tiers:
     // - BSR < 200k: refresh if lastFetched > 24 hours ago

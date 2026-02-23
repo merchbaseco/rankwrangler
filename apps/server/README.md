@@ -113,6 +113,7 @@ Product info payload notes:
 App procedures:
 
 - `api.app.adminStatus` (admin only)
+- `api.app.getAdminStats` (admin only)
 - `api.app.getProductInfo`
 - `api.app.getKeepaStatus`
 - `api.app.keepaLog` (admin only)
@@ -129,6 +130,7 @@ Admin job observability:
 - Job executions and structured job logs are persisted in `job_executions` and `job_execution_logs`.
 - The dashboard calls `api.app.jobExecutions` and is gated by `ADMIN_EMAIL` (`adminProcedure`).
 - Keepa queue + recent processed Keepa jobs are exposed via `api.app.keepaLog` (admin only).
+- `api.app.getAdminStats` also returns SP-API + Keepa refresh-policy bucket counts with cadence labels for Settings → Admin.
 - SP-API sync queue processing is event-driven (enqueue-triggered + startup kick), not interval-polled.
 
 Example `curl` (public):
@@ -188,7 +190,7 @@ Manual Keepa import behavior:
 - Requests use high-priority Keepa queueing and may wait up to 2 minutes before returning.
 - Retryable Keepa failures are retried with exponential backoff during that 2-minute window.
 - If retries do not succeed within 2 minutes, API returns `TIMEOUT`; retrying is expected.
-- Manual import is allowed regardless of clothing/BSR auto-eligibility, but still respects the global 24h Keepa success guard.
+- Manual import is allowed regardless of merch/BSR auto-eligibility, but still respects the global 24h Keepa success guard.
 
 Example `curl` (app Keepa runtime status):
 
