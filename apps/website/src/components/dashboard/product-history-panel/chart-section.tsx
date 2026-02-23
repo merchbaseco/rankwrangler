@@ -1,30 +1,40 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { buildChartGeometry, formatDateShort, formatValue, INNER_W, PAD, VB_W } from '@/components/dashboard/product-history-panel/chart-utils';
+import { useMemo } from "react";
 import {
-	buildChartState,
-	buildPoints,
-	getHoverPosition,
-} from '@/components/dashboard/product-history-panel/chart-data';
+	Area,
+	AreaChart,
+	CartesianGrid,
+	ReferenceDot,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from "recharts";
+import { buildPoints } from "@/components/dashboard/product-history-panel/chart-data";
 import {
-	ChartSvg,
-	ChartTooltip,
-} from '@/components/dashboard/product-history-panel/chart-svg';
+	buildEvenYAxisScale,
+	downsamplePoints,
+	formatAxisValue,
+	formatDateAxis,
+	formatDateShort,
+	formatValue,
+	MAX_CHART_POINTS,
+} from "@/components/dashboard/product-history-panel/chart-utils";
 import {
 	ChartSkeleton,
 	SyncingChartPlaceholder,
-} from '@/components/dashboard/product-history-panel/syncing-chart-placeholder';
+} from "@/components/dashboard/product-history-panel/syncing-chart-placeholder";
 import type {
-	HistoryTimeDomain,
 	HistoryQueryResult,
+	HistoryTimeDomain,
 	SelectOption,
-} from '@/components/dashboard/product-history-panel/types';
+} from "@/components/dashboard/product-history-panel/types";
 import {
 	Select,
 	SelectItem,
 	SelectPopup,
 	SelectTrigger,
 	SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 type ChartSectionProps = {
 	label: string;
@@ -39,6 +49,11 @@ type ChartSectionProps = {
 	timeDomain?: HistoryTimeDomain | null;
 };
 
+type ChartDatum = {
+	timestamp: number;
+	value: number;
+};
+
 export const ChartSection = ({
 	label,
 	selectValue,
@@ -51,24 +66,16 @@ export const ChartSection = ({
 	isSyncing,
 	timeDomain,
 }: ChartSectionProps) => {
-	const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-	const chartRef = useRef<HTMLDivElement>(null);
-
 	const points = useMemo(() => buildPoints(query), [query]);
-	const { sampledPoints, chartGeometry } = useMemo(
-		() => buildChartState(points, timeDomain),
-		[points, timeDomain],
+	const sampledPoints = useMemo(
+		() => downsamplePoints(points, MAX_CHART_POINTS),
+		[points],
 	);
-
-	const latestPoint = points.at(-1) ?? null;
-	const hoverPoint = hoverIndex !== null ? (sampledPoints[hoverIndex] ?? null) : null;
-	const firstPoint = points[0] ?? null;
-	const rangeStartTimestamp = timeDomain?.startAt ?? firstPoint?.timestamp ?? null;
+	const latestPoint = sampledPoints.at(-1) ?? null;
+	const firstPoint = sampledPoints[0] ?? null;
+	const rangeStartTimestamp =
+		timeDomain?.startAt ?? firstPoint?.timestamp ?? null;
 	const rangeEndTimestamp = timeDomain?.endAt ?? latestPoint?.timestamp ?? null;
-	const hoverPosition = useMemo(
-		() => getHoverPosition({ chartGeometry, hoverPoint }),
-		[chartGeometry, hoverPoint],
-	);
 
 	const selectedOptionLabel = useMemo(
 		() =>
@@ -78,39 +85,37 @@ export const ChartSection = ({
 	);
 
 	const isLoading = query.isLoading && !query.data;
-	const hasData = points.length > 0 && chartGeometry;
-	const color = isPrice ? 'var(--color-chart-4)' : 'var(--color-chart-1)';
+	const hasData = sampledPoints.length > 0;
+	const color = isPrice ? "var(--color-chart-4)" : "var(--color-chart-1)";
+	const xDomain = useMemo<[number, number] | undefined>(() => {
+		if (rangeStartTimestamp === null || rangeEndTimestamp === null) {
+			return undefined;
+		}
 
-	const handleMouseMove = useCallback(
-		(event: React.MouseEvent<HTMLDivElement>) => {
-			if (!chartGeometry || sampledPoints.length === 0) {
-				return;
-			}
-
-			const element = chartRef.current;
-			if (!element) {
-				return;
-			}
-
-			const rect = element.getBoundingClientRect();
-			const svgX = ((event.clientX - rect.left) / rect.width) * VB_W;
-			if (svgX < PAD.l || svgX > VB_W - PAD.r) {
-				setHoverIndex(null);
-				return;
-			}
-
-			const fraction = (svgX - PAD.l) / INNER_W;
-			const targetTimestamp =
-				chartGeometry.tMin + fraction * (chartGeometry.tMax - chartGeometry.tMin);
-			setHoverIndex(findNearestPoint(sampledPoints, targetTimestamp));
-		},
-		[chartGeometry, sampledPoints],
+		const min = Math.min(rangeStartTimestamp, rangeEndTimestamp);
+		const max = Math.max(rangeStartTimestamp, rangeEndTimestamp);
+		if (min === max) {
+			return [min - ONE_DAY_IN_MS, max + ONE_DAY_IN_MS];
+		}
+		return [min, max];
+	}, [rangeEndTimestamp, rangeStartTimestamp]);
+	const yScale = useMemo(
+		() =>
+			buildEvenYAxisScale(
+				sampledPoints.map((point) => point.value),
+				{ min: 0, tickCount: 5 },
+			),
+		[sampledPoints],
 	);
+
+	const chartData = sampledPoints as ChartDatum[];
 
 	return (
 		<div className="rounded-xl border border-border bg-white">
 			<div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-				<span className="text-xs font-semibold text-secondary-foreground">{label}</span>
+				<span className="text-xs font-semibold text-secondary-foreground">
+					{label}
+				</span>
 				{selectOptions.length > 0 ? (
 					<Select
 						value={selectValue}
@@ -140,12 +145,14 @@ export const ChartSection = ({
 						{query.error?.message}
 					</div>
 				) : null}
-				{!isLoading && !query.isError && points.length === 0 ? (
+				{!isLoading && !query.isError && sampledPoints.length === 0 ? (
 					isSyncing ? (
 						<SyncingChartPlaceholder color={color} gradientId={gradientId} />
 					) : (
 						<div className="bg-muted/30 flex items-center justify-center rounded-lg border border-dashed border-border py-8">
-							<p className="text-sm text-muted-foreground">No data for this range yet.</p>
+							<p className="text-sm text-muted-foreground">
+								No data for this range yet.
+							</p>
 						</div>
 					)
 				) : null}
@@ -153,37 +160,100 @@ export const ChartSection = ({
 					<>
 						<div className="mb-3">
 							<p className="stat-value text-2xl font-bold tracking-tight text-foreground">
-								{latestPoint ? formatValue(metric, latestPoint.value) : '-'}
+								{latestPoint ? formatValue(metric, latestPoint.value) : "-"}
 							</p>
 							{rangeStartTimestamp !== null && rangeEndTimestamp !== null ? (
 								<p className="mt-0.5 text-sm text-muted-foreground">
-									{formatDateShort(rangeStartTimestamp)} &ndash;{' '}
+									{formatDateShort(rangeStartTimestamp)} &ndash;{" "}
 									{formatDateShort(rangeEndTimestamp)}
 								</p>
 							) : null}
 						</div>
-						<div
-							ref={chartRef}
-							className="relative cursor-crosshair rounded-lg border border-border"
-							onMouseMove={handleMouseMove}
-							onMouseLeave={() => setHoverIndex(null)}
-						>
-							<ChartSvg
-								chartGeometry={chartGeometry as NonNullable<ReturnType<typeof buildChartGeometry>>}
-								color={color}
-								hoverPosition={{ x: hoverPosition.x, y: hoverPosition.y }}
-								gradientId={gradientId}
-								metric={metric}
-							/>
-							{hoverPoint ? (
-								<ChartTooltip
-									flip={hoverPosition.flip}
-									hoverPoint={hoverPoint}
-									hoverXPercent={hoverPosition.leftPercent}
-									hoverYPercent={hoverPosition.topPercent}
-									metric={metric}
-								/>
-							) : null}
+						<div className="h-[220px] cursor-crosshair rounded-lg border border-border">
+							<ResponsiveContainer width="100%" height="100%">
+								<AreaChart
+									data={chartData}
+									margin={{ top: 16, right: 16, bottom: 16, left: 10 }}
+								>
+									<defs>
+										<linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+											<stop offset="0%" stopColor={color} stopOpacity="0.12" />
+											<stop offset="100%" stopColor={color} stopOpacity="0" />
+										</linearGradient>
+									</defs>
+									<CartesianGrid
+										stroke="var(--color-border)"
+										strokeDasharray="0"
+										vertical={false}
+									/>
+									<XAxis
+										type="number"
+										dataKey="timestamp"
+										domain={xDomain ?? ["auto", "auto"]}
+										tickFormatter={formatDateAxis}
+										axisLine={false}
+										tickLine={false}
+										minTickGap={24}
+										tickMargin={8}
+										style={{
+											fill: "var(--color-muted-foreground)",
+											fontSize: 12,
+										}}
+									/>
+										<YAxis
+											type="number"
+											domain={yScale.domain}
+											ticks={yScale.ticks}
+											width={54}
+											tickFormatter={(value) =>
+												formatAxisValue(metric, Number(value))
+										}
+										axisLine={false}
+										tickLine={false}
+										tickMargin={8}
+										style={{
+											fill: "var(--color-muted-foreground)",
+											fontSize: 12,
+										}}
+									/>
+									<Tooltip
+										isAnimationActive={false}
+										cursor={{
+											stroke: color,
+											strokeDasharray: "4 4",
+											strokeWidth: 1,
+											opacity: 0.4,
+										}}
+										content={<HistoryTooltip metric={metric} />}
+									/>
+									<Area
+										type="monotone"
+										dataKey="value"
+										stroke={color}
+										strokeWidth={2}
+										fill={`url(#${gradientId})`}
+										isAnimationActive={false}
+										dot={false}
+										activeDot={{
+											r: 4.5,
+											fill: color,
+											stroke: "white",
+											strokeWidth: 2.5,
+										}}
+									/>
+									{latestPoint ? (
+										<ReferenceDot
+											x={latestPoint.timestamp}
+											y={latestPoint.value}
+											r={3.5}
+											fill={color}
+											stroke="white"
+											strokeWidth={2}
+											ifOverflow="hidden"
+										/>
+									) : null}
+								</AreaChart>
+							</ResponsiveContainer>
 						</div>
 					</>
 				) : null}
@@ -192,21 +262,30 @@ export const ChartSection = ({
 	);
 };
 
-const findNearestPoint = (
-	sampledPoints: { timestamp: number }[],
-	targetTimestamp: number,
-) => {
-	let nearestIndex = 0;
-	let nearestDistance = Number.POSITIVE_INFINITY;
+const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
 
-	for (let index = 0; index < sampledPoints.length; index += 1) {
-		const point = sampledPoints[index];
-		const distance = Math.abs(point.timestamp - targetTimestamp);
-		if (distance < nearestDistance) {
-			nearestDistance = distance;
-			nearestIndex = index;
-		}
+const HistoryTooltip = ({
+	active,
+	payload,
+	metric,
+}: {
+	active?: boolean;
+	payload?: Array<{ payload?: ChartDatum }>;
+	metric: string;
+}) => {
+	const point = payload?.[0]?.payload;
+	if (!active || !point) {
+		return null;
 	}
 
-	return nearestIndex;
+	return (
+		<div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-lg">
+			<p className="stat-value text-sm font-bold text-foreground">
+				{formatValue(metric, point.value)}
+			</p>
+			<p className="text-xs text-muted-foreground">
+				{formatDateShort(point.timestamp)}
+			</p>
+		</div>
+	);
 };
