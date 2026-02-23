@@ -3,7 +3,7 @@ import { DashboardFooter } from '@/components/dashboard/app/dashboard-footer';
 import { FACETS } from '@/components/dashboard/app/config';
 import { FiltersSidebar } from '@/components/dashboard/app/filters-sidebar';
 import { TopBar } from '@/components/dashboard/app/top-bar';
-import type { BsrRange, LastUpdated } from '@/components/dashboard/app/config';
+import type { LastUpdated } from '@/components/dashboard/app/config';
 import { RecentProducts, type FilterState } from '@/components/dashboard/recent-products';
 import { SearchBar } from '@/components/dashboard/search-bar';
 import { SettingsModal } from '@/components/dashboard/settings-modal';
@@ -13,7 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 export function App() {
 	const [searchValue, setSearchValue] = useState('');
 	const [filters, setFilters] = useState<FilterState>({
-		bsrRanges: [],
+		bsrRange: null,
 		marketplaceIds: [],
 		lastUpdated: 'all',
 	});
@@ -45,15 +45,10 @@ export function App() {
 		[],
 	);
 
-	const toggleBsrRange = useCallback(
-		(range: BsrRange) => {
+	const setBsrRange = useCallback(
+		(range: [number, number] | null) => {
 			startFilterTransition(() => {
-				setFilters((previous) => ({
-					...previous,
-					bsrRanges: previous.bsrRanges.includes(range)
-						? previous.bsrRanges.filter((currentRange) => currentRange !== range)
-						: [...previous.bsrRanges, range],
-				}));
+				setFilters((previous) => ({ ...previous, bsrRange: range }));
 			});
 		},
 		[startFilterTransition],
@@ -84,7 +79,7 @@ export function App() {
 
 	const activeFilterCount = useMemo(() => {
 		let count = 0;
-		if (filters.bsrRanges.length > 0) {
+		if (filters.bsrRange !== null) {
 			count += 1;
 		}
 		if (filters.marketplaceIds.length > 0) {
@@ -130,7 +125,7 @@ export function App() {
 					onFacetSearchChange={(nextValue) =>
 						dispatchUiState({ nextValue, type: 'setFacetSearch' })
 					}
-					onToggleBsrRange={toggleBsrRange}
+					onBsrRangeChange={setBsrRange}
 					onToggleFacet={toggleFacet}
 					onToggleMarketplace={toggleMarketplace}
 					onToggleNichesSection={() => dispatchUiState({ type: 'toggleNichesSection' })}

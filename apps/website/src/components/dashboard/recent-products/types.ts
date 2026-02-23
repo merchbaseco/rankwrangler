@@ -1,5 +1,5 @@
 export type FilterState = {
-	bsrRanges: Array<'top1k' | 'top10k' | 'top100k' | '100k+'>;
+	bsrRange: [number, number] | null;
 	marketplaceIds: string[];
 	lastUpdated: 'all' | '24h' | '7d' | '30d';
 };
