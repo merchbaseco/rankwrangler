@@ -6,6 +6,7 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 
 - `apps/server` – Fastify-based tRPC API for Amazon SP-API integration
 - `apps/website` – Dashboard for API keys, usage, and admin-only job execution logs
+  (recent products now include Amazon product creation date when available)
 - `apps/extension` – Chrome extension
 
 ## Packages

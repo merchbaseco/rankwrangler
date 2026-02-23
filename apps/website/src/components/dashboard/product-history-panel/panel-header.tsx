@@ -1,7 +1,7 @@
 import { Check, Copy, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import type { ProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/types';
-import { cn } from '@/lib/utils';
+import { cn, formatCalendarDate } from '@/lib/utils';
 
 export const PanelHeader = ({
     product,
@@ -54,6 +54,9 @@ export const PanelHeader = ({
                             {product.brand}
                         </p>
                     ) : null}
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Created: {formatCalendarDate(product.dateFirstAvailable, 'Unknown')}
+                    </p>
                     <div className="mt-1.5 flex items-center gap-1.5">
                         <span className="font-mono text-[11px] font-medium text-foreground">
                             {product.asin}

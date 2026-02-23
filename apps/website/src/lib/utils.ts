@@ -23,3 +23,16 @@ export function formatRelativeTime(date?: string | Date | null) {
 	const diffDays = Math.floor(diffHours / 24);
 	return `${diffDays}d ago`;
 }
+
+export function formatCalendarDate(date?: string | Date | null, fallback = "--") {
+	if (!date) return fallback;
+	const time = typeof date === "string" ? new Date(date) : date;
+	if (Number.isNaN(time.getTime())) return fallback;
+
+	return new Intl.DateTimeFormat("en-US", {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		timeZone: "UTC",
+	}).format(time);
+}
