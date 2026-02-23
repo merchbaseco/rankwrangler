@@ -95,9 +95,9 @@ const queryKeepaBuckets = async (): Promise<BucketRow[]> => {
     const rows = await db.execute<BucketRow>(sql`
         WITH buckets AS (
             SELECT generate_series(
-                date_trunc('minute', now() - interval '29 minutes'),
-                date_trunc('minute', now()),
-                interval '1 minute'
+                date_trunc('hour', now() - interval '23 hours'),
+                date_trunc('hour', now()),
+                interval '48 minutes'
             ) AS bucket_start
         )
         SELECT
@@ -109,7 +109,7 @@ const queryKeepaBuckets = async (): Promise<BucketRow[]> => {
         LEFT JOIN product_history_imports phi
             ON phi.source = 'keepa'
             AND phi.created_at >= b.bucket_start
-            AND phi.created_at < b.bucket_start + interval '1 minute'
+            AND phi.created_at < b.bucket_start + interval '48 minutes'
         GROUP BY b.bucket_start
         ORDER BY b.bucket_start
     `);
@@ -121,9 +121,9 @@ const querySpApiJobBuckets = async (): Promise<BucketRow[]> => {
     const rows = await db.execute<BucketRow>(sql`
         WITH buckets AS (
             SELECT generate_series(
-                date_trunc('minute', now() - interval '29 minutes'),
-                date_trunc('minute', now()),
-                interval '1 minute'
+                date_trunc('hour', now() - interval '23 hours'),
+                date_trunc('hour', now()),
+                interval '48 minutes'
             ) AS bucket_start
         )
         SELECT
@@ -134,7 +134,7 @@ const querySpApiJobBuckets = async (): Promise<BucketRow[]> => {
         FROM buckets b
         LEFT JOIN job_executions je
             ON je.started_at >= b.bucket_start
-            AND je.started_at < b.bucket_start + interval '1 minute'
+            AND je.started_at < b.bucket_start + interval '48 minutes'
             AND je.job_name = 'process-spapi-sync-queue'
         GROUP BY b.bucket_start
         ORDER BY b.bucket_start

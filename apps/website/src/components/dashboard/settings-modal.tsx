@@ -1,19 +1,20 @@
 import { useClerk, useUser } from "@clerk/clerk-react";
 import { Dialog } from "@base-ui-components/react/dialog";
 import {
+	Activity,
 	Key,
 	BarChart3,
 	Bell,
 	LogOut,
 	Monitor,
 	Moon,
-	ShieldCheck,
 	Sun,
 	User,
 	X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { AdminOperationsPanel } from "@/components/dashboard/admin-operations-panel";
+import { KeepaMetricsPanel } from "@/components/dashboard/keepa-metrics-panel";
+import { SpApiMetricsPanel } from "@/components/dashboard/spapi-metrics-panel";
 import { ApiKeyCard } from "@/components/dashboard/api-key-card";
 import { UsageCard } from "@/components/dashboard/usage-card";
 import { Button } from "@/components/ui/button";
@@ -21,14 +22,29 @@ import { useAdminAccess } from "@/hooks/use-admin-access";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
 
-type SettingsPage = "general" | "api" | "notifications" | "account" | "admin";
+type SettingsPage =
+	| "general"
+	| "api"
+	| "notifications"
+	| "account"
+	| "metrics-keepa"
+	| "metrics-spapi";
 
-const BASE_SETTINGS_NAV: Array<{ key: SettingsPage; label: string; icon: typeof Key }> = [
+type NavItem = { key: SettingsPage; label: string; icon: typeof Key };
+
+const BASE_SETTINGS_NAV: NavItem[] = [
 	{ key: "general", label: "General", icon: BarChart3 },
 	{ key: "api", label: "API Keys & Usage", icon: Key },
 	{ key: "notifications", label: "Notifications", icon: Bell },
 	{ key: "account", label: "Account", icon: User },
 ];
+
+const METRICS_NAV: NavItem[] = [
+	{ key: "metrics-keepa", label: "Keepa", icon: Activity },
+	{ key: "metrics-spapi", label: "SP-API", icon: Activity },
+];
+
+const isMetricsPage = (page: SettingsPage) => page.startsWith("metrics-");
 
 export const SettingsModal = ({
 	open,
@@ -40,13 +56,10 @@ export const SettingsModal = ({
 	const [page, setPage] = useState<SettingsPage>("general");
 	const { isAdmin } = useAdminAccess();
 
-	const settingsNav = useMemo(() => {
-		if (!isAdmin) return BASE_SETTINGS_NAV;
-		return [
-			...BASE_SETTINGS_NAV,
-			{ key: "admin" as const, label: "Admin", icon: ShieldCheck },
-		];
-	}, [isAdmin]);
+	const pageTitle = useMemo(() => {
+		const all = [...BASE_SETTINGS_NAV, ...METRICS_NAV];
+		return all.find((item) => item.key === page)?.label ?? "";
+	}, [page]);
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -58,7 +71,7 @@ export const SettingsModal = ({
 							<Dialog.Title className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 								Settings
 							</Dialog.Title>
-							{settingsNav.map((item) => (
+							{BASE_SETTINGS_NAV.map((item) => (
 								<button
 									key={item.key}
 									type="button"
@@ -74,12 +87,36 @@ export const SettingsModal = ({
 									{item.label}
 								</button>
 							))}
+
+							{isAdmin && (
+								<>
+									<p className="mt-3 px-2 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+										Metrics
+									</p>
+									{METRICS_NAV.map((item) => (
+										<button
+											key={item.key}
+											type="button"
+											onClick={() => setPage(item.key)}
+											className={cn(
+												"flex items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-sm transition-colors",
+												page === item.key
+													? "bg-accent font-medium text-foreground"
+													: "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+											)}
+										>
+											<item.icon className="size-3.5" />
+											{item.label}
+										</button>
+									))}
+								</>
+							)}
 						</nav>
 
 						<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
 							<div className="flex items-center justify-between border-b border-border px-5 py-3">
 								<h2 className="text-sm font-semibold text-foreground">
-									{settingsNav.find((item) => item.key === page)?.label}
+									{pageTitle}
 								</h2>
 								<Dialog.Close
 									className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -89,12 +126,20 @@ export const SettingsModal = ({
 								</Dialog.Close>
 							</div>
 
-							<div className="flex-1 overflow-y-auto p-5">
+							<div
+								className={cn(
+									"flex-1",
+									isMetricsPage(page)
+										? "overflow-hidden"
+										: "overflow-y-auto p-5",
+								)}
+							>
 								{page === "general" ? <GeneralSettings /> : null}
 								{page === "api" ? <ApiSettings /> : null}
 								{page === "notifications" ? <NotificationSettings /> : null}
 								{page === "account" ? <AccountSettings /> : null}
-								{page === "admin" ? <AdminSettings /> : null}
+								{page === "metrics-keepa" ? <KeepaMetricsPanel /> : null}
+								{page === "metrics-spapi" ? <SpApiMetricsPanel /> : null}
 							</div>
 						</div>
 					</Dialog.Popup>
@@ -166,10 +211,6 @@ const NotificationSettings = () => (
 			</p>
 		</div>
 	</div>
-);
-
-const AdminSettings = () => (
-	<AdminOperationsPanel />
 );
 
 const AccountSettings = () => {

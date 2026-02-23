@@ -1,11 +1,3 @@
-import { Badge } from '@/components/ui/badge';
-import {
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import type { RouterOutputs } from '@/lib/trpc';
 import { formatNumber } from '@/lib/utils';
 
@@ -20,7 +12,6 @@ type KeepaRefreshPolicyPanelProps = {
 
 export const KeepaRefreshPolicyPanel = ({
     buckets,
-    fetchGuardLabel,
     isLoading,
 }: KeepaRefreshPolicyPanelProps) => {
     const autoRefreshProducts = buckets
@@ -28,72 +19,72 @@ export const KeepaRefreshPolicyPanel = ({
         .reduce((total, bucket) => total + bucket.count, 0);
 
     return (
-        <div className="border-t border-border">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-3">
-                <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        Keepa Refresh Policy
+        <div>
+            <div className="flex items-center justify-between border-b border-border bg-accent px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Keepa Refresh
+                </p>
+                {!isLoading && (
+                    <p className="font-mono text-xs tabular-nums">
+                        <span className="text-success-foreground">
+                            {formatNumber(autoRefreshProducts)}
+                        </span>
+                        <span className="ml-1 text-muted-foreground">auto</span>
                     </p>
-                    <p className="mt-1 text-sm text-muted-foreground">{fetchGuardLabel}</p>
-                </div>
-                {!isLoading ? (
-                    <Badge variant="outline" size="sm">
-                        {formatNumber(autoRefreshProducts)} auto-enqueue eligible
-                    </Badge>
-                ) : null}
+                )}
             </div>
 
             {isLoading ? (
-                <p className="text-muted-foreground px-3 py-3 text-sm">Loading Keepa policy buckets...</p>
-            ) : null}
-
-            {!isLoading && buckets.length === 0 ? (
-                <p className="text-muted-foreground px-3 py-3 text-sm">No products found for Keepa buckets.</p>
-            ) : null}
-
-            {!isLoading && buckets.length > 0 ? (
-                <div className="overflow-auto">
-                    <table className="w-full table-auto text-sm">
-                        <colgroup>
-                            <col className="w-[300px]" />
-                            <col className="w-[260px]" />
-                            <col className="w-[160px]" />
-                            <col className="w-[130px]" />
-                        </colgroup>
-                        <TableHeader>
-                            <TableRow className="hover:bg-transparent">
-                                <TableHead>Eligibility Bucket</TableHead>
-                                <TableHead>Refresh Policy</TableHead>
-                                <TableHead className="text-right">Products</TableHead>
-                                <TableHead>Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {buckets.map((bucket) => (
-                                <TableRow key={bucket.key}>
-                                    <TableCell className="font-mono text-xs text-foreground">
-                                        {bucket.label}
-                                    </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">
-                                        {bucket.refreshEveryLabel}
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono text-xs text-foreground">
-                                        {formatNumber(bucket.count)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant={bucket.isAutoRefresh ? 'success' : 'outline'}
-                                            size="sm"
-                                        >
-                                            {bucket.isAutoRefresh ? 'Auto enqueue' : 'Manual only'}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </table>
-                </div>
-            ) : null}
+                <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>
+            ) : buckets.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-muted-foreground">No buckets.</p>
+            ) : (
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="border-b border-border">
+                            <th className="px-3 py-1 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                                Bucket
+                            </th>
+                            <th className="px-3 py-1 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                                Policy
+                            </th>
+                            <th className="px-3 py-1 text-right text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                                Count
+                            </th>
+                            <th className="w-6" />
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {buckets.map((bucket) => (
+                            <tr
+                                key={bucket.key}
+                                className="border-b border-border last:border-0"
+                            >
+                                <td className="px-3 py-1 font-mono text-foreground">
+                                    {bucket.label}
+                                </td>
+                                <td className="px-3 py-1 text-muted-foreground">
+                                    {bucket.refreshEveryLabel}
+                                </td>
+                                <td className="px-3 py-1 text-right font-mono tabular-nums text-foreground">
+                                    {formatNumber(bucket.count)}
+                                </td>
+                                <td className="px-1 py-1 text-center">
+                                    <span
+                                        className={
+                                            bucket.isAutoRefresh
+                                                ? 'text-success'
+                                                : 'text-muted-foreground/30'
+                                        }
+                                    >
+                                        ●
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
         </div>
     );
 };
