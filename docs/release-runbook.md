@@ -42,6 +42,7 @@ Update:
 - `apps/server/package.json`
 - `packages/http-client/package.json`
 - `packages/cli/package.json`
+- `apps/extension/package.json` (`@rankwrangler/http-client: ^X.Y.Z`)
 - `apps/website` footer version is auto-derived from `apps/server/package.json` in
   `apps/website/vite.config.ts` (verify this link remains intact; no manual footer edit)
 
@@ -53,9 +54,30 @@ Run from repo root:
 bun install
 bun run http-client:build
 bun run cli:build
+bun run --filter rankwrangler-extension build
 ```
 
-## 3. Publish HTTP Client First
+## 3. Confirm Scope And Get Publish Approval
+
+Before any npm publish:
+
+- Report that version/changelog updates are complete.
+- Ask for explicit publish approval (example: `Do you want me to publish to npm now?`).
+- Do not publish until the user confirms.
+
+## 4. Commit And Push Release Changes
+
+After approval, commit all release-version changes and push directly to `origin/main`
+before publishing.
+
+```bash
+git add CHANGELOG.md apps/server/package.json packages/http-client/package.json \
+  packages/cli/package.json apps/extension/package.json bun.lock
+git commit -m "release: vX.Y.Z"
+git push origin main
+```
+
+## 5. Publish HTTP Client First
 
 Run from `packages/http-client`:
 
@@ -67,21 +89,7 @@ npm whoami --userconfig ../../.npmrc
 npm publish --access public --userconfig ../../.npmrc
 ```
 
-## 4. Update Extension Dependency
-
-After publishing the HTTP client, update `apps/extension/package.json`:
-
-```bash
-"@rankwrangler/http-client": "^X.Y.Z"
-```
-
-Replace it with the current release version (example: `^0.1.3`), then run:
-
-```bash
-bun install
-```
-
-## 5. Publish CLI
+## 6. Publish CLI
 
 Run from `packages/cli`:
 
@@ -93,7 +101,7 @@ npm whoami --userconfig ../../.npmrc
 npm publish --access public --userconfig ../../.npmrc
 ```
 
-## 6. Final Validation
+## 7. Final Validation
 
 Run from repo root:
 
