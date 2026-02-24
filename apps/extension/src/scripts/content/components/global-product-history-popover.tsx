@@ -6,7 +6,7 @@ import {
 } from "../services/product-history-popover-events";
 import { ProductHistorySection } from "./product-history-section";
 
-const POPUP_WIDTH = 340;
+const TARGET_POPUP_WIDTH = 920;
 const POPUP_GAP = 8;
 const VIEWPORT_MARGIN = 8;
 
@@ -14,6 +14,7 @@ interface PopoverState {
 	position: {
 		left: number;
 		top: number;
+		width: number;
 	};
 	productIdentifier: ProductIdentifier;
 }
@@ -101,12 +102,12 @@ export const GlobalProductHistoryPopover = () => {
 
 	return (
 		<div
-			className="fixed z-[2147483647]"
+			className="fixed z-[2147483647] max-h-[calc(100vh-24px)] overflow-auto rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
 			ref={panelRef}
 			style={{
 				left: `${popoverState.position.left}px`,
 				top: `${popoverState.position.top}px`,
-				width: `${POPUP_WIDTH}px`,
+				width: `${popoverState.position.width}px`,
 			}}
 		>
 			<ProductHistorySection
@@ -123,8 +124,9 @@ export const GlobalProductHistoryPopover = () => {
 const resolvePopoverPosition = (
 	triggerRect: ProductHistoryPopoverToggleDetail["triggerRect"]
 ) => {
+	const width = resolvePopoverWidth();
 	const top = triggerRect.bottom + POPUP_GAP;
-	const maxLeft = window.innerWidth - POPUP_WIDTH - VIEWPORT_MARGIN;
+	const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
 	const clampedLeft = Math.max(
 		VIEWPORT_MARGIN,
 		Math.min(triggerRect.left, Math.max(VIEWPORT_MARGIN, maxLeft))
@@ -133,6 +135,7 @@ const resolvePopoverPosition = (
 	return {
 		left: clampedLeft,
 		top,
+		width,
 	};
 };
 
@@ -145,4 +148,13 @@ const isEventInside = (
 	}
 
 	return event.composedPath().includes(element);
+};
+
+const resolvePopoverWidth = () => {
+	const availableWidth = Math.max(0, window.innerWidth - VIEWPORT_MARGIN * 2);
+	if (availableWidth < 320) {
+		return availableWidth;
+	}
+
+	return Math.min(TARGET_POPUP_WIDTH, availableWidth);
 };

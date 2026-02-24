@@ -11,7 +11,7 @@ import type { ProductIdentifier } from "@/scripts/types/product";
 import { dispatchProductHistoryPopoverToggle } from "../services/product-history-popover-events";
 import { ProductHistorySection } from "./product-history-section";
 
-const POPUP_WIDTH = 340;
+const TARGET_POPUP_WIDTH = 920;
 const POPUP_GAP = 8;
 const VIEWPORT_MARGIN = 8;
 
@@ -25,7 +25,11 @@ export const ProductHistoryPopover = ({
 	productIdentifier: ProductIdentifier;
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
-	const [position, setPosition] = useState({ top: 0, left: 0 });
+	const [position, setPosition] = useState({
+		top: 0,
+		left: 0,
+		width: TARGET_POPUP_WIDTH,
+	});
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const panelRef = useRef<HTMLDivElement>(null);
 
@@ -35,14 +39,16 @@ export const ProductHistoryPopover = ({
 		}
 
 		const rect = buttonRef.current.getBoundingClientRect();
+		const width = resolvePopoverWidth();
 		const top = rect.bottom + POPUP_GAP;
-		const maxLeft = window.innerWidth - POPUP_WIDTH - VIEWPORT_MARGIN;
+		const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
 		const clampedLeft = Math.max(
 			VIEWPORT_MARGIN,
 			Math.min(rect.left, Math.max(VIEWPORT_MARGIN, maxLeft))
 		);
 
 		setPosition({
+			width,
 			top,
 			left: clampedLeft,
 		});
@@ -148,12 +154,12 @@ export const ProductHistoryPopover = ({
 
 			{!globalHost && isOpen ? (
 				<div
-					className="fixed z-[2147483647] rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
+					className="fixed z-[2147483647] max-h-[calc(100vh-24px)] overflow-auto rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
 					ref={panelRef}
 					style={{
 						left: `${position.left}px`,
 						top: `${position.top}px`,
-						width: `${POPUP_WIDTH}px`,
+						width: `${position.width}px`,
 					}}
 				>
 					<div className="flex items-center justify-between">
@@ -190,4 +196,13 @@ const isEventInside = (
 
 	const path = event.composedPath();
 	return path.includes(element);
+};
+
+const resolvePopoverWidth = () => {
+	const availableWidth = Math.max(0, window.innerWidth - VIEWPORT_MARGIN * 2);
+	if (availableWidth < 320) {
+		return availableWidth;
+	}
+
+	return Math.min(TARGET_POPUP_WIDTH, availableWidth);
 };
