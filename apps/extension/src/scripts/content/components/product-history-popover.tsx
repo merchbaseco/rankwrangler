@@ -8,6 +8,8 @@ import {
 	useState,
 } from "react";
 import type { ProductIdentifier } from "@/scripts/types/product";
+import { useDrawerProductInfo } from "../hooks/use-drawer-product-info";
+import { useProductHistory } from "../hooks/use-product-history";
 import { dispatchProductHistoryPopoverToggle } from "../services/product-history-popover-events";
 import { ProductHistorySection } from "./product-history-section";
 
@@ -28,6 +30,16 @@ export const ProductHistoryPopover = ({
 	const [position, setPosition] = useState({ top: 0, left: 0 });
 	const buttonRef = useRef<HTMLButtonElement>(null);
 	const panelRef = useRef<HTMLDivElement>(null);
+	const shouldLoadDrawerData = !globalHost && isOpen;
+	useDrawerProductInfo({
+		enabled: shouldLoadDrawerData,
+		productIdentifier,
+	});
+	const { chartPoints, collecting, error, isLoading, latestImportAt } =
+		useProductHistory({
+			enabled: shouldLoadDrawerData,
+			productIdentifier,
+		});
 
 	const updatePosition = useCallback(() => {
 		if (!buttonRef.current) {
@@ -170,9 +182,12 @@ export const ProductHistoryPopover = ({
 					</div>
 
 					<ProductHistorySection
+						chartPoints={chartPoints}
+						collecting={collecting}
 						compact={false}
-						enabled={isOpen}
-						productIdentifier={productIdentifier}
+						error={error}
+						isLoading={isLoading}
+						latestImportAt={latestImportAt}
 					/>
 				</div>
 			) : null}
