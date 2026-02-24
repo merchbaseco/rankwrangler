@@ -10,6 +10,8 @@ Keep release versions synchronized to the same `X.Y.Z` across these primary rele
 - `apps/server/package.json`
 - `packages/http-client/package.json`
 - `packages/cli/package.json`
+- `apps/website` dashboard footer version (`VITE_APP_VERSION`, derived from
+  `apps/server/package.json`)
 
 ## SemVer Prompt Policy (Agent Behavior)
 
@@ -40,6 +42,8 @@ Update:
 - `apps/server/package.json`
 - `packages/http-client/package.json`
 - `packages/cli/package.json`
+- `apps/website` footer version is auto-derived from `apps/server/package.json` in
+  `apps/website/vite.config.ts` (verify this link remains intact; no manual footer edit)
 
 ## 2. Build And Prepare
 
@@ -98,6 +102,7 @@ bun install
 npm view @rankwrangler/http-client version --userconfig .npmrc
 npm view @rankwrangler/cli version --userconfig .npmrc
 bun run --filter rankwrangler-extension build
+rg -n "VITE_APP_VERSION" apps/website/src/components/dashboard/app/dashboard-footer.tsx
 ```
 
 ## Fast Failure Handling

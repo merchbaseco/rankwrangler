@@ -191,6 +191,8 @@ SemVer prompt policy:
    - `apps/server/package.json`
    - `packages/http-client/package.json`
    - `packages/cli/package.json`
+   - `apps/website` dashboard footer version (auto-derived from `apps/server/package.json` via
+     `VITE_APP_VERSION`; do not hardcode a version string in the footer)
 3. Update `CHANGELOG.md` with a new release section (`## vX.Y.Z - YYYY-MM-DD`) in the existing format.
    - Changelog entries must be user-facing only (features, bug fixes, behavior changes,
      significant UX/performance improvements).
