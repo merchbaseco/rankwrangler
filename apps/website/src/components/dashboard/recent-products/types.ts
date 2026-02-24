@@ -26,6 +26,11 @@ export type SelectedHistoryProduct = {
 	thumbnailUrl: string | null;
 	brand: string | null;
 	dateFirstAvailable: string | null;
+	rootCategoryBsr: number | null;
+	rootCategoryDisplayName: string | null;
+	isMerchListing: boolean;
+	productLastFetchedAt: string | null;
+	productInfoCached: boolean | null;
 };
 
 export const MARKETPLACE_FLAGS: Record<string, string> = {

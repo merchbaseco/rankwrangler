@@ -13,6 +13,11 @@ export type ProductHistoryPanelProduct = {
 	thumbnailUrl: string | null;
 	brand: string | null;
 	dateFirstAvailable: string | null;
+	rootCategoryBsr: number | null;
+	rootCategoryDisplayName: string | null;
+	isMerchListing: boolean;
+	productLastFetchedAt: string | null;
+	productInfoCached: boolean | null;
 };
 
 export type ProductHistoryPanelProps = {

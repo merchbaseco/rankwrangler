@@ -15,6 +15,10 @@ const RowBsrButton = ({
 	thumbnailUrl,
 	brand,
 	dateFirstAvailable,
+	rootCategoryBsr,
+	rootCategoryDisplayName,
+	isMerchListing,
+	productLastFetchedAt,
 	isActive,
 	onSelect,
 }: {
@@ -25,13 +29,29 @@ const RowBsrButton = ({
 	thumbnailUrl: string | null;
 	brand: string | null;
 	dateFirstAvailable: string | null;
+	rootCategoryBsr: number | null;
+	rootCategoryDisplayName: string | null;
+	isMerchListing: boolean;
+	productLastFetchedAt: string | null;
 	isActive: boolean;
 	onSelect: (product: SelectedHistoryProduct) => void;
 }) => (
 	<button
 		type="button"
 		onClick={() => {
-			onSelect({ asin, marketplaceId, title, thumbnailUrl, brand, dateFirstAvailable });
+			onSelect({
+				asin,
+				marketplaceId,
+				title,
+				thumbnailUrl,
+				brand,
+				dateFirstAvailable,
+				rootCategoryBsr,
+				rootCategoryDisplayName,
+				isMerchListing,
+				productInfoCached: null,
+				productLastFetchedAt,
+			});
 		}}
 		className="focus-visible:ring-ring rounded-sm focus-visible:outline-none focus-visible:ring-1"
 		aria-label="Open BSR history"
@@ -153,6 +173,10 @@ export const createColumns = ({
 						thumbnailUrl={row.original.thumbnailUrl}
 						brand={row.original.brand}
 						dateFirstAvailable={row.original.dateFirstAvailable}
+						rootCategoryBsr={row.original.rootCategoryBsr}
+						rootCategoryDisplayName={null}
+						isMerchListing={row.original.isMerchListing}
+						productLastFetchedAt={row.original.lastFetched}
 						isActive={selectedHistoryKey === rowKey}
 						onSelect={onSelectHistory}
 					/>

@@ -13,8 +13,11 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 		handleDayClick,
 		handleDateRangeSelect,
 		handlePresetClick,
+		isKeepaSyncStale,
+		keepaLastSyncAt,
 		loadMutation,
 		priceQuery,
+		product: headerProduct,
 		rankMetric,
 		rankMetricValue,
 		rankQuery,
@@ -26,9 +29,11 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
     return (
         <div className="flex h-full flex-col overflow-y-auto bg-background">
             <PanelHeader
-                product={product}
+                product={headerProduct}
                 onSync={triggerKeepaSync}
                 isSyncing={loadMutation.isPending}
+                isKeepaSyncStale={isKeepaSyncStale}
+                keepaLastSyncAt={keepaLastSyncAt}
             />
             <DateRangeSelector
                 activePreset={activePreset}
