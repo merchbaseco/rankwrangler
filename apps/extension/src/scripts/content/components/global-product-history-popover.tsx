@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import type { ProductIdentifier } from "@/scripts/types/product";
-import { useDrawerProductInfo } from "../hooks/use-drawer-product-info";
-import { useProductHistory } from "../hooks/use-product-history";
 import {
 	PRODUCT_HISTORY_POPOVER_TOGGLE_EVENT,
 	type ProductHistoryPopoverToggleDetail,
@@ -22,6 +20,9 @@ interface PopoverState {
 
 export const GlobalProductHistoryPopover = () => {
 	const [popoverState, setPopoverState] = useState<PopoverState | null>(null);
+	const panelRef = useRef<HTMLDivElement>(null);
+
+	const isOpen = popoverState != null;
 
 	useEffect(() => {
 		const handleToggle = (event: Event) => {
@@ -58,53 +59,27 @@ export const GlobalProductHistoryPopover = () => {
 		};
 	}, []);
 
-	if (!popoverState) {
-		return null;
-	}
-
-	return (
-		<GlobalProductHistoryPopoverPanel
-			onClose={() => setPopoverState(null)}
-			popoverState={popoverState}
-		/>
-	);
-};
-
-const GlobalProductHistoryPopoverPanel = ({
-	onClose,
-	popoverState,
-}: {
-	onClose: () => void;
-	popoverState: PopoverState;
-}) => {
-	const panelRef = useRef<HTMLDivElement>(null);
-	useDrawerProductInfo({
-		enabled: true,
-		productIdentifier: popoverState.productIdentifier,
-	});
-	const { chartPoints, collecting, error, isLoading, latestImportAt } =
-		useProductHistory({
-			enabled: true,
-			productIdentifier: popoverState.productIdentifier,
-		});
-
 	useEffect(() => {
+		if (!isOpen) {
+			return;
+		}
+
 		const handlePointerDown = (event: MouseEvent) => {
 			if (isEventInside(event, panelRef.current)) {
 				return;
 			}
 
-			onClose();
+			setPopoverState(null);
 		};
 
 		const handleEscape = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
-				onClose();
+				setPopoverState(null);
 			}
 		};
 
 		const handleViewportChange = () => {
-			onClose();
+			setPopoverState(null);
 		};
 
 		window.addEventListener("mousedown", handlePointerDown);
@@ -118,7 +93,11 @@ const GlobalProductHistoryPopoverPanel = ({
 			window.removeEventListener("scroll", handleViewportChange, true);
 			window.removeEventListener("resize", handleViewportChange);
 		};
-	}, [onClose]);
+	}, [isOpen]);
+
+	if (!popoverState) {
+		return null;
+	}
 
 	return (
 		<div
@@ -131,12 +110,9 @@ const GlobalProductHistoryPopoverPanel = ({
 			}}
 		>
 			<ProductHistorySection
-				chartPoints={chartPoints}
-				collecting={collecting}
 				compact={false}
-				error={error}
-				isLoading={isLoading}
-				latestImportAt={latestImportAt}
+				enabled={isOpen}
+				productIdentifier={popoverState.productIdentifier}
 				showChartHeader={false}
 				showLastSync={false}
 			/>
