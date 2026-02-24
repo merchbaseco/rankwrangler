@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## v0.2.2 - 2026-02-24
+
+### Added
+
+- Add dashboard-style BSR chart styling to the extension product view.
+- Add Keepa stale sync tests and documentation coverage.
+
+### Changed
+
+- Add bottom border to the appearance settings section for stronger visual separation.
+- Clarify agent guidance for work-in-progress rewrite expectations.
+
+### Fixed
+
+- Clarify history chart date labeling behavior.
+
 ## v0.2.1 - 2026-02-22
 
 ### Added

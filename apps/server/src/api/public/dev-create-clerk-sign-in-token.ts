@@ -6,12 +6,12 @@ import { publicProcedure } from '@/api/trpc.js';
 const SIGN_IN_TOKEN_TTL_SECONDS = 60;
 
 export const devCreateClerkSignInToken = publicProcedure.mutation(async ({ ctx }) => {
-    assertDevSignInIsEnabled();
+    const devSignInUserId = assertDevSignInIsEnabled();
     assertRequestIsLocalhost(ctx.request.headers.host);
 
     const clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY });
     const signInToken = await clerkClient.signInTokens.createSignInToken({
-        userId: env.DEV_CLERK_SIGN_IN_USER_ID,
+        userId: devSignInUserId,
         expiresInSeconds: SIGN_IN_TOKEN_TTL_SECONDS,
     });
 
@@ -21,7 +21,7 @@ export const devCreateClerkSignInToken = publicProcedure.mutation(async ({ ctx }
     };
 });
 
-const assertDevSignInIsEnabled = () => {
+const assertDevSignInIsEnabled = (): string => {
     if (process.env.NODE_ENV === 'production') {
         throw new TRPCError({
             code: 'FORBIDDEN',
@@ -35,6 +35,8 @@ const assertDevSignInIsEnabled = () => {
             message: 'Dev Clerk sign-in token flow is not configured',
         });
     }
+
+    return env.DEV_CLERK_SIGN_IN_USER_ID;
 };
 
 const assertRequestIsLocalhost = (hostHeader?: string) => {
