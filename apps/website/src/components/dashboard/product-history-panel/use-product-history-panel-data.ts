@@ -10,6 +10,7 @@ import type {
 	SelectOption,
 } from '@/components/dashboard/product-history-panel/types';
 import { DATE_RANGES } from '@/components/dashboard/product-history-panel/types';
+import { useProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/use-product-history-panel-product';
 import { toastManager } from '@/components/ui/toast';
 import { api } from '@/lib/trpc';
 
@@ -20,6 +21,7 @@ export const useProductHistoryPanelData = ({
 }: {
 	product: ProductHistoryPanelProduct;
 }) => {
+	const resolvedProduct = useProductHistoryPanelProduct({ product });
 	const [activePreset, setActivePreset] = useState<ActiveRange>('1y');
 	const [customRange, setCustomRange] = useState<PickerValue>(null);
 	const [datePickerRange, setDatePickerRange] = useState<PickerRange>();
@@ -238,6 +240,12 @@ export const useProductHistoryPanelData = ({
 		});
 	}, [loadMutation, product.marketplaceId, product.asin]);
 
+	const keepaLastSyncAt = rankQuery.data?.latestImportAt ?? null;
+	const isKeepaSyncStale =
+		!keepaLastSyncAt ||
+		!Number.isFinite(Date.parse(keepaLastSyncAt)) ||
+		Date.now() - Date.parse(keepaLastSyncAt) > KEEPA_STALE_REFRESH_MS;
+
 	const hasCheckedAutoRefreshRef = useRef(false);
 	useEffect(() => {
 		if (hasCheckedAutoRefreshRef.current || rankQuery.isLoading) {
@@ -249,16 +257,10 @@ export const useProductHistoryPanelData = ({
 			return;
 		}
 
-		const latestImportAt = rankQuery.data?.latestImportAt;
-		const shouldSync =
-			!latestImportAt ||
-			!Number.isFinite(Date.parse(latestImportAt)) ||
-			Date.now() - Date.parse(latestImportAt) > KEEPA_STALE_REFRESH_MS;
-
-		if (shouldSync) {
+		if (isKeepaSyncStale) {
 			triggerKeepaSync();
 		}
-	}, [rankQuery.isLoading, rankQuery.isError, rankQuery.data?.latestImportAt, triggerKeepaSync]);
+	}, [rankQuery.isLoading, rankQuery.isError, isKeepaSyncStale, triggerKeepaSync]);
 
 	return {
 		activePreset,
@@ -268,12 +270,15 @@ export const useProductHistoryPanelData = ({
 		handleDayClick,
 		handleDateRangeSelect,
 		handlePresetClick,
+		isKeepaSyncStale,
+		keepaLastSyncAt,
 		loadMutation,
 		priceQuery,
 		rankMetric,
 		rankMetricValue,
 		rankQuery,
 		rankSelectOptions,
+		product: resolvedProduct,
 		setRankMetricValue,
 		setDatePickerRange,
 		triggerKeepaSync,
