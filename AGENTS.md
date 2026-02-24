@@ -24,6 +24,8 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 6. Keep shell scripts executable (`chmod +x`).
 7. Keep startup status summary in `apps/server/src/index.ts` current when adding jobs/services.
 8. Never commit secrets. If a secret is exposed in git, rotate/revoke before history cleanup.
+9. This is a work-in-progress codebase: optimize for the best aspirational end state, not legacy
+   compatibility. Remove or rewrite outdated code as needed.
 
 ## API + Code Design
 
