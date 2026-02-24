@@ -106,6 +106,8 @@ Queue table: `keepa_history_refresh_queue`
 ## Manual Requests
 
 - Dashboard history modal auto-requests Keepa sync when no Keepa import exists or the latest successful import is older than 48 hours.
+- While that stale refresh is in-flight, the modal keeps rendering existing history points and swaps to new
+  points after sync completion.
 - Manual dashboard requests use high-priority Keepa queueing.
 - HTTP request stays open for up to 2 minutes and retries on retryable Keepa failures.
 - Retry policy uses exponential backoff within the 2-minute window.

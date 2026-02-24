@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
+import {
+    isKeepaSyncStale as getIsKeepaSyncStale,
+    shouldEvaluateKeepaAutoRefresh,
+    shouldTriggerKeepaSync,
+} from '@/components/dashboard/product-history-panel/keepa-sync-state';
 import type {
 	ActiveRange,
 	CategoryOption,
@@ -13,8 +18,6 @@ import { DATE_RANGES } from '@/components/dashboard/product-history-panel/types'
 import { useProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/use-product-history-panel-product';
 import { toastManager } from '@/components/ui/toast';
 import { api } from '@/lib/trpc';
-
-const KEEPA_STALE_REFRESH_MS = 48 * 60 * 60 * 1000;
 
 export const useProductHistoryPanelData = ({
 	product,
@@ -241,25 +244,30 @@ export const useProductHistoryPanelData = ({
 	}, [loadMutation, product.marketplaceId, product.asin]);
 
 	const keepaLastSyncAt = rankQuery.data?.latestImportAt ?? null;
-	const isKeepaSyncStale =
-		!keepaLastSyncAt ||
-		!Number.isFinite(Date.parse(keepaLastSyncAt)) ||
-		Date.now() - Date.parse(keepaLastSyncAt) > KEEPA_STALE_REFRESH_MS;
+	const isKeepaSyncStale = getIsKeepaSyncStale({ keepaLastSyncAt });
 
 	const hasCheckedAutoRefreshRef = useRef(false);
 	useEffect(() => {
-		if (hasCheckedAutoRefreshRef.current || rankQuery.isLoading) {
+		if (
+			!shouldEvaluateKeepaAutoRefresh({
+				hasCheckedAutoRefresh: hasCheckedAutoRefreshRef.current,
+				isRankQueryLoading: rankQuery.isLoading,
+			})
+		) {
 			return;
 		}
 
 		hasCheckedAutoRefreshRef.current = true;
-		if (rankQuery.isError) {
+		if (
+			!shouldTriggerKeepaSync({
+				isRankQueryError: rankQuery.isError,
+				isKeepaSyncStale,
+			})
+		) {
 			return;
 		}
 
-		if (isKeepaSyncStale) {
-			triggerKeepaSync();
-		}
+		triggerKeepaSync();
 	}, [rankQuery.isLoading, rankQuery.isError, isKeepaSyncStale, triggerKeepaSync]);
 
 	return {
