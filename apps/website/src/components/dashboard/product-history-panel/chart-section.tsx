@@ -14,6 +14,7 @@ import {
     downsamplePoints,
     formatAxisValue,
     formatDateShort,
+    formatDateTooltip,
     formatValue,
     MAX_CHART_POINTS,
 } from '@/components/dashboard/product-history-panel/chart-utils';
@@ -203,13 +204,9 @@ export const ChartSection = ({
                                     {rangeStartTimestamp !== null &&
                                     rangeEndTimestamp !== null ? (
                                         <p className="font-mono text-[10px] text-muted-foreground">
-                                            {formatDateShort(
-                                                rangeStartTimestamp,
-                                            )}{' '}
+                                            {formatDateTooltip(rangeStartTimestamp)}{' '}
                                             &ndash;{' '}
-                                            {formatDateShort(
-                                                rangeEndTimestamp,
-                                            )}
+                                            {formatDateTooltip(rangeEndTimestamp)}
                                         </p>
                                     ) : null}
                                 </>
@@ -377,7 +374,7 @@ const HistoryTooltip = ({
                 {formatValue(metric, point.value)}
             </p>
             <p className="font-mono text-[10px] text-muted-foreground">
-                {formatDateShort(point.timestamp)}
+                {formatDateTooltip(point.timestamp)}
             </p>
         </div>
     );
