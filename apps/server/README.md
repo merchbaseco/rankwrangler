@@ -200,6 +200,7 @@ curl -s -X POST http://localhost:8080/api/api.app.loadProductHistory \
 
 Manual Keepa import behavior:
 - Dashboard history modal auto-requests `api.app.loadProductHistory` when no Keepa import exists or the latest successful import is older than 48 hours.
+- While stale refresh is in-flight, existing Keepa points remain visible in the modal until refreshed data arrives.
 - Requests use high-priority Keepa queueing and may wait up to 2 minutes before returning.
 - Retryable Keepa failures are retried with exponential backoff during that 2-minute window.
 - If retries do not succeed within 2 minutes, API returns `TIMEOUT`; retrying is expected.
