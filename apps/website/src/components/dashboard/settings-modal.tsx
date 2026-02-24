@@ -131,7 +131,7 @@ export const SettingsModal = ({
 									"flex-1",
 									isMetricsPage(page)
 										? "overflow-hidden"
-										: "overflow-y-auto p-5",
+										: "overflow-y-auto",
 								)}
 							>
 								{page === "general" ? <GeneralSettings /> : null}
@@ -159,55 +159,54 @@ const GeneralSettings = () => {
 	const { theme, setTheme } = useTheme();
 
 	return (
-		<div className="space-y-5">
-			<div>
-				<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+		<div>
+			<div className="flex items-center justify-between border-b border-border bg-accent px-3 py-2">
+				<p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
 					Appearance
 				</p>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Choose how the dashboard looks.
-				</p>
-				<div className="mt-3 flex gap-2">
-					{THEME_OPTIONS.map((option) => (
-						<button
-							key={option.key}
-							type="button"
-							onClick={() => setTheme(option.key)}
-							className={cn(
-								"flex flex-1 flex-col items-center gap-2 rounded-sm border p-3 transition-colors",
-								theme === option.key
-									? "border-primary bg-accent text-foreground"
-									: "border-border bg-card text-muted-foreground hover:border-input hover:text-foreground",
-							)}
-						>
-							<option.icon className="size-5" />
-							<span className="text-xs font-medium">{option.label}</span>
-						</button>
-					))}
-				</div>
+			</div>
+			<div className="grid grid-cols-3">
+				{THEME_OPTIONS.map((option, i) => (
+					<button
+						key={option.key}
+						type="button"
+						onClick={() => setTheme(option.key)}
+						className={cn(
+							"flex flex-col items-center gap-2 p-4 transition-colors",
+							i < THEME_OPTIONS.length - 1 && "border-r border-border",
+							theme === option.key
+								? "bg-accent text-foreground"
+								: "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+						)}
+					>
+						<option.icon className="size-5" />
+						<span className="text-xs font-medium">{option.label}</span>
+					</button>
+				))}
 			</div>
 		</div>
 	);
 };
 
 const ApiSettings = () => (
-	<div className="grid gap-3 md:grid-cols-2">
+	<div>
 		<UsageCard />
-		<ApiKeyCard />
+		<div className="border-t border-border">
+			<ApiKeyCard />
+		</div>
 	</div>
 );
 
 const NotificationSettings = () => (
-	<div className="space-y-4">
-		<p className="text-sm text-muted-foreground">
-			Configure how you receive notifications.
-		</p>
-		<div className="rounded-sm border border-border p-4">
-			<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+	<div>
+		<div className="flex items-center justify-between border-b border-border bg-accent px-3 py-2">
+			<p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
 				Alerts
 			</p>
-			<p className="mt-2 text-sm text-muted-foreground">
-				Notification preferences will appear here.
+		</div>
+		<div className="px-3 py-3">
+			<p className="text-xs text-muted-foreground">
+				Notification preferences coming soon.
 			</p>
 		</div>
 	</div>
@@ -226,17 +225,22 @@ const AccountSettings = () => {
 		: null;
 
 	return (
-		<div className="space-y-5">
-			<div className="flex items-center gap-4 rounded-sm border border-border p-4">
+		<div>
+			<div className="flex items-center justify-between border-b border-border bg-accent px-3 py-2">
+				<p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+					Profile
+				</p>
+			</div>
+			<div className="flex items-center gap-4 px-3 py-3">
 				{avatarUrl ? (
 					<img
 						src={avatarUrl}
 						alt={name}
-						className="size-14 rounded-full border border-border"
+						className="size-10 rounded-full border border-border"
 					/>
 				) : (
-					<div className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
-						<User className="size-6" />
+					<div className="grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">
+						<User className="size-4" />
 					</div>
 				)}
 				<div className="min-w-0 flex-1">
@@ -245,18 +249,20 @@ const AccountSettings = () => {
 						<p className="mt-0.5 text-xs text-muted-foreground">{email}</p>
 					) : null}
 					{providerLabel ? (
-						<p className="mt-1 text-xs font-mono text-muted-foreground">
-							Signed in via {providerLabel}
+						<p className="mt-0.5 font-mono text-xs text-muted-foreground">
+							via {providerLabel}
 						</p>
 					) : null}
 				</div>
 			</div>
 
-			<div>
-				<p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-					Actions
-				</p>
-				<div className="mt-2">
+			<div className="border-t border-border">
+				<div className="flex items-center justify-between border-b border-border bg-accent px-3 py-2">
+					<p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+						Actions
+					</p>
+				</div>
+				<div className="px-3 py-3">
 					<Button
 						variant="destructive-outline"
 						size="sm"
