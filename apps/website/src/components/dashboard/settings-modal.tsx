@@ -165,7 +165,7 @@ const GeneralSettings = () => {
 					Appearance
 				</p>
 			</div>
-			<div className="grid grid-cols-3">
+			<div className="grid grid-cols-3 border-b border-border">
 				{THEME_OPTIONS.map((option, i) => (
 					<button
 						key={option.key}
