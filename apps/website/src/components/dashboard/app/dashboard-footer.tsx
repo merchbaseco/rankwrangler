@@ -21,7 +21,7 @@ export const DashboardFooter = ({
 						: `${productCount} products loaded`
 					: null}
 			</span>
-			<span>RankWrangler v2.4.1</span>
+			<span>{`RankWrangler v${import.meta.env.VITE_APP_VERSION}`}</span>
 		</div>
 	</div>
 );

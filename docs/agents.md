@@ -11,6 +11,8 @@ When asked to do a version bump:
    - `apps/server/package.json`
    - `packages/http-client/package.json`
    - `packages/cli/package.json`
+   - `apps/website` dashboard footer version (auto-derived from
+     `apps/server/package.json` via `VITE_APP_VERSION`; no hardcoded footer version)
 3. Update `CHANGELOG.md` with a new `vX.Y.Z` entry using the existing changelog style.
 4. Confirm completion with the user and wait for explicit approval before publishing.
 5. After approval, publish in order:
