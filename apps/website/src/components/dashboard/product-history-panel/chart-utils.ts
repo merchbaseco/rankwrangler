@@ -160,6 +160,13 @@ export const formatDateShort = (timestamp: number) =>
 		new Date(timestamp),
 	);
 
+export const formatDateTooltip = (timestamp: number) =>
+	new Intl.DateTimeFormat('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	}).format(new Date(timestamp));
+
 type EvenYAxisScale = {
 	domain: [number, number];
 	ticks: number[];
