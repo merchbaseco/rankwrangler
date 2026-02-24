@@ -1,28 +1,28 @@
 import { useId } from "react";
-import type { ProductIdentifier } from "@/scripts/types/product";
-import { useProductHistory } from "../hooks/use-product-history";
+import type { ChartPoint } from "../hooks/use-product-history";
 import { ProductHistoryChart } from "./product-history-chart";
 
 export const ProductHistorySection = ({
+	chartPoints,
+	collecting,
 	compact = false,
-	enabled,
-	productIdentifier,
+	error,
+	isLoading,
+	latestImportAt,
 	showChartHeader = true,
 	showLastSync = true,
 }: {
+	chartPoints: ChartPoint[];
+	collecting: boolean;
 	compact?: boolean;
-	enabled: boolean;
-	productIdentifier: ProductIdentifier;
+	error: string | null;
+	isLoading: boolean;
+	latestImportAt: string | null;
 	showChartHeader?: boolean;
 	showLastSync?: boolean;
 }) => {
 	const uniqueId = useId();
 	const chartId = `rw-history-${uniqueId.replace(/:/g, "")}`;
-	const { chartPoints, collecting, error, isLoading, latestImportAt } =
-		useProductHistory({
-			enabled,
-			productIdentifier,
-		});
 
 	return (
 		<div className="w-full">
