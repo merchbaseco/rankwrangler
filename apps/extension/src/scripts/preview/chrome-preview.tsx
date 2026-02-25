@@ -24,7 +24,7 @@ const POPUP_PREVIEW_STATES: { label: string; value: PopupPreviewState }[] = [
 ];
 
 const ACTIVE_LICENSE: License = {
-	key: "RWL-8QW2-ABCD-9JKL",
+	key: "LICENSE-KEY-EXAMPLE-ACTIVE",
 	email: "you@example.com",
 	isValid: true,
 	lastValidated: Date.now(),
@@ -33,7 +33,7 @@ const ACTIVE_LICENSE: License = {
 };
 
 const INVALID_LICENSE: License = {
-	key: "RWL-1234-EXPIRED-9999",
+	key: "LICENSE-KEY-EXAMPLE-INVALID",
 	email: "you@example.com",
 	isValid: false,
 	lastValidated: Date.now(),
