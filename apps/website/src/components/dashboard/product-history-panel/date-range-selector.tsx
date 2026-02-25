@@ -1,6 +1,5 @@
 import { format } from 'date-fns';
 import { CalendarDays } from 'lucide-react';
-import type { DateRange } from 'react-day-picker';
 import { DATE_RANGES } from '@/components/dashboard/product-history-panel/types';
 import type {
 	ActiveRange,
@@ -25,7 +24,7 @@ export const DateRangeSelector = ({
     customRange: PickerValue;
     datePickerRange: PickerRange;
     onDayClick: (date: Date) => void;
-    onDateRangeSelect: (range: DateRange | undefined) => void;
+    onDateRangeSelect: (range: PickerRange) => void;
     onPresetClick: (key: DateRangeKey) => void;
 }) => (
     <div className="flex h-8 items-center border-b border-border bg-muted/30 pl-1 pr-3">
@@ -42,7 +41,7 @@ export const DateRangeSelector = ({
                             : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                     )}
                 >
-                    {range.key === 'all' ? 'ALL' : range.key.toUpperCase()}
+                    {range.shortLabel}
                 </button>
             ))}
             <Popover>

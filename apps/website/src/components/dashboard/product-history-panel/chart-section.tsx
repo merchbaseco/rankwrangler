@@ -1,27 +1,12 @@
-import { useMemo } from 'react';
+import { HistoryAreaChart } from '@rankwrangler/history-chart/history-area-chart';
 import {
-    Area,
-    AreaChart,
-    ReferenceDot,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
-import { buildPoints } from '@/components/dashboard/product-history-panel/chart-data';
-import {
-    buildEvenYAxisScale,
-    downsamplePoints,
-    formatAxisValue,
-    formatDateShort,
+    buildHistoryChartState,
     formatDateTooltip,
-    formatValue,
     MAX_CHART_POINTS,
-} from '@/components/dashboard/product-history-panel/chart-utils';
-import {
-    buildXAxisFormatter,
-    buildXAxisTicks,
-} from '@/components/dashboard/product-history-panel/chart-x-axis';
+} from '@rankwrangler/history-chart/history-chart-utils';
+import { useMemo } from 'react';
+import { buildPoints } from '@/components/dashboard/product-history-panel/chart-data';
+import { formatAxisValue, formatValue } from '@/components/dashboard/product-history-panel/chart-utils';
 import { ChartSkeleton } from '@/components/dashboard/product-history-panel/syncing-chart-placeholder';
 import type {
     HistoryQueryResult,
@@ -49,11 +34,6 @@ type ChartSectionProps = {
     timeDomain?: HistoryTimeDomain | null;
 };
 
-type ChartDatum = {
-    timestamp: number;
-    value: number;
-};
-
 export const ChartSection = ({
     label,
     selectValue,
@@ -66,24 +46,18 @@ export const ChartSection = ({
     isSyncing,
     timeDomain,
 }: ChartSectionProps) => {
-    const points = useMemo(
+    const points = useMemo(() => buildPoints({ query }), [query]);
+    const chartState = useMemo(
         () =>
-            buildPoints({
-                query,
+            buildHistoryChartState({
+                points,
                 timeDomain,
+                maxPoints: MAX_CHART_POINTS,
+                yMin: 0,
+                yTickCount: 5,
             }),
-        [query, timeDomain],
+        [points, timeDomain],
     );
-    const sampledPoints = useMemo(
-        () => downsamplePoints(points, MAX_CHART_POINTS),
-        [points],
-    );
-    const latestPoint = sampledPoints.at(-1) ?? null;
-    const firstPoint = sampledPoints[0] ?? null;
-    const rangeStartTimestamp =
-        timeDomain?.startAt ?? firstPoint?.timestamp ?? null;
-    const rangeEndTimestamp =
-        timeDomain?.endAt ?? latestPoint?.timestamp ?? null;
 
     const selectedOptionLabel = useMemo(
         () =>
@@ -93,51 +67,16 @@ export const ChartSection = ({
     );
 
     const isLoading = query.isLoading && !query.data;
-    const hasData = sampledPoints.length > 0;
-    const color = isPrice
-        ? 'var(--color-chart-4)'
-        : 'var(--color-chart-1)';
-    const xDomain = useMemo<[number, number] | undefined>(() => {
-        if (rangeStartTimestamp === null || rangeEndTimestamp === null) {
-            return undefined;
-        }
-
-        const min = Math.min(rangeStartTimestamp, rangeEndTimestamp);
-        const max = Math.max(rangeStartTimestamp, rangeEndTimestamp);
-        if (min === max) {
-            return [min - ONE_DAY_IN_MS, max + ONE_DAY_IN_MS];
-        }
-        return [min, max];
-    }, [rangeEndTimestamp, rangeStartTimestamp]);
-    const yScale = useMemo(
-        () =>
-            buildEvenYAxisScale(
-                sampledPoints.map((point) => point.value),
-                { min: 0, tickCount: 5 },
-            ),
-        [sampledPoints],
-    );
-
-    const xTicks = useMemo(() => {
-        if (!xDomain) {
-            return undefined;
-        }
-        return buildXAxisTicks(xDomain[0], xDomain[1]);
-    }, [xDomain]);
-
-    const xTickFormatter = useMemo(() => {
-        if (!xDomain) {
-            return formatDateShort;
-        }
-        return buildXAxisFormatter(xDomain[0], xDomain[1]);
-    }, [xDomain]);
-
-    const chartData = sampledPoints as ChartDatum[];
+    const hasData = chartState.hasData;
+    const latestPoint = chartState.latestPoint;
+    const rangeStartTimestamp = chartState.rangeStartTimestamp;
+    const rangeEndTimestamp = chartState.rangeEndTimestamp;
+    const color = isPrice ? 'var(--color-chart-4)' : 'var(--color-chart-1)';
 
     return (
-        <div className="border-b border-border bg-card">
-            <div className="flex h-8 items-center justify-between border-b border-border bg-muted/30 pl-3 pr-1.5">
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className='border-b border-border bg-card'>
+            <div className='flex h-8 items-center justify-between border-b border-border bg-muted/30 pl-3 pr-1.5'>
+                <span className='font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground'>
                     {label}
                 </span>
                 {selectOptions.length > 0 ? (
@@ -150,8 +89,8 @@ export const ChartSection = ({
                         }}
                     >
                         <SelectTrigger
-                            size="sm"
-                            className="h-5 w-auto border-0 bg-transparent px-1 font-mono text-[11px] shadow-none"
+                            size='sm'
+                            className='h-5 w-auto border-0 bg-transparent px-1 font-mono text-[11px] shadow-none'
                         >
                             <SelectValue>
                                 {selectedOptionLabel}
@@ -172,210 +111,84 @@ export const ChartSection = ({
             </div>
             <div>
                 {query.isError ? (
-                    <div className="mx-3 my-3 border border-red-200 bg-red-50/50 p-2 font-mono text-xs text-red-700">
+                    <div className='mx-3 my-3 border border-red-200 bg-red-50/50 p-2 font-mono text-xs text-red-700'>
                         {query.error?.message}
                     </div>
                 ) : !isLoading &&
                   !hasData &&
                   !isSyncing ? (
-                    <div className="flex items-center justify-center py-6">
-                        <p className="font-mono text-xs text-muted-foreground">
+                    <div className='flex items-center justify-center py-6'>
+                        <p className='font-mono text-xs text-muted-foreground'>
                             No data for this range.
                         </p>
                     </div>
                 ) : (
                     <>
-                        <div className="flex items-baseline gap-2.5 px-3 pt-2 pb-1">
+                        <div className='flex items-baseline gap-2.5 px-3 pt-2 pb-1'>
                             {isLoading || (!hasData && isSyncing) ? (
-                                <ChartSkeleton variant="header" />
+                                <ChartSkeleton variant='header' />
                             ) : (
                                 <>
                                     <p
-                                        className="font-mono text-xl font-bold tracking-tight"
+                                        className='font-mono text-xl font-bold tracking-tight'
                                         style={{ color }}
                                     >
                                         {latestPoint
-                                            ? formatValue(
-                                                  metric,
-                                                  latestPoint.value,
-                                              )
+                                            ? formatValue(metric, latestPoint.value)
                                             : '-'}
                                     </p>
                                     {rangeStartTimestamp !== null &&
                                     rangeEndTimestamp !== null ? (
-                                        <p className="font-mono text-[10px] text-muted-foreground">
-                                            {formatDateTooltip(rangeStartTimestamp)}{' '}
-                                            &ndash;{' '}
+                                        <p className='font-mono text-[10px] text-muted-foreground'>
+                                            {formatDateTooltip(rangeStartTimestamp)}
+                                            {' '}
+                                            &ndash;
+                                            {' '}
                                             {formatDateTooltip(rangeEndTimestamp)}
                                         </p>
                                     ) : null}
                                 </>
                             )}
                         </div>
-                        <div className="h-[180px]">
+                        <div>
                             {isLoading || (!hasData && isSyncing) ? (
-                                <ChartSkeleton variant="chart" />
+                                <ChartSkeleton variant='chart' />
                             ) : hasData ? (
-                                <div className="h-full cursor-crosshair">
-                                    <ResponsiveContainer
-                                        width="100%"
-                                        height="100%"
-                                    >
-                                        <AreaChart
-                                            data={chartData}
-                                            margin={{
-                                                top: 4,
-                                                right: 36,
-                                                bottom: 4,
-                                                left: 0,
-                                            }}
-                                        >
-                                            <defs>
-                                                <linearGradient
-                                                    id={gradientId}
-                                                    x1="0"
-                                                    y1="0"
-                                                    x2="0"
-                                                    y2="1"
-                                                >
-                                                    <stop
-                                                        offset="0%"
-                                                        stopColor={color}
-                                                        stopOpacity="0.18"
-                                                    />
-                                                    <stop
-                                                        offset="100%"
-                                                        stopColor={color}
-                                                        stopOpacity="0.01"
-                                                    />
-                                                </linearGradient>
-                                            </defs>
-                                            <XAxis
-                                                type="number"
-                                                dataKey="timestamp"
-                                                domain={
-                                                    xDomain ?? [
-                                                        'auto',
-                                                        'auto',
-                                                    ]
-                                                }
-                                                ticks={xTicks}
-                                                tickFormatter={xTickFormatter}
-                                                axisLine={false}
-                                                tickLine={false}
-                                                minTickGap={48}
-                                                tickMargin={6}
-                                                style={{
-                                                    fill: 'var(--color-muted-foreground)',
-                                                    fontSize: 10,
-                                                    fontFamily:
-                                                        'var(--font-mono)',
-                                                }}
-                                            />
-                                            <YAxis
-                                                type="number"
-                                                domain={yScale.domain}
-                                                ticks={yScale.ticks}
-                                                width={44}
-                                                tickFormatter={(value) =>
-                                                    formatAxisValue(
-                                                        metric,
-                                                        Number(value),
-                                                    )
-                                                }
-                                                axisLine={false}
-                                                tickLine={false}
-                                                tickMargin={4}
-                                                style={{
-                                                    fill: 'var(--color-muted-foreground)',
-                                                    fontSize: 10,
-                                                    fontFamily:
-                                                        'var(--font-mono)',
-                                                }}
-                                            />
-                                            <Tooltip
-                                                isAnimationActive={false}
-                                                cursor={{
-                                                    stroke: color,
-                                                    strokeWidth: 1.5,
-                                                    opacity: 0.3,
-                                                }}
-                                                content={
-                                                    <HistoryTooltip
-                                                        metric={metric}
-                                                        color={color}
-                                                    />
-                                                }
-                                            />
-                                            <Area
-                                                type="stepAfter"
-                                                dataKey="value"
-                                                stroke={color}
-                                                strokeWidth={2.5}
-                                                fill={`url(#${gradientId})`}
-                                                isAnimationActive={false}
-                                                dot={false}
-                                                activeDot={{
-                                                    r: 4,
-                                                    fill: color,
-                                                    stroke: 'var(--color-card)',
-                                                    strokeWidth: 2,
-                                                }}
-                                            />
-                                            {latestPoint ? (
-                                                <ReferenceDot
-                                                    x={
-                                                        latestPoint.timestamp
-                                                    }
-                                                    y={latestPoint.value}
-                                                    r={3}
-                                                    fill={color}
-                                                    stroke="var(--color-card)"
-                                                    strokeWidth={2}
-                                                    ifOverflow="hidden"
-                                                />
-                                            ) : null}
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
+                                <HistoryAreaChart
+                                    chartState={chartState}
+                                    color={color}
+                                    gradientId={gradientId}
+                                    valueFormatter={(value) =>
+                                        formatValue(metric, value)
+                                    }
+                                    axisValueFormatter={(value) =>
+                                        formatAxisValue(metric, value)
+                                    }
+                                    heightClassName='h-[180px]'
+                                    chartClassName='h-full cursor-crosshair'
+                                    yAxisWidth={44}
+                                    xAxisMinTickGap={48}
+                                    xAxisTickMargin={6}
+                                    yAxisTickMargin={4}
+                                    axisColor='var(--color-muted-foreground)'
+                                    axisFontSize={10}
+                                    axisFontFamily='var(--font-mono)'
+                                    cardStrokeColor='var(--color-card)'
+                                    tooltipContainerClassName='border border-border bg-card px-2.5 py-1.5 shadow-sm'
+                                    tooltipValueClassName='font-mono text-sm font-bold'
+                                    tooltipDateClassName='font-mono text-[10px] text-muted-foreground'
+                                    margin={{
+                                        top: 4,
+                                        right: 36,
+                                        bottom: 4,
+                                        left: 0,
+                                    }}
+                                />
                             ) : null}
                         </div>
                     </>
                 )}
             </div>
-        </div>
-    );
-};
-
-const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
-
-const HistoryTooltip = ({
-    active,
-    payload,
-    metric,
-    color,
-}: {
-    active?: boolean;
-    payload?: Array<{ payload?: ChartDatum }>;
-    metric: string;
-    color: string;
-}) => {
-    const point = payload?.[0]?.payload;
-    if (!active || !point) {
-        return null;
-    }
-
-    return (
-        <div className="border border-border bg-card px-2.5 py-1.5 shadow-sm">
-            <p
-                className="font-mono text-sm font-bold"
-                style={{ color }}
-            >
-                {formatValue(metric, point.value)}
-            </p>
-            <p className="font-mono text-[10px] text-muted-foreground">
-                {formatDateTooltip(point.timestamp)}
-            </p>
         </div>
     );
 };

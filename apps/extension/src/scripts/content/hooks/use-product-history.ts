@@ -1,3 +1,5 @@
+import type { HistoryChartPoint } from "@rankwrangler/history-chart/history-chart-types";
+import { normalizeHistoryPoints } from "@rankwrangler/history-chart/history-chart-utils";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { getProductHistory } from "@/scripts/api/get-product-history";
@@ -6,10 +8,7 @@ import type {
 	ProductIdentifier,
 } from "@/scripts/types/product";
 
-export interface ChartPoint {
-	timestamp: number;
-	value: number;
-}
+export type ChartPoint = HistoryChartPoint;
 
 export const useProductHistory = ({
 	enabled,
@@ -64,19 +63,7 @@ const buildChartPoints = (
 		return [];
 	}
 
-	return history.points
-		.filter(
-			(point) =>
-				!point.isMissing &&
-				typeof point.value === "number" &&
-				Number.isFinite(point.value)
-		)
-		.map((point) => ({
-			timestamp: Date.parse(point.observedAt),
-			value: point.value as number,
-		}))
-		.filter((point) => Number.isFinite(point.timestamp))
-		.sort((left, right) => left.timestamp - right.timestamp);
+	return normalizeHistoryPoints(history.points);
 };
 
 const resolveHistoryError = (

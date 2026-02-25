@@ -1,0 +1,20 @@
+{
+    "name": "@rankwrangler/history-chart",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "sideEffects": false,
+    "exports": {
+        "./history-area-chart": "./history-area-chart.tsx",
+        "./history-chart-axis": "./history-chart-axis.ts",
+        "./history-chart-range": "./history-chart-range.ts",
+        "./history-chart-types": "./history-chart-types.ts",
+        "./history-chart-utils": "./history-chart-utils.ts"
+    },
+    "peerDependencies": {
+        "react": ">=18",
+        "react-dom": ">=18",
+        "recharts": "^3.7.0"
+    },
+    "packageManager": "bun@1.1.27"
+}
