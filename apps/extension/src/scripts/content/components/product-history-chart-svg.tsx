@@ -15,6 +15,7 @@ import {
 import { formatAxisValue } from "./product-history-chart-y-axis";
 
 const CHART_COLOR = "rgb(95 135 135)";
+const AXIS_FONT = "ui-monospace, SFMono-Regular, monospace";
 
 export const ProductHistoryChartSvg = ({
 	chartGeometry,
@@ -84,10 +85,11 @@ export const ProductHistoryChartSvg = ({
 							/>
 							<text
 								fill="rgb(107 114 128)"
-								fontSize="10"
+								fontFamily={AXIS_FONT}
+								fontSize="13"
 								textAnchor="end"
-								x={CHART_PADDING.left - 8}
-								y={y + 3}
+								x={CHART_PADDING.left - 10}
+								y={y + 4}
 							>
 								{formatAxisValue(tickValue)}
 							</text>
@@ -109,10 +111,11 @@ export const ProductHistoryChartSvg = ({
 							/>
 							<text
 								fill="rgb(107 114 128)"
-								fontSize="10"
+								fontFamily={AXIS_FONT}
+								fontSize="13"
 								textAnchor="middle"
 								x={x}
-								y={CHART_VIEWBOX_HEIGHT - CHART_PADDING.bottom + 16}
+								y={CHART_VIEWBOX_HEIGHT - CHART_PADDING.bottom + 20}
 							>
 								{xTickFormatter(tickValue)}
 							</text>

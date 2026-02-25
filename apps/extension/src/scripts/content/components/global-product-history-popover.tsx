@@ -102,7 +102,7 @@ export const GlobalProductHistoryPopover = () => {
 
 	return (
 		<div
-			className="fixed z-[2147483647] max-h-[calc(100vh-24px)] overflow-auto rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
+			className="fixed z-[2147483647] max-h-[calc(100vh-24px)] overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg"
 			ref={panelRef}
 			style={{
 				left: `${popoverState.position.left}px`,
@@ -114,7 +114,6 @@ export const GlobalProductHistoryPopover = () => {
 				compact={false}
 				enabled={isOpen}
 				productIdentifier={popoverState.productIdentifier}
-				showChartHeader={false}
 				showLastSync={false}
 			/>
 		</div>
@@ -126,10 +125,12 @@ const resolvePopoverPosition = (
 ) => {
 	const width = resolvePopoverWidth();
 	const top = triggerRect.bottom + POPUP_GAP;
+	const triggerCenterX = (triggerRect.left + triggerRect.right) / 2;
+	const idealLeft = triggerCenterX - width / 2;
 	const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
 	const clampedLeft = Math.max(
 		VIEWPORT_MARGIN,
-		Math.min(triggerRect.left, Math.max(VIEWPORT_MARGIN, maxLeft))
+		Math.min(idealLeft, Math.max(VIEWPORT_MARGIN, maxLeft))
 	);
 
 	return {

@@ -25,6 +25,7 @@
         "extension:build:safari": "bun run --filter rankwrangler-extension build:safari",
         "extension:build:chrome": "bun run --filter rankwrangler-extension build:chrome",
         "extension:preview": "bun run --filter rankwrangler-extension preview",
+        "preview:chrome": "bun run --filter rankwrangler-extension preview:chrome",
         "extension:lint": "bun run --filter rankwrangler-extension lint",
         "extension:lint:fix": "bun run --filter rankwrangler-extension lint:fix",
         "build:clean": "bun run --filter rankwrangler-extension build:clean",

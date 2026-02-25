@@ -8,7 +8,7 @@ export const MAX_COMPACT_CHART_POINTS = 180;
 
 export const CHART_VIEWBOX_WIDTH = 1000;
 export const CHART_VIEWBOX_HEIGHT = 360;
-export const CHART_PADDING = { left: 72, right: 18, top: 16, bottom: 42 };
+export const CHART_PADDING = { left: 80, right: 18, top: 16, bottom: 50 };
 export const CHART_INNER_WIDTH =
 	CHART_VIEWBOX_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
 export const CHART_INNER_HEIGHT =

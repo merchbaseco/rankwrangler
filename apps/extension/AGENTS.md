@@ -20,6 +20,7 @@ Use this document when assisting with the browser extension + Safari wrapper rep
 - `bun run build` – Full build (background, popup, content) outputs to `dist/`.
 - `bun run build:safari` – Runs `scripts/build-safari.js` to rebuild the extension and Xcode project. Uses `dist/`.
 - `bun run build:chrome` – Runs `scripts/build-chrome.js` to build Chrome extension. Uses `dist/`.
+- `bun run preview:chrome` – Opens local UI preview page with extension surfaces (no extension reload loop).
 - `bun run tailwind` – Regenerate extension styles.
 - `bun run lint` / `bun run lint:fix` – Biome checks and autofixes.
 - `bunx tsc --noEmit` – Type-check the entire project.
@@ -37,6 +38,11 @@ bun run --filter rankwrangler-extension build
 ```
 
 - If you see `TS2307: Cannot find module '@rankwrangler/http-client'` during extension `tsc`, run `bun install` and retry.
+
+## UI Preview Maintenance
+
+- Canonical workflow doc: `docs/extension-ui-preview.md`
+- When popup/content/options/install UI changes, update preview surfaces in the same PR.
 
 ## Architecture Notes
 

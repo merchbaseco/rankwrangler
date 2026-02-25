@@ -5,11 +5,27 @@ import utwm from 'unplugin-tailwindcss-mangle/vite';
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-export default defineConfig(async () => ({
-    base: './',
-    resolve: {
-        alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
-    },
+export default defineConfig(async () => {
+    const isChromePreview = process.env.VITE_PREVIEW_CHROME === 'true';
+
+    return {
+        base: './',
+        resolve: {
+            alias: [
+                ...(isChromePreview
+                    ? [
+                          {
+                              find: 'webextension-polyfill-ts',
+                              replacement: path.resolve(
+                                  __dirname,
+                                  'src/scripts/preview/mock-webextension-polyfill.ts'
+                              ),
+                          },
+                      ]
+                    : []),
+                { find: '@', replacement: path.resolve(__dirname, 'src') },
+            ],
+        },
     build: {
         outDir: 'dist',
         emptyOutDir: true,
@@ -33,51 +49,52 @@ export default defineConfig(async () => ({
             },
         },
     },
-    plugins: [
-        (await import('@tailwindcss/vite')).default(),
-        react(),
-        viteStaticCopy({
-            targets: [
-                {
-                    src: 'src/scripts/popup/popup.html',
-                    dest: '.',
-                },
-                {
-                    src: 'manifest.json',
-                    dest: '.',
-                },
-                { src: 'assets/logo.png', dest: 'images' },
-            ],
-        }),
-        {
-            name: 'inline-css-popup',
-            enforce: 'post',
-            closeBundle() {
-                const outDir = 'dist';
-                const cssPath = path.join(outDir, 'style.css');
-                const htmlPath = path.join(outDir, 'popup.html');
+        plugins: [
+            (await import('@tailwindcss/vite')).default(),
+            react(),
+            viteStaticCopy({
+                targets: [
+                    {
+                        src: 'src/scripts/popup/popup.html',
+                        dest: '.',
+                    },
+                    {
+                        src: 'manifest.json',
+                        dest: '.',
+                    },
+                    { src: 'assets/logo.png', dest: 'images' },
+                ],
+            }),
+            {
+                name: 'inline-css-popup',
+                enforce: 'post',
+                closeBundle() {
+                    const outDir = 'dist';
+                    const cssPath = path.join(outDir, 'style.css');
+                    const htmlPath = path.join(outDir, 'popup.html');
 
-                if (fs.existsSync(cssPath) && fs.existsSync(htmlPath)) {
-                    const cssContent = fs.readFileSync(cssPath, 'utf-8');
-                    let htmlContent = fs.readFileSync(htmlPath, 'utf-8');
+                    if (fs.existsSync(cssPath) && fs.existsSync(htmlPath)) {
+                        const cssContent = fs.readFileSync(cssPath, 'utf-8');
+                        let htmlContent = fs.readFileSync(htmlPath, 'utf-8');
 
-                    // Inject CSS into the existing <style> tag or create a new one
-                    const styleTagRegex = /<style>([\s\S]*?)<\/style>/;
-                    if (styleTagRegex.test(htmlContent)) {
-                        htmlContent = htmlContent.replace(
-                            styleTagRegex,
-                            `<style>$1\n${cssContent}</style>`
-                        );
-                    } else {
-                        htmlContent = htmlContent.replace(
-                            '</head>',
-                            `  <style>\n${cssContent}\n  </style>\n</head>`
-                        );
+                        // Inject CSS into the existing <style> tag or create a new one
+                        const styleTagRegex = /<style>([\s\S]*?)<\/style>/;
+                        if (styleTagRegex.test(htmlContent)) {
+                            htmlContent = htmlContent.replace(
+                                styleTagRegex,
+                                `<style>$1\n${cssContent}</style>`
+                            );
+                        } else {
+                            htmlContent = htmlContent.replace(
+                                '</head>',
+                                `  <style>\n${cssContent}\n  </style>\n</head>`
+                            );
+                        }
+
+                        fs.writeFileSync(htmlPath, htmlContent);
                     }
-
-                    fs.writeFileSync(htmlPath, htmlContent);
-                }
+                },
             },
-        },
-    ],
-}));
+        ],
+    };
+});

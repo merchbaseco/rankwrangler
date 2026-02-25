@@ -6,6 +6,7 @@
   "scripts": {
     "prepare": "tw-patch install",
     "start": "concurrently \"bun run dev\" \"bun run build\"",
+    "preview:chrome": "VITE_PREVIEW_CHROME=true vite --open /preview.html",
     "tailwind": "tailwindcss -i src/styles/index.css -o dist/assets/index.css",
     "dev": "vite",
     "build:deps": "bun run --cwd ../.. http-client:build",

@@ -45,6 +45,15 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 
 - Bun workspaces (`package.json` at repo root)
 
+## Extension UI Preview
+
+Use this to preview extension UI surfaces locally without rebuilding/reloading
+Chrome:
+
+```bash
+bun run preview:chrome
+```
+
 ## Release
 
 - Canonical runbook: `docs/release-runbook.md`

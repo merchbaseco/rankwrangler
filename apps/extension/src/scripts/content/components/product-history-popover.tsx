@@ -41,10 +41,12 @@ export const ProductHistoryPopover = ({
 		const rect = buttonRef.current.getBoundingClientRect();
 		const width = resolvePopoverWidth();
 		const top = rect.bottom + POPUP_GAP;
+		const triggerCenterX = (rect.left + rect.right) / 2;
+		const idealLeft = triggerCenterX - width / 2;
 		const maxLeft = window.innerWidth - width - VIEWPORT_MARGIN;
 		const clampedLeft = Math.max(
 			VIEWPORT_MARGIN,
-			Math.min(rect.left, Math.max(VIEWPORT_MARGIN, maxLeft))
+			Math.min(idealLeft, Math.max(VIEWPORT_MARGIN, maxLeft))
 		);
 
 		setPosition({
@@ -126,11 +128,6 @@ export const ProductHistoryPopover = ({
 		event.preventDefault();
 		event.stopPropagation();
 	};
-	const handleClose = (event: ReactMouseEvent<HTMLButtonElement>) => {
-		event.preventDefault();
-		event.stopPropagation();
-		setIsOpen(false);
-	};
 	const triggerAriaExpanded = globalHost ? undefined : isOpen;
 
 	return (
@@ -154,7 +151,7 @@ export const ProductHistoryPopover = ({
 
 			{!globalHost && isOpen ? (
 				<div
-					className="fixed z-[2147483647] max-h-[calc(100vh-24px)] overflow-auto rounded-lg border border-gray-200 bg-white p-3 shadow-lg"
+					className="fixed z-[2147483647] max-h-[calc(100vh-24px)] overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg"
 					ref={panelRef}
 					style={{
 						left: `${position.left}px`,
@@ -162,19 +159,6 @@ export const ProductHistoryPopover = ({
 						width: `${position.width}px`,
 					}}
 				>
-					<div className="flex items-center justify-between">
-						<span className="font-semibold text-gray-900 text-xs">
-							BSR History
-						</span>
-						<button
-							className="cursor-pointer rounded px-1 py-0.5 text-[11px] text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-							onClick={handleClose}
-							type="button"
-						>
-							Close
-						</button>
-					</div>
-
 					<ProductHistorySection
 						compact={false}
 						enabled={isOpen}

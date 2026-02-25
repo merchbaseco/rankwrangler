@@ -6,6 +6,7 @@ import {
 	useState,
 } from "react";
 import type { ChartPoint } from "../hooks/use-product-history";
+import { DateRangePresets } from "./date-range-presets";
 import { renderChartStateFallback } from "./product-history-chart-fallback";
 import { formatChartValue } from "./product-history-chart-formatters";
 import { ProductHistoryChartSvg } from "./product-history-chart-svg";
@@ -49,6 +50,7 @@ export const ProductHistoryChart = ({
 }) => {
 	const topMarginClass = showHeader ? "mt-2 " : "";
 	const [hoverPoint, setHoverPoint] = useState<ChartPoint | null>(null);
+	const [activeRange, setActiveRange] = useState("90d");
 	const svgRef = useRef<SVGSVGElement>(null);
 
 	const timeDomain = useMemo(() => getDisplayTimeDomain(), []);
@@ -166,10 +168,10 @@ export const ProductHistoryChart = ({
 
 	return (
 		<div
-			className={`${topMarginClass}rounded-md border border-gray-200 bg-white p-3`}
+			className={`${topMarginClass}rounded-md border border-gray-200 bg-white`}
 		>
 			{showHeader ? (
-				<div className="mb-2 flex items-center justify-between gap-2">
+				<div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
 					<span className="font-medium text-[11px] text-gray-700">
 						BSR History
 					</span>
@@ -180,21 +182,31 @@ export const ProductHistoryChart = ({
 					) : null}
 				</div>
 			) : null}
-			<ProductHistoryChartSvg
-				chartGeometry={chartGeometry}
-				chartId={chartId}
-				compact={compact}
-				hoverPoint={hoverPoint}
-				hoverProjection={hoverProjection}
-				latestPoint={latestPoint}
-				onPointerLeave={() => setHoverPoint(null)}
-				onPointerMove={handlePointerMove}
-				svgRef={svgRef}
-				tooltipPosition={tooltipPosition}
-				xTickFormatter={xTickFormatter}
-				xTicks={xTicks}
-				yTicks={yScale.ticks}
-			/>
+			{compact ? null : (
+				<div className="px-3 pb-1">
+					<DateRangePresets
+						activeRange={activeRange}
+						onRangeChange={setActiveRange}
+					/>
+				</div>
+			)}
+			<div className="px-3 pb-3">
+				<ProductHistoryChartSvg
+					chartGeometry={chartGeometry}
+					chartId={chartId}
+					compact={compact}
+					hoverPoint={hoverPoint}
+					hoverProjection={hoverProjection}
+					latestPoint={latestPoint}
+					onPointerLeave={() => setHoverPoint(null)}
+					onPointerMove={handlePointerMove}
+					svgRef={svgRef}
+					tooltipPosition={tooltipPosition}
+					xTickFormatter={xTickFormatter}
+					xTicks={xTicks}
+					yTicks={yScale.ticks}
+				/>
+			</div>
 		</div>
 	);
 };

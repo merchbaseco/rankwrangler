@@ -111,6 +111,7 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 Open these only when the task needs that specific workflow:
 
 - Local/dev commands, env setup, extension build order, deployment: `docs/operations-runbook.md`
+- Extension UI preview workflow + maintenance: `docs/extension-ui-preview.md`
 - Production DB access and safety workflow: `docs/database-queries.md`
 - Release/version bump/publish workflow: `docs/release-runbook.md`
 - Browser verification workflow (when requested): `docs/ui-testing-workflow.md`

@@ -3,6 +3,7 @@
 Use this as a quick lookup for process-specific workflows.
 
 - `docs/operations-runbook.md` - local commands, environment setup, extension build order, deployment.
+- `docs/extension-ui-preview.md` - extension preview command, shim details, and sync checklist.
 - `docs/database-queries.md` - production database guardrails and query workflow.
 - `docs/release-runbook.md` - version bump, approval gate, commit/push, publish flow.
 - `docs/ui-testing-workflow.md` - browser-based UI verification procedure.
