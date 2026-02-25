@@ -46,7 +46,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Note: Table schemas are created by Drizzle migrations (see drizzle/ directory)
 -- Key tables: licenses, products (includes is_merch_listing, bullet_1, bullet_2),
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
--- product_history_points, keepa_categories, job_executions, job_execution_logs
+-- product_history_points, keepa_categories, event_logs, job_executions, job_execution_logs
 
 -- Log successful initialization
 \echo 'PostgreSQL initialization completed successfully'

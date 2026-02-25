@@ -1,5 +1,6 @@
 import type { Job, PgBoss, SendOptions, WorkOptions } from 'pg-boss';
 import { z } from 'zod';
+import { logJobCompleted, logJobFailed } from '@/jobs/job-event-log.js';
 import { runTrackedJob } from '@/services/job-executions.js';
 import {
     buildStartupSummary,
@@ -186,28 +187,45 @@ export const startRegisteredJobs = async (
                 : [incomingJobs];
 
             for (const queuedJob of queuedJobs) {
-                await runTrackedJob({
-                    jobName: jobDefinition.jobName,
-                    input: queuedJob.data,
-                    shouldPersistSuccess: result => {
-                        if (jobDefinition.persistSuccess === 'always') {
-                            return true;
-                        }
+                try {
+                    const result = await runTrackedJob({
+                        jobName: jobDefinition.jobName,
+                        input: queuedJob.data,
+                        shouldPersistSuccess: result => {
+                            if (jobDefinition.persistSuccess === 'always') {
+                                return true;
+                            }
 
-                        return getDidWorkResult(result);
-                    },
-                    run: async logger => {
-                        const parsedInput = jobDefinition.parseInput(queuedJob.data);
-                        const typedJob = {
-                            ...queuedJob,
-                            data: parsedInput,
-                        } as Job<unknown>;
-                        const signal = new AbortController().signal;
-                        const log = createJobLog(logger);
+                            return getDidWorkResult(result);
+                        },
+                        run: async logger => {
+                            const parsedInput = jobDefinition.parseInput(queuedJob.data);
+                            const typedJob = {
+                                ...queuedJob,
+                                data: parsedInput,
+                            } as Job<unknown>;
+                            const signal = new AbortController().signal;
+                            const log = createJobLog(logger);
 
-                        return jobDefinition.work(typedJob, signal, log, { boss });
-                    },
-                });
+                            return jobDefinition.work(typedJob, signal, log, { boss });
+                        },
+                    });
+
+                    await logJobCompleted({
+                        jobName: jobDefinition.jobName,
+                        jobId: String(queuedJob.id),
+                        input: queuedJob.data,
+                        result,
+                    });
+                } catch (error) {
+                    await logJobFailed({
+                        jobName: jobDefinition.jobName,
+                        jobId: String(queuedJob.id),
+                        input: queuedJob.data,
+                        error,
+                    });
+                    throw error;
+                }
             }
         };
 

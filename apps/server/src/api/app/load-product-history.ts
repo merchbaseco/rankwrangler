@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
+import { createEventLogSafe } from '@/services/event-logs.js';
+import { getErrorMessage } from '@/services/job-executions-utils.js';
 import { loadKeepaProductHistoryManually } from '@/services/keepa-manual-load.js';
 
 const loadProductHistoryInput = z.object({
@@ -14,10 +16,54 @@ const loadProductHistoryInput = z.object({
 
 export const loadProductHistory = appProcedure
     .input(loadProductHistoryInput)
-    .mutation(async ({ input }) => {
-        return loadKeepaProductHistoryManually({
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-            days: input.days,
-        });
+    .mutation(async ({ input, ctx }) => {
+        try {
+            const summary = await loadKeepaProductHistoryManually({
+                marketplaceId: input.marketplaceId,
+                asin: input.asin,
+                days: input.days,
+            });
+
+            await createEventLogSafe({
+                level: 'info',
+                status: 'success',
+                category: 'history',
+                action: 'history.synced',
+                primitiveType: 'history',
+                message: `Synced history for ${input.asin}.`,
+                detailsJson: {
+                    actor: ctx.user?.email ?? ctx.user?.sub ?? 'unknown',
+                    days: input.days,
+                    importedAt: summary.importedAt,
+                    marketplaceId: input.marketplaceId,
+                    source: 'manual_request',
+                },
+                primitiveId: input.asin,
+                marketplaceId: input.marketplaceId,
+                asin: input.asin,
+            });
+
+            return summary;
+        } catch (error) {
+            await createEventLogSafe({
+                level: 'error',
+                status: 'failed',
+                category: 'history',
+                action: 'history.sync_failed',
+                primitiveType: 'history',
+                message: `History sync failed for ${input.asin}.`,
+                detailsJson: {
+                    actor: ctx.user?.email ?? ctx.user?.sub ?? 'unknown',
+                    days: input.days,
+                    error: getErrorMessage(error),
+                    marketplaceId: input.marketplaceId,
+                    source: 'manual_request',
+                },
+                primitiveId: input.asin,
+                marketplaceId: input.marketplaceId,
+                asin: input.asin,
+            });
+
+            throw error;
+        }
     });

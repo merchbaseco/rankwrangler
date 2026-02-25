@@ -2,6 +2,7 @@ import { TRPCError } from '@trpc/server';
 import type { Job } from 'pg-boss';
 import { z } from 'zod';
 import { defineJob } from '@/jobs/job-router.js';
+import { createEventLogSafe as createEventLogSafeService } from '@/services/event-logs.js';
 import { loadKeepaProductHistory as loadKeepaProductHistoryService } from '@/services/keepa.js';
 import {
     getKeepaHistoryDaysForAsin as getKeepaHistoryDaysForAsinService,
@@ -9,6 +10,7 @@ import {
     removeKeepaHistoryRefreshQueueItem as removeKeepaHistoryRefreshQueueItemService,
     shouldKeepaHistoryRefreshAsin as shouldKeepaHistoryRefreshAsinService,
 } from '@/services/keepa-history-refresh.js';
+import { getErrorMessage } from '@/services/job-executions-utils.js';
 
 const NON_RETRYABLE_KEEPA_REFRESH_ERROR_CODES = new Set<TRPCError['code']>([
     'BAD_REQUEST',
@@ -21,6 +23,7 @@ type FetchKeepaHistoryForAsinParams = {
 };
 
 type FetchKeepaHistoryForAsinDeps = {
+    createEventLogSafe: typeof createEventLogSafeService;
     loadKeepaProductHistory: typeof loadKeepaProductHistoryService;
     getKeepaHistoryDaysForAsin: typeof getKeepaHistoryDaysForAsinService;
     getKeepaHistoryRefreshQueueItem: typeof getKeepaHistoryRefreshQueueItemService;
@@ -29,6 +32,7 @@ type FetchKeepaHistoryForAsinDeps = {
 };
 
 const defaultFetchKeepaHistoryForAsinDeps: FetchKeepaHistoryForAsinDeps = {
+    createEventLogSafe: createEventLogSafeService,
     loadKeepaProductHistory: loadKeepaProductHistoryService,
     getKeepaHistoryDaysForAsin: getKeepaHistoryDaysForAsinService,
     getKeepaHistoryRefreshQueueItem: getKeepaHistoryRefreshQueueItemService,
@@ -130,6 +134,25 @@ export const fetchKeepaHistoryForAsin = async (
         await removeQueueItem();
 
         if (summary.status === 'success') {
+            await deps.createEventLogSafe({
+                level: 'info',
+                status: 'success',
+                category: 'history',
+                action: 'history.synced',
+                primitiveType: 'history',
+                message: `Synced history for ${asin}.`,
+                detailsJson: {
+                    cached: summary.cached,
+                    days: historyDays,
+                    importedAt: summary.importedAt,
+                    marketplaceId,
+                    pointsStored: summary.pointsStored,
+                    source: 'keepa_background_job',
+                },
+                primitiveId: asin,
+                marketplaceId,
+                asin,
+            });
             return;
         }
 
@@ -141,6 +164,22 @@ export const fetchKeepaHistoryForAsin = async (
         });
     } catch (error) {
         await removeQueueItem();
+        await deps.createEventLogSafe({
+            level: 'error',
+            status: 'failed',
+            category: 'history',
+            action: 'history.sync_failed',
+            primitiveType: 'history',
+            message: `History sync failed for ${asin}.`,
+            detailsJson: {
+                error: getErrorMessage(error),
+                marketplaceId,
+                source: 'keepa_background_job',
+            },
+            primitiveId: asin,
+            marketplaceId,
+            asin,
+        });
 
         if (isNonRetryableKeepaRefreshError(error)) {
             return;

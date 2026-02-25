@@ -194,6 +194,49 @@ export const keepaCategories = pgTable(
     })
 );
 
+export const eventLogs = pgTable(
+    'event_logs',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        accountId: text('account_id').notNull().default('global'),
+        occurredAt: timestamp('occurred_at', { mode: 'date' }).notNull().defaultNow(),
+        level: text('level').notNull(),
+        status: text('status').notNull(),
+        category: text('category').notNull(),
+        action: text('action').notNull(),
+        primitiveType: text('primitive_type').notNull(),
+        message: text('message').notNull(),
+        detailsJson: jsonb('details_json').$type<Record<string, unknown>>().notNull(),
+        primitiveId: text('primitive_id'),
+        marketplaceId: text('marketplace_id'),
+        asin: text('asin'),
+        jobName: text('job_name'),
+        jobRunId: text('job_run_id'),
+        requestId: text('request_id'),
+    },
+    table => ({
+        accountOccurredAtIdx: index('event_logs_account_occurred_at_idx').on(
+            table.accountId,
+            table.occurredAt
+        ),
+        accountPrimitiveOccurredAtIdx: index('event_logs_account_primitive_occurred_at_idx').on(
+            table.accountId,
+            table.primitiveType,
+            table.occurredAt
+        ),
+        accountAsinOccurredAtIdx: index('event_logs_account_asin_occurred_at_idx').on(
+            table.accountId,
+            table.asin,
+            table.occurredAt
+        ),
+        accountJobRunOccurredAtIdx: index('event_logs_account_job_run_occurred_at_idx').on(
+            table.accountId,
+            table.jobRunId,
+            table.occurredAt
+        ),
+    })
+);
+
 export const jobExecutions = pgTable(
     'job_executions',
     {
