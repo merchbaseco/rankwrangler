@@ -211,6 +211,12 @@ class SearchInjector {
 	private findInjectionTarget(
 		productElement: HTMLElement
 	): InjectionTarget | null {
+		const sponsoredCarouselTarget =
+			this.findSponsoredBrandsCarouselTarget(productElement);
+		if (sponsoredCarouselTarget) {
+			return sponsoredCarouselTarget;
+		}
+
 		const imageAnchor = this.findImageAnchor(productElement);
 		if (imageAnchor?.parentElement) {
 			const target = this.normalizeInjectionTarget({
@@ -254,6 +260,37 @@ class SearchInjector {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Sponsored Brands carousel cards use a side-by-side image/details layout.
+	 * Injecting between those siblings can overlap content, so inject at the top
+	 * of the details wrapper instead.
+	 */
+	private findSponsoredBrandsCarouselTarget(
+		productElement: HTMLElement
+	): InjectionTarget | null {
+		if (!productElement.closest("[data-sbtc-carousel-item]")) {
+			return null;
+		}
+
+		const sponsoredDetailsWrapper = productElement.querySelector<HTMLElement>(
+			'[class*="productWrapper"]'
+		);
+		if (!sponsoredDetailsWrapper) {
+			return null;
+		}
+
+		const firstDetailsChild = sponsoredDetailsWrapper.firstElementChild;
+		if (!(firstDetailsChild instanceof HTMLElement)) {
+			return null;
+		}
+
+		return this.normalizeInjectionTarget({
+			anchor: firstDetailsChild,
+			parent: sponsoredDetailsWrapper,
+			position: "before",
+		});
 	}
 
 	/**
