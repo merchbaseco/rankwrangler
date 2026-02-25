@@ -26,6 +26,8 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 8. Never commit secrets. If a secret is exposed in git, rotate/revoke before history cleanup.
 9. This is a work-in-progress codebase: optimize for the best aspirational end state, not legacy
    compatibility. Remove or rewrite outdated code as needed.
+10. For CI failures, troubleshoot from GitHub Actions logs/check-runs first; do not install local
+    tooling (brew/npm/etc.) unless the user explicitly asks.
 
 ## API + Code Design
 
@@ -112,6 +114,7 @@ Open these only when the task needs that specific workflow:
 
 - Local/dev commands, env setup, extension build order, deployment: `docs/operations-runbook.md`
 - Extension UI preview workflow + maintenance: `docs/extension-ui-preview.md`
+- CI troubleshooting workflow (GitHub-first, no ad-hoc installs): `docs/ci-troubleshooting.md`
 - Production DB access and safety workflow: `docs/database-queries.md`
 - Release/version bump/publish workflow: `docs/release-runbook.md`
 - Browser verification workflow (when requested): `docs/ui-testing-workflow.md`

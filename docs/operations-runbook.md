@@ -2,6 +2,8 @@
 
 Use this document for environment setup, common commands, extension build-order issues, and deployment workflows.
 
+For CI failure debugging workflow, see `docs/ci-troubleshooting.md`.
+
 ## Local Commands
 
 Run from `apps/server` unless noted:
