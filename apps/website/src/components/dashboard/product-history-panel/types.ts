@@ -1,4 +1,12 @@
-import type { DateRange } from 'react-day-picker';
+import {
+	HISTORY_RANGE_PRESETS,
+	type HistoryRangePresetKey,
+} from '@rankwrangler/history-chart/history-chart-types';
+import type {
+	HistoryCustomRange,
+	HistoryPickerRange,
+	HistoryRangeSelectionKey,
+} from '@rankwrangler/history-chart/history-chart-range';
 
 export type HistoryPoint = { timestamp: number; value: number };
 export type HistoryTimeDomain = { startAt: number; endAt: number };
@@ -24,18 +32,12 @@ export type ProductHistoryPanelProps = {
 	product: ProductHistoryPanelProduct;
 };
 
-export const DATE_RANGES = [
-	{ key: '30d', label: '30 days', days: 30 },
-	{ key: '90d', label: '90 days', days: 90 },
-	{ key: '6m', label: '6 months', days: 180 },
-	{ key: '1y', label: '1 year', days: 365 },
-	{ key: 'all', label: 'All time', days: null },
-] as const;
+export const DATE_RANGES = HISTORY_RANGE_PRESETS;
 
-export type DateRangeKey = (typeof DATE_RANGES)[number]['key'];
-export type ActiveRange = DateRangeKey | 'custom';
-export type PickerValue = [Date, Date] | null;
-export type PickerRange = DateRange | undefined;
+export type DateRangeKey = HistoryRangePresetKey;
+export type ActiveRange = HistoryRangeSelectionKey;
+export type PickerValue = HistoryCustomRange;
+export type PickerRange = HistoryPickerRange;
 
 export type HistoryQueryResult = {
 	data?: {

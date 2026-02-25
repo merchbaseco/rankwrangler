@@ -1,20 +1,18 @@
+import {
+    AMAZON_US_TIME_ZONE,
+    useHistoryRangeSelection,
+} from '@rankwrangler/history-chart/history-chart-range';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DateRange } from 'react-day-picker';
 import {
     isKeepaSyncStale as getIsKeepaSyncStale,
     shouldEvaluateKeepaAutoRefresh,
     shouldTriggerKeepaSync,
 } from '@/components/dashboard/product-history-panel/keepa-sync-state';
 import type {
-	ActiveRange,
 	CategoryOption,
-	DateRangeKey,
-	PickerRange,
-	PickerValue,
 	ProductHistoryPanelProduct,
 	SelectOption,
 } from '@/components/dashboard/product-history-panel/types';
-import { DATE_RANGES } from '@/components/dashboard/product-history-panel/types';
 import { useProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/use-product-history-panel-product';
 import { toastManager } from '@/components/ui/toast';
 import { api } from '@/lib/trpc';
@@ -25,74 +23,22 @@ export const useProductHistoryPanelData = ({
 	product: ProductHistoryPanelProduct;
 }) => {
 	const resolvedProduct = useProductHistoryPanelProduct({ product });
-	const [activePreset, setActivePreset] = useState<ActiveRange>('1y');
-	const [customRange, setCustomRange] = useState<PickerValue>(null);
-	const [datePickerRange, setDatePickerRange] = useState<PickerRange>();
 	const [rankMetricValue, setRankMetricValue] = useState<string>('bsrMain');
-
-	const { startAt, endAt } = useMemo(() => {
-		if (activePreset === 'custom' && customRange) {
-			return {
-				startAt: customRange[0].toISOString(),
-				endAt: customRange[1].toISOString(),
-			};
-		}
-
-		const selectedRange = DATE_RANGES.find((range) => range.key === activePreset);
-		if (!selectedRange?.days) {
-			return { startAt: undefined, endAt: undefined };
-		}
-
-		const date = new Date();
-		date.setDate(date.getDate() - selectedRange.days);
-		return { startAt: date.toISOString(), endAt: undefined };
-	}, [activePreset, customRange]);
-
-	const chartTimeDomain = useMemo(() => {
-		if (!startAt) {
-			return null;
-		}
-
-		const parsedStartAt = Date.parse(startAt);
-		const parsedEndAt = endAt ? Date.parse(endAt) : Date.now();
-		if (!Number.isFinite(parsedStartAt) || !Number.isFinite(parsedEndAt)) {
-			return null;
-		}
-
-		return {
-			startAt: Math.min(parsedStartAt, parsedEndAt),
-			endAt: Math.max(parsedStartAt, parsedEndAt),
-		};
-	}, [startAt, endAt]);
-
-	const handlePresetClick = useCallback((key: DateRangeKey) => {
-		setActivePreset(key);
-		setCustomRange(null);
-		setDatePickerRange(undefined);
-	}, []);
-
-	const handleDateRangeSelect = useCallback(
-		(range: DateRange | undefined) => {
-			if (datePickerRange?.from && !datePickerRange.to) {
-				setDatePickerRange(range);
-				if (range?.from && range?.to) {
-					setCustomRange([range.from, range.to]);
-					setActivePreset('custom');
-				}
-			}
-		},
-		[datePickerRange?.from, datePickerRange?.to],
-	);
-
-	const handleDayClick = useCallback(
-		(date: Date) => {
-			if (datePickerRange?.from && !datePickerRange.to) {
-				return;
-			}
-			setDatePickerRange({ from: date });
-		},
-		[datePickerRange?.from, datePickerRange?.to],
-	);
+	const {
+		activeRange: activePreset,
+		chartTimeDomain,
+		customRange,
+		datePickerRange,
+		handleDayClick,
+		handleDateRangeSelect,
+		handlePresetClick,
+		queryRange,
+	} = useHistoryRangeSelection({
+		defaultRange: '1y',
+		customRangeTimeZone: AMAZON_US_TIME_ZONE,
+	});
+	const startAt = queryRange.startAt;
+	const endAt = queryRange.endAt;
 
 	const categoryOptionsQuery = api.api.app.getProductHistory.useQuery(
 		{
@@ -288,7 +234,6 @@ export const useProductHistoryPanelData = ({
 		rankSelectOptions,
 		product: resolvedProduct,
 		setRankMetricValue,
-		setDatePickerRange,
 		triggerKeepaSync,
 	};
 };

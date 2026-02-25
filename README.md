@@ -13,6 +13,7 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 
 - `packages/http-client` – Typed tRPC client + public API types for extension/CLI
 - `packages/cli` – Publishable CLI package (`@rankwrangler/cli`)
+- `packages/history-chart` – Shared Recharts history chart + range-selection logic used by website + extension
 
 ## API Design
 

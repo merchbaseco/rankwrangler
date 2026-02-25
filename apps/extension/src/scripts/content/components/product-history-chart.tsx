@@ -1,35 +1,20 @@
+import { HistoryAreaChart } from "@rankwrangler/history-chart/history-area-chart";
 import {
-	type PointerEvent as ReactPointerEvent,
-	useCallback,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+	AMAZON_US_TIME_ZONE,
+	useHistoryRangeSelection,
+} from "@rankwrangler/history-chart/history-chart-range";
+import {
+	buildHistoryChartState,
+	formatDateTooltip,
+	formatRankAxisValue,
+	formatRankValue,
+	MAX_CHART_POINTS,
+	MAX_COMPACT_CHART_POINTS,
+} from "@rankwrangler/history-chart/history-chart-utils";
+import { useMemo } from "react";
 import type { ChartPoint } from "../hooks/use-product-history";
 import { DateRangePresets } from "./date-range-presets";
 import { renderChartStateFallback } from "./product-history-chart-fallback";
-import { formatChartValue } from "./product-history-chart-formatters";
-import { ProductHistoryChartSvg } from "./product-history-chart-svg";
-import {
-	buildChartGeometry,
-	buildDisplayPoints,
-	CHART_INNER_WIDTH,
-	CHART_PADDING,
-	CHART_VIEWBOX_HEIGHT,
-	CHART_VIEWBOX_WIDTH,
-	downsamplePoints,
-	findNearestPoint,
-	getDisplayTimeDomain,
-	MAX_COMPACT_CHART_POINTS,
-	MAX_FULL_CHART_POINTS,
-	projectTimestampX,
-	projectValueY,
-} from "./product-history-chart-utils";
-import {
-	buildXAxisFormatter,
-	buildXAxisTicks,
-} from "./product-history-chart-x-axis";
-import { buildEvenYAxisScale } from "./product-history-chart-y-axis";
 
 export const ProductHistoryChart = ({
 	chartId,
@@ -49,110 +34,33 @@ export const ProductHistoryChart = ({
 	showHeader?: boolean;
 }) => {
 	const topMarginClass = showHeader ? "mt-2 " : "";
-	const [hoverPoint, setHoverPoint] = useState<ChartPoint | null>(null);
-	const [activeRange, setActiveRange] = useState("90d");
-	const svgRef = useRef<SVGSVGElement>(null);
-
-	const timeDomain = useMemo(() => getDisplayTimeDomain(), []);
-	const displayPoints = useMemo(
-		() => buildDisplayPoints(points, timeDomain),
-		[points, timeDomain]
-	);
-	const sampledPoints = useMemo(
+	const {
+		activeRange,
+		chartTimeDomain: timeDomain,
+		customRange,
+		datePickerRange,
+		handleDayClick,
+		handleDateRangeSelect,
+		handlePresetClick: handleRangeChange,
+	} = useHistoryRangeSelection({
+		defaultRange: "90d",
+		customRangeTimeZone: AMAZON_US_TIME_ZONE,
+	});
+	const chartState = useMemo(
 		() =>
-			downsamplePoints(
-				displayPoints,
-				compact ? MAX_COMPACT_CHART_POINTS : MAX_FULL_CHART_POINTS
-			),
-		[compact, displayPoints]
-	);
-	const yScale = useMemo(
-		() =>
-			buildEvenYAxisScale(
-				sampledPoints.map((point) => point.value),
-				{ min: 0, tickCount: 5 }
-			),
-		[sampledPoints]
-	);
-	const chartGeometry = useMemo(
-		() =>
-			buildChartGeometry({
-				points: sampledPoints,
+			buildHistoryChartState({
+				points,
 				timeDomain,
-				valueDomain: yScale.domain,
+				maxPoints: compact ? MAX_COMPACT_CHART_POINTS : MAX_CHART_POINTS,
+				yMin: 0,
+				yTickCount: 5,
 			}),
-		[sampledPoints, timeDomain, yScale.domain]
-	);
-	const xTicks = useMemo(
-		() => buildXAxisTicks(timeDomain.startAt, timeDomain.endAt),
-		[timeDomain]
-	);
-	const xTickFormatter = useMemo(
-		() => buildXAxisFormatter(timeDomain.startAt, timeDomain.endAt),
-		[timeDomain]
-	);
-
-	const latestPoint = sampledPoints.at(-1) ?? null;
-	const hoverProjection =
-		hoverPoint == null || !chartGeometry
-			? null
-			: {
-					x: projectTimestampX(hoverPoint.timestamp, chartGeometry),
-					y: projectValueY(hoverPoint.value, chartGeometry),
-				};
-	const tooltipPosition = hoverProjection
-		? {
-				flip: (hoverProjection.x / CHART_VIEWBOX_WIDTH) * 100 > 65,
-				leftPercent: Math.min(
-					98,
-					Math.max(2, (hoverProjection.x / CHART_VIEWBOX_WIDTH) * 100)
-				),
-				topPercent: Math.min(
-					92,
-					Math.max(8, (hoverProjection.y / CHART_VIEWBOX_HEIGHT) * 100)
-				),
-			}
-		: null;
-
-	const handlePointerMove = useCallback(
-		(event: ReactPointerEvent<SVGSVGElement>) => {
-			if (!chartGeometry || sampledPoints.length === 0 || !svgRef.current) {
-				return;
-			}
-
-			const rect = svgRef.current.getBoundingClientRect();
-			if (rect.width <= 0) {
-				return;
-			}
-
-			const pointerX =
-				((event.clientX - rect.left) / rect.width) * CHART_VIEWBOX_WIDTH;
-			const clampedX = Math.max(
-				CHART_PADDING.left,
-				Math.min(CHART_VIEWBOX_WIDTH - CHART_PADDING.right, pointerX)
-			);
-			const timeRange = Math.max(1, chartGeometry.tMax - chartGeometry.tMin);
-			const targetTimestamp =
-				chartGeometry.tMin +
-				((clampedX - CHART_PADDING.left) / Math.max(1, CHART_INNER_WIDTH)) *
-					timeRange;
-			const nearestPoint = findNearestPoint(sampledPoints, targetTimestamp);
-			if (!nearestPoint) {
-				return;
-			}
-
-			setHoverPoint((currentPoint) =>
-				currentPoint?.timestamp === nearestPoint.timestamp
-					? currentPoint
-					: nearestPoint
-			);
-		},
-		[chartGeometry, sampledPoints]
+		[compact, points, timeDomain]
 	);
 
 	const chartStateFallback = renderChartStateFallback({
 		collecting,
-		displayPointCount: displayPoints.length,
+		displayPointCount: chartState.displayPoints.length,
 		error,
 		isLoading,
 		pointCount: points.length,
@@ -162,49 +70,74 @@ export const ProductHistoryChart = ({
 		return chartStateFallback;
 	}
 
-	if (!chartGeometry) {
-		return null;
-	}
+	const rangeLabel =
+		chartState.rangeStartTimestamp !== null &&
+		chartState.rangeEndTimestamp !== null
+			? `${formatDateTooltip(chartState.rangeStartTimestamp)} \u2013 ${formatDateTooltip(
+					chartState.rangeEndTimestamp
+				)}`
+			: null;
 
 	return (
-		<div
-			className={`${topMarginClass}rounded-md border border-gray-200 bg-white`}
-		>
-			{showHeader ? (
-				<div className="flex items-center justify-between gap-2 px-3 pt-3 pb-1">
-					<span className="font-medium text-[11px] text-gray-700">
-						BSR History
-					</span>
-					{latestPoint ? (
-						<span className="font-semibold text-[12px] text-gray-900">
-							{formatChartValue(latestPoint.value)}
-						</span>
-					) : null}
-				</div>
-			) : null}
+		<div className={`${topMarginClass}border border-gray-300 bg-white`}>
 			{compact ? null : (
-				<div className="px-3 pb-1">
+				<div className="border-gray-300 border-b px-3 py-1">
 					<DateRangePresets
 						activeRange={activeRange}
-						onRangeChange={setActiveRange}
+						customRange={customRange}
+						datePickerRange={datePickerRange}
+						onDateRangeSelect={handleDateRangeSelect}
+						onDayClick={handleDayClick}
+						onRangeChange={handleRangeChange}
 					/>
 				</div>
 			)}
+			{showHeader ? (
+				<div className="flex h-11 items-center justify-between border-gray-300 border-b px-4">
+					<span className="font-mono font-semibold text-[13px] text-gray-600 tracking-wide">
+						RANK
+					</span>
+					<span className="font-mono text-[13px] text-gray-500">BSR</span>
+				</div>
+			) : null}
+			<div className="flex items-baseline gap-3 px-4 pt-3 pb-1">
+				{chartState.latestPoint ? (
+					<span className="font-mono font-semibold text-[#3f5f86] text-[44px] leading-none tracking-tight">
+						{formatRankValue(chartState.latestPoint.value)}
+					</span>
+				) : null}
+				{rangeLabel ? (
+					<span className="font-mono text-[11px] text-gray-500">
+						{rangeLabel}
+					</span>
+				) : null}
+			</div>
 			<div className="px-3 pb-3">
-				<ProductHistoryChartSvg
-					chartGeometry={chartGeometry}
-					chartId={chartId}
-					compact={compact}
-					hoverPoint={hoverPoint}
-					hoverProjection={hoverProjection}
-					latestPoint={latestPoint}
-					onPointerLeave={() => setHoverPoint(null)}
-					onPointerMove={handlePointerMove}
-					svgRef={svgRef}
-					tooltipPosition={tooltipPosition}
-					xTickFormatter={xTickFormatter}
-					xTicks={xTicks}
-					yTicks={yScale.ticks}
+				<HistoryAreaChart
+					axisColor="rgb(107 114 128)"
+					axisFontFamily="ui-monospace, SFMono-Regular, monospace"
+					axisFontSize={12}
+					axisValueFormatter={formatRankAxisValue}
+					cardStrokeColor="white"
+					chartState={chartState}
+					color="#3f5f86"
+					gradientEndOpacity={0.08}
+					gradientId={chartId}
+					gradientStartOpacity={0.08}
+					heightClassName={compact ? "h-[180px]" : "h-[320px]"}
+					margin={{
+						top: 2,
+						right: 20,
+						bottom: 0,
+						left: 0,
+					}}
+					tooltipContainerClassName="border border-gray-200 bg-white px-2.5 py-1.5 shadow-sm"
+					tooltipDateClassName="text-[11px] text-gray-500"
+					tooltipValueClassName="font-mono font-semibold text-[13px]"
+					valueFormatter={formatRankValue}
+					xAxisTickMargin={10}
+					yAxisTickMargin={6}
+					yAxisWidth={58}
 				/>
 			</div>
 		</div>
