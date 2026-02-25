@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { formatNumber } from '@/lib/utils';
 
 export const TopBar = ({
+	activePage,
+	onPageChange,
 	onOpenSettings,
 	onToggleTheme,
 	totalMerchProducts,
@@ -11,6 +13,8 @@ export const TopBar = ({
 	usageLimit,
 	usageToday,
 }: {
+	activePage: "products" | "logs";
+	onPageChange: (page: "products" | "logs") => void;
 	onOpenSettings: () => void;
 	onToggleTheme: () => void;
 	totalMerchProducts: number | null;
@@ -33,6 +37,27 @@ export const TopBar = ({
 					<img src="/cowboy-hat.png" alt="" className="size-6" />
 					<span className="text-sm font-bold tracking-wide text-amber-800">RANKWRANGLER</span>
 				</span>
+				<span className="text-border">|</span>
+				<div className="flex items-center rounded-sm border border-border bg-background/80 p-0.5">
+					<Button
+						type="button"
+						variant={activePage === "products" ? "secondary" : "ghost"}
+						size="sm"
+						className="h-6 rounded-sm px-2 text-[11px] uppercase"
+						onClick={() => onPageChange("products")}
+					>
+						Products
+					</Button>
+					<Button
+						type="button"
+						variant={activePage === "logs" ? "secondary" : "ghost"}
+						size="sm"
+						className="h-6 rounded-sm px-2 text-[11px] uppercase"
+						onClick={() => onPageChange("logs")}
+					>
+						Logs
+					</Button>
+				</div>
 				<span className="text-border">|</span>
 				<span className="flex items-center gap-1.5">
 					<span className="relative flex size-2.5">

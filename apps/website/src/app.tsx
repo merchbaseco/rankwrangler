@@ -4,6 +4,7 @@ import { FACETS } from '@/components/dashboard/app/config';
 import { FiltersSidebar } from '@/components/dashboard/app/filters-sidebar';
 import { TopBar } from '@/components/dashboard/app/top-bar';
 import type { LastUpdated } from '@/components/dashboard/app/config';
+import { LogsPage } from '@/components/dashboard/logs/logs-page';
 import { RecentProducts, type FilterState } from '@/components/dashboard/recent-products';
 import { SearchBar } from '@/components/dashboard/search-bar';
 import { SettingsModal } from '@/components/dashboard/settings-modal';
@@ -11,6 +12,7 @@ import { useLicense } from '@/hooks/use-license';
 import { useTheme } from '@/hooks/use-theme';
 
 export function App() {
+	const [activePage, setActivePage] = useState<'products' | 'logs'>('products');
 	const [searchValue, setSearchValue] = useState('');
 	const [filters, setFilters] = useState<FilterState>({
 		bsrRange: null,
@@ -106,6 +108,8 @@ export function App() {
 	return (
 		<div className="flex h-screen flex-col overflow-hidden bg-background">
 			<TopBar
+				activePage={activePage}
+				onPageChange={setActivePage}
 				onOpenSettings={() => dispatchUiState({ open: true, type: 'setSettingsOpen' })}
 				onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
 				totalMerchProducts={productStatus.totalMerchProducts}
@@ -116,44 +120,52 @@ export function App() {
 			/>
 
 			<div className="flex min-h-0 flex-1 overflow-hidden">
-				<FiltersSidebar
-					activeFacets={uiState.activeFacets}
-					facetSearch={uiState.facetSearch}
-					filteredFacets={filteredFacets}
-					filters={filters}
-					nichesSectionOpen={uiState.nichesSectionOpen}
-					onFacetSearchChange={(nextValue) =>
-						dispatchUiState({ nextValue, type: 'setFacetSearch' })
-					}
-					onBsrRangeChange={setBsrRange}
-					onToggleFacet={toggleFacet}
-					onToggleMarketplace={toggleMarketplace}
-					onToggleNichesSection={() => dispatchUiState({ type: 'toggleNichesSection' })}
-					onUpdateLastUpdated={updateLastUpdated}
-				/>
+				{activePage === 'products' ? (
+					<>
+						<FiltersSidebar
+							activeFacets={uiState.activeFacets}
+							facetSearch={uiState.facetSearch}
+							filteredFacets={filteredFacets}
+							filters={filters}
+							nichesSectionOpen={uiState.nichesSectionOpen}
+							onFacetSearchChange={(nextValue) =>
+								dispatchUiState({ nextValue, type: 'setFacetSearch' })
+							}
+							onBsrRangeChange={setBsrRange}
+							onToggleFacet={toggleFacet}
+							onToggleMarketplace={toggleMarketplace}
+							onToggleNichesSection={() => dispatchUiState({ type: 'toggleNichesSection' })}
+							onUpdateLastUpdated={updateLastUpdated}
+						/>
 
-				<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-					<div className="min-h-0 flex-1 overflow-hidden">
-						<div className="flex h-full min-h-0 flex-col">
-							<SearchBar
-								searchValue={searchValue}
-								onSearchValueChange={setSearchValue}
-							/>
-							<div className="min-h-0 flex-1">
-								<RecentProducts
-									filters={filters}
-									searchValue={searchValue}
-									onStatusChange={handleProductStatusChange}
-								/>
+						<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+							<div className="min-h-0 flex-1 overflow-hidden">
+								<div className="flex h-full min-h-0 flex-col">
+									<SearchBar
+										searchValue={searchValue}
+										onSearchValueChange={setSearchValue}
+									/>
+									<div className="min-h-0 flex-1">
+										<RecentProducts
+											filters={filters}
+											searchValue={searchValue}
+											onStatusChange={handleProductStatusChange}
+										/>
+									</div>
+								</div>
 							</div>
+							<DashboardFooter
+								activeFilterCount={activeFilterCount}
+								hasMore={productStatus.hasMore}
+								productCount={productStatus.count}
+							/>
 						</div>
+					</>
+				) : (
+					<div className="min-h-0 min-w-0 flex-1">
+						<LogsPage />
 					</div>
-					<DashboardFooter
-						activeFilterCount={activeFilterCount}
-						hasMore={productStatus.hasMore}
-						productCount={productStatus.count}
-					/>
-				</div>
+				)}
 			</div>
 
 			<SettingsModal

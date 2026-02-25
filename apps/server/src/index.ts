@@ -198,6 +198,7 @@ try {
     console.log(`  • Keepa History Sync: ${keepaStatus}`);
     console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
+    console.log('  • User Event Logs: Enabled (dashboard logs page)');
     console.log('  • API Routes: tRPC (/api)');
     console.log('  • Auth: Clerk (app), License (public)');
     const devClerkSignInStatus = env.DEV_CLERK_SIGN_IN_USER_ID
