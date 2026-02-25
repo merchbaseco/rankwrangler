@@ -1,0 +1,10 @@
+title = "RankWrangler gitleaks config"
+
+[[allowlists]]
+description = "Mock license keys used in extension UI preview fixtures"
+paths = ['''apps/extension/src/scripts/preview/chrome-preview\.tsx''']
+regexes = [
+    '''RWL-8QW2-ABCD-9JKL''',
+    '''RWL-1234-EXPIRED-9999''',
+    '''LICENSE-KEY-EXAMPLE-(ACTIVE|INVALID)''',
+]
