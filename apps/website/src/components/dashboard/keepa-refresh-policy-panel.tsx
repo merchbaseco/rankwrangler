@@ -7,11 +7,13 @@ type KeepaRefreshPolicyBucket = AdminStatsData['keepaRefreshPolicyBuckets'][numb
 type KeepaRefreshPolicyPanelProps = {
     buckets: KeepaRefreshPolicyBucket[];
     fetchGuardLabel: string;
+    queueLength: number | null;
     isLoading: boolean;
 };
 
 export const KeepaRefreshPolicyPanel = ({
     buckets,
+    queueLength,
     isLoading,
 }: KeepaRefreshPolicyPanelProps) => {
     const autoRefreshProducts = buckets
@@ -25,12 +27,20 @@ export const KeepaRefreshPolicyPanel = ({
                     Keepa Refresh
                 </p>
                 {!isLoading && (
-                    <p className="font-mono text-xs tabular-nums">
-                        <span className="text-success-foreground">
-                            {formatNumber(autoRefreshProducts)}
-                        </span>
-                        <span className="ml-1 text-muted-foreground">auto</span>
-                    </p>
+                    <div className="flex items-center gap-3 font-mono text-xs tabular-nums">
+                        <p>
+                            <span className="text-foreground">
+                                {queueLength === null ? '—' : formatNumber(queueLength)}
+                            </span>
+                            <span className="ml-1 text-muted-foreground">queued</span>
+                        </p>
+                        <p>
+                            <span className="text-success-foreground">
+                                {formatNumber(autoRefreshProducts)}
+                            </span>
+                            <span className="ml-1 text-muted-foreground">auto</span>
+                        </p>
+                    </div>
                 )}
             </div>
 
