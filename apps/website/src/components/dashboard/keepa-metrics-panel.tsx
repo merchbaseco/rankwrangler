@@ -14,6 +14,7 @@ import { api } from '@/lib/trpc';
 import { cn, formatNumber } from '@/lib/utils';
 
 const COLS = 3;
+const SETTINGS_METRICS_POLL_INTERVAL_MS = 10_000;
 
 type StatType = 'neutral' | 'success' | 'error';
 
@@ -33,14 +34,22 @@ export const KeepaMetricsPanel = () => {
     const [selectedStat, setSelectedStat] = useState<AdminStatLabel | null>(null);
 
     const statsQuery = api.api.app.getAdminStats.useQuery(undefined, {
-        refetchInterval: 60_000,
+        refetchInterval: SETTINGS_METRICS_POLL_INTERVAL_MS,
+        refetchIntervalInBackground: false,
         refetchOnWindowFocus: false,
+    });
+    const keepaStatusQuery = api.api.app.getKeepaStatus.useQuery(undefined, {
+        refetchInterval: SETTINGS_METRICS_POLL_INTERVAL_MS,
+        refetchIntervalInBackground: false,
+        refetchOnWindowFocus: false,
+        retry: false,
     });
 
     const allStats = statsQuery.data?.stats ?? [];
     const stats = allStats.filter((s) => s.label.startsWith('Keepa'));
     const keepaRefreshPolicyBuckets = statsQuery.data?.keepaRefreshPolicyBuckets ?? [];
     const keepaFetchGuardLabel = statsQuery.data?.keepaFetchGuardLabel ?? '';
+    const keepaQueueLength = keepaStatusQuery.data?.queue.totalQueued ?? null;
     const isLoading = statsQuery.isLoading;
 
     const defaultSelectedStat = stats
@@ -64,6 +73,8 @@ export const KeepaMetricsPanel = () => {
     const jobQuery = api.api.app.jobExecutions.useQuery(queryInput, {
         enabled: selectedConfig !== undefined,
         retry: false,
+        refetchInterval: SETTINGS_METRICS_POLL_INTERVAL_MS,
+        refetchIntervalInBackground: false,
         refetchOnWindowFocus: false,
     });
 
@@ -138,6 +149,7 @@ export const KeepaMetricsPanel = () => {
                 <KeepaRefreshPolicyPanel
                     buckets={keepaRefreshPolicyBuckets}
                     fetchGuardLabel={keepaFetchGuardLabel}
+                    queueLength={keepaQueueLength}
                     isLoading={isLoading}
                 />
             </div>

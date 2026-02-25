@@ -14,6 +14,7 @@ import { api } from '@/lib/trpc';
 import { cn, formatNumber } from '@/lib/utils';
 
 const COLS = 3;
+const SETTINGS_METRICS_POLL_INTERVAL_MS = 10_000;
 
 type StatType = 'neutral' | 'success' | 'error';
 
@@ -33,7 +34,8 @@ export const SpApiMetricsPanel = () => {
     const [selectedStat, setSelectedStat] = useState<AdminStatLabel | null>(null);
 
     const statsQuery = api.api.app.getAdminStats.useQuery(undefined, {
-        refetchInterval: 60_000,
+        refetchInterval: SETTINGS_METRICS_POLL_INTERVAL_MS,
+        refetchIntervalInBackground: false,
         refetchOnWindowFocus: false,
     });
 
@@ -63,6 +65,8 @@ export const SpApiMetricsPanel = () => {
     const jobQuery = api.api.app.jobExecutions.useQuery(queryInput, {
         enabled: selectedConfig !== undefined,
         retry: false,
+        refetchInterval: SETTINGS_METRICS_POLL_INTERVAL_MS,
+        refetchIntervalInBackground: false,
         refetchOnWindowFocus: false,
     });
 
