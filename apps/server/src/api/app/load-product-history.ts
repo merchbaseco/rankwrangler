@@ -28,7 +28,7 @@ export const loadProductHistory = appProcedure
                 level: 'info',
                 status: 'success',
                 category: 'history',
-                action: 'history.synced',
+                action: 'history.sync.manual',
                 primitiveType: 'history',
                 message: `Synced history for ${input.asin}.`,
                 detailsJson: {
@@ -49,7 +49,7 @@ export const loadProductHistory = appProcedure
                 level: 'error',
                 status: 'failed',
                 category: 'history',
-                action: 'history.sync_failed',
+                action: 'history.sync.manual',
                 primitiveType: 'history',
                 message: `History sync failed for ${input.asin}.`,
                 detailsJson: {

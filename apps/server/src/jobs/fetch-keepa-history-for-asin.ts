@@ -50,34 +50,62 @@ export const fetchKeepaHistoryForAsinJob = defineJob(
     .input(z.unknown())
     .work(async (job, signal, log) => {
         void signal;
+        let outcome: 'completed' | 'failed' | 'skipped_invalid_payload' = 'completed';
 
-        const payload = getFetchKeepaHistoryJobPayload(job);
-        if (!payload) {
-            log(
-                'Skipping job: missing marketplaceId or asin in job payload',
-                {
+        try {
+            const payload = getFetchKeepaHistoryJobPayload(job);
+            if (!payload) {
+                outcome = 'skipped_invalid_payload';
+                log(
+                    'Skipping job: missing marketplaceId or asin in job payload',
+                    {
+                        jobId: job.id,
+                        payload: job.data,
+                    },
+                    'warn'
+                );
+
+                return {
+                    didWork: false,
                     jobId: job.id,
-                    payload: job.data,
-                },
-                'warn'
-            );
+                    status: 'skipped_invalid_payload',
+                } as const;
+            }
+
+            log('Processing Keepa history fetch', payload);
+            await fetchKeepaHistoryForAsin(payload);
+            log('Completed Keepa history fetch', payload);
 
             return {
-                didWork: false,
-                jobId: job.id,
-                status: 'skipped_invalid_payload',
+                didWork: true,
+                ...payload,
+                status: 'completed',
             } as const;
+        } catch (error) {
+            outcome = 'failed';
+            await defaultFetchKeepaHistoryForAsinDeps.createEventLogSafe({
+                level: 'error',
+                status: 'failed',
+                category: 'job',
+                action: 'job.fatal',
+                primitiveType: 'job',
+                message: 'Fatal job failure in fetch-keepa-history-for-asin.',
+                detailsJson: {
+                    error: getErrorMessage(error),
+                    input: job.data,
+                    source: 'fetch_keepa_history_for_asin_job',
+                },
+                jobName: 'fetch-keepa-history-for-asin',
+                jobRunId: String(job.id),
+                requestId: String(job.id),
+            });
+            throw error;
+        } finally {
+            log('Finished Keepa history fetch job run', {
+                jobId: job.id,
+                outcome,
+            });
         }
-
-        log('Processing Keepa history fetch', payload);
-        await fetchKeepaHistoryForAsin(payload);
-        log('Completed Keepa history fetch', payload);
-
-        return {
-            didWork: true,
-            ...payload,
-            status: 'completed',
-        } as const;
     });
 
 export const fetchKeepaHistoryForAsin = async (
@@ -138,7 +166,7 @@ export const fetchKeepaHistoryForAsin = async (
                 level: 'info',
                 status: 'success',
                 category: 'history',
-                action: 'history.synced',
+                action: 'history.sync.background',
                 primitiveType: 'history',
                 message: `Synced history for ${asin}.`,
                 detailsJson: {
@@ -168,7 +196,7 @@ export const fetchKeepaHistoryForAsin = async (
             level: 'error',
             status: 'failed',
             category: 'history',
-            action: 'history.sync_failed',
+            action: 'history.sync.background',
             primitiveType: 'history',
             message: `History sync failed for ${asin}.`,
             detailsJson: {

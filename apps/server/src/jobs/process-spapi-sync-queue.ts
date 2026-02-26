@@ -3,13 +3,17 @@ import { upsertProductInfo } from '@/db/product/upsert-product.js';
 import { deleteSpApiSyncQueueItems } from '@/db/spapi-sync-queue/delete-queue-items.js';
 import { getSpApiSyncQueueItems } from '@/db/spapi-sync-queue/get-queue-items.js';
 import { defineJob } from '@/jobs/job-router.js';
-import { createEventLogsSafe } from '@/services/event-logs.js';
+import { createEventLogSafe, createEventLogsSafe } from '@/services/event-logs.js';
 import { getErrorMessage } from '@/services/job-executions-utils.js';
 import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 
 const SP_API_SYNC_BATCH_SIZE = 20;
 type ProcessSpApiSyncQueueFailureStage = 'fetch' | 'upsert' | 'delete';
+
+const processSpApiSyncQueueJobDeps = {
+    createEventLogSafe,
+};
 
 type ProcessSpApiSyncQueueDeps = {
     getSpApiSyncQueueItems: typeof getSpApiSyncQueueItems;
@@ -157,25 +161,51 @@ export const processSpApiSyncQueueJob = defineJob(
         retryLimit: 0,
     })
     .work(async (job, signal, log) => {
-        void job;
         void signal;
+        let outcome: 'completed' | 'failed' = 'completed';
 
-        const result = await processSpApiSyncQueue();
+        try {
+            const result = await processSpApiSyncQueue();
 
-        if (result.didWork) {
-            log('Processed SP-API sync queue batch', {
-                marketplaceId: result.marketplaceId,
-                queueCount: result.queueCount,
-                upsertedCount: result.upsertedCount,
-                hasMore: result.hasMore,
+            if (result.didWork) {
+                log('Processed SP-API sync queue batch', {
+                    marketplaceId: result.marketplaceId,
+                    queueCount: result.queueCount,
+                    upsertedCount: result.upsertedCount,
+                    hasMore: result.hasMore,
+                });
+            }
+
+            if (result.hasMore) {
+                await sendProcessSpApiSyncQueueJob({ singleton: false });
+            }
+
+            return result;
+        } catch (error) {
+            outcome = 'failed';
+            await processSpApiSyncQueueJobDeps.createEventLogSafe({
+                level: 'error',
+                status: 'failed',
+                category: 'job',
+                action: 'job.fatal',
+                primitiveType: 'job',
+                message: 'Fatal job failure in process-spapi-sync-queue.',
+                detailsJson: {
+                    error: getErrorMessage(error),
+                    input: job.data,
+                    source: 'process_spapi_sync_queue_job',
+                },
+                jobName: 'process-spapi-sync-queue',
+                jobRunId: String(job.id),
+                requestId: String(job.id),
+            });
+            throw error;
+        } finally {
+            log('Finished SP-API sync queue job run', {
+                jobId: job.id,
+                outcome,
             });
         }
-
-        if (result.hasMore) {
-            await sendProcessSpApiSyncQueueJob({ singleton: false });
-        }
-
-        return result;
     });
 
 const buildProductSyncedLog = ({
@@ -188,7 +218,7 @@ const buildProductSyncedLog = ({
     level: 'info' as const,
     status: 'success' as const,
     category: 'product',
-    action: 'product.synced',
+    action: 'product.sync',
     primitiveType: 'product' as const,
     message: `Synced product ${asin}.`,
     detailsJson: {
@@ -215,7 +245,7 @@ const buildProductSyncFailedLog = ({
     level: 'error' as const,
     status: 'failed' as const,
     category: 'product',
-    action: 'product.sync_failed',
+    action: 'product.sync',
     primitiveType: 'product' as const,
     message,
     detailsJson: {

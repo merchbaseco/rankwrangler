@@ -112,6 +112,7 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 
 Open these only when the task needs that specific workflow:
 
+- Server documentation index: `docs/server/index.md`
 - Local/dev commands, env setup, extension build order, deployment: `docs/operations-runbook.md`
 - Extension UI preview workflow + maintenance: `docs/extension-ui-preview.md`
 - CI troubleshooting workflow (GitHub-first, no ad-hoc installs): `docs/ci-troubleshooting.md`

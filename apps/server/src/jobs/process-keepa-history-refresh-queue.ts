@@ -1,6 +1,8 @@
 import type { PgBoss } from 'pg-boss';
 import { z } from 'zod';
 import { defineJob } from '@/jobs/job-router.js';
+import { createEventLogSafe } from '@/services/event-logs.js';
+import { getErrorMessage } from '@/services/job-executions-utils.js';
 import {
     getDueKeepaHistoryRefreshQueueItems,
     getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens,
@@ -12,6 +14,10 @@ export type ProcessKeepaHistoryRefreshQueueResult = {
     batchSize: number;
     dispatchedCount: number;
     reason: 'dispatched' | 'no_tokens' | 'no_due_items';
+};
+
+const processKeepaHistoryRefreshQueueJobDeps = {
+    createEventLogSafe,
 };
 
 export async function processKeepaHistoryRefreshQueue(boss: PgBoss) {
@@ -74,17 +80,43 @@ export const processKeepaHistoryRefreshQueueJob = defineJob(
         payload: {},
     })
     .work(async (job, signal, log, { boss }) => {
-        void job;
         void signal;
+        let outcome: 'completed' | 'failed' = 'completed';
 
-        const result = await processKeepaHistoryRefreshQueue(boss);
+        try {
+            const result = await processKeepaHistoryRefreshQueue(boss);
 
-        if (result.didWork) {
-            log('Dispatched Keepa refresh jobs', {
-                batchSize: result.batchSize,
-                dispatchedCount: result.dispatchedCount,
+            if (result.didWork) {
+                log('Dispatched Keepa refresh jobs', {
+                    batchSize: result.batchSize,
+                    dispatchedCount: result.dispatchedCount,
+                });
+            }
+
+            return result;
+        } catch (error) {
+            outcome = 'failed';
+            await processKeepaHistoryRefreshQueueJobDeps.createEventLogSafe({
+                level: 'error',
+                status: 'failed',
+                category: 'job',
+                action: 'job.fatal',
+                primitiveType: 'job',
+                message: 'Fatal job failure in process-keepa-history-refresh-queue.',
+                detailsJson: {
+                    error: getErrorMessage(error),
+                    input: job.data,
+                    source: 'process_keepa_history_refresh_queue_job',
+                },
+                jobName: 'process-keepa-history-refresh-queue',
+                jobRunId: String(job.id),
+                requestId: String(job.id),
+            });
+            throw error;
+        } finally {
+            log('Finished Keepa refresh dispatch job run', {
+                jobId: job.id,
+                outcome,
             });
         }
-
-        return result;
     });
