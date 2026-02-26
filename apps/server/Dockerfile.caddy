@@ -13,13 +13,14 @@ ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
 
 COPY package.json bun.lock ./
 #
-# Bun workspaces: apps/server depends on @rankwrangler/http-client (workspace:*),
-# so we must include at least that workspace's manifest for `bun install` to resolve.
+# Bun workspaces: include referenced workspace manifests so `bun install` can resolve.
 #
 COPY packages/http-client/package.json packages/http-client/package.json
+COPY packages/history-chart/package.json packages/history-chart/package.json
 COPY apps ./apps
 
 RUN bun install --frozen-lockfile
+COPY packages/history-chart ./packages/history-chart
 RUN bun run --filter @rankwrangler/website build
 
 # Runtime: Caddy serves static website + proxies /api/* to the server container
