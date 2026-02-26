@@ -66,4 +66,4 @@ export const TableCell = ({
 }: {
     children: ReactNode;
     className?: string;
-}) => <td className={cn('px-2 py-2 align-middle', className)}>{children}</td>;
+}) => <td className={cn('px-2 py-1.5 align-middle', className)}>{children}</td>;
