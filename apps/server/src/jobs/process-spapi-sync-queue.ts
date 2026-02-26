@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { deleteProductByMarketplaceAsin } from '@/db/product/delete-product.js';
 import { upsertProductInfo } from '@/db/product/upsert-product.js';
 import { deleteSpApiSyncQueueItems } from '@/db/spapi-sync-queue/delete-queue-items.js';
 import { getSpApiSyncQueueItems } from '@/db/spapi-sync-queue/get-queue-items.js';
@@ -9,36 +10,34 @@ import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 
 const SP_API_SYNC_BATCH_SIZE = 20;
-type ProcessSpApiSyncQueueFailureStage = 'fetch' | 'upsert' | 'delete';
-
+type ProcessSpApiSyncQueueFailureStage = 'fetch' | 'upsert' | 'delete_product' | 'delete_queue';
 const processSpApiSyncQueueJobDeps = {
     createEventLogSafe,
 };
-
 type ProcessSpApiSyncQueueDeps = {
     getSpApiSyncQueueItems: typeof getSpApiSyncQueueItems;
     searchCatalogItemsByAsins: typeof searchCatalogItemsByAsins;
     upsertProductInfo: typeof upsertProductInfo;
+    deleteProductByMarketplaceAsin: typeof deleteProductByMarketplaceAsin;
     deleteSpApiSyncQueueItems: typeof deleteSpApiSyncQueueItems;
     createEventLogsSafe: typeof createEventLogsSafe;
 };
-
 export type ProcessSpApiSyncQueueResult = {
     didWork: boolean;
     marketplaceId: string | null;
     queueCount: number;
     upsertedCount: number;
+    deletedCount: number;
     hasMore: boolean;
 };
-
 const defaultProcessSpApiSyncQueueDeps: ProcessSpApiSyncQueueDeps = {
     getSpApiSyncQueueItems,
     searchCatalogItemsByAsins,
     upsertProductInfo,
+    deleteProductByMarketplaceAsin,
     deleteSpApiSyncQueueItems,
     createEventLogsSafe,
 };
-
 export async function processSpApiSyncQueue(
     deps: ProcessSpApiSyncQueueDeps = defaultProcessSpApiSyncQueueDeps
 ) {
@@ -50,6 +49,7 @@ export async function processSpApiSyncQueue(
             marketplaceId: null,
             queueCount: 0,
             upsertedCount: 0,
+            deletedCount: 0,
             hasMore: false,
         } satisfies ProcessSpApiSyncQueueResult;
     }
@@ -64,6 +64,8 @@ export async function processSpApiSyncQueue(
 
     let fetchedProducts: Awaited<ReturnType<typeof searchCatalogItemsByAsins>> = [];
     const syncedAsinSet = new Set<string>();
+    const deletedByAsin = new Map<string, boolean>();
+    let noPayloadQueueItems: typeof queueItemsToProcess = [];
     let failureStage: ProcessSpApiSyncQueueFailureStage = 'fetch';
 
     try {
@@ -81,7 +83,23 @@ export async function processSpApiSyncQueue(
             }
         }
 
-        failureStage = 'delete';
+        const fetchedAsinSet = new Set(fetchedProducts.map(product => product.asin));
+        noPayloadQueueItems = queueItemsToProcess.filter(
+            queueItem => !fetchedAsinSet.has(queueItem.asin)
+        );
+
+        if (noPayloadQueueItems.length > 0) {
+            failureStage = 'delete_product';
+            for (const queueItem of noPayloadQueueItems) {
+                const didDelete = await deps.deleteProductByMarketplaceAsin(
+                    queueItem.marketplaceId,
+                    queueItem.asin
+                );
+                deletedByAsin.set(queueItem.asin, didDelete);
+            }
+        }
+
+        failureStage = 'delete_queue';
         await deps.deleteSpApiSyncQueueItems(itemIds);
     } catch (error) {
         const failedQueueItems = queueItemsToProcess.filter(
@@ -109,11 +127,6 @@ export async function processSpApiSyncQueue(
         throw error;
     }
 
-    const fetchedAsinSet = new Set(fetchedProducts.map(product => product.asin));
-    const failedQueueItems = queueItemsToProcess.filter(
-        queueItem => !fetchedAsinSet.has(queueItem.asin)
-    );
-
     await deps.createEventLogsSafe([
         ...fetchedProducts.map(product =>
             buildProductSyncedLog({
@@ -121,15 +134,11 @@ export async function processSpApiSyncQueue(
                 asin: product.asin,
             })
         ),
-        ...failedQueueItems.map(queueItem =>
-            buildProductSyncFailedLog({
+        ...noPayloadQueueItems.map(queueItem =>
+            buildProductDeletedLog({
                 marketplaceId: queueItem.marketplaceId,
                 asin: queueItem.asin,
-                message: `Product sync failed for ${queueItem.asin}.`,
-                details: {
-                    reason: 'SP-API returned no product payload.',
-                    source: 'spapi_sync_queue_job',
-                },
+                deletedFromStore: deletedByAsin.get(queueItem.asin) ?? false,
             })
         ),
     ]);
@@ -144,6 +153,7 @@ export async function processSpApiSyncQueue(
         marketplaceId,
         queueCount: queueItemsToProcess.length,
         upsertedCount: fetchedProducts.length,
+        deletedCount: noPayloadQueueItems.length,
         hasMore,
     } satisfies ProcessSpApiSyncQueueResult;
 }
@@ -172,6 +182,7 @@ export const processSpApiSyncQueueJob = defineJob(
                     marketplaceId: result.marketplaceId,
                     queueCount: result.queueCount,
                     upsertedCount: result.upsertedCount,
+                    deletedCount: result.deletedCount,
                     hasMore: result.hasMore,
                 });
             }
@@ -252,6 +263,33 @@ const buildProductSyncFailedLog = ({
         marketplaceId,
         asin,
         ...details,
+    },
+    primitiveId: asin,
+    marketplaceId,
+    asin,
+});
+
+const buildProductDeletedLog = ({
+    marketplaceId,
+    asin,
+    deletedFromStore,
+}: {
+    marketplaceId: string;
+    asin: string;
+    deletedFromStore: boolean;
+}) => ({
+    level: 'warn' as const,
+    status: 'success' as const,
+    category: 'product',
+    action: 'product.deleted',
+    primitiveType: 'product' as const,
+    message: `Marked product ${asin} as deleted after SP-API returned no product payload.`,
+    detailsJson: {
+        marketplaceId,
+        asin,
+        deletedFromStore,
+        reason: 'spapi_no_product_payload',
+        source: 'spapi_sync_queue_job',
     },
     primitiveId: asin,
     marketplaceId,

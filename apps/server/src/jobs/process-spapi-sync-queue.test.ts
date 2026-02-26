@@ -23,6 +23,7 @@ describe('processSpApiSyncQueue', () => {
             createFetchedProduct({ asin: item.asin, marketplaceId: item.marketplaceId })
         );
         const { deps, calls } = createDeps({
+            deleteProductByMarketplaceAsin: async () => true,
             deleteSpApiSyncQueueItems: async () => {},
             getSpApiSyncQueueItems: async () => queueItems,
             searchCatalogItemsByAsins: async () => fetchedProducts,
@@ -54,6 +55,7 @@ describe('processSpApiSyncQueue', () => {
             createFetchedProduct({ asin: item.asin, marketplaceId: item.marketplaceId })
         );
         const { deps, calls } = createDeps({
+            deleteProductByMarketplaceAsin: async () => true,
             deleteSpApiSyncQueueItems: async () => {
                 throw new Error('delete exploded');
             },
@@ -67,8 +69,36 @@ describe('processSpApiSyncQueue', () => {
         expect(calls.createEventLogsSafe.mock.calls).toHaveLength(0);
     });
 
-    it('keeps no-payload failures in the success path', async () => {
+    it('logs missing ASINs as failed when product delete stage throws', async () => {
         const { processSpApiSyncQueue } = await loadSubject();
+        const queueItems = [createQueueItem({ id: 'q1', asin: 'B000000020' })];
+        const { deps, calls } = createDeps({
+            deleteProductByMarketplaceAsin: async () => {
+                throw new Error('delete product exploded');
+            },
+            deleteSpApiSyncQueueItems: async () => {},
+            getSpApiSyncQueueItems: async () => queueItems,
+            searchCatalogItemsByAsins: async () => [],
+            upsertProductInfo: async () => {},
+        });
+
+        await expect(processSpApiSyncQueue(deps)).rejects.toThrow('delete product exploded');
+
+        expect(calls.createEventLogsSafe.mock.calls).toHaveLength(1);
+        const [failedLogs] = calls.createEventLogsSafe.mock.calls[0];
+        const typedFailedLogs = failedLogs as EventLogInput[];
+        expect(typedFailedLogs).toHaveLength(1);
+        expect(typedFailedLogs[0].asin).toBe('B000000020');
+        expect(typedFailedLogs[0].status).toBe('failed');
+        expect(typedFailedLogs[0].action).toBe('product.sync');
+        expect(typedFailedLogs[0].detailsJson.stage).toBe('delete_product');
+    });
+
+    it('deletes no-payload products and emits product.deleted logs', async () => {
+        const { processSpApiSyncQueue } = await loadSubject();
+        const deleteProductByMarketplaceAsin = mock(
+            async (_marketplaceId: string, asin: string) => asin === 'B000000022'
+        );
         const queueItems = [
             createQueueItem({ id: 'q1', asin: 'B000000021' }),
             createQueueItem({ id: 'q2', asin: 'B000000022' }),
@@ -81,6 +111,7 @@ describe('processSpApiSyncQueue', () => {
         ];
         let queueReadCount = 0;
         const { deps, calls } = createDeps({
+            deleteProductByMarketplaceAsin,
             deleteSpApiSyncQueueItems: async () => {},
             getSpApiSyncQueueItems: async () => {
                 queueReadCount += 1;
@@ -94,19 +125,32 @@ describe('processSpApiSyncQueue', () => {
 
         expect(result.didWork).toBeTrue();
         expect(result.upsertedCount).toBe(1);
+        expect(result.deletedCount).toBe(1);
+        expect(deleteProductByMarketplaceAsin.mock.calls).toHaveLength(1);
+        expect(deleteProductByMarketplaceAsin.mock.calls[0]).toEqual([
+            'ATVPDKIKX0DER',
+            'B000000022',
+        ]);
         expect(calls.createEventLogsSafe.mock.calls).toHaveLength(1);
         const [eventLogs] = calls.createEventLogsSafe.mock.calls[0];
         const typedEventLogs = eventLogs as EventLogInput[];
         expect(typedEventLogs).toHaveLength(2);
         expect(typedEventLogs.find(log => log.asin === 'B000000021')?.status).toBe('success');
-        expect(typedEventLogs.find(log => log.asin === 'B000000022')?.status).toBe('failed');
-        expect(typedEventLogs.every(log => log.action === 'product.sync')).toBeTrue();
+        expect(typedEventLogs.find(log => log.asin === 'B000000022')?.status).toBe('success');
+        expect(typedEventLogs.find(log => log.asin === 'B000000021')?.action).toBe('product.sync');
+        expect(typedEventLogs.find(log => log.asin === 'B000000022')?.action).toBe(
+            'product.deleted'
+        );
+        expect(typedEventLogs.find(log => log.asin === 'B000000022')?.detailsJson.deletedFromStore).toBe(
+            true
+        );
     });
 });
 
 const createDeps = (overrides: Partial<ProcessSpApiSyncQueueDeps> = {}) => {
     const calls = {
         createEventLogsSafe: mock(async () => {}),
+        deleteProductByMarketplaceAsin: mock(async () => false),
         deleteSpApiSyncQueueItems: mock(async () => {}),
         getSpApiSyncQueueItems: mock(async () => []),
         searchCatalogItemsByAsins: mock(async () => []),
