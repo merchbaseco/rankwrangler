@@ -5,6 +5,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 ## Apps
 
 - `apps/server` – Fastify-based tRPC API for Amazon SP-API integration
+  - SP-API sync treats missing catalog payloads as product removals, logs `product.deleted`,
+    and deletes the corresponding row from `products`
 - `apps/website` – Dashboard for API keys, usage, recent products, and a Logs page
   for user-facing product/history sync events
 - `apps/extension` – Chrome extension
