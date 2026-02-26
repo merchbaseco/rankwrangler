@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
 import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue.js';
+import { createEventLogSafe } from '@/services/event-logs.js';
+import { getErrorMessage } from '@/services/job-executions-utils.js';
 import {
     BSR_THRESHOLD_1M,
     BSR_THRESHOLD_200K,
@@ -21,6 +23,10 @@ export type ReprocessStaleProductsResult = {
     staleProductCount: number;
     enqueuedCount: number;
     errorMessage: string | null;
+};
+
+const reprocessStaleProductsJobDeps = {
+    createEventLogSafe,
 };
 
 export async function reprocessStaleProducts() {
@@ -131,26 +137,52 @@ export const reprocessStaleProductsJob = defineJob('reprocess-stale-products', {
         payload: {},
     })
     .work(async (job, signal, log) => {
-        void job;
         void signal;
+        let outcome: 'completed' | 'failed' = 'completed';
 
-        const result = await reprocessStaleProducts();
+        try {
+            const result = await reprocessStaleProducts();
 
-        if (result.errorMessage) {
-            log(
-                'Failed to enqueue stale products',
-                {
+            if (result.errorMessage) {
+                log(
+                    'Failed to enqueue stale products',
+                    {
+                        staleProductCount: result.staleProductCount,
+                        error: result.errorMessage,
+                    },
+                    'error'
+                );
+            } else if (result.didWork) {
+                log('Queued stale products for reprocessing', {
                     staleProductCount: result.staleProductCount,
-                    error: result.errorMessage,
+                    enqueuedCount: result.enqueuedCount,
+                });
+            }
+
+            return result;
+        } catch (error) {
+            outcome = 'failed';
+            await reprocessStaleProductsJobDeps.createEventLogSafe({
+                level: 'error',
+                status: 'failed',
+                category: 'job',
+                action: 'job.fatal',
+                primitiveType: 'job',
+                message: 'Fatal job failure in reprocess-stale-products.',
+                detailsJson: {
+                    error: getErrorMessage(error),
+                    input: job.data,
+                    source: 'reprocess_stale_products_job',
                 },
-                'error'
-            );
-        } else if (result.didWork) {
-            log('Queued stale products for reprocessing', {
-                staleProductCount: result.staleProductCount,
-                enqueuedCount: result.enqueuedCount,
+                jobName: 'reprocess-stale-products',
+                jobRunId: String(job.id),
+                requestId: String(job.id),
+            });
+            throw error;
+        } finally {
+            log('Finished stale product reprocess job run', {
+                jobId: job.id,
+                outcome,
             });
         }
-
-        return result;
     });

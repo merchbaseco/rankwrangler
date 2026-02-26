@@ -63,7 +63,7 @@ type EventLogInput = {
     level: 'info' | 'error';
     status: 'success' | 'failed';
     category: 'history';
-    action: 'history.synced' | 'history.sync_failed';
+    action: 'history.sync.background';
     primitiveType: 'history';
     message: string;
     detailsJson: Record<string, unknown>;
@@ -90,7 +90,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('info');
         expect(eventLog.status).toBe('success');
-        expect(eventLog.action).toBe('history.synced');
+        expect(eventLog.action).toBe('history.sync.background');
         expect(eventLog.message).toBe(`Synced history for ${params.asin}.`);
         expect(eventLog.primitiveId).toBe(params.asin);
         expect(eventLog.marketplaceId).toBe(params.marketplaceId);
@@ -115,7 +115,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('error');
         expect(eventLog.status).toBe('failed');
-        expect(eventLog.action).toBe('history.sync_failed');
+        expect(eventLog.action).toBe('history.sync.background');
         expect(eventLog.detailsJson.error).toBe(
             'Keepa returned no product history for this ASIN'
         );
@@ -140,7 +140,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('error');
         expect(eventLog.status).toBe('failed');
-        expect(eventLog.action).toBe('history.sync_failed');
+        expect(eventLog.action).toBe('history.sync.background');
         expect(eventLog.detailsJson.error).toBe('Keepa request failed');
         expect(eventLog.detailsJson.source).toBe('keepa_background_job');
     });
@@ -158,7 +158,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('error');
         expect(eventLog.status).toBe('failed');
-        expect(eventLog.action).toBe('history.sync_failed');
+        expect(eventLog.action).toBe('history.sync.background');
         expect(eventLog.detailsJson.error).toBe('Keepa import failed');
         expect(eventLog.detailsJson.source).toBe('keepa_background_job');
     });

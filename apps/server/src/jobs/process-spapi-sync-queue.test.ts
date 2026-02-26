@@ -6,6 +6,7 @@ type ProcessSpApiSyncQueueDeps = NonNullable<
 
 type EventLogInput = {
     asin: string;
+    action: string;
     detailsJson: Record<string, unknown>;
     status: string;
 };
@@ -39,6 +40,7 @@ describe('processSpApiSyncQueue', () => {
         const typedFailedLogs = failedLogs as EventLogInput[];
         expect(typedFailedLogs.map(log => log.asin)).toEqual(['B000000002', 'B000000003']);
         expect(typedFailedLogs.every(log => log.status === 'failed')).toBeTrue();
+        expect(typedFailedLogs.every(log => log.action === 'product.sync')).toBeTrue();
         expect(typedFailedLogs.every(log => log.detailsJson.stage === 'upsert')).toBeTrue();
     });
 
@@ -98,6 +100,7 @@ describe('processSpApiSyncQueue', () => {
         expect(typedEventLogs).toHaveLength(2);
         expect(typedEventLogs.find(log => log.asin === 'B000000021')?.status).toBe('success');
         expect(typedEventLogs.find(log => log.asin === 'B000000022')?.status).toBe('failed');
+        expect(typedEventLogs.every(log => log.action === 'product.sync')).toBeTrue();
     });
 });
 
