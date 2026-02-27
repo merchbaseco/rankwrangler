@@ -36,6 +36,32 @@ const ASIN_REGEX = /^[A-Z0-9]{10}$/i;
 const TRAILING_SLASHES_REGEX = /\/+$/;
 const API_SUFFIX_REGEX = /\/api$/i;
 const DEFAULT_MARKETPLACE_ID = 'ATVPDKIKX0DER';
+const HISTORY_METRIC_ALIASES = ['bsr', 'price'] as const;
+
+type HistoryMetricAlias = (typeof HISTORY_METRIC_ALIASES)[number];
+type HistoryPointTuple = [string, number | null] | [string, null, 1];
+
+type AgentHistorySeries = {
+    bsr?: {
+        unit: 'rank';
+        category: { id: number; name: string | null } | null;
+        points: HistoryPointTuple[];
+    };
+    price?: {
+        unit: 'minorCurrency';
+        currencyCode: 'USD';
+        valueScale: 100;
+        points: HistoryPointTuple[];
+    };
+};
+
+type AgentHistoryResponse = {
+    schemaVersion?: number;
+    status?: string;
+    syncTriggered: boolean;
+    latestImportAt: string | null;
+    series?: AgentHistorySeries;
+};
 
 const CONFIG_DIR = path.join(homedir(), '.rankwrangler');
 const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
@@ -43,6 +69,7 @@ const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
 const DEFAULT_OUTPUT_PRETTY = true;
 const SUPPORTED_COMMANDS = new Set([
     'products:get',
+    'products:history',
     'license:status',
     'license:validate',
     'config:show',
@@ -58,6 +85,11 @@ const { positionals, values } = parseArgs({
         baseUrl: { type: 'string' },
         marketplace: { type: 'string', short: 'm' },
         asin: { type: 'string', multiple: true },
+        metrics: { type: 'string' },
+        startAt: { type: 'string' },
+        endAt: { type: 'string' },
+        days: { type: 'string' },
+        limit: { type: 'string' },
     },
     allowPositionals: true,
 });
@@ -120,6 +152,10 @@ const runApiCommand = async (
         return client.getProductInfoBatch.mutate({ marketplaceId, asins });
     }
 
+    if (command.resource === 'products' && command.verb === 'history') {
+        return runProductHistoryCommand(command, client, config);
+    }
+
     if (command.resource === 'license' && command.verb === 'status') {
         return client.license.status.mutate();
     }
@@ -132,6 +168,40 @@ const runApiCommand = async (
         command: `${command.resource} ${command.verb}`,
     });
     return null;
+};
+
+const runProductHistoryCommand = async (
+    command: CliCommand,
+    client: ReturnType<typeof createRankWranglerClient>,
+    config: CliConfig
+) => {
+    const marketplaceId = requireMarketplaceId(config);
+    const asin = requireSingleAsin(command.args);
+    const metrics = resolveHistoryMetrics();
+    const historyWindow = resolveHistoryWindow();
+    const limit = parseIntegerOption({
+        value: values.limit,
+        optionName: 'limit',
+        min: 1,
+        max: 10000,
+        defaultValue: 5000,
+    });
+
+    const response = await client.getProductHistory.mutate({
+        marketplaceId,
+        asin,
+        metrics,
+        format: 'agent',
+        limit,
+        ...historyWindow,
+    });
+
+    return buildCliHistoryResponse({
+        asin,
+        marketplaceId,
+        metrics,
+        response,
+    });
 };
 
 const runConfigCommand = async (command: CliCommand, config: CliConfig) => {
@@ -208,6 +278,15 @@ const requireAsins = (commandArgs: string[]) => {
     return Array.from(new Set(candidates.map(normalizeAsin)));
 };
 
+const requireSingleAsin = (commandArgs: string[]) => {
+    const asins = requireAsins(commandArgs);
+    if (asins.length !== 1) {
+        fail('INVALID_INPUT', 'products history requires exactly one asin');
+    }
+
+    return asins[0];
+};
+
 const collectAsinCandidates = (commandArgs: string[]) => {
     const optionAsins = [...(values.asin ?? [])];
     const envAsins = process.env.RR_ASINS
@@ -227,6 +306,120 @@ const normalizeAsin = (value: string) => {
     }
 
     return normalized;
+};
+
+const resolveHistoryMetrics = () => {
+    const rawMetrics = values.metrics ?? process.env.RR_HISTORY_METRICS ?? 'bsr,price';
+    const requested = rawMetrics
+        .split(',')
+        .map(value => value.trim().toLowerCase())
+        .filter(Boolean);
+
+    if (requested.length === 0) {
+        fail('INVALID_INPUT', 'metrics cannot be empty');
+    }
+
+    const invalid = requested.filter(value => !HISTORY_METRIC_ALIASES.includes(value as HistoryMetricAlias));
+    if (invalid.length > 0) {
+        fail('INVALID_INPUT', `unsupported history metric: ${invalid[0]}`, {
+            supportedMetrics: HISTORY_METRIC_ALIASES,
+        });
+    }
+
+    return Array.from(new Set(requested)) as HistoryMetricAlias[];
+};
+
+const resolveHistoryWindow = () => {
+    const startAt = values.startAt ? normalizeDateOption('startAt', values.startAt) : undefined;
+    const endAt = values.endAt ? normalizeDateOption('endAt', values.endAt) : undefined;
+    const days = parseIntegerOption({
+        value: values.days,
+        optionName: 'days',
+        min: 30,
+        max: 3650,
+        defaultValue: 365,
+    });
+
+    if (values.days && (startAt || endAt)) {
+        fail('INVALID_INPUT', 'use --days or --startAt/--endAt, not both');
+    }
+
+    return {
+        ...(startAt ? { startAt } : {}),
+        ...(endAt ? { endAt } : {}),
+        days,
+    };
+};
+
+const parseIntegerOption = ({
+    value,
+    optionName,
+    min,
+    max,
+    defaultValue,
+}: {
+    value: string | undefined;
+    optionName: string;
+    min: number;
+    max: number;
+    defaultValue: number;
+}) => {
+    if (!value) {
+        return defaultValue;
+    }
+
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+        fail('INVALID_INPUT', `${optionName} must be an integer between ${min} and ${max}`);
+    }
+
+    return parsed;
+};
+
+const normalizeDateOption = (optionName: string, value: string) => {
+    const parsed = new Date(value);
+    if (!Number.isFinite(parsed.getTime())) {
+        fail('INVALID_INPUT', `${optionName} must be a valid date`);
+    }
+
+    return parsed.toISOString();
+};
+
+const buildCliHistoryResponse = ({
+    asin,
+    marketplaceId,
+    metrics,
+    response,
+}: {
+    asin: string;
+    marketplaceId: string;
+    metrics: HistoryMetricAlias[];
+    response: AgentHistoryResponse;
+}) => {
+    const series: AgentHistorySeries = {
+        ...(metrics.includes('bsr') && response.series?.bsr ? { bsr: response.series.bsr } : {}),
+        ...(metrics.includes('price') && response.series?.price ? { price: response.series.price } : {}),
+    };
+    const hasAnyPoints = Object.values(series).some(metricSeries => metricSeries.points.length > 0);
+    const status = normalizeHistoryStatus(response.status);
+
+    return {
+        schemaVersion: response.schemaVersion ?? 1,
+        asin,
+        marketplaceId,
+        status: status ?? (response.syncTriggered ? 'collecting' : hasAnyPoints ? 'ready' : 'empty'),
+        latestImportAt: response.latestImportAt,
+        syncTriggered: response.syncTriggered,
+        series,
+    };
+};
+
+const normalizeHistoryStatus = (status: string | undefined) => {
+    if (status === 'ready' || status === 'collecting' || status === 'empty') {
+        return status;
+    }
+
+    return null;
 };
 
 const resolveApiKey = (config: CliConfig) => {
@@ -364,6 +557,7 @@ const printUsage = () => {
         '',
         'COMMANDS',
         '  products get <ASIN...>',
+        '  products history <ASIN>',
         '  license status',
         '  license validate',
         '  config show',
@@ -378,6 +572,11 @@ const printUsage = () => {
         '  --baseUrl <origin>       Override API origin',
         `  -m, --marketplace <id>   Override marketplace (default: ${DEFAULT_MARKETPLACE_ID})`,
         '  --asin <ASIN>            Add ASIN (repeatable)',
+        '  --metrics <list>         History metrics: bsr,price (default: bsr,price)',
+        '  --days <N>               History lookback window (30-3650, default: 365)',
+        '  --startAt <ISO>          History range start (ISO date/time)',
+        '  --endAt <ISO>            History range end (ISO date/time)',
+        '  --limit <N>              Max points per metric (1-10000, default: 5000)',
         '',
         'FILES',
         `  ${CONFIG_PATH}           Local CLI config`,
@@ -388,10 +587,13 @@ const printUsage = () => {
         '  RR_MARKETPLACE_ID        Marketplace fallback',
         '  RR_ASIN                  Single ASIN fallback',
         '  RR_ASINS                 Comma-separated ASIN fallback',
+        '  RR_HISTORY_METRICS       Comma-separated history metrics fallback',
         '',
         'EXAMPLES',
         '  rw config set api-key rrk_...',
         '  rw products get B0DV53VS61',
+        '  rw products history B0DV53VS61 --metrics bsr,price',
+        '  rw products history B0DV53VS61 --startAt 2025-01-01 --endAt 2025-12-31',
         '  rankwrangler license status',
     ];
 

@@ -13,6 +13,7 @@ npm install -g @rankwrangler/cli
 ```bash
 rw config set api-key rrk_...
 rw products get B0DV53VS61
+rw products history B0DV53VS61 --metrics bsr,price
 # `rankwrangler` is also supported as an alias
 ```
 

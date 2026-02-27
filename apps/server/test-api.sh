@@ -69,6 +69,12 @@ if [ -n "$RR_LICENSE_KEY" ]; then
       -H "Authorization: Bearer $RR_LICENSE_KEY" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "limit": 100}}' | jq '.'
     echo ""
+    echo "📉 Testing api.public.getProductHistory (agent format, bsr+price)..."
+    curl -s -X POST "$API_BASE/api/api.public.getProductHistory" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "metrics": ["bsr", "price"], "format": "agent", "limit": 100}}' | jq '.'
+    echo ""
     echo "📦 Testing api.public.getProductInfoBatch..."
     curl -s -X POST "$API_BASE/api/api.public.getProductInfoBatch" \
       -H "Content-Type: application/json" \
