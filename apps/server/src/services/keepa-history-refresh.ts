@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, lte, sql } from 'drizzle-orm';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
 import {
@@ -11,8 +11,8 @@ import {
     getKeepaRuntimeTokenState,
 } from '@/services/keepa.js';
 import {
-    KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
-    isEligibleForKeepaAutoRefresh,
+    getKeepaEnqueueMinRefreshIntervalMs,
+    isEligibleForKeepaHistoryRefresh,
 } from '@/services/keepa-refresh-policy.js';
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -55,14 +55,18 @@ export const enqueueKeepaHistoryRefreshForAsin = async ({
         } as const;
     }
 
-    if (!isEligibleForKeepaAutoRefresh(product.isMerchListing, product.rootCategoryBsr)) {
+    const enqueueMinRefreshIntervalMs = getKeepaEnqueueMinRefreshIntervalMs(
+        product.isMerchListing,
+        product.rootCategoryBsr
+    );
+    if (enqueueMinRefreshIntervalMs === null) {
         return {
             enqueued: false,
             reason: 'not_eligible',
         } as const;
     }
 
-    const recentThreshold = new Date(Date.now() - KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_MS);
+    const recentThreshold = new Date(Date.now() - enqueueMinRefreshIntervalMs);
     const recentImport = await db
         .select({
             id: productHistoryImports.id,
@@ -74,7 +78,7 @@ export const enqueueKeepaHistoryRefreshForAsin = async ({
                 eq(productHistoryImports.asin, asin),
                 eq(productHistoryImports.source, 'keepa'),
                 eq(productHistoryImports.status, 'success'),
-                gte(productHistoryImports.createdAt, recentThreshold)
+                gt(productHistoryImports.createdAt, recentThreshold)
             )
         )
         .orderBy(desc(productHistoryImports.createdAt))
@@ -342,7 +346,7 @@ export const shouldKeepaHistoryRefreshAsin = async ({
         } as const;
     }
 
-    if (!isEligibleForKeepaAutoRefresh(product.isMerchListing, product.rootCategoryBsr)) {
+    if (!isEligibleForKeepaHistoryRefresh(product.isMerchListing, product.rootCategoryBsr)) {
         return {
             shouldRefresh: false,
             reason: 'not_eligible',

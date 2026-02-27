@@ -1,10 +1,13 @@
-export const KEEPA_AUTO_BSR_THRESHOLD = 1000000;
-export const KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 48 * 60 * 60 * 1000;
-export const KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS = 24 * 60 * 60 * 1000;
-export const KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_LABEL =
-    'Minimum 48h between auto-enqueue checks';
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+export const KEEPA_DAILY_AUTO_BSR_THRESHOLD = 300000;
+export const KEEPA_WEEKLY_AUTO_BSR_THRESHOLD = 1000000;
+export const KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = DAY_IN_MS;
+export const KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 7 * DAY_IN_MS;
+export const KEEPA_ON_DEMAND_ENQUEUE_MIN_REFRESH_INTERVAL_MS = DAY_IN_MS;
+export const KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS = DAY_IN_MS;
 export const KEEPA_FETCH_SUCCESS_GUARD_LABEL =
-    'Global fetch guard: one successful Keepa fetch per ASIN every 24h';
+    'Global fetch guard: never invoke Keepa more than once per ASIN every 24h';
 
 type KeepaRefreshPolicyBucket = {
     key: string;
@@ -15,38 +18,84 @@ type KeepaRefreshPolicyBucket = {
 
 export const KEEPA_REFRESH_POLICY_BUCKETS = [
     {
-        key: 'eligible',
-        label: 'Merch BSR <1M',
-        refreshEveryLabel: `Event-driven enqueue (${KEEPA_QUEUE_ENQUEUE_MIN_REFRESH_INTERVAL_LABEL})`,
+        key: 'daily',
+        label: 'Merch BSR <300k',
+        refreshEveryLabel: 'Automatic daily sync',
         isAutoRefresh: true,
     },
     {
-        key: 'merchIneligible',
-        label: 'Merch BSR >=1M or missing BSR',
-        refreshEveryLabel: 'No automatic enqueue',
+        key: 'weekly',
+        label: 'Merch BSR 300k to <1M',
+        refreshEveryLabel: 'Automatic weekly sync',
+        isAutoRefresh: true,
+    },
+    {
+        key: 'onDemand',
+        label: 'Merch BSR >=1M',
+        refreshEveryLabel: 'On-demand sync (getProductInfo-triggered)',
+        isAutoRefresh: false,
+    },
+    {
+        key: 'merchMissingBsr',
+        label: 'Merch Missing BSR',
+        refreshEveryLabel: 'No Keepa sync',
         isAutoRefresh: false,
     },
     {
         key: 'nonMerch',
         label: 'Non-Merch',
-        refreshEveryLabel: 'No automatic enqueue',
+        refreshEveryLabel: 'No Keepa sync',
         isAutoRefresh: false,
     },
 ] as const satisfies readonly KeepaRefreshPolicyBucket[];
 
 export type KeepaRefreshPolicyBucketKey = (typeof KEEPA_REFRESH_POLICY_BUCKETS)[number]['key'];
 
-export const isEligibleForKeepaAutoRefresh = (
+export const getKeepaRefreshPolicyBucketKey = (
     isMerchListing: boolean,
     rootCategoryBsr: number | null
 ) => {
     if (!isMerchListing) {
-        return false;
+        return 'nonMerch' as const;
     }
 
     if (typeof rootCategoryBsr !== 'number' || !Number.isFinite(rootCategoryBsr)) {
-        return false;
+        return 'merchMissingBsr' as const;
     }
 
-    return rootCategoryBsr < KEEPA_AUTO_BSR_THRESHOLD;
+    if (rootCategoryBsr < KEEPA_DAILY_AUTO_BSR_THRESHOLD) {
+        return 'daily' as const;
+    }
+
+    if (rootCategoryBsr < KEEPA_WEEKLY_AUTO_BSR_THRESHOLD) {
+        return 'weekly' as const;
+    }
+
+    return 'onDemand' as const;
+};
+
+export const isEligibleForKeepaHistoryRefresh = (
+    isMerchListing: boolean,
+    rootCategoryBsr: number | null
+) => {
+    const policyBucket = getKeepaRefreshPolicyBucketKey(isMerchListing, rootCategoryBsr);
+    return policyBucket === 'daily' || policyBucket === 'weekly' || policyBucket === 'onDemand';
+};
+
+export const getKeepaEnqueueMinRefreshIntervalMs = (
+    isMerchListing: boolean,
+    rootCategoryBsr: number | null
+) => {
+    const policyBucket = getKeepaRefreshPolicyBucketKey(isMerchListing, rootCategoryBsr);
+    switch (policyBucket) {
+        case 'daily':
+            return KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
+        case 'weekly':
+            return KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
+        case 'onDemand':
+            return KEEPA_ON_DEMAND_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
+        case 'merchMissingBsr':
+        case 'nonMerch':
+            return null;
+    }
 };

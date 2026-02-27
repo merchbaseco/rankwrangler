@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
 import Bottleneck from 'bottleneck';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
@@ -943,7 +943,7 @@ const getRecentSuccessfulKeepaImport = async (
                 eq(productHistoryImports.productId, productId),
                 eq(productHistoryImports.source, KEEPA_SOURCE),
                 eq(productHistoryImports.status, 'success'),
-                gte(productHistoryImports.createdAt, recentThreshold)
+                gt(productHistoryImports.createdAt, recentThreshold)
             )
         )
         .orderBy(desc(productHistoryImports.createdAt))

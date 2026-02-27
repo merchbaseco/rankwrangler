@@ -9,6 +9,7 @@
 - Keepa queue + recent processed Keepa jobs are exposed via `api.app.keepaLog`
 - `api.app.getAdminStats` includes SP-API + Keepa refresh-policy bucket counts
 - SP-API queue processing is event-driven (enqueue-triggered + startup kick), not interval-polled
+- Keepa queueing includes an hourly scheduled enqueue job for `<1M` merch BSR cohorts
 
 ## Event Logging Principles
 

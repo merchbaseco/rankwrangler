@@ -7,6 +7,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 - `apps/server` – Fastify-based tRPC API for Amazon SP-API integration
   - SP-API sync treats missing catalog payloads as product removals, logs `product.deleted`,
     and deletes the corresponding row from `products`
+  - Keepa sync policy is BSR-tiered for merch (`<300k` automatic daily, `<1M` automatic weekly,
+    `>=1M` on-demand), with a strict global minimum 24h fetch gap per ASIN
 - `apps/website` – Dashboard for API keys, usage, recent products, and a Logs page
   for user-facing product/history sync events
 - `apps/extension` – Chrome extension
