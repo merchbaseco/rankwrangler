@@ -1,8 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import {
-    KEEPA_AUTO_BSR_THRESHOLD,
+    KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_REFRESH_POLICY_BUCKETS,
+    KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
     type KeepaRefreshPolicyBucketKey,
 } from '@/services/keepa-refresh-policy.js';
 import {
@@ -24,8 +25,10 @@ type SpApiRefreshPolicyCountRow = {
 };
 
 type KeepaRefreshPolicyCountRow = {
-    eligible: number;
-    merch_ineligible: number;
+    daily: number;
+    weekly: number;
+    on_demand: number;
+    merch_missing_bsr: number;
     non_merch: number;
 };
 
@@ -76,8 +79,10 @@ export const getSpApiRefreshPolicyBuckets = async (): Promise<SpApiRefreshPolicy
 export const getKeepaRefreshPolicyBuckets = async (): Promise<KeepaRefreshPolicyBucketStat[]> => {
     const counts = await queryKeepaRefreshPolicyBucketCounts();
     const countByKey: Record<KeepaRefreshPolicyBucketKey, number> = {
-        eligible: counts.eligible,
-        merchIneligible: counts.merch_ineligible,
+        daily: counts.daily,
+        weekly: counts.weekly,
+        onDemand: counts.on_demand,
+        merchMissingBsr: counts.merch_missing_bsr,
         nonMerch: counts.non_merch,
     };
 
@@ -166,20 +171,34 @@ const queryKeepaRefreshPolicyBucketCounts = async (): Promise<KeepaRefreshPolicy
                 count(*) FILTER (
                     WHERE is_merch_listing = true
                     AND root_category_bsr IS NOT NULL
-                    AND root_category_bsr < ${KEEPA_AUTO_BSR_THRESHOLD}
+                    AND root_category_bsr < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
                 ),
                 0
-            )::int AS eligible,
+            )::int AS daily,
             coalesce(
                 count(*) FILTER (
                     WHERE is_merch_listing = true
-                    AND (
-                        root_category_bsr IS NULL
-                        OR root_category_bsr >= ${KEEPA_AUTO_BSR_THRESHOLD}
-                    )
+                    AND root_category_bsr IS NOT NULL
+                    AND root_category_bsr >= ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
+                    AND root_category_bsr < ${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}
                 ),
                 0
-            )::int AS merch_ineligible,
+            )::int AS weekly,
+            coalesce(
+                count(*) FILTER (
+                    WHERE is_merch_listing = true
+                    AND root_category_bsr IS NOT NULL
+                    AND root_category_bsr >= ${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}
+                ),
+                0
+            )::int AS on_demand,
+            coalesce(
+                count(*) FILTER (
+                    WHERE is_merch_listing = true
+                    AND root_category_bsr IS NULL
+                ),
+                0
+            )::int AS merch_missing_bsr,
             coalesce(
                 count(*) FILTER (
                     WHERE is_merch_listing = false
@@ -192,8 +211,10 @@ const queryKeepaRefreshPolicyBucketCounts = async (): Promise<KeepaRefreshPolicy
     const [row] = rows;
     return (
         row ?? {
-            eligible: 0,
-            merch_ineligible: 0,
+            daily: 0,
+            weekly: 0,
+            on_demand: 0,
+            merch_missing_bsr: 0,
             non_merch: 0,
         }
     );

@@ -31,4 +31,8 @@
 - Detailed behavior: `docs/keepa-history-refresh.md`
 - Automatic refresh first import window: up to 3650 days
 - Later refreshes are stale-aware incremental windows (minimum 30 days)
-- Auto enqueue is event-driven from product lookup, not fixed interval polling
+- Auto enqueue is scheduled for `<1M` merch BSR:
+  - merch BSR <300k: automatic daily schedule
+  - merch BSR 300k to <1M: automatic weekly schedule
+  - merch BSR >=1M: on-demand via `getProductInfo`
+  - non-merch or merch missing BSR: no Keepa sync
