@@ -68,10 +68,17 @@ Commands:
 ## API Commands
 
 - `rw products get <ASIN...> [--marketplace <id>|-m <id>]`
+- `rw products history <ASIN> [--metrics <bsr,price>] [--days <N>|--startAt <ISO> --endAt <ISO>] [--limit <N>] [--marketplace <id>|-m <id>]`
 - `rw license status`
 - `rw license validate`
 
 `products get` accepts one or many ASINs and internally chooses the single or batch API call.
+`products history` accepts one ASIN and returns token-efficient metric series for agents.
+
+`products history` metric aliases map to Keepa-backed public metrics:
+
+- `bsr` -> `bsrMain`
+- `price` -> `priceNew` (same price metric shown in dashboard history)
 
 Marketplace resolution for product commands:
 
@@ -83,6 +90,7 @@ Marketplace resolution for product commands:
 These commands map directly to public API capabilities:
 
 - `products get` -> `api.public.getProductInfo` (one ASIN) or `api.public.getProductInfoBatch` (many ASINs)
+- `products history` -> `api.public.getProductHistory` (`format: "agent"`)
 - `license status` -> `api.public.license.status`
 - `license validate` -> `api.public.license.validate`
 

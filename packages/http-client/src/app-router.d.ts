@@ -126,25 +126,73 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					endAt?: unknown;
 					limit?: unknown;
 					days?: unknown;
+					metrics?: ("bsr" | "price")[] | undefined;
+					format?: "legacy" | "agent" | undefined;
 				};
 				output: {
-					collecting: boolean;
-					syncTriggered: boolean;
 					marketplaceId: string;
 					asin: string;
-					metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
+					metric: "bsrMain";
 					latestImportAt: string | null;
-					categoryNames: {
-						[x: string]: string;
-					};
+					categoryNames: Record<string, string>;
 					points: {
 						categoryId: number;
-						categoryName: string;
+						categoryName: string | null;
 						observedAt: string;
 						keepaMinutes: number;
 						value: number | null;
 						isMissing: boolean;
 					}[];
+					collecting: boolean;
+					syncTriggered: boolean;
+				} | {
+					schemaVersion: 1;
+					status: string;
+					latestImportAt: string | null;
+					series: {
+						price?: {
+							unit: "minorCurrency";
+							currencyCode: "USD";
+							valueScale: 100;
+							points: ([
+								string,
+								number | null
+							] | [
+								string,
+								null,
+								1
+							])[];
+						} | undefined;
+						bsr?: {
+							unit: "rank";
+							category: {
+								id: number;
+								name: string;
+							} | null;
+							points: ([
+								string,
+								number | null
+							] | [
+								string,
+								null,
+								1
+							])[];
+						} | undefined;
+					};
+					marketplaceId: string;
+					asin: string;
+					metric: "bsrMain";
+					categoryNames: Record<string, string>;
+					points: {
+						categoryId: number;
+						categoryName: string | null;
+						observedAt: string;
+						keepaMinutes: number;
+						value: number | null;
+						isMissing: boolean;
+					}[];
+					collecting: boolean;
+					syncTriggered: boolean;
 				};
 				meta: object;
 			}>;
