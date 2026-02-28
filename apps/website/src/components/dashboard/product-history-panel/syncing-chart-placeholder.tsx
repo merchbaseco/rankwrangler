@@ -7,5 +7,5 @@ export const ChartSkeleton = ({ variant }: { variant: 'header' | 'chart' }) => {
             </>
         );
     }
-    return <div className="h-full animate-pulse rounded bg-muted" />;
+    return <div className="h-[180px] animate-pulse rounded bg-muted" />;
 };
