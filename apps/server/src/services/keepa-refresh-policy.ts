@@ -32,7 +32,7 @@ export const KEEPA_REFRESH_POLICY_BUCKETS = [
     {
         key: 'onDemand',
         label: 'Merch BSR >=1M',
-        refreshEveryLabel: 'On-demand sync (getProductInfo-triggered)',
+        refreshEveryLabel: 'Sync on demand',
         isAutoRefresh: false,
     },
     {
