@@ -28,6 +28,8 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
    compatibility. Remove or rewrite outdated code as needed.
 10. For CI failures, troubleshoot from GitHub Actions logs/check-runs first; do not install local
     tooling (brew/npm/etc.) unless the user explicitly asks.
+11. When creating Linear issues via CLI, always include the `RankWrangler` label (for example
+    `--label RankWrangler`).
 
 ## API + Code Design
 
