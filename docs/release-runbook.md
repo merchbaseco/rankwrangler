@@ -1,83 +1,128 @@
 # Release Runbook
 
-Canonical release process for synchronized version bumps and npm publishes.
+Canonical process for synchronized version bumps, tag-based release tracking, and npm publishes.
 
 ## Goal
 
-Keep release versions synchronized to the same `X.Y.Z` across these primary release surfaces:
+Keep these release surfaces synchronized to one `X.Y.Z`:
 
-- `CHANGELOG.md` (`vX.Y.Z`)
+- `CHANGELOG.md` (`vX.Y.Z` heading)
 - `apps/server/package.json`
 - `packages/http-client/package.json`
 - `packages/cli/package.json`
-- `apps/website` dashboard footer version (`VITE_APP_VERSION`, derived from
-  `apps/server/package.json`)
+- `packages/cli/package.json` dependency `@rankwrangler/http-client: ^X.Y.Z`
+- `apps/extension/package.json` dependency `@rankwrangler/http-client: ^X.Y.Z`
+- `apps/website` footer version derives from `apps/server/package.json`
+
+Changelog policy:
+
+- Do not maintain a persistent `## Unreleased` section.
+- Update `CHANGELOG.md` only during version bump/release prep.
 
 ## SemVer Prompt Policy (Agent Behavior)
 
 - Do not proactively mention version bumps for non-breaking API changes.
 - If a change is backward-incompatible, always mention it and suggest a version bump.
-- Breaking-change bump guidance:
-  - `0.x.y` -> recommend a `minor` bump.
-  - `1.x.y+` -> recommend a `major` bump.
+- Breaking-change guidance:
+  - `0.x.y` -> recommend `minor`.
+  - `1.x.y+` -> recommend `major`.
 
 Compatibility posture:
 
 - Prefer clean breaks over compatibility layers.
-- Do not add legacy aliases, fallbacks, or compatibility shims unless explicitly requested.
+- Do not add legacy aliases/fallbacks unless explicitly requested.
 
 ## Prerequisites
 
-- Repo-root `.env` contains a valid `NPM_TOKEN`.
-- Repo-root `.npmrc` is configured for npm registry auth.
-- You are on the release branch with only intended release changes.
+- Repo-root `.env` has valid `NPM_TOKEN`.
+- Repo-root `.npmrc` is configured for npm auth.
+- Release branch has only intended release changes.
+- AI command playbook: `docs/ai-commands/version-bump/README.md`.
 
-## 1. Choose Release Version
+## 1. Bump Version (One Command)
 
-Pick a target version (example: `0.1.2`).
+From repo root, run exactly one of:
 
-Update:
+```bash
+bun run release:bump patch
+bun run release:bump minor
+bun run release:bump major
+bun run release:bump X.Y.Z
+```
 
-- `CHANGELOG.md` with `## v0.1.2 - YYYY-MM-DD`
-- `apps/server/package.json`
-- `packages/http-client/package.json`
-- `packages/cli/package.json`
-- `apps/extension/package.json` (`@rankwrangler/http-client: ^X.Y.Z`)
-- `apps/website` footer version is auto-derived from `apps/server/package.json` in
-  `apps/website/vite.config.ts` (verify this link remains intact; no manual footer edit)
+This command updates:
 
-## 2. Build And Prepare
+- synchronized package versions
+- `@rankwrangler/http-client` dependency pins in CLI + extension
+- it does not update `CHANGELOG.md`
+
+Then refresh lockfile:
+
+```bash
+bun install
+```
+
+## 2. Build Changelog Entry (AI-Assisted)
+
+Collect deterministic commit context:
+
+```bash
+bun run release:collect-changelog-context
+```
+
+Optional baseline override:
+
+```bash
+bun run release:collect-changelog-context --since-ref <git-ref>
+```
+
+Then draft `CHANGELOG.md` entry manually using AI judgment:
+
+- add top heading `## vX.Y.Z - YYYY-MM-DD`
+- group into `### Added`, `### Changed`, `### Fixed`
+- summarize user-facing outcomes from commits
+
+## 3. Verify Release Integrity
 
 Run from repo root:
 
 ```bash
-bun install
-bun run http-client:build
+bun run release:check
 bun run cli:build
+bun run release:check-cli-pack
 bun run --filter rankwrangler-extension build
 ```
 
-## 3. Confirm Scope And Get Publish Approval
+`release:check-cli-pack` validates the packed npm artifact includes
+`products history` and `--metrics` support before publish.
 
-Before any npm publish:
+## 4. Commit + Tag (Source of Truth)
 
-- Report that version/changelog updates are complete.
-- Ask for explicit publish approval (example: `Do you want me to publish to npm now?`).
-- Do not publish until the user confirms.
-
-## 4. Commit And Push Release Changes
-
-After approval, commit all release-version changes and push directly to `origin/main`
-before publishing.
+After verification:
 
 ```bash
 git add CHANGELOG.md apps/server/package.json packages/http-client/package.json \
   packages/cli/package.json apps/extension/package.json bun.lock
 git commit -m "release: vX.Y.Z"
-git push origin main
+git tag -a vX.Y.Z -m "release: vX.Y.Z"
+git push origin main --follow-tags
 ```
 
-## 5. Publish HTTP Client First
+Tag `vX.Y.Z` is the canonical commit boundary for that build.
+
+## 5. GitHub Release Notes (Auto)
+
+Pushing tag `vX.Y.Z` triggers `.github/workflows/release-integrity.yml` to:
+
+- run release metadata validation
+- build and inspect packed CLI artifact
+- generate GitHub release notes for that tag
+
+This makes commit-to-version mapping explicit in GitHub Releases.
+
+## 6. Publish HTTP Client First
+
+Only after the release commit has been pushed to `origin/main`.
 
 Run from `packages/http-client`:
 
@@ -89,7 +134,9 @@ npm whoami --userconfig ../../.npmrc
 npm publish --access public --userconfig ../../.npmrc
 ```
 
-## 6. Publish CLI
+## 7. Publish CLI
+
+Only after the release commit has been pushed to `origin/main`.
 
 Run from `packages/cli`:
 
@@ -101,23 +148,17 @@ npm whoami --userconfig ../../.npmrc
 npm publish --access public --userconfig ../../.npmrc
 ```
 
-## 7. Final Validation
+## 8. Final Validation
 
 Run from repo root:
 
 ```bash
-bun install
 npm view @rankwrangler/http-client version --userconfig .npmrc
 npm view @rankwrangler/cli version --userconfig .npmrc
-bun run --filter rankwrangler-extension build
-rg -n "VITE_APP_VERSION" apps/website/src/components/dashboard/app/dashboard-footer.tsx
 ```
 
 ## Fast Failure Handling
 
-- `401 Unauthorized`:
-  Load `.env` before publish and use `--userconfig ../../.npmrc`.
-- `403 cannot publish over previously published versions`:
-  Bump version and retry publish.
-- Keep release scope tight:
-  Only version files, lockfile, changelog, and required dependency updates.
+- `401 Unauthorized`: load `.env` before publish and use `--userconfig ../../.npmrc`.
+- `403 cannot publish over previously published versions`: bump version and retry.
+- Keep release scope tight: only version files, lockfile, changelog, and required dependency updates.

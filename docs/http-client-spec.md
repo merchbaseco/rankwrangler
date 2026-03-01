@@ -81,7 +81,9 @@ Use SemVer for `@rankwrangler/http-client`:
 
 Release checklist for HTTP client changes:
 
-1. Run `bun run http-client:build`.
-2. Bump `packages/http-client/package.json` to match the target release version.
-3. Update `CHANGELOG.md` in the same PR with the matching `vX.Y.Z` release heading.
-4. Publish with `npm publish --access public`.
+1. Run `bun run release:bump <patch|minor|major|X.Y.Z>` from repo root.
+2. Run `bun install` from repo root.
+3. Run `bun run release:collect-changelog-context`, then draft `CHANGELOG.md` entry.
+4. Run `bun run release:check`.
+5. Run `bun run http-client:build`.
+6. Publish with `npm publish --access public`.

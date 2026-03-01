@@ -116,11 +116,13 @@ npm publish --access public --userconfig ../../.npmrc
 
 ## Release Checklist
 
-1. Bump `version` in `packages/cli/package.json` to match the target `vX.Y.Z` in `CHANGELOG.md`.
+1. Run `bun run release:bump <patch|minor|major|X.Y.Z>` from repo root.
 2. Run `bun install` from repo root so `bun.lock` stays in sync.
-3. Run `bun run cli:build` from repo root.
-4. Publish from `packages/cli` using the commands above.
-5. Verify package access status:
+3. Run `bun run release:collect-changelog-context`, then draft `CHANGELOG.md` entry.
+4. Run `bun run release:check`, then `bun run cli:build`.
+5. Run `bun run release:check-cli-pack` to validate packed npm artifact contents.
+6. Publish from `packages/cli` using the commands above.
+7. Verify package access status:
 
 ```bash
 cd packages/cli

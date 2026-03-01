@@ -37,6 +37,10 @@
         "tailwind": "bun run --filter rankwrangler-extension tailwind",
         "lint": "bun run --filter rankwrangler-extension lint",
         "lint:fix": "bun run --filter rankwrangler-extension lint:fix",
+        "release:bump": "node scripts/release/bump-version.mjs",
+        "release:collect-changelog-context": "node scripts/release/collect-changelog-context.mjs",
+        "release:check": "node scripts/release/validate-release-metadata.mjs",
+        "release:check-cli-pack": "node scripts/release/check-cli-pack.mjs",
         "http-client:types": "dts-bundle-generator --no-check -o packages/http-client/src/app-router.d.ts apps/server/src/api/router-public.ts --project tsconfig.http-client.json",
         "http-client:build": "bun run http-client:types && tsc -p packages/http-client/tsconfig.json && cp packages/http-client/src/app-router.d.ts packages/http-client/dist/app-router.d.ts"
     },

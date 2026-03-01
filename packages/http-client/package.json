@@ -1,6 +1,6 @@
 {
     "name": "@rankwrangler/http-client",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "description": "Typed tRPC client for RankWrangler",
     "type": "module",
     "main": "./dist/index.js",
@@ -11,7 +11,10 @@
             "default": "./dist/index.js"
         }
     },
-    "files": ["dist", "README.md"],
+    "files": [
+        "dist",
+        "README.md"
+    ],
     "publishConfig": {
         "access": "public"
     },

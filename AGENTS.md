@@ -30,6 +30,11 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
     tooling (brew/npm/etc.) unless the user explicitly asks.
 11. When creating Linear issues via CLI, always include the `RankWrangler` label (for example
     `--label RankWrangler`).
+12. For release bumps, always use repo scripts (`bun run release:bump ...`, then
+    `bun run release:check`, `bun run cli:build`, `bun run release:check-cli-pack`) instead of
+    manual version edits; do not maintain a persistent `## Unreleased` changelog section. When the
+    user says `do a version bump`, follow `docs/ai-commands/version-bump/README.md`; commit and
+    push release changes to `origin/main` before any npm publish.
 
 ## API + Code Design
 
@@ -120,6 +125,7 @@ Open these only when the task needs that specific workflow:
 - CI troubleshooting workflow (GitHub-first, no ad-hoc installs): `docs/ci-troubleshooting.md`
 - Production DB access and safety workflow: `docs/database-queries.md`
 - Release/version bump/publish workflow: `docs/release-runbook.md`
+- AI command workflow for `do a version bump`: `docs/ai-commands/version-bump/README.md`
 - Browser verification workflow (when requested): `docs/ui-testing-workflow.md`
 - Keepa refresh system behavior: `docs/keepa-history-refresh.md`
 - Public typed client reference: `docs/http-client-spec.md`

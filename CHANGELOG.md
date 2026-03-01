@@ -2,7 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## v0.2.3 - 2026-03-01
+
+### Added
+
+- Add CLI `products history` agent output for BSR and price metric series.
+- Add dashboard logs page and event log pipeline with Keepa queue/poll visibility.
+- Add tiered Keepa scheduling with improved enqueue metrics and status reporting.
+- Add shared history chart usage across website and extension surfaces.
+- Add extension UI preview workflow updates with safer placeholder license key handling.
+
+### Changed
+
+- Handle SP-API no-payload catalog responses as product deletions in sync flows.
+- Refine event logging behavior, server documentation, and Keepa policy labeling.
+
+### Fixed
+
+- Fix product drawer chart skeleton height and sponsored carousel stats placement.
+- Fix Caddy build wiring to include the history-chart workspace dependency.
+- Improve dashboard log view layout behavior and readability.
 
 ## v0.2.2 - 2026-02-24
 

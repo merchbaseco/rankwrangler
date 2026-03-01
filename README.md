@@ -63,6 +63,10 @@ bun run preview:chrome
 ## Release
 
 - Canonical runbook: `docs/release-runbook.md`
+- One-command bump: `bun run release:bump patch` (or `minor` / `major` / explicit `X.Y.Z`)
+- AI command (`do a version bump`): `docs/ai-commands/version-bump/README.md`
+- Changelog context export: `bun run release:collect-changelog-context`
+- Release integrity checks: `bun run release:check && bun run cli:build && bun run release:check-cli-pack`
 
 ## Quick Start
 

@@ -25,6 +25,20 @@ bun run cli:build
 
 ## Release (Maintainers)
 
+From repo root:
+
+```bash
+bun run release:bump patch
+bun install
+bun run release:collect-changelog-context
+# draft CHANGELOG.md entry from commit context
+bun run release:check
+bun run cli:build
+bun run release:check-cli-pack
+```
+
+Then publish:
+
 ```bash
 cd packages/cli
 set -a
@@ -33,7 +47,3 @@ set +a
 npm whoami --userconfig ../../.npmrc
 npm publish --access public --userconfig ../../.npmrc
 ```
-
-If npm rejects the version as already published, bump `version` in
-`packages/cli/package.json` to match the next `vX.Y.Z` release in `CHANGELOG.md`,
-run `bun install` from repo root, and publish again.

@@ -63,12 +63,15 @@ npm publish --access public --userconfig ../../.npmrc
 
 Before publishing:
 
-1. Bump `version` in `packages/http-client/package.json`.
-2. Run `bun run http-client:build` from repo root.
-3. Run `npm pack --dry-run` from `packages/http-client`.
+1. Run `bun run release:bump <patch|minor|major|X.Y.Z>` from repo root.
+2. Run `bun install` from repo root.
+3. Run `bun run release:collect-changelog-context`, then draft `CHANGELOG.md` entry.
+4. Run `bun run release:check`.
+5. Run `bun run http-client:build` from repo root.
+6. Run `npm pack --dry-run` from `packages/http-client`.
 
 ## Versioning
 
-- App releases are tracked in root `CHANGELOG.md` as `vX.Y.Z` entries.
-- npm client releases are tracked in `packages/http-client/package.json` with SemVer.
-- These two version tracks are related but independent.
+- App releases and npm package versions are synchronized to the same `X.Y.Z`.
+- `CHANGELOG.md` uses `vX.Y.Z`; package files use `X.Y.Z`.
+- Canonical process lives in `docs/release-runbook.md`.

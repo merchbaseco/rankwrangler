@@ -7,6 +7,7 @@ Use this as a quick lookup for process-specific workflows.
 - `docs/ci-troubleshooting.md` - GitHub-first CI debug flow and no-ad-hoc-install policy.
 - `docs/database-queries.md` - production database guardrails and query workflow.
 - `docs/release-runbook.md` - version bump, approval gate, commit/push, publish flow.
+- `docs/ai-commands/version-bump/README.md` - AI command workflow for `do a version bump`.
 - `docs/ui-testing-workflow.md` - browser-based UI verification procedure.
 - `docs/keepa-history-refresh.md` - Keepa refresh and queue behavior.
 - `docs/http-client-spec.md` - typed public client design and release expectations.
