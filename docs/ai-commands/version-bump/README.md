@@ -63,6 +63,7 @@ Insert a new top entry in `CHANGELOG.md`:
 - concise bullet points focused on user-facing changes
 
 Do not add or keep `## Unreleased`.
+This entry is also used as the GitHub release notes body when tag `vX.Y.Z` is pushed.
 
 6. Run validation/build checks.
 

@@ -116,9 +116,10 @@ Pushing tag `vX.Y.Z` triggers `.github/workflows/release-integrity.yml` to:
 
 - run release metadata validation
 - build and inspect packed CLI artifact
-- generate GitHub release notes for that tag
+- extract the matching `## vX.Y.Z - YYYY-MM-DD` section from `CHANGELOG.md`
+- publish that extracted markdown as the GitHub release body
 
-This makes commit-to-version mapping explicit in GitHub Releases.
+This keeps GitHub release notes human-readable and aligned with the changelog source of truth.
 
 ## 6. Publish HTTP Client First
 

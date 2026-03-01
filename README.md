@@ -67,6 +67,7 @@ bun run preview:chrome
 - AI command (`do a version bump`): `docs/ai-commands/version-bump/README.md`
 - Changelog context export: `bun run release:collect-changelog-context`
 - Release integrity checks: `bun run release:check && bun run cli:build && bun run release:check-cli-pack`
+- Tag push (`vX.Y.Z`) publishes GitHub release notes from the matching `CHANGELOG.md` entry
 
 ## Quick Start
 
