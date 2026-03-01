@@ -42,8 +42,14 @@ jobs:
         permissions:
             contents: write
         steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Build GitHub release notes from CHANGELOG
+              run: node scripts/release/extract-release-notes-from-changelog.mjs --tag "${{ github.ref_name }}" --output .github-release-notes.md
+
             - name: Create GitHub release
               uses: softprops/action-gh-release@v2
               with:
-                  generate_release_notes: true
+                  body_path: .github-release-notes.md
                   tag_name: ${{ github.ref_name }}
