@@ -6,6 +6,7 @@
 - Auth + API surfaces: `docs/server/auth-and-surfaces.md`
 - API examples (curl): `docs/server/api-examples.md`
 - Jobs + event logging: `docs/server/jobs-and-events.md`
+- BA Top Search Terms purpose: `docs/server/ba-top-search-terms-purpose.md`
 - Keepa + history behavior: `docs/server/keepa-history-behavior.md`
 - Database + deployment ops: `docs/server/database-and-deployment.md`
 

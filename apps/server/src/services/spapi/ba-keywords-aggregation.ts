@@ -1,8 +1,23 @@
+import {
+    apparelCategorySignals,
+    apparelSignals,
+    intentSignals,
+    nonPodBrandOrIpSignals,
+    nonPodCommoditySignals,
+    seasonalSignals,
+} from '@/services/spapi/ba-keyword-signals';
+import {
+    isColorGenderGenericApparelTerm,
+    isShortGenericApparelTerm,
+} from '@/services/spapi/ba-keyword-term-heuristics';
+
 export type RawBaSearchTermsRow = {
     searchTerm?: string;
     searchFrequencyRank?: number;
     clickShare?: number;
     conversionShare?: number;
+    topClickedCategories?: string | string[];
+    [key: string]: unknown;
 };
 
 export type BaKeywordRow = {
@@ -24,48 +39,72 @@ type BaKeywordAccumulator = {
     merchReason: string;
 };
 
-const apparelSignals = [
-    { key: 'tshirt', pattern: /\bt[\s-]?shirt\b/i },
-    { key: 'shirt', pattern: /\bshirt\b/i },
-    { key: 'tee', pattern: /\btee\b/i },
-    { key: 'hoodie', pattern: /\bhoodie\b/i },
-    { key: 'sweatshirt', pattern: /\bsweatshirt\b/i },
-    { key: 'crewneck', pattern: /\bcrewneck\b/i },
-    { key: 'tank top', pattern: /\btank\s+top\b/i },
-    { key: 'long sleeve', pattern: /\blong\s+sleeve\b/i },
-    { key: 'pullover', pattern: /\bpullover\b/i },
-    { key: 'apparel', pattern: /\bapparel\b/i },
-] as const;
-
-const seasonalSignals = [
-    { key: 'st patrick', pattern: /\bst\.?\s+patrick'?s?\b/i },
-    { key: 'valentine', pattern: /\bvalentine'?s?\b/i },
-    { key: 'easter', pattern: /\beaster\b/i },
-    { key: 'halloween', pattern: /\bhalloween\b/i },
-    { key: 'christmas', pattern: /\bchristmas\b/i },
-    { key: 'fathers day', pattern: /\bfather'?s\s+day\b/i },
-    { key: 'mothers day', pattern: /\bmother'?s\s+day\b/i },
-    { key: 'mardi gras', pattern: /\bmardi\s+gras\b/i },
-] as const;
-
-export const classifyMerchKeyword = (searchTerm: string) => {
+export const classifyMerchKeyword = (searchTerm: string, topClickedCategories: string[] = []) => {
     const normalized = normalizeSearchTerm(searchTerm);
-    const apparel = apparelSignals.find((signal) => signal.pattern.test(normalized));
+    const hasApparelCategory = topClickedCategories.some((category) =>
+        apparelCategorySignals.some((signal) => signal.pattern.test(category))
+    );
 
-    if (!apparel) {
+    if (!hasApparelCategory) {
         return {
             isMerchRelevant: false,
             merchReason: 'none',
         };
     }
 
+    const commodity = nonPodCommoditySignals.find((signal) => signal.pattern.test(normalized));
+    if (commodity) {
+        return {
+            isMerchRelevant: false,
+            merchReason: `blocked:${commodity.key}`,
+        };
+    }
+
+    const brandOrIp = nonPodBrandOrIpSignals.find((signal) => signal.pattern.test(normalized));
+    if (brandOrIp) {
+        return {
+            isMerchRelevant: false,
+            merchReason: `blocked:${brandOrIp.key}`,
+        };
+    }
+
+    const apparel = apparelSignals.find((signal) => signal.pattern.test(normalized));
     const seasonal = seasonalSignals.find((signal) => signal.pattern.test(normalized));
+    const intent = intentSignals.find((signal) => signal.pattern.test(normalized));
+
+    if (!apparel && !seasonal && !intent) {
+        return {
+            isMerchRelevant: false,
+            merchReason: 'none',
+        };
+    }
+
+    if (!seasonal && !intent && isShortGenericApparelTerm(normalized)) {
+        return {
+            isMerchRelevant: false,
+            merchReason: 'blocked:generic-apparel',
+        };
+    }
+
+    if (!seasonal && !intent && isColorGenderGenericApparelTerm(normalized)) {
+        return {
+            isMerchRelevant: false,
+            merchReason: 'blocked:color-gender-generic',
+        };
+    }
+
+    const reasons: string[] = [];
+    if (seasonal) {
+        reasons.push(`seasonal:${seasonal.key}`);
+    }
+    if (intent) {
+        reasons.push(`intent:${intent.key}`);
+    }
+    reasons.push('category:apparel');
 
     return {
         isMerchRelevant: true,
-        merchReason: seasonal
-            ? `seasonal:${seasonal.key}+apparel:${apparel.key}`
-            : `apparel:${apparel.key}`,
+        merchReason: reasons.join('+'),
     };
 };
 
@@ -82,7 +121,7 @@ export const addBaKeywordRowToAccumulator = (
         return;
     }
 
-    const classification = classifyMerchKeyword(rawTerm);
+    const classification = classifyMerchKeyword(rawTerm, extractTopClickedCategories(row));
     if (!classification.isMerchRelevant) {
         return;
     }
@@ -141,6 +180,90 @@ export const aggregateBaKeywordRows = (rows: RawBaSearchTermsRow[]) => {
 };
 
 const normalizeSearchTerm = (value: string) => value.toLowerCase().replace(/\s+/g, ' ').trim();
+
+const extractTopClickedCategories = (row: RawBaSearchTermsRow) => {
+    const indexedTopCategories = new Set<string>();
+    const fallbackCategories = new Set<string>();
+    let sawIndexedTopClickedCategory = false;
+
+    for (const [key, value] of Object.entries(row)) {
+        const normalizedKey = normalizeObjectKey(key);
+        if (!normalizedKey.includes('topclicked') || !normalizedKey.includes('categor')) {
+            continue;
+        }
+
+        const categoriesFromField = extractCategoriesFromFieldValue(value);
+        if (categoriesFromField.length === 0) {
+            continue;
+        }
+
+        const slot = extractTopClickedCategorySlot(normalizedKey);
+        if (slot !== null) {
+            sawIndexedTopClickedCategory = true;
+            if (slot <= 2) {
+                for (const category of categoriesFromField) {
+                    indexedTopCategories.add(category);
+                }
+            }
+            continue;
+        }
+
+        for (const category of categoriesFromField) {
+            fallbackCategories.add(category);
+        }
+    }
+
+    if (indexedTopCategories.size > 0 || sawIndexedTopClickedCategory) {
+        return [...indexedTopCategories];
+    }
+
+    if (row.topClickedCategories) {
+        for (const category of extractCategoriesFromFieldValue(row.topClickedCategories)) {
+            fallbackCategories.add(category);
+        }
+    }
+
+    return [...fallbackCategories];
+};
+
+const extractCategoriesFromFieldValue = (value: unknown) => {
+    if (typeof value === 'string') {
+        return value
+            .split(',')
+            .map(normalizeSearchTerm)
+            .filter(Boolean);
+    }
+
+    if (Array.isArray(value)) {
+        const categories: string[] = [];
+        for (const item of value) {
+            if (typeof item !== 'string') {
+                continue;
+            }
+            for (const category of item.split(',')) {
+                const normalized = normalizeSearchTerm(category);
+                if (normalized) {
+                    categories.push(normalized);
+                }
+            }
+        }
+        return categories;
+    }
+
+    return [];
+};
+
+const extractTopClickedCategorySlot = (normalizedKey: string) => {
+    const match = normalizedKey.match(/topclickedcategor(?:y|ies)(\d+)/);
+    if (!match) {
+        return null;
+    }
+
+    const parsedSlot = Number(match[1]);
+    return Number.isFinite(parsedSlot) && parsedSlot > 0 ? parsedSlot : null;
+};
+
+const normalizeObjectKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const toInteger = (value: unknown) => {
     const numeric = Number(value);
