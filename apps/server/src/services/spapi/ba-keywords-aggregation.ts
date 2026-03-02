@@ -10,6 +10,7 @@ import {
     isColorGenderGenericApparelTerm,
     isShortGenericApparelTerm,
 } from '@/services/spapi/ba-keyword-term-heuristics';
+import { extractTopClickedCategorySlot } from '@/services/spapi/ba-keyword-category-utils';
 
 export type RawBaSearchTermsRow = {
     searchTerm?: string;
@@ -114,21 +115,41 @@ export const createBaKeywordAccumulator = () => {
 
 export const addBaKeywordRowToAccumulator = (
     accumulator: Map<string, BaKeywordAccumulator>,
-    row: RawBaSearchTermsRow
+    row: RawBaSearchTermsRow,
+    debugStats?: {
+        acceptedTopRows: number;
+        emptySearchTermRows: number;
+        invalidRankRows: number;
+        rejectedByReason: Record<string, number>;
+    }
 ) => {
     const rawTerm = typeof row.searchTerm === 'string' ? row.searchTerm.trim() : '';
     if (!rawTerm) {
+        if (debugStats) {
+            debugStats.emptySearchTermRows += 1;
+        }
         return;
     }
 
     const classification = classifyMerchKeyword(rawTerm, extractTopClickedCategories(row));
     if (!classification.isMerchRelevant) {
+        if (debugStats) {
+            debugStats.rejectedByReason[classification.merchReason] =
+                (debugStats.rejectedByReason[classification.merchReason] ?? 0) + 1;
+        }
         return;
     }
 
     const rank = toInteger(row.searchFrequencyRank);
     if (rank === null) {
+        if (debugStats) {
+            debugStats.invalidRankRows += 1;
+        }
         return;
+    }
+
+    if (debugStats) {
+        debugStats.acceptedTopRows += 1;
     }
 
     const normalizedTerm = normalizeSearchTerm(rawTerm);
@@ -251,20 +272,6 @@ const extractCategoriesFromFieldValue = (value: unknown) => {
     }
 
     return [];
-};
-
-const extractTopClickedCategorySlot = (normalizedKey: string) => {
-    if (normalizedKey.includes('product')) {
-        return null;
-    }
-
-    const match = normalizedKey.match(/^topclickedcategor(?:y|ies)(\d+)$/);
-    if (!match) {
-        return null;
-    }
-
-    const parsedSlot = Number(match[1]);
-    return Number.isFinite(parsedSlot) && parsedSlot > 0 ? parsedSlot : null;
 };
 
 const normalizeObjectKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');

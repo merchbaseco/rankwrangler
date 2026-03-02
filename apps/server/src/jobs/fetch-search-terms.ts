@@ -41,6 +41,23 @@ export const fetchSearchTermsJob = defineJob('fetch-search-terms-report', {
 
         try {
             const snapshot = await fetchBaKeywordsSnapshot(job.data);
+            const topRejectedReasons = Object.entries(snapshot.debug.rejectedByReason)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8)
+                .map(([reason, count]) => `${reason}:${count}`);
+
+            log('Search Terms parse diagnostics', {
+                reportId: snapshot.reportId,
+                parsedObjectRows: snapshot.debug.parsedObjectRows,
+                malformedObjectRows: snapshot.debug.malformedObjectRows,
+                dataArrayDetected: snapshot.debug.dataArrayDetected,
+                acceptedTopRows: snapshot.debug.acceptedTopRows,
+                keptKeywordCount: snapshot.debug.keptKeywordCount,
+                emptySearchTermRows: snapshot.debug.emptySearchTermRows,
+                invalidRankRows: snapshot.debug.invalidRankRows,
+                topRejectedReasons,
+            });
+
             const persistedSnapshot = await saveSearchTermsSnapshot({
                 window: job.data,
                 observedDate: getPacificDateString(),

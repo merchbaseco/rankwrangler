@@ -29,6 +29,7 @@ export type BaKeywordsParams = {
 };
 
 export type BaKeywordsSnapshot = {
+    debug: BaKeywordsSnapshotDebug;
     dataEndDate: string;
     dataStartDate: string;
     fetchedAt: string;
@@ -36,6 +37,17 @@ export type BaKeywordsSnapshot = {
     reportId: string;
     reportPeriod: BaReportPeriod;
     rows: BaKeywordRow[];
+};
+
+export type BaKeywordsSnapshotDebug = {
+    acceptedTopRows: number;
+    dataArrayDetected: boolean;
+    emptySearchTermRows: number;
+    invalidRankRows: number;
+    keptKeywordCount: number;
+    malformedObjectRows: number;
+    parsedObjectRows: number;
+    rejectedByReason: Record<string, number>;
 };
 
 const reportsApiClient = new ReportsSpApi.ApiClient('https://sellingpartnerapi-na.amazon.com');
@@ -94,19 +106,20 @@ export const fetchBaKeywordsSnapshot = async (
         throw new Error(`BA report document download failed with status ${response.status}.`);
     }
 
-    const rows = await parseAndAggregateKeywords({
+    const parsed = await parseAndAggregateKeywords({
         compressionAlgorithm: document.compressionAlgorithm ?? null,
         responseBody: response.body,
     });
 
     return {
+        debug: parsed.debug,
         dataEndDate: params.dataEndDate,
         dataStartDate: params.dataStartDate,
         fetchedAt: new Date().toISOString(),
         marketplaceId: params.marketplaceId,
         reportId,
         reportPeriod: params.reportPeriod,
-        rows,
+        rows: parsed.rows,
     } satisfies BaKeywordsSnapshot;
 };
 
@@ -160,6 +173,16 @@ const parseAndAggregateKeywords = async ({
     const stream = compressionAlgorithm?.toUpperCase() === 'GZIP' ? source.pipe(createGunzip()) : source;
 
     const accumulator = createBaKeywordAccumulator();
+    const debug: BaKeywordsSnapshotDebug = {
+        acceptedTopRows: 0,
+        dataArrayDetected: false,
+        emptySearchTermRows: 0,
+        invalidRankRows: 0,
+        keptKeywordCount: 0,
+        malformedObjectRows: 0,
+        parsedObjectRows: 0,
+        rejectedByReason: {},
+    };
     let startedDataArray = false;
     let captureObject = false;
     let objectDepth = 0;
@@ -176,6 +199,7 @@ const parseAndAggregateKeywords = async ({
             if (!startedDataArray) {
                 if (character === '[') {
                     startedDataArray = true;
+                    debug.dataArrayDetected = true;
                 }
                 continue;
             }
@@ -220,9 +244,10 @@ const parseAndAggregateKeywords = async ({
                 if (objectDepth === 0) {
                     try {
                         const parsedRow = JSON.parse(objectBuffer) as RawBaSearchTermsRow;
-                        addBaKeywordRowToAccumulator(accumulator, parsedRow);
+                        debug.parsedObjectRows += 1;
+                        addBaKeywordRowToAccumulator(accumulator, parsedRow, debug);
                     } catch {
-                        // Ignore malformed fragments.
+                        debug.malformedObjectRows += 1;
                     }
 
                     captureObject = false;
@@ -232,7 +257,10 @@ const parseAndAggregateKeywords = async ({
         }
     }
 
-    return finalizeBaKeywordAccumulator(accumulator);
+    const rows = finalizeBaKeywordAccumulator(accumulator);
+    debug.keptKeywordCount = rows.length;
+
+    return { debug, rows };
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
