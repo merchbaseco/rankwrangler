@@ -281,3 +281,9 @@ export const jobExecutionLogs = pgTable(
         ),
     })
 );
+
+export {
+    searchTermsFetchStatus,
+    searchTermsKeywordDaily,
+    searchTermsSnapshots,
+} from './search-terms-schema';

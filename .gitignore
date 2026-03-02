@@ -21,6 +21,9 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Local analysis artifacts
+apps/server/tmp/
+
 # Logs
 *.log
 npm-debug.log*

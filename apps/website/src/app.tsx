@@ -4,6 +4,7 @@ import { FACETS } from '@/components/dashboard/app/config';
 import { FiltersSidebar } from '@/components/dashboard/app/filters-sidebar';
 import { TopBar } from '@/components/dashboard/app/top-bar';
 import type { LastUpdated } from '@/components/dashboard/app/config';
+import { KeywordsPage } from '@/components/dashboard/keywords/keywords-page';
 import { LogsPage } from '@/components/dashboard/logs/logs-page';
 import { RecentProducts, type FilterState } from '@/components/dashboard/recent-products';
 import { SearchBar } from '@/components/dashboard/search-bar';
@@ -12,7 +13,7 @@ import { useLicense } from '@/hooks/use-license';
 import { useTheme } from '@/hooks/use-theme';
 
 export function App() {
-	const [activePage, setActivePage] = useState<'products' | 'logs'>('products');
+	const [activePage, setActivePage] = useState<'products' | 'logs' | 'keywords'>('products');
 	const [searchValue, setSearchValue] = useState('');
 	const [filters, setFilters] = useState<FilterState>({
 		bsrRange: null,
@@ -161,9 +162,13 @@ export function App() {
 							/>
 						</div>
 					</>
-				) : (
+				) : activePage === 'logs' ? (
 					<div className="min-h-0 min-w-0 flex-1">
 						<LogsPage />
+					</div>
+				) : (
+					<div className="min-h-0 min-w-0 flex-1">
+						<KeywordsPage />
 					</div>
 				)}
 			</div>
