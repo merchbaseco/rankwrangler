@@ -254,7 +254,11 @@ const extractCategoriesFromFieldValue = (value: unknown) => {
 };
 
 const extractTopClickedCategorySlot = (normalizedKey: string) => {
-    const match = normalizedKey.match(/topclickedcategor(?:y|ies)(\d+)/);
+    if (normalizedKey.includes('product')) {
+        return null;
+    }
+
+    const match = normalizedKey.match(/^topclickedcategor(?:y|ies)(\d+)$/);
     if (!match) {
         return null;
     }
