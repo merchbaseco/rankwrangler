@@ -123,6 +123,24 @@ if [ -n "$RR_CLERK_TOKEN" ]; then
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       -d '{"input":null}' | jq '.'
     echo ""
+    echo "🔎 Testing api.app.searchTermsList..."
+    curl -s -X POST "$API_BASE/api/api.app.searchTermsList" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"MONTH","limit":25}}' | jq '.'
+    echo ""
+    echo "📡 Testing api.app.searchTermsStatus..."
+    curl -s -X POST "$API_BASE/api/api.app.searchTermsStatus" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"MONTH"}}' | jq '.'
+    echo ""
+    echo "♻️ Testing api.app.searchTermsRefresh..."
+    curl -s -X POST "$API_BASE/api/api.app.searchTermsRefresh" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"MONTH"}}' | jq '.'
+    echo ""
 else
     echo "⚠️ Skipping app API tests - set RR_CLERK_TOKEN to exercise Clerk endpoints."
     echo ""

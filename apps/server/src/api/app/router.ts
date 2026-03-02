@@ -1,5 +1,8 @@
 import { router } from '@/api/trpc.js';
 import { adminStatus } from './admin-status.js';
+import { searchTermsList } from './search-terms-list.js';
+import { searchTermsRefresh } from './search-terms-refresh.js';
+import { searchTermsStatus } from './search-terms-status.js';
 import { eventLogsList } from './event-logs.js';
 import { getAdminStats } from './get-admin-stats.js';
 import { keepaLog } from './keepa-log.js';
@@ -13,6 +16,9 @@ import { recentProducts } from './recent-products.js';
 
 export const appApiRouter = router({
     adminStatus,
+    searchTermsList,
+    searchTermsRefresh,
+    searchTermsStatus,
     eventLogs: eventLogsList,
     getAdminStats,
     keepaLog,

@@ -13,8 +13,8 @@ export const TopBar = ({
 	usageLimit,
 	usageToday,
 }: {
-	activePage: "products" | "logs";
-	onPageChange: (page: "products" | "logs") => void;
+	activePage: "products" | "logs" | "keywords";
+	onPageChange: (page: "products" | "logs" | "keywords") => void;
 	onOpenSettings: () => void;
 	onToggleTheme: () => void;
 	totalMerchProducts: number | null;
@@ -56,6 +56,15 @@ export const TopBar = ({
 						onClick={() => onPageChange("logs")}
 					>
 						Logs
+					</Button>
+					<Button
+						type="button"
+						variant={activePage === "keywords" ? "secondary" : "ghost"}
+						size="sm"
+						className="h-6 rounded-sm px-2 text-[11px] uppercase"
+						onClick={() => onPageChange("keywords")}
+					>
+						Search Terms
 					</Button>
 				</div>
 				<span className="text-border">|</span>
