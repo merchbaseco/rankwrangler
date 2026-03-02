@@ -176,4 +176,21 @@ describe('aggregateBaKeywordRows', () => {
         expect(rows).toHaveLength(1);
         expect(rows[0]?.searchTerm).toBe('gift for dad');
     });
+
+    it('does not treat product category path keys as top-category rank slots', () => {
+        const rows = aggregateBaKeywordRows([
+            {
+                clickShare: 0.2,
+                conversionShare: 0.1,
+                searchFrequencyRank: 1,
+                searchTerm: 'st patricks day shirt',
+                topClickedCategories: 'Apparel, Softlines',
+                'Top Clicked Product #1: Top Clicked Category #1': 'Books',
+                'Top Clicked Product #1: Top Clicked Category #2': 'Entertainment',
+            },
+        ]);
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0]?.searchTerm).toBe('st patricks day shirt');
+    });
 });
