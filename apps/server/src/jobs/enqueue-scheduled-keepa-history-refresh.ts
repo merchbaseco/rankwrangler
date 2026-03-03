@@ -75,10 +75,13 @@ export const enqueueScheduledKeepaHistoryRefreshJob = defineJob(
     'enqueue-scheduled-keepa-history-refresh',
     {
         startupSummary: 'hourly scan (<300k daily, <1M weekly)',
-        persistSuccess: 'didWork',
+        persistSuccess: 'always',
     }
 )
     .input(z.record(z.string(), z.unknown()))
+    .options({
+        singletonKey: 'enqueue-scheduled-keepa-history-refresh',
+    })
     .interval({
         everyMs: KEEPA_SCHEDULED_REFRESH_INTERVAL_MS,
         payload: {},
@@ -91,6 +94,12 @@ export const enqueueScheduledKeepaHistoryRefreshJob = defineJob(
             const result = await enqueueScheduledKeepaHistoryRefresh();
             if (result.didWork) {
                 log('Queued scheduled Keepa refresh candidates', {
+                    candidateCount: result.candidateCount,
+                    enqueuedCount: result.enqueuedCount,
+                });
+            } else {
+                log('Scheduled Keepa enqueue scan completed with no enqueues', {
+                    reason: result.reason,
                     candidateCount: result.candidateCount,
                     enqueuedCount: result.enqueuedCount,
                 });

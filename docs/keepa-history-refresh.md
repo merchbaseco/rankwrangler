@@ -80,6 +80,8 @@ Queue table: `keepa_history_refresh_queue`
 - Manual history actions do not write to `keepa_history_refresh_queue`; they call the manual
   Keepa loader path directly.
 - Queue insert is deduplicated by `(marketplace_id, asin)`.
+- Scheduled candidate scan excludes ASINs already present in `keepa_history_refresh_queue` so
+  the hourly scan limit is spent on new stale candidates rather than queued duplicates.
 - Queue insert is skipped when a successful Keepa import exists inside the policy window:
   - Daily bucket (`BSR < 300k`): last import newer than 24 hours
   - Weekly bucket (`300k <= BSR < 1M`): last import newer than 7 days
@@ -105,7 +107,10 @@ Queue table: `keepa_history_refresh_queue`
 - Triggered hourly.
 - Scans merch products with numeric BSR and enqueues stale `<1M` ASINs.
 - Daily stale threshold for `BSR < 300k`; weekly stale threshold for `300k <= BSR < 1M`.
-- Uses insert dedupe keyed by `(marketplace_id, asin)` (existing queued ASINs are skipped).
+- Excludes ASINs already in queue before applying scan limit.
+- Uses insert dedupe keyed by `(marketplace_id, asin)` as a safety net.
+- Success executions are persisted even when no candidates are enqueued so scheduler heartbeats
+  remain visible in admin job history.
 
 ### `process-keepa-history-refresh-queue`
 

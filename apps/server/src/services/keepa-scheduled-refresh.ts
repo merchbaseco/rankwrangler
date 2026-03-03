@@ -31,6 +31,12 @@ export const getKeepaScheduledRefreshCandidates = async ({
         FROM products p
         WHERE p.is_merch_listing = true
           AND p.root_category_bsr IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM keepa_history_refresh_queue q
+            WHERE q.marketplace_id = p.marketplace_id
+              AND q.asin = p.asin
+          )
           AND (
             (
                 p.root_category_bsr < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
