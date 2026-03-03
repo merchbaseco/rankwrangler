@@ -4,7 +4,7 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
-import { Loader2, RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { createColumns } from "@/components/dashboard/keywords/columns";
 import { KeywordsTableView } from "@/components/dashboard/keywords/table-view";
@@ -123,8 +123,6 @@ export const KeywordsPage = () => {
 		state: { sorting },
 	});
 
-	const statusValue = fetchStatus?.status ?? "idle";
-
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-hidden bg-card">
 			<div className="flex h-9 shrink-0 items-center border-b border-border text-xs">
@@ -166,19 +164,6 @@ export const KeywordsPage = () => {
 					</span>
 					<span className="text-border">|</span>
 					<span>{formatNumber(rows.length)} loaded</span>
-					<span className="text-border">|</span>
-					<span className="flex items-center gap-1.5">
-						<span
-							className={cn(
-								"inline-block size-1.5 rounded-full",
-								getStatusDotColor(statusValue),
-								(statusValue === "in_progress" ||
-									statusValue === "queued") &&
-									"animate-pulse",
-							)}
-						/>
-						{formatFetchStatus(statusValue)}
-					</span>
 					{fetchStatus?.lastError ? (
 						<>
 							<span className="text-border">|</span>
@@ -197,12 +182,14 @@ export const KeywordsPage = () => {
 					onClick={() => refreshMutation.mutate(baseInput)}
 					disabled={refreshMutation.isPending || isFetchInProgress}
 				>
-					{refreshMutation.isPending || isFetchInProgress ? (
-						<Loader2 className="mr-1 size-3 animate-spin" />
-					) : (
-						<RefreshCw className="mr-1 size-3" />
-					)}
-					{isFetchInProgress ? "Fetching..." : "Refresh"}
+					<RefreshCw
+						className={cn(
+							"mr-1 size-3",
+							(refreshMutation.isPending || isFetchInProgress) &&
+								"animate-spin",
+						)}
+					/>
+					Refresh
 				</Button>
 			</div>
 
@@ -234,32 +221,6 @@ const parseOptionalInteger = (value: string) => {
 	}
 
 	return Math.floor(numeric);
-};
-
-const formatFetchStatus = (
-	status: "idle" | "queued" | "in_progress" | "completed" | "failed",
-) => {
-	if (status === "in_progress") {
-		return "in progress";
-	}
-
-	return status;
-};
-
-const getStatusDotColor = (
-	status: "idle" | "queued" | "in_progress" | "completed" | "failed",
-) => {
-	switch (status) {
-		case "completed":
-			return "bg-success";
-		case "in_progress":
-		case "queued":
-			return "bg-info";
-		case "failed":
-			return "bg-destructive";
-		default:
-			return "bg-muted-foreground";
-	}
 };
 
 const getDefaultPreviousMonthDateWindow = () => {
