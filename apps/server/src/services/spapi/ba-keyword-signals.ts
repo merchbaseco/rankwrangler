@@ -41,20 +41,6 @@ export const intentSignals: KeywordSignal[] = [
     { key: 'school', pattern: /\bschool\b/i },
 ] as const;
 
-export const apparelCategorySignals: KeywordSignal[] = [
-    { key: 'apparel', pattern: /\bapparel\b/i },
-    { key: 'clothing', pattern: /\bclothing\b/i },
-    { key: 'softlines', pattern: /\bsoftlines?\b/i },
-    { key: 'fashion', pattern: /\bfashion\b/i },
-    { key: 'tshirt', pattern: /\bt[\s-]?shirts?\b/i },
-    { key: 'tee', pattern: /\btees?\b/i },
-    { key: 'hoodie', pattern: /\bhoodies?\b/i },
-    { key: 'sweatshirt', pattern: /\bsweatshirts?\b/i },
-    { key: 'crewneck', pattern: /\bcrewnecks?\b/i },
-    { key: 'tank top', pattern: /\btank[\s-]?tops?\b/i },
-    { key: 'tops', pattern: /\btops?\b/i },
-] as const;
-
 export const nonPodCommoditySignals: KeywordSignal[] = [
     {
         key: 'material-percent',

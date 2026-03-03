@@ -44,7 +44,8 @@ Use BA Top Search Terms as a ranking and timing layer:
 
 - For Merch workflows, top-3 click/conversion concentration should be low-weight or optional.
 - `searchFrequencyRank` trend over time is the highest-value signal in this dataset.
-- Ingest filtering currently requires apparel intent in Top Clicked Category `#1` or `#2`.
+- Ingest filtering is term-signal based and no longer depends on Top Clicked Category slots or
+  `departmentName` values.
 - Ingest filtering blocks known non-PoD commodity patterns (for example `100% cotton`,
   `classic fit`, `twill-taped neck`, `spun-polyester`).
 - Ingest filtering recognizes additional product-type signals (for example `raglan`, `v neck`,

@@ -2,80 +2,79 @@ import { describe, expect, it } from 'bun:test';
 import { aggregateBaKeywordRows, classifyMerchKeyword } from '@/services/spapi/ba-keywords-aggregation.js';
 
 describe('classifyMerchKeyword', () => {
-    it('requires apparel top-clicked categories', () => {
-        expect(classifyMerchKeyword('st patricks day shirt', ['apparel']).isMerchRelevant).toBe(true);
-        expect(classifyMerchKeyword('st patricks day shirt', ['books']).isMerchRelevant).toBe(false);
+    it('does not depend on top-clicked category data', () => {
+        expect(classifyMerchKeyword('st patricks day shirt').isMerchRelevant).toBe(true);
     });
 
     it('accepts intent terms like gift without explicit apparel words', () => {
-        const result = classifyMerchKeyword('gift for mom', ['apparel', 'tops']);
+        const result = classifyMerchKeyword('gift for mom');
 
         expect(result.isMerchRelevant).toBe(true);
         expect(result.merchReason).toContain('intent:gift');
-        expect(result.merchReason).toContain('category:apparel');
     });
 
-    it('accepts school-event terms when apparel category is present', () => {
-        const result = classifyMerchKeyword('100 days of school', ['apparel', 'toys']);
+    it('accepts school-event terms', () => {
+        const result = classifyMerchKeyword('100 days of school');
 
         expect(result.isMerchRelevant).toBe(true);
         expect(result.merchReason).toContain('intent:school');
-        expect(result.merchReason).toContain('category:apparel');
     });
 
     it('blocks cotton commodity terms', () => {
-        expect(classifyMerchKeyword('100% cotton underwear', ['apparel']).isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('100% cotton underwear').isMerchRelevant).toBe(false);
     });
 
     it('blocks common merch listing boilerplate commodity terms', () => {
-        expect(
-            classifyMerchKeyword('classic fit twill-taped neck hoodie', ['apparel']).isMerchRelevant
-        ).toBe(false);
+        expect(classifyMerchKeyword('classic fit twill-taped neck hoodie').isMerchRelevant).toBe(false);
     });
 
     it('blocks expanded non-pod apparel style terms', () => {
-        expect(classifyMerchKeyword('white button down shirt women', ['apparel']).isMerchRelevant).toBe(
-            false
-        );
-        expect(classifyMerchKeyword('compression shirt men', ['apparel']).isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('white button down shirt women').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('compression shirt men').isMerchRelevant).toBe(false);
     });
 
     it('blocks brand and ip seeded terms', () => {
-        expect(classifyMerchKeyword('nike hoodie', ['apparel']).isMerchRelevant).toBe(false);
-        expect(classifyMerchKeyword('seahawks shirt', ['apparel']).isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('nike hoodie').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('seahawks shirt').isMerchRelevant).toBe(false);
     });
 
     it('blocks short generic apparel-only terms', () => {
-        expect(classifyMerchKeyword('hoodie', ['apparel']).isMerchRelevant).toBe(false);
-        expect(classifyMerchKeyword('mens sweatshirt', ['apparel']).isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('hoodie').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('mens sweatshirt').isMerchRelevant).toBe(false);
     });
 
     it('blocks short color+gender generic apparel terms', () => {
-        expect(classifyMerchKeyword('black hoodie men', ['apparel']).isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('black hoodie men').isMerchRelevant).toBe(false);
     });
 
     it('keeps seasonal terms even when they include gender tokens', () => {
-        const result = classifyMerchKeyword('st patricks day shirt women', ['apparel']);
+        const result = classifyMerchKeyword('st patricks day shirt women');
 
         expect(result.isMerchRelevant).toBe(true);
         expect(result.merchReason).toContain('seasonal:st patrick');
     });
 
     it('accepts additional product-type signals', () => {
-        const result = classifyMerchKeyword('st patricks day raglan', ['apparel', 'tops']);
+        const result = classifyMerchKeyword('st patricks day raglan');
 
         expect(result.isMerchRelevant).toBe(true);
-        expect(result.merchReason).toContain('category:apparel');
+        expect(result.merchReason).toContain('seasonal:st patrick');
         expect(result.merchReason).not.toContain('apparel:');
     });
 
-    it('returns detailed reason for seasonal + apparel keywords', () => {
-        const result = classifyMerchKeyword('womens valentines day sweatshirt', ['apparel']);
+    it('returns detailed reason for seasonal keywords', () => {
+        const result = classifyMerchKeyword('womens valentines day sweatshirt');
 
         expect(result.isMerchRelevant).toBe(true);
         expect(result.merchReason).toContain('seasonal:valentine');
-        expect(result.merchReason).toContain('category:apparel');
         expect(result.merchReason).not.toContain('apparel:');
+    });
+
+    it('uses apparel signal reason when no seasonal/intent signal matched', () => {
+        const result = classifyMerchKeyword('funny nurse shirt');
+
+        expect(result.isMerchRelevant).toBe(true);
+        expect(result.merchReason).toBe('signal:apparel');
     });
 });
 
@@ -151,7 +150,7 @@ describe('aggregateBaKeywordRows', () => {
         expect(rows[0]?.searchTerm).toBe('gift for mom');
     });
 
-    it('requires apparel in top clicked category #1 or #2', () => {
+    it('does not require top-clicked category slots', () => {
         const rows = aggregateBaKeywordRows([
             {
                 clickShare: 0.2,
@@ -168,16 +167,16 @@ describe('aggregateBaKeywordRows', () => {
                 searchFrequencyRank: 2,
                 searchTerm: 'gift for dad',
                 'Top Clicked Category #1': 'Home',
-                'Top Clicked Category #2': 'Apparel',
-                'Top Clicked Category #3': 'Kitchen',
+                'Top Clicked Category #2': 'Kitchen',
             },
         ]);
 
-        expect(rows).toHaveLength(1);
-        expect(rows[0]?.searchTerm).toBe('gift for dad');
+        expect(rows).toHaveLength(2);
+        expect(rows[0]?.searchTerm).toBe('gift for mom');
+        expect(rows[1]?.searchTerm).toBe('gift for dad');
     });
 
-    it('does not treat product category path keys as top-category rank slots', () => {
+    it('ignores category-path style keys in payload rows', () => {
         const rows = aggregateBaKeywordRows([
             {
                 clickShare: 0.2,

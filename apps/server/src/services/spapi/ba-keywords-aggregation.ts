@@ -1,5 +1,4 @@
 import {
-    apparelCategorySignals,
     apparelSignals,
     intentSignals,
     nonPodBrandOrIpSignals,
@@ -10,7 +9,6 @@ import {
     isColorGenderGenericApparelTerm,
     isShortGenericApparelTerm,
 } from '@/services/spapi/ba-keyword-term-heuristics';
-import { extractTopClickedCategorySlot } from '@/services/spapi/ba-keyword-category-utils';
 
 export type RawBaSearchTermsRow = {
     searchTerm?: string;
@@ -40,18 +38,8 @@ type BaKeywordAccumulator = {
     merchReason: string;
 };
 
-export const classifyMerchKeyword = (searchTerm: string, topClickedCategories: string[] = []) => {
+export const classifyMerchKeyword = (searchTerm: string) => {
     const normalized = normalizeSearchTerm(searchTerm);
-    const hasApparelCategory = topClickedCategories.some((category) =>
-        apparelCategorySignals.some((signal) => signal.pattern.test(category))
-    );
-
-    if (!hasApparelCategory) {
-        return {
-            isMerchRelevant: false,
-            merchReason: 'none',
-        };
-    }
 
     const commodity = nonPodCommoditySignals.find((signal) => signal.pattern.test(normalized));
     if (commodity) {
@@ -101,7 +89,9 @@ export const classifyMerchKeyword = (searchTerm: string, topClickedCategories: s
     if (intent) {
         reasons.push(`intent:${intent.key}`);
     }
-    reasons.push('category:apparel');
+    if (reasons.length === 0) {
+        reasons.push('signal:apparel');
+    }
 
     return {
         isMerchRelevant: true,
@@ -131,7 +121,7 @@ export const addBaKeywordRowToAccumulator = (
         return;
     }
 
-    const classification = classifyMerchKeyword(rawTerm, extractTopClickedCategories(row));
+    const classification = classifyMerchKeyword(rawTerm);
     if (!classification.isMerchRelevant) {
         if (debugStats) {
             debugStats.rejectedByReason[classification.merchReason] =
@@ -201,80 +191,6 @@ export const aggregateBaKeywordRows = (rows: RawBaSearchTermsRow[]) => {
 };
 
 const normalizeSearchTerm = (value: string) => value.toLowerCase().replace(/\s+/g, ' ').trim();
-
-const extractTopClickedCategories = (row: RawBaSearchTermsRow) => {
-    const indexedTopCategories = new Set<string>();
-    const fallbackCategories = new Set<string>();
-    let sawIndexedTopClickedCategory = false;
-
-    for (const [key, value] of Object.entries(row)) {
-        const normalizedKey = normalizeObjectKey(key);
-        if (!normalizedKey.includes('topclicked') || !normalizedKey.includes('categor')) {
-            continue;
-        }
-
-        const categoriesFromField = extractCategoriesFromFieldValue(value);
-        if (categoriesFromField.length === 0) {
-            continue;
-        }
-
-        const slot = extractTopClickedCategorySlot(normalizedKey);
-        if (slot !== null) {
-            sawIndexedTopClickedCategory = true;
-            if (slot <= 2) {
-                for (const category of categoriesFromField) {
-                    indexedTopCategories.add(category);
-                }
-            }
-            continue;
-        }
-
-        for (const category of categoriesFromField) {
-            fallbackCategories.add(category);
-        }
-    }
-
-    if (indexedTopCategories.size > 0 || sawIndexedTopClickedCategory) {
-        return [...indexedTopCategories];
-    }
-
-    if (row.topClickedCategories) {
-        for (const category of extractCategoriesFromFieldValue(row.topClickedCategories)) {
-            fallbackCategories.add(category);
-        }
-    }
-
-    return [...fallbackCategories];
-};
-
-const extractCategoriesFromFieldValue = (value: unknown) => {
-    if (typeof value === 'string') {
-        return value
-            .split(',')
-            .map(normalizeSearchTerm)
-            .filter(Boolean);
-    }
-
-    if (Array.isArray(value)) {
-        const categories: string[] = [];
-        for (const item of value) {
-            if (typeof item !== 'string') {
-                continue;
-            }
-            for (const category of item.split(',')) {
-                const normalized = normalizeSearchTerm(category);
-                if (normalized) {
-                    categories.push(normalized);
-                }
-            }
-        }
-        return categories;
-    }
-
-    return [];
-};
-
-const normalizeObjectKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const toInteger = (value: unknown) => {
     const numeric = Number(value);
