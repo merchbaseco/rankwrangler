@@ -3,6 +3,7 @@ import {
     buildDailyTopSearchTermsWindows,
     buildWeeklyTopSearchTermsWindows,
     getDailyRetentionCutoffDate,
+    getInitialNextRefreshAtForWindow,
     getNextRefreshAtAfterSuccess,
 } from '@/services/top-search-terms-dataset-windows.js';
 
@@ -74,7 +75,7 @@ describe('getDailyRetentionCutoffDate', () => {
 });
 
 describe('getNextRefreshAtAfterSuccess', () => {
-    it('keeps refreshing current day/week datasets', () => {
+    it('uses SLA-aligned Pacific 3AM refresh windows for open datasets', () => {
         const now = new Date('2026-03-03T12:00:00.000Z');
         const dayRefresh = getNextRefreshAtAfterSuccess({
             dataset: {
@@ -93,8 +94,22 @@ describe('getNextRefreshAtAfterSuccess', () => {
             today: '2026-03-03',
         });
 
-        expect(dayRefresh?.toISOString()).toBe('2026-03-03T18:00:00.000Z');
-        expect(weekRefresh?.toISOString()).toBe('2026-03-04T00:00:00.000Z');
+        expect(dayRefresh?.toISOString()).toBe('2026-03-07T11:00:00.000Z');
+        expect(weekRefresh?.toISOString()).toBe('2026-03-11T10:00:00.000Z');
+    });
+
+    it('uses saturday-specific daily SLA timing', () => {
+        const now = new Date('2026-03-07T18:00:00.000Z');
+        const dayRefresh = getNextRefreshAtAfterSuccess({
+            dataset: {
+                reportPeriod: 'DAY',
+                dataEndDate: '2026-03-07',
+            },
+            now,
+            today: '2026-03-07',
+        });
+
+        expect(dayRefresh?.toISOString()).toBe('2026-03-10T10:00:00.000Z');
     });
 
     it('stops refreshing closed periods', () => {
@@ -119,5 +134,39 @@ describe('getNextRefreshAtAfterSuccess', () => {
                 today: '2026-03-03',
             })
         ).toBeNull();
+    });
+});
+
+describe('getInitialNextRefreshAtForWindow', () => {
+    it('defers open windows until SLA-aligned refresh slots', () => {
+        const now = new Date('2026-03-03T20:00:00.000Z');
+        const nextRefreshAt = getInitialNextRefreshAtForWindow({
+            window: {
+                marketplaceId: 'ATVPDKIKX0DER',
+                reportPeriod: 'DAY',
+                dataStartDate: '2026-03-03',
+                dataEndDate: '2026-03-03',
+            },
+            now,
+            today: '2026-03-03',
+        });
+
+        expect(nextRefreshAt.toISOString()).toBe('2026-03-07T11:00:00.000Z');
+    });
+
+    it('queues closed windows immediately for backfill', () => {
+        const now = new Date('2026-03-03T20:00:00.000Z');
+        const nextRefreshAt = getInitialNextRefreshAtForWindow({
+            window: {
+                marketplaceId: 'ATVPDKIKX0DER',
+                reportPeriod: 'DAY',
+                dataStartDate: '2026-03-02',
+                dataEndDate: '2026-03-02',
+            },
+            now,
+            today: '2026-03-03',
+        });
+
+        expect(nextRefreshAt.toISOString()).toBe(now.toISOString());
     });
 });

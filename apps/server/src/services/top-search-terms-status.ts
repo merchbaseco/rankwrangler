@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
+import { toUtcIsoTimestamp } from '@/services/utc-timestamp.js';
 
 const TOP_SEARCH_TERMS_FETCH_JOB_NAMES = [
     'fetch-top-search-terms-dataset',
@@ -23,6 +24,8 @@ type TopSearchTermsStatusDatasetRow = {
     latestFetchedAt: string | null;
     latestObservedDate: string | null;
 };
+
+type TopSearchTermsStatusDatasetSqlRow = TopSearchTermsStatusDatasetRow;
 
 type JobTotalsRow = {
     successCount: number;
@@ -94,7 +97,7 @@ const queryDatasetsByPeriod = async (
     reportPeriod: 'DAY' | 'WEEK',
     limit: number
 ): Promise<TopSearchTermsStatusDatasetRow[]> => {
-    const rows = await db.execute<TopSearchTermsStatusDatasetRow>(sql`
+    const rows = await db.execute<TopSearchTermsStatusDatasetSqlRow>(sql`
         SELECT
             d.id,
             d.report_period AS "reportPeriod",
@@ -127,5 +130,18 @@ const queryDatasetsByPeriod = async (
         LIMIT ${limit}
     `);
 
-    return [...rows];
+    return rows.map(normalizeDatasetRowTimestamps);
+};
+
+const normalizeDatasetRowTimestamps = (
+    row: TopSearchTermsStatusDatasetSqlRow
+): TopSearchTermsStatusDatasetRow => {
+    return {
+        ...row,
+        lastCompletedAt: toUtcIsoTimestamp(row.lastCompletedAt),
+        lastFailedAt: toUtcIsoTimestamp(row.lastFailedAt),
+        nextRefreshAt: toUtcIsoTimestamp(row.nextRefreshAt),
+        updatedAt: toUtcIsoTimestamp(row.updatedAt) ?? row.updatedAt,
+        latestFetchedAt: toUtcIsoTimestamp(row.latestFetchedAt),
+    };
 };

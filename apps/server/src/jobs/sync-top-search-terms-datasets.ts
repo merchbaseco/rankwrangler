@@ -11,6 +11,7 @@ import {
     buildDailyTopSearchTermsWindows,
     buildWeeklyTopSearchTermsWindows,
     getDailyRetentionCutoffDate,
+    getInitialNextRefreshAtForWindow,
     TOP_SEARCH_TERMS_DAILY_RETENTION_DAYS,
     TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE,
     TOP_SEARCH_TERMS_WEEKLY_BACKFILL_WEEKS,
@@ -47,7 +48,12 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
         });
         const insertedCount = await insertMissingTopSearchTermsDatasets({
             windows: [...dailyWindows, ...weeklyWindows],
-            nextRefreshAt: now,
+            getNextRefreshAt: window =>
+                getInitialNextRefreshAtForWindow({
+                    window,
+                    now,
+                    today,
+                }),
         });
 
         const dailyCutoff = getDailyRetentionCutoffDate({

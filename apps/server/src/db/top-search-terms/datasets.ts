@@ -93,10 +93,10 @@ export const ensureTopSearchTermsDataset = async ({
 
 export const insertMissingTopSearchTermsDatasets = async ({
     windows,
-    nextRefreshAt = new Date(),
+    getNextRefreshAt = () => new Date(),
 }: {
     windows: TopSearchTermsWindow[];
-    nextRefreshAt?: Date | null;
+    getNextRefreshAt?: (window: TopSearchTermsWindow) => Date | null;
 }) => {
     if (windows.length === 0) {
         return 0;
@@ -110,7 +110,7 @@ export const insertMissingTopSearchTermsDatasets = async ({
                 reportPeriod: window.reportPeriod,
                 dataStartDate: window.dataStartDate,
                 dataEndDate: window.dataEndDate,
-                nextRefreshAt,
+                nextRefreshAt: getNextRefreshAt(window),
             }))
         )
         .onConflictDoNothing()

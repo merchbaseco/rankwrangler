@@ -57,6 +57,13 @@ Runs every 30 minutes and:
 3. Finds due datasets (`next_refresh_at <= now`, `refreshing = false`).
 4. Enqueues fetch jobs and marks those datasets `queued`.
 
+`next_refresh_at` is SLA-aligned for open windows instead of immediate:
+
+- Daily non-Saturday periods: first refresh slot is Pacific `03:00` after the 72-hour availability
+  window (effectively `D+4 03:00 PT` for dataset day `D`).
+- Saturday daily periods and weekly periods: first refresh slot is Pacific `03:00` after the
+  48-hour availability window.
+
 Constants live in `apps/server/src/services/top-search-terms-dataset-windows.ts`.
 
 ## Fetch Worker Job

@@ -28,3 +28,5 @@ Search Terms ingest notes:
 - Short generic apparel-only terms (for example `hoodie`, `mens sweatshirt`) are filtered out.
 - Short color+gender generic apparel terms (for example `black hoodie men`) are filtered out.
 - Additional product-type signals are recognized (for example `raglan`, `v neck`, `tote bag`).
+- Open-period refresh timing is SLA-aligned and targets Pacific `03:00` slots after BA data
+  availability windows (72h for non-Saturday daily, 48h for Saturday daily and weekly periods).
