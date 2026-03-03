@@ -1,5 +1,6 @@
 import { router } from '@/api/trpc.js';
 import { adminStatus } from './admin-status.js';
+import { classifyProductFacets } from './classify-product-facets.js';
 import { searchTermsList } from './search-terms-list.js';
 import { searchTermsRefresh } from './search-terms-refresh.js';
 import { searchTermsStatus } from './search-terms-status.js';
@@ -7,6 +8,7 @@ import { eventLogsList } from './event-logs.js';
 import { getAdminStats } from './get-admin-stats.js';
 import { keepaLog } from './keepa-log.js';
 import { getKeepaStatus } from './get-keepa-status.js';
+import { getProductFacetMetricsSummary } from './get-product-facet-metrics.js';
 import { jobExecutions } from './job-executions.js';
 import { getProductHistory } from './get-product-history.js';
 import { getProductInfo } from './get-product-info.js';
@@ -17,6 +19,7 @@ import { topSearchTermsStatus } from './top-search-terms-status.js';
 
 export const appApiRouter = router({
     adminStatus,
+    classifyProductFacets,
     searchTermsList,
     searchTermsRefresh,
     searchTermsStatus,
@@ -24,6 +27,7 @@ export const appApiRouter = router({
     getAdminStats,
     keepaLog,
     getKeepaStatus,
+    getProductFacetMetricsSummary,
     jobExecutions,
     topSearchTermsStatus,
     getProductHistory,

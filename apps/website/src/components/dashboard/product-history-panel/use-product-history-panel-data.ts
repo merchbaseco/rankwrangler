@@ -15,6 +15,7 @@ import type {
 } from '@/components/dashboard/product-history-panel/types';
 import { useProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/use-product-history-panel-product';
 import { toastManager } from '@/components/ui/toast';
+import { useAdminAccess } from '@/hooks/use-admin-access';
 import { api } from '@/lib/trpc';
 
 export const useProductHistoryPanelData = ({
@@ -23,6 +24,7 @@ export const useProductHistoryPanelData = ({
 	product: ProductHistoryPanelProduct;
 }) => {
 	const resolvedProduct = useProductHistoryPanelProduct({ product });
+	const { isAdmin } = useAdminAccess();
 	const [rankMetricValue, setRankMetricValue] = useState<string>('bsrMain');
 	const {
 		activeRange: activePreset,
@@ -177,6 +179,32 @@ export const useProductHistoryPanelData = ({
 		},
 	});
 
+	const fetchFacetsMutation = api.api.app.classifyProductFacets.useMutation({
+		onSuccess: (data) => {
+			if (data.status === 'already_ready') {
+				toastManager.add({
+					type: 'info',
+					title: 'Facets already assigned',
+					description: `${product.asin} already has facets.`,
+				});
+				return;
+			}
+
+			toastManager.add({
+				type: 'success',
+				title: 'Facets classified',
+				description: `${product.asin} • cost ${formatUsd(data.costUsd)}`,
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				type: 'error',
+				title: 'Facet classification failed',
+				description: error.message,
+			});
+		},
+	});
+
 	const triggerKeepaSync = useCallback(() => {
 		if (loadMutation.isPending) {
 			return;
@@ -188,6 +216,17 @@ export const useProductHistoryPanelData = ({
 			days: 365,
 		});
 	}, [loadMutation, product.marketplaceId, product.asin]);
+
+	const triggerFacetClassification = useCallback(() => {
+		if (!isAdmin || fetchFacetsMutation.isPending) {
+			return;
+		}
+
+		fetchFacetsMutation.mutate({
+			marketplaceId: product.marketplaceId,
+			asin: product.asin,
+		});
+	}, [isAdmin, fetchFacetsMutation, product.marketplaceId, product.asin]);
 
 	const keepaLastSyncAt = rankQuery.data?.latestImportAt ?? null;
 	const isKeepaSyncStale = getIsKeepaSyncStale({ keepaLastSyncAt });
@@ -234,6 +273,18 @@ export const useProductHistoryPanelData = ({
 		rankSelectOptions,
 		product: resolvedProduct,
 		setRankMetricValue,
+		canFetchFacets: isAdmin,
+		fetchFacetsMutation,
+		triggerFacetClassification,
 		triggerKeepaSync,
 	};
+};
+
+const formatUsd = (value: number) => {
+	return new Intl.NumberFormat('en-US', {
+		style: 'currency',
+		currency: 'USD',
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 6,
+	}).format(value);
 };

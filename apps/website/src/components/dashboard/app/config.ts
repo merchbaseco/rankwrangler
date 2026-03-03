@@ -36,30 +36,23 @@ export const LAST_UPDATED_OPTIONS: Array<{ key: LastUpdated; label: string }> = 
 	{ key: '30d', label: 'Last 30 days' },
 ];
 
-export const FACETS = [
-	{ emoji: '🐶', label: 'Dogs' },
-	{ emoji: '🐱', label: 'Cats' },
-	{ emoji: '🎾', label: 'Tennis' },
-	{ emoji: '🏈', label: 'Football' },
-	{ emoji: '⚽', label: 'Soccer' },
-	{ emoji: '🎣', label: 'Fishing' },
-	{ emoji: '🏕️', label: 'Camping' },
-	{ emoji: '☕', label: 'Coffee' },
-	{ emoji: '📚', label: 'Books' },
-	{ emoji: '🎸', label: 'Guitar' },
-	{ emoji: '🧶', label: 'Knitting' },
-	{ emoji: '🌱', label: 'Gardening' },
-	{ emoji: '🐓', label: 'Farm Life' },
-	{ emoji: '🚀', label: 'Space' },
-	{ emoji: '💻', label: 'Coding' },
-	{ emoji: '🎮', label: 'Gaming' },
-	{ emoji: '🧩', label: 'Puzzles' },
-	{ emoji: '🏃', label: 'Running' },
-	{ emoji: '🚴', label: 'Cycling' },
-	{ emoji: '🌊', label: 'Ocean' },
-	{ emoji: '🏔️', label: 'Mountains' },
-	{ emoji: '✈️', label: 'Travel' },
-	{ emoji: '🍕', label: 'Pizza' },
-	{ emoji: '🐉', label: 'Dragons' },
-	{ emoji: '😎', label: 'Retro' },
-];
+export const FACET_CATEGORY_META: Record<string, { emoji: string; label: string }> = {
+	profession: { emoji: '💼', label: 'Profession' },
+	hobby: { emoji: '🏕️', label: 'Hobby' },
+	animal: { emoji: '🐾', label: 'Animal' },
+	food: { emoji: '🍽️', label: 'Food' },
+	cause: { emoji: '🎗️', label: 'Cause' },
+	identity: { emoji: '🪪', label: 'Identity' },
+	culture: { emoji: '🎭', label: 'Culture' },
+	holiday: { emoji: '🎄', label: 'Holiday' },
+	occasion: { emoji: '🎁', label: 'Occasion' },
+	place: { emoji: '📍', label: 'Place' },
+	'party-theme': { emoji: '🎉', label: 'Party Theme' },
+};
+
+export const formatFacetValueLabel = (value: string): string =>
+	value
+		.split('-')
+		.filter(Boolean)
+		.map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+		.join(' ');
