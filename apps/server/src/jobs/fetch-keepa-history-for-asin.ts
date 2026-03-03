@@ -12,11 +12,6 @@ import {
 } from '@/services/keepa-history-refresh.js';
 import { getErrorMessage } from '@/services/job-executions-utils.js';
 
-const NON_RETRYABLE_KEEPA_REFRESH_ERROR_CODES = new Set<TRPCError['code']>([
-    'BAD_REQUEST',
-    'NOT_FOUND',
-]);
-
 type FetchKeepaHistoryForAsinParams = {
     marketplaceId: string;
     asin: string;
@@ -209,19 +204,8 @@ export const fetchKeepaHistoryForAsin = async (
             asin,
         });
 
-        if (isNonRetryableKeepaRefreshError(error)) {
-            return;
-        }
-
         throw error;
     }
-};
-
-const isNonRetryableKeepaRefreshError = (error: unknown) => {
-    return (
-        error instanceof TRPCError &&
-        NON_RETRYABLE_KEEPA_REFRESH_ERROR_CODES.has(error.code)
-    );
 };
 
 type FetchKeepaHistoryJobPayload = {

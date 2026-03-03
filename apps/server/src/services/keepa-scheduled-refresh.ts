@@ -24,10 +24,6 @@ export const getKeepaScheduledRefreshCandidates = async ({
         return [];
     }
 
-    const now = Date.now();
-    const dailyThreshold = new Date(now - KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS);
-    const weeklyThreshold = new Date(now - KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS);
-
     const rows = await db.execute<KeepaScheduledRefreshCandidate>(sql`
         SELECT
             p.marketplace_id AS "marketplaceId",
@@ -45,7 +41,9 @@ export const getKeepaScheduledRefreshCandidates = async ({
                       AND phi.asin = p.asin
                       AND phi.source = 'keepa'
                       AND phi.status = 'success'
-                      AND phi.created_at > ${dailyThreshold}
+                      AND phi.created_at > now() - (
+                          ${KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
+                      )
                 )
             )
             OR
@@ -59,7 +57,9 @@ export const getKeepaScheduledRefreshCandidates = async ({
                       AND phi.asin = p.asin
                       AND phi.source = 'keepa'
                       AND phi.status = 'success'
-                      AND phi.created_at > ${weeklyThreshold}
+                      AND phi.created_at > now() - (
+                          ${KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
+                      )
                 )
             )
           )

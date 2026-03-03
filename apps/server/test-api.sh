@@ -162,6 +162,18 @@ if [ -n "$RR_CLERK_ADMIN_TOKEN" ]; then
       -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
       -d '{"input":null}' | jq '.'
     echo ""
+    echo "🧮 Testing api.app.getAdminStats keepaMerchCoverage..."
+    curl -s -X POST "$API_BASE/api/api.app.getAdminStats" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
+      -d '{"input":null}' | jq '.result.data.json.keepaMerchCoverage'
+    echo ""
+    echo "🚨 Testing api.app.getAdminStats Job Failures stat..."
+    curl -s -X POST "$API_BASE/api/api.app.getAdminStats" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
+      -d '{"input":null}' | jq '.result.data.json.stats[] | select(.label == "Job Failures")'
+    echo ""
     echo "🧵 Testing api.app.jobExecutions..."
     curl -s -X POST "$API_BASE/api/api.app.jobExecutions" \
       -H "Content-Type: application/json" \

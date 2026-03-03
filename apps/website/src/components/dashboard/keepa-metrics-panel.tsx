@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { CircleHelp } from 'lucide-react';
 import {
     type AdminStatLabel,
     type JobStatusFilter,
@@ -15,6 +16,26 @@ import { cn, formatNumber } from '@/lib/utils';
 
 const COLS = 3;
 const SETTINGS_METRICS_POLL_INTERVAL_MS = 10_000;
+const KEEPA_STAT_LABELS = new Set<AdminStatLabel>([
+    'Keepa Fetches',
+    'Job Successes',
+    'Job Failures',
+]);
+const KEEPA_METRIC_TOOLTIPS: Record<AdminStatLabel, string> = {
+    'Keepa Fetches': 'Number of Keepa API call attempts (from keepa import rows).',
+    'Job Successes': 'Completed Keepa fetch jobs with a success status.',
+    'Job Failures': 'Keepa fetch jobs that ended with a failed status.',
+    'SP-API Jobs Run': '',
+    'SP-API Jobs Success': '',
+    'SP-API Jobs Failed': '',
+};
+const MINI_STAT_TOOLTIPS: Record<MiniStatLabel, string> = {
+    Queued: 'Current number of ASINs waiting in the Keepa refresh queue.',
+    'Auto Refresh': 'Merch products currently eligible for automatic Keepa refresh.',
+    'Merch Products': 'Total unique merch products in the products table.',
+    'With Keepa': 'Unique merch products with at least one successful Keepa import.',
+    'Without Keepa': 'Unique merch products that have never had a successful Keepa import.',
+};
 
 type StatType = 'neutral' | 'success' | 'error';
 
@@ -26,7 +47,10 @@ const STAT_STYLES: Record<StatType, { color: string; stroke: string }> = {
 
 const getStatType = (label: string): StatType => {
     if (label.includes('Success')) return 'success';
-    if (label.includes('Errors') || label.includes('Failed')) return 'error';
+    if (
+        label.includes('Error') ||
+        label.includes('Fail')
+    ) return 'error';
     return 'neutral';
 };
 
@@ -46,10 +70,21 @@ export const KeepaMetricsPanel = () => {
     });
 
     const allStats = statsQuery.data?.stats ?? [];
-    const stats = allStats.filter((s) => s.label.startsWith('Keepa'));
+    const stats = allStats.filter(
+        (s): s is (typeof allStats)[number] & { label: AdminStatLabel } =>
+            isStatFilterLabel(s.label) && KEEPA_STAT_LABELS.has(s.label)
+    );
     const keepaRefreshPolicyBuckets = statsQuery.data?.keepaRefreshPolicyBuckets ?? [];
     const keepaFetchGuardLabel = statsQuery.data?.keepaFetchGuardLabel ?? '';
+    const keepaMerchCoverage = statsQuery.data?.keepaMerchCoverage ?? {
+        totalMerchProducts: 0,
+        merchProductsWithKeepaData: 0,
+        merchProductsWithoutKeepaData: 0,
+    };
     const keepaQueueLength = keepaStatusQuery.data?.queue.totalQueued ?? null;
+    const autoRefreshProducts = keepaRefreshPolicyBuckets
+        .filter((bucket) => bucket.isAutoRefresh)
+        .reduce((total, bucket) => total + bucket.count, 0);
     const isLoading = statsQuery.isLoading;
 
     const defaultSelectedStat = stats
@@ -123,9 +158,10 @@ export const KeepaMetricsPanel = () => {
                                 isSelected && 'bg-accent',
                             )}
                         >
-                            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                                {stat.label}
-                            </p>
+                            <MetricLabel
+                                label={stat.label}
+                                tooltip={KEEPA_METRIC_TOOLTIPS[stat.label]}
+                            />
                             <p
                                 className={cn(
                                     'stat-value font-mono text-2xl font-bold',
@@ -144,12 +180,53 @@ export const KeepaMetricsPanel = () => {
                 })}
             </div>
 
+            {/* Merch coverage stats — mirrors the stat tile grid above */}
+            <div className="grid grid-cols-5 border-t border-border">
+                <MiniStat
+                    label="Queued"
+                    tooltip={MINI_STAT_TOOLTIPS.Queued}
+                    value={
+                        keepaQueueLength === null
+                            ? '—'
+                            : formatNumber(keepaQueueLength)
+                    }
+                />
+                <MiniStat
+                    label="Auto Refresh"
+                    tooltip={MINI_STAT_TOOLTIPS['Auto Refresh']}
+                    value={formatNumber(autoRefreshProducts)}
+                    type="success"
+                />
+                <MiniStat
+                    label="Merch Products"
+                    tooltip={MINI_STAT_TOOLTIPS['Merch Products']}
+                    value={formatNumber(
+                        keepaMerchCoverage.totalMerchProducts,
+                    )}
+                />
+                <MiniStat
+                    label="With Keepa"
+                    tooltip={MINI_STAT_TOOLTIPS['With Keepa']}
+                    value={formatNumber(
+                        keepaMerchCoverage.merchProductsWithKeepaData,
+                    )}
+                    type="success"
+                />
+                <MiniStat
+                    label="Without Keepa"
+                    tooltip={MINI_STAT_TOOLTIPS['Without Keepa']}
+                    value={formatNumber(
+                        keepaMerchCoverage.merchProductsWithoutKeepaData,
+                    )}
+                    type="error"
+                />
+            </div>
+
             {/* Keepa refresh policy — full width */}
             <div className="border-t border-border">
                 <KeepaRefreshPolicyPanel
                     buckets={keepaRefreshPolicyBuckets}
                     fetchGuardLabel={keepaFetchGuardLabel}
-                    queueLength={keepaQueueLength}
                     isLoading={isLoading}
                 />
             </div>
@@ -293,3 +370,55 @@ const Sparkline = ({
         </svg>
     );
 };
+
+/* ── MiniStat ────────────────────────────── */
+
+const MINI_STAT_COLORS: Record<StatType, string> = {
+    neutral: 'text-foreground',
+    success: 'text-success-foreground',
+    error: 'text-destructive',
+};
+
+type MiniStatLabel =
+    | 'Queued'
+    | 'Auto Refresh'
+    | 'Merch Products'
+    | 'With Keepa'
+    | 'Without Keepa';
+
+const MiniStat = ({
+    label,
+    tooltip,
+    value,
+    type = 'neutral',
+}: {
+    label: MiniStatLabel;
+    tooltip: string;
+    value: string;
+    type?: StatType;
+}) => (
+    <div className="border-r border-border px-3 py-2 last:border-r-0">
+        <MetricLabel label={label} tooltip={tooltip} />
+        <p
+            className={cn(
+                'stat-value font-mono text-base font-bold',
+                MINI_STAT_COLORS[type],
+            )}
+        >
+            {value}
+        </p>
+    </div>
+);
+
+const MetricLabel = ({
+    label,
+    tooltip,
+}: {
+    label: string;
+    tooltip: string;
+}) => (
+    <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        <span>{label}</span>
+        <CircleHelp className="size-3 opacity-70" title={tooltip} aria-label={tooltip} />
+    </div>
+);

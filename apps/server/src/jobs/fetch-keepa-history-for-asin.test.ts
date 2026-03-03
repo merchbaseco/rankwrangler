@@ -99,7 +99,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         expect(eventLog.detailsJson.days).toBe(365);
     });
 
-    it('removes queue item for non-retryable NOT_FOUND errors', async () => {
+    it('removes queue item and rethrows NOT_FOUND errors', async () => {
         const { fetchKeepaHistoryForAsin } = await loadSubject();
         const { deps, calls } = createDeps({
             loadKeepaProductHistory: async () => {
@@ -110,7 +110,9 @@ describe('fetchKeepaHistoryForAsin', () => {
             },
         });
 
-        await expect(fetchKeepaHistoryForAsin(params, deps)).resolves.toBeUndefined();
+        await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
+            'Keepa returned no product history for this ASIN'
+        );
         expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('error');
