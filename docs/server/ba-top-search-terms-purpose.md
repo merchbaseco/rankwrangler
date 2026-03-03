@@ -14,7 +14,7 @@ for timing and prioritization.
 
 This data is most valuable for:
 
-- Tracking `searchFrequencyRank` changes over time (week/month snapshots).
+- Tracking `searchFrequencyRank` changes over time (daily + weekly snapshots).
 - Detecting seasonal ramps and declines (for example, when `st patricks day shirt` starts climbing).
 - Prioritizing which keywords the agent should execute on first.
 - Giving the dashboard a quick way to inspect demand movement during targeted research.
@@ -44,6 +44,7 @@ Use BA Top Search Terms as a ranking and timing layer:
 
 - For Merch workflows, top-3 click/conversion concentration should be low-weight or optional.
 - `searchFrequencyRank` trend over time is the highest-value signal in this dataset.
+- Daily BA windows are retained for 90 days; weekly windows are retained indefinitely.
 - Ingest filtering is term-signal based and no longer depends on Top Clicked Category slots or
   `departmentName` values.
 - Ingest filtering blocks known non-PoD commodity patterns (for example `100% cotton`,

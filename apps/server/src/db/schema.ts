@@ -283,7 +283,7 @@ export const jobExecutionLogs = pgTable(
 );
 
 export {
-    searchTermsFetchStatus,
-    searchTermsKeywordDaily,
-    searchTermsSnapshots,
-} from './search-terms-schema';
+    topSearchTermsDatasets,
+    topSearchTermsKeywordDaily,
+    topSearchTermsSnapshots,
+} from './top-search-terms-schema';

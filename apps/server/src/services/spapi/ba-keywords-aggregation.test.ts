@@ -40,10 +40,14 @@ describe('classifyMerchKeyword', () => {
     });
 
     it('blocks additional non-pod seasonal product families without apparel product signal', () => {
+        expect(classifyMerchKeyword('valentines dress for women').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('easter dresses for women').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('valentines lingerie').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('valentines earrings').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('valentines tablecloth').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines tablecloths').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines backdrops').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines ribbons').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('valentines toys').isMerchRelevant).toBe(false);
     });
 

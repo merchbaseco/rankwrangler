@@ -1,10 +1,15 @@
 import { appProcedure } from '@/api/trpc.js';
-import { resolveBaDateWindow, searchTermsBaseInput } from '@/api/app/search-terms-shared.js';
 import {
-    getSearchTermsFetchStatus,
-    setSearchTermsFetchQueued,
-} from '@/db/search-terms/fetch-status.js';
-import { sendFetchSearchTermsJob } from '@/services/search-terms-fetch-job.js';
+    mapTopSearchTermsStatus,
+    resolveTopSearchTermsWindow,
+    searchTermsBaseInput,
+} from '@/api/app/search-terms-shared.js';
+import {
+    ensureTopSearchTermsDataset,
+    getTopSearchTermsDatasetByWindow,
+} from '@/db/top-search-terms/datasets.js';
+import { setTopSearchTermsDatasetQueued } from '@/db/top-search-terms/dataset-status.js';
+import { sendFetchTopSearchTermsDatasetJob } from '@/services/top-search-terms-jobs.js';
 
 const ACTIVE_FETCH_STATUS_STALE_MS = 30 * 60 * 1000;
 
@@ -12,74 +17,41 @@ export const searchTermsRefresh = appProcedure
     .input(searchTermsBaseInput.optional())
     .mutation(async ({ input }) => {
         const parsed = searchTermsBaseInput.parse(input ?? {});
-        const dateWindow = resolveBaDateWindow(parsed);
-        const window = {
-            dataEndDate: dateWindow.dataEndDate,
-            dataStartDate: dateWindow.dataStartDate,
-            marketplaceId: parsed.marketplaceId,
-            reportPeriod: parsed.reportPeriod,
-        } as const;
-
+        const window = resolveTopSearchTermsWindow(parsed);
+        const dataset =
+            (await getTopSearchTermsDatasetByWindow(window)) ??
+            (await ensureTopSearchTermsDataset({ window, nextRefreshAt: new Date() }));
         const now = new Date();
-        const existingStatus = await getSearchTermsFetchStatus(window);
-        if (
-            isFetchStatusActive(existingStatus) &&
-            !isFetchStatusStale(existingStatus, now)
-        ) {
+
+        if (isFetchStatusActive(dataset) && !isFetchStatusStale(dataset, now)) {
             return {
                 enqueued: false,
-                status: mapFetchStatus(existingStatus),
+                status: mapTopSearchTermsStatus(dataset),
             };
         }
 
-        const jobId = await sendFetchSearchTermsJob(window);
+        const jobId = await sendFetchTopSearchTermsDatasetJob({
+            datasetId: dataset.id,
+        });
         if (!jobId) {
-            const latestStatus = await getSearchTermsFetchStatus(window);
+            const latestStatus = await getTopSearchTermsDatasetByWindow(window);
             return {
                 enqueued: false,
-                status: mapFetchStatus(latestStatus),
+                status: mapTopSearchTermsStatus(latestStatus),
             };
         }
 
-        const status = await setSearchTermsFetchQueued({
-            window,
+        const status = await setTopSearchTermsDatasetQueued({
+            datasetId: dataset.id,
             jobId,
             requestedAt: now,
         });
 
         return {
             enqueued: true,
-            status: mapFetchStatus(status),
+            status: mapTopSearchTermsStatus(status),
         };
     });
-
-const mapFetchStatus = (
-    status:
-        | {
-              status: 'idle' | 'queued' | 'in_progress' | 'completed' | 'failed';
-              activeJobId: string | null;
-              activeJobRequestedAt: string | null;
-              fetchStartedAt: string | null;
-              lastCompletedAt: string | null;
-              lastCompletedSnapshotId: string | null;
-              lastError: string | null;
-              lastFailedAt: string | null;
-              updatedAt: string;
-          }
-        | null
-) => {
-    return {
-        activeJobId: status?.activeJobId ?? null,
-        activeJobRequestedAt: status?.activeJobRequestedAt ?? null,
-        fetchStartedAt: status?.fetchStartedAt ?? null,
-        lastCompletedAt: status?.lastCompletedAt ?? null,
-        lastCompletedSnapshotId: status?.lastCompletedSnapshotId ?? null,
-        lastError: status?.lastError ?? null,
-        lastFailedAt: status?.lastFailedAt ?? null,
-        status: status?.status ?? 'idle',
-        updatedAt: status?.updatedAt ?? null,
-    };
-};
 
 const isFetchStatusActive = (
     status:

@@ -153,7 +153,7 @@ const nonPodSeasonalMerchandiseSignals: CommodityKeywordSignal[] = [
     {
         key: 'seasonal-dress',
         scope: 'no-apparel-signal',
-        pattern: /\bdresses?\b/i,
+        pattern: /\bdress(?:es)?\b/i,
     },
     {
         key: 'seasonal-lingerie',
@@ -168,7 +168,7 @@ const nonPodSeasonalMerchandiseSignals: CommodityKeywordSignal[] = [
     {
         key: 'seasonal-party-supply',
         scope: 'no-apparel-signal',
-        pattern: /\btablecloth\b|\bplates?\b|\bnapkins?\b|\bbackdrop\b|\bribbon\b/i,
+        pattern: /\btablecloths?\b|\bplates?\b|\bnapkins?\b|\bbackdrops?\b|\bribbons?\b/i,
     },
     {
         key: 'seasonal-toy-plush',

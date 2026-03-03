@@ -19,7 +19,7 @@ import {
 const BA_REPORT_POLL_INTERVAL_MS = 5000;
 const BA_REPORT_POLL_MAX_ATTEMPTS = 90;
 
-export type BaReportPeriod = 'MONTH' | 'WEEK';
+export type BaReportPeriod = 'DAY' | 'WEEK';
 
 export type BaKeywordsParams = {
     dataEndDate: string;

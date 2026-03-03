@@ -10,11 +10,14 @@ import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
 import { startJobs } from '@/jobs/index.js';
 import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
-import { registerSearchTermsFetchWakeups } from '@/services/search-terms-fetch-job.js';
 import {
     registerSpApiSyncQueueWakeups,
     sendProcessSpApiSyncQueueJob,
 } from '@/services/spapi-sync-queue.js';
+import {
+    registerTopSearchTermsJobWakeups,
+    sendSyncTopSearchTermsDatasetsJob,
+} from '@/services/top-search-terms-jobs.js';
 
 console.log('Starting RankWrangler Server...');
 
@@ -40,13 +43,14 @@ const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
 console.log('[Server] pg-boss initialized');
 registerSpApiSyncQueueWakeups(boss);
-registerSearchTermsFetchWakeups(boss);
+registerTopSearchTermsJobWakeups(boss);
 
 const jobsRuntime = await startJobs(boss);
 console.log('[Server] Jobs registered');
 
 // Kick the SP-API sync queue once on startup in case rows exist before the server starts.
 await sendProcessSpApiSyncQueueJob();
+await sendSyncTopSearchTermsDatasetsJob();
 
 // Run reprocess stale products job on startup
 // try {
@@ -201,7 +205,7 @@ try {
     console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
     console.log('  • User Event Logs: Enabled (dashboard logs page)');
-    console.log('  • Search Terms Fetch: Enabled (pg-boss + DB status)');
+    console.log('  • Top Search Terms: Enabled (dataset scheduler + fetch worker)');
     console.log('  • API Routes: tRPC (/api)');
     console.log('  • Auth: Clerk (app), License (public)');
     const devClerkSignInStatus = env.DEV_CLERK_SIGN_IN_USER_ID

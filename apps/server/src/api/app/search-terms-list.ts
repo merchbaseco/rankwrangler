@@ -1,15 +1,19 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
-import { resolveBaDateWindow, searchTermsBaseInput } from '@/api/app/search-terms-shared.js';
 import {
-    getSearchTermsFetchStatus,
-    type SearchTermsFetchStatusRecord,
-} from '@/db/search-terms/fetch-status.js';
+    mapTopSearchTermsStatus,
+    resolveTopSearchTermsWindow,
+    searchTermsBaseInput,
+} from '@/api/app/search-terms-shared.js';
 import {
-    getLatestSearchTermsSnapshot,
-    getSearchTermsSnapshotById,
-    listSearchTermsKeywords,
-} from '@/db/search-terms/snapshots.js';
+    getLatestTopSearchTermsDataset,
+    getTopSearchTermsDatasetByWindow,
+} from '@/db/top-search-terms/datasets.js';
+import {
+    getLatestTopSearchTermsSnapshotForDataset,
+    listTopSearchTermsKeywords,
+} from '@/db/top-search-terms/snapshots.js';
+import type { TopSearchTermsReportPeriod } from '@/db/top-search-terms/types.js';
 
 const searchTermsListInput = searchTermsBaseInput.extend({
     cursor: z.number().int().min(0).optional(),
@@ -24,36 +28,55 @@ export const searchTermsList = appProcedure
     .input(searchTermsListInput.optional())
     .query(async ({ input }) => {
         const parsed = searchTermsListInput.parse(input ?? {});
-        const dateWindow = resolveBaDateWindow(parsed);
-        const window = {
-            dataEndDate: dateWindow.dataEndDate,
-            dataStartDate: dateWindow.dataStartDate,
-            marketplaceId: parsed.marketplaceId,
-            reportPeriod: parsed.reportPeriod,
-        } as const;
+        const reportPeriod = normalizeRequestedReportPeriod(parsed.reportPeriod);
+        const hasExplicitWindow = Boolean(parsed.dataStartDate && parsed.dataEndDate);
+        const requestedWindow = resolveTopSearchTermsWindow(parsed);
+        const dataset = hasExplicitWindow
+            ? await getTopSearchTermsDatasetByWindow(requestedWindow)
+            : await getLatestTopSearchTermsDataset({
+                  marketplaceId: parsed.marketplaceId,
+                  reportPeriod,
+                  status: 'completed',
+              });
 
-        const statusRecord = await getSearchTermsFetchStatus(window);
-        const snapshot = await resolveSnapshot(window, statusRecord?.lastCompletedSnapshotId ?? null);
-
-        if (!snapshot) {
+        if (!dataset) {
             return {
                 items: [],
                 nextCursor: null,
                 summary: {
-                    dataEndDate: dateWindow.dataEndDate,
-                    dataStartDate: dateWindow.dataStartDate,
+                    dataEndDate: requestedWindow.dataEndDate,
+                    dataStartDate: requestedWindow.dataStartDate,
                     fetchedAt: null,
                     marketplaceId: parsed.marketplaceId,
                     reportId: null,
-                    reportPeriod: parsed.reportPeriod,
-                    status: mapFetchStatus(statusRecord),
+                    reportPeriod,
+                    status: mapTopSearchTermsStatus(null),
                     totalFiltered: 0,
                     totalSearchTerms: 0,
                 },
             };
         }
 
-        const listed = await listSearchTermsKeywords({
+        const snapshot = await getLatestTopSearchTermsSnapshotForDataset(dataset.id);
+        if (!snapshot) {
+            return {
+                items: [],
+                nextCursor: null,
+                summary: {
+                    dataEndDate: dataset.dataEndDate,
+                    dataStartDate: dataset.dataStartDate,
+                    fetchedAt: null,
+                    marketplaceId: dataset.marketplaceId,
+                    reportId: dataset.reportId,
+                    reportPeriod: dataset.reportPeriod,
+                    status: mapTopSearchTermsStatus(dataset),
+                    totalFiltered: 0,
+                    totalSearchTerms: 0,
+                },
+            };
+        }
+
+        const listed = await listTopSearchTermsKeywords({
             snapshotId: snapshot.id,
             cursor: parsed.cursor ?? 0,
             limit: parsed.limit,
@@ -74,42 +97,19 @@ export const searchTermsList = appProcedure
                 observedDate: snapshot.observedDate,
                 reportId: snapshot.reportId,
                 reportPeriod: snapshot.reportPeriod,
-                status: mapFetchStatus(statusRecord),
+                status: mapTopSearchTermsStatus(dataset),
                 totalFiltered: listed.totalFiltered,
                 totalSearchTerms: snapshot.keywordCount,
             },
         };
     });
 
-const resolveSnapshot = async (
-    window: {
-        dataEndDate: string;
-        dataStartDate: string;
-        marketplaceId: string;
-        reportPeriod: 'MONTH' | 'WEEK';
-    },
-    snapshotId: string | null
-) => {
-    if (snapshotId) {
-        const byId = await getSearchTermsSnapshotById(snapshotId);
-        if (byId) {
-            return byId;
-        }
+const normalizeRequestedReportPeriod = (
+    reportPeriod: 'DAY' | 'WEEK' | 'MONTH'
+): TopSearchTermsReportPeriod => {
+    if (reportPeriod === 'MONTH') {
+        return 'WEEK';
     }
 
-    return await getLatestSearchTermsSnapshot(window);
-};
-
-const mapFetchStatus = (status: SearchTermsFetchStatusRecord | null) => {
-    return {
-        activeJobId: status?.activeJobId ?? null,
-        activeJobRequestedAt: status?.activeJobRequestedAt ?? null,
-        fetchStartedAt: status?.fetchStartedAt ?? null,
-        lastCompletedAt: status?.lastCompletedAt ?? null,
-        lastCompletedSnapshotId: status?.lastCompletedSnapshotId ?? null,
-        lastError: status?.lastError ?? null,
-        lastFailedAt: status?.lastFailedAt ?? null,
-        status: status?.status ?? 'idle',
-        updatedAt: status?.updatedAt ?? null,
-    };
+    return reportPeriod;
 };

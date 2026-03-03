@@ -15,6 +15,7 @@ import {
 import { useMemo, useState } from "react";
 import { KeepaMetricsPanel } from "@/components/dashboard/keepa-metrics-panel";
 import { SpApiMetricsPanel } from "@/components/dashboard/spapi-metrics-panel";
+import { TopSearchTermsMetricsPanel } from "@/components/dashboard/top-search-terms-metrics-panel";
 import { ApiKeyCard } from "@/components/dashboard/api-key-card";
 import { UsageCard } from "@/components/dashboard/usage-card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,8 @@ type SettingsPage =
 	| "notifications"
 	| "account"
 	| "metrics-keepa"
-	| "metrics-spapi";
+	| "metrics-spapi"
+	| "metrics-top-search-terms";
 
 type NavItem = { key: SettingsPage; label: string; icon: typeof Key };
 
@@ -42,6 +44,7 @@ const BASE_SETTINGS_NAV: NavItem[] = [
 const METRICS_NAV: NavItem[] = [
 	{ key: "metrics-keepa", label: "Keepa", icon: Activity },
 	{ key: "metrics-spapi", label: "SP-API", icon: Activity },
+	{ key: "metrics-top-search-terms", label: "Top Search Terms", icon: Activity },
 ];
 
 const isMetricsPage = (page: SettingsPage) => page.startsWith("metrics-");
@@ -140,6 +143,9 @@ export const SettingsModal = ({
 								{page === "account" ? <AccountSettings /> : null}
 								{page === "metrics-keepa" ? <KeepaMetricsPanel /> : null}
 								{page === "metrics-spapi" ? <SpApiMetricsPanel /> : null}
+								{page === "metrics-top-search-terms" ? (
+									<TopSearchTermsMetricsPanel />
+								) : null}
 							</div>
 						</div>
 					</Dialog.Popup>

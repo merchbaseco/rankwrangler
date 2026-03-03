@@ -13,6 +13,7 @@ import { getProductInfo } from './get-product-info.js';
 import { appLicenseRouter } from './license.js';
 import { loadProductHistory } from './load-product-history.js';
 import { recentProducts } from './recent-products.js';
+import { topSearchTermsStatus } from './top-search-terms-status.js';
 
 export const appApiRouter = router({
     adminStatus,
@@ -24,6 +25,7 @@ export const appApiRouter = router({
     keepaLog,
     getKeepaStatus,
     jobExecutions,
+    topSearchTermsStatus,
     getProductHistory,
     getProductInfo,
     loadProductHistory,

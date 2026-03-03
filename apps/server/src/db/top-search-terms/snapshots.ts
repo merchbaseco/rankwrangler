@@ -1,13 +1,17 @@
 import { and, asc, desc, eq, gte, ilike, lte, sql } from 'drizzle-orm';
-import { searchTermsKeywordDaily, searchTermsSnapshots } from '@/db/search-terms-schema.js';
 import { db } from '@/db/index.js';
+import {
+    topSearchTermsKeywordDaily,
+    topSearchTermsSnapshots,
+} from '@/db/top-search-terms-schema.js';
+import type { TopSearchTermsWindow } from '@/db/top-search-terms/types.js';
 import type { BaKeywordRow } from '@/services/spapi/ba-keywords-aggregation.js';
-import type { SearchTermsWindow } from '@/db/search-terms/fetch-status.js';
 
 const INSERT_CHUNK_SIZE = 1000;
 
-export type SearchTermsSnapshotRecord = {
+export type TopSearchTermsSnapshotRecord = {
     id: string;
+    datasetId: string;
     marketplaceId: string;
     reportPeriod: string;
     dataStartDate: string;
@@ -21,7 +25,7 @@ export type SearchTermsSnapshotRecord = {
     updatedAt: string;
 };
 
-export type SearchTermsKeywordListRow = {
+export type TopSearchTermsKeywordListRow = {
     searchTerm: string;
     searchFrequencyRank: number;
     clickShareTop3Sum: number;
@@ -31,7 +35,8 @@ export type SearchTermsKeywordListRow = {
     merchReason: string;
 };
 
-export const saveSearchTermsSnapshot = async ({
+export const saveTopSearchTermsSnapshot = async ({
+    datasetId,
     window,
     observedDate,
     reportId,
@@ -39,7 +44,8 @@ export const saveSearchTermsSnapshot = async ({
     fetchedAt,
     rows,
 }: {
-    window: SearchTermsWindow;
+    datasetId: string;
+    window: TopSearchTermsWindow;
     observedDate: string;
     reportId: string;
     sourceJobId: string;
@@ -49,8 +55,9 @@ export const saveSearchTermsSnapshot = async ({
     return await db.transaction(async tx => {
         const now = new Date();
         const [snapshot] = await tx
-            .insert(searchTermsSnapshots)
+            .insert(topSearchTermsSnapshots)
             .values({
+                datasetId,
                 marketplaceId: window.marketplaceId,
                 reportPeriod: window.reportPeriod,
                 dataStartDate: window.dataStartDate,
@@ -63,13 +70,7 @@ export const saveSearchTermsSnapshot = async ({
                 updatedAt: now,
             })
             .onConflictDoUpdate({
-                target: [
-                    searchTermsSnapshots.marketplaceId,
-                    searchTermsSnapshots.reportPeriod,
-                    searchTermsSnapshots.dataStartDate,
-                    searchTermsSnapshots.dataEndDate,
-                    searchTermsSnapshots.observedDate,
-                ],
+                target: [topSearchTermsSnapshots.datasetId, topSearchTermsSnapshots.observedDate],
                 set: {
                     reportId,
                     sourceJobId,
@@ -81,13 +82,14 @@ export const saveSearchTermsSnapshot = async ({
             .returning();
 
         await tx
-            .delete(searchTermsKeywordDaily)
-            .where(eq(searchTermsKeywordDaily.snapshotId, snapshot.id));
+            .delete(topSearchTermsKeywordDaily)
+            .where(eq(topSearchTermsKeywordDaily.snapshotId, snapshot.id));
 
         for (const chunk of chunkRows(rows, INSERT_CHUNK_SIZE)) {
-            await tx.insert(searchTermsKeywordDaily).values(
+            await tx.insert(topSearchTermsKeywordDaily).values(
                 chunk.map(row => ({
                     snapshotId: snapshot.id,
+                    datasetId,
                     marketplaceId: window.marketplaceId,
                     reportPeriod: window.reportPeriod,
                     dataStartDate: window.dataStartDate,
@@ -108,35 +110,28 @@ export const saveSearchTermsSnapshot = async ({
     });
 };
 
-export const getSearchTermsSnapshotById = async (snapshotId: string) => {
+export const getTopSearchTermsSnapshotById = async (snapshotId: string) => {
     const [snapshot] = await db
         .select()
-        .from(searchTermsSnapshots)
-        .where(eq(searchTermsSnapshots.id, snapshotId))
+        .from(topSearchTermsSnapshots)
+        .where(eq(topSearchTermsSnapshots.id, snapshotId))
         .limit(1);
 
     return snapshot ? mapSnapshot(snapshot) : null;
 };
 
-export const getLatestSearchTermsSnapshot = async (window: SearchTermsWindow) => {
+export const getLatestTopSearchTermsSnapshotForDataset = async (datasetId: string) => {
     const [snapshot] = await db
         .select()
-        .from(searchTermsSnapshots)
-        .where(
-            and(
-                eq(searchTermsSnapshots.marketplaceId, window.marketplaceId),
-                eq(searchTermsSnapshots.reportPeriod, window.reportPeriod),
-                eq(searchTermsSnapshots.dataStartDate, window.dataStartDate),
-                eq(searchTermsSnapshots.dataEndDate, window.dataEndDate)
-            )
-        )
-        .orderBy(desc(searchTermsSnapshots.fetchedAt))
+        .from(topSearchTermsSnapshots)
+        .where(eq(topSearchTermsSnapshots.datasetId, datasetId))
+        .orderBy(desc(topSearchTermsSnapshots.fetchedAt))
         .limit(1);
 
     return snapshot ? mapSnapshot(snapshot) : null;
 };
 
-export const listSearchTermsKeywords = async ({
+export const listTopSearchTermsKeywords = async ({
     snapshotId,
     cursor,
     limit,
@@ -153,44 +148,42 @@ export const listSearchTermsKeywords = async ({
     search?: string;
     merchOnly: boolean;
 }) => {
-    const filters = [eq(searchTermsKeywordDaily.snapshotId, snapshotId)];
+    const filters = [eq(topSearchTermsKeywordDaily.snapshotId, snapshotId)];
     if (minRank) {
-        filters.push(gte(searchTermsKeywordDaily.searchFrequencyRank, minRank));
+        filters.push(gte(topSearchTermsKeywordDaily.searchFrequencyRank, minRank));
     }
     if (maxRank) {
-        filters.push(lte(searchTermsKeywordDaily.searchFrequencyRank, maxRank));
+        filters.push(lte(topSearchTermsKeywordDaily.searchFrequencyRank, maxRank));
     }
     if (merchOnly) {
-        filters.push(eq(searchTermsKeywordDaily.isMerchRelevant, true));
+        filters.push(eq(topSearchTermsKeywordDaily.isMerchRelevant, true));
     }
     if (search) {
-        filters.push(ilike(searchTermsKeywordDaily.searchTerm, `%${search}%`));
+        filters.push(ilike(topSearchTermsKeywordDaily.searchTerm, `%${search}%`));
     }
 
     const whereClause = and(...filters);
     const [countRows, itemRows] = await Promise.all([
         db
-            .select({
-                totalFiltered: sql<number>`count(*)::int`,
-            })
-            .from(searchTermsKeywordDaily)
+            .select({ totalFiltered: sql<number>`count(*)::int` })
+            .from(topSearchTermsKeywordDaily)
             .where(whereClause),
         db
             .select({
-                searchTerm: searchTermsKeywordDaily.searchTerm,
-                searchFrequencyRank: searchTermsKeywordDaily.searchFrequencyRank,
-                clickShareTop3SumBasisPoints: searchTermsKeywordDaily.clickShareTop3SumBasisPoints,
+                searchTerm: topSearchTermsKeywordDaily.searchTerm,
+                searchFrequencyRank: topSearchTermsKeywordDaily.searchFrequencyRank,
+                clickShareTop3SumBasisPoints: topSearchTermsKeywordDaily.clickShareTop3SumBasisPoints,
                 conversionShareTop3SumBasisPoints:
-                    searchTermsKeywordDaily.conversionShareTop3SumBasisPoints,
-                topRowsCount: searchTermsKeywordDaily.topRowsCount,
-                isMerchRelevant: searchTermsKeywordDaily.isMerchRelevant,
-                merchReason: searchTermsKeywordDaily.merchReason,
+                    topSearchTermsKeywordDaily.conversionShareTop3SumBasisPoints,
+                topRowsCount: topSearchTermsKeywordDaily.topRowsCount,
+                isMerchRelevant: topSearchTermsKeywordDaily.isMerchRelevant,
+                merchReason: topSearchTermsKeywordDaily.merchReason,
             })
-            .from(searchTermsKeywordDaily)
+            .from(topSearchTermsKeywordDaily)
             .where(whereClause)
             .orderBy(
-                asc(searchTermsKeywordDaily.searchFrequencyRank),
-                asc(searchTermsKeywordDaily.searchTerm)
+                asc(topSearchTermsKeywordDaily.searchFrequencyRank),
+                asc(topSearchTermsKeywordDaily.searchTerm)
             )
             .offset(cursor)
             .limit(limit),
@@ -200,31 +193,26 @@ export const listSearchTermsKeywords = async ({
     const items = itemRows.map(mapKeywordListRow);
     const nextCursor = cursor + limit < totalFiltered ? cursor + limit : null;
 
-    return {
-        items,
-        nextCursor,
-        totalFiltered,
-    };
+    return { items, nextCursor, totalFiltered };
 };
 
 const mapSnapshot = (
-    row: typeof searchTermsSnapshots.$inferSelect
-): SearchTermsSnapshotRecord => {
-    return {
-        createdAt: row.createdAt.toISOString(),
-        dataEndDate: row.dataEndDate,
-        dataStartDate: row.dataStartDate,
-        fetchedAt: row.fetchedAt.toISOString(),
-        id: row.id,
-        keywordCount: row.keywordCount,
-        marketplaceId: row.marketplaceId,
-        observedDate: row.observedDate,
-        reportId: row.reportId,
-        reportPeriod: row.reportPeriod,
-        sourceJobId: row.sourceJobId,
-        updatedAt: row.updatedAt.toISOString(),
-    };
-};
+    row: typeof topSearchTermsSnapshots.$inferSelect
+): TopSearchTermsSnapshotRecord => ({
+    id: row.id,
+    datasetId: row.datasetId,
+    marketplaceId: row.marketplaceId,
+    reportPeriod: row.reportPeriod,
+    dataStartDate: row.dataStartDate,
+    dataEndDate: row.dataEndDate,
+    observedDate: row.observedDate,
+    reportId: row.reportId,
+    sourceJobId: row.sourceJobId,
+    keywordCount: row.keywordCount,
+    fetchedAt: row.fetchedAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+});
 
 const mapKeywordListRow = (row: {
     searchTerm: string;
@@ -234,25 +222,19 @@ const mapKeywordListRow = (row: {
     topRowsCount: number;
     isMerchRelevant: boolean;
     merchReason: string;
-}): SearchTermsKeywordListRow => {
-    return {
-        clickShareTop3Sum: row.clickShareTop3SumBasisPoints / 10000,
-        conversionShareTop3Sum: row.conversionShareTop3SumBasisPoints / 10000,
-        isMerchRelevant: row.isMerchRelevant,
-        merchReason: row.merchReason,
-        searchFrequencyRank: row.searchFrequencyRank,
-        searchTerm: row.searchTerm,
-        topRowsCount: row.topRowsCount,
-    };
-};
+}): TopSearchTermsKeywordListRow => ({
+    searchTerm: row.searchTerm,
+    searchFrequencyRank: row.searchFrequencyRank,
+    clickShareTop3Sum: row.clickShareTop3SumBasisPoints / 10000,
+    conversionShareTop3Sum: row.conversionShareTop3SumBasisPoints / 10000,
+    topRowsCount: row.topRowsCount,
+    isMerchRelevant: row.isMerchRelevant,
+    merchReason: row.merchReason,
+});
 
 const toBasisPoints = (value: number) => Math.round(value * 10000);
 
 const chunkRows = <T>(values: T[], chunkSize: number): T[][] => {
-    if (values.length === 0) {
-        return [];
-    }
-
     if (values.length <= chunkSize) {
         return [values];
     }

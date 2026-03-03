@@ -127,19 +127,19 @@ if [ -n "$RR_CLERK_TOKEN" ]; then
     curl -s -X POST "$API_BASE/api/api.app.searchTermsList" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
-      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"MONTH","limit":25}}' | jq '.'
+      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY","limit":25}}' | jq '.'
     echo ""
     echo "📡 Testing api.app.searchTermsStatus..."
     curl -s -X POST "$API_BASE/api/api.app.searchTermsStatus" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
-      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"MONTH"}}' | jq '.'
+      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY"}}' | jq '.'
     echo ""
     echo "♻️ Testing api.app.searchTermsRefresh..."
     curl -s -X POST "$API_BASE/api/api.app.searchTermsRefresh" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
-      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"MONTH"}}' | jq '.'
+      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY"}}' | jq '.'
     echo ""
 else
     echo "⚠️ Skipping app API tests - set RR_CLERK_TOKEN to exercise Clerk endpoints."
@@ -173,6 +173,12 @@ if [ -n "$RR_CLERK_ADMIN_TOKEN" ]; then
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
       -d '{"input":{"queueLimit":50,"processedLimit":20}}' | jq '.'
+    echo ""
+    echo "🔎 Testing api.app.topSearchTermsStatus..."
+    curl -s -X POST "$API_BASE/api/api.app.topSearchTermsStatus" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
+      -d '{"input":null}' | jq '.'
     echo ""
 else
     echo "⚠️ Skipping admin API tests - set RR_CLERK_ADMIN_TOKEN for admin-only procedures."

@@ -11,6 +11,7 @@ Monorepo containing the RankWrangler server, website, and browser extension.
     `>=1M` on-demand), with a strict global minimum 24h fetch gap per ASIN
 - `apps/website` – Dashboard for API keys, usage, recent products, and a Logs page
   for user-facing product/history sync events
+  - Admin Settings metrics pages include Keepa, SP-API, and Top Search Terms health/status views
 - `apps/extension` – Chrome extension
 
 ## Packages
@@ -77,3 +78,4 @@ bun --filter @rankwrangler/server run build
 ```
 
 For server-specific docs, see `docs/server/index.md`.
+For BA Top Search Terms implementation details, see `docs/server/ba-top-search-terms-system.md`.

@@ -3,35 +3,31 @@ import {
 	getSortedRowModel,
 	type SortingState,
 	useReactTable,
-} from "@tanstack/react-table";
-import { RefreshCw, Search } from "lucide-react";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { createColumns } from "@/components/dashboard/keywords/columns";
-import { KeywordsTableView } from "@/components/dashboard/keywords/table-view";
-import type { SearchTermRow } from "@/components/dashboard/keywords/types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { api } from "@/lib/trpc";
-import { cn, formatNumber } from "@/lib/utils";
+} from '@tanstack/react-table';
+import { Search } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { createColumns } from '@/components/dashboard/keywords/columns';
+import { KeywordsTableView } from '@/components/dashboard/keywords/table-view';
+import type { SearchTermRow } from '@/components/dashboard/keywords/types';
+import { Input } from '@/components/ui/input';
+import { api } from '@/lib/trpc';
+import { formatNumber } from '@/lib/utils';
 
 export const KeywordsPage = () => {
-	const defaults = useMemo(() => getDefaultPreviousMonthDateWindow(), []);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
-	const [searchValue, setSearchValue] = useState("");
-	const [minRankValue, setMinRankValue] = useState("");
-	const [maxRankValue, setMaxRankValue] = useState("");
+	const [searchValue, setSearchValue] = useState('');
+	const [minRankValue, setMinRankValue] = useState('');
+	const [maxRankValue, setMaxRankValue] = useState('');
 	const [sorting, setSorting] = useState<SortingState>([
-		{ desc: false, id: "searchFrequencyRank" },
+		{ desc: false, id: 'searchFrequencyRank' },
 	]);
 	const deferredSearch = useDeferredValue(searchValue.trim());
 	const baseInput = useMemo(
 		() => ({
-			dataEndDate: defaults.dataEndDate,
-			dataStartDate: defaults.dataStartDate,
-			marketplaceId: "ATVPDKIKX0DER",
-			reportPeriod: "MONTH" as const,
+			marketplaceId: 'ATVPDKIKX0DER',
+			reportPeriod: 'DAY' as const,
 		}),
-		[defaults],
+		[],
 	);
 
 	const queryInput = useMemo(
@@ -44,24 +40,9 @@ export const KeywordsPage = () => {
 		}),
 		[baseInput, deferredSearch, maxRankValue, minRankValue],
 	);
-
-	const statusQuery = api.api.app.searchTermsStatus.useQuery(baseInput, {
-		refetchInterval: 4000,
-		refetchOnWindowFocus: true,
-	});
-	const isFetchInProgress =
-		statusQuery.data?.status.status === "queued" ||
-		statusQuery.data?.status.status === "in_progress";
 	const query = api.api.app.searchTermsList.useInfiniteQuery(queryInput, {
 		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-		refetchInterval: isFetchInProgress ? 4000 : false,
 		refetchOnWindowFocus: false,
-	});
-	const refreshMutation = api.api.app.searchTermsRefresh.useMutation({
-		onSuccess: () => {
-			void statusQuery.refetch();
-			void query.refetch();
-		},
 	});
 
 	const rows = useMemo<SearchTermRow[]>(
@@ -69,15 +50,14 @@ export const KeywordsPage = () => {
 		[query.data],
 	);
 	const summary = query.data?.pages[0]?.summary ?? null;
-	const fetchStatus = statusQuery.data?.status ?? summary?.status ?? null;
 	const columns = useMemo(() => createColumns(), []);
 	const colgroupColumns = useMemo(
 		() =>
 			columns.map((column, index) => {
 				const meta = column.meta as { flex?: boolean } | undefined;
 				const key =
-					(typeof column.id === "string" && column.id) ||
-					(typeof column.accessorKey === "string" && column.accessorKey) ||
+					(typeof column.id === 'string' && column.id) ||
+					(typeof column.accessorKey === 'string' && column.accessorKey) ||
 					`column-${index}`;
 				return { key, width: meta?.flex ? undefined : column.size };
 			}),
@@ -106,7 +86,7 @@ export const KeywordsPage = () => {
 				}
 				void query.fetchNextPage();
 			},
-			{ rootMargin: "240px 0px" },
+			{ rootMargin: '240px 0px' },
 		);
 
 		observer.observe(node);
@@ -143,7 +123,7 @@ export const KeywordsPage = () => {
 						placeholder="Min rank"
 						className="h-full w-24 rounded-none border-0 bg-transparent text-center text-xs shadow-none focus-within:ring-0"
 					/>
-					<span className="text-muted-foreground">–</span>
+					<span className="text-muted-foreground">-</span>
 					<Input
 						value={maxRankValue}
 						onChange={(event) => setMaxRankValue(event.target.value)}
@@ -154,43 +134,11 @@ export const KeywordsPage = () => {
 
 				<div className="flex flex-1 items-center gap-3 px-3 font-mono text-muted-foreground">
 					<span>
-						{summary?.dataStartDate ?? defaults.dataStartDate} –{" "}
-						{summary?.dataEndDate ?? defaults.dataEndDate}
-					</span>
-					<span className="text-border">|</span>
-					<span>
-						{summary ? formatNumber(summary.totalFiltered) : "--"}{" "}
-						terms
+						{summary ? formatNumber(summary.totalFiltered) : '--'} terms
 					</span>
 					<span className="text-border">|</span>
 					<span>{formatNumber(rows.length)} loaded</span>
-					{fetchStatus?.lastError ? (
-						<>
-							<span className="text-border">|</span>
-							<span className="text-destructive">
-								{fetchStatus.lastError}
-							</span>
-						</>
-					) : null}
 				</div>
-
-				<Button
-					type="button"
-					size="sm"
-					variant="ghost"
-					className="h-full rounded-none border-l border-border px-3 text-xs uppercase tracking-wide"
-					onClick={() => refreshMutation.mutate(baseInput)}
-					disabled={refreshMutation.isPending || isFetchInProgress}
-				>
-					<RefreshCw
-						className={cn(
-							"mr-1 size-3",
-							(refreshMutation.isPending || isFetchInProgress) &&
-								"animate-spin",
-						)}
-					/>
-					Refresh
-				</Button>
 			</div>
 
 			<div className="min-h-0 flex-1">
@@ -221,24 +169,4 @@ const parseOptionalInteger = (value: string) => {
 	}
 
 	return Math.floor(numeric);
-};
-
-const getDefaultPreviousMonthDateWindow = () => {
-	const now = new Date();
-	const monthStart = new Date(
-		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-	);
-	const previousMonthEnd = new Date(monthStart.getTime() - 24 * 60 * 60 * 1000);
-	const previousMonthStart = new Date(
-		Date.UTC(
-			previousMonthEnd.getUTCFullYear(),
-			previousMonthEnd.getUTCMonth(),
-			1,
-		),
-	);
-
-	return {
-		dataEndDate: previousMonthEnd.toISOString().slice(0, 10),
-		dataStartDate: previousMonthStart.toISOString().slice(0, 10),
-	};
 };
