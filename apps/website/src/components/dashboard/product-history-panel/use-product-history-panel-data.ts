@@ -25,6 +25,7 @@ export const useProductHistoryPanelData = ({
 }) => {
 	const resolvedProduct = useProductHistoryPanelProduct({ product });
 	const { isAdmin } = useAdminAccess();
+	const utils = api.useUtils();
 	const [rankMetricValue, setRankMetricValue] = useState<string>('bsrMain');
 	const {
 		activeRange: activePreset,
@@ -180,21 +181,22 @@ export const useProductHistoryPanelData = ({
 	});
 
 	const fetchFacetsMutation = api.api.app.classifyProductFacets.useMutation({
-		onSuccess: (data) => {
+		onSuccess: async (data) => {
 			if (data.status === 'already_ready') {
 				toastManager.add({
 					type: 'info',
 					title: 'Facets already assigned',
 					description: `${product.asin} already has facets.`,
 				});
-				return;
+			} else {
+				toastManager.add({
+					type: 'success',
+					title: 'Facets classified',
+					description: `${product.asin} • cost ${formatUsd(data.costUsd)}`,
+				});
 			}
 
-			toastManager.add({
-				type: 'success',
-				title: 'Facets classified',
-				description: `${product.asin} • cost ${formatUsd(data.costUsd)}`,
-			});
+			await utils.api.app.recentProducts.invalidate();
 		},
 		onError: (error) => {
 			toastManager.add({
