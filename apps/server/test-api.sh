@@ -174,6 +174,12 @@ if [ -n "$RR_CLERK_ADMIN_TOKEN" ]; then
       -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
       -d '{"input":null}' | jq '.result.data.json.stats[] | select(.label == "Job Failures")'
     echo ""
+    echo "🚨 Testing api.app.jobExecutions Keepa failures (fetch + enqueue)..."
+    curl -s -X POST "$API_BASE/api/api.app.jobExecutions" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_ADMIN_TOKEN" \
+      -d '{"input":{"limit":10,"status":"failed","jobNames":["fetch-keepa-history-for-asin","enqueue-scheduled-keepa-history-refresh"]}}' | jq '.'
+    echo ""
     echo "🧵 Testing api.app.jobExecutions..."
     curl -s -X POST "$API_BASE/api/api.app.jobExecutions" \
       -H "Content-Type: application/json" \

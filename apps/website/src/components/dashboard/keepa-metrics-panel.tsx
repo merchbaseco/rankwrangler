@@ -24,8 +24,10 @@ const KEEPA_STAT_LABELS = new Set<AdminStatLabel>([
 ]);
 const KEEPA_METRIC_TOOLTIPS: Record<AdminStatLabel, string> = {
     'Keepa Fetches': 'Number of Keepa API call attempts (from keepa import rows).',
-    'Job Successes': 'Completed Keepa fetch jobs with a success status.',
-    'Job Failures': 'Keepa fetch jobs that ended with a failed status.',
+    'Job Successes':
+        'Completed Keepa fetch or scheduled enqueue jobs with a success status.',
+    'Job Failures':
+        'Keepa fetch or scheduled enqueue jobs that ended with a failed status.',
     'SP-API Jobs Run': '',
     'SP-API Jobs Success': '',
     'SP-API Jobs Failed': '',
