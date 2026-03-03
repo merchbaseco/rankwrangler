@@ -11,6 +11,7 @@ import {
     formatDuration,
 } from '@/components/dashboard/job-executions-panel/formatters';
 import { KeepaRefreshPolicyPanel } from '@/components/dashboard/keepa-refresh-policy-panel';
+import { withTimeDomainLabel } from '@/components/dashboard/metrics-time-domain-label';
 import { api } from '@/lib/trpc';
 import { cn, formatNumber } from '@/lib/utils';
 
@@ -76,6 +77,7 @@ export const KeepaMetricsPanel = () => {
     );
     const keepaRefreshPolicyBuckets = statsQuery.data?.keepaRefreshPolicyBuckets ?? [];
     const keepaFetchGuardLabel = statsQuery.data?.keepaFetchGuardLabel ?? '';
+    const timeDomainLabel = statsQuery.data?.timeDomainLabel;
     const keepaMerchCoverage = statsQuery.data?.keepaMerchCoverage ?? {
         totalMerchProducts: 0,
         merchProductsWithKeepaData: 0,
@@ -159,7 +161,7 @@ export const KeepaMetricsPanel = () => {
                             )}
                         >
                             <MetricLabel
-                                label={stat.label}
+                                label={withTimeDomainLabel(stat.label, timeDomainLabel)}
                                 tooltip={KEEPA_METRIC_TOOLTIPS[stat.label]}
                             />
                             <p

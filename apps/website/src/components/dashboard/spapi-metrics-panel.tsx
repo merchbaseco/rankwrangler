@@ -9,6 +9,7 @@ import {
     formatDateTime,
     formatDuration,
 } from '@/components/dashboard/job-executions-panel/formatters';
+import { withTimeDomainLabel } from '@/components/dashboard/metrics-time-domain-label';
 import { SpApiRefreshPolicyPanel } from '@/components/dashboard/spapi-refresh-policy-panel';
 import { api } from '@/lib/trpc';
 import { cn, formatNumber } from '@/lib/utils';
@@ -41,6 +42,7 @@ export const SpApiMetricsPanel = () => {
 
     const allStats = statsQuery.data?.stats ?? [];
     const stats = allStats.filter((s) => s.label.startsWith('SP-API'));
+    const timeDomainLabel = statsQuery.data?.timeDomainLabel;
     const refreshPolicyBuckets = statsQuery.data?.spApiRefreshPolicyBuckets ?? [];
     const isLoading = statsQuery.isLoading;
 
@@ -116,7 +118,7 @@ export const SpApiMetricsPanel = () => {
                             )}
                         >
                             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                                {stat.label}
+                                {withTimeDomainLabel(stat.label, timeDomainLabel)}
                             </p>
                             <p
                                 className={cn(
