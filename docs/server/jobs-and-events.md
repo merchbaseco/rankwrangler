@@ -10,6 +10,10 @@
 - `api.app.getAdminStats` includes SP-API + Keepa refresh-policy bucket counts
 - SP-API queue processing is event-driven (enqueue-triggered + startup kick), not interval-polled
 - Keepa queueing includes an hourly scheduled enqueue job for `<1M` merch BSR cohorts
+- Automatic scheduled jobs are persisted in pg-boss schedule storage (cron-backed), so they
+  survive process restarts
+- Scheduled jobs are configured with per-job singleton keys to avoid overlapping duplicate
+  dispatches
 
 ## Event Logging Principles
 

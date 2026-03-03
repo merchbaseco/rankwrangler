@@ -167,7 +167,6 @@ export const startRegisteredJobs = async (
     }
 
     const jobs = Array.from(registeredJobsByName.values());
-    const intervalTimers: NodeJS.Timeout[] = [];
     const createdQueues = new Set<string>();
 
     for (const jobDefinition of jobs) {
@@ -226,25 +225,16 @@ export const startRegisteredJobs = async (
         }
 
         if (jobDefinition.schedule.type === 'interval') {
-            const timer = setInterval(() => {
-                void boss
-                    .send(
-                        jobDefinition.jobName,
-                        jobDefinition.schedule?.payload,
-                        {
-                            ...jobDefinition.sendOptions,
-                            ...jobDefinition.schedule?.sendOptions,
-                        }
-                    )
-                    .catch(error => {
-                        console.error(
-                            `[Jobs] Failed to enqueue interval job ${jobDefinition.jobName}:`,
-                            error
-                        );
-                    });
-            }, jobDefinition.schedule.everyMs);
-
-            intervalTimers.push(timer);
+            const cron = intervalMsToCronExpression(jobDefinition.schedule.everyMs);
+            await boss.schedule(
+                jobDefinition.jobName,
+                cron,
+                jobDefinition.schedule.payload,
+                {
+                    ...jobDefinition.sendOptions,
+                    ...jobDefinition.schedule.sendOptions,
+                }
+            );
             continue;
         }
 
@@ -262,13 +252,46 @@ export const startRegisteredJobs = async (
     hasStartedJobsRuntime = true;
 
     return {
-        stop: async () => {
-            for (const timer of intervalTimers) {
-                clearInterval(timer);
-            }
-        },
+        stop: async () => {},
         startupSummary: jobs.map(job => {
             return `${job.jobName} (${job.startupSummary})`;
         }),
     };
+};
+
+export const intervalMsToCronExpression = (everyMs: number) => {
+    if (!Number.isFinite(everyMs) || everyMs <= 0 || everyMs % (60 * 1000) !== 0) {
+        throw new Error(
+            `[Jobs] Unsupported interval ${everyMs}ms. Interval scheduling must be in whole minutes.`
+        );
+    }
+
+    const everyMinutes = everyMs / (60 * 1000);
+
+    if (everyMinutes === 1) {
+        return '* * * * *';
+    }
+
+    if (everyMinutes < 60 && 60 % everyMinutes === 0) {
+        return `*/${everyMinutes} * * * *`;
+    }
+
+    if (everyMinutes === 60) {
+        return '0 * * * *';
+    }
+
+    if (everyMinutes < 24 * 60 && everyMinutes % 60 === 0) {
+        const everyHours = everyMinutes / 60;
+        if (24 % everyHours === 0) {
+            return `0 */${everyHours} * * *`;
+        }
+    }
+
+    if (everyMinutes === 24 * 60) {
+        return '0 0 * * *';
+    }
+
+    throw new Error(
+        `[Jobs] Unsupported interval ${everyMs}ms. Use .cron() for non-hourly/minute-compatible schedules.`
+    );
 };

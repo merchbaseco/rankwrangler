@@ -26,7 +26,10 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
 })
     .input(syncTopSearchTermsDatasetsInput)
     .cron({ cron: '*/30 * * * *', payload: {} })
-    .options({ retryLimit: 0 })
+    .options({
+        singletonKey: 'sync-top-search-terms-datasets',
+        retryLimit: 0,
+    })
     .work(async (_job, signal, log) => {
         void signal;
         const now = new Date();

@@ -132,6 +132,9 @@ export const reprocessStaleProductsJob = defineJob('reprocess-stale-products', {
     persistSuccess: 'didWork',
 })
     .input(z.record(z.string(), z.unknown()))
+    .options({
+        singletonKey: 'reprocess-stale-products',
+    })
     .cron({
         cron: '*/10 * * * *',
         payload: {},

@@ -7,6 +7,15 @@ type EnqueueScheduledKeepaHistoryRefreshDeps = NonNullable<
 >;
 
 describe('enqueueScheduledKeepaHistoryRefresh', () => {
+    it('persists successful runs even when no candidates are enqueued', async () => {
+        const { enqueueScheduledKeepaHistoryRefreshJob } = await loadSubject();
+
+        expect(enqueueScheduledKeepaHistoryRefreshJob.persistSuccess).toBe('always');
+        expect(enqueueScheduledKeepaHistoryRefreshJob.sendOptions.singletonKey).toBe(
+            'enqueue-scheduled-keepa-history-refresh'
+        );
+    });
+
     it('skips when Keepa is not configured', async () => {
         const { enqueueScheduledKeepaHistoryRefresh } = await loadSubject();
         const { deps, calls } = createDeps({

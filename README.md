@@ -9,6 +9,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
     and deletes the corresponding row from `products`
   - Keepa sync policy is BSR-tiered for merch (`<300k` automatic daily, `<1M` automatic weekly,
     `>=1M` on-demand), with a strict global minimum 24h fetch gap per ASIN
+  - Automatic background jobs use pg-boss persisted schedules (cron-backed), not in-process
+    timers, so cadence survives deploy restarts
   - Product facets are AI-classified asynchronously (Gemini 2.5 Flash Lite) into normalized
     facet categories for dashboard filtering, and can be manually triggered per product from
     the product drawer
@@ -19,6 +21,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
   - Product side drawer header displays assigned facets as badges
   - Keepa job success/failure metrics and filtered tables include both
     `fetch-keepa-history-for-asin` and `enqueue-scheduled-keepa-history-refresh`
+  - Scheduled Keepa enqueue executions persist successful no-op runs, so admin job history
+    reflects scheduler heartbeats instead of only enqueue-active runs
 - `apps/extension` – Chrome extension
 
 ## Packages
