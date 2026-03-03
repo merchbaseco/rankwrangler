@@ -21,12 +21,19 @@ type StatSeries = {
     buckets: number[];
 };
 
+type KeepaMerchCoverageStats = {
+    totalMerchProducts: number;
+    merchProductsWithKeepaData: number;
+    merchProductsWithoutKeepaData: number;
+};
+
 export type AdminStatsResponse = {
     stats: StatSeries[];
     bucketCount: number;
     spApiRefreshPolicyBuckets: SpApiRefreshPolicyBucketStat[];
     keepaRefreshPolicyBuckets: KeepaRefreshPolicyBucketStat[];
     keepaFetchGuardLabel: string;
+    keepaMerchCoverage: KeepaMerchCoverageStats;
 };
 
 const BUCKET_COUNT = 30;
@@ -37,11 +44,13 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
         spApiJobBuckets,
         spApiRefreshPolicyBuckets,
         keepaRefreshPolicyBuckets,
+        keepaMerchCoverage,
     ] = await Promise.all([
         queryKeepaBuckets(),
         querySpApiJobBuckets(),
         getSpApiRefreshPolicyBuckets(),
         getKeepaRefreshPolicyBuckets(),
+        queryKeepaMerchCoverage(),
     ]);
 
     const keepaTotal = sum(keepaBuckets.map((b) => b.total));
@@ -59,12 +68,12 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
                 buckets: keepaBuckets.map((b) => b.total),
             },
             {
-                label: 'Keepa Success',
+                label: 'Job Successes',
                 total: keepaSuccess,
                 buckets: keepaBuckets.map((b) => b.success),
             },
             {
-                label: 'Keepa Errors',
+                label: 'Job Failures',
                 total: keepaErrors,
                 buckets: keepaBuckets.map((b) => b.errors),
             },
@@ -88,6 +97,7 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
         spApiRefreshPolicyBuckets,
         keepaRefreshPolicyBuckets,
         keepaFetchGuardLabel: KEEPA_FETCH_SUCCESS_GUARD_LABEL,
+        keepaMerchCoverage,
     };
 };
 
@@ -99,18 +109,40 @@ const queryKeepaBuckets = async (): Promise<BucketRow[]> => {
                 date_trunc('hour', now()),
                 interval '48 minutes'
             ) AS bucket_start
+        ),
+        keepa_imports AS (
+            SELECT
+                b.bucket_start,
+                coalesce(count(phi.id), 0)::int AS total
+            FROM buckets b
+            LEFT JOIN product_history_imports phi
+                ON phi.source = 'keepa'
+                AND phi.created_at >= b.bucket_start
+                AND phi.created_at < b.bucket_start + interval '48 minutes'
+            GROUP BY b.bucket_start
+        ),
+        keepa_fetch_jobs AS (
+            SELECT
+                b.bucket_start,
+                coalesce(count(je.id) FILTER (WHERE je.status = 'success'), 0)::int AS success,
+                coalesce(count(je.id) FILTER (WHERE je.status = 'failed'), 0)::int AS errors
+            FROM buckets b
+            LEFT JOIN job_executions je
+                ON je.job_name = 'fetch-keepa-history-for-asin'
+                AND je.started_at >= b.bucket_start
+                AND je.started_at < b.bucket_start + interval '48 minutes'
+            GROUP BY b.bucket_start
         )
         SELECT
             b.bucket_start::text,
-            coalesce(count(phi.id), 0)::int AS total,
-            coalesce(count(phi.id) FILTER (WHERE phi.status = 'success'), 0)::int AS success,
-            coalesce(count(phi.id) FILTER (WHERE phi.status = 'error'), 0)::int AS errors
+            coalesce(ki.total, 0)::int AS total,
+            coalesce(kj.success, 0)::int AS success,
+            coalesce(kj.errors, 0)::int AS errors
         FROM buckets b
-        LEFT JOIN product_history_imports phi
-            ON phi.source = 'keepa'
-            AND phi.created_at >= b.bucket_start
-            AND phi.created_at < b.bucket_start + interval '48 minutes'
-        GROUP BY b.bucket_start
+        LEFT JOIN keepa_imports ki
+            ON ki.bucket_start = b.bucket_start
+        LEFT JOIN keepa_fetch_jobs kj
+            ON kj.bucket_start = b.bucket_start
         ORDER BY b.bucket_start
     `);
 
@@ -141,6 +173,50 @@ const querySpApiJobBuckets = async (): Promise<BucketRow[]> => {
     `);
 
     return [...rows];
+};
+
+type KeepaMerchCoverageRow = {
+    total_merch_products: number;
+    merch_products_with_keepa_data: number;
+};
+
+const queryKeepaMerchCoverage = async (): Promise<KeepaMerchCoverageStats> => {
+    const rows = await db.execute<KeepaMerchCoverageRow>(sql`
+        SELECT
+            coalesce(
+                count(*) FILTER (
+                    WHERE p.is_merch_listing = true
+                ),
+                0
+            )::int AS total_merch_products,
+            coalesce(
+                count(*) FILTER (
+                    WHERE p.is_merch_listing = true
+                    AND EXISTS (
+                        SELECT 1
+                        FROM product_history_imports phi
+                        WHERE phi.product_id = p.id
+                        AND phi.source = 'keepa'
+                        AND phi.status = 'success'
+                    )
+                ),
+                0
+            )::int AS merch_products_with_keepa_data
+        FROM products p
+    `);
+
+    const row = rows[0];
+    const totalMerchProducts = row?.total_merch_products ?? 0;
+    const merchProductsWithKeepaData = row?.merch_products_with_keepa_data ?? 0;
+
+    return {
+        totalMerchProducts,
+        merchProductsWithKeepaData,
+        merchProductsWithoutKeepaData: Math.max(
+            totalMerchProducts - merchProductsWithKeepaData,
+            0
+        ),
+    };
 };
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);

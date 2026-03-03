@@ -10,7 +10,9 @@ Monorepo containing the RankWrangler server, website, and browser extension.
   - Keepa sync policy is BSR-tiered for merch (`<300k` automatic daily, `<1M` automatic weekly,
     `>=1M` on-demand), with a strict global minimum 24h fetch gap per ASIN
 - `apps/website` – Dashboard for API keys, usage, recent products, and a Logs page
-  for user-facing product/history sync events
+  for user-facing product/history sync events, plus admin Keepa metrics including
+  merch Keepa-coverage counts (total/with data/without data), `Keepa Fetches`
+  (API calls), and `Job Successes`/`Job Failures`
   - Admin Settings metrics pages include Keepa, SP-API, and Top Search Terms health/status views
 - `apps/extension` – Chrome extension
 
