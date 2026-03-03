@@ -7,6 +7,8 @@ const FACET_METRICS_BUCKET_INTERVAL_MINUTES = 48;
 const FACET_METRICS_WINDOW_MINUTES =
     FACET_METRICS_BUCKET_COUNT * FACET_METRICS_BUCKET_INTERVAL_MINUTES;
 const MS_PER_MINUTE = 60_000;
+const DECIMAL_NUMBER_REGEX = '^-?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][+-]?\\d+)?$';
+const decimalNumberPattern = new RegExp(DECIMAL_NUMBER_REGEX);
 
 type FacetClassificationBucketRow = {
     bucket_start: string;
@@ -107,12 +109,12 @@ const queryFacetClassificationBuckets = async () => {
 
     const rows = await db.execute<FacetClassificationBucketRow>(sql`
         WITH bucket_indices AS (
-            SELECT generate_series(0, ${FACET_METRICS_BUCKET_COUNT - 1}) AS idx
+            SELECT generate_series(0::int, ${FACET_METRICS_BUCKET_COUNT - 1}::int) AS idx
         ),
         buckets AS (
             SELECT
                 ${windowStart}::timestamp
-                    + (idx * ${FACET_METRICS_BUCKET_INTERVAL_MINUTES} * interval '1 minute')
+                    + (idx * ${FACET_METRICS_BUCKET_INTERVAL_MINUTES}::int * interval '1 minute')
                     AS bucket_start
             FROM bucket_indices
         )
@@ -120,14 +122,27 @@ const queryFacetClassificationBuckets = async () => {
             b.bucket_start::text,
             coalesce(count(el.id) FILTER (WHERE el.status = 'success'), 0)::int AS assigned,
             coalesce(count(el.id) FILTER (WHERE el.status = 'failed'), 0)::int AS errors,
-            coalesce(sum((el.details_json ->> 'costUsd')::double precision), 0)::double precision AS spend
+            coalesce(
+                sum(
+                    CASE
+                        WHEN jsonb_typeof(el.details_json -> 'costUsd') = 'number'
+                            THEN (el.details_json ->> 'costUsd')::double precision
+                        WHEN jsonb_typeof(el.details_json -> 'costUsd') = 'string'
+                            AND (el.details_json ->> 'costUsd') ~ ${DECIMAL_NUMBER_REGEX}
+                            THEN (el.details_json ->> 'costUsd')::double precision
+                        ELSE 0
+                    END
+                ),
+                0
+            )::double precision AS spend
         FROM buckets b
         LEFT JOIN event_logs el
             ON el.account_id = 'global'
             AND el.category = 'product'
             AND el.action = 'product.facets.classify'
             AND el.occurred_at >= b.bucket_start
-            AND el.occurred_at < b.bucket_start + (${FACET_METRICS_BUCKET_INTERVAL_MINUTES} * interval '1 minute')
+            AND el.occurred_at < b.bucket_start
+                + (${FACET_METRICS_BUCKET_INTERVAL_MINUTES}::int * interval '1 minute')
         GROUP BY b.bucket_start
         ORDER BY b.bucket_start
     `);
@@ -169,5 +184,7 @@ const queryFacetValueTotals = async () => {
 const isProductFacetKey = (value: string): value is ProductFacetKey => {
     return productFacetKeys.some(facet => facet === value);
 };
+
+export const isFacetCostNumericValue = (value: string) => decimalNumberPattern.test(value);
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
