@@ -3,6 +3,7 @@ import { cn, formatNumber } from '@/lib/utils';
 
 const SETTINGS_METRICS_POLL_INTERVAL_MS = 10_000;
 const FACET_CARD_COLUMNS = 6;
+const MIN_VISIBLE_USD_SPEND = 0.01;
 const FACET_DISPLAY_NAMES: Record<string, string> = {
     profession: 'Profession',
     hobby: 'Hobby',
@@ -164,12 +165,14 @@ const getStatType = (label: string): StatType => {
 };
 
 const formatUsd = (value: number) => {
+    const displayValue =
+        value > 0 && value < MIN_VISIBLE_USD_SPEND ? MIN_VISIBLE_USD_SPEND : value;
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 6,
-    }).format(value);
+    }).format(displayValue);
 };
 
 const VB_W = 200;
