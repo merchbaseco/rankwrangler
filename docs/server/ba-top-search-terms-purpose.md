@@ -51,6 +51,8 @@ Use BA Top Search Terms as a ranking and timing layer:
 - Ingest filtering blocks stored-value and greeting-card patterns (for example `gift card`,
   `ecard`, `digital code`, `... card`) while preserving broad `gift` intent.
 - Ingest filtering blocks seasonal non-PoD merchandise patterns without apparel product signals
-  (for example `decorations`, `basket stuffers`, `candy`, `wrapping paper`, `gift bags`).
+  (for example `decorations`, `basket stuffers`, `candy`, `wrapping paper`, `gift bags`,
+  `dresses`, `lingerie`, `tablecloth`, `plates/napkins`, `backdrop`, `toys`, `plush`).
+- Sleepwear terms like `pajamas`/`pjs` are intentionally kept.
 - Ingest filtering recognizes additional product-type signals (for example `raglan`, `v neck`,
   `tote bag`, `popsocket`, `phone case`, `throw pillow`, `tumbler`, `mug`).

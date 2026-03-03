@@ -39,6 +39,19 @@ describe('classifyMerchKeyword', () => {
         expect(classifyMerchKeyword('easter basket stuffers').isMerchRelevant).toBe(false);
     });
 
+    it('blocks additional non-pod seasonal product families without apparel product signal', () => {
+        expect(classifyMerchKeyword('easter dresses for women').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines lingerie').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines earrings').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines tablecloth').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines toys').isMerchRelevant).toBe(false);
+    });
+
+    it('keeps pajamas and pjs terms', () => {
+        expect(classifyMerchKeyword('valentines pajamas for women').isMerchRelevant).toBe(true);
+        expect(classifyMerchKeyword('valentines pjs women').isMerchRelevant).toBe(true);
+    });
+
     it('keeps seasonal terms that still include apparel product signals', () => {
         expect(classifyMerchKeyword('valentines sweater women').isMerchRelevant).toBe(true);
         expect(classifyMerchKeyword('mardi gras shirts for women').isMerchRelevant).toBe(true);
