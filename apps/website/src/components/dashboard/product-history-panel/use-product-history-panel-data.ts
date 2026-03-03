@@ -196,7 +196,13 @@ export const useProductHistoryPanelData = ({
 				});
 			}
 
-			await utils.api.app.recentProducts.invalidate();
+			await Promise.all([
+				utils.api.app.recentProducts.invalidate(),
+				utils.api.app.getProductFacets.invalidate({
+					marketplaceId: product.marketplaceId,
+					asin: product.asin,
+				}),
+			]);
 		},
 		onError: (error) => {
 			toastManager.add({
