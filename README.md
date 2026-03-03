@@ -17,6 +17,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
   - Product facet sidebar filters are sourced from canonical assigned facet values in the server
     response (not only from currently loaded table rows)
   - Product side drawer header displays assigned facets as badges
+  - Keepa job success/failure metrics and filtered tables include both
+    `fetch-keepa-history-for-asin` and `enqueue-scheduled-keepa-history-refresh`
 - `apps/extension` – Chrome extension
 
 ## Packages

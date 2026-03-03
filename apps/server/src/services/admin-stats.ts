@@ -27,6 +27,11 @@ type KeepaMerchCoverageStats = {
     merchProductsWithoutKeepaData: number;
 };
 
+const KEEPA_JOB_NAMES = [
+    'fetch-keepa-history-for-asin',
+    'enqueue-scheduled-keepa-history-refresh',
+] as const;
+
 export type AdminStatsResponse = {
     stats: StatSeries[];
     bucketCount: number;
@@ -128,7 +133,10 @@ const queryKeepaBuckets = async (): Promise<BucketRow[]> => {
                 coalesce(count(je.id) FILTER (WHERE je.status = 'failed'), 0)::int AS errors
             FROM buckets b
             LEFT JOIN job_executions je
-                ON je.job_name = 'fetch-keepa-history-for-asin'
+                ON je.job_name IN (
+                    ${KEEPA_JOB_NAMES[0]},
+                    ${KEEPA_JOB_NAMES[1]}
+                )
                 AND je.started_at >= b.bucket_start
                 AND je.started_at < b.bucket_start + interval '48 minutes'
             GROUP BY b.bucket_start

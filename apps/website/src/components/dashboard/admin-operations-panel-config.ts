@@ -17,24 +17,25 @@ type StatFilterConfig = {
 
 const KEEPA_JOB_NAMES = [
     'fetch-keepa-history-for-asin',
+    'enqueue-scheduled-keepa-history-refresh',
 ] as const;
 const SP_API_JOB_NAMES = ['process-spapi-sync-queue'] as const;
 
 export const STAT_FILTER_CONFIG: Record<AdminStatLabel, StatFilterConfig> = {
     'Keepa Fetches': {
         title: 'Recent Keepa Job Runs',
-        subtitle: '100 most recent Keepa-related job executions',
+        subtitle: '100 most recent Keepa fetch/enqueue job executions',
         jobNames: KEEPA_JOB_NAMES,
     },
     'Job Successes': {
         title: 'Recent Successful Keepa Jobs',
-        subtitle: '100 most recent successful Keepa job executions',
+        subtitle: '100 most recent successful Keepa fetch/enqueue job executions',
         status: 'success',
         jobNames: KEEPA_JOB_NAMES,
     },
     'Job Failures': {
         title: 'Recent Failed Keepa Jobs',
-        subtitle: '100 most recent failed Keepa job executions',
+        subtitle: '100 most recent failed Keepa fetch/enqueue job executions',
         status: 'failed',
         jobNames: KEEPA_JOB_NAMES,
     },
