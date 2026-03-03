@@ -30,6 +30,7 @@ type KeepaMerchCoverageStats = {
 export type AdminStatsResponse = {
     stats: StatSeries[];
     bucketCount: number;
+    timeDomainLabel: string;
     spApiRefreshPolicyBuckets: SpApiRefreshPolicyBucketStat[];
     keepaRefreshPolicyBuckets: KeepaRefreshPolicyBucketStat[];
     keepaFetchGuardLabel: string;
@@ -37,6 +38,8 @@ export type AdminStatsResponse = {
 };
 
 const BUCKET_COUNT = 30;
+const BUCKET_INTERVAL_MINUTES = 48;
+const BUCKET_WINDOW_MINUTES = BUCKET_COUNT * BUCKET_INTERVAL_MINUTES;
 
 export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
     const [
@@ -94,6 +97,7 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
             },
         ],
         bucketCount: BUCKET_COUNT,
+        timeDomainLabel: formatTimeDomainLabel(BUCKET_WINDOW_MINUTES),
         spApiRefreshPolicyBuckets,
         keepaRefreshPolicyBuckets,
         keepaFetchGuardLabel: KEEPA_FETCH_SUCCESS_GUARD_LABEL,
@@ -217,6 +221,14 @@ const queryKeepaMerchCoverage = async (): Promise<KeepaMerchCoverageStats> => {
             0
         ),
     };
+};
+
+const formatTimeDomainLabel = (minutes: number) => {
+    if (minutes % 60 === 0) {
+        return `${minutes / 60}hr`;
+    }
+
+    return `${minutes}m`;
 };
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
