@@ -13,6 +13,37 @@ describe('classifyMerchKeyword', () => {
         expect(result.merchReason).toContain('intent:gift');
     });
 
+    it('blocks stored-value card terms while keeping broad gift intent', () => {
+        expect(classifyMerchKeyword('gift card').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('apple gift cards email delivery').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('e gift card amazon').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('gift for mom').isMerchRelevant).toBe(true);
+    });
+
+    it('blocks card and digital-code suffix patterns', () => {
+        expect(classifyMerchKeyword('valentines day card').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines cards for kids school').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('roblox gift card digital code').isMerchRelevant).toBe(false);
+    });
+
+    it('keeps class and classroom intent when not card-specific', () => {
+        expect(classifyMerchKeyword('class valentines day gifts for kids').isMerchRelevant).toBe(true);
+        expect(classifyMerchKeyword('100 days of school shirt for classroom').isMerchRelevant).toBe(
+            true
+        );
+    });
+
+    it('blocks non-pod seasonal merchandise terms without apparel product signal', () => {
+        expect(classifyMerchKeyword('st patricks day decorations').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('valentines day candy').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('easter basket stuffers').isMerchRelevant).toBe(false);
+    });
+
+    it('keeps seasonal terms that still include apparel product signals', () => {
+        expect(classifyMerchKeyword('valentines sweater women').isMerchRelevant).toBe(true);
+        expect(classifyMerchKeyword('mardi gras shirts for women').isMerchRelevant).toBe(true);
+    });
+
     it('accepts school-event terms', () => {
         const result = classifyMerchKeyword('100 days of school');
 
@@ -36,6 +67,8 @@ describe('classifyMerchKeyword', () => {
     it('blocks brand and ip seeded terms', () => {
         expect(classifyMerchKeyword('nike hoodie').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('seahawks shirt').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('yeti coffee tumbler').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('minecraft valentines').isMerchRelevant).toBe(false);
     });
 
     it('blocks short generic apparel-only terms', () => {

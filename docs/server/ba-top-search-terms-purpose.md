@@ -48,5 +48,9 @@ Use BA Top Search Terms as a ranking and timing layer:
   `departmentName` values.
 - Ingest filtering blocks known non-PoD commodity patterns (for example `100% cotton`,
   `classic fit`, `twill-taped neck`, `spun-polyester`).
+- Ingest filtering blocks stored-value and greeting-card patterns (for example `gift card`,
+  `ecard`, `digital code`, `... card`) while preserving broad `gift` intent.
+- Ingest filtering blocks seasonal non-PoD merchandise patterns without apparel product signals
+  (for example `decorations`, `basket stuffers`, `candy`, `wrapping paper`, `gift bags`).
 - Ingest filtering recognizes additional product-type signals (for example `raglan`, `v neck`,
   `tote bag`, `popsocket`, `phone case`, `throw pillow`, `tumbler`, `mug`).

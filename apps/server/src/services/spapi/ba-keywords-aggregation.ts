@@ -40,8 +40,17 @@ type BaKeywordAccumulator = {
 
 export const classifyMerchKeyword = (searchTerm: string) => {
     const normalized = normalizeSearchTerm(searchTerm);
+    const apparel = apparelSignals.find((signal) => signal.pattern.test(normalized));
+    const seasonal = seasonalSignals.find((signal) => signal.pattern.test(normalized));
+    const intent = intentSignals.find((signal) => signal.pattern.test(normalized));
 
-    const commodity = nonPodCommoditySignals.find((signal) => signal.pattern.test(normalized));
+    const commodity = nonPodCommoditySignals.find((signal) => {
+        if (signal.scope === 'no-apparel-signal' && apparel) {
+            return false;
+        }
+
+        return signal.pattern.test(normalized);
+    });
     if (commodity) {
         return {
             isMerchRelevant: false,
@@ -56,10 +65,6 @@ export const classifyMerchKeyword = (searchTerm: string) => {
             merchReason: `blocked:${brandOrIp.key}`,
         };
     }
-
-    const apparel = apparelSignals.find((signal) => signal.pattern.test(normalized));
-    const seasonal = seasonalSignals.find((signal) => signal.pattern.test(normalized));
-    const intent = intentSignals.find((signal) => signal.pattern.test(normalized));
 
     if (!apparel && !seasonal && !intent) {
         return {
