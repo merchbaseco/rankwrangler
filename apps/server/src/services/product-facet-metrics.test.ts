@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
     getFacetMetricsWindowStart,
+    isFacetCostNumericValue,
     normalizeFacetCategoryTotals,
 } from '@/services/product-facet-metrics.js';
 
@@ -31,5 +32,20 @@ describe('getFacetMetricsWindowStart', () => {
         const result = getFacetMetricsWindowStart(now);
 
         expect(result.toISOString()).toBe('2026-03-02T16:44:00.000Z');
+    });
+});
+
+describe('isFacetCostNumericValue', () => {
+    it('accepts supported numeric formats', () => {
+        expect(isFacetCostNumericValue('0')).toBe(true);
+        expect(isFacetCostNumericValue('-12.34')).toBe(true);
+        expect(isFacetCostNumericValue('.25')).toBe(true);
+        expect(isFacetCostNumericValue('1.2e-3')).toBe(true);
+    });
+
+    it('rejects non-numeric text', () => {
+        expect(isFacetCostNumericValue('')).toBe(false);
+        expect(isFacetCostNumericValue('abc')).toBe(false);
+        expect(isFacetCostNumericValue('12.3.4')).toBe(false);
     });
 });
