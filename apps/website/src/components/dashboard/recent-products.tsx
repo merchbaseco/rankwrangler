@@ -5,8 +5,16 @@ import {
 	useReactTable,
 } from '@tanstack/react-table';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	FACET_CATEGORY_META,
+	formatFacetValueLabel,
+} from '@/components/dashboard/app/config';
 import { createColumns } from '@/components/dashboard/recent-products/columns';
-import { filterProducts, hydrateProducts } from '@/components/dashboard/recent-products/filter-utils';
+import {
+	filterProducts,
+	hydrateProducts,
+	toFacetKey,
+} from '@/components/dashboard/recent-products/filter-utils';
 import { ProductHistorySheet } from '@/components/dashboard/recent-products/history-sheet';
 import { RecentProductsTableView } from '@/components/dashboard/recent-products/table-view';
 import {
@@ -20,13 +28,16 @@ import type {
 import { api } from '@/lib/trpc';
 
 export function RecentProducts({
+	activeFacetKeys,
 	filters,
 	searchValue,
 	onStatusChange,
 }: {
+	activeFacetKeys: string[];
 	filters: FilterState;
 	searchValue: string;
 	onStatusChange?: (info: {
+		availableFacets: Array<{ emoji: string; key: string; label: string }>;
 		count: number;
 		hasMore: boolean;
 		totalProducts: number | null;
@@ -70,11 +81,35 @@ export function RecentProducts({
 	const filteredProducts = useMemo(
 		() =>
 			filterProducts({
+				activeFacetKeys,
 				filters: deferredFilters,
 				products,
 			}),
-		[deferredFilters, products],
+		[activeFacetKeys, deferredFilters, products],
 	);
+	const availableFacets = useMemo(() => {
+		const byKey = new Map<string, { emoji: string; key: string; label: string }>();
+		for (const product of products) {
+			for (const facet of product.facets) {
+				const key = toFacetKey(facet);
+				if (byKey.has(key)) {
+					continue;
+				}
+				const categoryMeta = FACET_CATEGORY_META[facet.facet] ?? {
+					emoji: '🏷️',
+					label: facet.facet,
+				};
+				byKey.set(key, {
+					key,
+					emoji: categoryMeta.emoji,
+					label: `${categoryMeta.label}: ${formatFacetValueLabel(facet.name)}`,
+				});
+			}
+		}
+		return Array.from(byKey.values()).sort((a, b) =>
+			a.label.localeCompare(b.label),
+		);
+	}, [products]);
 	const trackedTotals = useMemo(
 		() => data?.pages.find((page) => page.trackedTotals !== null)?.trackedTotals ?? null,
 		[data],
@@ -82,12 +117,13 @@ export function RecentProducts({
 
 	useEffect(() => {
 		onStatusChange?.({
+			availableFacets,
 			count: filteredProducts.length,
 			hasMore: hasNextPage ?? false,
 			totalMerchProducts: trackedTotals?.totalMerchProducts ?? null,
 			totalProducts: trackedTotals?.totalProducts ?? null,
 		});
-	}, [filteredProducts.length, hasNextPage, onStatusChange, trackedTotals]);
+	}, [availableFacets, filteredProducts.length, hasNextPage, onStatusChange, trackedTotals]);
 
 	const selectedHistoryKey = selectedHistoryProduct
 		? `${selectedHistoryProduct.marketplaceId}:${selectedHistoryProduct.asin}`

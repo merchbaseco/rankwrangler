@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { KeepaMetricsPanel } from "@/components/dashboard/keepa-metrics-panel";
+import { ProductFacetMetricsPanel } from "@/components/dashboard/product-facet-metrics-panel";
 import { SpApiMetricsPanel } from "@/components/dashboard/spapi-metrics-panel";
 import { TopSearchTermsMetricsPanel } from "@/components/dashboard/top-search-terms-metrics-panel";
 import { ApiKeyCard } from "@/components/dashboard/api-key-card";
@@ -30,7 +31,8 @@ type SettingsPage =
 	| "account"
 	| "metrics-keepa"
 	| "metrics-spapi"
-	| "metrics-top-search-terms";
+	| "metrics-top-search-terms"
+	| "metrics-facets";
 
 type NavItem = { key: SettingsPage; label: string; icon: typeof Key };
 
@@ -45,6 +47,7 @@ const METRICS_NAV: NavItem[] = [
 	{ key: "metrics-keepa", label: "Keepa", icon: Activity },
 	{ key: "metrics-spapi", label: "SP-API", icon: Activity },
 	{ key: "metrics-top-search-terms", label: "Top Search Terms", icon: Activity },
+	{ key: "metrics-facets", label: "Facets", icon: Activity },
 ];
 
 const isMetricsPage = (page: SettingsPage) => page.startsWith("metrics-");
@@ -146,6 +149,7 @@ export const SettingsModal = ({
 								{page === "metrics-top-search-terms" ? (
 									<TopSearchTermsMetricsPanel />
 								) : null}
+								{page === "metrics-facets" ? <ProductFacetMetricsPanel /> : null}
 							</div>
 						</div>
 					</Dialog.Popup>

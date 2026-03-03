@@ -1,15 +1,18 @@
 import {
     bigint,
     boolean,
+    check,
     index,
     integer,
     jsonb,
     pgTable,
+    primaryKey,
     text,
     timestamp,
     uniqueIndex,
     uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const licenses = pgTable(
     'licenses',
@@ -48,6 +51,8 @@ export const products = pgTable(
         bullet2: text('bullet_2'),
         rootCategoryId: bigint('root_category_id', { mode: 'number' }),
         rootCategoryBsr: integer('root_category_bsr'),
+        facetsState: text('facets_state').notNull().default('pending'),
+        facetsUpdatedAt: timestamp('facets_updated_at', { mode: 'date' }),
         lastFetched: timestamp('last_fetched', { mode: 'date' }).notNull().defaultNow(),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
     },
@@ -57,6 +62,64 @@ export const products = pgTable(
             table.marketplaceId,
             table.asin
         ),
+        facetsStateCheck: check(
+            'products_facets_state_check',
+            sql`${table.facetsState} in ('pending', 'ready', 'error')`
+        ),
+    })
+);
+
+const productFacetAllowedValuesSql = [
+    'profession',
+    'hobby',
+    'animal',
+    'food',
+    'cause',
+    'identity',
+    'culture',
+    'holiday',
+    'occasion',
+    'place',
+    'party-theme',
+]
+    .map(value => `'${value.replace(/'/g, "''")}'`)
+    .join(',');
+
+export const productFacetValues = pgTable(
+    'product_facet_values',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        facet: text('facet').notNull(),
+        name: text('name').notNull(),
+        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    },
+    table => ({
+        facetAllowedValuesCheck: check(
+            'product_facet_values_facet_check',
+            sql`${table.facet} in (${sql.raw(productFacetAllowedValuesSql)})`
+        ),
+        facetNameUniqueIdx: uniqueIndex('product_facet_values_facet_name_unique_idx').on(
+            table.facet,
+            table.name
+        ),
+        facetNameIdx: index('product_facet_values_facet_name_idx').on(table.facet, table.name),
+    })
+);
+
+export const productFacets = pgTable(
+    'product_facets',
+    {
+        productId: uuid('product_id')
+            .references(() => products.id, { onDelete: 'cascade' })
+            .notNull(),
+        facetValueId: uuid('facet_value_id')
+            .references(() => productFacetValues.id, { onDelete: 'cascade' })
+            .notNull(),
+        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+    },
+    table => ({
+        pk: primaryKey({ columns: [table.productId, table.facetValueId], name: 'product_facets_pk' }),
+        facetValueIdx: index('product_facets_facet_value_idx').on(table.facetValueId),
     })
 );
 
@@ -194,94 +257,11 @@ export const keepaCategories = pgTable(
     })
 );
 
-export const eventLogs = pgTable(
-    'event_logs',
-    {
-        id: uuid('id').primaryKey().defaultRandom(),
-        accountId: text('account_id').notNull().default('global'),
-        occurredAt: timestamp('occurred_at', { mode: 'date' }).notNull().defaultNow(),
-        level: text('level').notNull(),
-        status: text('status').notNull(),
-        category: text('category').notNull(),
-        action: text('action').notNull(),
-        primitiveType: text('primitive_type').notNull(),
-        message: text('message').notNull(),
-        detailsJson: jsonb('details_json').$type<Record<string, unknown>>().notNull(),
-        primitiveId: text('primitive_id'),
-        marketplaceId: text('marketplace_id'),
-        asin: text('asin'),
-        jobName: text('job_name'),
-        jobRunId: text('job_run_id'),
-        requestId: text('request_id'),
-    },
-    table => ({
-        accountOccurredAtIdx: index('event_logs_account_occurred_at_idx').on(
-            table.accountId,
-            table.occurredAt
-        ),
-        accountPrimitiveOccurredAtIdx: index('event_logs_account_primitive_occurred_at_idx').on(
-            table.accountId,
-            table.primitiveType,
-            table.occurredAt
-        ),
-        accountAsinOccurredAtIdx: index('event_logs_account_asin_occurred_at_idx').on(
-            table.accountId,
-            table.asin,
-            table.occurredAt
-        ),
-        accountJobRunOccurredAtIdx: index('event_logs_account_job_run_occurred_at_idx').on(
-            table.accountId,
-            table.jobRunId,
-            table.occurredAt
-        ),
-    })
-);
-
-export const jobExecutions = pgTable(
-    'job_executions',
-    {
-        id: uuid('id').primaryKey().defaultRandom(),
-        jobName: text('job_name').notNull(),
-        status: text('status').notNull(),
-        input: jsonb('input').$type<unknown>(),
-        output: jsonb('output').$type<unknown>(),
-        errorMessage: text('error_message'),
-        startedAt: timestamp('started_at', { mode: 'date' }).notNull(),
-        finishedAt: timestamp('finished_at', { mode: 'date' }).notNull(),
-        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    },
-    table => ({
-        jobNameStartedAtIdx: index('job_executions_job_name_started_at_idx').on(
-            table.jobName,
-            table.startedAt
-        ),
-        statusStartedAtIdx: index('job_executions_status_started_at_idx').on(
-            table.status,
-            table.startedAt
-        ),
-    })
-);
-
-export const jobExecutionLogs = pgTable(
-    'job_execution_logs',
-    {
-        id: uuid('id').primaryKey().defaultRandom(),
-        executionId: uuid('execution_id')
-            .references(() => jobExecutions.id, { onDelete: 'cascade' })
-            .notNull(),
-        level: text('level').notNull(),
-        message: text('message').notNull(),
-        context: jsonb('context').$type<unknown>(),
-        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    },
-    table => ({
-        executionCreatedAtIdx: index('job_execution_logs_execution_created_at_idx').on(
-            table.executionId,
-            table.createdAt
-        ),
-    })
-);
-
+export {
+    eventLogs,
+    jobExecutionLogs,
+    jobExecutions,
+} from './ops-schema';
 export {
     topSearchTermsDatasets,
     topSearchTermsKeywordDaily,

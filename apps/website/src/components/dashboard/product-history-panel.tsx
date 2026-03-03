@@ -23,6 +23,9 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 		rankQuery,
 		rankSelectOptions,
 		setRankMetricValue,
+		canFetchFacets,
+		fetchFacetsMutation,
+		triggerFacetClassification,
 		triggerKeepaSync,
 	} = useProductHistoryPanelData({ product });
 
@@ -31,7 +34,10 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
             <PanelHeader
                 product={headerProduct}
                 onSync={triggerKeepaSync}
+                onFetchFacets={triggerFacetClassification}
                 isSyncing={loadMutation.isPending}
+                isFetchingFacets={fetchFacetsMutation.isPending}
+                canFetchFacets={canFetchFacets}
                 isKeepaSyncStale={isKeepaSyncStale}
                 keepaLastSyncAt={keepaLastSyncAt}
             />

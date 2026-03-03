@@ -206,6 +206,10 @@ try {
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
     console.log('  • User Event Logs: Enabled (dashboard logs page)');
     console.log('  • Top Search Terms: Enabled (dataset scheduler + fetch worker)');
+    const productFacetStatus = env.GEMINI_API_KEY
+        ? 'Enabled (Gemini 2.5 Flash Lite)'
+        : 'Disabled (GEMINI_API_KEY not set)';
+    console.log(`  • Product Facet Classification: ${productFacetStatus}`);
     console.log('  • API Routes: tRPC (/api)');
     console.log('  • Auth: Clerk (app), License (public)');
     const devClerkSignInStatus = env.DEV_CLERK_SIGN_IN_USER_ID

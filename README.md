@@ -9,11 +9,11 @@ Monorepo containing the RankWrangler server, website, and browser extension.
     and deletes the corresponding row from `products`
   - Keepa sync policy is BSR-tiered for merch (`<300k` automatic daily, `<1M` automatic weekly,
     `>=1M` on-demand), with a strict global minimum 24h fetch gap per ASIN
-- `apps/website` – Dashboard for API keys, usage, recent products, and a Logs page
-  for user-facing product/history sync events, plus admin Keepa metrics including
-  merch Keepa-coverage counts (total/with data/without data), `Keepa Fetches`
-  (API calls), and `Job Successes`/`Job Failures`
-  - Admin Settings metrics pages include Keepa, SP-API, and Top Search Terms health/status views
+  - Product facets are AI-classified asynchronously (Gemini 2.5 Flash Lite) into normalized
+    facet categories for dashboard filtering, and can be manually triggered per product from
+    the product drawer
+- `apps/website` – Dashboard for API keys, usage, recent products, Logs, and admin metrics
+  pages for Keepa/SP-API/facets/Top Search Terms operations
 - `apps/extension` – Chrome extension
 
 ## Packages
@@ -81,3 +81,7 @@ bun --filter @rankwrangler/server run build
 
 For server-specific docs, see `docs/server/index.md`.
 For BA Top Search Terms implementation details, see `docs/server/ba-top-search-terms-system.md`.
+
+## Optional Environment
+
+- `GEMINI_API_KEY` enables asynchronous product facet classification.

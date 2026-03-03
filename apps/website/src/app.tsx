@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useReducer, useState, useTransition } from 'react';
 import { DashboardFooter } from '@/components/dashboard/app/dashboard-footer';
-import { FACETS } from '@/components/dashboard/app/config';
 import { FiltersSidebar } from '@/components/dashboard/app/filters-sidebar';
 import { TopBar } from '@/components/dashboard/app/top-bar';
 import type { LastUpdated } from '@/components/dashboard/app/config';
@@ -23,11 +22,13 @@ export function App() {
 	const [, startFilterTransition] = useTransition();
 	const [uiState, dispatchUiState] = useReducer(appUiStateReducer, INITIAL_APP_UI_STATE);
 	const [productStatus, setProductStatus] = useState<{
+		availableFacets: Array<{ emoji: string; key: string; label: string }>;
 		count: number;
 		hasMore: boolean;
 		totalProducts: number | null;
 		totalMerchProducts: number | null;
 	}>({
+		availableFacets: [],
 		count: 0,
 		hasMore: false,
 		totalMerchProducts: null,
@@ -38,6 +39,7 @@ export function App() {
 
 	const handleProductStatusChange = useCallback(
 		(info: {
+			availableFacets: Array<{ emoji: string; key: string; label: string }>;
 			count: number;
 			hasMore: boolean;
 			totalProducts: number | null;
@@ -91,16 +93,21 @@ export function App() {
 		if (filters.lastUpdated !== 'all') {
 			count += 1;
 		}
+		if (uiState.activeFacets.length > 0) {
+			count += 1;
+		}
 		return count;
-	}, [filters]);
+	}, [filters, uiState.activeFacets.length]);
 
 	const filteredFacets = useMemo(() => {
 		if (!uiState.facetSearch.trim()) {
-			return FACETS;
+			return productStatus.availableFacets;
 		}
 		const query = uiState.facetSearch.toLowerCase();
-		return FACETS.filter((facet) => facet.label.toLowerCase().includes(query));
-	}, [uiState.facetSearch]);
+		return productStatus.availableFacets.filter((facet) =>
+			facet.label.toLowerCase().includes(query),
+		);
+	}, [productStatus.availableFacets, uiState.facetSearch]);
 
 	const toggleFacet = useCallback((facetLabel: string) => {
 		dispatchUiState({ facetLabel, type: 'toggleFacet' });
@@ -148,6 +155,7 @@ export function App() {
 									/>
 									<div className="min-h-0 flex-1">
 										<RecentProducts
+											activeFacetKeys={uiState.activeFacets}
 											filters={filters}
 											searchValue={searchValue}
 											onStatusChange={handleProductStatusChange}

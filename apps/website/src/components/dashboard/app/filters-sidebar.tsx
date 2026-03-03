@@ -30,7 +30,7 @@ export const FiltersSidebar = ({
 }: {
 	activeFacets: string[];
 	facetSearch: string;
-	filteredFacets: Array<{ emoji: string; label: string }>;
+	filteredFacets: Array<{ emoji: string; key: string; label: string }>;
 	filters: FilterState;
 	nichesSectionOpen: boolean;
 	onBsrRangeChange: (range: [number, number] | null) => void;
@@ -136,12 +136,12 @@ export const FiltersSidebar = ({
 					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-1">
 						<div className="flex flex-col gap-0.5">
 							{filteredFacets.map((facet) => {
-								const isActive = activeFacets.includes(facet.label);
+								const isActive = activeFacets.includes(facet.key);
 								return (
 									<button
-										key={facet.label}
+										key={facet.key}
 										type="button"
-										onClick={() => onToggleFacet(facet.label)}
+										onClick={() => onToggleFacet(facet.key)}
 										className={cn(
 											'flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-sm transition-colors',
 											isActive

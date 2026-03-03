@@ -1,4 +1,4 @@
-import { Check, Copy, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
+import { Check, Copy, ExternalLink, Loader2, RefreshCw, Tags } from 'lucide-react';
 import { useState } from 'react';
 import type { ProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/types';
 import { Badge } from '@/components/ui/badge';
@@ -7,13 +7,19 @@ import { cn, formatCalendarDate, formatRelativeTime } from '@/lib/utils';
 export const PanelHeader = ({
     product,
     onSync,
+    onFetchFacets,
     isSyncing,
+    isFetchingFacets,
+    canFetchFacets,
     keepaLastSyncAt,
     isKeepaSyncStale,
 }: {
     product: ProductHistoryPanelProduct;
     onSync: () => void;
+    onFetchFacets: () => void;
     isSyncing: boolean;
+    isFetchingFacets: boolean;
+    canFetchFacets: boolean;
     keepaLastSyncAt: string | null;
     isKeepaSyncStale: boolean;
 }) => {
@@ -125,6 +131,29 @@ export const PanelHeader = ({
                     {isSyncing ? 'Syncing...' : 'Sync'}
                 </button>
                 <div className="mx-0.5 h-3 w-px bg-border" />
+                {canFetchFacets ? (
+                    <>
+                        <button
+                            type="button"
+                            onClick={onFetchFacets}
+                            disabled={isFetchingFacets}
+                            className={cn(
+                                'inline-flex items-center gap-1 font-mono text-[11px] font-medium transition-colors',
+                                isFetchingFacets
+                                    ? 'cursor-not-allowed text-muted-foreground'
+                                    : 'text-muted-foreground hover:text-foreground',
+                            )}
+                        >
+                            {isFetchingFacets ? (
+                                <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                                <Tags className="size-3" />
+                            )}
+                            {isFetchingFacets ? 'Fetching facets...' : 'Fetch facets'}
+                        </button>
+                        <div className="mx-0.5 h-3 w-px bg-border" />
+                    </>
+                ) : null}
                 <Badge variant={isKeepaSyncStale ? 'warning' : 'success'} size="sm">
                     {isKeepaSyncStale ? 'Keepa stale' : 'Keepa fresh'}
                 </Badge>

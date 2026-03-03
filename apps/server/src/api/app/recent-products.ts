@@ -2,7 +2,7 @@ import { and, desc, eq, ilike, lt, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import { db } from '@/db/index.js';
-import { products } from '@/db/schema.js';
+import { productFacets, productFacetValues, products } from '@/db/schema.js';
 
 const recentProductsInput = z.object({
 	cursor: z
@@ -40,6 +40,26 @@ export const recentProducts = appProcedure
 				rootCategoryBsr: products.rootCategoryBsr,
 				dateFirstAvailable: products.dateFirstAvailable,
 				isMerchListing: products.isMerchListing,
+				facets: sql<string>`
+                    COALESCE(
+                        (
+                            SELECT jsonb_agg(
+                                jsonb_build_object(
+                                    'facet', ${productFacetValues.facet},
+                                    'name', ${productFacetValues.name}
+                                )
+                                ORDER BY ${productFacetValues.facet}, ${productFacetValues.name}
+                            )
+                            FROM ${productFacets}
+                            INNER JOIN ${productFacetValues}
+                                ON ${productFacets.facetValueId} = ${productFacetValues.id}
+                            WHERE ${productFacets.productId} = ${products.id}
+                        ),
+                        '[]'::jsonb
+                    )::text
+                `.mapWith((value) =>
+					JSON.parse(value) as Array<{ facet: string; name: string }>
+				),
 				lastFetched: products.lastFetched,
 			})
 			.from(products)
