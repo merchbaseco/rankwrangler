@@ -1,5 +1,9 @@
 import { Check, Copy, ExternalLink, Loader2, RefreshCw, Tags } from 'lucide-react';
 import { useState } from 'react';
+import {
+    FACET_CATEGORY_META,
+    formatFacetValueLabel,
+} from '@/components/dashboard/app/config';
 import type { ProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/types';
 import { Badge } from '@/components/ui/badge';
 import { cn, formatCalendarDate, formatRelativeTime } from '@/lib/utils';
@@ -110,6 +114,27 @@ export const PanelHeader = ({
                 ) : null}
             </div>
 
+            {/* Facets strip */}
+            {product.facets.length > 0 ? (
+                <div className="flex items-start gap-2 border-t border-border/60 px-3 py-1.5">
+                    <span className="pt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Facets
+                    </span>
+                    <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+                        {product.facets.map((facet) => (
+                            <Badge
+                                key={`${facet.facet}:${facet.name}`}
+                                variant="outline"
+                                size="sm"
+                                className="max-w-full"
+                            >
+                                {formatFacetBadgeLabel(facet)}
+                            </Badge>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+
             {/* Sync actions strip */}
             <div className="flex items-center gap-1.5 border-t border-border/60 px-3 py-1.5">
                 <button
@@ -171,4 +196,9 @@ export const PanelHeader = ({
             </div>
         </div>
     );
+};
+
+export const formatFacetBadgeLabel = (facet: { facet: string; name: string }) => {
+    const categoryLabel = FACET_CATEGORY_META[facet.facet]?.label ?? facet.facet;
+    return `${categoryLabel}: ${formatFacetValueLabel(facet.name)}`;
 };

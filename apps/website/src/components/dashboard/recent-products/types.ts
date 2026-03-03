@@ -26,6 +26,7 @@ export type SelectedHistoryProduct = {
 	title: string | null;
 	thumbnailUrl: string | null;
 	brand: string | null;
+	facets: Array<{ facet: string; name: string }>;
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;

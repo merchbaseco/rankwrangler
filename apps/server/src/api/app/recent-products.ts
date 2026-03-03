@@ -16,9 +16,15 @@ const recentProductsInput = z.object({
 	search: z.string().trim().min(1).max(200).optional(),
 });
 
+type AvailableFacetRow = {
+    facet: string;
+    name: string;
+    product_count: number;
+};
+
 export const recentProducts = appProcedure
-	.input(recentProductsInput.optional())
-	.query(async ({ input }) => {
+    .input(recentProductsInput.optional())
+    .query(async ({ input }) => {
 		const cursor = input?.cursor ?? null;
 		const limit = input?.limit ?? 50;
 		const cursorCondition = buildCursorCondition(cursor);
@@ -28,7 +34,7 @@ export const recentProducts = appProcedure
 				? and(cursorCondition, searchCondition)
 				: cursorCondition ?? searchCondition;
 
-		const rows = await db
+        const rows = await db
 			.select({
 				asin: products.asin,
 				title: products.title,
@@ -64,14 +70,28 @@ export const recentProducts = appProcedure
 			})
 			.from(products)
 			.where(whereCondition)
-			.orderBy(desc(products.lastFetched), desc(products.marketplaceId), desc(products.asin))
-			.limit(limit + 1);
+            .orderBy(desc(products.lastFetched), desc(products.marketplaceId), desc(products.asin))
+            .limit(limit + 1);
 
-		const items = rows.slice(0, limit);
-		const trackedTotals = cursor ? null : await queryTrackedTotals();
-		const nextRow = rows.length > limit ? items[items.length - 1] : null;
-		const nextCursor = nextRow
-			? {
+        const items = rows.slice(0, limit);
+        let trackedTotals: { totalMerchProducts: number; totalProducts: number } | null = null;
+        let availableFacets: Array<{ facet: string; name: string }> | null = null;
+
+        if (!cursor) {
+            const [trackedTotalsResult, availableFacetRows] = await Promise.all([
+                queryTrackedTotals(),
+                queryAvailableFacetValues(),
+            ]);
+            trackedTotals = trackedTotalsResult;
+            availableFacets = availableFacetRows.map((row) => ({
+                facet: row.facet,
+                name: row.name,
+            }));
+        }
+
+        const nextRow = rows.length > limit ? items[items.length - 1] : null;
+        const nextCursor = nextRow
+            ? {
 					asin: nextRow.asin,
 					lastFetched: nextRow.lastFetched.toISOString(),
 					marketplaceId: nextRow.marketplaceId,
@@ -79,11 +99,12 @@ export const recentProducts = appProcedure
 			: null;
 
 		return {
-			items,
-			nextCursor,
-			trackedTotals,
-		};
-	});
+            items,
+            nextCursor,
+            trackedTotals,
+            availableFacets,
+        };
+    });
 
 const buildCursorCondition = (
 	cursor: {
@@ -145,8 +166,24 @@ const queryTrackedTotals = async () => {
 			.where(eq(products.isMerchListing, true)),
 	]);
 
-	return {
-		totalMerchProducts: totalMerchProductsRows[0]?.total ?? 0,
-		totalProducts: totalProductsRows[0]?.total ?? 0,
-	};
+    return {
+        totalMerchProducts: totalMerchProductsRows[0]?.total ?? 0,
+        totalProducts: totalProductsRows[0]?.total ?? 0,
+    };
+};
+
+const queryAvailableFacetValues = async () => {
+    const rows = await db.execute<AvailableFacetRow>(sql`
+        SELECT
+            pfv.facet,
+            pfv.name,
+            count(DISTINCT pf.product_id)::int AS product_count
+        FROM product_facet_values pfv
+        INNER JOIN product_facets pf
+            ON pf.facet_value_id = pfv.id
+        GROUP BY pfv.id, pfv.facet, pfv.name
+        ORDER BY product_count DESC, pfv.facet ASC, pfv.name ASC
+    `);
+
+    return [...rows];
 };

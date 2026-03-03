@@ -3,6 +3,10 @@ import { db } from '@/db/index.js';
 import { productFacetKeys, type ProductFacetKey } from '@/services/product-facet-taxonomy.js';
 
 const FACET_METRICS_BUCKET_COUNT = 30;
+const FACET_METRICS_BUCKET_INTERVAL_MINUTES = 48;
+const FACET_METRICS_WINDOW_MINUTES =
+    FACET_METRICS_BUCKET_COUNT * FACET_METRICS_BUCKET_INTERVAL_MINUTES;
+const MS_PER_MINUTE = 60_000;
 
 type FacetClassificationBucketRow = {
     bucket_start: string;
@@ -35,6 +39,9 @@ export type ProductFacetMetricsResponse = {
     facetCategoryTotals: Array<{ facet: ProductFacetKey; productCount: number }>;
     facetValueTotals: Array<{ facet: ProductFacetKey; name: string; productCount: number }>;
 };
+
+export const getFacetMetricsWindowStart = (now: Date) =>
+    new Date(now.getTime() - FACET_METRICS_WINDOW_MINUTES * MS_PER_MINUTE);
 
 export const getProductFacetMetrics = async (): Promise<ProductFacetMetricsResponse> => {
     const [classificationBuckets, categoryTotalRows, facetValueTotalRows] = await Promise.all([
@@ -96,13 +103,18 @@ export const normalizeFacetCategoryTotals = (rows: FacetCategoryTotalRow[]) => {
 };
 
 const queryFacetClassificationBuckets = async () => {
+    const windowStart = getFacetMetricsWindowStart(new Date());
+
     const rows = await db.execute<FacetClassificationBucketRow>(sql`
-        WITH buckets AS (
-            SELECT generate_series(
-                date_trunc('hour', now() - interval '23 hours'),
-                date_trunc('hour', now()),
-                interval '48 minutes'
-            ) AS bucket_start
+        WITH bucket_indices AS (
+            SELECT generate_series(0, ${FACET_METRICS_BUCKET_COUNT - 1}) AS idx
+        ),
+        buckets AS (
+            SELECT
+                ${windowStart}::timestamp
+                    + (idx * ${FACET_METRICS_BUCKET_INTERVAL_MINUTES} * interval '1 minute')
+                    AS bucket_start
+            FROM bucket_indices
         )
         SELECT
             b.bucket_start::text,
@@ -115,7 +127,7 @@ const queryFacetClassificationBuckets = async () => {
             AND el.category = 'product'
             AND el.action = 'product.facets.classify'
             AND el.occurred_at >= b.bucket_start
-            AND el.occurred_at < b.bucket_start + interval '48 minutes'
+            AND el.occurred_at < b.bucket_start + (${FACET_METRICS_BUCKET_INTERVAL_MINUTES} * interval '1 minute')
         GROUP BY b.bucket_start
         ORDER BY b.bucket_start
     `);

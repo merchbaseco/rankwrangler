@@ -14,6 +14,7 @@ const RowBsrButton = ({
 	title,
 	thumbnailUrl,
 	brand,
+	facets,
 	dateFirstAvailable,
 	rootCategoryBsr,
 	rootCategoryDisplayName,
@@ -28,6 +29,7 @@ const RowBsrButton = ({
 	title: string | null;
 	thumbnailUrl: string | null;
 	brand: string | null;
+	facets: Array<{ facet: string; name: string }>;
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
@@ -45,6 +47,7 @@ const RowBsrButton = ({
 				title,
 				thumbnailUrl,
 				brand,
+				facets,
 				dateFirstAvailable,
 				rootCategoryBsr,
 				rootCategoryDisplayName,
@@ -172,6 +175,7 @@ export const createColumns = ({
 						title={row.original.title}
 						thumbnailUrl={row.original.thumbnailUrl}
 						brand={row.original.brand}
+						facets={row.original.facets}
 						dateFirstAvailable={row.original.dateFirstAvailable}
 						rootCategoryBsr={row.original.rootCategoryBsr}
 						rootCategoryDisplayName={null}

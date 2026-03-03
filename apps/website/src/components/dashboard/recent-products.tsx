@@ -87,7 +87,30 @@ export function RecentProducts({
 			}),
 		[activeFacetKeys, deferredFilters, products],
 	);
+
+	const availableFacetValues = useMemo(
+		() => data?.pages.find((page) => page.availableFacets !== null)?.availableFacets ?? null,
+		[data],
+	);
+
 	const availableFacets = useMemo(() => {
+		if (availableFacetValues) {
+			return availableFacetValues
+				.map((facetValue) => {
+					const key = toFacetKey(facetValue);
+					const categoryMeta = FACET_CATEGORY_META[facetValue.facet] ?? {
+						emoji: '🏷️',
+						label: facetValue.facet,
+					};
+					return {
+						key,
+						emoji: categoryMeta.emoji,
+						label: `${categoryMeta.label}: ${formatFacetValueLabel(facetValue.name)}`,
+					};
+				})
+				.sort((a, b) => a.label.localeCompare(b.label));
+		}
+
 		const byKey = new Map<string, { emoji: string; key: string; label: string }>();
 		for (const product of products) {
 			for (const facet of product.facets) {
@@ -109,7 +132,8 @@ export function RecentProducts({
 		return Array.from(byKey.values()).sort((a, b) =>
 			a.label.localeCompare(b.label),
 		);
-	}, [products]);
+	}, [availableFacetValues, products]);
+
 	const trackedTotals = useMemo(
 		() => data?.pages.find((page) => page.trackedTotals !== null)?.trackedTotals ?? null,
 		[data],

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { normalizeFacetCategoryTotals } from '@/services/product-facet-metrics.js';
+import {
+    getFacetMetricsWindowStart,
+    normalizeFacetCategoryTotals,
+} from '@/services/product-facet-metrics.js';
 
 describe('normalizeFacetCategoryTotals', () => {
     it('returns all facet categories with zeros when no rows exist', () => {
@@ -19,5 +22,14 @@ describe('normalizeFacetCategoryTotals', () => {
         expect(result.find(row => row.facet === 'hobby')?.productCount).toBe(12);
         expect(result.find(row => row.facet === 'party-theme')?.productCount).toBe(4);
         expect(result.every(row => row.productCount < 999)).toBe(true);
+    });
+});
+
+describe('getFacetMetricsWindowStart', () => {
+    it('returns a 24-hour rolling window start', () => {
+        const now = new Date('2026-03-03T16:44:00.000Z');
+        const result = getFacetMetricsWindowStart(now);
+
+        expect(result.toISOString()).toBe('2026-03-02T16:44:00.000Z');
     });
 });

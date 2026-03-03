@@ -14,6 +14,9 @@ Monorepo containing the RankWrangler server, website, and browser extension.
     the product drawer
 - `apps/website` – Dashboard for API keys, usage, recent products, Logs, and admin metrics
   pages for Keepa/SP-API/facets/Top Search Terms operations
+  - Product facet sidebar filters are sourced from canonical assigned facet values in the server
+    response (not only from currently loaded table rows)
+  - Product side drawer header displays assigned facets as badges
 - `apps/extension` – Chrome extension
 
 ## Packages
