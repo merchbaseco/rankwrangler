@@ -48,14 +48,23 @@ Unique key is `(marketplace_id, report_period, data_start_date, data_end_date)`.
 
 File: `apps/server/src/jobs/sync-top-search-terms-datasets.ts`
 
-Runs every 30 minutes and:
+Runs every 15 minutes and:
 
 1. Ensures dataset rows exist for:
    - daily windows for the last 90 days
    - weekly windows (rolling backfill seed, retained indefinitely once inserted)
 2. Prunes daily datasets older than the 90-day retention boundary.
-3. Finds due datasets (`next_refresh_at <= now`, `refreshing = false`).
+3. Finds due datasets (`next_refresh_at <= now`) where either:
+   - `refreshing = false`, or
+   - `refreshing = true` but `active_job_requested_at` is stale beyond job expiry + grace (timeout
+     recovery path).
+   Due datasets are ordered by earliest `next_refresh_at` first.
 4. Enqueues fetch jobs and marks those datasets `queued`.
+
+Throughput guardrail:
+
+- Scheduler enqueues at most one due dataset per run (`TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE = 1`)
+  to avoid bursty BA backfill pressure.
 
 `next_refresh_at` is SLA-aligned for open windows instead of immediate:
 
@@ -73,12 +82,29 @@ File: `apps/server/src/jobs/fetch-top-search-terms-dataset.ts`
 For each dataset:
 
 1. Mark dataset `in_progress`.
-2. Request/download BA report via SP-API in
-   `apps/server/src/services/spapi/ba-keywords-service.ts`.
-3. Parse + aggregate keywords in
+2. If `report_id` is empty, request a BA report and persist `report_id` on the dataset.
+3. Set `next_refresh_at` to 15 minutes later and release the row (do not block-wait).
+4. On the next due run, check report status for the persisted `report_id`.
+5. If report has been pending longer than 3 hours, fail and clear `report_id` so retries request
+   fresh.
+6. If still not ready, push `next_refresh_at` another 15 minutes.
+7. If terminal (`FATAL`/`CANCELLED`), fail and clear `report_id` so retries can request fresh.
+8. If `DONE`, download + parse report in
    `apps/server/src/services/spapi/ba-keywords-aggregation.ts`.
-4. Persist snapshot + keyword rows.
-5. Mark dataset `completed` with computed `next_refresh_at`, or `failed` with retry backoff.
+9. Persist snapshot + keyword rows.
+10. Mark dataset `completed`, clear `report_id`, and compute the next SLA refresh.
+
+Concurrency guardrail:
+
+- Fetch jobs are sent with a shared pg-boss group id and worker `groupConcurrency = 1`, so only one
+  BA report fetch runs at a time across all server instances.
+- Fetch jobs set `expireInSeconds = 3600` so long SP-API report waits are less likely to timeout at
+  the default 15-minute queue expiration.
+- Async BA polling uses 15-minute status checks between runs instead of in-job busy polling.
+- Transient SP-API failures (rate-limit/network/5xx) are retried with exponential backoff before a
+  final dataset failure is recorded.
+- SDK built-in report API rate limiting is disabled for this path so requests wait in our Bottleneck
+  queue instead of being dropped.
 
 ## Report Periods
 
@@ -116,6 +142,8 @@ These now operate on `top_search_terms_*` datasets/snapshots.
 ## Operational Notes
 
 - Startup enqueues one dataset-sync wakeup so coverage starts immediately.
+- Startup also reconciles stale active dataset rows (older than job expiry + grace) to recover from
+  deploy-time interruptions.
 - Scheduler/fetch queue integration is in
   `apps/server/src/services/top-search-terms-jobs.ts`.
 - Parse diagnostics are logged per fetch (accepted/rejected counts, malformed row counts, etc.).

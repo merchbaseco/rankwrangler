@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import {
     mapDatasetRecord,
@@ -144,29 +144,76 @@ export const listDueTopSearchTermsDatasets = async ({
     marketplaceId,
     now = new Date(),
     limit,
+    staleActiveJobCutoff,
 }: {
     marketplaceId: string;
     now?: Date;
     limit: number;
+    staleActiveJobCutoff?: Date;
 }) => {
+    const refreshingEligibilityFilter = staleActiveJobCutoff
+        ? or(
+              eq(topSearchTermsDatasets.refreshing, false),
+              and(
+                  eq(topSearchTermsDatasets.refreshing, true),
+                  isNotNull(topSearchTermsDatasets.activeJobRequestedAt),
+                  lte(topSearchTermsDatasets.activeJobRequestedAt, staleActiveJobCutoff)
+              )
+          )
+        : eq(topSearchTermsDatasets.refreshing, false);
+
     const rows = await db
         .select()
         .from(topSearchTermsDatasets)
         .where(
             and(
                 eq(topSearchTermsDatasets.marketplaceId, marketplaceId),
-                eq(topSearchTermsDatasets.refreshing, false),
+                refreshingEligibilityFilter,
                 lte(topSearchTermsDatasets.nextRefreshAt, now)
             )
         )
         .orderBy(
-            asc(topSearchTermsDatasets.reportPeriod),
-            desc(topSearchTermsDatasets.dataEndDate),
+            asc(topSearchTermsDatasets.nextRefreshAt),
             asc(topSearchTermsDatasets.updatedAt)
         )
         .limit(limit);
 
     return rows.map(mapDatasetRecord);
+};
+
+export const recoverStaleTopSearchTermsDatasets = async ({
+    marketplaceId,
+    staleActiveJobCutoff,
+    recoveredAt = new Date(),
+    recoveryErrorMessage = 'Recovered stale Top Search Terms active job during server startup.',
+}: {
+    marketplaceId: string;
+    staleActiveJobCutoff: Date;
+    recoveredAt?: Date;
+    recoveryErrorMessage?: string;
+}) => {
+    const recovered = await db
+        .update(topSearchTermsDatasets)
+        .set({
+            activeJobId: null,
+            lastError: recoveryErrorMessage,
+            lastFailedAt: recoveredAt,
+            nextRefreshAt: recoveredAt,
+            refreshing: false,
+            status: 'failed',
+            updatedAt: recoveredAt,
+        })
+        .where(
+            and(
+                eq(topSearchTermsDatasets.marketplaceId, marketplaceId),
+                eq(topSearchTermsDatasets.refreshing, true),
+                isNotNull(topSearchTermsDatasets.activeJobRequestedAt),
+                lte(topSearchTermsDatasets.activeJobRequestedAt, staleActiveJobCutoff)
+            )
+        )
+        .returning({ id: topSearchTermsDatasets.id });
+
+    return recovered.length;
 };
 
 const getDatasetWindowWhere = (window: TopSearchTermsWindow) =>

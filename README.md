@@ -11,6 +11,11 @@ Monorepo containing the RankWrangler server, website, and browser extension.
     `>=1M` on-demand), with a strict global minimum 24h fetch gap per ASIN
   - Automatic background jobs use pg-boss persisted schedules (cron-backed), not in-process
     timers, so cadence survives deploy restarts
+  - BA Top Search Terms ingestion is intentionally single-flight (one BA dataset report at a time)
+    and uses async 15-minute report-status checks (with 3-hour pending timeout) to keep SP-API
+    backfill throughput stable;
+    scheduler runs every 15 minutes and prioritizes earliest due `next_refresh_at` to avoid
+    dataset starvation
   - Product facets are AI-classified asynchronously (Gemini 2.5 Flash Lite) into normalized
     facet categories for dashboard filtering, and can be manually triggered per product from
     the product drawer

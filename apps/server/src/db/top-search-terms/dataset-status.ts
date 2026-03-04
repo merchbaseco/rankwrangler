@@ -50,7 +50,7 @@ export const setTopSearchTermsDatasetCompleted = async ({
 }: {
     datasetId: string;
     completedAt?: Date;
-    reportId: string;
+    reportId: string | null;
     nextRefreshAt: Date | null;
 }) => {
     return await updateTopSearchTermsDatasetStatus(datasetId, {
@@ -69,11 +69,13 @@ export const setTopSearchTermsDatasetFailed = async ({
     datasetId,
     errorMessage,
     failedAt = new Date(),
+    reportId,
     nextRefreshAt,
 }: {
     datasetId: string;
     errorMessage: string;
     failedAt?: Date;
+    reportId?: string | null;
     nextRefreshAt: Date;
 }) => {
     return await updateTopSearchTermsDatasetStatus(datasetId, {
@@ -81,9 +83,53 @@ export const setTopSearchTermsDatasetFailed = async ({
         lastError: errorMessage,
         lastFailedAt: failedAt,
         nextRefreshAt,
+        ...(reportId === undefined ? {} : { reportId }),
         refreshing: false,
         status: 'failed',
         updatedAt: failedAt,
+    });
+};
+
+export const setTopSearchTermsDatasetReportRequested = async ({
+    datasetId,
+    reportId,
+    requestedAt = new Date(),
+    nextRefreshAt,
+}: {
+    datasetId: string;
+    reportId: string;
+    requestedAt?: Date;
+    nextRefreshAt: Date;
+}) => {
+    return await updateTopSearchTermsDatasetStatus(datasetId, {
+        activeJobId: null,
+        activeJobRequestedAt: requestedAt,
+        fetchStartedAt: requestedAt,
+        lastError: null,
+        nextRefreshAt,
+        refreshing: false,
+        reportId,
+        status: 'in_progress',
+        updatedAt: requestedAt,
+    });
+};
+
+export const setTopSearchTermsDatasetReportPending = async ({
+    datasetId,
+    checkedAt = new Date(),
+    nextRefreshAt,
+}: {
+    datasetId: string;
+    checkedAt?: Date;
+    nextRefreshAt: Date;
+}) => {
+    return await updateTopSearchTermsDatasetStatus(datasetId, {
+        activeJobId: null,
+        lastError: null,
+        nextRefreshAt,
+        refreshing: false,
+        status: 'in_progress',
+        updatedAt: checkedAt,
     });
 };
 

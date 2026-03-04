@@ -16,17 +16,20 @@ import {
     TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE,
     TOP_SEARCH_TERMS_WEEKLY_BACKFILL_WEEKS,
 } from '@/services/top-search-terms-dataset-windows.js';
-import { sendFetchTopSearchTermsDatasetJob } from '@/services/top-search-terms-jobs.js';
+import {
+    getTopSearchTermsFetchStaleActiveJobCutoff,
+    sendFetchTopSearchTermsDatasetJob,
+} from '@/services/top-search-terms-jobs.js';
 import { getPacificDateString } from '@/utils/date.js';
 
 const syncTopSearchTermsDatasetsInput = z.object({});
 
 export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-datasets', {
     persistSuccess: 'didWork',
-    startupSummary: 'cron: every 30m',
+    startupSummary: 'cron: every 15m',
 })
     .input(syncTopSearchTermsDatasetsInput)
-    .cron({ cron: '*/30 * * * *', payload: {} })
+    .cron({ cron: '*/15 * * * *', payload: {} })
     .options({
         singletonKey: 'sync-top-search-terms-datasets',
         retryLimit: 0,
@@ -69,6 +72,7 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
             marketplaceId: SPAPI_US_MARKETPLACE_ID,
             now,
             limit: TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE,
+            staleActiveJobCutoff: getTopSearchTermsFetchStaleActiveJobCutoff(now),
         });
 
         let queuedCount = 0;
