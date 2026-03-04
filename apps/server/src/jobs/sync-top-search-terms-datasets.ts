@@ -26,10 +26,10 @@ const syncTopSearchTermsDatasetsInput = z.object({});
 
 export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-datasets', {
     persistSuccess: 'didWork',
-    startupSummary: 'cron: every 15m',
+    startupSummary: 'cron: every 5m',
 })
     .input(syncTopSearchTermsDatasetsInput)
-    .cron({ cron: '*/15 * * * *', payload: {} })
+    .cron({ cron: '*/5 * * * *', payload: {} })
     .options({
         singletonKey: 'sync-top-search-terms-datasets',
         retryLimit: 0,

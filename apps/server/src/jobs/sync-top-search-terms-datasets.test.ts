@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'bun:test';
 
 describe('syncTopSearchTermsDatasetsJob', () => {
-    it('runs every 15 minutes with a singleton wakeup key', async () => {
+    it('runs every 5 minutes with a singleton wakeup key', async () => {
         const { syncTopSearchTermsDatasetsJob } = await loadSubject();
 
         expect(syncTopSearchTermsDatasetsJob.persistSuccess).toBe('didWork');
-        expect(syncTopSearchTermsDatasetsJob.startupSummary).toBe('cron: every 15m');
+        expect(syncTopSearchTermsDatasetsJob.startupSummary).toBe('cron: every 5m');
         expect(syncTopSearchTermsDatasetsJob.schedule).toEqual({
             type: 'cron',
-            cron: '*/15 * * * *',
+            cron: '*/5 * * * *',
             payload: {},
             scheduleOptions: undefined,
         });

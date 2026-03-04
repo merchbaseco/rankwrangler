@@ -173,7 +173,7 @@ describe('getInitialNextRefreshAtForWindow', () => {
 });
 
 describe('TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE', () => {
-    it('limits scheduler enqueueing to one dataset per run', () => {
-        expect(TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE).toBe(1);
+    it('limits scheduler enqueueing to five datasets per run', () => {
+        expect(TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE).toBe(5);
     });
 });

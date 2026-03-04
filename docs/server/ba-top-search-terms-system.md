@@ -48,7 +48,7 @@ Unique key is `(marketplace_id, report_period, data_start_date, data_end_date)`.
 
 File: `apps/server/src/jobs/sync-top-search-terms-datasets.ts`
 
-Runs every 15 minutes and:
+Runs every 5 minutes and:
 
 1. Ensures dataset rows exist for:
    - daily windows for the last 90 days
@@ -63,8 +63,8 @@ Runs every 15 minutes and:
 
 Throughput guardrail:
 
-- Scheduler enqueues at most one due dataset per run (`TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE = 1`)
-  to avoid bursty BA backfill pressure.
+- Scheduler enqueues at most five due datasets per run (`TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE = 5`)
+  to improve backlog drain without introducing bursty BA backfill pressure.
 
 `next_refresh_at` is SLA-aligned for open windows instead of immediate:
 

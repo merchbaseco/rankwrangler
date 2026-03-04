@@ -4,7 +4,7 @@ import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 export const TOP_SEARCH_TERMS_DAILY_RETENTION_DAYS = 90;
 export const TOP_SEARCH_TERMS_WEEKLY_BACKFILL_WEEKS = 52;
-export const TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE = 1;
+export const TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE = 5;
 export const TOP_SEARCH_TERMS_RETRY_DELAY_MS = 30 * 60 * 1000;
 export const TOP_SEARCH_TERMS_PACIFIC_REFRESH_HOUR = 3;
 
