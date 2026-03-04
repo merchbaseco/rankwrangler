@@ -105,18 +105,22 @@ export const normalizeFacetCategoryTotals = (rows: FacetCategoryTotalRow[]) => {
 };
 
 const queryFacetClassificationBuckets = async () => {
-    const windowStart = getFacetMetricsWindowStart(new Date());
-
     const rows = await db.execute<FacetClassificationBucketRow>(sql`
         WITH bucket_indices AS (
             SELECT generate_series(0::int, ${FACET_METRICS_BUCKET_COUNT - 1}::int) AS idx
         ),
+        window_anchor AS (
+            SELECT
+                now()::timestamp
+                    - (${FACET_METRICS_WINDOW_MINUTES}::int * interval '1 minute') AS window_start
+        ),
         buckets AS (
             SELECT
-                ${windowStart}::timestamp
+                wa.window_start
                     + (idx * ${FACET_METRICS_BUCKET_INTERVAL_MINUTES}::int * interval '1 minute')
                     AS bucket_start
             FROM bucket_indices
+            CROSS JOIN window_anchor wa
         )
         SELECT
             b.bucket_start::text,
