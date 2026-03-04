@@ -7,7 +7,7 @@ const FACET_METRICS_BUCKET_INTERVAL_MINUTES = 48;
 const FACET_METRICS_WINDOW_MINUTES =
     FACET_METRICS_BUCKET_COUNT * FACET_METRICS_BUCKET_INTERVAL_MINUTES;
 const MS_PER_MINUTE = 60_000;
-const DECIMAL_NUMBER_REGEX = '^-?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:[eE][+-]?\\d+)?$';
+const DECIMAL_NUMBER_REGEX = '^-?([0-9]+(\\.[0-9]+)?|\\.[0-9]+)([eE][+-]?[0-9]+)?$';
 const decimalNumberPattern = new RegExp(DECIMAL_NUMBER_REGEX);
 
 type FacetClassificationBucketRow = {
