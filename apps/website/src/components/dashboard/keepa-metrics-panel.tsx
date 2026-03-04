@@ -423,6 +423,9 @@ const MetricLabel = ({
 }) => (
     <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         <span>{label}</span>
-        <CircleHelp className="size-3 opacity-70" title={tooltip} aria-label={tooltip} />
+        <span className="inline-flex cursor-help" title={tooltip}>
+            <CircleHelp className="size-3 opacity-70" aria-hidden="true" />
+            <span className="sr-only">{tooltip}</span>
+        </span>
     </div>
 );
