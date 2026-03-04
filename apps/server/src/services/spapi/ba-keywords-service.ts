@@ -9,15 +9,16 @@ import {
     SPAPI_US_MARKETPLACE_ID,
 } from '@/services/spapi/marketplaces.js';
 import {
+    createSpApiHttpError,
+    runWithSpApiBackoff,
+} from '@/services/spapi/spapi-backoff.js';
+import {
     addBaKeywordRowToAccumulator,
     createBaKeywordAccumulator,
     finalizeBaKeywordAccumulator,
     type BaKeywordRow,
     type RawBaSearchTermsRow,
 } from '@/services/spapi/ba-keywords-aggregation.js';
-
-const BA_REPORT_POLL_INTERVAL_MS = 5000;
-const BA_REPORT_POLL_MAX_ATTEMPTS = 90;
 
 export type BaReportPeriod = 'DAY' | 'WEEK';
 
@@ -39,6 +40,11 @@ export type BaKeywordsSnapshot = {
     rows: BaKeywordRow[];
 };
 
+export type BaKeywordsReportStatus = {
+    processingStatus: string;
+    reportDocumentId: string | null;
+};
+
 export type BaKeywordsSnapshotDebug = {
     acceptedTopRows: number;
     dataArrayDetected: boolean;
@@ -57,6 +63,9 @@ reportsApiClient.enableAutoRetrievalAccessToken(
     env.SPAPI_REFRESH_TOKEN,
     null
 );
+// Disable SDK's built-in limiter because it can drop requests under load.
+// Our own Bottleneck limiter below should queue and wait for the next slot.
+reportsApiClient.disableRateLimiter();
 
 const reportsApi = new ReportsSpApi.ReportsApi(reportsApiClient);
 const baReportsLimiter = new Bottleneck({
@@ -81,30 +90,66 @@ type SpApiReportDocumentResponse = {
     compressionAlgorithm?: string | null;
 };
 
-export const fetchBaKeywordsSnapshot = async (
-    params: BaKeywordsParams
-): Promise<BaKeywordsSnapshot> => {
-    if (!isSupportedSpApiMarketplaceId(params.marketplaceId)) {
-        throw new Error(
-            `Unsupported marketplaceId ${params.marketplaceId}. Only ${SPAPI_US_MARKETPLACE_ID} is supported.`
-        );
-    }
+export const requestBaKeywordsReport = async (params: BaKeywordsParams) => {
+    assertSupportedMarketplaceId(params.marketplaceId);
+    return await runWithSpApiBackoff({
+        operation: 'create BA search terms report',
+        run: async () => await createBaSearchTermsReport(params),
+    });
+};
 
-    const reportId = await createBaSearchTermsReport(params);
-    const report = await waitForReportDone(reportId);
+export const getBaKeywordsReportStatus = async (
+    reportId: string
+): Promise<BaKeywordsReportStatus> => {
+    const report = (await runWithSpApiBackoff({
+        operation: `get BA report status (${reportId})`,
+        run: async () =>
+            (await baReportsLimiter.schedule(() =>
+                reportsApi.getReport(reportId)
+            )) as SpApiGetReportResponse,
+    })) as SpApiGetReportResponse;
 
-    if (!report.reportDocumentId) {
-        throw new Error(`BA report ${reportId} completed without a reportDocumentId.`);
-    }
+    return {
+        processingStatus: String(report.processingStatus ?? 'UNKNOWN'),
+        reportDocumentId: report.reportDocumentId ?? null,
+    };
+};
 
-    const document = (await baReportsLimiter.schedule(() =>
-        reportsApi.getReportDocument(report.reportDocumentId)
-    )) as SpApiReportDocumentResponse;
+export const downloadBaKeywordsSnapshot = async ({
+    params,
+    reportDocumentId,
+    reportId,
+}: {
+    params: BaKeywordsParams;
+    reportDocumentId: string;
+    reportId: string;
+}): Promise<BaKeywordsSnapshot> => {
+    assertSupportedMarketplaceId(params.marketplaceId);
+    const document = (await runWithSpApiBackoff({
+        operation: `get BA report document (${reportDocumentId})`,
+        run: async () =>
+            (await baReportsLimiter.schedule(() =>
+                reportsApi.getReportDocument(reportDocumentId)
+            )) as SpApiReportDocumentResponse,
+    })) as SpApiReportDocumentResponse;
 
-    const response = await fetch(document.url);
-    if (!response.ok || !response.body) {
-        throw new Error(`BA report document download failed with status ${response.status}.`);
-    }
+    const response = await runWithSpApiBackoff({
+        operation: `download BA report document (${reportDocumentId})`,
+        run: async () => {
+            const candidate = await fetch(document.url);
+            if (!candidate.ok) {
+                throw createSpApiHttpError(
+                    `BA report document download failed with status ${candidate.status}.`,
+                    candidate.status
+                );
+            }
+            if (!candidate.body) {
+                throw new Error('BA report document download returned an empty response body.');
+            }
+
+            return candidate;
+        },
+    });
 
     const parsed = await parseAndAggregateKeywords({
         compressionAlgorithm: document.compressionAlgorithm ?? null,
@@ -139,27 +184,6 @@ const createBaSearchTermsReport = async (params: BaKeywordsParams) => {
     }
 
     return report.reportId;
-};
-
-const waitForReportDone = async (reportId: string) => {
-    for (let attempt = 0; attempt < BA_REPORT_POLL_MAX_ATTEMPTS; attempt += 1) {
-        const report = (await baReportsLimiter.schedule(() =>
-            reportsApi.getReport(reportId)
-        )) as SpApiGetReportResponse;
-        const status = String(report.processingStatus ?? 'UNKNOWN');
-
-        if (status === 'DONE') {
-            return report;
-        }
-
-        if (status === 'FATAL' || status === 'CANCELLED') {
-            throw new Error(`BA report ${reportId} ended with status ${status}.`);
-        }
-
-        await sleep(BA_REPORT_POLL_INTERVAL_MS);
-    }
-
-    throw new Error(`BA report ${reportId} did not finish in time.`);
 };
 
 const parseAndAggregateKeywords = async ({
@@ -263,4 +287,12 @@ const parseAndAggregateKeywords = async ({
     return { debug, rows };
 };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const assertSupportedMarketplaceId = (marketplaceId: string) => {
+    if (isSupportedSpApiMarketplaceId(marketplaceId)) {
+        return;
+    }
+
+    throw new Error(
+        `Unsupported marketplaceId ${marketplaceId}. Only ${SPAPI_US_MARKETPLACE_ID} is supported.`
+    );
+};

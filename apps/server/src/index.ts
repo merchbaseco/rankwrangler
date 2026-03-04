@@ -8,13 +8,16 @@ import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
 import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
+import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
 import { startJobs } from '@/jobs/index.js';
 import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
+import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
 import {
     registerSpApiSyncQueueWakeups,
     sendProcessSpApiSyncQueueJob,
 } from '@/services/spapi-sync-queue.js';
 import {
+    getTopSearchTermsFetchStaleActiveJobCutoff,
     registerTopSearchTermsJobWakeups,
     sendSyncTopSearchTermsDatasetsJob,
 } from '@/services/top-search-terms-jobs.js';
@@ -44,6 +47,20 @@ await boss.start();
 console.log('[Server] pg-boss initialized');
 registerSpApiSyncQueueWakeups(boss);
 registerTopSearchTermsJobWakeups(boss);
+
+const topSearchTermsRecoveryStartedAt = new Date();
+const topSearchTermsStaleActiveJobCutoff =
+    getTopSearchTermsFetchStaleActiveJobCutoff(topSearchTermsRecoveryStartedAt);
+const recoveredTopSearchTermsDatasetsCount = await recoverStaleTopSearchTermsDatasets({
+    marketplaceId: SPAPI_US_MARKETPLACE_ID,
+    staleActiveJobCutoff: topSearchTermsStaleActiveJobCutoff,
+    recoveredAt: topSearchTermsRecoveryStartedAt,
+});
+if (recoveredTopSearchTermsDatasetsCount > 0) {
+    console.warn(
+        `[Server] Recovered ${recoveredTopSearchTermsDatasetsCount} stale Top Search Terms datasets at startup`
+    );
+}
 
 const jobsRuntime = await startJobs(boss);
 console.log('[Server] Jobs registered');
@@ -206,6 +223,9 @@ try {
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
     console.log('  • User Event Logs: Enabled (dashboard logs page)');
     console.log('  • Top Search Terms: Enabled (dataset scheduler + fetch worker)');
+    console.log(
+        `  • Top Search Terms Startup Recovery: ${recoveredTopSearchTermsDatasetsCount} stale rows reset`
+    );
     const productFacetStatus = env.GEMINI_API_KEY
         ? 'Enabled (Gemini 2.5 Flash Lite)'
         : 'Disabled (GEMINI_API_KEY not set)';

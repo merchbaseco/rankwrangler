@@ -206,6 +206,10 @@ export const startRegisteredJobs = async (
 
                         return jobDefinition.work(typedJob, signal, log, { boss });
                     },
+                }).catch(() => {
+                    // Intentionally swallow worker errors after runTrackedJob persists failure details.
+                    // Queue-level retries are controlled per job via explicit follow-up scheduling.
+                    return undefined;
                 });
             }
         };

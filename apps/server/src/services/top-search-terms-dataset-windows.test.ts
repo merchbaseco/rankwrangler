@@ -5,6 +5,7 @@ import {
     getDailyRetentionCutoffDate,
     getInitialNextRefreshAtForWindow,
     getNextRefreshAtAfterSuccess,
+    TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE,
 } from '@/services/top-search-terms-dataset-windows.js';
 
 describe('buildDailyTopSearchTermsWindows', () => {
@@ -168,5 +169,11 @@ describe('getInitialNextRefreshAtForWindow', () => {
         });
 
         expect(nextRefreshAt.toISOString()).toBe(now.toISOString());
+    });
+});
+
+describe('TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE', () => {
+    it('limits scheduler enqueueing to one dataset per run', () => {
+        expect(TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE).toBe(1);
     });
 });

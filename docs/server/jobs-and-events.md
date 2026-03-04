@@ -14,6 +14,8 @@
   survive process restarts
 - Scheduled jobs are configured with per-job singleton keys to avoid overlapping duplicate
   dispatches
+- Job failures are persisted via `runTrackedJob`; worker-level errors are intentionally swallowed
+  after persistence so queue retries are controlled explicitly by job logic and follow-up scheduling
 
 ## Event Logging Principles
 

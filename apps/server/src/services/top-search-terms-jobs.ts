@@ -2,6 +2,11 @@ import type { PgBoss } from 'pg-boss';
 
 export const FETCH_TOP_SEARCH_TERMS_DATASET_JOB_NAME = 'fetch-top-search-terms-dataset';
 export const SYNC_TOP_SEARCH_TERMS_DATASETS_JOB_NAME = 'sync-top-search-terms-datasets';
+export const TOP_SEARCH_TERMS_FETCH_GROUP_ID = 'top-search-terms-ba-fetch';
+export const TOP_SEARCH_TERMS_FETCH_GROUP_CONCURRENCY = 1;
+export const TOP_SEARCH_TERMS_FETCH_LOCAL_CONCURRENCY = 1;
+export const TOP_SEARCH_TERMS_FETCH_EXPIRE_IN_SECONDS = 60 * 60;
+export const TOP_SEARCH_TERMS_FETCH_STALE_GRACE_SECONDS = 5 * 60;
 
 let topSearchTermsBoss: PgBoss | null = null;
 
@@ -22,6 +27,10 @@ export const sendFetchTopSearchTermsDatasetJob = async ({
         FETCH_TOP_SEARCH_TERMS_DATASET_JOB_NAME,
         { datasetId },
         {
+            expireInSeconds: TOP_SEARCH_TERMS_FETCH_EXPIRE_IN_SECONDS,
+            group: {
+                id: TOP_SEARCH_TERMS_FETCH_GROUP_ID,
+            },
             retryLimit: 0,
             singletonKey: [FETCH_TOP_SEARCH_TERMS_DATASET_JOB_NAME, datasetId].join(':'),
         }
@@ -45,4 +54,10 @@ export const sendSyncTopSearchTermsDatasetsJob = async (): Promise<string | null
     );
 
     return jobId ?? null;
+};
+
+export const getTopSearchTermsFetchStaleActiveJobCutoff = (now: Date = new Date()) => {
+    const staleAfterSeconds =
+        TOP_SEARCH_TERMS_FETCH_EXPIRE_IN_SECONDS + TOP_SEARCH_TERMS_FETCH_STALE_GRACE_SECONDS;
+    return new Date(now.getTime() - staleAfterSeconds * 1000);
 };
