@@ -5,7 +5,7 @@ export const SYNC_TOP_SEARCH_TERMS_DATASETS_JOB_NAME = 'sync-top-search-terms-da
 export const TOP_SEARCH_TERMS_FETCH_GROUP_ID = 'top-search-terms-ba-fetch';
 export const TOP_SEARCH_TERMS_FETCH_GROUP_CONCURRENCY = 1;
 export const TOP_SEARCH_TERMS_FETCH_LOCAL_CONCURRENCY = 1;
-export const TOP_SEARCH_TERMS_FETCH_EXPIRE_IN_SECONDS = 60 * 60;
+export const TOP_SEARCH_TERMS_FETCH_EXPIRE_IN_SECONDS = 15 * 60;
 export const TOP_SEARCH_TERMS_FETCH_STALE_GRACE_SECONDS = 5 * 60;
 
 let topSearchTermsBoss: PgBoss | null = null;

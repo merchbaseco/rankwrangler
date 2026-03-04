@@ -98,8 +98,8 @@ Concurrency guardrail:
 
 - Fetch jobs are sent with a shared pg-boss group id and worker `groupConcurrency = 1`, so only one
   BA report fetch runs at a time across all server instances.
-- Fetch jobs set `expireInSeconds = 3600` so long SP-API report waits are less likely to timeout at
-  the default 15-minute queue expiration.
+- Fetch jobs set `expireInSeconds = 900` to align with the next-best-action flow and prevent
+  long-running active workers from blocking queue throughput.
 - Async BA polling uses 15-minute status checks between runs instead of in-job busy polling.
 - Transient SP-API failures (rate-limit/network/5xx) are retried with exponential backoff before a
   final dataset failure is recorded.

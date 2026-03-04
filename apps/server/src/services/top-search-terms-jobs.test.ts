@@ -72,6 +72,6 @@ describe('getTopSearchTermsFetchStaleActiveJobCutoff', () => {
         const now = new Date('2026-03-04T17:30:00.000Z');
         const cutoff = getTopSearchTermsFetchStaleActiveJobCutoff(now);
 
-        expect(cutoff.toISOString()).toBe('2026-03-04T16:25:00.000Z');
+        expect(cutoff.toISOString()).toBe('2026-03-04T17:10:00.000Z');
     });
 });
