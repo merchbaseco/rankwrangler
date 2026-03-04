@@ -11,9 +11,11 @@ const TOP_SEARCH_TERMS_JOB_NAMES = [
 ] as const;
 
 type TopSearchTermsMetricView = 'datasets' | 'success' | 'failed';
+type DatasetTab = 'daily' | 'weekly';
 
 export const TopSearchTermsMetricsPanel = () => {
     const [selectedView, setSelectedView] = useState<TopSearchTermsMetricView>('datasets');
+    const [datasetTab, setDatasetTab] = useState<DatasetTab>('daily');
 
     const statusQuery = api.api.app.topSearchTermsStatus.useQuery(undefined, {
         refetchInterval: SETTINGS_METRICS_POLL_INTERVAL_MS,
@@ -57,6 +59,7 @@ export const TopSearchTermsMetricsPanel = () => {
     }
 
     const { stats, datasets } = statusQuery.data;
+    const activeDatasetRows = datasetTab === 'daily' ? datasets.daily : datasets.weekly;
 
     return (
         <div className="flex h-full flex-col">
@@ -104,20 +107,26 @@ export const TopSearchTermsMetricsPanel = () => {
                 />
             </div>
 
+            {selectedView === 'datasets' && (
+                <div className="flex items-center gap-0 border-b border-border">
+                    <DatasetTabButton
+                        label="Daily"
+                        count={datasets.daily.length}
+                        isActive={datasetTab === 'daily'}
+                        onClick={() => setDatasetTab('daily')}
+                    />
+                    <DatasetTabButton
+                        label="Weekly"
+                        count={datasets.weekly.length}
+                        isActive={datasetTab === 'weekly'}
+                        onClick={() => setDatasetTab('weekly')}
+                    />
+                </div>
+            )}
+
             <div className="min-h-0 flex-1 overflow-auto">
                 {selectedView === 'datasets' ? (
-                    <>
-                        <TopSearchTermsDatasetTable
-                            title="Daily Datasets"
-                            subtitle="Day-level windows (rolling retention)"
-                            rows={datasets.daily}
-                        />
-                        <TopSearchTermsDatasetTable
-                            title="Weekly Datasets"
-                            subtitle="Week-level windows (long-term history)"
-                            rows={datasets.weekly}
-                        />
-                    </>
+                    <TopSearchTermsDatasetTable rows={activeDatasetRows} />
                 ) : jobQuery.isLoading ? (
                     <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>
                 ) : jobQuery.error ? (
@@ -127,7 +136,6 @@ export const TopSearchTermsMetricsPanel = () => {
                 ) : (
                     <TopSearchTermsJobExecutionsTable
                         jobs={jobQuery.data ?? []}
-                        filter={selectedView}
                     />
                 )}
             </div>
@@ -157,7 +165,7 @@ const StatTile = ({
             className={cn(
                 'cursor-pointer p-3 text-left transition-colors hover:bg-accent',
                 withLeftBorder && 'border-l border-border',
-                isSelected && 'bg-accent'
+                isSelected && 'bg-accent',
             )}
         >
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -169,3 +177,29 @@ const StatTile = ({
         </button>
     );
 };
+
+const DatasetTabButton = ({
+    label,
+    count,
+    isActive,
+    onClick,
+}: {
+    label: string;
+    count: number;
+    isActive: boolean;
+    onClick: () => void;
+}) => (
+    <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+            'px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider transition-colors',
+            isActive
+                ? 'border-b-2 border-foreground text-foreground'
+                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+        )}
+    >
+        {label}
+        <span className="ml-1.5 font-mono text-muted-foreground">{formatNumber(count)}</span>
+    </button>
+);

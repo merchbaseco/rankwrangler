@@ -106,12 +106,7 @@ export const ProductFacetMetricsPanel = () => {
                 </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col border-t border-border">
-                <div className="border-b border-border bg-accent px-3 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Facet Values
-                    </p>
-                </div>
+            <div className="flex min-h-0 flex-1 flex-col">
                 {facetValueTotals.length === 0 ? (
                     <p className="px-3 py-3 text-xs text-muted-foreground">
                         No facet values assigned yet.

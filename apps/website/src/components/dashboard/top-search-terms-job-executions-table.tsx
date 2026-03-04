@@ -10,10 +10,8 @@ type JobExecution = RouterOutputs['api']['app']['jobExecutions'][number];
 
 export const TopSearchTermsJobExecutionsTable = ({
     jobs,
-    filter,
 }: {
     jobs: JobExecution[];
-    filter: 'success' | 'failed';
 }) => {
     if (jobs.length === 0) {
         return <p className="px-3 py-2 text-xs text-muted-foreground">No jobs found.</p>;
@@ -21,17 +19,6 @@ export const TopSearchTermsJobExecutionsTable = ({
 
     return (
         <div className="flex min-h-0 flex-1 flex-col">
-            <div className="border-b border-border bg-accent px-3 py-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    {filter === 'success'
-                        ? 'Recent Successful Top Search Terms Jobs'
-                        : 'Recent Failed Top Search Terms Jobs'}
-                </p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                    100 most recent sync/fetch executions with concise output summaries
-                </p>
-            </div>
-
             <div className="min-h-0 flex-1 overflow-auto">
                 <table className="w-full text-xs">
                     <thead className="sticky top-0 bg-accent">
