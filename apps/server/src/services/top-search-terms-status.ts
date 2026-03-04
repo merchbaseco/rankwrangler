@@ -27,20 +27,28 @@ type TopSearchTermsStatusDatasetRow = {
 
 type TopSearchTermsStatusDatasetSqlRow = TopSearchTermsStatusDatasetRow;
 
-type JobTotalsRow = {
-    successCount: number;
-    failedCount: number;
-};
-
 type KeywordTotalsRow = {
     totalKeywordRows: number;
+};
+
+type KeywordBucketsRow = {
+    total: number;
+};
+
+type JobBucketsRow = {
+    success: number;
+    errors: number;
 };
 
 export type TopSearchTermsStatusResponse = {
     stats: {
         totalTopSearchTerms: number;
+        topSearchTermsBuckets: number[];
         jobSuccesses: number;
+        jobSuccessBuckets: number[];
         jobFailures: number;
+        jobFailureBuckets: number[];
+        timeDomainLabel: string;
     };
     datasets: {
         daily: TopSearchTermsStatusDatasetRow[];
@@ -49,9 +57,10 @@ export type TopSearchTermsStatusResponse = {
 };
 
 export const getTopSearchTermsStatus = async (): Promise<TopSearchTermsStatusResponse> => {
-    const [keywordTotals, jobTotals, dailyRows, weeklyRows] = await Promise.all([
+    const [keywordTotals, keywordBuckets, jobBuckets, dailyRows, weeklyRows] = await Promise.all([
         queryKeywordTotals(),
-        queryJobTotals(),
+        queryKeywordBuckets(),
+        queryJobBuckets(),
         queryDatasetsByPeriod('DAY', 120),
         queryDatasetsByPeriod('WEEK', 120),
     ]);
@@ -59,8 +68,12 @@ export const getTopSearchTermsStatus = async (): Promise<TopSearchTermsStatusRes
     return {
         stats: {
             totalTopSearchTerms: keywordTotals.totalKeywordRows,
-            jobSuccesses: jobTotals.successCount,
-            jobFailures: jobTotals.failedCount,
+            topSearchTermsBuckets: keywordBuckets.map((bucket) => bucket.total),
+            jobSuccesses: sum(jobBuckets.map((bucket) => bucket.success)),
+            jobSuccessBuckets: jobBuckets.map((bucket) => bucket.success),
+            jobFailures: sum(jobBuckets.map((bucket) => bucket.errors)),
+            jobFailureBuckets: jobBuckets.map((bucket) => bucket.errors),
+            timeDomainLabel: formatTimeDomainLabel(BUCKET_WINDOW_MINUTES),
         },
         datasets: {
             daily: dailyRows,
@@ -78,19 +91,53 @@ const queryKeywordTotals = async (): Promise<KeywordTotalsRow> => {
     return row ?? { totalKeywordRows: 0 };
 };
 
-const queryJobTotals = async (): Promise<JobTotalsRow> => {
-    const [row] = await db.execute<JobTotalsRow>(sql`
-        SELECT
-            coalesce(count(*) FILTER (WHERE status = 'success'), 0)::int AS "successCount",
-            coalesce(count(*) FILTER (WHERE status = 'failed'), 0)::int AS "failedCount"
-        FROM job_executions
-        WHERE job_name IN (
-            ${TOP_SEARCH_TERMS_FETCH_JOB_NAMES[0]},
-            ${TOP_SEARCH_TERMS_FETCH_JOB_NAMES[1]}
+const queryKeywordBuckets = async (): Promise<KeywordBucketsRow[]> => {
+    const rows = await db.execute<KeywordBucketsRow>(sql`
+        WITH buckets AS (
+            SELECT generate_series(
+                date_trunc('hour', now() - interval '23 hours'),
+                date_trunc('hour', now()),
+                interval '48 minutes'
+            ) AS bucket_start
         )
+        SELECT
+            coalesce(count(k.id), 0)::int AS total
+        FROM buckets b
+        LEFT JOIN top_search_terms_keyword_daily k
+            ON k.created_at >= b.bucket_start
+            AND k.created_at < b.bucket_start + interval '48 minutes'
+        GROUP BY b.bucket_start
+        ORDER BY b.bucket_start
     `);
 
-    return row ?? { successCount: 0, failedCount: 0 };
+    return [...rows];
+};
+
+const queryJobBuckets = async (): Promise<JobBucketsRow[]> => {
+    const rows = await db.execute<JobBucketsRow>(sql`
+        WITH buckets AS (
+            SELECT generate_series(
+                date_trunc('hour', now() - interval '23 hours'),
+                date_trunc('hour', now()),
+                interval '48 minutes'
+            ) AS bucket_start
+        )
+        SELECT
+            coalesce(count(je.id) FILTER (WHERE je.status = 'success'), 0)::int AS success,
+            coalesce(count(je.id) FILTER (WHERE je.status = 'failed'), 0)::int AS errors
+        FROM buckets b
+        LEFT JOIN job_executions je
+            ON je.started_at >= b.bucket_start
+            AND je.started_at < b.bucket_start + interval '48 minutes'
+            AND je.job_name IN (
+                ${TOP_SEARCH_TERMS_FETCH_JOB_NAMES[0]},
+                ${TOP_SEARCH_TERMS_FETCH_JOB_NAMES[1]}
+            )
+        GROUP BY b.bucket_start
+        ORDER BY b.bucket_start
+    `);
+
+    return [...rows];
 };
 
 const queryDatasetsByPeriod = async (
@@ -145,3 +192,17 @@ const normalizeDatasetRowTimestamps = (
         latestFetchedAt: toUtcIsoTimestamp(row.latestFetchedAt),
     };
 };
+
+const formatTimeDomainLabel = (minutes: number) => {
+    if (minutes % 60 === 0) {
+        return `${minutes / 60}hr`;
+    }
+
+    return `${minutes}m`;
+};
+
+const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
+const BUCKET_COUNT = 30;
+const BUCKET_INTERVAL_MINUTES = 48;
+const BUCKET_WINDOW_MINUTES = BUCKET_COUNT * BUCKET_INTERVAL_MINUTES;

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { TopSearchTermsDatasetTable } from '@/components/dashboard/top-search-terms-dataset-table';
 import { TopSearchTermsJobExecutionsTable } from '@/components/dashboard/top-search-terms-job-executions-table';
+import { withTimeDomainLabel } from '@/components/dashboard/metrics-time-domain-label';
 import { api } from '@/lib/trpc';
 import { cn, formatNumber } from '@/lib/utils';
 
@@ -12,6 +13,13 @@ const TOP_SEARCH_TERMS_JOB_NAMES = [
 
 type TopSearchTermsMetricView = 'datasets' | 'success' | 'failed';
 type DatasetTab = 'daily' | 'weekly';
+type StatType = 'neutral' | 'success' | 'error';
+
+const STAT_STYLES: Record<StatType, { colorClassName: string; stroke: string }> = {
+    neutral: { colorClassName: 'text-foreground', stroke: 'var(--color-foreground)' },
+    success: { colorClassName: 'text-success-foreground', stroke: 'var(--color-success)' },
+    error: { colorClassName: 'text-destructive', stroke: 'var(--color-destructive)' },
+};
 
 export const TopSearchTermsMetricsPanel = () => {
     const [selectedView, setSelectedView] = useState<TopSearchTermsMetricView>('datasets');
@@ -67,7 +75,9 @@ export const TopSearchTermsMetricsPanel = () => {
                 <StatTile
                     label="Top Search Terms"
                     value={formatNumber(stats.totalTopSearchTerms)}
-                    valueClassName="text-foreground"
+                    valueClassName={STAT_STYLES.neutral.colorClassName}
+                    sparklineStroke={STAT_STYLES.neutral.stroke}
+                    buckets={toCumulativeBuckets(stats.topSearchTermsBuckets)}
                     isSelected={selectedView === 'datasets'}
                     onClick={() => {
                         if (selectedView === 'datasets') {
@@ -78,9 +88,11 @@ export const TopSearchTermsMetricsPanel = () => {
                     }}
                 />
                 <StatTile
-                    label="Job Successes"
+                    label={withTimeDomainLabel('Job Successes', stats.timeDomainLabel)}
                     value={formatNumber(stats.jobSuccesses)}
-                    valueClassName="text-success-foreground"
+                    valueClassName={STAT_STYLES.success.colorClassName}
+                    sparklineStroke={STAT_STYLES.success.stroke}
+                    buckets={stats.jobSuccessBuckets}
                     withLeftBorder
                     isSelected={selectedView === 'success'}
                     onClick={() => {
@@ -92,9 +104,11 @@ export const TopSearchTermsMetricsPanel = () => {
                     }}
                 />
                 <StatTile
-                    label="Job Failures"
+                    label={withTimeDomainLabel('Job Failures', stats.timeDomainLabel)}
                     value={formatNumber(stats.jobFailures)}
-                    valueClassName="text-destructive"
+                    valueClassName={STAT_STYLES.error.colorClassName}
+                    sparklineStroke={STAT_STYLES.error.stroke}
+                    buckets={stats.jobFailureBuckets}
                     withLeftBorder
                     isSelected={selectedView === 'failed'}
                     onClick={() => {
@@ -147,6 +161,8 @@ const StatTile = ({
     label,
     value,
     valueClassName,
+    sparklineStroke,
+    buckets,
     onClick,
     isSelected = false,
     withLeftBorder = false,
@@ -154,6 +170,8 @@ const StatTile = ({
     label: string;
     value: string;
     valueClassName: string;
+    sparklineStroke: string;
+    buckets: number[];
     onClick?: () => void;
     isSelected?: boolean;
     withLeftBorder?: boolean;
@@ -174,6 +192,7 @@ const StatTile = ({
             <p className={cn('stat-value mt-1 font-mono text-2xl font-bold', valueClassName)}>
                 {value}
             </p>
+            <Sparkline buckets={buckets} stroke={sparklineStroke} id={label} />
         </button>
     );
 };
@@ -203,3 +222,66 @@ const DatasetTabButton = ({
         <span className="ml-1.5 font-mono text-muted-foreground">{formatNumber(count)}</span>
     </button>
 );
+
+const SPARKLINE_VIEWBOX_WIDTH = 200;
+const SPARKLINE_VIEWBOX_HEIGHT = 32;
+
+const Sparkline = ({
+    buckets,
+    stroke,
+    id,
+}: {
+    buckets: number[];
+    stroke: string;
+    id: string;
+}) => {
+    if (buckets.length === 0) {
+        return null;
+    }
+
+    const maxValue = Math.max(...buckets, 1);
+    const stepX = SPARKLINE_VIEWBOX_WIDTH / (buckets.length - 1 || 1);
+    const normalizedId = id
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    const gradientId = `top-search-terms-spark-${normalizedId}`;
+
+    const points = buckets.map((bucketValue, index) => ({
+        x: index * stepX,
+        y:
+            SPARKLINE_VIEWBOX_HEIGHT -
+            (bucketValue / maxValue) * SPARKLINE_VIEWBOX_HEIGHT * 0.85 -
+            SPARKLINE_VIEWBOX_HEIGHT * 0.05,
+    }));
+
+    const linePath = points
+        .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
+        .join(' ');
+    const areaPath = `${linePath} L${SPARKLINE_VIEWBOX_WIDTH},${SPARKLINE_VIEWBOX_HEIGHT} L0,${SPARKLINE_VIEWBOX_HEIGHT} Z`;
+
+    return (
+        <svg
+            viewBox={`0 0 ${SPARKLINE_VIEWBOX_WIDTH} ${SPARKLINE_VIEWBOX_HEIGHT}`}
+            className="mt-1.5 h-6 w-full"
+            preserveAspectRatio="none"
+        >
+            <defs>
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={stroke} stopOpacity="0.12" />
+                    <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+                </linearGradient>
+            </defs>
+            <path d={areaPath} fill={`url(#${gradientId})`} />
+            <path d={linePath} fill="none" stroke={stroke} strokeWidth="1.5" />
+        </svg>
+    );
+};
+
+const toCumulativeBuckets = (buckets: number[]) => {
+    let runningTotal = 0;
+    return buckets.map((bucket) => {
+        runningTotal += bucket;
+        return runningTotal;
+    });
+};
