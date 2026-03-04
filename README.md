@@ -15,7 +15,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
     and uses async 15-minute report-status checks (with 3-hour pending timeout) to keep SP-API
     backfill throughput stable;
     scheduler runs every 5 minutes and prioritizes earliest due `next_refresh_at` to avoid
-    dataset starvation
+    dataset starvation;
+    weekly windows use Sunday-Saturday boundaries to match SP-API requirements
   - Product facets are AI-classified asynchronously (Gemini 2.5 Flash Lite) into normalized
     facet categories for dashboard filtering, and can be manually triggered per product from
     the product drawer

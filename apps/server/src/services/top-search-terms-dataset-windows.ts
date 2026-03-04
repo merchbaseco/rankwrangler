@@ -40,7 +40,7 @@ export const buildWeeklyTopSearchTermsWindows = ({
     today: string;
     weeks: number;
 }): TopSearchTermsWindow[] => {
-    const currentWeekStart = getMondayStartOfWeek(today);
+    const currentWeekStart = getSundayStartOfWeek(today);
     const windows: TopSearchTermsWindow[] = [];
 
     for (let index = 0; index < weeks; index += 1) {
@@ -74,7 +74,7 @@ export const getDefaultTopSearchTermsWindow = ({
         };
     }
 
-    const weekStart = getMondayStartOfWeek(today);
+    const weekStart = getSundayStartOfWeek(today);
     return {
         marketplaceId,
         reportPeriod,
@@ -137,11 +137,11 @@ export const getInitialNextRefreshAtForWindow = ({
     return scheduledRefreshAt.getTime() > now.getTime() ? scheduledRefreshAt : now;
 };
 
-const getMondayStartOfWeek = (dateString: string) => {
+const getSundayStartOfWeek = (dateString: string) => {
     const current = parseDateString(dateString);
     const day = current.getUTCDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
-    return formatDateString(new Date(current.getTime() + mondayOffset * DAY_MS));
+    const sundayOffset = -day;
+    return formatDateString(new Date(current.getTime() + sundayOffset * DAY_MS));
 };
 
 const shiftDateString = (dateString: string, deltaDays: number) => {

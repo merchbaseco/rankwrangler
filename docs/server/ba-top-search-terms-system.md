@@ -52,7 +52,7 @@ Runs every 5 minutes and:
 
 1. Ensures dataset rows exist for:
    - daily windows for the last 90 days
-   - weekly windows (rolling backfill seed, retained indefinitely once inserted)
+   - weekly windows (Sunday-Saturday boundaries, rolling backfill seed, retained indefinitely once inserted)
 2. Prunes daily datasets older than the 90-day retention boundary.
 3. Finds due datasets (`next_refresh_at <= now`) where either:
    - `refreshing = false`, or

@@ -40,7 +40,7 @@ describe('buildDailyTopSearchTermsWindows', () => {
 });
 
 describe('buildWeeklyTopSearchTermsWindows', () => {
-    it('anchors to monday-start weeks', () => {
+    it('anchors to sunday-start weeks', () => {
         const windows = buildWeeklyTopSearchTermsWindows({
             marketplaceId: 'ATVPDKIKX0DER',
             today: '2026-03-03',
@@ -51,14 +51,14 @@ describe('buildWeeklyTopSearchTermsWindows', () => {
             {
                 marketplaceId: 'ATVPDKIKX0DER',
                 reportPeriod: 'WEEK',
-                dataStartDate: '2026-03-02',
-                dataEndDate: '2026-03-08',
+                dataStartDate: '2026-03-01',
+                dataEndDate: '2026-03-07',
             },
             {
                 marketplaceId: 'ATVPDKIKX0DER',
                 reportPeriod: 'WEEK',
-                dataStartDate: '2026-02-23',
-                dataEndDate: '2026-03-01',
+                dataStartDate: '2026-02-22',
+                dataEndDate: '2026-02-28',
             },
         ]);
     });
@@ -89,14 +89,14 @@ describe('getNextRefreshAtAfterSuccess', () => {
         const weekRefresh = getNextRefreshAtAfterSuccess({
             dataset: {
                 reportPeriod: 'WEEK',
-                dataEndDate: '2026-03-08',
+                dataEndDate: '2026-03-07',
             },
             now,
             today: '2026-03-03',
         });
 
         expect(dayRefresh?.toISOString()).toBe('2026-03-07T11:00:00.000Z');
-        expect(weekRefresh?.toISOString()).toBe('2026-03-11T10:00:00.000Z');
+        expect(weekRefresh?.toISOString()).toBe('2026-03-10T10:00:00.000Z');
     });
 
     it('uses saturday-specific daily SLA timing', () => {
@@ -129,7 +129,7 @@ describe('getNextRefreshAtAfterSuccess', () => {
             getNextRefreshAtAfterSuccess({
                 dataset: {
                     reportPeriod: 'WEEK',
-                    dataEndDate: '2026-03-01',
+                    dataEndDate: '2026-02-28',
                 },
                 now,
                 today: '2026-03-03',
