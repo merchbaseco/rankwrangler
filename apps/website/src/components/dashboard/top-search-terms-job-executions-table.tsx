@@ -119,7 +119,7 @@ const summarizeTopSearchTermsExecution = (execution: JobExecution) => {
             insertedCount !== null &&
             deletedCount !== null
         ) {
-            return `Queued ${queuedCount}/${dueCount}; inserted ${insertedCount}, deleted ${deletedCount}`;
+            return `Scheduled fetch jobs ${queuedCount}/${dueCount}; inserted ${insertedCount}, deleted ${deletedCount}`;
         }
     }
 
