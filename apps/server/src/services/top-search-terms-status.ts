@@ -61,8 +61,8 @@ export const getTopSearchTermsStatus = async (): Promise<TopSearchTermsStatusRes
         queryKeywordTotals(),
         queryKeywordBuckets(),
         queryJobBuckets(),
-        queryDatasetsByPeriod('DAY', 120),
-        queryDatasetsByPeriod('WEEK', 120),
+        queryDatasetsByPeriod('DAY', DAILY_DATASET_LIMIT),
+        queryDatasetsByPeriod('WEEK', WEEKLY_DATASET_LIMIT),
     ]);
 
     return {
@@ -84,8 +84,8 @@ export const getTopSearchTermsStatus = async (): Promise<TopSearchTermsStatusRes
 
 const queryKeywordTotals = async (): Promise<KeywordTotalsRow> => {
     const [row] = await db.execute<KeywordTotalsRow>(sql`
-        SELECT count(*)::int AS "totalKeywordRows"
-        FROM top_search_terms_keyword_daily
+        SELECT coalesce(sum(keyword_count), 0)::int AS "totalKeywordRows"
+        FROM top_search_terms_snapshots
     `);
 
     return row ?? { totalKeywordRows: 0 };
@@ -101,11 +101,11 @@ const queryKeywordBuckets = async (): Promise<KeywordBucketsRow[]> => {
             ) AS bucket_start
         )
         SELECT
-            coalesce(count(k.id), 0)::int AS total
+            coalesce(sum(s.keyword_count), 0)::int AS total
         FROM buckets b
-        LEFT JOIN top_search_terms_keyword_daily k
-            ON k.created_at >= b.bucket_start
-            AND k.created_at < b.bucket_start + interval '48 minutes'
+        LEFT JOIN top_search_terms_snapshots s
+            ON s.created_at >= b.bucket_start
+            AND s.created_at < b.bucket_start + interval '48 minutes'
         GROUP BY b.bucket_start
         ORDER BY b.bucket_start
     `);
@@ -206,3 +206,5 @@ const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 const BUCKET_COUNT = 30;
 const BUCKET_INTERVAL_MINUTES = 48;
 const BUCKET_WINDOW_MINUTES = BUCKET_COUNT * BUCKET_INTERVAL_MINUTES;
+const DAILY_DATASET_LIMIT = 90;
+const WEEKLY_DATASET_LIMIT = 52;
