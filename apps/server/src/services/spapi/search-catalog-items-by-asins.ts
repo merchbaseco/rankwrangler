@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { trackSpApiCall, trackSpApiError } from '@/services/posthog.js';
+import { createSpApiClient } from '@/services/spapi/spapi-client.js';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import type { ProductInfo } from '@/types/index.js';
 import { classifyMerchBullets } from '@/utils/merch-bullets.js';
 import { formatZodErrorMessage, formatZodValidationErrors } from '@/utils/zod.js';
-import { catalogApi, spApiRateLimiter } from './index.js';
 import {
     getMarketplaceBulletPoints,
     ItemSchema,
@@ -14,6 +14,7 @@ import {
 
 // Return type for searchCatalogItemsByAsins (omits rootCategoryDisplayName which is derived from rootCategoryId)
 type SearchCatalogItemsResult = Omit<ProductInfo, 'rootCategoryDisplayName'>;
+const spApiClient = createSpApiClient();
 
 // Get product info using searchCatalogItems API (supports single or multiple ASINs)
 export const searchCatalogItemsByAsins = async (
@@ -37,14 +38,10 @@ export const searchCatalogItemsByAsins = async (
 
     let rawResponse: any;
     try {
-        rawResponse = await spApiRateLimiter.schedule(() =>
-            catalogApi.searchCatalogItems([marketplaceId], {
-                identifiers: asins,
-                identifiersType: 'ASIN',
-                includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
-                pageSize: 20,
-            })
-        );
+        rawResponse = await spApiClient.searchCatalogItemsByAsins({
+            asins,
+            marketplaceId,
+        });
     } catch (error) {
         trackSpApiError({
             caller,

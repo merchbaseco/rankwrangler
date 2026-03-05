@@ -10,6 +10,7 @@ import {
     formatDuration,
 } from '@/components/dashboard/job-executions-panel/formatters';
 import { withTimeDomainLabel } from '@/components/dashboard/metrics-time-domain-label';
+import { SpApiRateLimiterPanel } from '@/components/dashboard/spapi-rate-limiter-panel';
 import { SpApiRefreshPolicyPanel } from '@/components/dashboard/spapi-refresh-policy-panel';
 import { api } from '@/lib/trpc';
 import { cn, formatNumber } from '@/lib/utils';
@@ -44,6 +45,8 @@ export const SpApiMetricsPanel = () => {
     const stats = allStats.filter((s) => s.label.startsWith('SP-API'));
     const timeDomainLabel = statsQuery.data?.timeDomainLabel;
     const refreshPolicyBuckets = statsQuery.data?.spApiRefreshPolicyBuckets ?? [];
+    const operationRateLimiterStats =
+        statsQuery.data?.spApiOperationRateLimiterStats ?? [];
     const isLoading = statsQuery.isLoading;
 
     const defaultSelectedStat = stats
@@ -142,6 +145,13 @@ export const SpApiMetricsPanel = () => {
             <div className="border-t border-border">
                 <SpApiRefreshPolicyPanel
                     buckets={refreshPolicyBuckets}
+                    isLoading={isLoading}
+                />
+            </div>
+
+            <div className="border-t border-border">
+                <SpApiRateLimiterPanel
+                    operationStats={operationRateLimiterStats}
                     isLoading={isLoading}
                 />
             </div>

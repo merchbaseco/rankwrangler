@@ -5,6 +5,10 @@ import {
     type KeepaRefreshPolicyBucketStat,
     type SpApiRefreshPolicyBucketStat,
 } from '@/services/admin-refresh-policy-buckets.js';
+import {
+    createSpApiClient,
+    type SpApiOperationRateLimiterStat,
+} from '@/services/spapi/spapi-client.js';
 import { db } from '@/db/index.js';
 import { KEEPA_FETCH_SUCCESS_GUARD_LABEL } from '@/services/keepa-refresh-policy.js';
 
@@ -40,6 +44,7 @@ export type AdminStatsResponse = {
     keepaRefreshPolicyBuckets: KeepaRefreshPolicyBucketStat[];
     keepaFetchGuardLabel: string;
     keepaMerchCoverage: KeepaMerchCoverageStats;
+    spApiOperationRateLimiterStats: SpApiOperationRateLimiterStat[];
 };
 
 const BUCKET_COUNT = 30;
@@ -53,12 +58,14 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
         spApiRefreshPolicyBuckets,
         keepaRefreshPolicyBuckets,
         keepaMerchCoverage,
+        spApiOperationRateLimiterStats,
     ] = await Promise.all([
         queryKeepaBuckets(),
         querySpApiJobBuckets(),
         getSpApiRefreshPolicyBuckets(),
         getKeepaRefreshPolicyBuckets(),
         queryKeepaMerchCoverage(),
+        createSpApiClient().getOperationRateLimiterStats(),
     ]);
 
     const keepaTotal = sum(keepaBuckets.map((b) => b.total));
@@ -107,6 +114,7 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
         keepaRefreshPolicyBuckets,
         keepaFetchGuardLabel: KEEPA_FETCH_SUCCESS_GUARD_LABEL,
         keepaMerchCoverage,
+        spApiOperationRateLimiterStats,
     };
 };
 

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { trackSpApiCall, trackSpApiError } from '@/services/posthog.js';
+import { createSpApiClient } from '@/services/spapi/spapi-client.js';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import { classifyMerchBullets } from '@/utils/merch-bullets.js';
 import { formatZodErrorMessage, formatZodValidationErrors } from '@/utils/zod.js';
-import { catalogApi, spApiRateLimiter } from './index.js';
 import {
     getMarketplaceBulletPoints,
     ItemSchema,
@@ -47,6 +47,7 @@ type CachedKeywordSearchEntry = {
 };
 
 const keywordSearchCache = new Map<string, CachedKeywordSearchEntry>();
+const spApiClient = createSpApiClient();
 
 export const searchCatalogItemsByKeyword = async ({
     marketplaceId,
@@ -90,13 +91,11 @@ export const searchCatalogItemsByKeyword = async ({
 
     let rawResponse: unknown;
     try {
-        rawResponse = await spApiRateLimiter.schedule(() =>
-            catalogApi.searchCatalogItems([marketplaceId], {
-                keywords: [normalizedKeyword],
-                includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
-                pageSize: clampedPageSize,
-            })
-        );
+        rawResponse = await spApiClient.searchCatalogItemsByKeyword({
+            keyword: normalizedKeyword,
+            marketplaceId,
+            pageSize: clampedPageSize,
+        });
     } catch (error) {
         trackSpApiError({
             caller,

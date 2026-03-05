@@ -1,13 +1,9 @@
 import { Readable } from 'node:stream';
 import { createGunzip } from 'node:zlib';
-// @ts-expect-error - SDK doesn't export types properly in package.json
-import { ReportsSpApi } from '@amazon-sp-api-release/amazon-sp-api-sdk-js';
-import Bottleneck from 'bottleneck';
 import {
     isSupportedSpApiMarketplaceId,
     SPAPI_US_MARKETPLACE_ID,
 } from '@/services/spapi/marketplaces.js';
-import { createSpApiHttpError, runWithSpApiBackoff } from '@/services/spapi/spapi-backoff.js';
 import { createSpApiClient } from '@/services/spapi/spapi-client.js';
 import {
     addBaKeywordRowToAccumulator,
@@ -49,14 +45,6 @@ export type BaKeywordsSnapshotDebug = {
     rejectedByReason: Record<string, number>;
 };
 const spApiClient = createSpApiClient();
-const reportsApi = new ReportsSpApi.ReportsApi(spApiClient.reports);
-const baReportsLimiter = new Bottleneck({
-    maxConcurrent: 1,
-    minTime: 500,
-    reservoir: 2,
-    reservoirRefreshAmount: 2,
-    reservoirRefreshInterval: 1000,
-});
 const BA_REPORT_DOCUMENT_DOWNLOAD_TIMEOUT_MS = 120_000;
 type SpApiCreateReportResponse = {
     reportId?: string | null;
@@ -77,10 +65,7 @@ export const requestBaKeywordsReport = async (params: BaKeywordsParams) => {
 export const getBaKeywordsReportStatus = async (
     reportId: string
 ): Promise<BaKeywordsReportStatus> => {
-    const report = (await runReportsApiCall({
-        operation: `get BA report status (${reportId})`,
-        run: async () => (await reportsApi.getReport(reportId)) as SpApiGetReportResponse,
-    })) as SpApiGetReportResponse;
+    const report = (await spApiClient.getReport(reportId)) as SpApiGetReportResponse;
 
     return {
         processingStatus: String(report.processingStatus ?? 'UNKNOWN'),
@@ -98,31 +83,13 @@ export const downloadBaKeywordsSnapshot = async ({
     reportId: string;
 }): Promise<BaKeywordsSnapshot> => {
     assertSupportedMarketplaceId(params.marketplaceId);
-    const document = (await runReportsApiCall({
-        operation: `get BA report document (${reportDocumentId})`,
-        run: async () =>
-            (await reportsApi.getReportDocument(reportDocumentId)) as SpApiReportDocumentResponse,
-    })) as SpApiReportDocumentResponse;
-
-    const response = await runWithSpApiBackoff({
+    const document = (await spApiClient.getReportDocument(
+        reportDocumentId
+    )) as SpApiReportDocumentResponse;
+    const response = await spApiClient.fetchWithTimeoutAndBackoff({
         operation: `download BA report document (${reportDocumentId})`,
-        run: async () => {
-            const candidate = await spApiClient.fetchWithTimeout(
-                document.url,
-                BA_REPORT_DOCUMENT_DOWNLOAD_TIMEOUT_MS
-            );
-            if (!candidate.ok) {
-                throw createSpApiHttpError(
-                    `BA report document download failed with status ${candidate.status}.`,
-                    candidate.status
-                );
-            }
-            if (!candidate.body) {
-                throw new Error('BA report document download returned an empty response body.');
-            }
-
-            return candidate;
-        },
+        timeoutMs: BA_REPORT_DOCUMENT_DOWNLOAD_TIMEOUT_MS,
+        url: document.url,
     });
     const responseBody = response.body;
     if (!responseBody) {
@@ -147,16 +114,12 @@ export const downloadBaKeywordsSnapshot = async ({
 };
 
 const createBaSearchTermsReport = async (params: BaKeywordsParams) => {
-    const report = (await runReportsApiCall({
-        operation: 'create BA search terms report',
-        run: async () =>
-            (await reportsApi.createReport({
-                dataEndTime: `${params.dataEndDate}T23:59:59Z`,
-                dataStartTime: `${params.dataStartDate}T00:00:00Z`,
-                marketplaceIds: [params.marketplaceId],
-                reportOptions: { reportPeriod: params.reportPeriod },
-                reportType: 'GET_BRAND_ANALYTICS_SEARCH_TERMS_REPORT',
-            })) as SpApiCreateReportResponse,
+    const report = (await spApiClient.createReport({
+        dataEndTime: `${params.dataEndDate}T23:59:59Z`,
+        dataStartTime: `${params.dataStartDate}T00:00:00Z`,
+        marketplaceIds: [params.marketplaceId],
+        reportOptions: { reportPeriod: params.reportPeriod },
+        reportType: 'GET_BRAND_ANALYTICS_SEARCH_TERMS_REPORT',
     })) as SpApiCreateReportResponse;
 
     if (!report.reportId) {
@@ -280,17 +243,4 @@ const assertSupportedMarketplaceId = (marketplaceId: string) => {
     throw new Error(
         `Unsupported marketplaceId ${marketplaceId}. Only ${SPAPI_US_MARKETPLACE_ID} is supported.`
     );
-};
-
-const runReportsApiCall = async <T>({
-    operation,
-    run,
-}: { operation: string; run: () => Promise<T> }) => {
-    return await runWithSpApiBackoff({
-        operation,
-        run: async () => {
-            await spApiClient.ensureAccessTokenFreshness();
-            return await baReportsLimiter.schedule(run);
-        },
-    });
 };
