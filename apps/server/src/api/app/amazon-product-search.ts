@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import { fetchProductInfo } from '@/utils/product-info.js';
 
-const getProductInfoInput = z.object({
+const amazonProductSearchInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),
     asin: z
         .string()
@@ -11,14 +11,14 @@ const getProductInfoInput = z.object({
         .transform(value => value.toUpperCase()),
 });
 
-export const getProductInfo = appProcedure
-    .input(getProductInfoInput)
+export const amazonProductSearch = appProcedure
+    .input(amazonProductSearchInput)
     .mutation(async ({ input, ctx }) => {
         const uid = ctx.user?.email ?? ctx.user?.sub ?? 'unknown';
         return fetchProductInfo({
             marketplaceId: input.marketplaceId,
             asin: input.asin,
             uid,
-            endpoint: 'api.app.getProductInfo',
+            endpoint: 'api.app.amazon.product.search',
         });
     });

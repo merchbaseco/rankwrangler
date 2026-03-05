@@ -52,7 +52,7 @@ export const resolveTopSearchTermsWindow = (input: {
     });
 };
 
-const normalizeTopSearchTermsReportPeriod = (
+export const normalizeTopSearchTermsReportPeriod = (
     reportPeriod: 'DAY' | 'WEEK' | 'MONTH'
 ): TopSearchTermsWindow['reportPeriod'] => {
     if (reportPeriod === 'MONTH') {

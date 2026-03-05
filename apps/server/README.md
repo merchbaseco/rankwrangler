@@ -16,9 +16,15 @@ Key sections:
 
 Recent app API additions:
 
-- `api.app.searchTermsList` - paginated Search Terms rows from DB snapshots.
-- `api.app.searchTermsStatus` - fetch lifecycle status for a Search Terms window.
-- `api.app.searchTermsRefresh` - enqueues a pg-boss fetch job for the requested window (deduplicated while in progress).
+- `api.app.searchterms.list` - paginated Search Terms rows from DB snapshots.
+- `api.app.searchterms.status` - fetch lifecycle status for a Search Terms window.
+- `api.app.searchterms.refresh` - enqueues a pg-boss fetch job for the requested window.
+- `api.app.searchterms.trend` - historical trend points and 1d/7d/30d deltas for one term.
+- `api.app.amazon.search` - generic Amazon keyword search (Catalog Items API) that also enqueues
+  returned ASINs for background product sync.
+- `api.app.amazon.product.search` - product lookup by ASIN in the `amazon.product` namespace.
+- `api.app.loadProductHistory` - now ensures product cache exists before triggering manual Keepa
+  history sync.
 
 Search Terms ingest notes:
 

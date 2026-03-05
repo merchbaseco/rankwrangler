@@ -1,13 +1,12 @@
 import {
 	getCoreRowModel,
-	getSortedRowModel,
-	type SortingState,
 	useReactTable,
 } from '@tanstack/react-table';
 import { Search } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createColumns } from '@/components/dashboard/keywords/columns';
 import { KeywordsTableView } from '@/components/dashboard/keywords/table-view';
+import { TrendCanvas } from '@/components/dashboard/keywords/trend-canvas';
 import type { SearchTermRow } from '@/components/dashboard/keywords/types';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/trpc';
@@ -18,9 +17,7 @@ export const KeywordsPage = () => {
 	const [searchValue, setSearchValue] = useState('');
 	const [minRankValue, setMinRankValue] = useState('');
 	const [maxRankValue, setMaxRankValue] = useState('');
-	const [sorting, setSorting] = useState<SortingState>([
-		{ desc: false, id: 'searchFrequencyRank' },
-	]);
+	const [selectedSearchTerm, setSelectedSearchTerm] = useState<string | null>(null);
 	const deferredSearch = useDeferredValue(searchValue.trim());
 	const baseInput = useMemo(
 		() => ({
@@ -40,7 +37,7 @@ export const KeywordsPage = () => {
 		}),
 		[baseInput, deferredSearch, maxRankValue, minRankValue],
 	);
-	const query = api.api.app.searchTermsList.useInfiniteQuery(queryInput, {
+	const query = api.api.app.searchterms.list.useInfiniteQuery(queryInput, {
 		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
 		refetchOnWindowFocus: false,
 	});
@@ -93,14 +90,25 @@ export const KeywordsPage = () => {
 		return () => observer.disconnect();
 	}, [query.fetchNextPage, query.hasNextPage, query.isFetchingNextPage]);
 
+	useEffect(() => {
+		if (rows.length === 0) {
+			setSelectedSearchTerm(null);
+			return;
+		}
+
+		const hasSelected =
+			selectedSearchTerm !== null &&
+			rows.some((row) => row.searchTerm === selectedSearchTerm);
+		if (!hasSelected) {
+			setSelectedSearchTerm(rows[0]?.searchTerm ?? null);
+		}
+	}, [rows, selectedSearchTerm]);
+
 	const table = useReactTable({
 		columns,
 		data: rows,
-		enableSortingRemoval: false,
 		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		onSortingChange: setSorting,
-		state: { sorting },
+		enableSorting: false,
 	});
 
 	return (
@@ -141,17 +149,24 @@ export const KeywordsPage = () => {
 				</div>
 			</div>
 
-			<div className="min-h-0 flex-1">
-				<KeywordsTableView
-					table={table}
-					colgroupColumns={colgroupColumns}
-					columnsCount={columns.length}
-					hasNextPage={Boolean(query.hasNextPage)}
-					isFetchingNextPage={query.isFetchingNextPage}
-					isLoading={query.isLoading}
-					hasError={Boolean(query.error)}
-					loadMoreRef={loadMoreRef}
-				/>
+			<div className="flex min-h-0 flex-1 overflow-hidden">
+				<div className="min-h-0 w-[30%] min-w-[260px] max-w-[340px] border-r border-border">
+					<KeywordsTableView
+						table={table}
+						colgroupColumns={colgroupColumns}
+						columnsCount={columns.length}
+						hasNextPage={Boolean(query.hasNextPage)}
+						isFetchingNextPage={query.isFetchingNextPage}
+						isLoading={query.isLoading}
+						hasError={Boolean(query.error)}
+						loadMoreRef={loadMoreRef}
+						selectedSearchTerm={selectedSearchTerm}
+						onSelectSearchTerm={setSelectedSearchTerm}
+					/>
+				</div>
+				<div className="min-h-0 min-w-0 flex-1">
+					<TrendCanvas selectedSearchTerm={selectedSearchTerm} />
+				</div>
 			</div>
 		</div>
 	);

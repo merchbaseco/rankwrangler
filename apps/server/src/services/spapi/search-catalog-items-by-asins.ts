@@ -5,6 +5,12 @@ import type { ProductInfo } from '@/types/index.js';
 import { classifyMerchBullets } from '@/utils/merch-bullets.js';
 import { formatZodErrorMessage, formatZodValidationErrors } from '@/utils/zod.js';
 import { catalogApi, spApiRateLimiter } from './index.js';
+import {
+    getMarketplaceBulletPoints,
+    ItemSchema,
+    ItemSearchResultsSchema,
+    VariantSchema,
+} from './search-catalog-items-schema.js';
 
 // Return type for searchCatalogItemsByAsins (omits rootCategoryDisplayName which is derived from rootCategoryId)
 type SearchCatalogItemsResult = Omit<ProductInfo, 'rootCategoryDisplayName'>;
@@ -148,111 +154,4 @@ export const searchCatalogItemsByAsins = async (
         .filter((item): item is SearchCatalogItemsResult => Boolean(item));
 
     return orderedResults ?? [];
-};
-
-// ==========================================
-// Zod Schemas - Only fields we actually use
-// ==========================================
-
-// Image variant enum (used to find MAIN image)
-const VariantSchema = z.enum([
-    'MAIN',
-    'PT01',
-    'PT02',
-    'PT03',
-    'PT04',
-    'PT05',
-    'PT06',
-    'PT07',
-    'PT08',
-    'SWCH',
-]);
-
-// Display group sales rank (used for BSR extraction)
-const ItemDisplayGroupSalesRankSchema = z.object({
-    websiteDisplayGroup: z.string(),
-    title: z.string(),
-    link: z.string().optional(),
-    rank: z.number(),
-});
-
-// Sales ranks by marketplace (contains displayGroupRanks - only one display group per item)
-const ItemSalesRanksByMarketplaceSchema = z.object({
-    marketplaceId: z.string(),
-    displayGroupRanks: z
-        .array(ItemDisplayGroupSalesRankSchema)
-        .max(1, 'Expected at most one display group rank')
-        .optional(),
-});
-
-// Attribute value entry (used for product_site_launch_date)
-const AttributeValueEntrySchema = z.object({
-    value: z.string(),
-    marketplace_id: z.string(),
-});
-
-const BulletPointEntrySchema = z.object({
-    value: z.string(),
-    marketplace_id: z.string().optional(),
-});
-
-// Attributes (contains product_site_launch_date)
-const ItemAttributesSchema = z.object({
-    product_site_launch_date: z.array(AttributeValueEntrySchema).optional(),
-    bullet_point: z.array(BulletPointEntrySchema).optional(),
-});
-
-// Image schema (variant and link are used)
-const ItemImageSchema = z.object({
-    variant: VariantSchema,
-    link: z.string(),
-    height: z.number().optional(),
-    width: z.number().optional(),
-});
-
-// Images by marketplace
-const ItemImagesByMarketplaceSchema = z.object({
-    marketplaceId: z.string(),
-    images: z.array(ItemImageSchema),
-});
-
-// Summaries by marketplace (brand is current; brandName kept as legacy fallback)
-const ItemSummariesByMarketplaceSchema = z.object({
-    marketplaceId: z.string(),
-    itemName: z.string().optional(),
-    brand: z.string().optional(),
-    brandName: z.string().optional(),
-});
-
-// Item schema (only fields we extract)
-const ItemSchema = z.object({
-    asin: z.string(),
-    attributes: ItemAttributesSchema.optional(),
-    salesRanks: z.array(ItemSalesRanksByMarketplaceSchema).optional(),
-    images: z.array(ItemImagesByMarketplaceSchema).optional(),
-    summaries: z.array(ItemSummariesByMarketplaceSchema).optional(),
-});
-
-// Response schema (only items array is used)
-const ItemSearchResultsSchema = z.object({
-    items: z.array(ItemSchema),
-});
-
-const getMarketplaceBulletPoints = (
-    bulletPoints:
-        | Array<{
-              value: string;
-              marketplace_id?: string;
-          }>
-        | undefined,
-    marketplaceId: string
-) => {
-    if (!bulletPoints || bulletPoints.length === 0) {
-        return [];
-    }
-
-    return bulletPoints
-        .filter(bulletPoint => !bulletPoint.marketplace_id || bulletPoint.marketplace_id === marketplaceId)
-        .map(bulletPoint => bulletPoint.value)
-        .filter(Boolean);
 };

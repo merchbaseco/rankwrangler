@@ -131,11 +131,12 @@ Signal definitions live in `apps/server/src/services/spapi/ba-keyword-signals.ts
 
 ## API Surface
 
-Current app procedures (names retained for compatibility):
+Current app procedures:
 
-- `api.app.searchTermsList`
-- `api.app.searchTermsStatus`
-- `api.app.searchTermsRefresh`
+- `api.app.searchterms.list`
+- `api.app.searchterms.status`
+- `api.app.searchterms.refresh`
+- `api.app.searchterms.trend`
 
 These now operate on `top_search_terms_*` datasets/snapshots.
 

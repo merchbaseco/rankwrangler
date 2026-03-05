@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import {
     mapTopSearchTermsStatus,
+    normalizeTopSearchTermsReportPeriod,
     resolveTopSearchTermsWindow,
     searchTermsBaseInput,
 } from '@/api/app/search-terms-shared.js';
@@ -13,7 +14,6 @@ import {
     getLatestTopSearchTermsSnapshotForDataset,
     listTopSearchTermsKeywords,
 } from '@/db/top-search-terms/snapshots.js';
-import type { TopSearchTermsReportPeriod } from '@/db/top-search-terms/types.js';
 
 const searchTermsListInput = searchTermsBaseInput.extend({
     cursor: z.number().int().min(0).optional(),
@@ -28,7 +28,7 @@ export const searchTermsList = appProcedure
     .input(searchTermsListInput.optional())
     .query(async ({ input }) => {
         const parsed = searchTermsListInput.parse(input ?? {});
-        const reportPeriod = normalizeRequestedReportPeriod(parsed.reportPeriod);
+        const reportPeriod = normalizeTopSearchTermsReportPeriod(parsed.reportPeriod);
         const hasExplicitWindow = Boolean(parsed.dataStartDate && parsed.dataEndDate);
         const requestedWindow = resolveTopSearchTermsWindow(parsed);
         const dataset = hasExplicitWindow
@@ -103,13 +103,3 @@ export const searchTermsList = appProcedure
             },
         };
     });
-
-const normalizeRequestedReportPeriod = (
-    reportPeriod: 'DAY' | 'WEEK' | 'MONTH'
-): TopSearchTermsReportPeriod => {
-    if (reportPeriod === 'MONTH') {
-        return 'WEEK';
-    }
-
-    return reportPeriod;
-};

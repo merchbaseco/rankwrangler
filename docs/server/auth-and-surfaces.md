@@ -57,7 +57,12 @@ Product payload notes:
 
 - `api.app.adminStatus` (admin)
 - `api.app.getAdminStats` (admin)
-- `api.app.getProductInfo`
+- `api.app.amazon.search`
+- `api.app.amazon.product.search`
+- `api.app.searchterms.list`
+- `api.app.searchterms.status`
+- `api.app.searchterms.refresh`
+- `api.app.searchterms.trend`
 - `api.app.getKeepaStatus`
 - `api.app.keepaLog` (admin)
 - `api.app.jobExecutions` (admin)
@@ -68,6 +73,11 @@ Product payload notes:
 - `api.app.license.details`
 - `api.app.license.delete`
 - `api.app.license.reset`
+
+App payload/behavior notes:
+
+- `api.app.amazon.search` returns keyword product rows and enqueues returned ASINs into the SP-API
+  sync queue for background product sync.
 
 ## Typed Client + CLI
 

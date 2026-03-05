@@ -23,6 +23,7 @@ export const RecentProductsTableView = ({
 	hasNextPage,
 	isFetchingNextPage,
 	loadMoreRef,
+	emptyMessage = 'No products scanned yet. Search an ASIN above.',
 	onRowMouseEnter,
 	onRowMouseMove,
 	onRowMouseLeave,
@@ -34,6 +35,7 @@ export const RecentProductsTableView = ({
 	hasNextPage: boolean;
 	isFetchingNextPage: boolean;
 	loadMoreRef: React.RefObject<HTMLDivElement | null>;
+	emptyMessage?: string;
 	onRowMouseEnter: (args: {
 		event: React.MouseEvent<HTMLTableRowElement>;
 		imageUrl: string | null;
@@ -151,7 +153,7 @@ export const RecentProductsTableView = ({
 					) : (
 						<TableRow>
 							<TableCell className="text-muted-foreground h-24 text-center" colSpan={columnsCount}>
-								No products scanned yet. Search an ASIN above.
+								{emptyMessage}
 							</TableCell>
 						</TableRow>
 					)}
