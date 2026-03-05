@@ -24,6 +24,8 @@ export const KeywordsTableView = ({
 	isLoading,
 	hasError,
 	loadMoreRef,
+	selectedSearchTerm,
+	onSelectSearchTerm,
 }: {
 	table: Table<SearchTermRow>;
 	colgroupColumns: ColgroupColumn[];
@@ -33,6 +35,8 @@ export const KeywordsTableView = ({
 	isLoading: boolean;
 	hasError: boolean;
 	loadMoreRef: React.RefObject<HTMLDivElement | null>;
+	selectedSearchTerm: string | null;
+	onSelectSearchTerm: (searchTerm: string) => void;
 }) => (
 	<div className="flex h-full min-h-0 flex-col bg-card">
 		<table className="w-full shrink-0 text-xs" style={{ tableLayout: "fixed" }}>
@@ -122,7 +126,15 @@ export const KeywordsTableView = ({
 						</TableRow>
 					) : table.getRowModel().rows.length ? (
 						table.getRowModel().rows.map((row) => (
-							<TableRow key={row.id}>
+							<TableRow
+								key={row.id}
+								className={cn(
+									'cursor-pointer',
+									selectedSearchTerm === row.original.searchTerm &&
+										'bg-accent hover:bg-accent',
+								)}
+								onClick={() => onSelectSearchTerm(row.original.searchTerm)}
+							>
 								{row.getVisibleCells().map((cell) => {
 									const meta = cell.column.columnDef.meta as
 										| { align?: string; wrap?: boolean }

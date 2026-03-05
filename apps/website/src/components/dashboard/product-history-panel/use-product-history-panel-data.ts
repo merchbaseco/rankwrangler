@@ -2,17 +2,16 @@ import {
     AMAZON_US_TIME_ZONE,
     useHistoryRangeSelection,
 } from '@rankwrangler/history-chart/history-chart-range';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     isKeepaSyncStale as getIsKeepaSyncStale,
-    shouldEvaluateKeepaAutoRefresh,
-    shouldTriggerKeepaSync,
 } from '@/components/dashboard/product-history-panel/keepa-sync-state';
 import type {
 	CategoryOption,
 	ProductHistoryPanelProduct,
 	SelectOption,
 } from '@/components/dashboard/product-history-panel/types';
+import { useKeepaAutoSync } from '@/components/dashboard/product-history-panel/use-keepa-auto-sync';
 import { useProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/use-product-history-panel-product';
 import { toastManager } from '@/components/ui/toast';
 import { useAdminAccess } from '@/hooks/use-admin-access';
@@ -239,29 +238,13 @@ export const useProductHistoryPanelData = ({
 	const keepaLastSyncAt = rankQuery.data?.latestImportAt ?? null;
 	const isKeepaSyncStale = getIsKeepaSyncStale({ keepaLastSyncAt });
 
-	const hasCheckedAutoRefreshRef = useRef(false);
-	useEffect(() => {
-		if (
-			!shouldEvaluateKeepaAutoRefresh({
-				hasCheckedAutoRefresh: hasCheckedAutoRefreshRef.current,
-				isRankQueryLoading: rankQuery.isLoading,
-			})
-		) {
-			return;
-		}
-
-		hasCheckedAutoRefreshRef.current = true;
-		if (
-			!shouldTriggerKeepaSync({
-				isRankQueryError: rankQuery.isError,
-				isKeepaSyncStale,
-			})
-		) {
-			return;
-		}
-
-		triggerKeepaSync();
-	}, [rankQuery.isLoading, rankQuery.isError, isKeepaSyncStale, triggerKeepaSync]);
+	useKeepaAutoSync({
+		enabled: Boolean(product.marketplaceId && product.asin),
+		isKeepaSyncStale,
+		isRankQueryError: rankQuery.isError,
+		isRankQueryLoading: rankQuery.isLoading,
+		triggerKeepaSync,
+	});
 
 	return {
 		activePreset,

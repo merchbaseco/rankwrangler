@@ -8,7 +8,7 @@ export const useProductHistoryPanelProduct = ({
     product: ProductHistoryPanelProduct;
 }) => {
     const [resolvedProduct, setResolvedProduct] = useState(product);
-    const { mutateAsync } = api.api.app.getProductInfo.useMutation();
+    const { mutateAsync } = api.api.app.amazon.product.search.useMutation();
     const facetsQuery = api.api.app.getProductFacets.useQuery(
         {
             marketplaceId: product.marketplaceId,
@@ -28,7 +28,7 @@ export const useProductHistoryPanelProduct = ({
             title: product.title,
             thumbnailUrl: product.thumbnailUrl,
             brand: product.brand,
-            facets: facetsQuery.data ?? product.facets,
+            facets: product.facets,
             dateFirstAvailable: product.dateFirstAvailable,
             rootCategoryBsr: product.rootCategoryBsr,
             rootCategoryDisplayName: product.rootCategoryDisplayName,
@@ -63,7 +63,10 @@ export const useProductHistoryPanelProduct = ({
                     productInfoCached: productInfo.metadata.cached,
                 }));
             } catch {
-                // Keep the selected table-row product when getProductInfo fails.
+                if (isCancelled) {
+                    return;
+                }
+                // Keep the selected table-row product when amazon product search fails.
             }
         };
 
@@ -74,7 +77,6 @@ export const useProductHistoryPanelProduct = ({
         };
     }, [
         mutateAsync,
-        facetsQuery.data,
         product.asin,
         product.marketplaceId,
         product.title,

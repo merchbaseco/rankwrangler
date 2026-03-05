@@ -34,13 +34,64 @@ curl -s -X POST http://localhost:8080/api/api.public.getProductHistory \
   - `collecting: true`
   - `syncTriggered: true|false`
 
-## App: Product Info
+## App: Amazon Product Search (ASIN)
 
 ```bash
-curl -s -X POST http://localhost:8080/api/api.app.getProductInfo \
+curl -s -X POST http://localhost:8080/api/api.app.amazon.product.search \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $RR_CLERK_TOKEN" \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'
+```
+
+## App: Amazon Keyword Search
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.amazon.search \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"keyword":"st patricks day shirt"}}'
+```
+
+`api.app.amazon.search` behavior:
+
+- Returns keyword search results from Catalog Items API.
+- Enqueues returned ASINs into the SP-API sync queue for background product sync.
+- Treats missing `items` in the upstream Catalog Items response as a validation error.
+
+## App: Search Terms List
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.searchterms.list \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY","limit":25}}'
+```
+
+## App: Search Terms Status
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.searchterms.status \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY"}}'
+```
+
+## App: Search Terms Refresh
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.searchterms.refresh \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY"}}'
+```
+
+## App: Search Terms Trend
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.app.searchterms.trend \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY","searchTerm":"st patricks day shirt","rangeDays":90}}'
 ```
 
 ## App: Manual Keepa Import
@@ -51,6 +102,8 @@ curl -s -X POST http://localhost:8080/api/api.app.loadProductHistory \
   -H "Authorization: Bearer $RR_CLERK_TOKEN" \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","days":365}}'
 ```
+
+`api.app.loadProductHistory` ensures product cache exists before running Keepa history sync.
 
 ## App: Keepa Runtime Status
 

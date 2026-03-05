@@ -90,8 +90,8 @@ fi
 if [ -n "$RR_CLERK_TOKEN" ]; then
     echo "🔐 Testing Clerk-authenticated app API..."
     echo ""
-    echo "📦 Testing api.app.getProductInfo..."
-    app_product_info_response=$(curl -s -X POST "$API_BASE/api/api.app.getProductInfo" \
+    echo "📦 Testing api.app.amazon.product.search..."
+    app_product_info_response=$(curl -s -X POST "$API_BASE/api/api.app.amazon.product.search" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}')
@@ -123,23 +123,35 @@ if [ -n "$RR_CLERK_TOKEN" ]; then
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       -d '{"input":null}' | jq '.'
     echo ""
-    echo "🔎 Testing api.app.searchTermsList..."
-    curl -s -X POST "$API_BASE/api/api.app.searchTermsList" \
+    echo "🔎 Testing api.app.searchterms.list..."
+    curl -s -X POST "$API_BASE/api/api.app.searchterms.list" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY","limit":25}}' | jq '.'
     echo ""
-    echo "📡 Testing api.app.searchTermsStatus..."
-    curl -s -X POST "$API_BASE/api/api.app.searchTermsStatus" \
+    echo "📡 Testing api.app.searchterms.status..."
+    curl -s -X POST "$API_BASE/api/api.app.searchterms.status" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY"}}' | jq '.'
     echo ""
-    echo "♻️ Testing api.app.searchTermsRefresh..."
-    curl -s -X POST "$API_BASE/api/api.app.searchTermsRefresh" \
+    echo "♻️ Testing api.app.searchterms.refresh..."
+    curl -s -X POST "$API_BASE/api/api.app.searchterms.refresh" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY"}}' | jq '.'
+    echo ""
+    echo "📈 Testing api.app.searchterms.trend..."
+    curl -s -X POST "$API_BASE/api/api.app.searchterms.trend" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","reportPeriod":"DAY","searchTerm":"st patricks day shirt","rangeDays":90}}' | jq '.'
+    echo ""
+    echo "🛒 Testing api.app.amazon.search..."
+    curl -s -X POST "$API_BASE/api/api.app.amazon.search" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      -d '{"input":{"keyword":"st patricks day shirt"}}' | jq '.'
     echo ""
 else
     echo "⚠️ Skipping app API tests - set RR_CLERK_TOKEN to exercise Clerk endpoints."
