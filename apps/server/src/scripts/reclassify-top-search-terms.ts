@@ -180,9 +180,11 @@ const applyChanges = async (
     nextRelevantCount: number
 ) => {
     await sql.begin(async (tx) => {
-        const rowIds = changes.map((change) => change.rowId);
-        const relevances = changes.map((change) => change.nextRelevant);
-        const reasons = changes.map((change) => change.nextReason);
+        const updates = changes.map((change) => ({
+            id: change.rowId,
+            is_merch_relevant: change.nextRelevant,
+            merch_reason: change.nextReason,
+        }));
 
         await tx`
             UPDATE top_search_terms_keyword_daily AS keyword
@@ -190,12 +192,15 @@ const applyChanges = async (
                 is_merch_relevant = updates.is_merch_relevant,
                 merch_reason = updates.merch_reason
             FROM (
-                SELECT *
-                FROM unnest(
-                    ${tx.array(rowIds, 'uuid')}::uuid[],
-                    ${tx.array(relevances, 'bool')}::boolean[],
-                    ${tx.array(reasons, 'text')}::text[]
-                ) AS updates(id, is_merch_relevant, merch_reason)
+                SELECT
+                    record.id::uuid AS id,
+                    record.is_merch_relevant::boolean AS is_merch_relevant,
+                    record.merch_reason::text AS merch_reason
+                FROM jsonb_to_recordset(${JSON.stringify(updates)}::jsonb) AS record(
+                    id text,
+                    is_merch_relevant boolean,
+                    merch_reason text
+                )
             ) AS updates
             WHERE keyword.id = updates.id
         `;
