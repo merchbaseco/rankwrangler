@@ -192,9 +192,9 @@ const applyChanges = async (
             FROM (
                 SELECT *
                 FROM unnest(
-                    ${rowIds}::uuid[],
-                    ${relevances}::boolean[],
-                    ${reasons}::text[]
+                    ${tx.array(rowIds, 'uuid')}::uuid[],
+                    ${tx.array(relevances, 'bool')}::boolean[],
+                    ${tx.array(reasons, 'text')}::text[]
                 ) AS updates(id, is_merch_relevant, merch_reason)
             ) AS updates
             WHERE keyword.id = updates.id
