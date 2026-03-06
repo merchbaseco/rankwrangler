@@ -6,7 +6,7 @@ import {
     seasonalSignals,
 } from '@/services/spapi/ba-keyword-signals';
 import {
-    isColorGenderGenericApparelTerm,
+    isColorGenericApparelTerm,
     isShortGenericApparelTerm,
 } from '@/services/spapi/ba-keyword-term-heuristics';
 
@@ -80,10 +80,10 @@ export const classifyMerchKeyword = (searchTerm: string) => {
         };
     }
 
-    if (!seasonal && !intent && isColorGenderGenericApparelTerm(normalized)) {
+    if (!seasonal && !intent && isColorGenericApparelTerm(normalized)) {
         return {
             isMerchRelevant: false,
-            merchReason: 'blocked:color-gender-generic',
+            merchReason: 'blocked:color-generic',
         };
     }
 

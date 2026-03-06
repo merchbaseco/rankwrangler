@@ -51,9 +51,20 @@ Use BA Top Search Terms as a ranking and timing layer:
   `classic fit`, `twill-taped neck`, `spun-polyester`).
 - Ingest filtering blocks stored-value and greeting-card patterns (for example `gift card`,
   `ecard`, `digital code`, `... card`) while preserving broad `gift` intent.
+- Ingest filtering blocks gift packaging/registry/title noise (for example `gift box`,
+  `gift registry`, `the gift of fear`) while preserving broad gift-recipient and gift-occasion
+  terms.
+- Ingest filtering keeps generic merch accessory product types (`phone case`, `popsocket`) but
+  blocks branded and model-specific variants.
+- Ingest filtering blocks school commodity terms (for example `school supplies`, `school bag`,
+  `backpack for school`) while keeping school-event terms.
 - Ingest filtering blocks seasonal non-PoD merchandise patterns without apparel product signals
-  (for example `decorations`, `basket stuffers`, `candy`, `wrapping paper`, `gift bags`,
-  `dresses`, `lingerie`, `tablecloth`, `plates/napkins`, `backdrop`, `toys`, `plush`).
+  (for example `decorations`, `basket stuffers`, `eggs`, `stickers`, `books`, `window clings`,
+  `garden flag`, `shower curtain`, `gift bags`, `lingerie`, `tablecloth`, `plates/napkins`,
+  `backdrop`, `toys`, `plush`) while keeping merch-supported hats.
 - Sleepwear terms like `pajamas`/`pjs` are intentionally kept.
-- Ingest filtering recognizes additional product-type signals (for example `raglan`, `v neck`,
-  `tote bag`, `popsocket`, `phone case`, `throw pillow`, `tumbler`, `mug`).
+- Ingest filtering blocks generic color-only apparel and recognizes additional product-type
+  signals (for example `raglan`, `v neck`, `tote bag`, `popsocket`, `phone case`, `throw pillow`,
+  `tumbler`, `mug`).
+- Ingest filtering uses an expanded brand/IP blocklist derived from repeated leakage in recent BA
+  reports.

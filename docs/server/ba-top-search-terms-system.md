@@ -122,10 +122,16 @@ Classifier entry point:
 
 Key policy points:
 
-- Keep broad intent signals like `gift` and `school`.
-- Keep strong product-type/apparel signals.
+- Keep broad `gift` intent, but block gift packaging/registry/title noise (`gift box`,
+  `gift registry`, `the gift of fear`, etc.).
+- Keep generic merch product-type signals such as `phone case` / `popsocket`, while blocking
+  branded and model-specific accessory variants.
+- Block school commodity terms (`school supplies`, `school backpack`, `school bag`, etc.) while
+  keeping school-event terms such as `100 days of school`.
 - Block commodity/non-PoD and card/code noise (`gift card`, `ecard`, `digital code`, etc.).
-- Keep scoped seasonal exclusions to avoid overblocking.
+- Use broader seasonal exclusions for non-PoD consumables/decor/accessories while keeping explicit
+  merch products such as apparel and hats.
+- Block generic color-only apparel and broaden brand/IP blocking from observed report leakage.
 - Keep explicit exception: `pajamas` / `pjs`.
 - Do not depend on BA category/department fields for gating.
 
@@ -150,6 +156,8 @@ These now operate on `top_search_terms_*` datasets/snapshots.
 - Scheduler/fetch queue integration is in
   `apps/server/src/services/top-search-terms-jobs.ts`.
 - Parse diagnostics are logged per fetch (accepted/rejected counts, malformed row counts, etc.).
+- One-off stored-keyword cleanup workflow is documented in
+  `docs/server/ba-top-search-terms-reclassification.md`.
 
 ## Schema/Migration Notes
 

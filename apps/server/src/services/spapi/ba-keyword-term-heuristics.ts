@@ -1,8 +1,4 @@
-import {
-    colorSignals,
-    genderSignals,
-    genericApparelSignals,
-} from '@/services/spapi/ba-keyword-signals';
+import { colorSignals, genericApparelSignals } from '@/services/spapi/ba-keyword-signals';
 
 const SHORT_GENERIC_APPAREL_PATTERN =
     /^(?:mens?|women'?s?|girls?|boys?)?\s*(?:t[\s-]?shirts?|shirts?|hoodies?|sweatshirts?|tank[\s-]?tops?|tees?|crewnecks?|pullovers?|long[\s-]?sleeves?|apparel)(?:\s*(?:for\s+(?:mens?|women'?s?|girls?|boys?)|mens?|women'?s?|girls?|boys?))?$/i;
@@ -15,7 +11,7 @@ export const isShortGenericApparelTerm = (normalizedSearchTerm: string) => {
     return SHORT_GENERIC_APPAREL_PATTERN.test(normalizedSearchTerm);
 };
 
-export const isColorGenderGenericApparelTerm = (normalizedSearchTerm: string) => {
+export const isColorGenericApparelTerm = (normalizedSearchTerm: string) => {
     if (normalizedSearchTerm.split(' ').length > 5) {
         return false;
     }
@@ -28,7 +24,5 @@ export const isColorGenderGenericApparelTerm = (normalizedSearchTerm: string) =>
     }
 
     const hasColor = colorSignals.some((signal) => signal.pattern.test(normalizedSearchTerm));
-    const hasGender = genderSignals.some((signal) => signal.pattern.test(normalizedSearchTerm));
-
-    return hasColor && hasGender;
+    return hasColor;
 };

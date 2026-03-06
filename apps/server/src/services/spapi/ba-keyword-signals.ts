@@ -1,14 +1,12 @@
+import { nonPodBrandOrIpPatterns } from '@/services/spapi/ba-keyword-brand-or-ip-signals';
 type KeywordSignal = {
     key: string;
     pattern: RegExp;
 };
-
 export type CommodityBlockScope = 'always' | 'no-apparel-signal';
-
 export type CommodityKeywordSignal = KeywordSignal & {
     scope: CommodityBlockScope;
 };
-
 export const apparelSignals: KeywordSignal[] = [
     { key: 'tshirt', pattern: /\bt[\s-]?shirt\b/i },
     { key: 'shirt', pattern: /\bshirt\b/i },
@@ -24,7 +22,7 @@ export const apparelSignals: KeywordSignal[] = [
     { key: 'tote bag', pattern: /\btote\s+bag\b/i },
     { key: 'popsocket', pattern: /\bpop[\s-]?socket(?:s)?\b/i },
     { key: 'popgrip', pattern: /\bpopgrip\b/i },
-    { key: 'phone case', pattern: /\b(?:phone|iphone|samsung|galaxy)\s+case\b/i },
+    { key: 'phone case', pattern: /\bphone\s+case\b/i },
     { key: 'throw pillow', pattern: /\bthrow\s+pillow\b/i },
     { key: 'tumbler', pattern: /\btumbler\b/i },
     { key: 'mug', pattern: /\b(?:ceramic\s+)?mug\b/i },
@@ -91,6 +89,24 @@ const nonPodMaterialAndListingSignals: CommodityKeywordSignal[] = [
     { key: 'flannel', scope: 'always', pattern: /\bflannel\b/i },
     { key: 'denim', scope: 'always', pattern: /\bdenim\b/i },
     { key: 'linen', scope: 'always', pattern: /\blinen\b/i },
+    { key: 'dress', scope: 'always', pattern: /\bdress(?:es)?\b/i },
+    { key: 'outfit', scope: 'always', pattern: /\boutfits?\b/i },
+    { key: 'pillow-cover', scope: 'always', pattern: /\bpillow\s+covers?\b/i },
+] as const;
+
+const nonPodAccessorySignals: CommodityKeywordSignal[] = [
+    {
+        key: 'branded-phone-accessory',
+        scope: 'always',
+        pattern:
+            /\b(?:iphone|apple|samsung|galaxy|pixel|moto(?:rola)?|kindle|otterbox|magsafe|rhode)\b.*\b(?:case|pop[\s-]?socket|popgrip)\b|\b(?:case|pop[\s-]?socket|popgrip)\b.*\b(?:iphone|apple|samsung|galaxy|pixel|moto(?:rola)?|kindle|otterbox|magsafe|rhode)\b/i,
+    },
+    {
+        key: 'model-phone-accessory',
+        scope: 'always',
+        pattern:
+            /\b(?:\d{2}e|\d{2}\s+pro(?:\s+max)?|\d{2}\s+plus|s\d{2}(?:\s*(?:ultra|fe))?|a\d{2}(?:\s*5g)?|xr|xs)\b.*\b(?:phone\s+case|case|pop[\s-]?socket|popgrip)\b|\b(?:phone\s+case|case|pop[\s-]?socket|popgrip)\b.*\b(?:\d{2}e|\d{2}\s+pro(?:\s+max)?|\d{2}\s+plus|s\d{2}(?:\s*(?:ultra|fe))?|a\d{2}(?:\s*5g)?|xr|xs)\b/i,
+    },
 ] as const;
 
 // Stored-value and digital delivery terms are never useful for PoD targeting.
@@ -109,6 +125,21 @@ const nonPodStoredValueSignals: CommodityKeywordSignal[] = [
         key: 'digital-code',
         scope: 'always',
         pattern: /\bdigital\s+code\b/i,
+    },
+    {
+        key: 'gift-box',
+        scope: 'always',
+        pattern: /\bgift\s+box(?:es)?\b|\bsurprise\s+gift\s+box(?:\s+explosion)?\b/i,
+    },
+    {
+        key: 'gift-registry',
+        scope: 'always',
+        pattern: /\b(?:gift|baby)\s+registry\b|\bregistry\s+by\s+name\b/i,
+    },
+    {
+        key: 'gift-title',
+        scope: 'always',
+        pattern: /\bthe\s+gift\s+of\s+fear\b/i,
     },
 ] as const;
 
@@ -136,6 +167,12 @@ const nonPodSeasonalMerchandiseSignals: CommodityKeywordSignal[] = [
         pattern: /\bbaskets?\b|\bbasket\s+stuffers?\b|\begg\s+fillers?\b|\bprefilled\s+eggs?\b/i,
     },
     {
+        key: 'seasonal-egg',
+        scope: 'no-apparel-signal',
+        pattern:
+            /\beggs?\b|\begg\s+stuffers?\b|\begg\s+decorating\s+kit\b|\bplastic\s+easter\s+eggs?\b|\bpre[\s-]?filled\s+easter\s+eggs?\b|\bfilled\s+easter\s+eggs?\b|\beaster\s+grass\b/i,
+    },
+    {
         key: 'party-favors',
         scope: 'no-apparel-signal',
         pattern: /\bparty\s+favors?\b/i,
@@ -149,6 +186,32 @@ const nonPodSeasonalMerchandiseSignals: CommodityKeywordSignal[] = [
         key: 'gift-packaging',
         scope: 'no-apparel-signal',
         pattern: /\bgift\s+bags?\b|\bgift\s+boxes?\b/i,
+    },
+    {
+        key: 'seasonal-accessory',
+        scope: 'no-apparel-signal',
+        pattern: /\baccessories\b|\bgold\s+coins\b/i,
+    },
+    {
+        key: 'seasonal-book',
+        scope: 'no-apparel-signal',
+        pattern: /\bbooks?\b|\bcoloring\s+books?\b/i,
+    },
+    {
+        key: 'seasonal-craft-sticker',
+        scope: 'no-apparel-signal',
+        pattern: /\bstickers?\b|\bcrafts?\b|\bwindow\s+clings?\b/i,
+    },
+    {
+        key: 'seasonal-home-good',
+        scope: 'no-apparel-signal',
+        pattern:
+            /\bwreaths?\b|\bgarden\s+flags?\b|\bshower\s+curtains?\b|\bbags?\b|\bstorage\s+bag\b/i,
+    },
+    {
+        key: 'seasonal-costume',
+        scope: 'no-apparel-signal',
+        pattern: /\bcostumes?\b/i,
     },
     {
         key: 'seasonal-dress',
@@ -177,19 +240,42 @@ const nonPodSeasonalMerchandiseSignals: CommodityKeywordSignal[] = [
     },
 ] as const;
 
-export const nonPodCommoditySignals: CommodityKeywordSignal[] = [
-    ...nonPodMaterialAndListingSignals,
-    ...nonPodStoredValueSignals,
-    ...nonPodSeasonalMerchandiseSignals,
-] as const;
-
-export const nonPodBrandOrIpSignals: KeywordSignal[] = [
+const nonPodSchoolSignals: CommodityKeywordSignal[] = [
     {
-        key: 'brand-or-ip',
+        key: 'school-supplies',
+        scope: 'no-apparel-signal',
+        pattern: /\bschool\s+supplies\b|\bnotebooks?\s+for\s+school\b|\bschool\s+snacks\b/i,
+    },
+    {
+        key: 'school-bag',
+        scope: 'no-apparel-signal',
         pattern:
-            /\b(?:nike|adidas|under\s+armou?r|carhartt|gildan|hanes|champion|comfort\s+colors|bella\s+canvas|gap|essentials|comfrt|white\s+fox|aelfric\s+eden|bape|sp5der|into\s+the\s+am|life\s+is\s+good|bad\s+bunny|benito\s+bowl|taylor\s+swift|trump|disney|dr\s+seuss|cat\s+in\s+the\s+hat|stranger\s+things|ghostface|seahawks|patriots|super\s+bowl|olympic|monster\s+jam|nfl|nba|mlb|nhl|yeti|owala|lego|minecraft|pokemon|needoh)\b/i,
+            /\bschool\s+(?:backpack|bag)\b|\bbackpack\s+(?:for\s+school|school)\b|\bschool\s+tote\s+bag\b|\btote\s+bag\s+for\s+school\b/i,
+    },
+    {
+        key: 'school-uniform',
+        scope: 'no-apparel-signal',
+        pattern: /\bschool\s+uniforms?\b|\bschool\s+girl\s+outfits?\b/i,
+    },
+    {
+        key: 'school-bare',
+        scope: 'no-apparel-signal',
+        pattern: /^(?:school|school\s+spirits?|spy\s+school)$/i,
     },
 ] as const;
+
+export const nonPodCommoditySignals: CommodityKeywordSignal[] = [
+    ...nonPodMaterialAndListingSignals,
+    ...nonPodAccessorySignals,
+    ...nonPodStoredValueSignals,
+    ...nonPodSeasonalMerchandiseSignals,
+    ...nonPodSchoolSignals,
+] as const;
+
+export const nonPodBrandOrIpSignals: KeywordSignal[] = nonPodBrandOrIpPatterns.map((pattern) => ({
+    key: 'brand-or-ip',
+    pattern,
+}));
 
 export const colorSignals: KeywordSignal[] = [
     {

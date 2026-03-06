@@ -8,6 +8,7 @@
 - Jobs + event logging: `docs/server/jobs-and-events.md`
 - BA Top Search Terms purpose: `docs/server/ba-top-search-terms-purpose.md`
 - BA Top Search Terms system: `docs/server/ba-top-search-terms-system.md`
+- BA Top Search Terms reclassification: `docs/server/ba-top-search-terms-reclassification.md`
 - Keepa + history behavior: `docs/server/keepa-history-behavior.md`
 - Database + deployment ops: `docs/server/database-and-deployment.md`
 

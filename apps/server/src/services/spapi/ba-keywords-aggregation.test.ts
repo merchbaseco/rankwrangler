@@ -20,6 +20,13 @@ describe('classifyMerchKeyword', () => {
         expect(classifyMerchKeyword('gift for mom').isMerchRelevant).toBe(true);
     });
 
+    it('blocks gift packaging and registry terms while keeping broad gift intent', () => {
+        expect(classifyMerchKeyword('gift box').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('gift registry by name').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('the gift of fear').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('birthday gifts for women').isMerchRelevant).toBe(true);
+    });
+
     it('blocks card and digital-code suffix patterns', () => {
         expect(classifyMerchKeyword('valentines day card').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('valentines cards for kids school').isMerchRelevant).toBe(false);
@@ -37,6 +44,10 @@ describe('classifyMerchKeyword', () => {
         expect(classifyMerchKeyword('st patricks day decorations').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('valentines day candy').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('easter basket stuffers').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('easter eggs').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('st patricks day accessories').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('easter window clings').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('st patricks day hat').isMerchRelevant).toBe(true);
     });
 
     it('blocks additional non-pod seasonal product families without apparel product signal', () => {
@@ -68,6 +79,12 @@ describe('classifyMerchKeyword', () => {
         expect(result.merchReason).toContain('intent:school');
     });
 
+    it('blocks broad school commodity terms', () => {
+        expect(classifyMerchKeyword('school supplies').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('backpack for school').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('school spirit').isMerchRelevant).toBe(false);
+    });
+
     it('blocks cotton commodity terms', () => {
         expect(classifyMerchKeyword('100% cotton underwear').isMerchRelevant).toBe(false);
     });
@@ -86,6 +103,27 @@ describe('classifyMerchKeyword', () => {
         expect(classifyMerchKeyword('seahawks shirt').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('yeti coffee tumbler').isMerchRelevant).toBe(false);
         expect(classifyMerchKeyword('minecraft valentines').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('harry potter shirt').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('hello kitty phone case').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('stanley tumbler').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('marc jacobs tote bag').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('scream hoodie').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('stitch gifts for girls').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('cross stitch shirt').isMerchRelevant).toBe(true);
+        expect(classifyMerchKeyword('green day t shirt').merchReason).toBe('blocked:brand-or-ip');
+        expect(classifyMerchKeyword('pink floyd t shirt').merchReason).toBe('blocked:brand-or-ip');
+        expect(classifyMerchKeyword('black sabbath t shirt').merchReason).toBe(
+            'blocked:brand-or-ip'
+        );
+        expect(classifyMerchKeyword('red hot chili peppers tshirt').merchReason).toBe(
+            'blocked:brand-or-ip'
+        );
+        expect(classifyMerchKeyword('charlie brown shirt').merchReason).toBe(
+            'blocked:brand-or-ip'
+        );
+        expect(classifyMerchKeyword('pink palm puff hoodie').merchReason).toBe(
+            'blocked:brand-or-ip'
+        );
     });
 
     it('blocks short generic apparel-only terms', () => {
@@ -93,8 +131,24 @@ describe('classifyMerchKeyword', () => {
         expect(classifyMerchKeyword('mens sweatshirt').isMerchRelevant).toBe(false);
     });
 
-    it('blocks short color+gender generic apparel terms', () => {
+    it('blocks color generic apparel terms even without gender tokens', () => {
         expect(classifyMerchKeyword('black hoodie men').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('white shirt').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('green sweatshirt').isMerchRelevant).toBe(false);
+    });
+
+    it('blocks branded and model-specific phone accessories while keeping generic ones', () => {
+        expect(classifyMerchKeyword('phone case').isMerchRelevant).toBe(true);
+        expect(classifyMerchKeyword('popsocket').isMerchRelevant).toBe(true);
+        expect(classifyMerchKeyword('iphone case').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('iphone 17 pro max phone case').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('galaxy a16 5g phone case').isMerchRelevant).toBe(false);
+        expect(classifyMerchKeyword('magsafe pop socket').isMerchRelevant).toBe(false);
+    });
+
+    it('blocks pillow cover variants while keeping throw pillow terms', () => {
+        expect(classifyMerchKeyword('throw pillow').isMerchRelevant).toBe(true);
+        expect(classifyMerchKeyword('throw pillow covers').isMerchRelevant).toBe(false);
     });
 
     it('keeps seasonal terms even when they include gender tokens', () => {

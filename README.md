@@ -16,7 +16,10 @@ Monorepo containing the RankWrangler server, website, and browser extension.
     backfill throughput stable;
     scheduler runs every 5 minutes and prioritizes earliest due `next_refresh_at` to avoid
     dataset starvation;
-    weekly windows use Sunday-Saturday boundaries to match SP-API requirements
+    weekly windows use Sunday-Saturday boundaries to match SP-API requirements;
+    merch filtering keeps broad gift intent and generic `phone case` / `popsocket` product types,
+    while blocking branded/model-specific accessory variants, school commodity terms, expanded
+    seasonal non-PoD terms, and broader brand/IP leakage
   - Product facets are AI-classified asynchronously (Gemini 2.5 Flash Lite) into normalized
     facet categories for dashboard filtering, and can be manually triggered per product from
     the product drawer
@@ -99,6 +102,8 @@ bun --filter @rankwrangler/server run build
 
 For server-specific docs, see `docs/server/index.md`.
 For BA Top Search Terms implementation details, see `docs/server/ba-top-search-terms-system.md`.
+For one-off stored keyword cleanup after filter changes, see
+`docs/server/ba-top-search-terms-reclassification.md`.
 
 ## Optional Environment
 
