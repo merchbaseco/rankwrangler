@@ -68,10 +68,12 @@ Throughput guardrail:
 
 `next_refresh_at` is SLA-aligned for open windows instead of immediate:
 
-- Daily non-Saturday periods: first refresh slot is Pacific `03:00` after the 72-hour availability
-  window (effectively `D+4 03:00 PT` for dataset day `D`).
-- Saturday daily periods and weekly periods: first refresh slot is Pacific `03:00` after the
-  48-hour availability window.
+- Daily non-Saturday periods: first refresh is scheduled at the 72-hour BA availability boundary
+  (Pacific end-of-day `D+3` for dataset day `D`).
+- Saturday daily periods and weekly periods: first refresh is scheduled at the 48-hour BA
+  availability boundary (Pacific end-of-day `D+2`).
+- The scheduler also reconciles existing idle dataset rows to pull forward stale future
+  `next_refresh_at` values when SLA timing changes.
 
 Constants live in `apps/server/src/services/top-search-terms-dataset-windows.ts`.
 

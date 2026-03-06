@@ -3,6 +3,7 @@ import {
     deleteTopSearchTermsDailyDatasetsBefore,
     insertMissingTopSearchTermsDatasets,
     listDueTopSearchTermsDatasets,
+    rescheduleIdleTopSearchTermsDatasets,
 } from '@/db/top-search-terms/datasets.js';
 import { setTopSearchTermsDatasetQueued } from '@/db/top-search-terms/dataset-status.js';
 import { defineJob } from '@/jobs/job-router.js';
@@ -58,6 +59,15 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
                     today,
                 }),
         });
+        const rescheduledCount = await rescheduleIdleTopSearchTermsDatasets({
+            windows: [...dailyWindows, ...weeklyWindows],
+            getNextRefreshAt: window =>
+                getInitialNextRefreshAtForWindow({
+                    window,
+                    now,
+                    today,
+                }),
+        });
 
         const dailyCutoff = getDailyRetentionCutoffDate({
             today,
@@ -92,6 +102,7 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
 
         log('Top Search Terms datasets sync complete', {
             insertedCount,
+            rescheduledCount,
             deletedCount,
             dueCount: dueDatasets.length,
             queuedCount,
@@ -100,8 +111,13 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
         });
 
         return {
-            didWork: insertedCount > 0 || deletedCount > 0 || queuedCount > 0,
+            didWork:
+                insertedCount > 0 ||
+                rescheduledCount > 0 ||
+                deletedCount > 0 ||
+                queuedCount > 0,
             insertedCount,
+            rescheduledCount,
             deletedCount,
             dueCount: dueDatasets.length,
             queuedCount,

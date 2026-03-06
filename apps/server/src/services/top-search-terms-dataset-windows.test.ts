@@ -76,7 +76,7 @@ describe('getDailyRetentionCutoffDate', () => {
 });
 
 describe('getNextRefreshAtAfterSuccess', () => {
-    it('uses SLA-aligned Pacific 3AM refresh windows for open datasets', () => {
+    it('uses BA SLA cutoff timestamps for open datasets', () => {
         const now = new Date('2026-03-03T12:00:00.000Z');
         const dayRefresh = getNextRefreshAtAfterSuccess({
             dataset: {
@@ -95,8 +95,8 @@ describe('getNextRefreshAtAfterSuccess', () => {
             today: '2026-03-03',
         });
 
-        expect(dayRefresh?.toISOString()).toBe('2026-03-07T11:00:00.000Z');
-        expect(weekRefresh?.toISOString()).toBe('2026-03-10T10:00:00.000Z');
+        expect(dayRefresh?.toISOString()).toBe('2026-03-07T07:59:59.999Z');
+        expect(weekRefresh?.toISOString()).toBe('2026-03-10T06:59:59.999Z');
     });
 
     it('uses saturday-specific daily SLA timing', () => {
@@ -110,7 +110,7 @@ describe('getNextRefreshAtAfterSuccess', () => {
             today: '2026-03-07',
         });
 
-        expect(dayRefresh?.toISOString()).toBe('2026-03-10T10:00:00.000Z');
+        expect(dayRefresh?.toISOString()).toBe('2026-03-10T06:59:59.999Z');
     });
 
     it('stops refreshing closed periods', () => {
@@ -139,7 +139,7 @@ describe('getNextRefreshAtAfterSuccess', () => {
 });
 
 describe('getInitialNextRefreshAtForWindow', () => {
-    it('defers open windows until SLA-aligned refresh slots', () => {
+    it('defers open windows until the BA SLA boundary', () => {
         const now = new Date('2026-03-03T20:00:00.000Z');
         const nextRefreshAt = getInitialNextRefreshAtForWindow({
             window: {
@@ -152,7 +152,7 @@ describe('getInitialNextRefreshAtForWindow', () => {
             today: '2026-03-03',
         });
 
-        expect(nextRefreshAt.toISOString()).toBe('2026-03-07T11:00:00.000Z');
+        expect(nextRefreshAt.toISOString()).toBe('2026-03-07T07:59:59.999Z');
     });
 
     it('queues closed windows immediately for backfill', () => {

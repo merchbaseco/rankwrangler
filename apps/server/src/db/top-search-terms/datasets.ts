@@ -119,6 +119,60 @@ export const insertMissingTopSearchTermsDatasets = async ({
     return inserted.length;
 };
 
+export const rescheduleIdleTopSearchTermsDatasets = async ({
+    windows,
+    getNextRefreshAt,
+}: {
+    windows: TopSearchTermsWindow[];
+    getNextRefreshAt: (window: TopSearchTermsWindow) => Date;
+}) => {
+    if (windows.length === 0) {
+        return 0;
+    }
+
+    const values = sql.join(
+        windows.map((window) => {
+            const nextRefreshAt = getNextRefreshAt(window);
+            return sql`(${window.marketplaceId}, ${window.reportPeriod}, ${window.dataStartDate}, ${
+                window.dataEndDate
+            }, ${nextRefreshAt})`;
+        }),
+        sql`, `
+    );
+
+    const updated = await db.execute<{ id: string }>(sql`
+        WITH scheduled (
+            marketplace_id,
+            report_period,
+            data_start_date,
+            data_end_date,
+            next_refresh_at
+        ) AS (
+            VALUES ${values}
+        )
+        UPDATE ${topSearchTermsDatasets} AS dataset
+        SET
+            next_refresh_at = scheduled.next_refresh_at,
+            updated_at = now()
+        FROM scheduled
+        WHERE dataset.marketplace_id = scheduled.marketplace_id
+            AND dataset.report_period = scheduled.report_period
+            AND dataset.data_start_date = scheduled.data_start_date
+            AND dataset.data_end_date = scheduled.data_end_date
+            AND dataset.status = 'idle'
+            AND dataset.refreshing = false
+            AND dataset.report_id IS NULL
+            AND dataset.active_job_id IS NULL
+            AND (
+                dataset.next_refresh_at IS NULL
+                OR dataset.next_refresh_at > scheduled.next_refresh_at
+            )
+        RETURNING dataset.id
+    `);
+
+    return updated.length;
+};
+
 export const deleteTopSearchTermsDailyDatasetsBefore = async ({
     marketplaceId,
     cutoffDateExclusive,

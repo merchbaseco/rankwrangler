@@ -1,12 +1,11 @@
 import type { TopSearchTermsDatasetRecord } from '@/db/top-search-terms/dataset-record.js';
 import type { TopSearchTermsWindow } from '@/db/top-search-terms/types.js';
-import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { fromZonedTime } from 'date-fns-tz';
 
 export const TOP_SEARCH_TERMS_DAILY_RETENTION_DAYS = 90;
 export const TOP_SEARCH_TERMS_WEEKLY_BACKFILL_WEEKS = 52;
 export const TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE = 5;
 export const TOP_SEARCH_TERMS_RETRY_DELAY_MS = 30 * 60 * 1000;
-export const TOP_SEARCH_TERMS_PACIFIC_REFRESH_HOUR = 3;
 
 export const buildDailyTopSearchTermsWindows = ({
     marketplaceId,
@@ -165,12 +164,7 @@ const getSlaAlignedRefreshAt = ({
         reportPeriod,
         dataEndDate,
     });
-    const availabilityEndOfDay = fromZonedTime(
-        `${availabilityDate}T23:59:59.999`,
-        PACIFIC_TIME_ZONE
-    );
-
-    return getNextPacificRefreshAtOrAfter(availabilityEndOfDay);
+    return fromZonedTime(`${availabilityDate}T23:59:59.999`, PACIFIC_TIME_ZONE);
 };
 
 const getDatasetAvailabilityDate = ({
@@ -185,22 +179,6 @@ const getDatasetAvailabilityDate = ({
     }
 
     return shiftDateString(dataEndDate, WEEKLY_AVAILABILITY_DELAY_DAYS);
-};
-
-const getNextPacificRefreshAtOrAfter = (date: Date) => {
-    const pacificDate = formatInTimeZone(date, PACIFIC_TIME_ZONE, 'yyyy-MM-dd');
-    const sameDayRefresh = getPacificRefreshSlot(pacificDate);
-    if (sameDayRefresh.getTime() > date.getTime()) {
-        return sameDayRefresh;
-    }
-
-    const nextDay = shiftDateString(pacificDate, 1);
-    return getPacificRefreshSlot(nextDay);
-};
-
-const getPacificRefreshSlot = (dateString: string) => {
-    const hour = String(TOP_SEARCH_TERMS_PACIFIC_REFRESH_HOUR).padStart(2, '0');
-    return fromZonedTime(`${dateString}T${hour}:00:00.000`, PACIFIC_TIME_ZONE);
 };
 
 const isSaturday = (dateString: string) => {
