@@ -196,7 +196,7 @@ const applyChanges = async (
                     record.id::uuid AS id,
                     record.is_merch_relevant::boolean AS is_merch_relevant,
                     record.merch_reason::text AS merch_reason
-                FROM jsonb_to_recordset(${JSON.stringify(updates)}::jsonb) AS record(
+                FROM jsonb_to_recordset(${tx.json(updates)}::jsonb) AS record(
                     id text,
                     is_merch_relevant boolean,
                     merch_reason text
