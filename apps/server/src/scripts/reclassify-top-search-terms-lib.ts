@@ -19,6 +19,7 @@ export type KeywordRow = {
 };
 
 export type ChangeRow = {
+    rowId: string;
     snapshotId: string;
     reportPeriod: 'DAY' | 'WEEK';
     marketplaceId: string;

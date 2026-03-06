@@ -59,6 +59,7 @@ const main = async () => {
                 }
 
                 const change = {
+                    rowId: row.id,
                     snapshotId: snapshot.id,
                     reportPeriod: snapshot.report_period,
                     marketplaceId: snapshot.marketplace_id,
@@ -179,16 +180,25 @@ const applyChanges = async (
     nextRelevantCount: number
 ) => {
     await sql.begin(async (tx) => {
-        for (const change of changes) {
-            await tx`
-                UPDATE top_search_terms_keyword_daily
-                SET
-                    is_merch_relevant = ${change.nextRelevant},
-                    merch_reason = ${change.nextReason}
-                WHERE snapshot_id = ${snapshotId}
-                    AND search_term = ${change.searchTerm}
-            `;
-        }
+        const rowIds = changes.map((change) => change.rowId);
+        const relevances = changes.map((change) => change.nextRelevant);
+        const reasons = changes.map((change) => change.nextReason);
+
+        await tx`
+            UPDATE top_search_terms_keyword_daily AS keyword
+            SET
+                is_merch_relevant = updates.is_merch_relevant,
+                merch_reason = updates.merch_reason
+            FROM (
+                SELECT *
+                FROM unnest(
+                    ${rowIds}::uuid[],
+                    ${relevances}::boolean[],
+                    ${reasons}::text[]
+                ) AS updates(id, is_merch_relevant, merch_reason)
+            ) AS updates
+            WHERE keyword.id = updates.id
+        `;
 
         await tx`
             UPDATE top_search_terms_snapshots
