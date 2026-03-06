@@ -1,6 +1,6 @@
 export const statusDotClassByStatus: Record<string, string> = {
-	success: 'bg-success',
-	failed: 'bg-destructive',
+	success: "bg-success",
+	failed: "bg-destructive",
 };
 
 export const formatDuration = (durationMs: number) => {
@@ -19,35 +19,35 @@ export const formatDuration = (durationMs: number) => {
 export const formatDateTime = (isoDate: string) => {
 	const date = new Date(isoDate);
 	if (Number.isNaN(date.getTime())) {
-		return 'Invalid date';
+		return "Invalid date";
 	}
 
-	return new Intl.DateTimeFormat('en-US', {
-		month: 'short',
-		day: '2-digit',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
+	return new Intl.DateTimeFormat("en-US", {
+		month: "short",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
 	}).format(date);
 };
 
 export const formatLogTime = (isoDate: string) => {
 	const date = new Date(isoDate);
 	if (Number.isNaN(date.getTime())) {
-		return '--:--:--';
+		return "--:--:--";
 	}
 
-	return new Intl.DateTimeFormat('en-US', {
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
+	return new Intl.DateTimeFormat("en-US", {
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
 		hour12: false,
 	}).format(date);
 };
 
 export const formatJson = (value: unknown) => {
 	if (value === null || value === undefined) {
-		return 'null';
+		return "null";
 	}
 
 	try {
@@ -74,11 +74,11 @@ export const formatCompactJson = (value: unknown) => {
 };
 
 export const getLogLevelClass = (level: string) => {
-	if (level === 'error') {
-		return 'text-destructive';
+	if (level === "error") {
+		return "text-destructive";
 	}
-	if (level === 'warn') {
-		return 'text-warning-foreground';
+	if (level === "warn") {
+		return "text-warning-foreground";
 	}
-	return 'text-success-foreground';
+	return "text-success-foreground";
 };

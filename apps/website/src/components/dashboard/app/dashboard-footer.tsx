@@ -11,8 +11,8 @@ export const DashboardFooter = ({
 		<div className="text-muted-foreground flex items-center justify-between text-xs font-mono">
 			<span>
 				{activeFilterCount > 0
-					? `${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active`
-					: 'No filters applied'}
+					? `${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`
+					: "No filters applied"}
 			</span>
 			<span>
 				{productCount > 0

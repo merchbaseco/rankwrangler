@@ -1,9 +1,14 @@
-import { LAST_UPDATED_HOURS } from '@/components/dashboard/recent-products/types';
-import type { FilterState, Product } from '@/components/dashboard/recent-products/types';
+import type {
+	FilterState,
+	Product,
+} from "@/components/dashboard/recent-products/types";
+import { LAST_UPDATED_HOURS } from "@/components/dashboard/recent-products/types";
 
 const HOUR_IN_MS = 60 * 60 * 1000;
 
-export const hydrateProducts = (items: Array<Omit<Product, 'lastFetchedMs'>>): Product[] =>
+export const hydrateProducts = (
+	items: Array<Omit<Product, "lastFetchedMs">>,
+): Product[] =>
 	items.map((product) => ({
 		...product,
 		lastFetchedMs: toValidTimestamp(product.lastFetched),
@@ -24,7 +29,7 @@ export const filterProducts = ({
 	const activeFacetSet =
 		activeFacetKeys.length > 0 ? new Set(activeFacetKeys) : null;
 	const cutoffMs =
-		filters.lastUpdated === 'all'
+		filters.lastUpdated === "all"
 			? null
 			: Date.now() - LAST_UPDATED_HOURS[filters.lastUpdated] * HOUR_IN_MS;
 

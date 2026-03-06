@@ -3,22 +3,22 @@ import {
 	getSortedRowModel,
 	type SortingState,
 	useReactTable,
-} from '@tanstack/react-table';
-import { useMemo, useRef, useState } from 'react';
-import { createColumns } from '@/components/dashboard/recent-products/columns';
-import { hydrateProducts } from '@/components/dashboard/recent-products/filter-utils';
-import { ProductHistorySheet } from '@/components/dashboard/recent-products/history-sheet';
-import { RecentProductsTableView } from '@/components/dashboard/recent-products/table-view';
-import {
-	ProductTooltipPortal,
-	useProductTooltip,
-} from '@/components/dashboard/recent-products/tooltip';
+} from "@tanstack/react-table";
+import { useMemo, useRef, useState } from "react";
+import { createColumns } from "@/components/dashboard/recent-products/columns";
+import { hydrateProducts } from "@/components/dashboard/recent-products/filter-utils";
+import { ProductHistorySheet } from "@/components/dashboard/recent-products/history-sheet";
+import { RecentProductsTableView } from "@/components/dashboard/recent-products/table-view";
 import type {
 	Product,
 	SelectedHistoryProduct,
-} from '@/components/dashboard/recent-products/types';
+} from "@/components/dashboard/recent-products/types";
+import {
+	CursorImageTooltip,
+	useCursorImageTooltip,
+} from "@/components/ui/tooltip";
 
-type AmazonSearchItem = Omit<Product, 'lastFetchedMs'>;
+type AmazonSearchItem = Omit<Product, "lastFetchedMs">;
 
 export const AmazonResultsTable = ({
 	items,
@@ -30,7 +30,7 @@ export const AmazonResultsTable = ({
 	errorMessage: string | null;
 }) => {
 	const [sorting, setSorting] = useState<SortingState>([
-		{ desc: false, id: 'rootCategoryBsr' },
+		{ desc: false, id: "rootCategoryBsr" },
 	]);
 	const [selectedHistoryProduct, setSelectedHistoryProduct] =
 		useState<SelectedHistoryProduct | null>(null);
@@ -43,7 +43,7 @@ export const AmazonResultsTable = ({
 		setTooltip,
 		tooltip,
 		tooltipRef,
-	} = useProductTooltip();
+	} = useCursorImageTooltip();
 
 	const hydrated = useMemo(() => hydrateProducts(items), [items]);
 
@@ -68,8 +68,8 @@ export const AmazonResultsTable = ({
 			columns.map((column, index) => {
 				const meta = column.meta as { flex?: boolean } | undefined;
 				const key =
-					(typeof column.id === 'string' && column.id) ||
-					(typeof column.accessorKey === 'string' && column.accessorKey) ||
+					(typeof column.id === "string" && column.id) ||
+					(typeof column.accessorKey === "string" && column.accessorKey) ||
 					`column-${index}`;
 				return { key, width: meta?.flex ? undefined : column.size };
 			}),
@@ -130,7 +130,7 @@ export const AmazonResultsTable = ({
 				}}
 				onRowMouseLeave={hideTooltip}
 			/>
-			<ProductTooltipPortal tooltip={tooltip} tooltipRef={tooltipRef} />
+			<CursorImageTooltip tooltip={tooltip} tooltipRef={tooltipRef} />
 			<ProductHistorySheet
 				isOpen={isHistorySheetOpen}
 				selectedProduct={selectedHistoryProduct}

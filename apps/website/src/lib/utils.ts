@@ -24,7 +24,10 @@ export function formatRelativeTime(date?: string | Date | null) {
 	return `${diffDays}d ago`;
 }
 
-export function formatCalendarDate(date?: string | Date | null, fallback = "--") {
+export function formatCalendarDate(
+	date?: string | Date | null,
+	fallback = "--",
+) {
 	if (!date) return fallback;
 	const time = typeof date === "string" ? new Date(date) : date;
 	if (Number.isNaN(time.getTime())) return fallback;

@@ -1,5 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { JobExecution } from '@/components/dashboard/job-executions-panel/types';
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
 	formatCompactJson,
 	formatDateTime,
@@ -8,8 +7,10 @@ import {
 	formatLogTime,
 	getLogLevelClass,
 	statusDotClassByStatus,
-} from '@/components/dashboard/job-executions-panel/formatters';
-import { cn, formatRelativeTime } from '@/lib/utils';
+} from "@/components/dashboard/job-executions-panel/formatters";
+import type { JobExecution } from "@/components/dashboard/job-executions-panel/types";
+import { Button } from "@/components/ui/button";
+import { cn, formatRelativeTime } from "@/lib/utils";
 
 export const ExecutionRow = ({
 	execution,
@@ -20,22 +21,29 @@ export const ExecutionRow = ({
 	isExpanded: boolean;
 	onToggle: () => void;
 }) => {
-	const statusDotClass = statusDotClassByStatus[execution.status] ?? 'bg-warning';
+	const statusDotClass =
+		statusDotClassByStatus[execution.status] ?? "bg-warning";
 
 	return (
 		<div className="border-border border-b last:border-b-0">
-			<button
-				type="button"
+			<Button
+				className="h-auto w-full justify-between rounded-none px-3 py-2 text-left hover:bg-muted/40"
 				onClick={onToggle}
-				className="hover:bg-muted/40 flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors"
+				size="sm"
+				variant="ghost"
 			>
 				<div className="min-w-0 flex-1">
 					<div className="flex items-center gap-2">
-						<span className={cn('inline-block size-2 rounded-full', statusDotClass)} />
-						<code className="text-foreground truncate font-mono text-xs">{execution.jobName}</code>
+						<span
+							className={cn("inline-block size-2 rounded-full", statusDotClass)}
+						/>
+						<code className="text-foreground truncate font-mono text-xs">
+							{execution.jobName}
+						</code>
 					</div>
 					<p className="text-muted-foreground mt-1 text-xs font-mono">
-						{formatRelativeTime(execution.startedAt)} {'  '}({formatDateTime(execution.startedAt)}) {'  '}•{'  '}
+						{formatRelativeTime(execution.startedAt)} {"  "}(
+						{formatDateTime(execution.startedAt)}) {"  "}•{"  "}
 						{formatDuration(execution.durationMs)}
 					</p>
 				</div>
@@ -44,7 +52,7 @@ export const ExecutionRow = ({
 				) : (
 					<ChevronDown className="text-muted-foreground mt-0.5 size-4 shrink-0" />
 				)}
-			</button>
+			</Button>
 			{isExpanded ? <ExpandedExecution execution={execution} /> : null}
 		</div>
 	);
@@ -64,19 +72,28 @@ const ExpandedExecution = ({ execution }: { execution: JobExecution }) => (
 		</div>
 
 		<div className="space-y-1.5">
-			<p className="text-muted-foreground font-mono text-xs uppercase tracking-[0.12em]">Logs</p>
+			<p className="text-muted-foreground font-mono text-xs uppercase tracking-[0.12em]">
+				Logs
+			</p>
 			{execution.logs.length === 0 ? (
 				<p className="text-muted-foreground text-xs">No logs captured.</p>
 			) : (
 				<div className="rounded-sm border border-border bg-background px-2 py-2">
 					{execution.logs.map((log) => (
-						<p key={log.id} className="text-foreground font-mono text-xs leading-5">
-							<span className="text-muted-foreground">{formatLogTime(log.createdAt)}</span>
-							{'  '}
-							<span className={getLogLevelClass(log.level)}>{log.level.toUpperCase()}</span>
-							{'  '}
+						<p
+							key={log.id}
+							className="text-foreground font-mono text-xs leading-5"
+						>
+							<span className="text-muted-foreground">
+								{formatLogTime(log.createdAt)}
+							</span>
+							{"  "}
+							<span className={getLogLevelClass(log.level)}>
+								{log.level.toUpperCase()}
+							</span>
+							{"  "}
 							{log.message}
-							{log.context ? ` ${formatCompactJson(log.context)}` : ''}
+							{log.context ? ` ${formatCompactJson(log.context)}` : ""}
 						</p>
 					))}
 				</div>
@@ -87,7 +104,9 @@ const ExpandedExecution = ({ execution }: { execution: JobExecution }) => (
 
 const JsonBlock = ({ label, value }: { label: string; value: unknown }) => (
 	<div className="space-y-1.5">
-		<p className="text-muted-foreground font-mono text-xs uppercase tracking-[0.12em]">{label}</p>
+		<p className="text-muted-foreground font-mono text-xs uppercase tracking-[0.12em]">
+			{label}
+		</p>
 		<pre className="text-foreground max-h-[170px] overflow-auto rounded-sm border border-border bg-background px-2 py-2 font-mono text-xs leading-5">
 			{formatJson(value)}
 		</pre>

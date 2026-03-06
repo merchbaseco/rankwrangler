@@ -1,89 +1,89 @@
-import type { RouterOutputs } from '@/lib/trpc';
-import { formatNumber } from '@/lib/utils';
+import type { RouterOutputs } from "@/lib/trpc";
+import { formatNumber } from "@/lib/utils";
 
-type AdminStatsData = RouterOutputs['api']['app']['getAdminStats'];
-type RefreshPolicyBucket = AdminStatsData['spApiRefreshPolicyBuckets'][number];
+type AdminStatsData = RouterOutputs["api"]["app"]["getAdminStats"];
+type RefreshPolicyBucket = AdminStatsData["spApiRefreshPolicyBuckets"][number];
 
 type SpApiRefreshPolicyPanelProps = {
-    buckets: RefreshPolicyBucket[];
-    isLoading: boolean;
+	buckets: RefreshPolicyBucket[];
+	isLoading: boolean;
 };
 
 export const SpApiRefreshPolicyPanel = ({
-    buckets,
-    isLoading,
+	buckets,
+	isLoading,
 }: SpApiRefreshPolicyPanelProps) => {
-    const autoRefreshProducts = buckets
-        .filter((bucket) => bucket.isAutoRefresh)
-        .reduce((total, bucket) => total + bucket.count, 0);
+	const autoRefreshProducts = buckets
+		.filter((bucket) => bucket.isAutoRefresh)
+		.reduce((total, bucket) => total + bucket.count, 0);
 
-    return (
-        <div>
-            <div className="flex items-center justify-between border-b border-border bg-accent px-3 py-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    SP-API Refresh
-                </p>
-                {!isLoading && (
-                    <p className="font-mono text-xs tabular-nums">
-                        <span className="text-info-foreground">
-                            {formatNumber(autoRefreshProducts)}
-                        </span>
-                        <span className="ml-1 text-muted-foreground">auto</span>
-                    </p>
-                )}
-            </div>
+	return (
+		<div>
+			<div className="flex items-center justify-between border-b border-border bg-accent px-3 py-2">
+				<p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+					SP-API Refresh
+				</p>
+				{!isLoading && (
+					<p className="font-mono text-xs tabular-nums">
+						<span className="text-info-foreground">
+							{formatNumber(autoRefreshProducts)}
+						</span>
+						<span className="ml-1 text-muted-foreground">auto</span>
+					</p>
+				)}
+			</div>
 
-            {isLoading ? (
-                <p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>
-            ) : buckets.length === 0 ? (
-                <p className="px-3 py-2 text-xs text-muted-foreground">No buckets.</p>
-            ) : (
-                <table className="w-full text-xs">
-                    <thead>
-                        <tr className="border-b border-border">
-                            <th className="px-3 py-1 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                                Bucket
-                            </th>
-                            <th className="px-3 py-1 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                                Policy
-                            </th>
-                            <th className="px-3 py-1 text-right text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                                Count
-                            </th>
-                            <th className="w-6" />
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {buckets.map((bucket) => (
-                            <tr
-                                key={bucket.key}
-                                className="border-b border-border last:border-0"
-                            >
-                                <td className="px-3 py-1 font-mono text-foreground">
-                                    {bucket.label}
-                                </td>
-                                <td className="px-3 py-1 text-muted-foreground">
-                                    {bucket.refreshEveryLabel}
-                                </td>
-                                <td className="px-3 py-1 text-right font-mono tabular-nums text-foreground">
-                                    {formatNumber(bucket.count)}
-                                </td>
-                                <td className="px-1 py-1 text-center">
-                                    <span
-                                        className={
-                                            bucket.isAutoRefresh
-                                                ? 'text-info'
-                                                : 'text-muted-foreground/30'
-                                        }
-                                    >
-                                        ●
-                                    </span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
-        </div>
-    );
+			{isLoading ? (
+				<p className="px-3 py-2 text-xs text-muted-foreground">Loading…</p>
+			) : buckets.length === 0 ? (
+				<p className="px-3 py-2 text-xs text-muted-foreground">No buckets.</p>
+			) : (
+				<table className="w-full text-xs">
+					<thead>
+						<tr className="border-b border-border">
+							<th className="px-3 py-1 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+								Bucket
+							</th>
+							<th className="px-3 py-1 text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+								Policy
+							</th>
+							<th className="px-3 py-1 text-right text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+								Count
+							</th>
+							<th className="w-6" />
+						</tr>
+					</thead>
+					<tbody>
+						{buckets.map((bucket) => (
+							<tr
+								key={bucket.key}
+								className="border-b border-border last:border-0"
+							>
+								<td className="px-3 py-1 font-mono text-foreground">
+									{bucket.label}
+								</td>
+								<td className="px-3 py-1 text-muted-foreground">
+									{bucket.refreshEveryLabel}
+								</td>
+								<td className="px-3 py-1 text-right font-mono tabular-nums text-foreground">
+									{formatNumber(bucket.count)}
+								</td>
+								<td className="px-1 py-1 text-center">
+									<span
+										className={
+											bucket.isAutoRefresh
+												? "text-info"
+												: "text-muted-foreground/30"
+										}
+									>
+										●
+									</span>
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			)}
+		</div>
+	);
 };

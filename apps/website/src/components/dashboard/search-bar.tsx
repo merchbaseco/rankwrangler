@@ -1,5 +1,6 @@
-import { Search, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export const SearchBar = ({
 	onSearchValueChange,
@@ -18,14 +19,15 @@ export const SearchBar = ({
 				className="h-9 rounded-none border-0 bg-transparent px-9 text-xs shadow-none focus-within:ring-0"
 			/>
 			{searchValue.trim().length > 0 ? (
-				<button
-					type="button"
-					onClick={() => onSearchValueChange('')}
-					className="text-muted-foreground hover:text-foreground absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+				<Button
+					onClick={() => onSearchValueChange("")}
 					aria-label="Clear search"
+					className="absolute right-3 top-1/2 size-7 -translate-y-1/2 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+					size="sm"
+					variant="ghost"
 				>
 					<X className="size-3.5" />
-				</button>
+				</Button>
 			) : null}
 		</div>
 	</div>

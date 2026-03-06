@@ -1,7 +1,7 @@
 export type FilterState = {
 	bsrRange: [number, number] | null;
 	marketplaceIds: string[];
-	lastUpdated: 'all' | '24h' | '7d' | '30d';
+	lastUpdated: "all" | "24h" | "7d" | "30d";
 };
 
 export type Product = {
@@ -36,15 +36,15 @@ export type SelectedHistoryProduct = {
 };
 
 export const MARKETPLACE_FLAGS: Record<string, string> = {
-	ATVPDKIKX0DER: '🇺🇸',
-	A1F83G8C2ARO7P: '🇬🇧',
-	A1PA6795UKMFR9: '🇩🇪',
-	A13V1IB3VIYZZH: '🇫🇷',
-	A1VC38T7YXB528: '🇯🇵',
+	ATVPDKIKX0DER: "🇺🇸",
+	A1F83G8C2ARO7P: "🇬🇧",
+	A1PA6795UKMFR9: "🇩🇪",
+	A13V1IB3VIYZZH: "🇫🇷",
+	A1VC38T7YXB528: "🇯🇵",
 };
 
 export const LAST_UPDATED_HOURS = {
-	'24h': 24,
-	'7d': 168,
-	'30d': 720,
+	"24h": 24,
+	"7d": 168,
+	"30d": 720,
 } as const;

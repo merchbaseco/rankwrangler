@@ -11,10 +11,10 @@ const MARKETPLACE_ID = 'ATVPDKIKX0DER';
 
 export const TrendCanvas = ({
 	selectedSearchTerm,
-    reportPeriod,
+	reportPeriod,
 }: {
 	selectedSearchTerm: string | null;
-    reportPeriod: 'DAY' | 'WEEK';
+	reportPeriod: 'DAY' | 'WEEK';
 }) => {
 	const trendQuery = api.api.app.searchterms.trend.useQuery(
 		{

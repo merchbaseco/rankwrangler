@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app";
 import { DevAutoSignIn } from "./components/auth/dev-auto-sign-in";
 import { ToastProvider } from "./components/ui/toast";
+import { TooltipProvider } from "./components/ui/tooltip";
 import { TRPCProvider } from "./lib/trpc-provider";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/500.css";
@@ -17,7 +18,11 @@ import "./styles/global.css";
 
 // Apply saved theme before first paint to prevent flash
 const savedTheme = localStorage.getItem("rw-theme") ?? "system";
-if (savedTheme === "dark" || (savedTheme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+if (
+	savedTheme === "dark" ||
+	(savedTheme === "system" &&
+		window.matchMedia("(prefers-color-scheme: dark)").matches)
+) {
 	document.documentElement.classList.add("dark");
 }
 
@@ -59,9 +64,11 @@ createRoot(rootElement).render(
 			<ClerkProvider publishableKey={publishableKey}>
 				<SignedIn>
 					<TRPCProvider>
-						<ToastProvider>
-							<App />
-						</ToastProvider>
+						<TooltipProvider closeDelay={50} delay={250}>
+							<ToastProvider>
+								<App />
+							</ToastProvider>
+						</TooltipProvider>
 					</TRPCProvider>
 				</SignedIn>
 				<SignedOut>

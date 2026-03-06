@@ -1,26 +1,40 @@
-import { useCallback, useMemo, useReducer, useState, useTransition } from 'react';
-import { DashboardFooter } from '@/components/dashboard/app/dashboard-footer';
-import { FiltersSidebar } from '@/components/dashboard/app/filters-sidebar';
-import { TopBar } from '@/components/dashboard/app/top-bar';
-import type { LastUpdated } from '@/components/dashboard/app/config';
-import { KeywordsPage } from '@/components/dashboard/keywords/keywords-page';
-import { LogsPage } from '@/components/dashboard/logs/logs-page';
-import { RecentProducts, type FilterState } from '@/components/dashboard/recent-products';
-import { SearchBar } from '@/components/dashboard/search-bar';
-import { SettingsModal } from '@/components/dashboard/settings-modal';
-import { useLicense } from '@/hooks/use-license';
-import { useTheme } from '@/hooks/use-theme';
+import {
+	useCallback,
+	useMemo,
+	useReducer,
+	useState,
+	useTransition,
+} from "react";
+import type { LastUpdated } from "@/components/dashboard/app/config";
+import { DashboardFooter } from "@/components/dashboard/app/dashboard-footer";
+import { FiltersSidebar } from "@/components/dashboard/app/filters-sidebar";
+import { TopBar } from "@/components/dashboard/app/top-bar";
+import { KeywordsPage } from "@/components/dashboard/keywords/keywords-page";
+import { LogsPage } from "@/components/dashboard/logs/logs-page";
+import {
+	type FilterState,
+	RecentProducts,
+} from "@/components/dashboard/recent-products";
+import { SearchBar } from "@/components/dashboard/search-bar";
+import { SettingsModal } from "@/components/dashboard/settings-modal";
+import { useLicense } from "@/hooks/use-license";
+import { useTheme } from "@/hooks/use-theme";
 
 export function App() {
-	const [activePage, setActivePage] = useState<'products' | 'logs' | 'keywords'>('products');
-	const [searchValue, setSearchValue] = useState('');
+	const [activePage, setActivePage] = useState<
+		"products" | "logs" | "keywords"
+	>("products");
+	const [searchValue, setSearchValue] = useState("");
 	const [filters, setFilters] = useState<FilterState>({
 		bsrRange: null,
 		marketplaceIds: [],
-		lastUpdated: 'all',
+		lastUpdated: "all",
 	});
 	const [, startFilterTransition] = useTransition();
-	const [uiState, dispatchUiState] = useReducer(appUiStateReducer, INITIAL_APP_UI_STATE);
+	const [uiState, dispatchUiState] = useReducer(
+		appUiStateReducer,
+		INITIAL_APP_UI_STATE,
+	);
 	const [productStatus, setProductStatus] = useState<{
 		availableFacets: Array<{ emoji: string; key: string; label: string }>;
 		count: number;
@@ -76,7 +90,10 @@ export function App() {
 	const updateLastUpdated = useCallback(
 		(nextLastUpdated: LastUpdated) => {
 			startFilterTransition(() => {
-				setFilters((previous) => ({ ...previous, lastUpdated: nextLastUpdated }));
+				setFilters((previous) => ({
+					...previous,
+					lastUpdated: nextLastUpdated,
+				}));
 			});
 		},
 		[startFilterTransition],
@@ -90,7 +107,7 @@ export function App() {
 		if (filters.marketplaceIds.length > 0) {
 			count += 1;
 		}
-		if (filters.lastUpdated !== 'all') {
+		if (filters.lastUpdated !== "all") {
 			count += 1;
 		}
 		if (uiState.activeFacets.length > 0) {
@@ -110,7 +127,7 @@ export function App() {
 	}, [productStatus.availableFacets, uiState.facetSearch]);
 
 	const toggleFacet = useCallback((facetLabel: string) => {
-		dispatchUiState({ facetLabel, type: 'toggleFacet' });
+		dispatchUiState({ facetLabel, type: "toggleFacet" });
 	}, []);
 
 	return (
@@ -118,8 +135,10 @@ export function App() {
 			<TopBar
 				activePage={activePage}
 				onPageChange={setActivePage}
-				onOpenSettings={() => dispatchUiState({ open: true, type: 'setSettingsOpen' })}
-				onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+				onOpenSettings={() =>
+					dispatchUiState({ open: true, type: "setSettingsOpen" })
+				}
+				onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
 				totalMerchProducts={productStatus.totalMerchProducts}
 				totalProducts={productStatus.totalProducts}
 				theme={theme}
@@ -128,7 +147,7 @@ export function App() {
 			/>
 
 			<div className="flex min-h-0 flex-1 overflow-hidden">
-				{activePage === 'products' ? (
+				{activePage === "products" ? (
 					<>
 						<FiltersSidebar
 							activeFacets={uiState.activeFacets}
@@ -137,12 +156,14 @@ export function App() {
 							filters={filters}
 							nichesSectionOpen={uiState.nichesSectionOpen}
 							onFacetSearchChange={(nextValue) =>
-								dispatchUiState({ nextValue, type: 'setFacetSearch' })
+								dispatchUiState({ nextValue, type: "setFacetSearch" })
 							}
 							onBsrRangeChange={setBsrRange}
 							onToggleFacet={toggleFacet}
 							onToggleMarketplace={toggleMarketplace}
-							onToggleNichesSection={() => dispatchUiState({ type: 'toggleNichesSection' })}
+							onToggleNichesSection={() =>
+								dispatchUiState({ type: "toggleNichesSection" })
+							}
 							onUpdateLastUpdated={updateLastUpdated}
 						/>
 
@@ -170,7 +191,7 @@ export function App() {
 							/>
 						</div>
 					</>
-				) : activePage === 'logs' ? (
+				) : activePage === "logs" ? (
 					<div className="min-h-0 min-w-0 flex-1">
 						<LogsPage />
 					</div>
@@ -183,7 +204,9 @@ export function App() {
 
 			<SettingsModal
 				open={uiState.settingsOpen}
-				onOpenChange={(open) => dispatchUiState({ open, type: 'setSettingsOpen' })}
+				onOpenChange={(open) =>
+					dispatchUiState({ open, type: "setSettingsOpen" })
+				}
 			/>
 		</div>
 	);
@@ -197,32 +220,35 @@ type AppUiState = {
 };
 
 type AppUiAction =
-	| { type: 'setFacetSearch'; nextValue: string }
-	| { type: 'toggleFacet'; facetLabel: string }
-	| { type: 'toggleNichesSection' }
-	| { type: 'setSettingsOpen'; open: boolean };
+	| { type: "setFacetSearch"; nextValue: string }
+	| { type: "toggleFacet"; facetLabel: string }
+	| { type: "toggleNichesSection" }
+	| { type: "setSettingsOpen"; open: boolean };
 
 const INITIAL_APP_UI_STATE: AppUiState = {
-	facetSearch: '',
+	facetSearch: "",
 	activeFacets: [],
 	nichesSectionOpen: true,
 	settingsOpen: false,
 };
 
-const appUiStateReducer = (state: AppUiState, action: AppUiAction): AppUiState => {
+const appUiStateReducer = (
+	state: AppUiState,
+	action: AppUiAction,
+): AppUiState => {
 	switch (action.type) {
-		case 'setFacetSearch':
+		case "setFacetSearch":
 			return { ...state, facetSearch: action.nextValue };
-		case 'toggleFacet':
+		case "toggleFacet":
 			return {
 				...state,
 				activeFacets: state.activeFacets.includes(action.facetLabel)
 					? state.activeFacets.filter((facet) => facet !== action.facetLabel)
 					: [...state.activeFacets, action.facetLabel],
 			};
-		case 'toggleNichesSection':
+		case "toggleNichesSection":
 			return { ...state, nichesSectionOpen: !state.nichesSectionOpen };
-		case 'setSettingsOpen':
+		case "setSettingsOpen":
 			return { ...state, settingsOpen: action.open };
 		default:
 			return state;
