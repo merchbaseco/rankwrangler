@@ -1,6 +1,6 @@
-import { Moon, Settings, Sun, UserCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { formatNumber } from '@/lib/utils';
+import { Moon, Settings, Sun, UserCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { formatNumber } from "@/lib/utils";
 
 export const TopBar = ({
 	activePage,
@@ -19,13 +19,13 @@ export const TopBar = ({
 	onToggleTheme: () => void;
 	totalMerchProducts: number | null;
 	totalProducts: number | null;
-	theme: 'light' | 'dark' | 'system';
+	theme: "light" | "dark" | "system";
 	usageLimit: number | null;
 	usageToday: number | null;
 }) => {
 	const usageText =
 		usageToday === null || usageLimit === null
-			? '--'
+			? "--"
 			: usageLimit === -1
 				? `${formatNumber(usageToday)} / Unlimited`
 				: `${formatNumber(usageToday)} / ${formatNumber(usageLimit)}`;
@@ -35,7 +35,9 @@ export const TopBar = ({
 			<div className="text-muted-foreground flex items-center gap-4 text-xs font-mono">
 				<span className="flex items-center gap-2">
 					<img src="/cowboy-hat.png" alt="" className="size-6" />
-					<span className="text-sm font-bold tracking-wide text-amber-800">RANKWRANGLER</span>
+					<span className="text-sm font-bold tracking-wide text-amber-800">
+						RANKWRANGLER
+					</span>
 				</span>
 				<span className="text-border">|</span>
 				<div className="flex items-center rounded-sm border border-border bg-background/80 p-0.5">
@@ -77,20 +79,23 @@ export const TopBar = ({
 				</span>
 				<div className="ml-auto flex items-center gap-4">
 					<span>
-						API Usage: <span className="font-medium text-foreground">{usageText}</span>
+						API Usage:{" "}
+						<span className="font-medium text-foreground">{usageText}</span>
 					</span>
 					<span className="text-border">|</span>
 					<span>
-						Total Products:{' '}
+						Total Products:{" "}
 						<span className="font-medium text-foreground">
-							{totalProducts === null ? '--' : formatNumber(totalProducts)}
+							{totalProducts === null ? "--" : formatNumber(totalProducts)}
 						</span>
 					</span>
 					<span className="text-border">|</span>
 					<span>
-						Total Merch Products:{' '}
+						Total Merch Products:{" "}
 						<span className="font-medium text-foreground">
-							{totalMerchProducts === null ? '--' : formatNumber(totalMerchProducts)}
+							{totalMerchProducts === null
+								? "--"
+								: formatNumber(totalMerchProducts)}
 						</span>
 					</span>
 				</div>
@@ -101,7 +106,11 @@ export const TopBar = ({
 						className="text-muted-foreground hover:text-foreground"
 						onClick={onToggleTheme}
 					>
-						{theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+						{theme === "dark" ? (
+							<Sun className="size-4" />
+						) : (
+							<Moon className="size-4" />
+						)}
 					</Button>
 					<Button
 						variant="ghost"

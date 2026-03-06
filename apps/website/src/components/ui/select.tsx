@@ -3,8 +3,8 @@ import { cva, type VariantProps } from "class-variance-authority";
 import {
 	CheckIcon,
 	ChevronDownIcon,
-	ChevronUpIcon,
 	ChevronsUpDownIcon,
+	ChevronUpIcon,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
@@ -102,7 +102,10 @@ const SelectPopup = ({
 					</SelectPrimitive.ScrollUpArrow>
 					<div className="min-w-(--anchor-width) overflow-hidden rounded-md border bg-popover shadow-md">
 						<SelectPrimitive.List
-							className={cn("max-h-(--available-height) overflow-y-auto p-1", className)}
+							className={cn(
+								"max-h-(--available-height) overflow-y-auto p-1",
+								className,
+							)}
 							data-slot="select-list"
 						>
 							{children}
@@ -144,10 +147,4 @@ const SelectItem = ({
 	);
 };
 
-export {
-	Select,
-	SelectTrigger,
-	SelectValue,
-	SelectPopup,
-	SelectItem,
-};
+export { Select, SelectTrigger, SelectValue, SelectPopup, SelectItem };

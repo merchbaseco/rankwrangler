@@ -129,9 +129,9 @@ export const KeywordsTableView = ({
 							<TableRow
 								key={row.id}
 								className={cn(
-									'cursor-pointer',
+									"cursor-pointer",
 									selectedSearchTerm === row.original.searchTerm &&
-										'bg-accent hover:bg-accent',
+										"bg-accent hover:bg-accent",
 								)}
 								onClick={() => onSelectSearchTerm(row.original.searchTerm)}
 							>

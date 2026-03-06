@@ -1,19 +1,19 @@
-import type { Table } from '@tanstack/react-table';
-import { flexRender } from '@tanstack/react-table';
-import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
+import type { Table } from "@tanstack/react-table";
+import { flexRender } from "@tanstack/react-table";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import {
 	Colgroup,
 	type ColgroupColumn,
-} from '@/components/dashboard/recent-products/columns';
-import type { Product } from '@/components/dashboard/recent-products/types';
+} from "@/components/dashboard/recent-products/columns";
+import type { Product } from "@/components/dashboard/recent-products/types";
 import {
 	TableBody,
 	TableCell,
 	TableHead,
 	TableHeader,
 	TableRow,
-} from '@/components/ui/table';
-import { cn } from '@/lib/utils';
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 export const RecentProductsTableView = ({
 	table,
@@ -23,7 +23,7 @@ export const RecentProductsTableView = ({
 	hasNextPage,
 	isFetchingNextPage,
 	loadMoreRef,
-	emptyMessage = 'No products scanned yet. Search an ASIN above.',
+	emptyMessage = "No products scanned yet. Search an ASIN above.",
 	onRowMouseEnter,
 	onRowMouseMove,
 	onRowMouseLeave,
@@ -49,7 +49,7 @@ export const RecentProductsTableView = ({
 	onRowMouseLeave: () => void;
 }) => (
 	<div className="flex h-full min-h-0 flex-col bg-card">
-		<table className="w-full shrink-0 text-sm" style={{ tableLayout: 'fixed' }}>
+		<table className="w-full shrink-0 text-sm" style={{ tableLayout: "fixed" }}>
 			<Colgroup columns={colgroupColumns} />
 			<TableHeader>
 				{table.getHeaderGroups().map((headerGroup) => (
@@ -58,20 +58,23 @@ export const RecentProductsTableView = ({
 							const meta = header.column.columnDef.meta as
 								| { align?: string }
 								| undefined;
-							const isRight = meta?.align === 'right';
+							const isRight = meta?.align === "right";
 							const sortDirection = header.column.getIsSorted();
 
 							return (
-								<TableHead key={header.id} className={isRight ? 'text-right' : undefined}>
+								<TableHead
+									key={header.id}
+									className={isRight ? "text-right" : undefined}
+								>
 									{header.isPlaceholder ? null : header.column.getCanSort() ? (
 										<div
 											className={cn(
-												'flex h-full cursor-pointer select-none items-center gap-1',
-												isRight ? 'justify-end' : 'justify-between',
+												"flex h-full cursor-pointer select-none items-center gap-1",
+												isRight ? "justify-end" : "justify-between",
 											)}
 											onClick={header.column.getToggleSortingHandler()}
 											onKeyDown={(event) => {
-												if (event.key === 'Enter' || event.key === ' ') {
+												if (event.key === "Enter" || event.key === " ") {
 													event.preventDefault();
 													header.column.getToggleSortingHandler()?.(event);
 												}
@@ -83,12 +86,12 @@ export const RecentProductsTableView = ({
 												header.column.columnDef.header,
 												header.getContext(),
 											)}
-											{sortDirection === 'asc' ? (
+											{sortDirection === "asc" ? (
 												<ChevronUpIcon
 													aria-hidden="true"
 													className="size-3.5 shrink-0 opacity-80"
 												/>
-											) : sortDirection === 'desc' ? (
+											) : sortDirection === "desc" ? (
 												<ChevronDownIcon
 													aria-hidden="true"
 													className="size-3.5 shrink-0 opacity-80"
@@ -96,7 +99,10 @@ export const RecentProductsTableView = ({
 											) : null}
 										</div>
 									) : (
-										flexRender(header.column.columnDef.header, header.getContext())
+										flexRender(
+											header.column.columnDef.header,
+											header.getContext(),
+										)
 									)}
 								</TableHead>
 							);
@@ -107,7 +113,7 @@ export const RecentProductsTableView = ({
 		</table>
 
 		<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-			<table className="w-full text-sm" style={{ tableLayout: 'fixed' }}>
+			<table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
 				<Colgroup columns={colgroupColumns} />
 				<TableBody>
 					{table.getRowModel().rows.length ? (
@@ -118,7 +124,7 @@ export const RecentProductsTableView = ({
 							return (
 								<TableRow
 									key={row.id}
-									className={cn(isSelectedRow && 'bg-accent hover:bg-accent')}
+									className={cn(isSelectedRow && "bg-accent hover:bg-accent")}
 									onMouseEnter={(event) => {
 										onRowMouseEnter({
 											event,
@@ -128,7 +134,10 @@ export const RecentProductsTableView = ({
 										});
 									}}
 									onMouseMove={(event) => {
-										onRowMouseMove({ event, imageUrl: row.original.thumbnailUrl });
+										onRowMouseMove({
+											event,
+											imageUrl: row.original.thumbnailUrl,
+										});
 									}}
 									onMouseLeave={onRowMouseLeave}
 								>
@@ -136,14 +145,20 @@ export const RecentProductsTableView = ({
 										const meta = cell.column.columnDef.meta as
 											| { align?: string; wrap?: boolean }
 											| undefined;
-										const isRight = meta?.align === 'right';
+										const isRight = meta?.align === "right";
 										const isWrap = meta?.wrap === true;
 										return (
 											<TableCell
 												key={cell.id}
-												className={cn(isRight && 'text-right', isWrap && 'whitespace-normal')}
+												className={cn(
+													isRight && "text-right",
+													isWrap && "whitespace-normal",
+												)}
 											>
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
 											</TableCell>
 										);
 									})}
@@ -152,7 +167,10 @@ export const RecentProductsTableView = ({
 						})
 					) : (
 						<TableRow>
-							<TableCell className="text-muted-foreground h-24 text-center" colSpan={columnsCount}>
+							<TableCell
+								className="text-muted-foreground h-24 text-center"
+								colSpan={columnsCount}
+							>
 								{emptyMessage}
 							</TableCell>
 						</TableRow>
@@ -169,7 +187,9 @@ export const RecentProductsTableView = ({
 						: null}
 				</TableBody>
 			</table>
-			{hasNextPage ? <div ref={loadMoreRef} aria-hidden="true" className="h-1 w-full" /> : null}
+			{hasNextPage ? (
+				<div ref={loadMoreRef} aria-hidden="true" className="h-1 w-full" />
+			) : null}
 		</div>
 	</div>
 );

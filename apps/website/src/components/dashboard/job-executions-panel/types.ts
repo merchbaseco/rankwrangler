@@ -1,3 +1,3 @@
-import type { RouterOutputs } from '@/lib/trpc';
+import type { RouterOutputs } from "@/lib/trpc";
 
-export type JobExecution = RouterOutputs['api']['app']['jobExecutions'][number];
+export type JobExecution = RouterOutputs["api"]["app"]["jobExecutions"][number];

@@ -1,25 +1,32 @@
 import { useClerk, useUser } from "@clerk/clerk-react";
-import { Dialog } from "@base-ui-components/react/dialog";
 import {
 	Activity,
-	Key,
 	BarChart3,
 	Bell,
+	Key,
 	LogOut,
 	Monitor,
 	Moon,
 	Sun,
 	User,
-	X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { ApiKeyCard } from "@/components/dashboard/api-key-card";
 import { KeepaMetricsPanel } from "@/components/dashboard/keepa-metrics-panel";
 import { ProductFacetMetricsPanel } from "@/components/dashboard/product-facet-metrics-panel";
 import { SpApiMetricsPanel } from "@/components/dashboard/spapi-metrics-panel";
 import { TopSearchTermsMetricsPanel } from "@/components/dashboard/top-search-terms-metrics-panel";
-import { ApiKeyCard } from "@/components/dashboard/api-key-card";
 import { UsageCard } from "@/components/dashboard/usage-card";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogBackdrop,
+	DialogClose,
+	DialogPopup,
+	DialogPortal,
+	DialogTitle,
+	DialogViewport,
+} from "@/components/ui/dialog";
 import { useAdminAccess } from "@/hooks/use-admin-access";
 import { useTheme } from "@/hooks/use-theme";
 import { cn } from "@/lib/utils";
@@ -46,7 +53,11 @@ const BASE_SETTINGS_NAV: NavItem[] = [
 const METRICS_NAV: NavItem[] = [
 	{ key: "metrics-keepa", label: "Keepa", icon: Activity },
 	{ key: "metrics-spapi", label: "SP-API", icon: Activity },
-	{ key: "metrics-top-search-terms", label: "Top Search Terms", icon: Activity },
+	{
+		key: "metrics-top-search-terms",
+		label: "Top Search Terms",
+		icon: Activity,
+	},
 	{ key: "metrics-facets", label: "Facets", icon: Activity },
 ];
 
@@ -68,30 +79,31 @@ export const SettingsModal = ({
 	}, [page]);
 
 	return (
-		<Dialog.Root open={open} onOpenChange={onOpenChange}>
-			<Dialog.Portal>
-				<Dialog.Backdrop className="fixed inset-0 z-50 bg-black/45" />
-				<Dialog.Viewport className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					<Dialog.Popup className="flex h-[min(820px,92vh)] w-[min(1200px,96vw)] overflow-hidden rounded-md border border-border bg-background shadow-lg outline-none">
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogPortal>
+				<DialogBackdrop />
+				<DialogViewport>
+					<DialogPopup className="flex h-[min(820px,92vh)] w-[min(1200px,96vw)]">
 						<nav className="flex w-[200px] shrink-0 flex-col border-r border-border bg-sidebar p-2">
-							<Dialog.Title className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							<DialogTitle className="px-2 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 								Settings
-							</Dialog.Title>
+							</DialogTitle>
 							{BASE_SETTINGS_NAV.map((item) => (
-								<button
+								<Button
 									key={item.key}
-									type="button"
 									onClick={() => setPage(item.key)}
 									className={cn(
-										"flex items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-sm transition-colors",
+										"h-auto justify-start gap-2.5 rounded-sm px-2.5 py-1.5 text-sm",
 										page === item.key
 											? "bg-accent font-medium text-foreground"
 											: "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
 									)}
+									size="sm"
+									variant="ghost"
 								>
 									<item.icon className="size-3.5" />
 									{item.label}
-								</button>
+								</Button>
 							))}
 
 							{isAdmin && (
@@ -100,20 +112,21 @@ export const SettingsModal = ({
 										Metrics
 									</p>
 									{METRICS_NAV.map((item) => (
-										<button
+										<Button
 											key={item.key}
-											type="button"
 											onClick={() => setPage(item.key)}
 											className={cn(
-												"flex items-center gap-2.5 rounded-sm px-2.5 py-1.5 text-sm transition-colors",
+												"h-auto justify-start gap-2.5 rounded-sm px-2.5 py-1.5 text-sm",
 												page === item.key
 													? "bg-accent font-medium text-foreground"
 													: "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
 											)}
+											size="sm"
+											variant="ghost"
 										>
 											<item.icon className="size-3.5" />
 											{item.label}
-										</button>
+										</Button>
 									))}
 								</>
 							)}
@@ -124,20 +137,13 @@ export const SettingsModal = ({
 								<h2 className="text-sm font-semibold text-foreground">
 									{pageTitle}
 								</h2>
-								<Dialog.Close
-									className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-									aria-label="Close"
-								>
-									<X className="size-4" />
-								</Dialog.Close>
+								<DialogClose />
 							</div>
 
 							<div
 								className={cn(
 									"flex-1",
-									isMetricsPage(page)
-										? "overflow-hidden"
-										: "overflow-y-auto",
+									isMetricsPage(page) ? "overflow-hidden" : "overflow-y-auto",
 								)}
 							>
 								{page === "general" ? <GeneralSettings /> : null}
@@ -149,13 +155,15 @@ export const SettingsModal = ({
 								{page === "metrics-top-search-terms" ? (
 									<TopSearchTermsMetricsPanel />
 								) : null}
-								{page === "metrics-facets" ? <ProductFacetMetricsPanel /> : null}
+								{page === "metrics-facets" ? (
+									<ProductFacetMetricsPanel />
+								) : null}
 							</div>
 						</div>
-					</Dialog.Popup>
-				</Dialog.Viewport>
-			</Dialog.Portal>
-		</Dialog.Root>
+					</DialogPopup>
+				</DialogViewport>
+			</DialogPortal>
+		</Dialog>
 	);
 };
 
@@ -177,21 +185,22 @@ const GeneralSettings = () => {
 			</div>
 			<div className="grid grid-cols-3 border-b border-border">
 				{THEME_OPTIONS.map((option, i) => (
-					<button
+					<Button
 						key={option.key}
-						type="button"
 						onClick={() => setTheme(option.key)}
 						className={cn(
-							"flex flex-col items-center gap-2 p-4 transition-colors",
+							"h-auto flex-col gap-2 rounded-none p-4",
 							i < THEME_OPTIONS.length - 1 && "border-r border-border",
 							theme === option.key
 								? "bg-accent text-foreground"
 								: "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
 						)}
+						size="sm"
+						variant="ghost"
 					>
 						<option.icon className="size-5" />
 						<span className="text-xs font-medium">{option.label}</span>
-					</button>
+					</Button>
 				))}
 			</div>
 		</div>

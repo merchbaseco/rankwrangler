@@ -1,12 +1,12 @@
-import {
-	HISTORY_RANGE_PRESETS,
-	type HistoryRangePresetKey,
-} from '@rankwrangler/history-chart/history-chart-types';
 import type {
 	HistoryCustomRange,
 	HistoryPickerRange,
 	HistoryRangeSelectionKey,
-} from '@rankwrangler/history-chart/history-chart-range';
+} from "@rankwrangler/history-chart/history-chart-range";
+import {
+	HISTORY_RANGE_PRESETS,
+	type HistoryRangePresetKey,
+} from "@rankwrangler/history-chart/history-chart-types";
 
 export type HistoryPoint = { timestamp: number; value: number };
 export type HistoryTimeDomain = { startAt: number; endAt: number };

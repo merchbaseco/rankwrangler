@@ -1,21 +1,19 @@
 import {
-    AMAZON_US_TIME_ZONE,
-    useHistoryRangeSelection,
-} from '@rankwrangler/history-chart/history-chart-range';
-import { useCallback, useMemo, useState } from 'react';
-import {
-    isKeepaSyncStale as getIsKeepaSyncStale,
-} from '@/components/dashboard/product-history-panel/keepa-sync-state';
+	AMAZON_US_TIME_ZONE,
+	useHistoryRangeSelection,
+} from "@rankwrangler/history-chart/history-chart-range";
+import { useCallback, useMemo, useState } from "react";
+import { isKeepaSyncStale as getIsKeepaSyncStale } from "@/components/dashboard/product-history-panel/keepa-sync-state";
 import type {
 	CategoryOption,
 	ProductHistoryPanelProduct,
 	SelectOption,
-} from '@/components/dashboard/product-history-panel/types';
-import { useKeepaAutoSync } from '@/components/dashboard/product-history-panel/use-keepa-auto-sync';
-import { useProductHistoryPanelProduct } from '@/components/dashboard/product-history-panel/use-product-history-panel-product';
-import { toastManager } from '@/components/ui/toast';
-import { useAdminAccess } from '@/hooks/use-admin-access';
-import { api } from '@/lib/trpc';
+} from "@/components/dashboard/product-history-panel/types";
+import { useKeepaAutoSync } from "@/components/dashboard/product-history-panel/use-keepa-auto-sync";
+import { useProductHistoryPanelProduct } from "@/components/dashboard/product-history-panel/use-product-history-panel-product";
+import { toastManager } from "@/components/ui/toast";
+import { useAdminAccess } from "@/hooks/use-admin-access";
+import { api } from "@/lib/trpc";
 
 export const useProductHistoryPanelData = ({
 	product,
@@ -25,7 +23,7 @@ export const useProductHistoryPanelData = ({
 	const resolvedProduct = useProductHistoryPanelProduct({ product });
 	const { isAdmin } = useAdminAccess();
 	const utils = api.useUtils();
-	const [rankMetricValue, setRankMetricValue] = useState<string>('bsrMain');
+	const [rankMetricValue, setRankMetricValue] = useState<string>("bsrMain");
 	const {
 		activeRange: activePreset,
 		chartTimeDomain,
@@ -36,7 +34,7 @@ export const useProductHistoryPanelData = ({
 		handlePresetClick,
 		queryRange,
 	} = useHistoryRangeSelection({
-		defaultRange: '1y',
+		defaultRange: "1y",
 		customRangeTimeZone: AMAZON_US_TIME_ZONE,
 	});
 	const startAt = queryRange.startAt;
@@ -46,7 +44,7 @@ export const useProductHistoryPanelData = ({
 		{
 			marketplaceId: product.marketplaceId,
 			asin: product.asin,
-			metric: 'bsrCategory',
+			metric: "bsrCategory",
 			limit: 10_000,
 		},
 		{
@@ -66,7 +64,9 @@ export const useProductHistoryPanelData = ({
 				continue;
 			}
 
-			const name = categoryOptionsQuery.data.categoryNames[String(point.categoryId)] ?? null;
+			const name =
+				categoryOptionsQuery.data.categoryNames[String(point.categoryId)] ??
+				null;
 			if (!categoryMap.has(point.categoryId) || name) {
 				categoryMap.set(point.categoryId, name);
 			}
@@ -81,7 +81,7 @@ export const useProductHistoryPanelData = ({
 		{
 			marketplaceId: product.marketplaceId,
 			asin: product.asin,
-			metric: 'bsrMain',
+			metric: "bsrMain",
 			limit: 1,
 		},
 		{ refetchOnWindowFocus: false, staleTime: Number.POSITIVE_INFINITY },
@@ -90,14 +90,19 @@ export const useProductHistoryPanelData = ({
 	const mainCategoryName = useMemo(() => {
 		const point = mainCategoryQuery.data?.points[0];
 		if (!point) {
-			return 'Main Category';
+			return "Main Category";
 		}
-		return mainCategoryQuery.data?.categoryNames[String(point.categoryId)] ?? 'Main Category';
+		return (
+			mainCategoryQuery.data?.categoryNames[String(point.categoryId)] ??
+			"Main Category"
+		);
 	}, [mainCategoryQuery.data]);
 
 	const mainCategoryId = useMemo(() => {
 		const categoryId = mainCategoryQuery.data?.points[0]?.categoryId;
-		return Number.isFinite(categoryId) && typeof categoryId === 'number' && categoryId > 0
+		return Number.isFinite(categoryId) &&
+			typeof categoryId === "number" &&
+			categoryId > 0
 			? categoryId
 			: null;
 	}, [mainCategoryQuery.data]);
@@ -111,13 +116,15 @@ export const useProductHistoryPanelData = ({
 			}));
 
 		return [
-			{ value: 'bsrMain', label: mainCategoryName },
+			{ value: "bsrMain", label: mainCategoryName },
 			...categoryOptions,
 		] satisfies SelectOption[];
 	}, [availableCategories, mainCategoryId, mainCategoryName]);
 
-	const rankMetric = rankMetricValue.startsWith('cat:') ? 'bsrCategory' : 'bsrMain';
-	const rankCategoryId = rankMetricValue.startsWith('cat:')
+	const rankMetric = rankMetricValue.startsWith("cat:")
+		? "bsrCategory"
+		: "bsrMain";
+	const rankCategoryId = rankMetricValue.startsWith("cat:")
 		? Number(rankMetricValue.slice(4))
 		: undefined;
 
@@ -129,11 +136,18 @@ export const useProductHistoryPanelData = ({
 			limit: 5000,
 			...(startAt ? { startAt } : {}),
 			...(endAt ? { endAt } : {}),
-			...(rankMetric === 'bsrCategory' && typeof rankCategoryId === 'number'
+			...(rankMetric === "bsrCategory" && typeof rankCategoryId === "number"
 				? { categoryId: rankCategoryId }
 				: {}),
 		}),
-		[product.marketplaceId, product.asin, rankMetric, rankCategoryId, startAt, endAt],
+		[
+			product.marketplaceId,
+			product.asin,
+			rankMetric,
+			rankCategoryId,
+			startAt,
+			endAt,
+		],
 	);
 
 	const rankQuery = api.api.app.getProductHistory.useQuery(rankQueryInput, {
@@ -145,7 +159,7 @@ export const useProductHistoryPanelData = ({
 		() => ({
 			marketplaceId: product.marketplaceId,
 			asin: product.asin,
-			metric: 'priceNew' as const,
+			metric: "priceNew" as const,
 			limit: 5000,
 			...(startAt ? { startAt } : {}),
 			...(endAt ? { endAt } : {}),
@@ -161,7 +175,7 @@ export const useProductHistoryPanelData = ({
 	const loadMutation = api.api.app.loadProductHistory.useMutation({
 		onSuccess: async (data) => {
 			toastManager.add({
-				type: 'success',
+				type: "success",
 				title: `Synced ${data.pointsStored.toLocaleString()} points from Keepa`,
 			});
 			await Promise.all([
@@ -172,8 +186,8 @@ export const useProductHistoryPanelData = ({
 		},
 		onError: (error) => {
 			toastManager.add({
-				type: 'error',
-				title: 'Sync failed',
+				type: "error",
+				title: "Sync failed",
 				description: error.message,
 			});
 		},
@@ -181,16 +195,16 @@ export const useProductHistoryPanelData = ({
 
 	const fetchFacetsMutation = api.api.app.classifyProductFacets.useMutation({
 		onSuccess: async (data) => {
-			if (data.status === 'already_ready') {
+			if (data.status === "already_ready") {
 				toastManager.add({
-					type: 'info',
-					title: 'Facets already assigned',
+					type: "info",
+					title: "Facets already assigned",
 					description: `${product.asin} already has facets.`,
 				});
 			} else {
 				toastManager.add({
-					type: 'success',
-					title: 'Facets classified',
+					type: "success",
+					title: "Facets classified",
 					description: `${product.asin} • cost ${formatUsd(data.costUsd)}`,
 				});
 			}
@@ -205,8 +219,8 @@ export const useProductHistoryPanelData = ({
 		},
 		onError: (error) => {
 			toastManager.add({
-				type: 'error',
-				title: 'Facet classification failed',
+				type: "error",
+				title: "Facet classification failed",
 				description: error.message,
 			});
 		},
@@ -272,9 +286,9 @@ export const useProductHistoryPanelData = ({
 };
 
 const formatUsd = (value: number) => {
-	return new Intl.NumberFormat('en-US', {
-		style: 'currency',
-		currency: 'USD',
+	return new Intl.NumberFormat("en-US", {
+		style: "currency",
+		currency: "USD",
 		minimumFractionDigits: 2,
 		maximumFractionDigits: 6,
 	}).format(value);

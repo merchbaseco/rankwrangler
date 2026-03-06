@@ -1,9 +1,9 @@
 import { Loader2, RefreshCw } from "lucide-react";
-import { api, type RouterOutputs } from "@/lib/trpc";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Frame } from "@/components/ui/frame";
+import { api, type RouterOutputs } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 
 type KeepaLogPanelProps = {
 	className?: string;
@@ -43,7 +43,10 @@ export function KeepaLogPanel({ className }: KeepaLogPanelProps) {
 					</div>
 					<div className="flex items-center gap-2">
 						{query.data ? (
-							<Badge variant="secondary" className="h-4 rounded-sm px-1.5 text-xs">
+							<Badge
+								variant="secondary"
+								className="h-4 rounded-sm px-1.5 text-xs"
+							>
 								{query.data.queue.totalQueued} queued
 							</Badge>
 						) : null}
@@ -68,15 +71,21 @@ export function KeepaLogPanel({ className }: KeepaLogPanelProps) {
 				</div>
 
 				{query.isLoading ? (
-					<p className="px-3 py-3 text-sm text-muted-foreground">Loading Keepa log...</p>
+					<p className="px-3 py-3 text-sm text-muted-foreground">
+						Loading Keepa log...
+					</p>
 				) : null}
 				{errorCode === "UNAUTHORIZED" ? (
 					<p className="px-3 py-3 text-sm text-warning-foreground">
 						Session expired. Please sign out and back in.
 					</p>
 				) : null}
-				{query.error && errorCode !== "UNAUTHORIZED" && errorCode !== "FORBIDDEN" ? (
-					<p className="px-3 py-3 text-sm text-destructive">Failed to load Keepa log.</p>
+				{query.error &&
+				errorCode !== "UNAUTHORIZED" &&
+				errorCode !== "FORBIDDEN" ? (
+					<p className="px-3 py-3 text-sm text-destructive">
+						Failed to load Keepa log.
+					</p>
 				) : null}
 				{!query.isLoading && !query.error && query.data ? (
 					<div className="grid gap-3 p-3 lg:grid-cols-2">
@@ -119,9 +128,17 @@ const QueueItemRow = ({ item }: { item: KeepaQueueItem }) => {
 	return (
 		<div className="border-b border-border px-2 py-2 last:border-b-0">
 			<div className="flex items-center justify-between gap-2">
-				<code className="truncate font-mono text-xs text-foreground">{item.asin}</code>
+				<code className="truncate font-mono text-xs text-foreground">
+					{item.asin}
+				</code>
 				<Badge
-					variant={item.lastError ? "error" : item.attemptCount > 0 ? "warning" : "secondary"}
+					variant={
+						item.lastError
+							? "error"
+							: item.attemptCount > 0
+								? "warning"
+								: "secondary"
+					}
 					size="sm"
 				>
 					attempt {item.attemptCount}
@@ -131,7 +148,8 @@ const QueueItemRow = ({ item }: { item: KeepaQueueItem }) => {
 				{item.marketplaceId}
 			</p>
 			<p className="mt-1 text-xs text-muted-foreground">
-				Next: {formatRelativeFromNow(item.nextAttemptAt)} ({formatDateTime(item.nextAttemptAt)})
+				Next: {formatRelativeFromNow(item.nextAttemptAt)} (
+				{formatDateTime(item.nextAttemptAt)})
 			</p>
 			<p className="mt-0.5 text-xs text-muted-foreground">
 				Queued: {formatDateTime(item.createdAt)}
@@ -142,7 +160,9 @@ const QueueItemRow = ({ item }: { item: KeepaQueueItem }) => {
 				</p>
 			) : null}
 			{item.lastError ? (
-				<p className="mt-1 line-clamp-2 text-xs text-destructive">{item.lastError}</p>
+				<p className="mt-1 line-clamp-2 text-xs text-destructive">
+					{item.lastError}
+				</p>
 			) : null}
 		</div>
 	);
@@ -161,7 +181,9 @@ const ProcessedList = ({ processed }: { processed: KeepaProcessedItem[] }) => {
 			</div>
 			{processed.length === 0 ? (
 				<div className="rounded-sm border border-border bg-background px-2 py-3">
-					<p className="text-xs text-muted-foreground">No processed Keepa jobs yet.</p>
+					<p className="text-xs text-muted-foreground">
+						No processed Keepa jobs yet.
+					</p>
 				</div>
 			) : (
 				<div className="max-h-[340px] overflow-y-auto rounded-sm border border-border bg-background">
@@ -189,13 +211,16 @@ const ProcessedItemRow = ({ item }: { item: KeepaProcessedItem }) => {
 				{item.marketplaceId ?? "Unknown marketplace"}
 			</p>
 			<p className="mt-1 text-xs text-muted-foreground">
-				Processed: {formatRelativeFromNow(item.finishedAt)} ({formatDateTime(item.finishedAt)})
+				Processed: {formatRelativeFromNow(item.finishedAt)} (
+				{formatDateTime(item.finishedAt)})
 			</p>
 			<p className="mt-0.5 text-xs text-muted-foreground">
 				Duration: {formatDuration(item.durationMs)}
 			</p>
 			{item.errorMessage ? (
-				<p className="mt-1 line-clamp-2 text-xs text-destructive">{item.errorMessage}</p>
+				<p className="mt-1 line-clamp-2 text-xs text-destructive">
+					{item.errorMessage}
+				</p>
 			) : null}
 		</div>
 	);

@@ -1,19 +1,21 @@
-import { ChevronDown, ChevronUp, Search, X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Slider } from '@/components/ui/slider';
-import type { FilterState } from '@/components/dashboard/recent-products';
+import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import type { LastUpdated } from "@/components/dashboard/app/config";
 import {
 	BSR_MAX,
 	BSR_MIN,
-	LAST_UPDATED_OPTIONS,
-	MARKETPLACES,
 	bsrToSlider,
 	formatBsr,
+	LAST_UPDATED_OPTIONS,
+	MARKETPLACES,
 	sliderToBsr,
-} from '@/components/dashboard/app/config';
-import type { LastUpdated } from '@/components/dashboard/app/config';
-import { cn } from '@/lib/utils';
+} from "@/components/dashboard/app/config";
+import type { FilterState } from "@/components/dashboard/recent-products";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 
 export const FiltersSidebar = ({
 	activeFacets,
@@ -54,27 +56,28 @@ export const FiltersSidebar = ({
 					{LAST_UPDATED_OPTIONS.map((option) => {
 						const isActive = filters.lastUpdated === option.key;
 						return (
-							<button
+							<Button
 								key={option.key}
-								type="button"
 								onClick={() => onUpdateLastUpdated(option.key)}
 								className={cn(
-									'flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-sm transition-colors',
-									isActive
-										? 'bg-primary text-primary-foreground'
-										: 'text-foreground/80 hover:bg-accent',
+									"h-auto justify-start gap-2 rounded-sm px-2.5 py-1.5 text-sm",
+									!isActive && "text-foreground/80 hover:bg-accent",
 								)}
+								size="sm"
+								variant={isActive ? "default" : "ghost"}
 							>
 								<span
 									className={cn(
-										'flex size-3.5 items-center justify-center rounded-full border',
-										isActive ? 'border-primary-foreground' : 'border-input',
+										"flex size-3.5 items-center justify-center rounded-full border",
+										isActive ? "border-primary-foreground" : "border-input",
 									)}
 								>
-									{isActive ? <span className="size-2 rounded-full bg-primary-foreground" /> : null}
+									{isActive ? (
+										<span className="size-2 rounded-full bg-primary-foreground" />
+									) : null}
 								</span>
 								<span>{option.label}</span>
-							</button>
+							</Button>
 						);
 					})}
 				</div>
@@ -85,20 +88,21 @@ export const FiltersSidebar = ({
 					{MARKETPLACES.map((marketplace) => {
 						const isActive = filters.marketplaceIds.includes(marketplace.id);
 						return (
-							<button
+							<Button
 								key={marketplace.id}
-								type="button"
 								onClick={() => onToggleMarketplace(marketplace.id)}
 								className={cn(
-									'flex items-center gap-1 rounded-sm border px-2 py-1 text-xs font-medium transition-colors',
+									"h-auto gap-1 rounded-sm border px-2 py-1 text-xs font-medium",
 									isActive
-										? 'border-primary bg-primary text-primary-foreground'
-										: 'border-input bg-background text-foreground hover:bg-accent',
+										? "border-primary bg-primary text-primary-foreground"
+										: "border-input bg-background text-foreground hover:bg-accent",
 								)}
+								size="sm"
+								variant="ghost"
 							>
 								<span>{marketplace.flag}</span>
 								<span>{marketplace.label}</span>
-							</button>
+							</Button>
 						);
 					})}
 				</div>
@@ -116,20 +120,22 @@ export const FiltersSidebar = ({
 					<div className="shrink-0 border-b border-border">
 						<div className="relative">
 							<Search className="text-muted-foreground absolute left-3 top-1/2 size-3 -translate-y-1/2" />
-							<input
-								className="h-8 w-full bg-transparent pl-8 pr-7 text-xs outline-none placeholder:text-muted-foreground"
+							<Input
+								className="h-8 rounded-none border-0 bg-transparent pl-8 pr-7 text-xs shadow-none focus-within:ring-0"
 								placeholder="Filter niches..."
 								value={facetSearch}
 								onChange={(event) => onFacetSearchChange(event.target.value)}
 							/>
 							{facetSearch ? (
-								<button
-									type="button"
-									onClick={() => onFacetSearchChange('')}
-									className="text-muted-foreground hover:text-foreground absolute right-2.5 top-1/2 -translate-y-1/2"
+								<Button
+									aria-label="Clear niche search"
+									className="absolute right-2.5 top-1/2 size-6 -translate-y-1/2 rounded-sm p-0 text-muted-foreground hover:text-foreground"
+									onClick={() => onFacetSearchChange("")}
+									size="sm"
+									variant="ghost"
 								>
 									<X className="size-3" />
-								</button>
+								</Button>
 							) : null}
 						</div>
 					</div>
@@ -138,20 +144,19 @@ export const FiltersSidebar = ({
 							{filteredFacets.map((facet) => {
 								const isActive = activeFacets.includes(facet.key);
 								return (
-									<button
+									<Button
 										key={facet.key}
-										type="button"
 										onClick={() => onToggleFacet(facet.key)}
 										className={cn(
-											'flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-sm transition-colors',
-											isActive
-												? 'bg-primary text-primary-foreground'
-												: 'text-foreground/80 hover:bg-accent',
+											"h-auto justify-start gap-2 rounded-sm px-2.5 py-1.5 text-sm",
+											!isActive && "text-foreground/80 hover:bg-accent",
 										)}
+										size="sm"
+										variant={isActive ? "default" : "ghost"}
 									>
 										<span className="text-sm leading-none">{facet.emoji}</span>
 										<span className="truncate">{facet.label}</span>
-									</button>
+									</Button>
 								);
 							})}
 							{filteredFacets.length === 0 ? (
@@ -172,10 +177,10 @@ const SLIDER_MAX = 100;
 const DEFAULT_SLIDER = [SLIDER_MIN, SLIDER_MAX] as [number, number];
 
 const TICK_MARKS = [
-	{ bsr: 1_000, label: '1K' },
-	{ bsr: 10_000, label: '10K' },
-	{ bsr: 100_000, label: '100K' },
-	{ bsr: 1_000_000, label: '1M' },
+	{ bsr: 1_000, label: "1K" },
+	{ bsr: 10_000, label: "10K" },
+	{ bsr: 100_000, label: "100K" },
+	{ bsr: 1_000_000, label: "1M" },
 ];
 
 const BsrRangeSlider = ({
@@ -215,13 +220,14 @@ const BsrRangeSlider = ({
 					{displayMin} — {displayMax}
 				</span>
 				{isFiltered ? (
-					<button
-						type="button"
+					<Button
+						className="h-auto rounded-sm px-0 py-0 text-[10px] text-muted-foreground hover:text-foreground"
 						onClick={() => onChange(null)}
-						className="text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+						size="sm"
+						variant="ghost"
 					>
 						Reset
-					</button>
+					</Button>
 				) : null}
 			</div>
 			<Slider
@@ -260,14 +266,19 @@ const FilterSection = ({
 
 	return (
 		<div className="border-b border-border last:border-b-0">
-			<button
-				type="button"
+			<Button
+				className="h-9 w-full justify-between rounded-none px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
 				onClick={() => setOpen(!open)}
-				className="flex h-9 w-full items-center justify-between px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+				size="sm"
+				variant="ghost"
 			>
 				<span>{title}</span>
-				{open ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-			</button>
+				{open ? (
+					<ChevronUp className="size-3.5" />
+				) : (
+					<ChevronDown className="size-3.5" />
+				)}
+			</Button>
 			{open ? <div className="pb-2">{children}</div> : null}
 		</div>
 	);
@@ -282,10 +293,11 @@ const NichesSectionHeader = ({
 	nichesSectionOpen: boolean;
 	onToggle: () => void;
 }) => (
-	<button
-		type="button"
+	<Button
+		className="h-9 w-full shrink-0 justify-between rounded-none px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground"
 		onClick={onToggle}
-		className="flex h-9 w-full shrink-0 items-center justify-between px-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+		size="sm"
+		variant="ghost"
 	>
 		<span className="flex items-center gap-1.5">
 			Niches
@@ -295,6 +307,10 @@ const NichesSectionHeader = ({
 				</Badge>
 			) : null}
 		</span>
-		{nichesSectionOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-	</button>
+		{nichesSectionOpen ? (
+			<ChevronUp className="size-3.5" />
+		) : (
+			<ChevronDown className="size-3.5" />
+		)}
+	</Button>
 );

@@ -3,29 +3,36 @@ import {
 	getSortedRowModel,
 	type SortingState,
 	useReactTable,
-} from '@tanstack/react-table';
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+} from "@tanstack/react-table";
+import {
+	useCallback,
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import {
 	FACET_CATEGORY_META,
 	formatFacetValueLabel,
-} from '@/components/dashboard/app/config';
-import { createColumns } from '@/components/dashboard/recent-products/columns';
+} from "@/components/dashboard/app/config";
+import { createColumns } from "@/components/dashboard/recent-products/columns";
 import {
 	filterProducts,
 	hydrateProducts,
 	toFacetKey,
-} from '@/components/dashboard/recent-products/filter-utils';
-import { ProductHistorySheet } from '@/components/dashboard/recent-products/history-sheet';
-import { RecentProductsTableView } from '@/components/dashboard/recent-products/table-view';
-import {
-	ProductTooltipPortal,
-	useProductTooltip,
-} from '@/components/dashboard/recent-products/tooltip';
+} from "@/components/dashboard/recent-products/filter-utils";
+import { ProductHistorySheet } from "@/components/dashboard/recent-products/history-sheet";
+import { RecentProductsTableView } from "@/components/dashboard/recent-products/table-view";
 import type {
 	FilterState,
 	SelectedHistoryProduct,
-} from '@/components/dashboard/recent-products/types';
-import { api } from '@/lib/trpc';
+} from "@/components/dashboard/recent-products/types";
+import {
+	CursorImageTooltip,
+	useCursorImageTooltip,
+} from "@/components/ui/tooltip";
+import { api } from "@/lib/trpc";
 
 export function RecentProducts({
 	activeFacetKeys,
@@ -49,7 +56,8 @@ export function RecentProducts({
 		api.api.app.recentProducts.useInfiniteQuery(
 			{
 				limit: 50,
-				search: deferredSearchValue.length > 0 ? deferredSearchValue : undefined,
+				search:
+					deferredSearchValue.length > 0 ? deferredSearchValue : undefined,
 			},
 			{
 				getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
@@ -57,7 +65,7 @@ export function RecentProducts({
 		);
 
 	const [sorting, setSorting] = useState<SortingState>([
-		{ desc: false, id: 'lastFetched' },
+		{ desc: false, id: "lastFetched" },
 	]);
 	const [selectedHistoryProduct, setSelectedHistoryProduct] =
 		useState<SelectedHistoryProduct | null>(null);
@@ -71,7 +79,7 @@ export function RecentProducts({
 		setTooltip,
 		tooltip,
 		tooltipRef,
-	} = useProductTooltip();
+	} = useCursorImageTooltip();
 
 	const products = useMemo(
 		() => hydrateProducts(data?.pages.flatMap((page) => page.items) ?? []),
@@ -89,7 +97,9 @@ export function RecentProducts({
 	);
 
 	const availableFacetValues = useMemo(
-		() => data?.pages.find((page) => page.availableFacets !== null)?.availableFacets ?? null,
+		() =>
+			data?.pages.find((page) => page.availableFacets !== null)
+				?.availableFacets ?? null,
 		[data],
 	);
 
@@ -99,7 +109,7 @@ export function RecentProducts({
 				.map((facetValue) => {
 					const key = toFacetKey(facetValue);
 					const categoryMeta = FACET_CATEGORY_META[facetValue.facet] ?? {
-						emoji: '🏷️',
+						emoji: "🏷️",
 						label: facetValue.facet,
 					};
 					return {
@@ -111,7 +121,10 @@ export function RecentProducts({
 				.sort((a, b) => a.label.localeCompare(b.label));
 		}
 
-		const byKey = new Map<string, { emoji: string; key: string; label: string }>();
+		const byKey = new Map<
+			string,
+			{ emoji: string; key: string; label: string }
+		>();
 		for (const product of products) {
 			for (const facet of product.facets) {
 				const key = toFacetKey(facet);
@@ -119,7 +132,7 @@ export function RecentProducts({
 					continue;
 				}
 				const categoryMeta = FACET_CATEGORY_META[facet.facet] ?? {
-					emoji: '🏷️',
+					emoji: "🏷️",
 					label: facet.facet,
 				};
 				byKey.set(key, {
@@ -135,7 +148,9 @@ export function RecentProducts({
 	}, [availableFacetValues, products]);
 
 	const trackedTotals = useMemo(
-		() => data?.pages.find((page) => page.trackedTotals !== null)?.trackedTotals ?? null,
+		() =>
+			data?.pages.find((page) => page.trackedTotals !== null)?.trackedTotals ??
+			null,
 		[data],
 	);
 
@@ -147,7 +162,13 @@ export function RecentProducts({
 			totalMerchProducts: trackedTotals?.totalMerchProducts ?? null,
 			totalProducts: trackedTotals?.totalProducts ?? null,
 		});
-	}, [availableFacets, filteredProducts.length, hasNextPage, onStatusChange, trackedTotals]);
+	}, [
+		availableFacets,
+		filteredProducts.length,
+		hasNextPage,
+		onStatusChange,
+		trackedTotals,
+	]);
 
 	const selectedHistoryKey = selectedHistoryProduct
 		? `${selectedHistoryProduct.marketplaceId}:${selectedHistoryProduct.asin}`
@@ -172,8 +193,8 @@ export function RecentProducts({
 			columns.map((column, index) => {
 				const meta = column.meta as { flex?: boolean } | undefined;
 				const key =
-					(typeof column.id === 'string' && column.id) ||
-					(typeof column.accessorKey === 'string' && column.accessorKey) ||
+					(typeof column.id === "string" && column.id) ||
+					(typeof column.accessorKey === "string" && column.accessorKey) ||
 					`column-${index}`;
 				return { key, width: meta?.flex ? undefined : column.size };
 			}),
@@ -198,7 +219,7 @@ export function RecentProducts({
 				}
 				fetchNextPage();
 			},
-			{ rootMargin: '240px 0px' },
+			{ rootMargin: "240px 0px" },
 		);
 
 		observer.observe(node);
@@ -220,7 +241,10 @@ export function RecentProducts({
 			<div className="h-full bg-card">
 				<div className="space-y-1 p-3">
 					{Array.from({ length: 10 }).map((_, index) => (
-						<div key={index} className="bg-muted h-8 animate-pulse rounded-sm" />
+						<div
+							key={index}
+							className="bg-muted h-8 animate-pulse rounded-sm"
+						/>
 					))}
 				</div>
 			</div>
@@ -252,7 +276,7 @@ export function RecentProducts({
 				}}
 				onRowMouseLeave={hideTooltip}
 			/>
-			<ProductTooltipPortal tooltip={tooltip} tooltipRef={tooltipRef} />
+			<CursorImageTooltip tooltip={tooltip} tooltipRef={tooltipRef} />
 			<ProductHistorySheet
 				isOpen={isHistorySheetOpen}
 				selectedProduct={selectedHistoryProduct}
@@ -267,4 +291,4 @@ export function RecentProducts({
 	);
 }
 
-export type { FilterState } from '@/components/dashboard/recent-products/types';
+export type { FilterState } from "@/components/dashboard/recent-products/types";

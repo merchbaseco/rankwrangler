@@ -1,6 +1,6 @@
-import { ProductHistoryPanel } from '@/components/dashboard/product-history-panel';
-import type { SelectedHistoryProduct } from '@/components/dashboard/recent-products/types';
-import { Sheet, SheetPanel, SheetPopup } from '@/components/ui/sheet';
+import { ProductHistoryPanel } from "@/components/dashboard/product-history-panel";
+import type { SelectedHistoryProduct } from "@/components/dashboard/recent-products/types";
+import { Sheet, SheetPanel, SheetPopup } from "@/components/ui/sheet";
 
 export const ProductHistorySheet = ({
 	isOpen,
@@ -16,17 +16,14 @@ export const ProductHistorySheet = ({
 		: null;
 
 	return (
-        <Sheet open={isOpen} onOpenChange={onOpenChange}>
-            <SheetPopup side="right" variant="inset" className="p-0 sm:max-w-2xl">
-                <SheetPanel className="h-full p-0">
-                    {selectedProduct ? (
-                        <ProductHistoryPanel
-                            key={selectedKey}
-                            product={selectedProduct}
-                        />
-                    ) : null}
-                </SheetPanel>
-            </SheetPopup>
-        </Sheet>
+		<Sheet open={isOpen} onOpenChange={onOpenChange}>
+			<SheetPopup side="right" variant="inset" className="p-0 sm:max-w-2xl">
+				<SheetPanel className="h-full p-0">
+					{selectedProduct ? (
+						<ProductHistoryPanel key={selectedKey} product={selectedProduct} />
+					) : null}
+				</SheetPanel>
+			</SheetPopup>
+		</Sheet>
 	);
 };

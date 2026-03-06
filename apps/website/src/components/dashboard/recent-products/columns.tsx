@@ -1,11 +1,12 @@
-import type { ColumnDef } from '@tanstack/react-table';
-import { Badge } from '@/components/ui/badge';
+import type { ColumnDef } from "@tanstack/react-table";
 import type {
 	Product,
 	SelectedHistoryProduct,
-} from '@/components/dashboard/recent-products/types';
-import { MARKETPLACE_FLAGS } from '@/components/dashboard/recent-products/types';
-import { cn, formatCalendarDate, formatRelativeTime } from '@/lib/utils';
+} from "@/components/dashboard/recent-products/types";
+import { MARKETPLACE_FLAGS } from "@/components/dashboard/recent-products/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn, formatCalendarDate, formatRelativeTime } from "@/lib/utils";
 
 const RowBsrButton = ({
 	bsr,
@@ -38,8 +39,9 @@ const RowBsrButton = ({
 	isActive: boolean;
 	onSelect: (product: SelectedHistoryProduct) => void;
 }) => (
-	<button
-		type="button"
+	<Button
+		aria-label="Open BSR history"
+		className="h-auto rounded-sm p-0 focus-visible:ring-1"
 		onClick={() => {
 			onSelect({
 				asin,
@@ -56,19 +58,19 @@ const RowBsrButton = ({
 				productLastFetchedAt,
 			});
 		}}
-		className="focus-visible:ring-ring rounded-sm focus-visible:outline-none focus-visible:ring-1"
-		aria-label="Open BSR history"
+		size="sm"
+		variant="ghost"
 	>
 		<Badge
 			variant={getBsrBadgeVariant(bsr)}
 			className={cn(
-				'rounded-sm font-mono text-xs transition-colors',
-				isActive && 'bg-primary text-primary-foreground',
+				"rounded-sm font-mono text-xs transition-colors",
+				isActive && "bg-primary text-primary-foreground",
 			)}
 		>
 			#{bsr.toLocaleString()}
 		</Badge>
-	</button>
+	</Button>
 );
 
 export const createColumns = ({
@@ -79,13 +81,13 @@ export const createColumns = ({
 	selectedHistoryKey: string | null;
 }): ColumnDef<Product>[] => [
 	{
-		accessorKey: 'thumbnailUrl',
+		accessorKey: "thumbnailUrl",
 		cell: ({ row }) => {
-			const url = row.getValue('thumbnailUrl') as string | null;
+			const url = row.getValue("thumbnailUrl") as string | null;
 			return url ? (
 				<div
 					className="flex w-8 items-center justify-center overflow-hidden rounded-sm border border-border bg-muted"
-					style={{ aspectRatio: '4/5' }}
+					style={{ aspectRatio: "4/5" }}
 				>
 					<img
 						src={url}
@@ -96,72 +98,77 @@ export const createColumns = ({
 			) : (
 				<div
 					className="bg-muted text-muted-foreground flex w-8 items-center justify-center rounded-sm border border-border text-xs"
-					style={{ aspectRatio: '4/5' }}
+					style={{ aspectRatio: "4/5" }}
 				>
 					N/A
 				</div>
 			);
 		},
 		enableSorting: false,
-		header: '',
+		header: "",
 		size: 50,
 	},
 	{
-		accessorKey: 'asin',
+		accessorKey: "asin",
 		cell: ({ row }) => (
 			<div className="flex items-center gap-1.5">
-				<span className="text-foreground font-mono text-xs">{row.getValue('asin')}</span>
+				<span className="text-foreground font-mono text-xs">
+					{row.getValue("asin")}
+				</span>
 				{row.original.isMerchListing && (
-					<Badge variant="secondary" className="rounded-sm px-1 py-0 text-[10px] leading-tight">
+					<Badge
+						variant="secondary"
+						className="rounded-sm px-1 py-0 text-[10px] leading-tight"
+					>
 						Merch
 					</Badge>
 				)}
 			</div>
 		),
-		header: 'ASIN',
+		header: "ASIN",
 		size: 150,
 	},
 	{
-		accessorKey: 'title',
+		accessorKey: "title",
 		cell: ({ row }) => (
 			<div className="min-w-0">
 				<span className="line-clamp-1 text-xs font-medium text-foreground">
-					{row.getValue('title') ?? 'Untitled'}
+					{row.getValue("title") ?? "Untitled"}
 				</span>
 				<span className="text-muted-foreground line-clamp-1 text-xs">
-					{row.original.brand ?? 'No Brand'}
+					{row.original.brand ?? "No Brand"}
 				</span>
 			</div>
 		),
-		header: 'Product',
+		header: "Product",
 		meta: { flex: true },
 	},
 	{
-		accessorKey: 'bullet1',
+		accessorKey: "bullet1",
 		cell: ({ row }) => (
 			<span className="text-muted-foreground line-clamp-2 text-xs">
-				{row.getValue('bullet1') ?? '--'}
+				{row.getValue("bullet1") ?? "--"}
 			</span>
 		),
-		header: 'Bullet 1',
+		header: "Bullet 1",
 		meta: { wrap: true },
 		size: 280,
 	},
 	{
-		accessorKey: 'bullet2',
+		accessorKey: "bullet2",
 		cell: ({ row }) => (
 			<span className="text-muted-foreground line-clamp-2 text-xs">
-				{row.getValue('bullet2') ?? '--'}
+				{row.getValue("bullet2") ?? "--"}
 			</span>
 		),
-		header: 'Bullet 2',
+		header: "Bullet 2",
 		meta: { wrap: true },
 		size: 280,
 	},
 	{
-		accessorKey: 'rootCategoryBsr',
+		accessorKey: "rootCategoryBsr",
 		cell: ({ row }) => {
-			const bsr = row.getValue('rootCategoryBsr') as number | null;
+			const bsr = row.getValue("rootCategoryBsr") as number | null;
 			if (bsr === null) {
 				return <span className="text-muted-foreground text-xs">--</span>;
 			}
@@ -187,41 +194,47 @@ export const createColumns = ({
 				</div>
 			);
 		},
-		header: 'BSR',
-		meta: { align: 'right' },
+		header: "BSR",
+		meta: { align: "right" },
 		size: 120,
 	},
 	{
-		accessorKey: 'dateFirstAvailable',
+		accessorKey: "dateFirstAvailable",
 		cell: ({ row }) => (
 			<span className="text-muted-foreground whitespace-nowrap text-xs">
-				{formatCalendarDate(row.getValue('dateFirstAvailable') as string | null)}
+				{formatCalendarDate(
+					row.getValue("dateFirstAvailable") as string | null,
+				)}
 			</span>
 		),
-		header: 'Created',
-		meta: { align: 'right' },
+		header: "Created",
+		meta: { align: "right" },
 		size: 110,
 	},
 	{
-		accessorKey: 'marketplaceId',
+		accessorKey: "marketplaceId",
 		cell: ({ row }) => {
-			const marketplaceId = row.getValue('marketplaceId') as string;
-			return <span className="text-xs">{MARKETPLACE_FLAGS[marketplaceId] ?? marketplaceId}</span>;
+			const marketplaceId = row.getValue("marketplaceId") as string;
+			return (
+				<span className="text-xs">
+					{MARKETPLACE_FLAGS[marketplaceId] ?? marketplaceId}
+				</span>
+			);
 		},
-		header: 'Mkt',
-		meta: { align: 'right' },
+		header: "Mkt",
+		meta: { align: "right" },
 		size: 56,
 	},
 	{
-		accessorKey: 'lastFetched',
+		accessorKey: "lastFetched",
 		cell: ({ row }) => (
 			<span className="text-muted-foreground whitespace-nowrap font-mono text-xs">
-				{formatRelativeTime(row.getValue('lastFetched'))}
+				{formatRelativeTime(row.getValue("lastFetched"))}
 			</span>
 		),
-		header: 'Updated',
+		header: "Updated",
 		invertSorting: true,
-		meta: { align: 'right' },
+		meta: { align: "right" },
 		size: 110,
 	},
 ];
@@ -241,16 +254,16 @@ export const Colgroup = ({ columns }: { columns: ColgroupColumn[] }) => (
 
 const getBsrBadgeVariant = (bsr: number | null) => {
 	if (bsr === null) {
-		return 'outline' as const;
+		return "outline" as const;
 	}
 	if (bsr <= 1000) {
-		return 'success' as const;
+		return "success" as const;
 	}
 	if (bsr <= 10000) {
-		return 'info' as const;
+		return "info" as const;
 	}
 	if (bsr <= 100000) {
-		return 'warning' as const;
+		return "warning" as const;
 	}
-	return 'outline' as const;
+	return "outline" as const;
 };

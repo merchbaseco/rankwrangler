@@ -1,29 +1,29 @@
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-type Theme = 'light' | 'dark' | 'system';
+type Theme = "light" | "dark" | "system";
 
-const STORAGE_KEY = 'rw-theme';
+const STORAGE_KEY = "rw-theme";
 
 const getStoredTheme = (): Theme => {
 	const stored = localStorage.getItem(STORAGE_KEY);
-	if (stored === 'light' || stored === 'dark' || stored === 'system') {
+	if (stored === "light" || stored === "dark" || stored === "system") {
 		return stored;
 	}
-	return 'system';
+	return "system";
 };
 
 const isDarkTheme = (theme: Theme) => {
-	if (theme === 'dark') {
+	if (theme === "dark") {
 		return true;
 	}
-	if (theme === 'light') {
+	if (theme === "light") {
 		return false;
 	}
-	return window.matchMedia('(prefers-color-scheme: dark)').matches;
+	return window.matchMedia("(prefers-color-scheme: dark)").matches;
 };
 
 const applyTheme = (theme: Theme) => {
-	document.documentElement.classList.toggle('dark', isDarkTheme(theme));
+	document.documentElement.classList.toggle("dark", isDarkTheme(theme));
 };
 
 let listeners: Array<() => void> = [];
@@ -61,14 +61,14 @@ export const useTheme = () => {
 	}, [theme]);
 
 	useEffect(() => {
-		const mq = window.matchMedia('(prefers-color-scheme: dark)');
+		const mq = window.matchMedia("(prefers-color-scheme: dark)");
 		const handler = () => {
-			if (getStoredTheme() === 'system') {
-				applyTheme('system');
+			if (getStoredTheme() === "system") {
+				applyTheme("system");
 			}
 		};
-		mq.addEventListener('change', handler);
-		return () => mq.removeEventListener('change', handler);
+		mq.addEventListener("change", handler);
+		return () => mq.removeEventListener("change", handler);
 	}, []);
 
 	return { theme, setTheme };
