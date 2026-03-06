@@ -11,14 +11,16 @@ const MARKETPLACE_ID = 'ATVPDKIKX0DER';
 
 export const TrendCanvas = ({
 	selectedSearchTerm,
+    reportPeriod,
 }: {
 	selectedSearchTerm: string | null;
+    reportPeriod: 'DAY' | 'WEEK';
 }) => {
 	const trendQuery = api.api.app.searchterms.trend.useQuery(
 		{
 			marketplaceId: MARKETPLACE_ID,
 			rangeDays: 90,
-			reportPeriod: 'DAY',
+			reportPeriod,
 			searchTerm: selectedSearchTerm ?? '',
 		},
 		{

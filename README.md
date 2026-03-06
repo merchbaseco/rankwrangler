@@ -25,6 +25,9 @@ Monorepo containing the RankWrangler server, website, and browser extension.
   - Product facet sidebar filters are sourced from canonical assigned facet values in the server
     response (not only from currently loaded table rows)
   - Product side drawer header displays assigned facets as badges
+  - Search Terms tab supports `Latest day`, `Last complete week`, and custom date-window views;
+    custom windows must be either a single day or a Sunday-Saturday week to map to stored
+    Top Search Terms datasets
   - Keepa job success/failure metrics and filtered tables include both
     `fetch-keepa-history-for-asin` and `enqueue-scheduled-keepa-history-refresh`
   - Scheduled Keepa enqueue executions persist successful no-op runs, so admin job history
