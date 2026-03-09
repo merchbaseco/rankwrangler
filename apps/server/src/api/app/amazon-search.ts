@@ -23,7 +23,6 @@ export const amazonSearch = appProcedure
             marketplaceId: SPAPI_US_MARKETPLACE_ID,
             keyword: input.keyword,
             pageSize: 20,
-            caller: 'api.app.amazon.search',
         });
 
         const queueItems = buildAmazonSearchSyncQueueItems(result.items);

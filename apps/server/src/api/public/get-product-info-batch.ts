@@ -22,7 +22,6 @@ const getProductInfoBatchInput = z.object({
 export const getProductInfoBatch = publicApiProcedure
     .input(getProductInfoBatchInput)
     .mutation(async ({ input, ctx }) => {
-        const uid = ctx.user?.email ?? ctx.user?.sub ?? 'unknown';
         const asins = input.asins;
 
         await consumeLicenseUsageOrThrow(ctx, asins.length);
@@ -32,8 +31,6 @@ export const getProductInfoBatch = publicApiProcedure
                 const data = await fetchProductInfo({
                     marketplaceId: input.marketplaceId,
                     asin,
-                    uid,
-                    endpoint: 'api.public.getProductInfoBatch',
                 });
 
                 return {

@@ -1,22 +1,14 @@
 import { TRPCError } from '@trpc/server';
 import { getProductInfoFromStore } from '@/db/product/get-product.js';
 import { enqueueKeepaHistoryRefreshForAsin } from '@/services/keepa-history-refresh.js';
-import { trackApiRequest } from '@/services/posthog.js';
 import { enqueueSpApiSyncQueueItem } from '@/services/spapi-sync-queue.js';
 
 export type ProductInfoRequest = {
     marketplaceId: string;
     asin: string;
-    uid: string;
-    endpoint: string;
 };
 
-export const fetchProductInfo = async ({
-    marketplaceId,
-    asin,
-    uid,
-    endpoint,
-}: ProductInfoRequest) => {
+export const fetchProductInfo = async ({ marketplaceId, asin }: ProductInfoRequest) => {
     try {
         const cachedProduct = await getProductInfoFromStore(marketplaceId, asin);
         if (cachedProduct) {
@@ -25,24 +17,8 @@ export const fetchProductInfo = async ({
                 asin,
             });
 
-            trackApiRequest({
-                uid,
-                endpoint,
-                marketplaceId,
-                asin,
-                cached: true,
-            });
-
             return cachedProduct;
         }
-
-        trackApiRequest({
-            uid,
-            endpoint,
-            marketplaceId,
-            asin,
-            cached: false,
-        });
 
         await enqueueSpApiSyncQueueItem({ marketplaceId, asin });
 

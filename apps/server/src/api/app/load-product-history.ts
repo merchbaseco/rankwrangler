@@ -43,8 +43,6 @@ export const runManualProductHistorySync = async ({
         await deps.fetchProductInfo({
             marketplaceId: input.marketplaceId,
             asin: input.asin,
-            uid: actor,
-            endpoint: 'api.app.loadProductHistory',
         });
 
         const summary = await deps.loadKeepaProductHistoryManually({

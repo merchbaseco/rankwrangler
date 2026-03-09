@@ -17,11 +17,8 @@ export const getProductInfo = publicApiProcedure
     .mutation(async ({ input, ctx }) => {
         await consumeLicenseUsageOrThrow(ctx, 1);
 
-        const uid = ctx.user?.email ?? ctx.user?.sub ?? 'unknown';
         return fetchProductInfo({
             marketplaceId: input.marketplaceId,
             asin: input.asin,
-            uid,
-            endpoint: 'api.public.getProductInfo',
         });
     });

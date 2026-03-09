@@ -13,12 +13,9 @@ const amazonProductSearchInput = z.object({
 
 export const amazonProductSearch = appProcedure
     .input(amazonProductSearchInput)
-    .mutation(async ({ input, ctx }) => {
-        const uid = ctx.user?.email ?? ctx.user?.sub ?? 'unknown';
+    .mutation(async ({ input }) => {
         return fetchProductInfo({
             marketplaceId: input.marketplaceId,
             asin: input.asin,
-            uid,
-            endpoint: 'api.app.amazon.product.search',
         });
     });
