@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.3.0 - 2026-03-09
+
+### Added
+
+- Add BA Top Search Terms ingestion, trend views, keyword search, and job execution visibility
+  across the dashboard.
+- Add product facet classification, facet metrics, and facet badges to improve dashboard filtering
+  and product detail context.
+- Add persistent CLI storage-directory support so local CLI config/data can move to a custom path.
+
+### Changed
+
+- Redesign the search terms dashboard UI with richer toolbar controls, stat sparklines, clearer
+  metric timing, and stronger layout polish.
+- Improve top search terms scheduling, batching, report polling, and status performance so refresh
+  throughput and visibility stay stable as datasets grow.
+- Centralize adaptive SP-API limiter tuning and expose limiter stats for better operational control.
+- Breaking: require `RR_LICENSE_KEY` for CLI auth and stop storing API keys in CLI config.
+
+### Fixed
+
+- Fix weekly top search terms windows to align to Sunday-Saturday boundaries and correct
+  reclassification batch payload handling.
+- Tighten merch keyword filtering and category-slot parsing to reduce seasonal/accessory noise
+  without dropping valid terms.
+- Fix facet metrics timestamp anchoring, SQL casting, and drawer badge data flow in dashboard
+  surfaces.
+
 ## v0.2.3 - 2026-03-01
 
 ### Added

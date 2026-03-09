@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdtemp, readFile, rm, unlink } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,8 +21,8 @@ const main = async () => {
 
     try {
         await execFileAsync('tar', ['-xzf', tarballPath, '-C', extractionDir]);
-        const packedDistPath = path.join(extractionDir, 'package', 'dist', 'index.js');
-        const packedDist = await readFile(packedDistPath, 'utf8');
+        const packedDistDir = path.join(extractionDir, 'package', 'dist');
+        const packedDist = await readPackedDistContents(packedDistDir);
 
         assertContains(packedDist, 'products:history');
         assertContains(packedDist, "metrics: { type: 'string' }");
@@ -49,6 +49,17 @@ async function packCli() {
     }
 
     return tarballName;
+}
+
+async function readPackedDistContents(distDir) {
+    const entries = await readdir(distDir, { withFileTypes: true });
+    const chunks = await Promise.all(
+        entries
+            .filter(entry => entry.isFile() && entry.name.endsWith('.js'))
+            .map(entry => readFile(path.join(distDir, entry.name), 'utf8'))
+    );
+
+    return chunks.join('\n');
 }
 
 function assertContains(content, expected) {

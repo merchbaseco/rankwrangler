@@ -1,6 +1,6 @@
 {
     "name": "@rankwrangler/cli",
-    "version": "0.2.3",
+    "version": "0.3.0",
     "description": "Official RankWrangler command line interface",
     "type": "module",
     "bin": {
@@ -21,7 +21,7 @@
         "access": "public"
     },
     "dependencies": {
-        "@rankwrangler/http-client": "^0.2.3"
+        "@rankwrangler/http-client": "^0.3.0"
     },
     "devDependencies": {
         "@types/node": "^24.3.0",
