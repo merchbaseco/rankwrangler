@@ -62,6 +62,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 - Binaries: `rw` (primary), `rankwrangler` (alias)
 - The CLI uses `@rankwrangler/http-client` and the same `api.public.*` surface as HTTP clients.
 - Command shape is resource-first (`products get`, `license status`).
+- Meta commands: `rw --version` prints the installed CLI version and `rw changelog` prints the
+  latest bundled release notes.
 - History command: `products history <ASIN>` with agent-focused aliases (`--metrics bsr,price`).
 - Product commands default marketplace to `ATVPDKIKX0DER` and support `--marketplace` / `-m` override.
 - API keys are supplied via `RR_LICENSE_KEY`, not stored in CLI config.

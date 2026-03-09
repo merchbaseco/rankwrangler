@@ -13,6 +13,7 @@ export type CliOptionValues = {
     days?: string;
     limit?: string;
     help?: boolean;
+    version?: boolean;
 };
 
 const ASIN_REGEX = /^[A-Z0-9]{10}$/i;

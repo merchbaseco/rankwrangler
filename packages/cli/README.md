@@ -12,6 +12,8 @@ npm install -g @rankwrangler/cli
 
 ```bash
 export RR_LICENSE_KEY=rrk_...
+rw --version
+rw changelog
 rw config set storage-dir ~/.config/rankwrangler
 rw products get B0DV53VS61
 rw products history B0DV53VS61 --metrics bsr,price
@@ -22,6 +24,8 @@ rw products history B0DV53VS61 --metrics bsr,price
 active storage directory globally. After that, every CLI command reads and writes its non-secret
 config/data from that directory, while preserving existing config values when switching.
 `RR_STORAGE_DIR`, `RR_API_URL`, and `RR_MARKETPLACE_ID` override saved CLI config when set.
+`rw --version` prints the installed CLI version. `rw changelog` prints the latest bundled release
+notes shipped with the package.
 
 ## Development
 

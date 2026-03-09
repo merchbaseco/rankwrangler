@@ -17,13 +17,17 @@ Canonical release process: `docs/release-runbook.md`.
 
 - Config-first state. No prompts or interactive flows.
 - Resource-first, verb-second command shape.
-- JSON-only output.
+- JSON-only output for API/config commands.
+- Text output is reserved for CLI meta commands (`--help`, `--version`, `changelog`).
 - One CLI command maps to one API capability.
 - CLI and HTTP public API stay aligned as one canonical surface.
 - No legacy aliases or compatibility command shims unless explicitly requested.
 
 ## Command Shape
 
+- Meta commands:
+  - `rw --version`
+  - `rw changelog`
 - Pattern: `rw <resource> <verb> [args...] [flags...]`
 - Alias pattern: `rankwrangler <resource> <verb> [args...] [flags...]`
 - Current resources:
@@ -44,6 +48,9 @@ Failure:
 ```json
 {"ok": false, "error": {"code": "MISSING_CONFIG", "message": "api key is required. set RR_LICENSE_KEY"}}
 ```
+
+`rw --version` prints the installed package version as plain text.
+`rw changelog` prints the latest bundled `CHANGELOG.md` release entry as plain text.
 
 ## Config
 

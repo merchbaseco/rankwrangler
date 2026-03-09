@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, test } from 'bun:test';
 
 const CLI_PATH = fileURLToPath(new URL('../dist/index.js', import.meta.url));
+const CLI_PACKAGE_JSON_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
+const ROOT_CHANGELOG_PATH = fileURLToPath(new URL('../../../CHANGELOG.md', import.meta.url));
 const TEMP_DIRS: string[] = [];
 
 afterEach(() => {
@@ -18,6 +20,41 @@ afterEach(() => {
 });
 
 describe('cli storage-dir persistence', () => {
+    test('prints the packaged CLI version', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-');
+        const tempHome = path.join(tempRoot, 'home');
+        const workspaceDir = path.join(tempRoot, 'workspace');
+        mkdirSync(tempHome, { recursive: true });
+        mkdirSync(workspaceDir, { recursive: true });
+
+        const result = spawnCli(['--version'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout.trim()).toBe(CURRENT_CLI_VERSION);
+        expect(result.stderr).toBe('');
+    });
+
+    test('prints the latest bundled changelog entry', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-');
+        const tempHome = path.join(tempRoot, 'home');
+        const workspaceDir = path.join(tempRoot, 'workspace');
+        mkdirSync(tempHome, { recursive: true });
+        mkdirSync(workspaceDir, { recursive: true });
+
+        const result = spawnCli(['changelog'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain(LATEST_CHANGELOG_HEADING);
+        expect(result.stdout).toContain('### Added');
+        expect(result.stderr).toBe('');
+    });
+
     test('persists the active storage dir globally and migrates existing config', () => {
         const tempRoot = createTempDir('rankwrangler-cli-');
         const tempHome = path.join(tempRoot, 'home');
@@ -219,3 +256,15 @@ const createTempDir = (prefix: string) => {
 const readJson = (filePath: string) => {
     return JSON.parse(readFileSync(filePath, 'utf8')) as Record<string, string>;
 };
+
+const getLatestChangelogHeading = (changelog: string) => {
+    const heading = changelog.match(/^## v\d+\.\d+\.\d+ - \d{4}-\d{2}-\d{2}$/m)?.[0];
+    if (!heading) {
+        throw new Error('could not resolve latest changelog heading');
+    }
+
+    return heading;
+};
+
+const CURRENT_CLI_VERSION = readJson(CLI_PACKAGE_JSON_PATH).version;
+const LATEST_CHANGELOG_HEADING = getLatestChangelogHeading(readFileSync(ROOT_CHANGELOG_PATH, 'utf8'));

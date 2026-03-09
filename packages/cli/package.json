@@ -14,7 +14,8 @@
         "README.md"
     ],
     "scripts": {
-        "build": "tsc -p tsconfig.json && node scripts/fix-dist-imports.mjs",
+        "build": "tsc -p tsconfig.json && node scripts/fix-dist-imports.mjs && node scripts/sync-changelog.mjs",
+        "prepack": "node scripts/sync-changelog.mjs",
         "test:e2e": "bun test test/index.e2e.test.ts",
         "prepublishOnly": "node ../../scripts/release/ensure-cli-http-client-published.mjs"
     },

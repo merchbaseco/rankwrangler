@@ -2,6 +2,7 @@
 
 import { parseArgs } from 'node:util';
 import { createRankWranglerClient, DEFAULT_API_BASE_URL } from '@rankwrangler/http-client';
+import { printBundledChangelog, printCliVersion } from './cli-metadata';
 import {
     clearConfig,
     loadCliContext,
@@ -33,6 +34,10 @@ type CliCommand = {
     args: string[];
 };
 
+type CliMetaCommand = {
+    name: 'changelog';
+};
+
 const SUPPORTED_COMMANDS = new Set([
     'products:get',
     'products:history',
@@ -47,6 +52,7 @@ const { positionals, values } = parseArgs({
     args: process.argv.slice(2),
     options: {
         help: { type: 'boolean', short: 'h' },
+        version: { type: 'boolean' },
         baseUrl: { type: 'string' },
         marketplace: { type: 'string', short: 'm' },
         asin: { type: 'string', multiple: true },
@@ -62,9 +68,22 @@ const { positionals, values } = parseArgs({
 const main = async () => {
     const optionValues = values as CliOptionValues;
 
+    if (optionValues.version) {
+        printCliVersion();
+        return;
+    }
+
     if (values.help || positionals.length === 0) {
         printUsage(await loadCliPathsOrDefault());
         process.exit(values.help ? 0 : 1);
+    }
+
+    const metaCommand = resolveMetaCommand(positionals);
+    if (metaCommand) {
+        if (metaCommand.name === 'changelog') {
+            printBundledChangelog();
+            return;
+        }
     }
 
     const command = resolveCommandOrFail(positionals);
@@ -228,6 +247,14 @@ const buildConfigResponse = (paths: CliPaths, config: CliConfig) => {
         globalPath: paths.globalConfigPath,
         config,
     };
+};
+
+const resolveMetaCommand = (inputPositionals: string[]): CliMetaCommand | null => {
+    if (inputPositionals.length === 1 && inputPositionals[0] === 'changelog') {
+        return { name: 'changelog' };
+    }
+
+    return null;
 };
 
 const resolveCommand = (inputPositionals: string[]) => {
