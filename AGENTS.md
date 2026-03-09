@@ -35,8 +35,8 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 13. For release bumps, always use repo scripts (`bun run release:bump ...`, then
     `bun run release:check`, `bun run cli:build`, `bun run release:check-cli-pack`) instead of
     manual version edits; do not maintain a persistent `## Unreleased` changelog section. When the
-    user says `do a version bump`, follow `docs/ai-commands/version-bump/README.md`; commit and
-    push release changes to `origin/main` before any npm publish.
+    user says `do a version bump`, follow `docs/ai-commands/version-bump/README.md` and complete
+    the full release flow, including publish, unless the user explicitly scopes it down.
 
 ## API + Code Design
 

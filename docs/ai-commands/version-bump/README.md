@@ -91,9 +91,10 @@ git commit -m "release: vX.Y.Z"
 git push origin main
 ```
 
-9. Publish gate (after push).
-Never publish automatically. Ask for explicit approval before npm publish, and only publish after
-the release commit is pushed to `origin/main`.
+9. Publish after push by default.
+If the user asked for a version bump/release and did not scope it down, continue through npm
+publish after the release commit is pushed to `origin/main`. Only stop short of publish if the
+user explicitly says not to publish.
 
 ## Editing Rules
 
