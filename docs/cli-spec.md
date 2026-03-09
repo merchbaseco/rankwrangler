@@ -69,6 +69,7 @@ Commands:
 location for CLI config/data on later commands. When switching to a new directory, existing
 config values are copied over for any keys the target config does not already define.
 Secrets are not stored in CLI config; use `RR_LICENSE_KEY`.
+Environment variables win over saved CLI config for `base-url`, `marketplace`, and `storage-dir`.
 
 ## API Commands
 
@@ -91,6 +92,12 @@ Marketplace resolution for product commands:
 - configured `marketplace` from the active CLI storage directory's `config.json`
 - `RR_MARKETPLACE_ID`
 - default: `ATVPDKIKX0DER`
+
+Storage directory resolution:
+
+- `RR_STORAGE_DIR`
+- saved global storage pointer in `~/.rankwrangler/global.json`
+- default: `~/.rankwrangler`
 
 These commands map directly to public API capabilities:
 

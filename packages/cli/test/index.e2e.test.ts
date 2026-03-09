@@ -96,10 +96,68 @@ describe('cli storage-dir persistence', () => {
         expect(missingKeyFailure.error.code).toBe('MISSING_CONFIG');
         expect(missingKeyFailure.error.message).toBe('api key is required. set RR_LICENSE_KEY');
     });
+
+    test('lets RR_STORAGE_DIR override the saved storage dir', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-');
+        const tempHome = path.join(tempRoot, 'home');
+        const workspaceDir = path.join(tempRoot, 'workspace');
+        mkdirSync(tempHome, { recursive: true });
+        mkdirSync(workspaceDir, { recursive: true });
+
+        const savedStorageDir = path.join(realpathSync(workspaceDir), 'saved-storage');
+        const envStorageDir = path.join(realpathSync(workspaceDir), 'env-storage');
+
+        runCli(['config', 'set', 'storage-dir', './saved-storage'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+
+        const envShowResult = runCli(['config', 'set', 'marketplace', 'ENV_MARKET'], {
+            cwd: workspaceDir,
+            home: tempHome,
+            env: {
+                RR_STORAGE_DIR: envStorageDir,
+            },
+        });
+        expect(envShowResult.data.storageDir).toBe(envStorageDir);
+        expect(envShowResult.data.path).toBe(path.join(envStorageDir, 'config.json'));
+
+        const envConfigPath = path.join(envStorageDir, 'config.json');
+        const globalConfigPath = path.join(tempHome, '.rankwrangler', 'global.json');
+
+        expect(readJson(envConfigPath)).toEqual({
+            marketplaceId: 'ENV_MARKET',
+        });
+        expect(readJson(globalConfigPath)).toEqual({
+            storageDir: savedStorageDir,
+        });
+
+        const defaultShowResult = runCli(['config', 'show'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+        expect(defaultShowResult.data.storageDir).toBe(savedStorageDir);
+        expect(defaultShowResult.data.path).toBe(path.join(savedStorageDir, 'config.json'));
+
+        const envOverrideShowResult = runCli(['config', 'show'], {
+            cwd: workspaceDir,
+            home: tempHome,
+            env: {
+                RR_STORAGE_DIR: envStorageDir,
+            },
+        });
+        expect(envOverrideShowResult.data.storageDir).toBe(envStorageDir);
+        expect(envOverrideShowResult.data.config).toEqual({
+            marketplaceId: 'ENV_MARKET',
+        });
+    });
 });
 
-const runCli = (args: string[], { cwd, home }: { cwd: string; home: string }) => {
-    const result = spawnCli(args, { cwd, home });
+const runCli = (
+    args: string[],
+    options: { cwd: string; home: string; env?: Record<string, string> }
+) => {
+    const result = spawnCli(args, options);
     if (result.status !== 0) {
         throw new Error(
             `CLI command failed (${args.join(' ')}): ${result.stderr || result.stdout || 'unknown error'}`
@@ -116,8 +174,11 @@ const runCli = (args: string[], { cwd, home }: { cwd: string; home: string }) =>
     };
 };
 
-const runCliFailure = (args: string[], { cwd, home }: { cwd: string; home: string }) => {
-    const result = spawnCli(args, { cwd, home });
+const runCliFailure = (
+    args: string[],
+    options: { cwd: string; home: string; env?: Record<string, string> }
+) => {
+    const result = spawnCli(args, options);
     if (result.status === 0) {
         throw new Error(`CLI command unexpectedly succeeded (${args.join(' ')})`);
     }
@@ -132,12 +193,16 @@ const runCliFailure = (args: string[], { cwd, home }: { cwd: string; home: strin
     };
 };
 
-const spawnCli = (args: string[], { cwd, home }: { cwd: string; home: string }) => {
+const spawnCli = (
+    args: string[],
+    { cwd, home, env = {} }: { cwd: string; home: string; env?: Record<string, string> }
+) => {
     const result = spawnSync('node', [CLI_PATH, ...args], {
         cwd,
         env: {
             ...process.env,
             HOME: home,
+            ...env,
         },
         encoding: 'utf8',
     });

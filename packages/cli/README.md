@@ -21,6 +21,7 @@ rw products history B0DV53VS61 --metrics bsr,price
 `RR_LICENSE_KEY` is the API-key source. `rw config set storage-dir <path>` saves the
 active storage directory globally. After that, every CLI command reads and writes its non-secret
 config/data from that directory, while preserving existing config values when switching.
+`RR_STORAGE_DIR`, `RR_API_URL`, and `RR_MARKETPLACE_ID` override saved CLI config when set.
 
 ## Development
 

@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file.
 - Add product facet classification, facet metrics, and facet badges to improve dashboard filtering
   and product detail context.
 - Add persistent CLI storage-directory support so local CLI config/data can move to a custom path.
+- Add `RR_STORAGE_DIR` so CLI storage location can be controlled by environment as well as saved
+  config.
 
 ### Changed
 

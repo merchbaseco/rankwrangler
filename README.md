@@ -65,6 +65,7 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 - API keys are supplied via `RR_LICENSE_KEY`, not stored in CLI config.
 - `rw config set storage-dir <path>` persists a custom CLI storage directory globally and moves
   config reads/writes there without dropping existing settings.
+- `RR_API_URL`, `RR_MARKETPLACE_ID`, and `RR_STORAGE_DIR` override saved CLI config when set.
 - Spec: `docs/cli-spec.md`
 - Release workflow: `docs/cli-spec.md`
 

@@ -21,6 +21,7 @@ type CliGlobalConfig = {
 const DEFAULT_STORAGE_DIR = path.join(homedir(), '.rankwrangler');
 const CONFIG_FILENAME = 'config.json';
 const GLOBAL_CONFIG_FILENAME = 'global.json';
+const STORAGE_DIR_ENV_VAR = 'RR_STORAGE_DIR';
 
 export class CliStorageError extends Error {
     readonly code: string;
@@ -93,7 +94,9 @@ export const switchStorageDir = async ({
 const resolveCliPaths = async () => {
     const defaults = getDefaultCliPaths();
     const globalConfig = await loadGlobalConfig(defaults.globalConfigPath);
-    const storageDir = normalizeStorageDir(globalConfig.storageDir ?? defaults.storageDir);
+    const storageDir = normalizeStorageDir(
+        process.env[STORAGE_DIR_ENV_VAR] ?? globalConfig.storageDir ?? defaults.storageDir
+    );
 
     return buildCliPaths(storageDir);
 };
