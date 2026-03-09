@@ -69,11 +69,7 @@ export async function processSpApiSyncQueue(
     let failureStage: ProcessSpApiSyncQueueFailureStage = 'fetch';
 
     try {
-        fetchedProducts = await deps.searchCatalogItemsByAsins(
-            marketplaceId,
-            asins,
-            'rankwrangler_job_process-spapi-sync-queue'
-        );
+        fetchedProducts = await deps.searchCatalogItemsByAsins(marketplaceId, asins);
 
         if (fetchedProducts.length > 0) {
             failureStage = 'upsert';

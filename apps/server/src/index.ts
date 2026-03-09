@@ -10,7 +10,6 @@ import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
 import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
 import { startJobs } from '@/jobs/index.js';
-import { isPostHogEnabled, shutdownPostHog } from '@/services/posthog.js';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
 import {
     registerSpApiSyncQueueWakeups,
@@ -29,9 +28,6 @@ await runMigrations();
 
 // Test database connection
 await testConnection();
-
-// Test PostHog initialization
-const posthogEnabled = isPostHogEnabled();
 
 // Initialize pg-boss
 const databaseUser = env.DATABASE_USER || 'rankwrangler';
@@ -164,10 +160,6 @@ const shutdown = async (signal: string) => {
     console.log(`[${new Date().toISOString()}] Received ${signal}, shutting down gracefully...`);
 
     try {
-        // Shutdown PostHog to flush any pending events
-        await shutdownPostHog();
-        console.log('[Server] PostHog shutdown complete');
-
         // Stop job intervals
         await jobsRuntime.stop();
         console.log('[Server] Job schedules stopped');
@@ -211,10 +203,6 @@ try {
     for (const jobSummary of jobsRuntime.startupSummary) {
         console.log(`    - ${jobSummary}`);
     }
-    const posthogStatus = posthogEnabled
-        ? 'Enabled'
-        : 'Disabled (POSTHOG_API_KEY not set)';
-    console.log(`  • PostHog Analytics: ${posthogStatus}`);
     const keepaStatus = env.KEEPA_API_KEY
         ? 'Configured'
         : 'Disabled (KEEPA_API_KEY not set)';
@@ -240,6 +228,5 @@ try {
     console.log('');
 } catch (err) {
     console.error('Failed to start server:', err);
-    await shutdownPostHog();
     process.exit(1);
 }

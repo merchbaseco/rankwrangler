@@ -1,9 +1,7 @@
 import { z } from 'zod';
-import { trackSpApiCall, trackSpApiError } from '@/services/posthog.js';
 import { createSpApiClient } from '@/services/spapi/spapi-client.js';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import { classifyMerchBullets } from '@/utils/merch-bullets.js';
-import { formatZodErrorMessage, formatZodValidationErrors } from '@/utils/zod.js';
 import {
     getMarketplaceBulletPoints,
     ItemSchema,
@@ -53,12 +51,10 @@ export const searchCatalogItemsByKeyword = async ({
     marketplaceId,
     keyword,
     pageSize,
-    caller,
 }: {
     marketplaceId: string;
     keyword: string;
     pageSize: number;
-    caller: string;
 }): Promise<CatalogKeywordSearchResult> => {
     if (!marketplaceId.trim()) {
         throw new Error('Marketplace ID is required');
@@ -84,73 +80,32 @@ export const searchCatalogItemsByKeyword = async ({
         };
     }
 
-    trackSpApiCall({
-        caller,
-        apiName: 'searchCatalogItemsByKeyword',
+    const rawResponse = await spApiClient.searchCatalogItemsByKeyword({
+        keyword: normalizedKeyword,
+        marketplaceId,
+        pageSize: clampedPageSize,
     });
-
-    let rawResponse: unknown;
-    try {
-        rawResponse = await spApiClient.searchCatalogItemsByKeyword({
-            keyword: normalizedKeyword,
-            marketplaceId,
-            pageSize: clampedPageSize,
-        });
-    } catch (error) {
-        trackSpApiError({
-            caller,
-            apiName: 'searchCatalogItemsByKeyword',
-            errorType: 'api_request_failed',
-            errorMessage: 'API request failed',
-            marketplaceId,
-            additionalProperties: {
-                keyword: normalizedKeyword,
-                pageSize: String(clampedPageSize),
-            },
-        });
-        throw error;
-    }
 
     const fetchedAt = new Date().toISOString();
 
-    try {
-        const parsed = ItemSearchResultsSchema.parse(rawResponse);
-        const items = parsed.items
-            .slice(0, clampedPageSize)
-            .map((item) => mapCatalogItemFromKeywordSearch(item, marketplaceId, fetchedAt));
+    const parsed = ItemSearchResultsSchema.parse(rawResponse);
+    const items = parsed.items
+        .slice(0, clampedPageSize)
+        .map(item => mapCatalogItemFromKeywordSearch(item, marketplaceId, fetchedAt));
 
-        const result: CatalogKeywordSearchResult = {
-            items,
-            metadata: {
-                cached: false,
-                keyword: normalizedKeyword,
-                lastFetched: fetchedAt,
-                marketplaceId,
-            },
-        };
-
-        setKeywordSearchCache(cacheKey, result, nowMs + KEYWORD_SEARCH_CACHE_TTL_MS);
-
-        return result;
-    } catch (error) {
-        const zodError = error instanceof z.ZodError ? error : null;
-        trackSpApiError({
-            caller,
-            apiName: 'searchCatalogItemsByKeyword',
-            errorType: 'validation_failed',
-            errorMessage: zodError ? formatZodErrorMessage(zodError) : 'Validation failed',
+    const result: CatalogKeywordSearchResult = {
+        items,
+        metadata: {
+            cached: false,
+            keyword: normalizedKeyword,
+            lastFetched: fetchedAt,
             marketplaceId,
-            additionalProperties: {
-                keyword: normalizedKeyword,
-                ...(zodError
-                    ? {
-                          validationErrors: formatZodValidationErrors(zodError),
-                      }
-                    : {}),
-            },
-        });
-        throw error;
-    }
+        },
+    };
+
+    setKeywordSearchCache(cacheKey, result, nowMs + KEYWORD_SEARCH_CACHE_TTL_MS);
+
+    return result;
 };
 
 export const mapCatalogItemFromKeywordSearch = (

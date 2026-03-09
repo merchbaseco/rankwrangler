@@ -21,8 +21,6 @@ describe('runManualProductHistorySync', () => {
                 expect(params).toEqual({
                     marketplaceId: input.marketplaceId,
                     asin: input.asin,
-                    uid: actor,
-                    endpoint: 'api.app.loadProductHistory',
                 });
                 return createProductInfoResult();
             },
