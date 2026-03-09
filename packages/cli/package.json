@@ -15,7 +15,8 @@
     ],
     "scripts": {
         "build": "tsc -p tsconfig.json && node scripts/fix-dist-imports.mjs",
-        "test:e2e": "bun test test/index.e2e.test.ts"
+        "test:e2e": "bun test test/index.e2e.test.ts",
+        "prepublishOnly": "node ../../scripts/release/ensure-cli-http-client-published.mjs"
     },
     "publishConfig": {
         "access": "public"

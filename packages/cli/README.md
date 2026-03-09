@@ -46,6 +46,9 @@ bun run release:check-cli-pack
 
 Then publish:
 
+Publish `packages/http-client` first. `packages/cli` now fails fast on `npm publish` until the
+matching `@rankwrangler/http-client` version is already available on npm.
+
 ```bash
 cd packages/cli
 set -a
