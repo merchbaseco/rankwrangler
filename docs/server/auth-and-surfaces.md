@@ -78,6 +78,8 @@ App payload/behavior notes:
 
 - `api.app.amazon.search` returns keyword product rows and enqueues returned ASINs into the SP-API
   sync queue for background product sync.
+- `api.app.license.generate` replaces any existing license rows for the same email with the newly
+  issued key.
 
 ## Typed Client + CLI
 
