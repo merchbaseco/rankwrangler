@@ -1,4 +1,5 @@
 import type { InferSelectModel } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { licenses } from '@/db/schema.js';
 
@@ -18,7 +19,11 @@ export async function createLicense(
         lastResetAt: new Date(),
     };
 
-    const [license] = await db.insert(licenses).values(licenseData).returning();
+    const [license] = await db.transaction(async tx => {
+        await tx.delete(licenses).where(eq(licenses.email, email));
+
+        return await tx.insert(licenses).values(licenseData).returning();
+    });
 
     console.log(`[License Service] License created:`, {
         id: license.id,
@@ -28,4 +33,3 @@ export async function createLicense(
 
     return license;
 }
-

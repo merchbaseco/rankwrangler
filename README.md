@@ -49,6 +49,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 - Public surface: `api.public.*` (license key auth).
 - App surface: `api.app.*` (Clerk auth).
 - Dev automation helper: `api.public.dev.createClerkSignInToken` (localhost + non-production only).
+- Generating a license rotates that email to a single active key by deleting older license rows
+  before inserting the new key.
 - Shared behavior should live in utilities/libs, then be used by both routers.
 - Each tRPC procedure lives in its own file under `apps/server/src/api/public` or `apps/server/src/api/app`.
 
