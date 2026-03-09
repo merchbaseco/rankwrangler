@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.4.0 - 2026-03-09
+
+### Added
+
+- Add `RR_STORAGE_DIR` and document CLI env vars in `.env.example` so local CLI testing can use
+  env-based configuration end to end.
+
+### Changed
+
+- Make CLI environment variables override saved config for storage-dir, API origin, and
+  marketplace values.
+
+### Fixed
+
+- Fix the built CLI package to run under Node after the CLI module split and strengthen release
+  pack validation around the built artifact.
+
 ## v0.3.0 - 2026-03-09
 
 ### Added
