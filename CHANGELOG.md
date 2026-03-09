@@ -27,6 +27,8 @@ All notable changes to this project will be documented in this file.
   reclassification batch payload handling.
 - Tighten merch keyword filtering and category-slot parsing to reduce seasonal/accessory noise
   without dropping valid terms.
+- Fix Node runtime imports in the built CLI package and strengthen release pack validation after
+  the CLI module split.
 - Fix facet metrics timestamp anchoring, SQL casting, and drawer badge data flow in dashboard
   surfaces.
 

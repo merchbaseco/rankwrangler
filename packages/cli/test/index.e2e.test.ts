@@ -133,7 +133,7 @@ const runCliFailure = (args: string[], { cwd, home }: { cwd: string; home: strin
 };
 
 const spawnCli = (args: string[], { cwd, home }: { cwd: string; home: string }) => {
-    const result = spawnSync(process.execPath, [CLI_PATH, ...args], {
+    const result = spawnSync('node', [CLI_PATH, ...args], {
         cwd,
         env: {
             ...process.env,

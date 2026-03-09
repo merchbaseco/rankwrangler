@@ -13,6 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '..', '..');
 const cliPackageDir = path.join(repoRoot, 'packages/cli');
+const localDistPath = path.join(cliPackageDir, 'dist', 'index.js');
 
 const main = async () => {
     const tarballName = await packCli();
@@ -23,10 +24,14 @@ const main = async () => {
         await execFileAsync('tar', ['-xzf', tarballPath, '-C', extractionDir]);
         const packedDistDir = path.join(extractionDir, 'package', 'dist');
         const packedDist = await readPackedDistContents(packedDistDir);
+        const { stdout } = await execFileAsync('node', [localDistPath, '--help'], {
+            cwd: cliPackageDir,
+        });
 
         assertContains(packedDist, 'products:history');
         assertContains(packedDist, "metrics: { type: 'string' }");
-        assertContains(packedDist, 'products history <ASIN>');
+        assertContains(stdout, 'products history <ASIN>');
+        assertContains(stdout, 'config set storage-dir <path>');
 
         console.log('release:check-cli-pack passed');
         console.log(`checked tarball: ${tarballName}`);
