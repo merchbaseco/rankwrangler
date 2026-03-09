@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.4.1 - 2026-03-09
+
+### Added
+
+- Add CLI `rw --version` and `rw changelog` commands, including bundled release notes in the
+  published npm package.
+
+### Changed
+
+- Rotate API key generation by email so creating a new key for the same email replaces older
+  active keys.
+- Remove the remaining PostHog integration from the server runtime, config, and related docs.
+
+### Fixed
+
+- Make CLI publish fail fast until the matching `@rankwrangler/http-client` version is already on
+  npm, reducing release-order mistakes.
+
 ## v0.4.0 - 2026-03-09
 
 ### Added
