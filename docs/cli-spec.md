@@ -127,6 +127,9 @@ npm whoami --userconfig ../../.npmrc
 npm publish --access public --userconfig ../../.npmrc
 ```
 
+`npm publish` fails fast unless the matching `@rankwrangler/http-client` version has already been
+published.
+
 ## Release Checklist
 
 1. Run `bun run release:bump <patch|minor|major|X.Y.Z>` from repo root.
@@ -134,8 +137,9 @@ npm publish --access public --userconfig ../../.npmrc
 3. Run `bun run release:collect-changelog-context`, then draft `CHANGELOG.md` entry.
 4. Run `bun run release:check`, then `bun run cli:build`.
 5. Run `bun run release:check-cli-pack` to validate packed npm artifact contents.
-6. Publish from `packages/cli` using the commands above.
-7. Verify package access status:
+6. Publish `packages/http-client` first.
+7. Publish from `packages/cli` using the commands above.
+8. Verify package access status:
 
 ```bash
 cd packages/cli

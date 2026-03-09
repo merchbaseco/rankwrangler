@@ -138,6 +138,8 @@ npm publish --access public --userconfig ../../.npmrc
 ## 7. Publish CLI
 
 Only after the release commit has been pushed to `origin/main`.
+`packages/cli` has a `prepublishOnly` guard and will fail fast until the matching
+`@rankwrangler/http-client@X.Y.Z` is already available on npm.
 
 Run from `packages/cli`:
 
@@ -162,4 +164,6 @@ npm view @rankwrangler/cli version --userconfig .npmrc
 
 - `401 Unauthorized`: load `.env` before publish and use `--userconfig ../../.npmrc`.
 - `403 cannot publish over previously published versions`: bump version and retry.
+- `ETARGET No matching version found for @rankwrangler/http-client`: publish the matching
+  `packages/http-client` version first, then retry `packages/cli`.
 - Keep release scope tight: only version files, lockfile, changelog, and required dependency updates.

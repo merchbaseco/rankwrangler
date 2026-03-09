@@ -93,8 +93,10 @@ git push origin main
 
 9. Publish after push by default.
 If the user asked for a version bump/release and did not scope it down, continue through npm
-publish after the release commit is pushed to `origin/main`. Only stop short of publish if the
-user explicitly says not to publish.
+publish after the release commit is pushed to `origin/main`. Publish
+`@rankwrangler/http-client` before `@rankwrangler/cli`; the CLI publish is guarded and should fail
+until the matching HTTP client version is already on npm. Only stop short of publish if the user
+explicitly says not to publish.
 
 ## Editing Rules
 
