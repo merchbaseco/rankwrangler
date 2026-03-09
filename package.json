@@ -10,6 +10,7 @@
         "server:start": "bun run --filter @rankwrangler/server start",
         "server:cli": "bun run --filter @rankwrangler/server cli",
         "cli:build": "bun run http-client:build && bun run --filter @rankwrangler/cli build",
+        "cli:test:e2e": "bun run cli:build && bun run --filter @rankwrangler/cli test:e2e",
         "website:dev": "bun run --filter @rankwrangler/website dev",
         "website:build": "bun run --filter @rankwrangler/website build",
         "website:preview": "bun run --filter @rankwrangler/website preview",

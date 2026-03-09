@@ -11,16 +11,22 @@ npm install -g @rankwrangler/cli
 ## Usage
 
 ```bash
-rw config set api-key rrk_...
+export RR_LICENSE_KEY=rrk_...
+rw config set storage-dir ~/.config/rankwrangler
 rw products get B0DV53VS61
 rw products history B0DV53VS61 --metrics bsr,price
 # `rankwrangler` is also supported as an alias
 ```
 
+`RR_LICENSE_KEY` is the API-key source. `rw config set storage-dir <path>` saves the
+active storage directory globally. After that, every CLI command reads and writes its non-secret
+config/data from that directory, while preserving existing config values when switching.
+
 ## Development
 
 ```bash
 bun run cli:build
+bun run cli:test:e2e
 ```
 
 ## Release (Maintainers)

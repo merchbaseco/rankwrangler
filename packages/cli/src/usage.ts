@@ -1,0 +1,57 @@
+import type { CliPaths } from './cli-config';
+
+const DEFAULT_MARKETPLACE_ID = 'ATVPDKIKX0DER';
+
+export const printUsage = (paths: CliPaths) => {
+    const usage = [
+        'NAME',
+        '  rw, rankwrangler - RankWrangler command line interface',
+        '',
+        'SYNOPSIS',
+        '  rw <resource> <verb> [args...] [options]',
+        '  rankwrangler <resource> <verb> [args...] [options]',
+        '',
+        'COMMANDS',
+        '  products get <ASIN...>',
+        '  products history <ASIN>',
+        '  license status',
+        '  license validate',
+        '  config show',
+        '  config clear',
+        '  config set base-url <origin>',
+        '  config set marketplace <marketplaceId>',
+        '  config set storage-dir <path>',
+        '',
+        'OPTIONS',
+        '  -h, --help               Show this help message',
+        '  --baseUrl <origin>       Override API origin',
+        `  -m, --marketplace <id>   Override marketplace (default: ${DEFAULT_MARKETPLACE_ID})`,
+        '  --asin <ASIN>            Add ASIN (repeatable)',
+        '  --metrics <list>         History metrics: bsr,price (default: bsr,price)',
+        '  --days <N>               History lookback window (30-3650, default: 365)',
+        '  --startAt <ISO>          History range start (ISO date/time)',
+        '  --endAt <ISO>            History range end (ISO date/time)',
+        '  --limit <N>              Max points per metric (1-10000, default: 5000)',
+        '',
+        'FILES',
+        `  ${paths.configPath}           Active CLI config`,
+        `  ${paths.globalConfigPath}           Global CLI settings`,
+        '',
+        'ENVIRONMENT',
+        '  RR_LICENSE_KEY           API key source',
+        '  RR_API_URL               API origin fallback',
+        '  RR_MARKETPLACE_ID        Marketplace fallback',
+        '  RR_ASIN                  Single ASIN fallback',
+        '  RR_ASINS                 Comma-separated ASIN fallback',
+        '  RR_HISTORY_METRICS       Comma-separated history metrics fallback',
+        '',
+        'EXAMPLES',
+        '  RR_LICENSE_KEY=rrk_... rw products get B0DV53VS61',
+        '  rw config set storage-dir ~/.config/rankwrangler',
+        '  rw products history B0DV53VS61 --metrics bsr,price',
+        '  rw products history B0DV53VS61 --startAt 2025-01-01 --endAt 2025-12-31',
+        '  rankwrangler license status',
+    ];
+
+    console.log(usage.join('\n'));
+};

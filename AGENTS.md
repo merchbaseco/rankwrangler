@@ -26,11 +26,13 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 8. Never commit secrets. If a secret is exposed in git, rotate/revoke before history cleanup.
 9. This is a work-in-progress codebase: optimize for the best aspirational end state, not legacy
    compatibility. Remove or rewrite outdated code as needed.
-10. For CI failures, troubleshoot from GitHub Actions logs/check-runs first; do not install local
+10. Do not add legacy compatibility shims, deprecation bridges, or explicit rejection paths for
+    removed interfaces unless the user asks for them.
+11. For CI failures, troubleshoot from GitHub Actions logs/check-runs first; do not install local
     tooling (brew/npm/etc.) unless the user explicitly asks.
-11. When creating Linear issues via CLI, always include the `RankWrangler` label (for example
+12. When creating Linear issues via CLI, always include the `RankWrangler` label (for example
     `--label RankWrangler`).
-12. For release bumps, always use repo scripts (`bun run release:bump ...`, then
+13. For release bumps, always use repo scripts (`bun run release:bump ...`, then
     `bun run release:check`, `bun run cli:build`, `bun run release:check-cli-pack`) instead of
     manual version edits; do not maintain a persistent `## Unreleased` changelog section. When the
     user says `do a version bump`, follow `docs/ai-commands/version-bump/README.md`; commit and

@@ -42,28 +42,33 @@ Success:
 Failure:
 
 ```json
-{"ok": false, "error": {"code": "MISSING_CONFIG", "message": "api key is required. set via `config set api-key <value>`"}}
+{"ok": false, "error": {"code": "MISSING_CONFIG", "message": "api key is required. set RR_LICENSE_KEY"}}
 ```
 
 ## Config
 
-Local config path: `~/.rankwrangler/config.json`.
+Default config path: `~/.rankwrangler/config.json`.
+Global storage pointer path: `~/.rankwrangler/global.json`.
 
 Supported keys:
 
-- `api-key`
 - `base-url`
 - `marketplace`
+- `storage-dir`
 
 Commands:
 
 - `rw config show`
 - `rw config clear`
-- `rw config set api-key <value>`
 - `rw config set base-url <origin>`
 - `rw config set marketplace <marketplaceId>`
+- `rw config set storage-dir <path>`
 
 `base-url` accepts an origin with or without trailing `/api`.
+`storage-dir` resolves to an absolute path, saves globally, and makes that directory the active
+location for CLI config/data on later commands. When switching to a new directory, existing
+config values are copied over for any keys the target config does not already define.
+Secrets are not stored in CLI config; use `RR_LICENSE_KEY`.
 
 ## API Commands
 
@@ -83,7 +88,7 @@ Commands:
 Marketplace resolution for product commands:
 
 - `--marketplace <id>` / `-m <id>` (recommended override)
-- configured `marketplace` from `~/.rankwrangler/config.json`
+- configured `marketplace` from the active CLI storage directory's `config.json`
 - `RR_MARKETPLACE_ID`
 - default: `ATVPDKIKX0DER`
 
@@ -103,6 +108,7 @@ These commands map directly to public API capabilities:
 
 ```bash
 bun run cli:build
+bun run cli:test:e2e
 ```
 
 ```bash

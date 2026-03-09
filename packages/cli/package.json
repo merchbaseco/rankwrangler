@@ -14,7 +14,8 @@
         "README.md"
     ],
     "scripts": {
-        "build": "tsc -p tsconfig.json"
+        "build": "tsc -p tsconfig.json",
+        "test:e2e": "bun test test/index.e2e.test.ts"
     },
     "publishConfig": {
         "access": "public"
