@@ -4,6 +4,7 @@ import {
     mapDatasetRecord,
     type TopSearchTermsDatasetRecord,
 } from '@/db/top-search-terms/dataset-record.js';
+import { formatSqlTimestamp } from '@/db/top-search-terms/sql-timestamp.js';
 import { topSearchTermsDatasets } from '@/db/top-search-terms-schema.js';
 import type { TopSearchTermsDatasetStatus, TopSearchTermsWindow } from '@/db/top-search-terms/types.js';
 
@@ -135,7 +136,7 @@ export const rescheduleIdleTopSearchTermsDatasets = async ({
             const nextRefreshAt = getNextRefreshAt(window);
             return sql`(${window.marketplaceId}, ${window.reportPeriod}, ${window.dataStartDate}, ${
                 window.dataEndDate
-            }, ${nextRefreshAt})`;
+            }, CAST(${formatSqlTimestamp(nextRefreshAt)} AS timestamp))`;
         }),
         sql`, `
     );
