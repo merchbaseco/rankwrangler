@@ -6,6 +6,8 @@
     "scripts": {
         "dev": "concurrently -k -n server,website -c cyan,magenta \"bun run --filter @rankwrangler/server --elide-lines=0 dev\" \"bun run --filter @rankwrangler/website dev\"",
         "server:dev": "bun run --filter @rankwrangler/server dev",
+        "dev:jobs": "concurrently -k -n server,website -c cyan,magenta \"bun run --filter @rankwrangler/server --elide-lines=0 dev:jobs\" \"bun run --filter @rankwrangler/website dev\"",
+        "server:dev:jobs": "bun run --filter @rankwrangler/server dev:jobs",
         "server:build": "bun run --filter @rankwrangler/server build",
         "server:start": "bun run --filter @rankwrangler/server start",
         "server:cli": "bun run --filter @rankwrangler/server cli",

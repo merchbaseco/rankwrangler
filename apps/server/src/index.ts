@@ -6,10 +6,11 @@ import { createContext } from '@/api/context.js';
 import { appRouter } from '@/api/router.js';
 import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
+import { getServerRuntimeFlags } from '@/config/server-runtime.js';
 import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
 import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
-import { startJobs } from '@/jobs/index.js';
+import { prepareJobQueues, startJobs } from '@/jobs/index.js';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
 import {
     registerSpApiSyncQueueWakeups,
@@ -20,6 +21,30 @@ import {
     registerTopSearchTermsJobWakeups,
     sendSyncTopSearchTermsDatasetsJob,
 } from '@/services/top-search-terms-jobs.js';
+
+type JobsRuntime = Awaited<ReturnType<typeof startJobs>>;
+
+const createDisabledJobsRuntime = (): JobsRuntime => {
+    return {
+        stop: async () => {},
+        startupSummary: [],
+    };
+};
+
+const getTopSearchTermsStatus = (shouldStartJobRunner: boolean) => {
+    return shouldStartJobRunner
+        ? 'Enabled (dataset scheduler + fetch worker)'
+        : 'Disabled at runtime (job runner disabled)';
+};
+
+const getTopSearchTermsRecoveryStatus = (
+    shouldStartJobRunner: boolean,
+    recoveredTopSearchTermsDatasetsCount: number
+) => {
+    return shouldStartJobRunner
+        ? `${recoveredTopSearchTermsDatasetsCount} stale rows reset`
+        : 'Skipped (job runner disabled)';
+};
 
 console.log('Starting RankWrangler Server...');
 
@@ -38,32 +63,47 @@ const databaseName = env.DATABASE_NAME || 'rankwrangler';
 const databaseUrl =
     `postgresql://${databaseUser}:${databasePassword}` +
     `@${databaseHost}:${databasePort}/${databaseName}`;
+const serverRuntimeFlags = getServerRuntimeFlags({
+    disableServerJobRunner: env.DISABLE_SERVER_JOB_RUNNER,
+});
 const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
 console.log('[Server] pg-boss initialized');
 registerSpApiSyncQueueWakeups(boss);
 registerTopSearchTermsJobWakeups(boss);
+console.log(
+    `[Server] Runtime flags: DISABLE_SERVER_JOB_RUNNER=${env.DISABLE_SERVER_JOB_RUNNER}`
+);
 
-const topSearchTermsRecoveryStartedAt = new Date();
-const topSearchTermsStaleActiveJobCutoff =
-    getTopSearchTermsFetchStaleActiveJobCutoff(topSearchTermsRecoveryStartedAt);
-const recoveredTopSearchTermsDatasetsCount = await recoverStaleTopSearchTermsDatasets({
-    marketplaceId: SPAPI_US_MARKETPLACE_ID,
-    staleActiveJobCutoff: topSearchTermsStaleActiveJobCutoff,
-    recoveredAt: topSearchTermsRecoveryStartedAt,
-});
-if (recoveredTopSearchTermsDatasetsCount > 0) {
-    console.warn(
-        `[Server] Recovered ${recoveredTopSearchTermsDatasetsCount} stale Top Search Terms datasets at startup`
-    );
+let recoveredTopSearchTermsDatasetsCount = 0;
+const jobsRuntime = serverRuntimeFlags.shouldStartJobRunner
+    ? await startJobs(boss)
+    : createDisabledJobsRuntime();
+
+if (serverRuntimeFlags.shouldStartJobRunner) {
+    const topSearchTermsRecoveryStartedAt = new Date();
+    const topSearchTermsStaleActiveJobCutoff =
+        getTopSearchTermsFetchStaleActiveJobCutoff(topSearchTermsRecoveryStartedAt);
+    recoveredTopSearchTermsDatasetsCount = await recoverStaleTopSearchTermsDatasets({
+        marketplaceId: SPAPI_US_MARKETPLACE_ID,
+        staleActiveJobCutoff: topSearchTermsStaleActiveJobCutoff,
+        recoveredAt: topSearchTermsRecoveryStartedAt,
+    });
+    if (recoveredTopSearchTermsDatasetsCount > 0) {
+        console.warn(
+            `[Server] Recovered ${recoveredTopSearchTermsDatasetsCount} stale Top Search Terms datasets at startup`
+        );
+    }
+
+    console.log('[Server] Jobs registered');
+
+    // Kick the SP-API sync queue once on startup in case rows exist before the server starts.
+    await sendProcessSpApiSyncQueueJob();
+    await sendSyncTopSearchTermsDatasetsJob();
+} else {
+    await prepareJobQueues(boss);
+    console.log('[Server] Job runner disabled; workers, schedules, and startup kicks skipped');
 }
-
-const jobsRuntime = await startJobs(boss);
-console.log('[Server] Jobs registered');
-
-// Kick the SP-API sync queue once on startup in case rows exist before the server starts.
-await sendProcessSpApiSyncQueueJob();
-await sendSyncTopSearchTermsDatasetsJob();
 
 // Run reprocess stale products job on startup
 // try {
@@ -199,9 +239,16 @@ try {
     console.log('Status Summary:');
     console.log(`  • Database: Connected`);
     console.log(`  • Migrations: Complete`);
-    console.log(`  • Jobs Registered:`);
-    for (const jobSummary of jobsRuntime.startupSummary) {
-        console.log(`    - ${jobSummary}`);
+    console.log(`  • Startup Flag DISABLE_SERVER_JOB_RUNNER: ${env.DISABLE_SERVER_JOB_RUNNER}`);
+    console.log(`  • Job Runner: ${serverRuntimeFlags.jobRunnerStatus}`);
+    console.log(`  • Job Queues: Connected (pg-boss)`);
+    if (serverRuntimeFlags.shouldStartJobRunner) {
+        console.log(`  • Jobs Registered:`);
+        for (const jobSummary of jobsRuntime.startupSummary) {
+            console.log(`    - ${jobSummary}`);
+        }
+    } else {
+        console.log('  • Jobs Registered: Skipped (job runner disabled)');
     }
     const keepaStatus = env.KEEPA_API_KEY
         ? 'Configured'
@@ -210,9 +257,14 @@ try {
     console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
     console.log('  • User Event Logs: Enabled (dashboard logs page)');
-    console.log('  • Top Search Terms: Enabled (dataset scheduler + fetch worker)');
     console.log(
-        `  • Top Search Terms Startup Recovery: ${recoveredTopSearchTermsDatasetsCount} stale rows reset`
+        `  • Top Search Terms: ${getTopSearchTermsStatus(serverRuntimeFlags.shouldStartJobRunner)}`
+    );
+    console.log(
+        `  • Top Search Terms Startup Recovery: ${getTopSearchTermsRecoveryStatus(
+            serverRuntimeFlags.shouldStartJobRunner,
+            recoveredTopSearchTermsDatasetsCount
+        )}`
     );
     const productFacetStatus = env.GEMINI_API_KEY
         ? 'Enabled (Gemini 2.5 Flash Lite)'

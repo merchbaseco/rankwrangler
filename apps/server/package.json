@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "vite build",
-    "dev": "dotenv -e ../../.env -- tsx src/index.ts",
+    "dev": "dotenv -e ../../.env -- sh -c 'export DISABLE_SERVER_JOB_RUNNER=${DISABLE_SERVER_JOB_RUNNER:-true}; exec tsx src/index.ts'",
+    "dev:jobs": "dotenv -e ../../.env -- env DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
     "start": "dotenv -e ../../.env node dist/index.js",
     "cli": "tsx src/cli.ts"
   },
