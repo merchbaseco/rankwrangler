@@ -15,6 +15,7 @@ export const env = createEnv({
     KEEPA_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
     DEV_CLERK_SIGN_IN_USER_ID: z.string().optional(),
+    DISABLE_SERVER_JOB_RUNNER: z.stringbool().default(false),
     // Database configuration
     DATABASE_HOST: z.string().optional(),
     DATABASE_PORT: z.coerce.number().optional(),
@@ -35,6 +36,7 @@ export const env = createEnv({
     KEEPA_API_KEY: process.env.KEEPA_API_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     DEV_CLERK_SIGN_IN_USER_ID: process.env.DEV_CLERK_SIGN_IN_USER_ID,
+    DISABLE_SERVER_JOB_RUNNER: process.env.DISABLE_SERVER_JOB_RUNNER,
     // Database configuration
     DATABASE_HOST: process.env.DATABASE_HOST,
     DATABASE_PORT: process.env.DATABASE_PORT,

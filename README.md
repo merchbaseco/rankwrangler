@@ -109,6 +109,10 @@ bun install
 bun --filter @rankwrangler/server run build
 ```
 
+Local dev defaults to `DISABLE_SERVER_JOB_RUNNER=true` so app server processes do not start
+background workers automatically. Use `bun run server:dev:jobs` or `bun run dev:jobs` when you
+want local job execution enabled.
+
 For server-specific docs, see `docs/server/index.md`.
 For BA Top Search Terms implementation details, see `docs/server/ba-top-search-terms-system.md`.
 For one-off stored keyword cleanup after filter changes, see

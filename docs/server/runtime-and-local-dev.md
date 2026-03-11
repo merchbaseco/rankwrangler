@@ -37,10 +37,32 @@ DATABASE_HOST=localhost
 DATABASE_PORT=5433
 ```
 
+Local dev scripts disable background workers by default:
+
+```bash
+bun run server:dev
+bun run dev
+```
+
+To opt back into running job workers locally:
+
+```bash
+bun run server:dev:jobs
+bun run dev:jobs
+```
+
+You can also override the runtime flag manually:
+
+```bash
+DISABLE_SERVER_JOB_RUNNER=false bun run server:dev
+```
+
 ## Scripts
 
 - `bun run build` – bundle server with Vite
 - `bun run start` – run compiled server
+- `bun run dev` – run server with `DISABLE_SERVER_JOB_RUNNER=true` by default
+- `bun run dev:jobs` – run server with local job workers enabled
 - `bun run cli -- products get <ASIN...> --marketplace <id>` – product lookup
 - `bun run cli -- license status` – license usage/limit snapshot
 - `bun run cli -- config set api-key <value>` – configure CLI defaults
