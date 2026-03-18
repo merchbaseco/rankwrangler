@@ -150,11 +150,8 @@ bun run cli:test:e2e
 
 ```bash
 cd packages/cli
-set -a
-source ../../.env
-set +a
-npm whoami --userconfig ../../.npmrc
-npm publish --access public --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
 ```
 
 `npm publish` fails fast unless the matching `@rankwrangler/http-client` version has already been
@@ -181,7 +178,7 @@ npm access get status @rankwrangler/cli --userconfig ../../.npmrc
 
 ## Troubleshooting
 
-- `401 Unauthorized` / token errors: ensure repo-root `.env` is loaded before publish so
-  `NPM_TOKEN` is available to `.npmrc`.
+- `401 Unauthorized` / token errors: ensure `NPM_TOKEN` is available in env or the macOS
+  Keychain item `rankwrangler-npm-token` exists for account `$USER`.
 - `403 You cannot publish over the previously published versions`: bump patch/minor version and
   publish again.

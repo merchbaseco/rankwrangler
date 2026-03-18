@@ -34,10 +34,23 @@ Compatibility posture:
 
 ## Prerequisites
 
-- Repo-root `.env` has valid `NPM_TOKEN`.
+- npm auth is available through either:
+  - `NPM_TOKEN` in the environment / CI secret store, or
+  - a macOS Keychain item named `rankwrangler-npm-token` for account `$USER`
 - Repo-root `.npmrc` is configured for npm auth.
 - Release branch has only intended release changes.
 - AI command playbook: `docs/ai-commands/version-bump/README.md`.
+
+Add the macOS Keychain item without repeated password prompts for `/usr/bin/security`:
+
+```bash
+security add-generic-password \
+  -U \
+  -a "$USER" \
+  -s rankwrangler-npm-token \
+  -w 'npm_...' \
+  -T /usr/bin/security
+```
 
 ## 1. Bump Version (One Command)
 
@@ -128,11 +141,8 @@ Only after the release commit has been pushed to `origin/main`.
 Run from `packages/http-client`:
 
 ```bash
-set -a
-source ../../.env
-set +a
-npm whoami --userconfig ../../.npmrc
-npm publish --access public --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
 ```
 
 ## 7. Publish CLI
@@ -144,11 +154,8 @@ Only after the release commit has been pushed to `origin/main`.
 Run from `packages/cli`:
 
 ```bash
-set -a
-source ../../.env
-set +a
-npm whoami --userconfig ../../.npmrc
-npm publish --access public --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
 ```
 
 ## 8. Final Validation
@@ -162,7 +169,8 @@ npm view @rankwrangler/cli version --userconfig .npmrc
 
 ## Fast Failure Handling
 
-- `401 Unauthorized`: load `.env` before publish and use `--userconfig ../../.npmrc`.
+- `401 Unauthorized`: verify `NPM_TOKEN` or the `rankwrangler-npm-token` macOS Keychain item is
+  available, then use `--userconfig ../../.npmrc`.
 - `403 cannot publish over previously published versions`: bump version and retry.
 - `ETARGET No matching version found for @rankwrangler/http-client`: publish the matching
   `packages/http-client` version first, then retry `packages/cli`.

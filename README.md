@@ -102,6 +102,7 @@ bun run preview:chrome
 - Changelog context export: `bun run release:collect-changelog-context`
 - Release integrity checks: `bun run release:check && bun run cli:build && bun run release:check-cli-pack`
 - npm publish order is enforced: publish `@rankwrangler/http-client` first, then `@rankwrangler/cli`
+- Local macOS publishes can resolve `NPM_TOKEN` from Keychain via `scripts/release/with-npm-token.mjs`
 - Tag push (`vX.Y.Z`) publishes GitHub release notes from the matching `CHANGELOG.md` entry
 
 ## Quick Start

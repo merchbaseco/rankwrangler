@@ -98,6 +98,19 @@ publish after the release commit is pushed to `origin/main`. Publish
 until the matching HTTP client version is already on npm. Only stop short of publish if the user
 explicitly says not to publish.
 
+For local macOS publishes, prefer the repo helper that resolves `NPM_TOKEN` from env first and
+then from the macOS Keychain item `rankwrangler-npm-token` for account `$USER`:
+
+```bash
+cd packages/http-client
+node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
+
+cd ../cli
+node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
+```
+
 ## Editing Rules
 
 - Keep package versions synchronized: server, http-client, cli.
