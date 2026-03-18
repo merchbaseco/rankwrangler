@@ -1,3 +1,4 @@
+import { LICENSE_KEY_ENV_VAR } from './cli-auth';
 import type { CliPaths } from './cli-config';
 
 const DEFAULT_MARKETPLACE_ID = 'ATVPDKIKX0DER';
@@ -21,6 +22,9 @@ export const printUsage = (paths: CliPaths) => {
         '  products history <ASIN>',
         '  license status',
         '  license validate',
+        '  auth status',
+        '  auth set <licenseKey>',
+        '  auth clear',
         '  config show',
         '  config clear',
         '  config set base-url <origin>',
@@ -44,7 +48,7 @@ export const printUsage = (paths: CliPaths) => {
         `  ${paths.globalConfigPath}           Global CLI settings`,
         '',
         'ENVIRONMENT',
-        '  RR_LICENSE_KEY           API key source',
+        `  ${LICENSE_KEY_ENV_VAR}           License key override for CI/automation`,
         '  RR_API_URL               API origin fallback',
         '  RR_MARKETPLACE_ID        Marketplace fallback',
         '  RR_STORAGE_DIR           Storage directory override',
@@ -53,7 +57,8 @@ export const printUsage = (paths: CliPaths) => {
         '  RR_HISTORY_METRICS       Comma-separated history metrics fallback',
         '',
         'EXAMPLES',
-        '  RR_LICENSE_KEY=rrk_... rw products get B0DV53VS61',
+        '  rw auth set rrk_...',
+        `  ${LICENSE_KEY_ENV_VAR}=rrk_... rw products get B0DV53VS61`,
         '  RR_STORAGE_DIR=~/.config/rankwrangler rw config show',
         '  rw --version',
         '  rw changelog',

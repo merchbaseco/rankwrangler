@@ -2,23 +2,15 @@
 
 import { parseArgs } from 'node:util';
 import { createRankWranglerClient, DEFAULT_API_BASE_URL } from '@rankwrangler/http-client';
+import { resolveApiKey, runAuthCommand } from './cli-auth';
 import { printBundledChangelog, printCliVersion } from './cli-metadata';
+import { runConfigCommand } from './cli-config-command';
+import { loadCliContext, loadCliPathsOrDefault, type CliConfig } from './cli-config';
 import {
-    clearConfig,
-    loadCliContext,
-    loadCliPathsOrDefault,
-    saveConfig,
-    switchStorageDir,
-    type CliConfig,
-    type CliPaths,
-} from './cli-config';
-import {
-    normalizeBaseUrl,
     parseIntegerOption,
     requireAsins,
     requireMarketplaceId,
     requireSingleAsin,
-    resolveApiKey,
     resolveBaseUrl,
     resolveHistoryMetrics,
     resolveHistoryWindow,
@@ -43,6 +35,9 @@ const SUPPORTED_COMMANDS = new Set([
     'products:history',
     'license:status',
     'license:validate',
+    'auth:status',
+    'auth:set',
+    'auth:clear',
     'config:show',
     'config:clear',
     'config:set',
@@ -96,13 +91,21 @@ const main = async () => {
     const { config, paths } = await loadCliContext();
 
     if (command.resource === 'config') {
-        printSuccess(await runConfigCommand(command, config, paths));
+        printSuccess(await runConfigCommand(command, config, paths, fail));
         return;
     }
 
-    const apiKey = resolveApiKey();
+    if (command.resource === 'auth') {
+        printSuccess(await runAuthCommand(command, fail));
+        return;
+    }
+
+    const apiKey = await resolveApiKey();
     if (!apiKey) {
-        fail('MISSING_CONFIG', 'api key is required. set RR_LICENSE_KEY');
+        fail(
+            'MISSING_CONFIG',
+            'license key is required. run `rw auth set <licenseKey>` or set RR_LICENSE_KEY'
+        );
     }
 
     const client = createRankWranglerClient({
@@ -183,70 +186,6 @@ const runProductHistoryCommand = async (
         metrics,
         response: response as AgentHistoryResponse,
     });
-};
-
-const runConfigCommand = async (command: CliCommand, config: CliConfig, paths: CliPaths) => {
-    if (command.verb === 'show') {
-        return buildConfigResponse(paths, config);
-    }
-
-    if (command.verb === 'clear') {
-        await clearConfig(paths);
-        return {
-            ...buildConfigResponse(paths, {}),
-            cleared: true,
-        };
-    }
-
-    if (command.verb !== 'set') {
-        fail('UNKNOWN_COMMAND', 'Unknown config command', { verb: command.verb });
-    }
-
-    const [key, ...valueParts] = command.args;
-    if (!key || valueParts.length === 0) {
-        fail('INVALID_INPUT', 'config set requires <key> <value>');
-    }
-
-    const value = valueParts.join(' ').trim();
-    if (!value) {
-        fail('INVALID_INPUT', 'config set value cannot be empty');
-    }
-
-    if (key === 'storage-dir') {
-        const nextState = await switchStorageDir({
-            currentConfig: config,
-            currentPaths: paths,
-            requestedStorageDir: value,
-        });
-
-        return buildConfigResponse(nextState.paths, nextState.config);
-    }
-
-    const nextConfig = { ...config };
-
-    if (key === 'base-url') {
-        nextConfig.baseUrl = normalizeBaseUrl(value, fail);
-    } else if (key === 'marketplace') {
-        nextConfig.marketplaceId = value;
-    } else {
-        fail('INVALID_INPUT', 'unsupported config key', {
-            key,
-            supportedKeys: ['base-url', 'marketplace', 'storage-dir'],
-        });
-    }
-
-    await saveConfig(paths, nextConfig);
-
-    return buildConfigResponse(paths, nextConfig);
-};
-
-const buildConfigResponse = (paths: CliPaths, config: CliConfig) => {
-    return {
-        storageDir: paths.storageDir,
-        path: paths.configPath,
-        globalPath: paths.globalConfigPath,
-        config,
-    };
 };
 
 const resolveMetaCommand = (inputPositionals: string[]): CliMetaCommand | null => {
