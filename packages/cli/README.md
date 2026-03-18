@@ -60,9 +60,9 @@ matching `@rankwrangler/http-client` version is already available on npm.
 
 ```bash
 cd packages/cli
-set -a
-source ../../.env
-set +a
-npm whoami --userconfig ../../.npmrc
-npm publish --access public --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
 ```
+
+On macOS, the helper reads `NPM_TOKEN` from the environment first and otherwise falls back to the
+Keychain item `rankwrangler-npm-token` for account `$USER`.
