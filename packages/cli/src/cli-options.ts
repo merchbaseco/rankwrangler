@@ -93,10 +93,6 @@ export const resolveHistoryWindow = (values: CliOptionValues, fail: CliFail) => 
     };
 };
 
-export const resolveApiKey = () => {
-    return process.env.RR_LICENSE_KEY;
-};
-
 export const resolveBaseUrl = (
     values: CliOptionValues,
     config: CliConfig,

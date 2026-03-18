@@ -1,3 +1,4 @@
+import { CliAuthError } from './cli-auth';
 import { CliStorageError } from './cli-config';
 
 type CliSuccess<T> = {
@@ -41,6 +42,14 @@ export const fail = (code: string, message: string, details?: unknown): never =>
 
 export const resolveError = (error: unknown) => {
     if (error instanceof CliStorageError) {
+        return {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+        };
+    }
+
+    if (error instanceof CliAuthError) {
         return {
             code: error.code,
             message: error.message,

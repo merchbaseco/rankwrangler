@@ -23,7 +23,8 @@
         "access": "public"
     },
     "dependencies": {
-        "@rankwrangler/http-client": "^0.4.1"
+        "@rankwrangler/http-client": "^0.4.1",
+        "keytar": "^7.9.0"
     },
     "devDependencies": {
         "@types/node": "^24.3.0",

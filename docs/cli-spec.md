@@ -33,6 +33,7 @@ Canonical release process: `docs/release-runbook.md`.
 - Current resources:
   - `products`
   - `license`
+  - `auth`
   - `config`
 
 ## Response Envelope
@@ -46,7 +47,7 @@ Success:
 Failure:
 
 ```json
-{"ok": false, "error": {"code": "MISSING_CONFIG", "message": "api key is required. set RR_LICENSE_KEY"}}
+{"ok": false, "error": {"code": "MISSING_CONFIG", "message": "license key is required. run `rw auth set <licenseKey>` or set RR_LICENSE_KEY"}}
 ```
 
 `rw --version` prints the installed package version as plain text.
@@ -75,8 +76,30 @@ Commands:
 `storage-dir` resolves to an absolute path, saves globally, and makes that directory the active
 location for CLI config/data on later commands. When switching to a new directory, existing
 config values are copied over for any keys the target config does not already define.
-Secrets are not stored in CLI config; use `RR_LICENSE_KEY`.
+Secrets are not stored in CLI config.
 Environment variables win over saved CLI config for `base-url`, `marketplace`, and `storage-dir`.
+
+## Auth
+
+License key persistence lives in the platform secure store, not `config.json`.
+
+Commands:
+
+- `rw auth status`
+- `rw auth set <licenseKey>`
+- `rw auth clear`
+
+Auth resolution order:
+
+- `RR_LICENSE_KEY`
+- stored key from the platform secure store
+- otherwise fail with `MISSING_CONFIG`
+
+`rw auth set` stores the provided key in the platform secure store. If `<licenseKey>` is omitted,
+the command uses `RR_LICENSE_KEY` when present.
+`rw auth status` returns JSON describing the active source (`env`, `secure-store`, or `none`) and
+the secure-store backend status.
+`rw auth clear` removes the stored key from the secure store.
 
 ## API Commands
 

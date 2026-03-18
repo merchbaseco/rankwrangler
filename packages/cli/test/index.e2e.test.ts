@@ -1,13 +1,16 @@
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, test } from 'bun:test';
+import {
+    CURRENT_CLI_VERSION,
+    LATEST_CHANGELOG_HEADING,
+    createTempDir,
+    readJson,
+    runCli,
+    runCliFailure,
+    spawnCli,
+} from './test-helpers';
 
-const CLI_PATH = fileURLToPath(new URL('../dist/index.js', import.meta.url));
-const CLI_PACKAGE_JSON_PATH = fileURLToPath(new URL('../package.json', import.meta.url));
-const ROOT_CHANGELOG_PATH = fileURLToPath(new URL('../../../CHANGELOG.md', import.meta.url));
 const TEMP_DIRS: string[] = [];
 
 afterEach(() => {
@@ -19,9 +22,9 @@ afterEach(() => {
     }
 });
 
-describe('cli storage-dir persistence', () => {
+describe('cli behavior', () => {
     test('prints the packaged CLI version', () => {
-        const tempRoot = createTempDir('rankwrangler-cli-');
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
@@ -38,7 +41,7 @@ describe('cli storage-dir persistence', () => {
     });
 
     test('prints the latest bundled changelog entry', () => {
-        const tempRoot = createTempDir('rankwrangler-cli-');
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
@@ -56,7 +59,7 @@ describe('cli storage-dir persistence', () => {
     });
 
     test('persists the active storage dir globally and migrates existing config', () => {
-        const tempRoot = createTempDir('rankwrangler-cli-');
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
@@ -109,8 +112,73 @@ describe('cli storage-dir persistence', () => {
         });
     });
 
-    test('requires env api keys and rejects removed config api-key input', () => {
-        const tempRoot = createTempDir('rankwrangler-cli-');
+    test('stores auth in the secure store and keeps secrets out of config', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
+        const tempHome = path.join(tempRoot, 'home');
+        const workspaceDir = path.join(tempRoot, 'workspace');
+        mkdirSync(tempHome, { recursive: true });
+        mkdirSync(workspaceDir, { recursive: true });
+
+        const setResult = runCli(['auth', 'set', 'rrk_test_value'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+        expect(setResult.data.saved).toBe(true);
+        expect(setResult.data.source).toBe('secure-store');
+        expect(setResult.data.secureStore.available).toBe(true);
+        expect(setResult.data.secureStore.hasStoredLicenseKey).toBe(true);
+
+        const authStatus = runCli(['auth', 'status'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+        expect(authStatus.data.source).toBe('secure-store');
+        expect(authStatus.data.envOverride).toBe(false);
+
+        const configPath = path.join(tempHome, '.rankwrangler', 'config.json');
+        const secretStorePath = path.join(tempHome, '.rankwrangler-secure-store', 'license-key.json');
+
+        expect(existsSync(configPath)).toBe(false);
+        expect(readJson(secretStorePath)).toEqual({
+            licenseKey: 'rrk_test_value',
+        });
+
+        const clearResult = runCli(['auth', 'clear'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+        expect(clearResult.data.cleared).toBe(true);
+        expect(clearResult.data.source).toBe('none');
+        expect(clearResult.data.secureStore.hasStoredLicenseKey).toBe(false);
+        expect(existsSync(secretStorePath)).toBe(false);
+    });
+
+    test('lets RR_LICENSE_KEY override the stored auth', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
+        const tempHome = path.join(tempRoot, 'home');
+        const workspaceDir = path.join(tempRoot, 'workspace');
+        mkdirSync(tempHome, { recursive: true });
+        mkdirSync(workspaceDir, { recursive: true });
+
+        runCli(['auth', 'set', 'rrk_stored_value'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+
+        const statusResult = runCli(['auth', 'status'], {
+            cwd: workspaceDir,
+            home: tempHome,
+            env: {
+                RR_LICENSE_KEY: 'rrk_env_value',
+            },
+        });
+        expect(statusResult.data.source).toBe('env');
+        expect(statusResult.data.envOverride).toBe(true);
+        expect(statusResult.data.secureStore.hasStoredLicenseKey).toBe(true);
+    });
+
+    test('rejects config api-key input and requires auth when no override or stored key exists', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
@@ -131,11 +199,13 @@ describe('cli storage-dir persistence', () => {
             home: tempHome,
         });
         expect(missingKeyFailure.error.code).toBe('MISSING_CONFIG');
-        expect(missingKeyFailure.error.message).toBe('api key is required. set RR_LICENSE_KEY');
+        expect(missingKeyFailure.error.message).toBe(
+            'license key is required. run `rw auth set <licenseKey>` or set RR_LICENSE_KEY'
+        );
     });
 
     test('lets RR_STORAGE_DIR override the saved storage dir', () => {
-        const tempRoot = createTempDir('rankwrangler-cli-');
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
@@ -189,82 +259,3 @@ describe('cli storage-dir persistence', () => {
         });
     });
 });
-
-const runCli = (
-    args: string[],
-    options: { cwd: string; home: string; env?: Record<string, string> }
-) => {
-    const result = spawnCli(args, options);
-    if (result.status !== 0) {
-        throw new Error(
-            `CLI command failed (${args.join(' ')}): ${result.stderr || result.stdout || 'unknown error'}`
-        );
-    }
-
-    return JSON.parse(result.stdout) as {
-        ok: true;
-        data: {
-            storageDir: string;
-            path: string;
-            config: Record<string, string>;
-        };
-    };
-};
-
-const runCliFailure = (
-    args: string[],
-    options: { cwd: string; home: string; env?: Record<string, string> }
-) => {
-    const result = spawnCli(args, options);
-    if (result.status === 0) {
-        throw new Error(`CLI command unexpectedly succeeded (${args.join(' ')})`);
-    }
-
-    return JSON.parse(result.stderr) as {
-        ok: false;
-        error: {
-            code: string;
-            message: string;
-            details?: unknown;
-        };
-    };
-};
-
-const spawnCli = (
-    args: string[],
-    { cwd, home, env = {} }: { cwd: string; home: string; env?: Record<string, string> }
-) => {
-    const result = spawnSync('node', [CLI_PATH, ...args], {
-        cwd,
-        env: {
-            ...process.env,
-            HOME: home,
-            ...env,
-        },
-        encoding: 'utf8',
-    });
-
-    return result;
-};
-
-const createTempDir = (prefix: string) => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), prefix));
-    TEMP_DIRS.push(tempDir);
-    return tempDir;
-};
-
-const readJson = (filePath: string) => {
-    return JSON.parse(readFileSync(filePath, 'utf8')) as Record<string, string>;
-};
-
-const getLatestChangelogHeading = (changelog: string) => {
-    const heading = changelog.match(/^## v\d+\.\d+\.\d+ - \d{4}-\d{2}-\d{2}$/m)?.[0];
-    if (!heading) {
-        throw new Error('could not resolve latest changelog heading');
-    }
-
-    return heading;
-};
-
-const CURRENT_CLI_VERSION = readJson(CLI_PACKAGE_JSON_PATH).version;
-const LATEST_CHANGELOG_HEADING = getLatestChangelogHeading(readFileSync(ROOT_CHANGELOG_PATH, 'utf8'));
