@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.5.0 - 2026-03-18
+
+### Added
+
+- Add CLI secure-store auth with `rw auth set`, `rw auth status`, and `rw auth clear`, storing
+  license keys in the platform secure store while keeping `RR_LICENSE_KEY` as an override for
+  CI, automation, and agent runtimes.
+
+### Changed
+
+- Change local development defaults so the app server no longer starts the job runner unless you
+  use the explicit jobs-enabled dev commands.
+
+### Fixed
+
+- Fix top search terms scheduler timestamp handling so due datasets are selected and refreshed
+  reliably.
+
 ## v0.4.1 - 2026-03-09
 
 ### Added
