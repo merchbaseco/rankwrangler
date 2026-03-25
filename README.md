@@ -104,6 +104,8 @@ bun run preview:chrome
 - npm publish order is enforced: publish `@rankwrangler/http-client` first, then `@rankwrangler/cli`
 - Local macOS publishes can resolve `NPM_TOKEN` from Keychain via `scripts/release/with-npm-token.mjs`
 - Tag push (`vX.Y.Z`) publishes GitHub release notes from the matching `CHANGELOG.md` entry
+- Pushes to `main` trigger the self-hosted deploy workflow, which hard-resets the deployment
+  checkout to the pushed commit before rebuilding Docker services
 
 ## Quick Start
 

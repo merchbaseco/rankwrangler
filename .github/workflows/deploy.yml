@@ -15,20 +15,29 @@ jobs:
 
       - name: Build and deploy
         working-directory: /Users/zknicker/srv/rankwrangler
+        env:
+          DEPLOY_ROOT: /Users/zknicker/srv/rankwrangler
         run: |
-          # Pull latest code
-          git pull --ff-only
+          # Sync the long-lived deploy checkout to the exact pushed commit.
+          # This discards tracked-file edits on the host that would otherwise
+          # make `git pull --ff-only` fail.
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git reset --hard FETCH_HEAD
+
+          # Show the deployed commit for easier troubleshooting.
+          git rev-parse HEAD
+          git status --short
 
           # Build and restart
           # NOTE: compose.yml lives in apps/server/, but the real .env is at repo root.
           # Without --env-file, Docker Compose will look for .env in apps/server/ and
           # substitute blanks (causing Postgres to fail).
           # Use -p rankwrangler so Compose targets the existing containers/networks (container_name is fixed).
-          docker compose -p rankwrangler --env-file /Users/zknicker/srv/rankwrangler/.env -f apps/server/compose.yml build
-          docker compose -p rankwrangler --env-file /Users/zknicker/srv/rankwrangler/.env -f apps/server/compose.yml up -d
+          docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml build
+          docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml up -d
 
           # Show status
-          docker compose -p rankwrangler --env-file /Users/zknicker/srv/rankwrangler/.env -f apps/server/compose.yml ps
+          docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml ps
 
       - name: Notify Discord
         if: always()

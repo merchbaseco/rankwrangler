@@ -42,6 +42,10 @@ Use this order before extension-only TS checks in fresh environments.
 
 ## Deployment
 
+GitHub Actions deploys from the long-lived checkout at `/Users/zknicker/srv/rankwrangler`.
+Before Docker rebuilds, the workflow hard-resets that checkout to the exact pushed commit so
+tracked host-side edits do not block deploys.
+
 ### Build and deploy
 
 Run from `apps/server`:
