@@ -56,7 +56,6 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
                 getInitialNextRefreshAtForWindow({
                     window,
                     now,
-                    today,
                 }),
         });
         const rescheduledCount = await rescheduleIdleTopSearchTermsDatasets({
@@ -65,7 +64,6 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
                 getInitialNextRefreshAtForWindow({
                     window,
                     now,
-                    today,
                 }),
         });
 

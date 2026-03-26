@@ -112,28 +112,37 @@ export const getNextRefreshAtAfterSuccess = ({
     return scheduledRefreshAt.getTime() > now.getTime() ? scheduledRefreshAt : null;
 };
 
-export const getRetryRefreshAt = (failedAt: Date) => {
-    return new Date(failedAt.getTime() + TOP_SEARCH_TERMS_RETRY_DELAY_MS);
+export const getRetryRefreshAt = ({
+    dataset,
+    failedAt,
+}: {
+    dataset: Pick<TopSearchTermsDatasetRecord, 'reportPeriod' | 'dataEndDate'>;
+    failedAt: Date;
+}) => {
+    const retryRefreshAt = new Date(failedAt.getTime() + TOP_SEARCH_TERMS_RETRY_DELAY_MS);
+    const earliestRefreshAt = getEarliestRefreshAt({
+        reportPeriod: dataset.reportPeriod,
+        dataEndDate: dataset.dataEndDate,
+        now: failedAt,
+    });
+
+    return retryRefreshAt.getTime() > earliestRefreshAt.getTime()
+        ? retryRefreshAt
+        : earliestRefreshAt;
 };
 
 export const getInitialNextRefreshAtForWindow = ({
     window,
     now,
-    today,
 }: {
     window: TopSearchTermsWindow;
     now: Date;
-    today: string;
 }) => {
-    if (window.dataEndDate < today) {
-        return now;
-    }
-
-    const scheduledRefreshAt = getSlaAlignedRefreshAt({
+    return getEarliestRefreshAt({
         reportPeriod: window.reportPeriod,
         dataEndDate: window.dataEndDate,
+        now,
     });
-    return scheduledRefreshAt.getTime() > now.getTime() ? scheduledRefreshAt : now;
 };
 
 const getSundayStartOfWeek = (dateString: string) => {
@@ -165,6 +174,20 @@ const getSlaAlignedRefreshAt = ({
         dataEndDate,
     });
     return fromZonedTime(`${availabilityDate}T23:59:59.999`, PACIFIC_TIME_ZONE);
+};
+
+const getEarliestRefreshAt = ({
+    reportPeriod,
+    dataEndDate,
+    now,
+}: Pick<TopSearchTermsWindow, 'reportPeriod' | 'dataEndDate'> & {
+    now: Date;
+}) => {
+    const scheduledRefreshAt = getSlaAlignedRefreshAt({
+        reportPeriod,
+        dataEndDate,
+    });
+    return scheduledRefreshAt.getTime() > now.getTime() ? scheduledRefreshAt : now;
 };
 
 const getDatasetAvailabilityDate = ({
