@@ -248,7 +248,10 @@ export const fetchTopSearchTermsDatasetJob = defineJob('fetch-top-search-terms-d
                 errorMessage,
                 failedAt,
                 reportId: reportIdOnFailure,
-                nextRefreshAt: getRetryRefreshAt(failedAt),
+                nextRefreshAt: getRetryRefreshAt({
+                    dataset,
+                    failedAt,
+                }),
             });
 
             log('Top Search Terms dataset fetch failed', {

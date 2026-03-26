@@ -15,7 +15,8 @@ Monorepo containing the RankWrangler server, website, and browser extension.
     and uses async 15-minute report-status checks (with 3-hour pending timeout) to keep SP-API
     backfill throughput stable;
     scheduler runs every 5 minutes and prioritizes earliest due `next_refresh_at` to avoid
-    dataset starvation;
+    dataset starvation while respecting BA's per-window availability delay before requesting
+    recent daily/weekly reports;
     weekly windows use Sunday-Saturday boundaries to match SP-API requirements;
     merch filtering keeps broad gift intent and generic `phone case` / `popsocket` product types,
     while blocking branded/model-specific accessory variants, school commodity terms, expanded
