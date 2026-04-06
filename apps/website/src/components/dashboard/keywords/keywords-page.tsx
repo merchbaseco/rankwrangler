@@ -17,6 +17,7 @@ import {
     getStaleDayCount,
     getStaleTooltip,
     parseOptionalInteger,
+    resolveSelectedSearchTerm,
 } from '@/components/dashboard/keywords/keywords-page-utils';
 import { KeywordsTableView } from '@/components/dashboard/keywords/table-view';
 import { TrendCanvas } from '@/components/dashboard/keywords/trend-canvas';
@@ -123,16 +124,12 @@ export const KeywordsPage = () => {
     }, [query.fetchNextPage, query.hasNextPage, query.isFetchingNextPage]);
 
     useEffect(() => {
-        if (rows.length === 0) {
-            setSelectedSearchTerm(null);
-            return;
-        }
-
-        const hasSelected =
-            selectedSearchTerm !== null &&
-            rows.some((row) => row.searchTerm === selectedSearchTerm);
-        if (!hasSelected) {
-            setSelectedSearchTerm(rows[0]?.searchTerm ?? null);
+        const nextSelectedSearchTerm = resolveSelectedSearchTerm({
+            rows,
+            selectedSearchTerm,
+        });
+        if (selectedSearchTerm !== nextSelectedSearchTerm) {
+            setSelectedSearchTerm(nextSelectedSearchTerm);
         }
     }, [rows, selectedSearchTerm]);
 

@@ -26,6 +26,7 @@ export const TrendCanvas = ({
 		{
 			enabled: Boolean(selectedSearchTerm),
 			refetchOnWindowFocus: false,
+			staleTime: 5 * 60 * 1000,
 		},
 	);
 	const amazonQuery = api.api.app.amazon.search.useQuery(

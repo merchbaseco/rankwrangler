@@ -21,6 +21,22 @@ export const parseOptionalInteger = (value: string) => {
     return Math.floor(numeric);
 };
 
+export const resolveSelectedSearchTerm = ({
+    rows,
+    selectedSearchTerm,
+}: {
+    rows: Array<{ searchTerm: string }>;
+    selectedSearchTerm: string | null;
+}) => {
+    if (!selectedSearchTerm || rows.length === 0) {
+        return null;
+    }
+
+    return rows.some((row) => row.searchTerm === selectedSearchTerm)
+        ? selectedSearchTerm
+        : null;
+};
+
 export const getWindowLabel = (window: SearchTermsWindowSelectionKey) => {
     if (window === 'latest-day') {
         return 'Latest day';

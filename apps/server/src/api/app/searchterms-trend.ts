@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
-import {
-    getLatestObservedDateForTopSearchTerm,
-    listTopSearchTermTrendPoints,
-} from '@/db/top-search-terms/trends.js';
+import { getTopSearchTermTrend } from '@/db/top-search-terms/trends.js';
 import {
     normalizeTopSearchTermsReportPeriod,
     US_MARKETPLACE_ID,
@@ -11,7 +8,6 @@ import {
 import {
     calculateSearchTermsTrendDeltas,
     clampTrendRangeDays,
-    getTrendStartDate,
 } from '@/services/top-search-terms-trend.js';
 
 const searchtermsTrendInput = z.object({
@@ -26,10 +22,11 @@ export const searchtermsTrend = appProcedure
     .query(async ({ input }) => {
         const reportPeriod = normalizeTopSearchTermsReportPeriod(input.reportPeriod);
         const rangeDays = clampTrendRangeDays(input.rangeDays);
-        const latestObservedDate = await getLatestObservedDateForTopSearchTerm({
+        const { latestObservedDate, points } = await getTopSearchTermTrend({
             marketplaceId: input.marketplaceId,
             reportPeriod,
             searchTerm: input.searchTerm,
+            rangeDays,
         });
 
         if (!latestObservedDate) {
@@ -45,17 +42,6 @@ export const searchtermsTrend = appProcedure
                 },
             };
         }
-
-        const observedDateFrom = getTrendStartDate({
-            latestObservedDate,
-            days: rangeDays,
-        });
-        const points = await listTopSearchTermTrendPoints({
-            marketplaceId: input.marketplaceId,
-            reportPeriod,
-            searchTerm: input.searchTerm,
-            observedDateFrom,
-        });
 
         return {
             deltas: calculateSearchTermsTrendDeltas(points),
