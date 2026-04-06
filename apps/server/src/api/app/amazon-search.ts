@@ -25,20 +25,39 @@ export const amazonSearch = appProcedure
             pageSize: 20,
         });
 
-        const queueItems = buildAmazonSearchSyncQueueItems(result.items);
-        if (queueItems.length > 0) {
-            try {
-                await enqueueSpApiSyncQueueItems(queueItems);
-            } catch (error) {
-                console.error(
-                    '[api.app.amazon.search] Failed to enqueue keyword results for sync:',
-                    error
-                );
-            }
-        }
+        void enqueueAmazonSearchSyncQueueItems({
+            items: result.items,
+        });
 
         return result;
     });
+
+export const enqueueAmazonSearchSyncQueueItems = async ({
+    items,
+    enqueue = enqueueSpApiSyncQueueItems,
+    logError = console.error,
+}: {
+    items: CatalogKeywordSearchItem[];
+    enqueue?: (
+        queueItems: Array<{ marketplaceId: string; asin: string }>
+    ) => Promise<number>;
+    logError?: typeof console.error;
+}) => {
+    const queueItems = buildAmazonSearchSyncQueueItems(items);
+    if (queueItems.length === 0) {
+        return 0;
+    }
+
+    try {
+        return await enqueue(queueItems);
+    } catch (error) {
+        logError(
+            '[api.app.amazon.search] Failed to enqueue keyword results for sync:',
+            error
+        );
+        return 0;
+    }
+};
 
 export const buildAmazonSearchSyncQueueItems = (
     items: CatalogKeywordSearchItem[]

@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { topSearchTermsKeywordDaily } from '@/db/top-search-terms-schema.js';
 import type { TopSearchTermsReportPeriod } from '@/db/top-search-terms/types.js';
@@ -10,70 +10,72 @@ export type TopSearchTermTrendPoint = {
     conversionShareTop3Sum: number;
 };
 
-export const listTopSearchTermTrendPoints = async ({
-    marketplaceId,
-    reportPeriod,
-    searchTerm,
-    observedDateFrom,
-}: {
-    marketplaceId: string;
-    reportPeriod: TopSearchTermsReportPeriod;
-    searchTerm: string;
-    observedDateFrom: string;
-}): Promise<TopSearchTermTrendPoint[]> => {
-    const rows = await db
-        .select({
-            observedDate: topSearchTermsKeywordDaily.observedDate,
-            searchFrequencyRank: sql<number>`min(${topSearchTermsKeywordDaily.searchFrequencyRank})::int`,
-            clickShareTop3SumBasisPoints:
-                sql<number>`round(avg(${topSearchTermsKeywordDaily.clickShareTop3SumBasisPoints}))::int`,
-            conversionShareTop3SumBasisPoints:
-                sql<number>`round(avg(${topSearchTermsKeywordDaily.conversionShareTop3SumBasisPoints}))::int`,
-        })
-        .from(topSearchTermsKeywordDaily)
-        .where(
-            and(
-                eq(topSearchTermsKeywordDaily.marketplaceId, marketplaceId),
-                eq(topSearchTermsKeywordDaily.reportPeriod, reportPeriod),
-                gte(topSearchTermsKeywordDaily.observedDate, observedDateFrom),
-                sql`lower(${topSearchTermsKeywordDaily.searchTerm}) = lower(${searchTerm})`,
-                eq(topSearchTermsKeywordDaily.isMerchRelevant, true)
-            )
-        )
-        .groupBy(topSearchTermsKeywordDaily.observedDate)
-        .orderBy(asc(topSearchTermsKeywordDaily.observedDate));
-
-    return rows.map(row => ({
-        observedDate: row.observedDate,
-        searchFrequencyRank: row.searchFrequencyRank,
-        clickShareTop3Sum: row.clickShareTop3SumBasisPoints / 10000,
-        conversionShareTop3Sum: row.conversionShareTop3SumBasisPoints / 10000,
-    }));
+type TopSearchTermTrendQueryRow = {
+    latestObservedDate: string;
+    observedDate: string;
+    searchFrequencyRank: number;
+    clickShareTop3SumBasisPoints: number;
+    conversionShareTop3SumBasisPoints: number;
 };
 
-export const getLatestObservedDateForTopSearchTerm = async ({
+export const getTopSearchTermTrend = async ({
     marketplaceId,
     reportPeriod,
     searchTerm,
+    rangeDays,
 }: {
     marketplaceId: string;
     reportPeriod: TopSearchTermsReportPeriod;
     searchTerm: string;
+    rangeDays: number;
 }) => {
-    const [row] = await db
-        .select({
-            observedDate: sql<string>`max(${topSearchTermsKeywordDaily.observedDate})`,
-        })
-        .from(topSearchTermsKeywordDaily)
-        .where(
-            and(
-                eq(topSearchTermsKeywordDaily.marketplaceId, marketplaceId),
-                eq(topSearchTermsKeywordDaily.reportPeriod, reportPeriod),
-                sql`lower(${topSearchTermsKeywordDaily.searchTerm}) = lower(${searchTerm})`,
-                eq(topSearchTermsKeywordDaily.isMerchRelevant, true)
-            )
+    const windowSizeDays = Math.max(0, Math.floor(rangeDays) - 1);
+    const rows = await db.execute<TopSearchTermTrendQueryRow>(sql`
+        WITH latest AS (
+            SELECT max(${topSearchTermsKeywordDaily.observedDate}) AS latest_observed_date
+            FROM ${topSearchTermsKeywordDaily}
+            WHERE ${topSearchTermsKeywordDaily.marketplaceId} = ${marketplaceId}
+                AND ${topSearchTermsKeywordDaily.reportPeriod} = ${reportPeriod}
+                AND lower(${topSearchTermsKeywordDaily.searchTerm}) = lower(${searchTerm})
+                AND ${topSearchTermsKeywordDaily.isMerchRelevant} = true
         )
-        .limit(1);
+        SELECT
+            latest.latest_observed_date AS "latestObservedDate",
+            keyword.observed_date AS "observedDate",
+            min(keyword.search_frequency_rank)::int AS "searchFrequencyRank",
+            round(avg(keyword.click_share_top3_sum_basis_points))::int AS "clickShareTop3SumBasisPoints",
+            round(avg(keyword.conversion_share_top3_sum_basis_points))::int AS "conversionShareTop3SumBasisPoints"
+        FROM latest
+        JOIN ${topSearchTermsKeywordDaily} AS keyword
+            ON latest.latest_observed_date IS NOT NULL
+        WHERE keyword.marketplace_id = ${marketplaceId}
+            AND keyword.report_period = ${reportPeriod}
+            AND lower(keyword.search_term) = lower(${searchTerm})
+            AND keyword.is_merch_relevant = true
+            AND keyword.observed_date >= to_char(
+                (
+                    latest.latest_observed_date::date
+                    - ${windowSizeDays} * INTERVAL '1 day'
+                )::date,
+                'YYYY-MM-DD'
+            )
+        GROUP BY latest.latest_observed_date, keyword.observed_date
+        ORDER BY keyword.observed_date ASC
+    `);
 
-    return row?.observedDate ?? null;
+    return mapTopSearchTermTrendRows(rows);
+};
+
+export const mapTopSearchTermTrendRows = (rows: TopSearchTermTrendQueryRow[]) => {
+    const latestObservedDate = rows[0]?.latestObservedDate ?? null;
+
+    return {
+        latestObservedDate,
+        points: rows.map((row) => ({
+            observedDate: row.observedDate,
+            searchFrequencyRank: row.searchFrequencyRank,
+            clickShareTop3Sum: row.clickShareTop3SumBasisPoints / 10000,
+            conversionShareTop3Sum: row.conversionShareTop3SumBasisPoints / 10000,
+        })),
+    };
 };
