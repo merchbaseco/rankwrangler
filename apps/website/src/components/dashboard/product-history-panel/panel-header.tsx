@@ -15,7 +15,8 @@ import type { ProductHistoryPanelProduct } from "@/components/dashboard/product-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn, formatCalendarDate, formatRelativeTime } from "@/lib/utils";
+import { useLiveRelativeTime } from "@/hooks/use-live-relative-time";
+import { cn, formatCalendarDate } from "@/lib/utils";
 
 export const PanelHeader = ({
 	product,
@@ -165,30 +166,21 @@ export const PanelHeader = ({
 				</div>
 			) : null}
 
-			{/* Sync actions strip */}
+			{/* Keepa + actions strip */}
 			<div className="flex items-center gap-1.5 border-t border-border/60 px-3 py-1.5">
-				<Button
-					className={cn(
-						"h-auto rounded-sm px-0 py-0 font-mono text-[11px] font-medium",
-						isSyncing
-							? "cursor-not-allowed text-muted-foreground"
-							: "text-muted-foreground hover:text-foreground",
-					)}
-					onClick={onSync}
-					disabled={isSyncing}
-					size="sm"
-					variant="ghost"
-				>
-					{isSyncing ? (
-						<Loader2 className="size-3 animate-spin" />
-					) : (
-						<RefreshCw className="size-3" />
-					)}
-					{isSyncing ? "Syncing..." : "Sync"}
-				</Button>
-				<div className="mx-0.5 h-3 w-px bg-border" />
+				<SpApiStatusBadge
+					productLastFetchedAt={product.productLastFetchedAt}
+					rootCategoryBsr={product.rootCategoryBsr}
+				/>
+				<KeepaStatusButton
+					isSyncing={isSyncing}
+					isKeepaSyncStale={isKeepaSyncStale}
+					keepaLastSyncAt={keepaLastSyncAt}
+					onSync={onSync}
+				/>
 				{canFetchFacets ? (
 					<>
+						<div className="mx-0.5 h-3 w-px bg-border" />
 						<Button
 							className={cn(
 								"h-auto rounded-sm px-0 py-0 font-mono text-[11px] font-medium",
@@ -208,25 +200,119 @@ export const PanelHeader = ({
 							)}
 							{isFetchingFacets ? "Fetching facets..." : "Fetch facets"}
 						</Button>
-						<div className="mx-0.5 h-3 w-px bg-border" />
-					</>
-				) : null}
-				<Badge variant={isKeepaSyncStale ? "warning" : "success"} size="sm">
-					{isKeepaSyncStale ? "Keepa stale" : "Keepa fresh"}
-				</Badge>
-				<span className="text-[11px] text-muted-foreground">
-					{keepaLastSyncAt ? formatRelativeTime(keepaLastSyncAt) : "Never"}
-				</span>
-				{product.productLastFetchedAt ? (
-					<>
-						<div className="mx-0.5 h-3 w-px bg-border" />
-						<span className="text-[11px] text-muted-foreground">
-							Product: {formatRelativeTime(product.productLastFetchedAt)}
-						</span>
 					</>
 				) : null}
 			</div>
 		</div>
+	);
+};
+
+const KeepaStatusButton = ({
+	isSyncing,
+	isKeepaSyncStale,
+	keepaLastSyncAt,
+	onSync,
+}: {
+	isSyncing: boolean;
+	isKeepaSyncStale: boolean;
+	keepaLastSyncAt: string | null;
+	onSync: () => void;
+}) => {
+	const timestampLabel = useLiveRelativeTime(keepaLastSyncAt);
+
+	if (isSyncing) {
+		return (
+			<Badge variant="secondary" size="sm" className="gap-1">
+				<Loader2 className="size-3 animate-spin" />
+				Syncing Keepa...
+			</Badge>
+		);
+	}
+
+	if (isKeepaSyncStale) {
+		return (
+			<Tooltip>
+				<TooltipTrigger
+					nativeButton={false}
+					render={
+						<button
+							type="button"
+							className="inline-flex cursor-pointer items-center gap-1 rounded-sm border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-amber-600 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+							onClick={onSync}
+						/>
+					}
+				>
+					<RefreshCw className="size-3" />
+					Keepa stale · {timestampLabel}
+				</TooltipTrigger>
+				<TooltipPopup>Click to sync from Keepa</TooltipPopup>
+			</Tooltip>
+		);
+	}
+
+	return (
+		<Tooltip>
+			<TooltipTrigger
+				nativeButton={false}
+				render={
+					<button
+						type="button"
+						className="inline-flex cursor-pointer items-center gap-1 rounded-sm border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+						onClick={onSync}
+					/>
+				}
+			>
+				<RefreshCw className="size-3" />
+				Keepa fresh · {timestampLabel}
+			</TooltipTrigger>
+			<TooltipPopup>Click to re-sync from Keepa</TooltipPopup>
+		</Tooltip>
+	);
+};
+
+const getSpApiRefreshThresholdMs = (bsr: number | null) => {
+	if (bsr === null) return 48 * 60 * 60 * 1000;
+	if (bsr < 200_000) return 24 * 60 * 60 * 1000;
+	if (bsr < 500_000) return 3 * 24 * 60 * 60 * 1000;
+	if (bsr < 1_000_000) return 7 * 24 * 60 * 60 * 1000;
+	if (bsr < 3_000_000) return 14 * 24 * 60 * 60 * 1000;
+	return 30 * 24 * 60 * 60 * 1000;
+};
+
+const SpApiStatusBadge = ({
+	productLastFetchedAt,
+	rootCategoryBsr,
+}: {
+	productLastFetchedAt: string | null;
+	rootCategoryBsr: number | null;
+}) => {
+	const label = useLiveRelativeTime(productLastFetchedAt);
+	if (!productLastFetchedAt) return null;
+
+	const thresholdMs = getSpApiRefreshThresholdMs(rootCategoryBsr);
+	const ageMs = Date.now() - new Date(productLastFetchedAt).getTime();
+	const isStale = ageMs > thresholdMs;
+
+	return (
+		<Tooltip>
+			<TooltipTrigger
+				render={
+					<span
+						className={cn(
+							"inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-mono text-[11px] font-medium",
+							isStale
+								? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+								: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+						)}
+					/>
+				}
+			>
+				{isStale ? "SP-API stale" : "SP-API fresh"} · {label}
+			</TooltipTrigger>
+			<TooltipPopup>
+				Product data from Amazon SP-API
+			</TooltipPopup>
+		</Tooltip>
 	);
 };
 
