@@ -51,5 +51,20 @@
         "concurrently": "^8.2.2",
         "dts-bundle-generator": "^9.5.1",
         "typescript": "^5.9.3"
+    },
+    "overrides": {
+        "ajv": "8.20.0",
+        "brace-expansion": "5.0.6",
+        "defu": "6.1.7",
+        "fast-uri": "3.1.2",
+        "lodash": "4.18.1",
+        "minimatch": "10.2.5",
+        "picomatch": "4.0.4",
+        "postcss": "8.5.14",
+        "qs": "6.15.2",
+        "rollup": "4.60.4",
+        "tar": "7.5.15",
+        "vite": "7.3.3",
+        "yaml": "2.8.3"
     }
 }
