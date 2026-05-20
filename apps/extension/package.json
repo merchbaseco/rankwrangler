@@ -1,5 +1,6 @@
 {
   "name": "rankwrangler-extension",
+  "private": true,
   "description": "RankWrangler Extension",
   "version": "0.1.2",
   "main": "index.js",
