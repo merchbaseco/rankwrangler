@@ -24,7 +24,7 @@
         "provenance": true
     },
     "dependencies": {
-        "@rankwrangler/http-client": "0.5.0",
+        "@rankwrangler/http-client": "^0.5.0",
         "keytar": "7.9.0"
     },
     "devDependencies": {
