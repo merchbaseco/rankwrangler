@@ -111,7 +111,7 @@ bun run preview:chrome
 ## Quick Start
 
 ```bash
-bun install
+bun install --frozen-lockfile
 bun --filter @rankwrangler/server run build
 ```
 

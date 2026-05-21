@@ -15,7 +15,7 @@ Run from `apps/server` unless noted:
 
 From repo root (monorepo-wide tasks):
 
-- `bun install`
+- `bun install --frozen-lockfile`
 
 ## Environment Management
 
@@ -34,7 +34,7 @@ If extension build/type-check fails with:
 Run from repo root:
 
 ```bash
-bun install
+bun install --frozen-lockfile
 bun run --filter rankwrangler-extension build
 ```
 

@@ -9,7 +9,7 @@
 ## Local Development (Docker)
 
 ```bash
-bun install
+bun install --frozen-lockfile
 cp .env.example .env
 # Fill in .env with your credentials (repo root)
 docker compose -f apps/server/compose.yml up --build
