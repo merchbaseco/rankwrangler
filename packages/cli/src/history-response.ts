@@ -1,19 +1,33 @@
 export const HISTORY_METRIC_ALIASES = ['bsr', 'price'] as const;
+export const HISTORY_BUCKETS = ['auto', 'day', 'week', 'month'] as const;
 
 export type HistoryMetricAlias = (typeof HISTORY_METRIC_ALIASES)[number];
-type HistoryPointTuple = [string, number | null] | [string, null, 1];
+export type HistoryBucket = (typeof HISTORY_BUCKETS)[number];
+type HistoryBucketTuple = [string, number | null];
+
+type HistoryBucketSummary = {
+    first: number | null;
+    latest: number | null;
+    min: number | null;
+    max: number | null;
+    count: number;
+    firstBucketAt: string | null;
+    latestBucketAt: string | null;
+};
 
 export type AgentHistorySeries = {
     bsr?: {
         unit: 'rank';
         category: { id: number; name: string | null } | null;
-        points: HistoryPointTuple[];
+        buckets: HistoryBucketTuple[];
+        summary: HistoryBucketSummary;
     };
     price?: {
         unit: 'minorCurrency';
         currencyCode: 'USD';
         valueScale: 100;
-        points: HistoryPointTuple[];
+        buckets: HistoryBucketTuple[];
+        summary: HistoryBucketSummary;
     };
 };
 
@@ -22,6 +36,11 @@ export type AgentHistoryResponse = {
     status?: string;
     syncTriggered: boolean;
     latestImportAt: string | null;
+    range?: {
+        startAt: string;
+        endAt: string;
+        bucket: Exclude<HistoryBucket, 'auto'>;
+    };
     series?: AgentHistorySeries;
 };
 
@@ -42,16 +61,17 @@ export const buildCliHistoryResponse = ({
             ? { price: response.series.price }
             : {}),
     };
-    const hasAnyPoints = Object.values(series).some(metricSeries => metricSeries.points.length > 0);
+    const hasAnyBuckets = Object.values(series).some(metricSeries => metricSeries.buckets.length > 0);
     const status = normalizeHistoryStatus(response.status);
 
     return {
-        schemaVersion: response.schemaVersion ?? 1,
+        schemaVersion: response.schemaVersion ?? 2,
         asin,
         marketplaceId,
-        status: status ?? (response.syncTriggered ? 'collecting' : hasAnyPoints ? 'ready' : 'empty'),
+        status: status ?? (response.syncTriggered ? 'collecting' : hasAnyBuckets ? 'ready' : 'empty'),
         latestImportAt: response.latestImportAt,
         syncTriggered: response.syncTriggered,
+        ...(response.range ? { range: response.range } : {}),
         series,
     };
 };

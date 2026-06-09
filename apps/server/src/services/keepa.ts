@@ -261,7 +261,7 @@ export const loadKeepaProductHistory = async ({
     }
 
     const productId = productRow[0].id;
-    const recentImport = await getRecentSuccessfulKeepaImport(productId);
+    const recentImport = await getRecentSuccessfulKeepaImport(productId, days);
     if (recentImport) {
         return buildKeepaImportSummaryFromCachedImport({
             productId,
@@ -548,6 +548,30 @@ export const getProductHistoryPoints = async ({
             isMissing: point.isMissing,
         })),
     };
+};
+
+export const hasRecentSuccessfulKeepaImportForAsin = async ({
+    marketplaceId,
+    asin,
+    days,
+}: {
+    marketplaceId: string;
+    asin: string;
+    days: number;
+}) => {
+    const productRow = await db
+        .select({
+            id: products.id,
+        })
+        .from(products)
+        .where(and(eq(products.marketplaceId, marketplaceId), eq(products.asin, asin)))
+        .limit(1);
+
+    if (productRow.length === 0) {
+        return false;
+    }
+
+    return Boolean(await getRecentSuccessfulKeepaImport(productRow[0].id, days));
 };
 
 const fetchKeepaProduct = async ({
@@ -920,7 +944,8 @@ const normalizeKeepaErrorPayload = (payload: unknown): Record<string, unknown> |
 };
 
 const getRecentSuccessfulKeepaImport = async (
-    productId: string
+    productId: string,
+    requestedDays: number
 ): Promise<KeepaImportRow | null> => {
     const recentThreshold = new Date(Date.now() - KEEPA_MIN_REFRESH_INTERVAL_MS);
     const rows = await db
@@ -949,7 +974,17 @@ const getRecentSuccessfulKeepaImport = async (
         .orderBy(desc(productHistoryImports.createdAt))
         .limit(1);
 
-    return rows[0] ?? null;
+    return (
+        rows.find(row => {
+            const importedDays = getImportedDays(row.requestParams);
+            return importedDays === null || importedDays >= requestedDays;
+        }) ?? null
+    );
+};
+
+const getImportedDays = (requestParams: Record<string, unknown>) => {
+    const days = requestParams.days;
+    return typeof days === 'number' && Number.isFinite(days) ? days : null;
 };
 
 const getLatestSuccessfulKeepaImportAt = async ({

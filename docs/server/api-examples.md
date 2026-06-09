@@ -29,10 +29,15 @@ curl -s -X POST http://localhost:8080/api/api.public.getProductHistory \
 
 `api.public.getProductHistory` behavior:
 
-- Returns Keepa `bsrMain` points from `product_history_points`.
-- If no points exist yet, it may trigger high-priority manual Keepa sync and return:
-  - `collecting: true`
-  - `syncTriggered: true|false`
+- Default legacy format returns Keepa `bsrMain` points from `product_history_points`.
+- Ensures product cache exists before querying history.
+- If history has never been imported for the ASIN, runs manual history sync before returning.
+- Date ranges before the first recorded point return an empty range after an import exists.
+- `format: "agent"` returns schema v2 bucketed history instead of raw points.
+  Use `bucket: "auto" | "day" | "week" | "month"`.
+  Auto uses day buckets up to 45 days, week buckets up to 18 months, then month buckets.
+- Public and app history routes share the same product-history service; auth wrapper and requested
+  `format` choose the response shape.
 
 ## App: Amazon Product Search (ASIN)
 
@@ -137,6 +142,10 @@ curl -s -X POST http://localhost:8080/api/api.app.getProductHistory \
 - `points[]` rows
 - `latestImportAt`
 - `categoryNames`
+- `syncTriggered`
+
+It uses the same product-history service as the public API with `format: "points"` and
+`refresh: "if_missing"` by default.
 
 For category-specific BSR:
 

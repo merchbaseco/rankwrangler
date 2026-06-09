@@ -39,7 +39,14 @@ export async function handleFetchProductHistory(
 			marketplaceId: message.marketplaceId,
 			limit: 5000,
 			days: 365,
+			format: "legacy",
 		});
+
+		if (!("points" in response && "collecting" in response)) {
+			throw new Error(
+				"Product history returned an unsupported response format."
+			);
+		}
 
 		return {
 			success: true,

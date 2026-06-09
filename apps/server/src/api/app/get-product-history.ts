@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
-import { getProductHistoryPoints, keepaHistoryMetricKeys } from '@/services/keepa.js';
+import { keepaHistoryMetricKeys } from '@/services/keepa.js';
+import {
+    getProductHistorySurface,
+    productHistoryRefreshModes,
+} from '@/services/product-history-surface.js';
 
 const getProductHistoryInput = z
     .object({
@@ -15,6 +19,8 @@ const getProductHistoryInput = z
         startAt: z.coerce.date().optional(),
         endAt: z.coerce.date().optional(),
         limit: z.coerce.number().int().min(1).max(10000).default(5000),
+        days: z.coerce.number().int().min(30).max(3650).default(365),
+        refresh: z.enum(productHistoryRefreshModes).default('if_missing'),
     })
     .superRefine((input, ctx) => {
         if (input.metric === 'bsrCategory' && typeof input.categoryId !== 'number') {
@@ -31,13 +37,9 @@ const getProductHistoryInput = z
     });
 
 export const getProductHistory = appProcedure.input(getProductHistoryInput).query(async ({ input }) => {
-    return getProductHistoryPoints({
-        marketplaceId: input.marketplaceId,
-        asin: input.asin,
-        metric: input.metric,
-        categoryId: input.categoryId,
-        startAt: input.startAt,
-        endAt: input.endAt,
-        limit: input.limit,
+    return await getProductHistorySurface({
+        ...input,
+        format: 'points',
+        bucket: 'auto',
     });
 });

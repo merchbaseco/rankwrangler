@@ -1,46 +1,41 @@
 import { TRPCError } from '@trpc/server';
 import { getProductInfoFromStore } from '@/db/product/get-product.js';
-import { enqueueKeepaHistoryRefreshForAsin } from '@/services/keepa-history-refresh.js';
-import { enqueueSpApiSyncQueueItem } from '@/services/spapi-sync-queue.js';
+import { upsertProductInfo } from '@/db/product/upsert-product.js';
+import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 
 export type ProductInfoRequest = {
     marketplaceId: string;
     asin: string;
+    maxAgeMs?: number;
 };
 
-export const fetchProductInfo = async ({ marketplaceId, asin }: ProductInfoRequest) => {
-    try {
-        const cachedProduct = await getProductInfoFromStore(marketplaceId, asin);
-        if (cachedProduct) {
-            await tryEnqueueKeepaHistoryRefresh({
-                marketplaceId,
-                asin,
-            });
+type ProductInfoResult = NonNullable<Awaited<ReturnType<typeof getProductInfoFromStore>>>;
 
+const productInfoFetchInFlight = new Map<string, Promise<ProductInfoResult>>();
+
+export const fetchProductInfo = async ({
+    marketplaceId,
+    asin,
+    maxAgeMs,
+}: ProductInfoRequest) => {
+    try {
+        const cachedProduct = await getProductInfoFromStore(marketplaceId, asin, maxAgeMs);
+        if (cachedProduct) {
             return cachedProduct;
         }
 
-        await enqueueSpApiSyncQueueItem({ marketplaceId, asin });
-
-        const maxAttempts = 50;
-        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-
-            const polledProduct = await getProductInfoFromStore(marketplaceId, asin);
-            if (polledProduct) {
-                await tryEnqueueKeepaHistoryRefresh({
-                    marketplaceId,
-                    asin,
-                });
-
-                return polledProduct;
-            }
+        const inFlightKey = `${marketplaceId}:${asin}`;
+        const inFlightFetch = productInfoFetchInFlight.get(inFlightKey);
+        if (inFlightFetch) {
+            return await inFlightFetch;
         }
 
-        throw new TRPCError({
-            code: 'TIMEOUT',
-            message: 'Request timeout: product info not available after 10 seconds',
+        const fetchPromise = fetchFreshProductInfo({ marketplaceId, asin, maxAgeMs }).finally(() => {
+            productInfoFetchInFlight.delete(inFlightKey);
         });
+        productInfoFetchInFlight.set(inFlightKey, fetchPromise);
+
+        return await fetchPromise;
     } catch (error) {
         if (error instanceof TRPCError) {
             throw error;
@@ -54,19 +49,39 @@ export const fetchProductInfo = async ({ marketplaceId, asin }: ProductInfoReque
     }
 };
 
-const tryEnqueueKeepaHistoryRefresh = async ({
+const fetchFreshProductInfo = async ({
     marketplaceId,
     asin,
-}: {
-    marketplaceId: string;
-    asin: string;
-}) => {
+    maxAgeMs,
+}: ProductInfoRequest): Promise<ProductInfoResult> => {
     try {
-        await enqueueKeepaHistoryRefreshForAsin({ marketplaceId, asin });
+        const [freshProduct] = await searchCatalogItemsByAsins(marketplaceId, [asin]);
+        if (!freshProduct) {
+            throw new TRPCError({
+                code: 'NOT_FOUND',
+                message: 'Product info not available from Amazon catalog.',
+            });
+        }
+
+        await upsertProductInfo(freshProduct);
+        const storedProduct = await getProductInfoFromStore(marketplaceId, asin, maxAgeMs);
+        if (!storedProduct) {
+            throw new TRPCError({
+                code: 'INTERNAL_SERVER_ERROR',
+                message: 'Product info fetched but was not available from the product store.',
+            });
+        }
+
+        return storedProduct;
     } catch (error) {
-        console.error(
-            `[Keepa Queue] Failed to enqueue ASIN ${asin} (${marketplaceId}):`,
-            error
-        );
+        if (error instanceof TRPCError) {
+            throw error;
+        }
+
+        console.error(`[${new Date().toISOString()}] Error getting product info:`, error);
+        throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: error instanceof Error ? error.message : 'Unknown error occurred',
+        });
     }
 };

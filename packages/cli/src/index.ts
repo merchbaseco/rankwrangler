@@ -12,6 +12,7 @@ import {
     requireMarketplaceId,
     requireSingleAsin,
     resolveBaseUrl,
+    resolveHistoryBucket,
     resolveHistoryMetrics,
     resolveHistoryWindow,
     type CliOptionValues,
@@ -56,6 +57,7 @@ const { positionals, values } = parseArgs({
         endAt: { type: 'string' },
         days: { type: 'string' },
         limit: { type: 'string' },
+        bucket: { type: 'string' },
     },
     allowPositionals: true,
 });
@@ -159,6 +161,7 @@ const runProductHistoryCommand = async (
     const asin = requireSingleAsin(command.args, optionValues, fail);
     const marketplaceId = requireMarketplaceId(optionValues, config);
     const metrics = resolveHistoryMetrics(optionValues, fail);
+    const bucket = resolveHistoryBucket(optionValues, fail);
     const historyWindow = resolveHistoryWindow(optionValues, fail);
     const limit = parseIntegerOption(
         {
@@ -176,6 +179,7 @@ const runProductHistoryCommand = async (
         asin,
         metrics,
         format: 'agent',
+        bucket,
         limit,
         ...historyWindow,
     });

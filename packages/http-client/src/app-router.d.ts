@@ -10,6 +10,59 @@ export interface ClerkUser {
 	sub: string;
 	email?: string;
 }
+declare const productHistoryBuckets: readonly [
+	"auto",
+	"day",
+	"week",
+	"month"
+];
+export type ProductHistoryBucket = (typeof productHistoryBuckets)[number];
+export type ResolvedHistoryBucket = Exclude<ProductHistoryBucket, "auto">;
+export type HistoryBucketTuple = [
+	string,
+	number | null
+];
+export type HistoryBucketSummary = {
+	first: number | null;
+	latest: number | null;
+	min: number | null;
+	max: number | null;
+	count: number;
+	firstBucketAt: string | null;
+	latestBucketAt: string | null;
+};
+export type AgentHistorySeries = {
+	bsr?: {
+		unit: "rank";
+		category: {
+			id: number;
+			name: string | null;
+		} | null;
+		buckets: HistoryBucketTuple[];
+		summary: HistoryBucketSummary;
+	};
+	price?: {
+		unit: "minorCurrency";
+		currencyCode: "USD";
+		valueScale: 100;
+		buckets: HistoryBucketTuple[];
+		summary: HistoryBucketSummary;
+	};
+};
+export type AgentHistoryResponse = {
+	schemaVersion: 2;
+	marketplaceId: string;
+	asin: string;
+	status: "collecting" | "ready" | "empty";
+	latestImportAt: string | null;
+	syncTriggered: boolean;
+	range: {
+		startAt: string;
+		endAt: string;
+		bucket: ResolvedHistoryBucket;
+	};
+	series: AgentHistorySeries;
+};
 export type ProductInfo = {
 	asin: string;
 	marketplaceId: string;
@@ -128,60 +181,30 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					days?: unknown;
 					metrics?: ("bsr" | "price")[] | undefined;
 					format?: "legacy" | "agent" | undefined;
+					bucket?: "auto" | "day" | "week" | "month" | undefined;
 				};
-				output: {
+				output: AgentHistoryResponse | {
+					syncTriggered: boolean;
 					marketplaceId: string;
 					asin: string;
-					metric: "bsrMain";
+					metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
 					latestImportAt: string | null;
-					categoryNames: Record<string, string>;
+					categoryNames: {
+						[x: string]: string;
+					};
 					points: {
 						categoryId: number;
-						categoryName: string | null;
+						categoryName: string;
 						observedAt: string;
 						keepaMinutes: number;
 						value: number | null;
 						isMissing: boolean;
 					}[];
-					collecting: boolean;
-					syncTriggered: boolean;
 				} | {
-					schemaVersion: 1;
-					status: string;
-					latestImportAt: string | null;
-					series: {
-						price?: {
-							unit: "minorCurrency";
-							currencyCode: "USD";
-							valueScale: 100;
-							points: ([
-								string,
-								number | null
-							] | [
-								string,
-								null,
-								1
-							])[];
-						} | undefined;
-						bsr?: {
-							unit: "rank";
-							category: {
-								id: number;
-								name: string;
-							} | null;
-							points: ([
-								string,
-								number | null
-							] | [
-								string,
-								null,
-								1
-							])[];
-						} | undefined;
-					};
 					marketplaceId: string;
 					asin: string;
 					metric: "bsrMain";
+					latestImportAt: string | null;
 					categoryNames: Record<string, string>;
 					points: {
 						categoryId: number;

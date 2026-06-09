@@ -1,5 +1,10 @@
 import type { CliConfig } from './cli-config';
-import { HISTORY_METRIC_ALIASES, type HistoryMetricAlias } from './history-response';
+import {
+    HISTORY_BUCKETS,
+    HISTORY_METRIC_ALIASES,
+    type HistoryBucket,
+    type HistoryMetricAlias,
+} from './history-response';
 
 type CliFail = (code: string, message: string, details?: unknown) => never;
 
@@ -12,6 +17,7 @@ export type CliOptionValues = {
     endAt?: string;
     days?: string;
     limit?: string;
+    bucket?: string;
     help?: boolean;
     version?: boolean;
 };
@@ -68,6 +74,17 @@ export const resolveHistoryMetrics = (values: CliOptionValues, fail: CliFail) =>
     }
 
     return Array.from(new Set(requested)) as HistoryMetricAlias[];
+};
+
+export const resolveHistoryBucket = (values: CliOptionValues, fail: CliFail) => {
+    const requested = (values.bucket ?? 'auto').trim().toLowerCase();
+    if (!HISTORY_BUCKETS.includes(requested as HistoryBucket)) {
+        fail('INVALID_INPUT', `unsupported history bucket: ${requested}`, {
+            supportedBuckets: HISTORY_BUCKETS,
+        });
+    }
+
+    return requested as HistoryBucket;
 };
 
 export const resolveHistoryWindow = (values: CliOptionValues, fail: CliFail) => {

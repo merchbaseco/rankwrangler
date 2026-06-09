@@ -104,17 +104,28 @@ the secure-store backend status.
 ## API Commands
 
 - `rw products get <ASIN...> [--marketplace <id>|-m <id>]`
-- `rw products history <ASIN> [--metrics <bsr,price>] [--days <N>|--startAt <ISO> --endAt <ISO>] [--limit <N>] [--marketplace <id>|-m <id>]`
+- `rw products history <ASIN> [--metrics <bsr,price>] [--bucket <auto|day|week|month>] [--days <N>|--startAt <ISO> --endAt <ISO>] [--marketplace <id>|-m <id>]`
 - `rw license status`
 - `rw license validate`
 
 `products get` accepts one or many ASINs and internally chooses the single or batch API call.
-`products history` accepts one ASIN and returns token-efficient metric series for agents.
+`products history` accepts one ASIN and returns token-efficient metric buckets for agents.
+It ensures product cache and history import before returning; agents do not run a separate
+`products get` or retry loop first.
+Agent history uses `schemaVersion: 2`, `range.bucket`, per-metric `buckets`, and per-metric
+`summary`. It never returns raw point series through the CLI.
 
 `products history` metric aliases map to Keepa-backed public metrics:
 
 - `bsr` -> `bsrMain`
 - `price` -> `priceNew` (same price metric shown in dashboard history)
+
+Bucket options:
+
+- `auto` -> day for ranges up to 45 days, week for ranges up to 18 months, month after that
+- `day`
+- `week`
+- `month`
 
 Marketplace resolution for product commands:
 
@@ -135,6 +146,9 @@ These commands map directly to public API capabilities:
 - `products history` -> `api.public.getProductHistory` (`format: "agent"`)
 - `license status` -> `api.public.license.status`
 - `license validate` -> `api.public.license.validate`
+
+Product behavior lives in shared server services. Public and app routers are auth wrappers over the
+same product lookup/history contracts.
 
 ## Compatibility Policy
 

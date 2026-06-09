@@ -65,7 +65,10 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 - Command shape is resource-first (`products get`, `license status`).
 - Meta commands: `rw --version` prints the installed CLI version and `rw changelog` prints the
   latest bundled release notes.
-- History command: `products history <ASIN>` with agent-focused aliases (`--metrics bsr,price`).
+- History command: `products history <ASIN>` ensures product/history data, then returns bucketed
+  agent history (`--metrics bsr,price`, `--bucket auto|day|week|month`).
+- Dashboard, extension, CLI, and agent history routes share one product-history service; auth
+  wrappers choose access, not product behavior.
 - Product commands default marketplace to `ATVPDKIKX0DER` and support `--marketplace` / `-m` override.
 - `rw auth set <licenseKey>` stores the license key in the platform secure store; `auth status`
   and `auth clear` manage that saved auth state.

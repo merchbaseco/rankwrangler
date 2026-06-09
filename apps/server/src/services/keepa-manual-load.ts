@@ -5,9 +5,49 @@ const MANUAL_KEEPA_WAIT_TIMEOUT_MS = 2 * 60 * 1000;
 const MANUAL_KEEPA_RETRY_INITIAL_DELAY_MS = 1000;
 const MANUAL_KEEPA_RETRY_MAX_DELAY_MS = 15000;
 
-const manualLoadInFlight = new Map<string, Promise<KeepaImportSummary>>();
+type ManualLoadInFlight = {
+    days: number;
+    promise: Promise<KeepaImportSummary>;
+};
+
+const manualLoadInFlight = new Map<string, ManualLoadInFlight>();
 
 export const loadKeepaProductHistoryManually = async ({
+    marketplaceId,
+    asin,
+    days,
+}: {
+    marketplaceId: string;
+    asin: string;
+    days: number;
+}) => {
+    const key = `${marketplaceId}:${asin}`;
+    const inFlightLoad = manualLoadInFlight.get(key);
+    if (inFlightLoad && inFlightLoad.days >= days) {
+        return await inFlightLoad.promise;
+    }
+
+    if (inFlightLoad) {
+        await inFlightLoad.promise.catch(() => {});
+        const nextInFlightLoad = manualLoadInFlight.get(key);
+        if (nextInFlightLoad && nextInFlightLoad.days >= days) {
+            return await nextInFlightLoad.promise;
+        }
+    }
+
+    const loadPromise = runKeepaProductHistoryManualLoad({
+        marketplaceId,
+        asin,
+        days,
+    }).finally(() => {
+        manualLoadInFlight.delete(key);
+    });
+    manualLoadInFlight.set(key, { days, promise: loadPromise });
+
+    return await loadPromise;
+};
+
+const runKeepaProductHistoryManualLoad = async ({
     marketplaceId,
     asin,
     days,
@@ -74,11 +114,7 @@ export const triggerKeepaProductHistoryManualLoad = ({
         marketplaceId,
         asin,
         days,
-    }).finally(() => {
-        manualLoadInFlight.delete(key);
     });
-
-    manualLoadInFlight.set(key, loadPromise);
     void loadPromise.catch(error => {
         console.error(
             `[Keepa Manual] Failed to load history for ${asin} (${marketplaceId}):`,

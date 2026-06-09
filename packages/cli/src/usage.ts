@@ -38,10 +38,11 @@ export const printUsage = (paths: CliPaths) => {
         `  -m, --marketplace <id>   Override marketplace (default: ${DEFAULT_MARKETPLACE_ID})`,
         '  --asin <ASIN>            Add ASIN (repeatable)',
         '  --metrics <list>         History metrics: bsr,price (default: bsr,price)',
+        '  --bucket <unit>          History buckets: auto,day,week,month (default: auto)',
         '  --days <N>               History lookback window (30-3650, default: 365)',
         '  --startAt <ISO>          History range start (ISO date/time)',
         '  --endAt <ISO>            History range end (ISO date/time)',
-        '  --limit <N>              Max points per metric (1-10000, default: 5000)',
+        '  --limit <N>              Internal point cap (1-10000, default: 5000)',
         '',
         'FILES',
         `  ${paths.configPath}           Active CLI config`,
@@ -63,8 +64,8 @@ export const printUsage = (paths: CliPaths) => {
         '  rw --version',
         '  rw changelog',
         '  rw config set storage-dir ~/.config/rankwrangler',
-        '  rw products history B0DV53VS61 --metrics bsr,price',
-        '  rw products history B0DV53VS61 --startAt 2025-01-01 --endAt 2025-12-31',
+        '  rw products history B0DV53VS61 --metrics bsr,price --bucket week',
+        '  rw products history B0DV53VS61 --startAt 2025-01-01 --endAt 2025-12-31 --bucket month',
         '  rankwrangler license status',
     ];
 

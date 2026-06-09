@@ -38,7 +38,7 @@ An ASIN is eligible for automatic Keepa refresh only when all conditions are tru
 - Product has a numeric root-category BSR
 - `rootCategoryBsr < 300,000` => daily sync cadence
 - `300,000 <= rootCategoryBsr < 1,000,000` => weekly sync cadence
-- `rootCategoryBsr >= 1,000,000` => on-demand sync cadence via `getProductInfo`
+- `rootCategoryBsr >= 1,000,000` => no scheduled enqueue; history routes can still load on demand
 
 Policy constants and dashboard labels are centralized in:
 
@@ -49,10 +49,10 @@ Eligibility is evaluated from the cached `products` table.
 Plain-English behavior:
 
 - Product lookup still stores SP-API category/BSR data for any category when available.
-- Keepa enqueue from product lookup only happens for merch ASINs with a numeric BSR.
+- Product lookup does not enqueue Keepa history refresh.
 - Non-merch ASINs are never Keepa-enqueued.
 - Merch ASINs with missing BSR are not Keepa-enqueued.
-- Non-eligible ASINs can still load Keepa history manually (dashboard/extension history action).
+- Non-eligible ASINs can still load Keepa history through history routes and manual dashboard sync.
 
 ## Global 24h Keepa Guard
 
@@ -75,17 +75,16 @@ This applies equally to:
 Queue table: `keepa_history_refresh_queue`
 
 - ASINs are queued from:
-  - scheduled Keepa cadence scan (`enqueue-scheduled-keepa-history-refresh`) for `<1M` merch BSR,
-  - product lookup flow (`fetchProductInfo`) for on-demand sync behavior.
-- Manual history actions do not write to `keepa_history_refresh_queue`; they call the manual
-  Keepa loader path directly.
+  - scheduled Keepa cadence scan (`enqueue-scheduled-keepa-history-refresh`) for `<1M` merch BSR.
+- Product lookup does not write to `keepa_history_refresh_queue`.
+- History routes and manual dashboard sync do not write to `keepa_history_refresh_queue`; they call
+  the manual Keepa loader path directly.
 - Queue insert is deduplicated by `(marketplace_id, asin)`.
 - Scheduled candidate scan excludes ASINs already present in `keepa_history_refresh_queue` so
   the hourly scan limit is spent on new stale candidates rather than queued duplicates.
 - Queue insert is skipped when a successful Keepa import exists inside the policy window:
   - Daily bucket (`BSR < 300k`): last import newer than 24 hours
   - Weekly bucket (`300k <= BSR < 1M`): last import newer than 7 days
-  - On-demand bucket (`BSR >= 1M`): last import newer than 24 hours
 
 ## Refresh Cadence
 
@@ -93,7 +92,7 @@ Queue table: `keepa_history_refresh_queue`
 - Cadence uses BSR bucket policy:
   - `BSR < 300k`: automatic daily refresh
   - `300k <= BSR < 1M`: automatic weekly refresh
-  - `BSR >= 1M`: on-demand from `getProductInfo`
+  - `BSR >= 1M`: no scheduled enqueue; history routes can still load manually
 - Background queue dispatch runs every 1 minute (`process-keepa-history-refresh-queue`).
 - Keepa fetches are additionally guarded by a global 24-hour successful-import check in
   `loadKeepaProductHistory()`.
