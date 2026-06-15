@@ -97,6 +97,19 @@ describe('cli behavior', () => {
         expect(showResult.data.config).toEqual({
             marketplaceId: 'TEST_MARKET',
         });
+        expect(showResult.data.auth).toMatchObject({
+            source: 'none',
+            envOverride: false,
+        });
+
+        const getResult = runCli(['config', 'get', 'marketplace'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+        expect(getResult.data).toEqual({
+            key: 'marketplace',
+            value: 'TEST_MARKET',
+        });
 
         const baseUrlResult = runCli(['config', 'set', 'base-url', 'https://example.com/api'], {
             cwd: workspaceDir,
@@ -109,6 +122,15 @@ describe('cli behavior', () => {
         });
         expect(readJson(defaultConfigPath)).toEqual({
             marketplaceId: 'TEST_MARKET',
+        });
+
+        const unsetResult = runCli(['config', 'unset', 'marketplace'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+        expect(unsetResult.data.unset).toBe('marketplace');
+        expect(readJson(storageConfigPath)).toEqual({
+            baseUrl: 'https://example.com',
         });
     });
 
@@ -151,6 +173,27 @@ describe('cli behavior', () => {
         expect(clearResult.data.source).toBe('none');
         expect(clearResult.data.secureStore.hasStoredLicenseKey).toBe(false);
         expect(existsSync(secretStorePath)).toBe(false);
+    });
+
+    test('stores auth from stdin for non-interactive runs', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
+        const tempHome = path.join(tempRoot, 'home');
+        const workspaceDir = path.join(tempRoot, 'workspace');
+        mkdirSync(tempHome, { recursive: true });
+        mkdirSync(workspaceDir, { recursive: true });
+
+        const setResult = runCli(['auth', 'set', '--stdin'], {
+            cwd: workspaceDir,
+            home: tempHome,
+            input: 'rrk_stdin_value\n',
+        });
+        expect(setResult.data.saved).toBe(true);
+        expect(setResult.data.source).toBe('secure-store');
+
+        const secretStorePath = path.join(tempHome, '.rankwrangler-secure-store', 'license-key.json');
+        expect(readJson(secretStorePath)).toEqual({
+            licenseKey: 'rrk_stdin_value',
+        });
     });
 
     test('lets RR_LICENSE_KEY override the stored auth', () => {
@@ -200,7 +243,7 @@ describe('cli behavior', () => {
         });
         expect(missingKeyFailure.error.code).toBe('MISSING_CONFIG');
         expect(missingKeyFailure.error.message).toBe(
-            'license key is required. run `rw auth set <licenseKey>` or set RR_LICENSE_KEY'
+            'license key is required. run `rw auth set`, `rw auth set --stdin`, or set RR_LICENSE_KEY'
         );
     });
 
@@ -257,5 +300,33 @@ describe('cli behavior', () => {
         expect(envOverrideShowResult.data.config).toEqual({
             marketplaceId: 'ENV_MARKET',
         });
+    });
+
+    test('resets config and returns to the default storage dir', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
+        const tempHome = path.join(tempRoot, 'home');
+        const workspaceDir = path.join(tempRoot, 'workspace');
+        mkdirSync(tempHome, { recursive: true });
+        mkdirSync(workspaceDir, { recursive: true });
+
+        const customStorageDir = path.join(realpathSync(workspaceDir), 'custom-storage');
+
+        runCli(['config', 'set', 'marketplace', 'TEST_MARKET'], { cwd: workspaceDir, home: tempHome });
+        runCli(['config', 'set', 'storage-dir', './custom-storage'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+
+        const resetResult = runCli(['config', 'reset'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
+        expect(resetResult.data.reset).toBe(true);
+        expect(resetResult.data.storageDir).toBe(path.join(tempHome, '.rankwrangler'));
+        expect(resetResult.data.config).toEqual({});
+
+        expect(existsSync(path.join(tempHome, '.rankwrangler', 'global.json'))).toBe(false);
+        expect(existsSync(path.join(tempHome, '.rankwrangler', 'config.json'))).toBe(false);
+        expect(existsSync(path.join(customStorageDir, 'config.json'))).toBe(false);
     });
 });

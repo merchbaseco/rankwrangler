@@ -26,7 +26,7 @@ export const createTempDir = (prefix: string, tempDirs: string[]) => {
 
 export const runCli = <T = Record<string, unknown>>(
     args: string[],
-    options: { cwd: string; home: string; env?: Record<string, string> }
+    options: { cwd: string; home: string; env?: Record<string, string>; input?: string }
 ) => {
     const result = spawnCli(args, options);
     if (result.status !== 0) {
@@ -43,7 +43,7 @@ export const runCli = <T = Record<string, unknown>>(
 
 export const runCliFailure = (
     args: string[],
-    options: { cwd: string; home: string; env?: Record<string, string> }
+    options: { cwd: string; home: string; env?: Record<string, string>; input?: string }
 ) => {
     const result = spawnCli(args, options);
     if (result.status === 0) {
@@ -62,7 +62,12 @@ export const runCliFailure = (
 
 export const spawnCli = (
     args: string[],
-    { cwd, home, env = {} }: { cwd: string; home: string; env?: Record<string, string> }
+    {
+        cwd,
+        home,
+        env = {},
+        input,
+    }: { cwd: string; home: string; env?: Record<string, string>; input?: string }
 ) => {
     return spawnSync('node', [CLI_PATH, ...args], {
         cwd,
@@ -73,6 +78,7 @@ export const spawnCli = (
             ...env,
         },
         encoding: 'utf8',
+        input,
     });
 };
 

@@ -1,5 +1,7 @@
+import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import readline from 'node:readline';
 
 export const LICENSE_KEY_ENV_VAR = 'RR_LICENSE_KEY';
 export const AUTH_SERVICE_NAME = 'RankWrangler CLI';
@@ -12,6 +14,10 @@ type CliFail = (code: string, message: string, details?: unknown) => never;
 type AuthCommand = {
     verb: string;
     args: string[];
+};
+
+type AuthCommandOptions = {
+    stdin?: boolean;
 };
 
 type CliSecureStore = {
@@ -51,13 +57,17 @@ export const resolveApiKey = async () => {
     return (await secureStore.get()) ?? undefined;
 };
 
-export const runAuthCommand = async (command: AuthCommand, fail: CliFail) => {
+export const runAuthCommand = async (
+    command: AuthCommand,
+    fail: CliFail,
+    options: AuthCommandOptions = {}
+) => {
     if (command.verb === 'status') {
         return buildAuthStatus();
     }
 
     if (command.verb === 'set') {
-        const value = resolveAuthSetValue(command.args, fail);
+        const value = await resolveAuthSetValue(command.args, fail, options);
         const secureStore = await createSecureStore();
 
         await secureStore.set(value);
@@ -81,7 +91,7 @@ export const runAuthCommand = async (command: AuthCommand, fail: CliFail) => {
     fail('UNKNOWN_COMMAND', 'Unknown auth command', { verb: command.verb });
 };
 
-const buildAuthStatus = async () => {
+export const buildAuthStatus = async () => {
     const envLicenseKey = resolveEnvLicenseKey();
 
     try {
@@ -115,10 +125,23 @@ const buildAuthStatus = async () => {
     }
 };
 
-const resolveAuthSetValue = (args: string[], fail: CliFail) => {
+const resolveAuthSetValue = async (
+    args: string[],
+    fail: CliFail,
+    options: AuthCommandOptions
+) => {
     const positionalValue = args.join(' ').trim();
     if (positionalValue) {
         return positionalValue;
+    }
+
+    if (options.stdin) {
+        const stdinValue = await readSecretFromStdin();
+        if (stdinValue) {
+            return stdinValue;
+        }
+
+        fail('INVALID_INPUT', 'auth set --stdin received an empty license key');
     }
 
     const envLicenseKey = resolveEnvLicenseKey();
@@ -126,7 +149,61 @@ const resolveAuthSetValue = (args: string[], fail: CliFail) => {
         return envLicenseKey;
     }
 
-    fail('INVALID_INPUT', `auth set requires <licenseKey> or ${LICENSE_KEY_ENV_VAR}`);
+    if (process.stdin.isTTY && process.stderr.isTTY) {
+        const promptValue = await readSecretFromPrompt('RankWrangler license key: ');
+        if (promptValue) {
+            return promptValue;
+        }
+
+        fail('INVALID_INPUT', 'auth set received an empty license key');
+    }
+
+    fail(
+        'INVALID_INPUT',
+        `auth set requires <licenseKey>, --stdin, or ${LICENSE_KEY_ENV_VAR}`
+    );
+};
+
+const readSecretFromStdin = async () => {
+    const chunks: Buffer[] = [];
+
+    for await (const chunk of process.stdin) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+
+    return Buffer.concat(chunks).toString('utf8').trim();
+};
+
+const readSecretFromPrompt = async (prompt: string) => {
+    process.stderr.write(prompt);
+    setTerminalEcho(false);
+
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stderr,
+        terminal: true,
+    });
+
+    try {
+        const value = await new Promise<string>(resolve => {
+            rl.question('', resolve);
+        });
+        process.stderr.write('\n');
+        return value.trim();
+    } finally {
+        rl.close();
+        setTerminalEcho(true);
+    }
+};
+
+const setTerminalEcho = (enabled: boolean) => {
+    if (process.platform === 'win32' || !process.stdin.isTTY) {
+        return;
+    }
+
+    spawnSync('stty', [enabled ? 'echo' : '-echo'], {
+        stdio: ['inherit', 'ignore', 'ignore'],
+    });
 };
 
 const resolveEnvLicenseKey = () => {

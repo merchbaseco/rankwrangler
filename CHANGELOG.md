@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.0 - 2026-06-15
+
+### Added
+
+- Add `rw auth set --stdin` and hidden local auth entry so agents can pipe license keys and humans
+  can avoid shell history.
+- Add `rw config get`, `rw config unset`, and `rw config reset` for explicit non-secret config
+  inspection and cleanup.
+
+### Changed
+
+- Show auth source/status in `rw config show` without printing secrets.
+- Update CLI help, README, CLI spec, and e2e coverage for the clearer auth/config surface.
+
+### Removed
+
+- Remove `rw config clear` in favor of `rw config unset <key>` and `rw config reset`.
+
 ## v0.5.0 - 2026-03-18
 
 ### Added

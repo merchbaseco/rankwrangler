@@ -40,7 +40,9 @@ const SUPPORTED_COMMANDS = new Set([
     'auth:set',
     'auth:clear',
     'config:show',
-    'config:clear',
+    'config:get',
+    'config:unset',
+    'config:reset',
     'config:set',
 ]);
 
@@ -58,6 +60,7 @@ const { positionals, values } = parseArgs({
         days: { type: 'string' },
         limit: { type: 'string' },
         bucket: { type: 'string' },
+        stdin: { type: 'boolean' },
     },
     allowPositionals: true,
 });
@@ -98,7 +101,7 @@ const main = async () => {
     }
 
     if (command.resource === 'auth') {
-        printSuccess(await runAuthCommand(command, fail));
+        printSuccess(await runAuthCommand(command, fail, { stdin: Boolean(values.stdin) }));
         return;
     }
 
@@ -106,7 +109,7 @@ const main = async () => {
     if (!apiKey) {
         fail(
             'MISSING_CONFIG',
-            'license key is required. run `rw auth set <licenseKey>` or set RR_LICENSE_KEY'
+            'license key is required. run `rw auth set`, `rw auth set --stdin`, or set RR_LICENSE_KEY'
         );
     }
 

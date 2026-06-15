@@ -1,4 +1,12 @@
-import { clearConfig, saveConfig, switchStorageDir, type CliConfig, type CliPaths } from './cli-config';
+import { buildAuthStatus } from './cli-auth';
+import {
+    resetConfig,
+    saveConfig,
+    switchStorageDir,
+    unsetStorageDir,
+    type CliConfig,
+    type CliPaths,
+} from './cli-config';
 import { normalizeBaseUrl } from './cli-options';
 
 type CliFail = (code: string, message: string, details?: unknown) => never;
@@ -7,6 +15,10 @@ type ConfigCommand = {
     verb: string;
     args: string[];
 };
+
+const CONFIG_KEYS = ['base-url', 'marketplace', 'storage-dir'] as const;
+
+type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 export const runConfigCommand = async (
     command: ConfigCommand,
@@ -18,11 +30,31 @@ export const runConfigCommand = async (
         return buildConfigResponse(paths, config);
     }
 
-    if (command.verb === 'clear') {
-        await clearConfig(paths);
+    if (command.verb === 'get') {
+        const key = requireConfigKey(command.args[0], 'config get', fail);
+
         return {
-            ...buildConfigResponse(paths, {}),
-            cleared: true,
+            key,
+            value: getConfigValue(key, paths, config),
+        };
+    }
+
+    if (command.verb === 'unset') {
+        const key = requireConfigKey(command.args[0], 'config unset', fail);
+        const nextState = await unsetConfigValue(key, paths, config);
+
+        return {
+            ...(await buildConfigResponse(nextState.paths, nextState.config)),
+            unset: key,
+        };
+    }
+
+    if (command.verb === 'reset') {
+        const nextState = await resetConfig(paths);
+
+        return {
+            ...(await buildConfigResponse(nextState.paths, nextState.config)),
+            reset: true,
         };
     }
 
@@ -57,10 +89,7 @@ export const runConfigCommand = async (
     } else if (key === 'marketplace') {
         nextConfig.marketplaceId = value;
     } else {
-        fail('INVALID_INPUT', 'unsupported config key', {
-            key,
-            supportedKeys: ['base-url', 'marketplace', 'storage-dir'],
-        });
+        failUnsupportedConfigKey(key, fail);
     }
 
     await saveConfig(paths, nextConfig);
@@ -68,11 +97,73 @@ export const runConfigCommand = async (
     return buildConfigResponse(paths, nextConfig);
 };
 
-const buildConfigResponse = (paths: CliPaths, config: CliConfig) => {
+const buildConfigResponse = async (paths: CliPaths, config: CliConfig) => {
     return {
         storageDir: paths.storageDir,
         path: paths.configPath,
         globalPath: paths.globalConfigPath,
         config,
+        auth: await buildAuthStatus(),
     };
+};
+
+const requireConfigKey = (
+    key: string | undefined,
+    commandName: string,
+    fail: CliFail
+): ConfigKey => {
+    if (!key) {
+        fail('INVALID_INPUT', `${commandName} requires <key>`, {
+            supportedKeys: CONFIG_KEYS,
+        });
+    }
+
+    if (isConfigKey(key)) {
+        return key;
+    }
+
+    return failUnsupportedConfigKey(key, fail);
+};
+
+const isConfigKey = (key: string): key is ConfigKey => {
+    return CONFIG_KEYS.includes(key as ConfigKey);
+};
+
+const getConfigValue = (key: ConfigKey, paths: CliPaths, config: CliConfig) => {
+    switch (key) {
+        case 'base-url':
+            return config.baseUrl ?? null;
+        case 'marketplace':
+            return config.marketplaceId ?? null;
+        case 'storage-dir':
+            return paths.storageDir;
+    }
+};
+
+const unsetConfigValue = async (key: ConfigKey, paths: CliPaths, config: CliConfig) => {
+    if (key === 'storage-dir') {
+        return unsetStorageDir(paths);
+    }
+
+    const nextConfig = { ...config };
+
+    if (key === 'base-url') {
+        nextConfig.baseUrl = undefined;
+    } else {
+        nextConfig.marketplaceId = undefined;
+    }
+
+    await saveConfig(paths, nextConfig);
+
+    return {
+        paths,
+        config: nextConfig,
+    };
+};
+
+const failUnsupportedConfigKey = (key: string, fail: CliFail): never => {
+    fail('INVALID_INPUT', 'unsupported config key', {
+        key,
+        supportedKeys: CONFIG_KEYS,
+    });
 };

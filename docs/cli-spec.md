@@ -15,7 +15,8 @@ Canonical release process: `docs/release-runbook.md`.
 
 ## Principles
 
-- Config-first state. No prompts or interactive flows.
+- Config-first state. API/config commands never prompt; `auth set` may prompt only for local
+  secret entry.
 - Resource-first, verb-second command shape.
 - JSON-only output for API/config commands.
 - Text output is reserved for CLI meta commands (`--help`, `--version`, `changelog`).
@@ -47,7 +48,7 @@ Success:
 Failure:
 
 ```json
-{"ok": false, "error": {"code": "MISSING_CONFIG", "message": "license key is required. run `rw auth set <licenseKey>` or set RR_LICENSE_KEY"}}
+{"ok": false, "error": {"code": "MISSING_CONFIG", "message": "license key is required. run `rw auth set`, `rw auth set --stdin`, or set RR_LICENSE_KEY"}}
 ```
 
 `rw --version` prints the installed package version as plain text.
@@ -67,10 +68,12 @@ Supported keys:
 Commands:
 
 - `rw config show`
-- `rw config clear`
+- `rw config get <key>`
 - `rw config set base-url <origin>`
 - `rw config set marketplace <marketplaceId>`
 - `rw config set storage-dir <path>`
+- `rw config unset <key>`
+- `rw config reset`
 
 `base-url` accepts an origin with or without trailing `/api`.
 `storage-dir` resolves to an absolute path, saves globally, and makes that directory the active
@@ -78,6 +81,9 @@ location for CLI config/data on later commands. When switching to a new director
 config values are copied over for any keys the target config does not already define.
 Secrets are not stored in CLI config.
 Environment variables win over saved CLI config for `base-url`, `marketplace`, and `storage-dir`.
+`config show` includes auth source/status metadata without printing secrets.
+`config unset storage-dir` returns the CLI to the default storage directory. `config reset` removes
+non-secret CLI config and the global storage pointer; it does not clear secure-store auth.
 
 ## Auth
 
@@ -86,7 +92,8 @@ License key persistence lives in the platform secure store, not `config.json`.
 Commands:
 
 - `rw auth status`
-- `rw auth set <licenseKey>`
+- `rw auth set [licenseKey]`
+- `rw auth set --stdin`
 - `rw auth clear`
 
 Auth resolution order:
@@ -96,7 +103,8 @@ Auth resolution order:
 - otherwise fail with `MISSING_CONFIG`
 
 `rw auth set` stores the provided key in the platform secure store. If `<licenseKey>` is omitted,
-the command uses `RR_LICENSE_KEY` when present.
+the command reads from `--stdin`, then `RR_LICENSE_KEY`, then an interactive hidden prompt when
+attached to a terminal.
 `rw auth status` returns JSON describing the active source (`env`, `secure-store`, or `none`) and
 the secure-store backend status.
 `rw auth clear` removes the stored key from the secure store.

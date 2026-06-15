@@ -57,13 +57,34 @@ export const loadCliPathsOrDefault = async () => {
     }
 };
 
-export const clearConfig = async (paths: CliPaths) => {
-    await rm(paths.configPath, { force: true });
+export const resetConfig = async (paths: CliPaths) => {
+    await Promise.all([
+        rm(paths.configPath, { force: true }),
+        rm(paths.globalConfigPath, { force: true }),
+        paths.storageDir === paths.defaultStorageDir
+            ? Promise.resolve()
+            : rm(path.join(paths.defaultStorageDir, CONFIG_FILENAME), { force: true }),
+    ]);
+
+    return {
+        paths: getDefaultCliPaths(),
+        config: {},
+    };
 };
 
 export const saveConfig = async (paths: CliPaths, config: CliConfig) => {
     await mkdir(paths.storageDir, { recursive: true });
     await writeFile(paths.configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+};
+
+export const unsetStorageDir = async (paths: CliPaths) => {
+    await rm(paths.globalConfigPath, { force: true });
+    const nextPaths = getDefaultCliPaths();
+
+    return {
+        paths: nextPaths,
+        config: await loadConfig(nextPaths.configPath),
+    };
 };
 
 export const switchStorageDir = async ({

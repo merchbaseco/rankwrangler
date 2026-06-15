@@ -70,10 +70,12 @@ Monorepo containing the RankWrangler server, website, and browser extension.
 - Dashboard, extension, CLI, and agent history routes share one product-history service; auth
   wrappers choose access, not product behavior.
 - Product commands default marketplace to `ATVPDKIKX0DER` and support `--marketplace` / `-m` override.
-- `rw auth set <licenseKey>` stores the license key in the platform secure store; `auth status`
-  and `auth clear` manage that saved auth state.
+- `rw auth set [licenseKey]` stores the license key in the platform secure store; `auth set --stdin`,
+  `auth status`, and `auth clear` manage that saved auth state.
 - `rw config set storage-dir <path>` persists a custom CLI storage directory globally and moves
   config reads/writes there without dropping existing settings.
+- `rw config get <key>`, `rw config unset <key>`, and `rw config reset` inspect or remove
+  non-secret config without touching stored auth.
 - `RR_LICENSE_KEY`, `RR_API_URL`, `RR_MARKETPLACE_ID`, and `RR_STORAGE_DIR` override saved CLI
   state when set for CI, automation, or agent runtimes.
 - Spec: `docs/cli-spec.md`
