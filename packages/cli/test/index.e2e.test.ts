@@ -247,6 +247,29 @@ describe('cli behavior', () => {
         );
     });
 
+    test('requires one ASIN for single-product API commands', () => {
+        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
+        const tempHome = path.join(tempRoot, 'home');
+        const workspaceDir = path.join(tempRoot, 'workspace');
+        mkdirSync(tempHome, { recursive: true });
+        mkdirSync(workspaceDir, { recursive: true });
+        const env = { RR_LICENSE_KEY: 'rrk_test_value' };
+
+        const getFailure = runCliFailure(
+            ['products', 'get', 'B0DV53VS61', 'B0DV53VS62'],
+            { cwd: workspaceDir, home: tempHome, env }
+        );
+        expect(getFailure.error.code).toBe('INVALID_INPUT');
+        expect(getFailure.error.message).toBe('products get requires exactly one asin');
+
+        const summaryFailure = runCliFailure(
+            ['products', 'summary', 'B0DV53VS61', 'B0DV53VS62'],
+            { cwd: workspaceDir, home: tempHome, env }
+        );
+        expect(summaryFailure.error.code).toBe('INVALID_INPUT');
+        expect(summaryFailure.error.message).toBe('products summary requires exactly one asin');
+    });
+
     test('lets RR_STORAGE_DIR override the saved storage dir', () => {
         const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');

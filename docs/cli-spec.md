@@ -111,15 +111,18 @@ the secure-store backend status.
 
 ## API Commands
 
-- `rw products get <ASIN...> [--marketplace <id>|-m <id>]`
+- `rw products get <ASIN> [--metrics <bsr,price>] [--bucket <auto|day|week|month>] [--days <N>|--startAt <ISO> --endAt <ISO>] [--marketplace <id>|-m <id>]`
+- `rw products summary <ASIN> [--marketplace <id>|-m <id>]`
 - `rw products history <ASIN> [--metrics <bsr,price>] [--bucket <auto|day|week|month>] [--days <N>|--startAt <ISO> --endAt <ISO>] [--marketplace <id>|-m <id>]`
 - `rw license status`
 - `rw license validate`
 
-`products get` accepts one or many ASINs and internally chooses the single or batch API call.
+`products get` accepts one ASIN and returns a rich product read with `schemaVersion: 1`, `summary`,
+and default agent history. It ensures product cache and history import before returning when
+history is missing.
+`products summary` accepts one ASIN and returns the cheap product summary only. It does not import
+Keepa history.
 `products history` accepts one ASIN and returns token-efficient metric buckets for agents.
-It ensures product cache and history import before returning; agents do not run a separate
-`products get` or retry loop first.
 Agent history uses `schemaVersion: 2`, `range.bucket`, per-metric `buckets`, and per-metric
 `summary`. It never returns raw point series through the CLI.
 
@@ -150,8 +153,9 @@ Storage directory resolution:
 
 These commands map directly to public API capabilities:
 
-- `products get` -> `api.public.getProductInfo` (one ASIN) or `api.public.getProductInfoBatch` (many ASINs)
-- `products history` -> `api.public.getProductHistory` (`format: "agent"`)
+- `products get` -> `api.public.product.get`
+- `products summary` -> `api.public.product.getSummary`
+- `products history` -> `api.public.product.getHistory` (`format: "agent"`)
 - `license status` -> `api.public.license.status`
 - `license validate` -> `api.public.license.validate`
 

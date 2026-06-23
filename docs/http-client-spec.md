@@ -36,9 +36,11 @@ const client = createRankWranglerClient({
     apiKey: 'rrk_...',
 });
 
-const product = await client.getProductInfo.mutate({
+const product = await client.product.get.mutate({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B0DV53VS61',
+    metrics: ['bsr', 'price'],
+    bucket: 'auto',
 });
 ```
 

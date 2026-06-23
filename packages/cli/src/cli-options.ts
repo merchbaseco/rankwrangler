@@ -28,7 +28,12 @@ const API_SUFFIX_REGEX = /\/api$/i;
 const DEFAULT_MARKETPLACE_ID = 'ATVPDKIKX0DER';
 
 export const requireMarketplaceId = (values: CliOptionValues, config: CliConfig) => {
-    return values.marketplace ?? config.marketplaceId ?? process.env.RR_MARKETPLACE_ID ?? DEFAULT_MARKETPLACE_ID;
+    return (
+        values.marketplace ??
+        config.marketplaceId ??
+        process.env.RR_MARKETPLACE_ID ??
+        DEFAULT_MARKETPLACE_ID
+    );
 };
 
 export const requireAsins = (commandArgs: string[], values: CliOptionValues, fail: CliFail) => {
@@ -46,11 +51,12 @@ export const requireAsins = (commandArgs: string[], values: CliOptionValues, fai
 export const requireSingleAsin = (
     commandArgs: string[],
     values: CliOptionValues,
-    fail: CliFail
+    fail: CliFail,
+    commandName = 'products history'
 ) => {
     const asins = requireAsins(commandArgs, values, fail);
     if (asins.length !== 1) {
-        fail('INVALID_INPUT', 'products history requires exactly one asin');
+        fail('INVALID_INPUT', `${commandName} requires exactly one asin`);
     }
 
     return asins[0];
@@ -66,7 +72,9 @@ export const resolveHistoryMetrics = (values: CliOptionValues, fail: CliFail) =>
         fail('INVALID_INPUT', 'metrics cannot be empty');
     }
 
-    const invalid = requested.filter(value => !HISTORY_METRIC_ALIASES.includes(value as HistoryMetricAlias));
+    const invalid = requested.filter(
+        value => !HISTORY_METRIC_ALIASES.includes(value as HistoryMetricAlias)
+    );
     if (invalid.length > 0) {
         fail('INVALID_INPUT', `unsupported history metric: ${invalid[0]}`, {
             supportedMetrics: HISTORY_METRIC_ALIASES,
@@ -116,7 +124,10 @@ export const resolveBaseUrl = (
     defaultBaseUrl: string,
     fail: CliFail
 ) => {
-    return normalizeBaseUrl(values.baseUrl ?? config.baseUrl ?? process.env.RR_API_URL ?? defaultBaseUrl, fail);
+    return normalizeBaseUrl(
+        values.baseUrl ?? config.baseUrl ?? process.env.RR_API_URL ?? defaultBaseUrl,
+        fail
+    );
 };
 
 export const normalizeBaseUrl = (value: string, fail: CliFail) => {

@@ -8,7 +8,6 @@ import { runConfigCommand } from './cli-config-command';
 import { loadCliContext, loadCliPathsOrDefault, type CliConfig } from './cli-config';
 import {
     parseIntegerOption,
-    requireAsins,
     requireMarketplaceId,
     requireSingleAsin,
     resolveBaseUrl,
@@ -33,6 +32,7 @@ type CliMetaCommand = {
 
 const SUPPORTED_COMMANDS = new Set([
     'products:get',
+    'products:summary',
     'products:history',
     'license:status',
     'license:validate',
@@ -127,15 +127,11 @@ const runApiCommand = async (
     config: CliConfig
 ) => {
     if (command.resource === 'products' && command.verb === 'get') {
-        const optionValues = values as CliOptionValues;
-        const marketplaceId = requireMarketplaceId(optionValues, config);
-        const asins = requireAsins(command.args, optionValues, fail);
+        return runProductGetCommand(command, client, config);
+    }
 
-        if (asins.length === 1) {
-            return client.getProductInfo.mutate({ marketplaceId, asin: asins[0] });
-        }
-
-        return client.getProductInfoBatch.mutate({ marketplaceId, asins });
+    if (command.resource === 'products' && command.verb === 'summary') {
+        return runProductSummaryCommand(command, client, config);
     }
 
     if (command.resource === 'products' && command.verb === 'history') {
@@ -155,13 +151,13 @@ const runApiCommand = async (
     });
 };
 
-const runProductHistoryCommand = async (
+const runProductGetCommand = async (
     command: CliCommand,
     client: ReturnType<typeof createRankWranglerClient>,
     config: CliConfig
 ) => {
     const optionValues = values as CliOptionValues;
-    const asin = requireSingleAsin(command.args, optionValues, fail);
+    const asin = requireSingleAsin(command.args, optionValues, fail, 'products get');
     const marketplaceId = requireMarketplaceId(optionValues, config);
     const metrics = resolveHistoryMetrics(optionValues, fail);
     const bucket = resolveHistoryBucket(optionValues, fail);
@@ -177,7 +173,51 @@ const runProductHistoryCommand = async (
         fail
     );
 
-    const response = await client.getProductHistory.mutate({
+    return await client.product.get.mutate({
+        marketplaceId,
+        asin,
+        metrics,
+        bucket,
+        limit,
+        ...historyWindow,
+    });
+};
+
+const runProductSummaryCommand = async (
+    command: CliCommand,
+    client: ReturnType<typeof createRankWranglerClient>,
+    config: CliConfig
+) => {
+    const optionValues = values as CliOptionValues;
+    const asin = requireSingleAsin(command.args, optionValues, fail, 'products summary');
+    const marketplaceId = requireMarketplaceId(optionValues, config);
+
+    return await client.product.getSummary.mutate({ marketplaceId, asin });
+};
+
+const runProductHistoryCommand = async (
+    command: CliCommand,
+    client: ReturnType<typeof createRankWranglerClient>,
+    config: CliConfig
+) => {
+    const optionValues = values as CliOptionValues;
+    const asin = requireSingleAsin(command.args, optionValues, fail, 'products history');
+    const marketplaceId = requireMarketplaceId(optionValues, config);
+    const metrics = resolveHistoryMetrics(optionValues, fail);
+    const bucket = resolveHistoryBucket(optionValues, fail);
+    const historyWindow = resolveHistoryWindow(optionValues, fail);
+    const limit = parseIntegerOption(
+        {
+            value: optionValues.limit,
+            optionName: 'limit',
+            min: 1,
+            max: 10000,
+            defaultValue: 5000,
+        },
+        fail
+    );
+
+    const response = await client.product.getHistory.mutate({
         marketplaceId,
         asin,
         metrics,

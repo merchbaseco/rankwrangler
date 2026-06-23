@@ -34,7 +34,7 @@ export async function handleFetchProductHistory(
 			apiKey: activeLicenseKey,
 		});
 
-		const response = await apiClient.getProductHistory.mutate({
+		const response = await apiClient.product.getHistory.mutate({
 			asin: message.asin,
 			marketplaceId: message.marketplaceId,
 			limit: 5000,

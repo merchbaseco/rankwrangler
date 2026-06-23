@@ -1,33 +1,43 @@
 # API Examples (curl)
 
-## Public: Product Info
+## Public: Product Get
 
 ```bash
-curl -s -X POST http://localhost:8080/api/api.public.getProductInfo \
+curl -s -X POST http://localhost:8080/api/api.public.product.get \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $RR_LICENSE_KEY" \
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","metrics":["bsr","price"],"bucket":"auto","days":365}}'
+```
+
+`api.public.product.get` behavior:
+
+- Returns `schemaVersion: 1`, `summary`, and bucketed agent `history`.
+- Ensures product cache exists.
+- If history is missing, runs manual history sync before returning.
+- If summary succeeds but history fails, returns `status: "partial"` with `history.status: "error"`.
+
+## Public: Product Summary
+
+```bash
+curl -s -X POST http://localhost:8080/api/api.public.product.getSummary \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $RR_LICENSE_KEY" \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'
 ```
 
-## Public: Product Info Batch
-
-```bash
-curl -s -X POST http://localhost:8080/api/api.public.getProductInfoBatch \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $RR_LICENSE_KEY" \
-  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asins":["B0DV53VS61","B0DV53VS62"]}}'
-```
+`api.public.product.getSummary` returns the cheap product summary only. It does not import Keepa
+history.
 
 ## Public: Product History (BSR)
 
 ```bash
-curl -s -X POST http://localhost:8080/api/api.public.getProductHistory \
+curl -s -X POST http://localhost:8080/api/api.public.product.getHistory \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $RR_LICENSE_KEY" \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","limit":1000,"days":365}}'
 ```
 
-`api.public.getProductHistory` behavior:
+`api.public.product.getHistory` behavior:
 
 - Default legacy format returns Keepa `bsrMain` points from `product_history_points`.
 - Ensures product cache exists before querying history.

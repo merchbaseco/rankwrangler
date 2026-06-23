@@ -19,6 +19,7 @@ rw config set storage-dir ~/.config/rankwrangler
 rw config get marketplace
 rw config unset marketplace
 rw products get B0DV53VS61
+rw products summary B0DV53VS61
 rw products history B0DV53VS61 --metrics bsr,price --bucket week
 RR_LICENSE_KEY=rrk_... rw license status
 # `rankwrangler` is also supported as an alias
@@ -35,8 +36,9 @@ existing config values when switching. `rw config get <key>`, `rw config unset <
 `rw config reset` inspect or remove non-secret config without touching stored auth.
 `RR_LICENSE_KEY`, `RR_STORAGE_DIR`, `RR_API_URL`, and `RR_MARKETPLACE_ID` override saved CLI state
 when set for CI, automation, or agent runtimes.
-`rw products history` ensures product/history data before returning bucketed history (`auto`,
-`day`, `week`, or `month`), not raw point series. `rw --version` prints the installed CLI version.
+`rw products get` returns product summary plus bucketed agent history. `rw products summary`
+returns the cheap summary only. `rw products history` returns bucketed history (`auto`, `day`,
+`week`, or `month`), not raw point series. `rw --version` prints the installed CLI version.
 `rw changelog` prints the latest bundled release notes shipped with the package.
 
 ## Development

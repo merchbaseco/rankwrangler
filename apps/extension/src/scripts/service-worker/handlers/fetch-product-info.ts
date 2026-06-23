@@ -35,7 +35,7 @@ export async function handleFetchProductInfo(
 			apiKey: activeLicenseKey,
 		});
 
-		const response = await apiClient.getProductInfo.mutate({
+		const response = await apiClient.product.getSummary.mutate({
 			asin: message.asin,
 			marketplaceId: message.marketplaceId,
 		});

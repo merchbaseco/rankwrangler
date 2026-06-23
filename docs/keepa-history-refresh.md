@@ -48,11 +48,13 @@ Eligibility is evaluated from the cached `products` table.
 
 Plain-English behavior:
 
-- Product lookup still stores SP-API category/BSR data for any category when available.
-- Product lookup does not enqueue Keepa history refresh.
+- `api.public.product.getSummary` stores SP-API category/BSR data for any category when available.
+- Summary lookup does not enqueue or import Keepa history.
+- `api.public.product.get` and history routes can import Keepa history on demand.
 - Non-merch ASINs are never Keepa-enqueued.
 - Merch ASINs with missing BSR are not Keepa-enqueued.
-- Non-eligible ASINs can still load Keepa history through history routes and manual dashboard sync.
+- Non-eligible ASINs can still load Keepa history through rich product/history routes and manual
+  dashboard sync.
 
 ## Global 24h Keepa Guard
 
@@ -68,6 +70,7 @@ That function enforces a strict rule:
 This applies equally to:
 
 - Manual dashboard requests (`api.app.loadProductHistory`)
+- Public rich/history requests (`api.public.product.get`, `api.public.product.getHistory`)
 - Background refresh jobs
 
 ## Queueing Flow
@@ -76,9 +79,9 @@ Queue table: `keepa_history_refresh_queue`
 
 - ASINs are queued from:
   - scheduled Keepa cadence scan (`enqueue-scheduled-keepa-history-refresh`) for `<1M` merch BSR.
-- Product lookup does not write to `keepa_history_refresh_queue`.
-- History routes and manual dashboard sync do not write to `keepa_history_refresh_queue`; they call
-  the manual Keepa loader path directly.
+- Product summary lookup does not write to `keepa_history_refresh_queue`.
+- Rich product reads, history routes, and manual dashboard sync do not write to
+  `keepa_history_refresh_queue`; they call the manual Keepa loader path directly.
 - Queue insert is deduplicated by `(marketplace_id, asin)`.
 - Scheduled candidate scan excludes ASINs already present in `keepa_history_refresh_queue` so
   the hourly scan limit is spent on new stale candidates rather than queued duplicates.
@@ -125,7 +128,7 @@ Queue table: `keepa_history_refresh_queue`
 - First successful import fetches up to 3650 days.
 - Follow-up imports use a rolling window based on staleness (minimum 30 days, with buffer).
 - Removes the ASIN from queue after the attempt (success or failure).
-- A future refresh requires a new enqueue trigger (product lookup flow or dashboard history modal).
+- A future refresh requires a new scheduled enqueue or an on-demand rich product/history request.
 
 ## Manual Requests
 
@@ -133,6 +136,7 @@ Queue table: `keepa_history_refresh_queue`
 - While that stale refresh is in-flight, the modal keeps rendering existing history points and swaps to new
   points after sync completion.
 - Manual dashboard requests use high-priority Keepa queueing.
+- Public rich product and history requests use the same manual Keepa loader path.
 - HTTP request stays open for up to 2 minutes and retries on retryable Keepa failures.
 - Retry policy uses exponential backoff within the 2-minute window.
 - If retries never succeed within 2 minutes, API returns `TIMEOUT`.

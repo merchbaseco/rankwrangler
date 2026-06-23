@@ -34,5 +34,6 @@
 - Auto enqueue is scheduled for `<1M` merch BSR:
   - merch BSR <300k: automatic daily schedule
   - merch BSR 300k to <1M: automatic weekly schedule
-  - merch BSR >=1M: on-demand via `getProductInfo`
+  - merch BSR >=1M: on-demand via `api.public.product.get`,
+    `api.public.product.getHistory`, or dashboard manual sync
   - non-merch or merch missing BSR: no Keepa sync

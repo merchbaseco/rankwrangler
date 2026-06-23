@@ -10,6 +10,24 @@ export interface ClerkUser {
 	sub: string;
 	email?: string;
 }
+export type ProductInfo = {
+	asin: string;
+	marketplaceId: string;
+	dateFirstAvailable: string | null;
+	title: string | null;
+	brand: string | null;
+	isMerchListing: boolean;
+	bullet1: string | null;
+	bullet2: string | null;
+	rootCategoryId: number | null;
+	rootCategoryBsr: number | null;
+	rootCategoryDisplayName: string | null;
+	thumbnailUrl?: string;
+	metadata: {
+		lastFetched: string;
+		cached: boolean;
+	};
+};
 declare const productHistoryBuckets: readonly [
 	"auto",
 	"day",
@@ -63,23 +81,29 @@ export type AgentHistoryResponse = {
 	};
 	series: AgentHistorySeries;
 };
-export type ProductInfo = {
-	asin: string;
-	marketplaceId: string;
-	dateFirstAvailable: string | null;
-	title: string | null;
-	brand: string | null;
-	isMerchListing: boolean;
-	bullet1: string | null;
-	bullet2: string | null;
-	rootCategoryId: number | null;
-	rootCategoryBsr: number | null;
-	rootCategoryDisplayName: string | null;
-	thumbnailUrl?: string;
-	metadata: {
-		lastFetched: string;
-		cached: boolean;
+export type ProductHistoryError = {
+	schemaVersion: 2;
+	status: "error";
+	latestImportAt: null;
+	syncTriggered: false;
+	range: {
+		startAt: string;
+		endAt: string;
+		bucket: "day" | "week" | "month";
 	};
+	series: {};
+	error: {
+		code: string;
+		message: string;
+	};
+};
+export type ProductReadModel = {
+	schemaVersion: 1;
+	marketplaceId: string;
+	asin: string;
+	status: "ready" | "partial";
+	summary: ProductInfo;
+	history: AgentHistoryResponse | ProductHistoryError;
 };
 export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 	ctx: {
@@ -171,87 +195,107 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 			errorShape: import("@trpc/server").TRPCDefaultErrorShape;
 			transformer: false;
 		}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
-			getProductHistory: import("@trpc/server").TRPCMutationProcedure<{
-				input: {
-					marketplaceId: string;
-					asin: string;
-					startAt?: unknown;
-					endAt?: unknown;
-					limit?: unknown;
-					days?: unknown;
-					metrics?: ("bsr" | "price")[] | undefined;
-					format?: "legacy" | "agent" | undefined;
-					bucket?: "auto" | "day" | "week" | "month" | undefined;
-				};
-				output: AgentHistoryResponse | {
-					syncTriggered: boolean;
-					marketplaceId: string;
-					asin: string;
-					metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
-					latestImportAt: string | null;
-					categoryNames: {
-						[x: string]: string;
+			product: import("@trpc/server").TRPCBuiltRouter<{
+				ctx: {
+					user: ClerkUser;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					license: {
+						key: string;
+						data: LicenseUsageData | undefined;
 					};
-					points: {
-						categoryId: number;
-						categoryName: string;
-						observedAt: string;
-						keepaMinutes: number;
-						value: number | null;
-						isMissing: boolean;
-					}[];
+					licenseError: undefined;
+					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
 				} | {
-					marketplaceId: string;
-					asin: string;
-					metric: "bsrMain";
-					latestImportAt: string | null;
-					categoryNames: Record<string, string>;
-					points: {
-						categoryId: number;
-						categoryName: string | null;
-						observedAt: string;
-						keepaMinutes: number;
-						value: number | null;
-						isMissing: boolean;
-					}[];
-					collecting: boolean;
-					syncTriggered: boolean;
+					user: null;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					license: null;
+					licenseError: string | undefined;
+					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+				} | {
+					user: ClerkUser;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					license: null;
+					licenseError: undefined;
+					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
 				};
 				meta: object;
-			}>;
-			getProductInfoBatch: import("@trpc/server").TRPCMutationProcedure<{
-				input: {
-					marketplaceId: string;
-					asins: string[];
-				};
-				output: {
-					marketplaceId: string;
-					items: ({
+				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
+				transformer: false;
+			}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+				get: import("@trpc/server").TRPCMutationProcedure<{
+					input: {
+						marketplaceId: string;
 						asin: string;
-						success: true;
-						data: ProductInfo;
-					} | {
-						asin: string;
-						success: false;
-						error: string;
-						code: "UNAUTHORIZED" | "PARSE_ERROR" | "BAD_REQUEST" | "INTERNAL_SERVER_ERROR" | "NOT_IMPLEMENTED" | "BAD_GATEWAY" | "SERVICE_UNAVAILABLE" | "GATEWAY_TIMEOUT" | "PAYMENT_REQUIRED" | "FORBIDDEN" | "NOT_FOUND" | "METHOD_NOT_SUPPORTED" | "TIMEOUT" | "CONFLICT" | "PRECONDITION_FAILED" | "PAYLOAD_TOO_LARGE" | "UNSUPPORTED_MEDIA_TYPE" | "UNPROCESSABLE_CONTENT" | "PRECONDITION_REQUIRED" | "TOO_MANY_REQUESTS" | "CLIENT_CLOSED_REQUEST";
-					})[];
-					meta: {
-						requestedCount: number;
-						successCount: number;
-						errorCount: number;
+						startAt?: unknown;
+						endAt?: unknown;
+						limit?: unknown;
+						days?: unknown;
+						metrics?: ("bsr" | "price")[] | undefined;
+						bucket?: "auto" | "day" | "week" | "month" | undefined;
 					};
-				};
-				meta: object;
-			}>;
-			getProductInfo: import("@trpc/server").TRPCMutationProcedure<{
-				input: {
-					marketplaceId: string;
-					asin: string;
-				};
-				output: ProductInfo;
-				meta: object;
-			}>;
+					output: ProductReadModel;
+					meta: object;
+				}>;
+				getSummary: import("@trpc/server").TRPCMutationProcedure<{
+					input: {
+						marketplaceId: string;
+						asin: string;
+					};
+					output: ProductInfo;
+					meta: object;
+				}>;
+				getHistory: import("@trpc/server").TRPCMutationProcedure<{
+					input: {
+						marketplaceId: string;
+						asin: string;
+						startAt?: unknown;
+						endAt?: unknown;
+						limit?: unknown;
+						days?: unknown;
+						metrics?: ("bsr" | "price")[] | undefined;
+						bucket?: "auto" | "day" | "week" | "month" | undefined;
+						format?: "legacy" | "agent" | undefined;
+					};
+					output: AgentHistoryResponse | {
+						syncTriggered: boolean;
+						marketplaceId: string;
+						asin: string;
+						metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
+						latestImportAt: string | null;
+						categoryNames: {
+							[x: string]: string;
+						};
+						points: {
+							categoryId: number;
+							categoryName: string;
+							observedAt: string;
+							keepaMinutes: number;
+							value: number | null;
+							isMissing: boolean;
+						}[];
+					} | {
+						marketplaceId: string;
+						asin: string;
+						metric: "bsrMain";
+						latestImportAt: string | null;
+						categoryNames: Record<string, string>;
+						points: {
+							categoryId: number;
+							categoryName: string | null;
+							observedAt: string;
+							keepaMinutes: number;
+							value: number | null;
+							isMissing: boolean;
+						}[];
+						collecting: boolean;
+						syncTriggered: boolean;
+					};
+					meta: object;
+				}>;
+			}>>;
 			dev: import("@trpc/server").TRPCBuiltRouter<{
 				ctx: {
 					user: ClerkUser;

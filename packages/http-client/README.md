@@ -18,9 +18,11 @@ const client = createRankWranglerClient({
   apiKey: 'rrk_...'
 });
 
-const product = await client.getProductInfo.mutate({
+const product = await client.product.get.mutate({
   marketplaceId: 'ATVPDKIKX0DER',
-  asin: 'B0DV53VS61'
+  asin: 'B0DV53VS61',
+  metrics: ['bsr', 'price'],
+  bucket: 'auto'
 });
 ```
 
@@ -31,8 +33,8 @@ The client is scoped to the public surface (`api.public.*`) so it stays aligned 
 ```ts
 import type { PublicRouterInputs, PublicRouterOutputs } from '@rankwrangler/http-client';
 
-type GetProductInput = PublicRouterInputs['getProductInfo'];
-type GetProductOutput = PublicRouterOutputs['getProductInfo'];
+type GetProductInput = PublicRouterInputs['product']['get'];
+type GetProductOutput = PublicRouterOutputs['product']['get'];
 ```
 
 ## Maintenance

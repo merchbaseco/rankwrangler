@@ -42,9 +42,9 @@ Router layout:
 
 ## Public Procedures
 
-- `api.public.getProductHistory`
-- `api.public.getProductInfo`
-- `api.public.getProductInfoBatch`
+- `api.public.product.get`
+- `api.public.product.getSummary`
+- `api.public.product.getHistory`
 - `api.public.license.validate`
 - `api.public.license.status`
 

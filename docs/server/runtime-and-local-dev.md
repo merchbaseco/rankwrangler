@@ -63,7 +63,8 @@ DISABLE_SERVER_JOB_RUNNER=false bun run server:dev
 - `bun run start` – run compiled server
 - `bun run dev` – run server with `DISABLE_SERVER_JOB_RUNNER=true` by default
 - `bun run dev:jobs` – run server with local job workers enabled
-- `bun run cli -- products get <ASIN...> --marketplace <id>` – product lookup
+- `bun run cli -- products get <ASIN> --marketplace <id>` – rich product lookup
+- `bun run cli -- products summary <ASIN> --marketplace <id>` – cheap product summary
 - `bun run cli -- license status` – license usage/limit snapshot
 - `bun run cli -- config set api-key <value>` – configure CLI defaults
 - `./test-api.sh` – smoke test health + public/app API auth
