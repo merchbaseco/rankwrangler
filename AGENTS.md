@@ -5,10 +5,11 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 ## Architecture Quick Map
 
 - Monorepo with server in `apps/server`.
-- Server runtime: Fastify + TypeScript (Node 18, Vite build).
+- Server runtime: Fastify + TypeScript, built with Vite in a Bun workspace.
 - Entry point: `apps/server/src/index.ts`.
 - Database: PostgreSQL + Drizzle.
-- Schema source of truth: `apps/server/src/db/schema.ts`.
+- Schema sources: `apps/server/src/db/schema.ts`, `ops-schema.ts`, and
+  `top-search-terms-schema.ts`.
 - SQL migrations: `apps/server/drizzle/`.
 - Fresh-stack bootstrap SQL: `apps/server/init.sql`.
 - Environment validation: `apps/server/src/config/env.ts`.
@@ -17,7 +18,8 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 ## Always-On Rules
 
 1. Keep TypeScript strictness and Biome formatting intact (`biome.json`: 4 spaces, single quotes, semicolons, 100-char lines).
-2. Do not create migration files manually. Update `schema.ts`, then ask the user to run `bunx drizzle-kit generate`.
+2. Do not create migration files manually. Update the owning schema module, then ask the user to
+   run `bunx drizzle-kit generate`.
 3. When schema changes are generated, keep `apps/server/init.sql` in sync.
 4. Keep source files at 300 lines max unless the user explicitly approves an exception.
 5. Update `README.md` and tests (`test-api.sh` and/or automated tests) when behavior changes.
@@ -35,7 +37,7 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 13. For release bumps, always use repo scripts (`bun run release:bump ...`, then
     `bun run release:check`, `bun run cli:build`, `bun run release:check-cli-pack`) instead of
     manual version edits; do not maintain a persistent `## Unreleased` changelog section. When the
-    user says `do a version bump`, follow `docs/ai-commands/version-bump/README.md` and complete
+    user says `do a version bump`, follow `docs/operations/releases.md` and complete
     the full release flow, including publish, unless the user explicitly scopes it down.
 
 ## API + Code Design
@@ -103,35 +105,22 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 - Primary theme is dark near-black (`--primary: #141210`); reserve sage green for chart data.
 - If a reusable color is missing, add a token to `global.css`.
 
-## Critical Domain Invariants
-
-### BSR date boundaries (US marketplace)
-
-- Use Pacific day boundaries (`America/Los_Angeles`) for `product_rank_history` date keys.
-- Always use `getPacificDateString()` from `apps/server/src/utils/date.ts`.
-- Never use UTC date extraction like `new Date().toISOString().split('T')[0]` for rank history dates.
-
-### Product cache vs daily rank history
-
-- Product cache can exist indefinitely.
-- Rank history must contain an entry for **today's Pacific date**.
-- If product cache exists but today's Pacific rank record is missing, fetch fresh data and treat it as a cache miss for rank capture.
-
 ## Process Playbook Index
 
 Open these only when the task needs that specific workflow:
 
-- Server documentation index: `docs/server/index.md`
-- Local/dev commands, env setup, extension build order, deployment: `docs/operations-runbook.md`
-- Extension UI preview workflow + maintenance: `docs/extension-ui-preview.md`
-- CI troubleshooting workflow (GitHub-first, no ad-hoc installs): `docs/ci-troubleshooting.md`
-- Production DB access and safety workflow: `docs/database-queries.md`
-- Release/version bump/publish workflow: `docs/release-runbook.md`
-- AI command workflow for `do a version bump`: `docs/ai-commands/version-bump/README.md`
-- Browser verification workflow (when requested): `docs/ui-testing-workflow.md`
-- Keepa refresh system behavior: `docs/keepa-history-refresh.md`
-- Public typed client reference: `docs/http-client-spec.md`
-- CLI behavior and release expectations: `docs/cli-spec.md`
+- Run `bun run docs:list` at task start and read matching `read_when` hints.
+- Documentation index and routing policy: `docs/README.md`, `docs/docs-policy.md`
+- Local development and deployment: `docs/operations/development.md`,
+  `docs/operations/deployment.md`
+- Extension UI preview and browser verification: `docs/operations/extension-preview.md`,
+  `docs/operations/ui-verification.md`
+- CI and production database safety: `docs/operations/ci-troubleshooting.md`,
+  `docs/operations/database-queries.md`
+- Release and npm publishing: `docs/operations/releases.md`,
+  `docs/operations/npm-packages.md`
+- Keepa refresh: `docs/internals/keepa-refresh.md`, `docs/operations/keepa-refresh.md`
+- Public client and CLI: `docs/reference/http-client.md`, `docs/reference/cli.md`
 
 ## Maintenance Boundary
 

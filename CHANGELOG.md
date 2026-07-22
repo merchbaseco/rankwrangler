@@ -220,4 +220,5 @@ All notable changes to this project will be documented in this file.
 
 - Rename and standardize the typed npm client package to `@merchbase/rankwrangler-http-client`.
 - Set initial HTTP client package release to `0.1.0` in `packages/http-client/package.json`.
-- Document npm publish and versioning policy for the typed HTTP client in `docs/http-client-spec.md`.
+- Document npm publish and versioning policy for the typed HTTP client; the current owner is
+  `docs/reference/http-client.md`.

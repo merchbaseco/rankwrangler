@@ -41,7 +41,7 @@ bun run --filter rankwrangler-extension build
 
 ## UI Preview Maintenance
 
-- Canonical workflow doc: `docs/extension-ui-preview.md`
+- Canonical workflow doc: `../../docs/operations/extension-preview.md`
 - When popup/content/options/install UI changes, update preview surfaces in the same PR.
 
 ## Architecture Notes

@@ -48,30 +48,8 @@ bun run cli:build
 bun run cli:test:e2e
 ```
 
-## Release (Maintainers)
+## Maintainers
 
-From repo root:
-
-```bash
-bun run release:bump patch
-bun install
-bun run release:collect-changelog-context
-# draft CHANGELOG.md entry from commit context
-bun run release:check
-bun run cli:build
-bun run release:check-cli-pack
-```
-
-Then publish:
-
-Publish `packages/http-client` first. `packages/cli` now fails fast on `npm publish` until the
-matching `@rankwrangler/http-client` version is already available on npm.
-
-```bash
-cd packages/cli
-node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
-node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
-```
-
-On macOS, the helper reads `NPM_TOKEN` from the environment first and otherwise falls back to the
-Keychain item `rankwrangler-npm-token` for account `$USER`.
+See the repository [CLI reference](../../docs/reference/cli.md),
+[release workflow](../../docs/operations/releases.md), and
+[npm publishing workflow](../../docs/operations/npm-packages.md).

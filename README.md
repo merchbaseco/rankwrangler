@@ -1,136 +1,78 @@
 # RankWrangler
 
-Monorepo containing the RankWrangler server, website, and browser extension.
+RankWrangler is an Amazon product intelligence catalog for Merch sellers, automation, and agents.
+It collects source-attributed Product data, preserves rank and price history, exposes search-term
+datasets, and makes the same canonical records available through a dashboard, browser extension,
+CLI, and typed API.
 
-## Apps
+RankWrangler provides inspectable data and primitives. It does not hide the catalog behind a
+magical "find opportunities" score.
 
-- `apps/server` – Fastify-based tRPC API for Amazon SP-API integration
-  - SP-API sync treats missing catalog payloads as product removals, logs `product.deleted`,
-    and deletes the corresponding row from `products`
-  - Keepa sync policy is BSR-tiered for merch (`<300k` automatic daily, `<1M` automatic weekly,
-    `>=1M` on-demand), with a strict global minimum 24h fetch gap per ASIN
-  - Automatic background jobs use pg-boss persisted schedules (cron-backed), not in-process
-    timers, so cadence survives deploy restarts
-  - BA Top Search Terms ingestion is intentionally single-flight (one BA dataset report at a time)
-    and uses async 15-minute report-status checks (with 3-hour pending timeout) to keep SP-API
-    backfill throughput stable;
-    scheduler runs every 5 minutes and prioritizes earliest due `next_refresh_at` to avoid
-    dataset starvation while respecting BA's per-window availability delay before requesting
-    recent daily/weekly reports;
-    weekly windows use Sunday-Saturday boundaries to match SP-API requirements;
-    merch filtering keeps broad gift intent and generic `phone case` / `popsocket` product types,
-    while blocking branded/model-specific accessory variants, school commodity terms, expanded
-    seasonal non-PoD terms, and broader brand/IP leakage
-  - Product facets are AI-classified asynchronously (Gemini 2.5 Flash Lite) into normalized
-    facet categories for dashboard filtering, and can be manually triggered per product from
-    the product drawer
-- `apps/website` – Dashboard for API keys, usage, recent products, Logs, and admin metrics
-  pages for Keepa/SP-API/facets/Top Search Terms operations
-  - Product facet sidebar filters are sourced from canonical assigned facet values in the server
-    response (not only from currently loaded table rows)
-  - Product side drawer header displays assigned facets as badges
-  - Search Terms tab supports `Latest day`, `Last complete week`, and custom date-window views;
-    custom windows must be either a single day or a Sunday-Saturday week to map to stored
-    Top Search Terms datasets
-  - Keepa job success/failure metrics and filtered tables include both
-    `fetch-keepa-history-for-asin` and `enqueue-scheduled-keepa-history-refresh`
-  - Scheduled Keepa enqueue executions persist successful no-op runs, so admin job history
-    reflects scheduler heartbeats instead of only enqueue-active runs
-- `apps/extension` – Chrome extension
+## Capabilities
 
-## Packages
+- Browse and filter canonical Products by title, brand, ASIN, marketplace, BSR, freshness, and
+  classified niche.
+- Load Product summaries and event-based BSR/price history sourced from Amazon SP-API and Keepa.
+- Explore Amazon Brand Analytics Top Search Terms across daily, weekly, and custom windows.
+- Discover Products while browsing Amazon with the Chrome or Safari extension.
+- Inspect structured activity and provider health from the operator dashboard.
+- Access the public license-authenticated surface from `rw` or `@rankwrangler/http-client`.
 
-- `packages/http-client` – Typed tRPC client + public API types for extension/CLI
-- `packages/cli` – Publishable CLI package (`@rankwrangler/cli`)
-- `packages/history-chart` – Shared Recharts history chart + range-selection logic used by website + extension
+Amazon catalog search is an [accepted target capability](docs/product/catalog-search.md): a query
+returns ranked external observations, reconciles Products into the canonical catalog, and retains
+the search snapshot without creating an opaque recommendation engine.
 
-## API Design
+## Use RankWrangler
 
-- All API surfaces are tRPC (no REST).
-- Public surface: `api.public.*` (license key auth).
-- App surface: `api.app.*` (Clerk auth).
-- Dev automation helper: `api.public.dev.createClerkSignInToken` (localhost + non-production only).
-- Generating a license rotates that email to a single active key by deleting older license rows
-  before inserting the new key.
-- Shared behavior should live in utilities/libs, then be used by both routers.
-- Each tRPC procedure lives in its own file under `apps/server/src/api/public` or `apps/server/src/api/app`.
+The authenticated dashboard is served at
+[rankwrangler.merchbase.co](https://rankwrangler.merchbase.co).
 
-## CLI
-
-- npm package: `@rankwrangler/cli`
-- Install globally: `npm install -g @rankwrangler/cli`
-- Build locally: `bun run cli:build`
-- Binaries: `rw` (primary), `rankwrangler` (alias)
-- The CLI uses `@rankwrangler/http-client` and the same `api.public.*` surface as HTTP clients.
-- Command shape is resource-first (`products get`, `license status`).
-- Meta commands: `rw --version` prints the installed CLI version and `rw changelog` prints the
-  latest bundled release notes.
-- Product command: `products get <ASIN>` returns the product summary plus bucketed agent history.
-- Summary command: `products summary <ASIN>` returns the cheap product summary only.
-- History command: `products history <ASIN>` returns bucketed agent history
-  (`--metrics bsr,price`, `--bucket auto|day|week|month`).
-- Dashboard, extension, CLI, and agent history routes share one product-history service; auth
-  wrappers choose access, not product behavior.
-- Product commands default marketplace to `ATVPDKIKX0DER` and support `--marketplace` / `-m` override.
-- `rw auth set [licenseKey]` stores the license key in the platform secure store; `auth set --stdin`,
-  `auth status`, and `auth clear` manage that saved auth state.
-- `rw config set storage-dir <path>` persists a custom CLI storage directory globally and moves
-  config reads/writes there without dropping existing settings.
-- `rw config get <key>`, `rw config unset <key>`, and `rw config reset` inspect or remove
-  non-secret config without touching stored auth.
-- `RR_LICENSE_KEY`, `RR_API_URL`, `RR_MARKETPLACE_ID`, and `RR_STORAGE_DIR` override saved CLI
-  state when set for CI, automation, or agent runtimes.
-- Spec: `docs/cli-spec.md`
-- Release workflow: `docs/cli-spec.md`
-
-## HTTP Client
-
-- npm package: `@rankwrangler/http-client`
-- Build: `bun run http-client:build`
-- Publish guide: `docs/http-client-spec.md`
-
-## Tooling
-
-- Bun workspaces (`package.json` at repo root)
-
-## Extension UI Preview
-
-Use this to preview extension UI surfaces locally without rebuilding/reloading
-Chrome:
+Install the CLI:
 
 ```bash
-bun run preview:chrome
+npm install -g @rankwrangler/cli
+rw auth set
+rw products summary B0XXXXXXXX
+rw products history B0XXXXXXXX --metrics bsr,price --bucket auto
 ```
 
-## Release
+For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
+public API uses license keys; dashboard procedures use Clerk sessions.
 
-- Canonical runbook: `docs/release-runbook.md`
-- One-command bump: `bun run release:bump patch` (or `minor` / `major` / explicit `X.Y.Z`)
-- AI command (`do a version bump`): `docs/ai-commands/version-bump/README.md`
-- Changelog context export: `bun run release:collect-changelog-context`
-- Release integrity checks: `bun run release:check && bun run cli:build && bun run release:check-cli-pack`
-- npm publish order is enforced: publish `@rankwrangler/http-client` first, then `@rankwrangler/cli`
-- Local macOS publishes can resolve `NPM_TOKEN` from Keychain via `scripts/release/with-npm-token.mjs`
-- Tag push (`vX.Y.Z`) publishes GitHub release notes from the matching `CHANGELOG.md` entry
-- Pushes to `main` trigger the self-hosted deploy workflow, which hard-resets the deployment
-  checkout to the pushed commit before rebuilding Docker services
+## Repository
 
-## Quick Start
+| Path | Ownership |
+| --- | --- |
+| `apps/server` | Fastify/tRPC API, PostgreSQL/Drizzle persistence, providers, jobs, and events. |
+| `apps/website` | Clerk-authenticated catalog and operator dashboard. |
+| `apps/extension` | Chrome and Safari Amazon-page observation and Product UI. |
+| `packages/cli` | Agent- and automation-friendly `rw` commands. |
+| `packages/http-client` | Typed public tRPC client and API types. |
+| `packages/history-chart` | Shared Product-history visualization. |
+
+## Develop
 
 ```bash
 bun install --frozen-lockfile
-bun --filter @rankwrangler/server run build
+cp .env.example .env
+# Fill in provider/auth credentials, then start PostgreSQL.
+docker compose --env-file .env -f apps/server/compose.yml up -d postgres
+DATABASE_HOST=localhost DATABASE_PORT=5433 bun run dev
 ```
 
-Local dev defaults to `DISABLE_SERVER_JOB_RUNNER=true` so app server processes do not start
-background workers automatically. Use `bun run server:dev:jobs` or `bun run dev:jobs` when you
-want local job execution enabled.
+Local app servers leave background workers disabled by default. Use `bun run dev:jobs` only when
+the task requires schedules or queue execution.
 
-For server-specific docs, see `docs/server/index.md`.
-For BA Top Search Terms implementation details, see `docs/server/ba-top-search-terms-system.md`.
-For one-off stored keyword cleanup after filter changes, see
-`docs/server/ba-top-search-terms-reclassification.md`.
+Useful checks:
 
-## Optional Environment
+```bash
+bun run server:build
+bun run website:build
+bun run extension:build
+bun run cli:test:e2e
+bun run docs:list
+```
 
-- `GEMINI_API_KEY` enables asynchronous product facet classification.
+Start with the [documentation index](docs/README.md). The [domain glossary](CONTEXT.md) defines
+Product, observation, history, catalog query, search run, and search result. Operational setup,
+deployment, releases, and recovery live under [operations](docs/operations/README.md).

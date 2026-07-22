@@ -51,29 +51,8 @@ Build the package before publishing:
 bun run http-client:build
 ```
 
-## Publish
+## Maintainers
 
-From `packages/http-client`:
-
-```bash
-node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
-node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
-```
-
-On macOS, the helper reads `NPM_TOKEN` from the environment first and otherwise falls back to the
-Keychain item `rankwrangler-npm-token` for account `$USER`.
-
-Before publishing:
-
-1. Run `bun run release:bump <patch|minor|major|X.Y.Z>` from repo root.
-2. Run `bun install` from repo root.
-3. Run `bun run release:collect-changelog-context`, then draft `CHANGELOG.md` entry.
-4. Run `bun run release:check`.
-5. Run `bun run http-client:build` from repo root.
-6. Run `npm pack --dry-run` from `packages/http-client`.
-
-## Versioning
-
-- App releases and npm package versions are synchronized to the same `X.Y.Z`.
-- `CHANGELOG.md` uses `vX.Y.Z`; package files use `X.Y.Z`.
-- Canonical process lives in `docs/release-runbook.md`.
+See the repository [HTTP client reference](../../docs/reference/http-client.md),
+[release workflow](../../docs/operations/releases.md), and
+[npm publishing workflow](../../docs/operations/npm-packages.md).

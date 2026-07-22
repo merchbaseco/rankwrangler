@@ -1,36 +1,28 @@
 # RankWrangler Safari App
 
-This directory contains the Xcode project that wraps the web extension for Safari.
+The Xcode wrapper packages the RankWrangler web extension for macOS and iOS Safari.
 
-## Setup
+## Build
 
-1. Open `RankWrangler.xcodeproj` in Xcode
-2. Set up your development team in the project settings
-3. Configure the bundle identifier
-4. Make sure the web extension is built (`cd ../extension && bun run build`)
-5. Copy the built files from `../extension/dist` to the Safari extension's Resources folder
+From `apps/extension`:
 
-## Development
+```bash
+bun run build:safari
+```
 
-1. Build the web extension in watch mode:
+The script builds the web extension, replaces
+`safari-extension/Shared (Extension)/Resources` with `dist`, cleans the macOS scheme, and builds
+`rankwrangler.xcodeproj` using the `rankwrangler (macOS)` scheme.
 
-   ```bash
-   cd ../extension
-   bun run dev
-   ```
+Xcode must be installed, selected with `xcode-select`, and licensed. For signing or distribution,
+open `rankwrangler.xcodeproj`, select the appropriate development team and bundle identifiers,
+then archive the app in Xcode.
 
-2. Keep Xcode open and rebuild/rerun when you want to test changes
+## Structure
 
-## Building for Distribution
+- `Shared (App)` and `Shared (Extension)` contain cross-platform sources and packaged resources.
+- `macOS (App)` and `macOS (Extension)` contain macOS-specific configuration.
+- `iOS (App)` and `iOS (Extension)` contain iOS-specific configuration.
 
-1. Make sure you have the latest web extension build
-2. Update the version numbers in both the web extension and Safari app
-3. Archive the project in Xcode
-4. Submit to the App Store or export for distribution
-
-## Project Structure
-
-- `RankWrangler/` - The main app target
-- `RankWranglerExtension/` - The Safari extension target
-  - `Resources/` - Where the web extension files go
-  - `SafariWebExtensionHandler.swift` - Native Safari extension code
+Do not edit copied files under `Shared (Extension)/Resources` as source. Change the web extension
+under `apps/extension/src`, then rebuild.
