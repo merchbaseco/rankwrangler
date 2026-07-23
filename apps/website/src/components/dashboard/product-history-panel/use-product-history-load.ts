@@ -1,51 +1,42 @@
-import { pollProductHistoryOperation } from "@/components/dashboard/product-history-panel/poll-product-history-operation";
+import { useEffect, useRef, useState } from "react";
+import { getProductHistoryOperationPollingInterval } from "@/components/dashboard/product-history-panel/product-history-operation-polling";
+import { useProductHistoryRefreshInvalidation } from "@/components/dashboard/product-history-panel/use-product-history-refresh-invalidation";
 import { toastManager } from "@/components/ui/toast";
-import { api } from "@/lib/trpc";
+import { api, type RouterOutputs } from "@/lib/trpc";
 
 export const useProductHistoryLoad = ({
-	onCompleted,
+	marketplaceId,
+	asin,
+	observedOperation,
+	invalidateHistory,
 }: {
-	onCompleted: () => Promise<unknown>;
+	marketplaceId: string;
+	asin: string;
+	observedOperation: AppProductHistoryOperation | null;
+	invalidateHistory: () => Promise<unknown>;
 }) => {
-	const utils = api.useUtils();
+	const [activeOperation, setActiveOperation] =
+		useState<AppProductHistoryOperation | null>(null);
+	const completedOperationRef = useRef<string | null>(null);
 
-	return api.api.app.loadProductHistory.useMutation({
-		onSuccess: async (data) => {
+	useEffect(() => {
+		if (observedOperation?.status !== "pending") {
+			return;
+		}
+
+		setActiveOperation((current) =>
+			current?.id === observedOperation.id ? current : observedOperation,
+		);
+	}, [observedOperation]);
+
+	const mutation = api.api.app.loadProductHistory.useMutation({
+		onSuccess: (data) => {
 			toastManager.add({
 				type: "info",
-				title: data.created
-					? "Product history collection queued"
-					: "Product history collection already pending",
+				title: "Syncing Keepa…",
 			});
-
-			try {
-				const operation = await pollProductHistoryOperation({
-					operation: data.operation,
-					getOperation: async (id) =>
-						await utils.client.api.app.operation.get.query({ id }),
-				});
-
-				if (operation.error) {
-					toastManager.add({
-						type: "error",
-						title: "Sync failed",
-						description: operation.error.message,
-					});
-					return;
-				}
-
-				toastManager.add({
-					type: "success",
-					title: "Product history synced",
-				});
-				await onCompleted();
-			} catch {
-				toastManager.add({
-					type: "error",
-					title: "Sync status unavailable",
-					description: "Retry the Product history refresh.",
-				});
-			}
+			completedOperationRef.current = null;
+			setActiveOperation(data.operation);
 		},
 		onError: (error) => {
 			toastManager.add({
@@ -55,4 +46,67 @@ export const useProductHistoryLoad = ({
 			});
 		},
 	});
+
+	const operationQuery = api.api.app.operation.get.useQuery(
+		{ id: activeOperation?.id ?? EMPTY_OPERATION_ID },
+		{
+			enabled: Boolean(activeOperation),
+			initialData: activeOperation ?? undefined,
+			refetchInterval: (query) =>
+				getProductHistoryOperationPollingInterval(query.state.data),
+		},
+	);
+	const terminalOperation =
+		operationQuery.data?.status === "completed"
+			? operationQuery.data
+			: activeOperation?.status === "completed"
+				? activeOperation
+				: null;
+
+	useProductHistoryRefreshInvalidation({
+		operationId: activeOperation?.id ?? null,
+		marketplaceId,
+		asin,
+		invalidateHistory,
+	});
+
+	useEffect(() => {
+		if (
+			!terminalOperation ||
+			completedOperationRef.current === terminalOperation.id
+		) {
+			return;
+		}
+
+		completedOperationRef.current = terminalOperation.id;
+		void invalidateHistory()
+			.catch(() => undefined)
+			.finally(() => {
+				if (terminalOperation.error) {
+					toastManager.add({
+						type: "error",
+						title: "Sync failed",
+						description: terminalOperation.error.message,
+					});
+				} else {
+					toastManager.add({
+						type: "success",
+						title: "Product history synced",
+					});
+				}
+				setActiveOperation((current) =>
+					current?.id === terminalOperation.id ? null : current,
+				);
+			});
+	}, [invalidateHistory, terminalOperation]);
+
+	return {
+		isSyncing: mutation.isPending || activeOperation?.status === "pending",
+		mutate: mutation.mutate,
+	};
 };
+
+type AppProductHistoryOperation =
+	RouterOutputs["api"]["app"]["operation"]["get"];
+
+const EMPTY_OPERATION_ID = "00000000-0000-4000-8000-000000000000";

@@ -35,7 +35,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 				product={headerProduct}
 				onSync={triggerKeepaSync}
 				onFetchFacets={triggerFacetClassification}
-				isSyncing={loadMutation.isPending}
+				isSyncing={loadMutation.isSyncing}
 				isFetchingFacets={fetchFacetsMutation.isPending}
 				canFetchFacets={canFetchFacets}
 				isKeepaSyncStale={isKeepaSyncStale}
@@ -59,7 +59,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 					metric={rankMetric}
 					isPrice={false}
 					gradientId={`rank-${product.asin}`}
-					isSyncing={loadMutation.isPending}
+					isSyncing={loadMutation.isSyncing}
 					timeDomain={chartTimeDomain}
 				/>
 				<ChartSection
@@ -71,7 +71,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 					metric="priceNew"
 					isPrice={true}
 					gradientId={`price-${product.asin}`}
-					isSyncing={loadMutation.isPending}
+					isSyncing={loadMutation.isSyncing}
 					timeDomain={chartTimeDomain}
 				/>
 			</div>

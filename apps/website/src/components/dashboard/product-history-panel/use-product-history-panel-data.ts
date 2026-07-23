@@ -3,6 +3,7 @@ import {
 	useHistoryRangeSelection,
 } from "@rankwrangler/history-chart/history-chart-range";
 import { useCallback, useMemo, useState } from "react";
+import { formatUsd } from "@/components/dashboard/product-history-panel/format-usd";
 import { isKeepaSyncStale as getIsKeepaSyncStale } from "@/components/dashboard/product-history-panel/keepa-sync-state";
 import type {
 	CategoryOption,
@@ -41,13 +42,18 @@ export const useProductHistoryPanelData = ({
 	const startAt = queryRange.startAt;
 	const endAt = queryRange.endAt;
 
-	const categoryOptionsQuery = api.api.app.getProductHistory.useQuery(
-		{
+	const categoryOptionsInput = useMemo(
+		() => ({
 			marketplaceId: product.marketplaceId,
 			asin: product.asin,
-			metric: "bsrCategory",
+			metric: "bsrCategory" as const,
 			limit: 10_000,
-		},
+			refresh: "none" as const,
+		}),
+		[product.asin, product.marketplaceId],
+	);
+	const categoryOptionsQuery = api.api.app.getProductHistory.useQuery(
+		categoryOptionsInput,
 		{
 			refetchOnWindowFocus: false,
 			staleTime: 60_000,
@@ -78,13 +84,18 @@ export const useProductHistoryPanelData = ({
 			.map(([id, name]) => ({ id, name }));
 	}, [categoryOptionsQuery.data]);
 
-	const mainCategoryQuery = api.api.app.getProductHistory.useQuery(
-		{
+	const mainCategoryInput = useMemo(
+		() => ({
 			marketplaceId: product.marketplaceId,
 			asin: product.asin,
-			metric: "bsrMain",
+			metric: "bsrMain" as const,
 			limit: 1,
-		},
+			refresh: "none" as const,
+		}),
+		[product.asin, product.marketplaceId],
+	);
+	const mainCategoryQuery = api.api.app.getProductHistory.useQuery(
+		mainCategoryInput,
 		{ refetchOnWindowFocus: false, staleTime: Number.POSITIVE_INFINITY },
 	);
 
@@ -121,20 +132,19 @@ export const useProductHistoryPanelData = ({
 			...categoryOptions,
 		] satisfies SelectOption[];
 	}, [availableCategories, mainCategoryId, mainCategoryName]);
-
 	const rankMetric = rankMetricValue.startsWith("cat:")
 		? "bsrCategory"
 		: "bsrMain";
 	const rankCategoryId = rankMetricValue.startsWith("cat:")
 		? Number(rankMetricValue.slice(4))
 		: undefined;
-
 	const rankQueryInput = useMemo(
 		() => ({
 			marketplaceId: product.marketplaceId,
 			asin: product.asin,
 			metric: rankMetric,
 			limit: 5000,
+			refresh: "none" as const,
 			...(startAt ? { startAt } : {}),
 			...(endAt ? { endAt } : {}),
 			...(rankMetric === "bsrCategory" && typeof rankCategoryId === "number"
@@ -162,6 +172,7 @@ export const useProductHistoryPanelData = ({
 			asin: product.asin,
 			metric: "priceNew" as const,
 			limit: 5000,
+			refresh: "none" as const,
 			...(startAt ? { startAt } : {}),
 			...(endAt ? { endAt } : {}),
 		}),
@@ -173,13 +184,27 @@ export const useProductHistoryPanelData = ({
 		staleTime: 30_000,
 	});
 
-	const loadMutation = useProductHistoryLoad({
-		onCompleted: async () =>
+	const invalidateProductHistory = useCallback(
+		async () =>
 			await Promise.all([
-				rankQuery.refetch(),
-				priceQuery.refetch(),
-				categoryOptionsQuery.refetch(),
+				utils.api.app.getProductHistory.invalidate(rankQueryInput),
+				utils.api.app.getProductHistory.invalidate(priceQueryInput),
+				utils.api.app.getProductHistory.invalidate(categoryOptionsInput),
+				utils.api.app.getProductHistory.invalidate(mainCategoryInput),
 			]),
+		[
+			categoryOptionsInput,
+			mainCategoryInput,
+			priceQueryInput,
+			rankQueryInput,
+			utils,
+		],
+	);
+	const loadMutation = useProductHistoryLoad({
+		marketplaceId: product.marketplaceId,
+		asin: product.asin,
+		observedOperation: rankQuery.data?.operation ?? null,
+		invalidateHistory: invalidateProductHistory,
 	});
 
 	const fetchFacetsMutation = api.api.app.classifyProductFacets.useMutation({
@@ -216,7 +241,7 @@ export const useProductHistoryPanelData = ({
 	});
 
 	const triggerKeepaSync = useCallback(() => {
-		if (loadMutation.isPending) {
+		if (loadMutation.isSyncing) {
 			return;
 		}
 
@@ -272,13 +297,4 @@ export const useProductHistoryPanelData = ({
 		triggerFacetClassification,
 		triggerKeepaSync,
 	};
-};
-
-const formatUsd = (value: number) => {
-	return new Intl.NumberFormat("en-US", {
-		style: "currency",
-		currency: "USD",
-		minimumFractionDigits: 2,
-		maximumFractionDigits: 6,
-	}).format(value);
 };

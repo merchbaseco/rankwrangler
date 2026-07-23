@@ -224,7 +224,7 @@ const KeepaStatusButton = ({
 		return (
 			<Badge variant="secondary" size="sm" className="gap-1">
 				<Loader2 className="size-3 animate-spin" />
-				Syncing Keepa...
+				Syncing Keepa…
 			</Badge>
 		);
 	}
@@ -309,9 +309,7 @@ const SpApiStatusBadge = ({
 			>
 				{isStale ? "SP-API stale" : "SP-API fresh"} · {label}
 			</TooltipTrigger>
-			<TooltipPopup>
-				Product data from Amazon SP-API
-			</TooltipPopup>
+			<TooltipPopup>Product data from Amazon SP-API</TooltipPopup>
 		</Tooltip>
 	);
 };
