@@ -19,7 +19,7 @@ describe('buildAmazonSearchSyncQueueItems', () => {
                 rootCategoryBsr: null,
                 thumbnailUrl: null,
                 facets: [],
-                lastFetched: '2026-03-04T00:00:00.000Z',
+                spApiFetchedAt: '2026-03-04T00:00:00.000Z',
             },
             {
                 asin: ' B000123456 ',
@@ -33,7 +33,7 @@ describe('buildAmazonSearchSyncQueueItems', () => {
                 rootCategoryBsr: null,
                 thumbnailUrl: null,
                 facets: [],
-                lastFetched: '2026-03-04T00:00:00.000Z',
+                spApiFetchedAt: '2026-03-04T00:00:00.000Z',
             },
             {
                 asin: 'B000987654',
@@ -47,7 +47,7 @@ describe('buildAmazonSearchSyncQueueItems', () => {
                 rootCategoryBsr: 12345,
                 thumbnailUrl: null,
                 facets: [],
-                lastFetched: '2026-03-04T00:00:00.000Z',
+                spApiFetchedAt: '2026-03-04T00:00:00.000Z',
             },
             {
                 asin: ' ',
@@ -61,7 +61,7 @@ describe('buildAmazonSearchSyncQueueItems', () => {
                 rootCategoryBsr: null,
                 thumbnailUrl: null,
                 facets: [],
-                lastFetched: '2026-03-04T00:00:00.000Z',
+                spApiFetchedAt: '2026-03-04T00:00:00.000Z',
             },
         ]);
 
@@ -94,7 +94,7 @@ describe('buildAmazonSearchSyncQueueItems', () => {
                     rootCategoryBsr: null,
                     thumbnailUrl: null,
                     facets: [],
-                    lastFetched: '2026-03-04T00:00:00.000Z',
+                    spApiFetchedAt: '2026-03-04T00:00:00.000Z',
                 },
             ],
             enqueue: async () => {

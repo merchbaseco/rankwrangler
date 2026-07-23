@@ -70,7 +70,7 @@ describe('mapCatalogItemFromKeywordSearch', () => {
             rootCategoryBsr: 11234,
             thumbnailUrl: 'https://images.example.com/main.jpg',
             facets: [],
-            lastFetched: '2026-03-04T20:10:00.000Z',
+            spApiFetchedAt: '2026-03-04T20:10:00.000Z',
         });
     });
 });

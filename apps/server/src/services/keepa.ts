@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, gt, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import Bottleneck from 'bottleneck';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
@@ -9,6 +9,11 @@ import {
     productHistoryPoints,
     products,
 } from '@/db/schema.js';
+import { ingestKeepaProduct } from '@/services/keepa-product-ingestion';
+import type {
+    KeepaProductPayload,
+    NormalizedKeepaHistoryPoint,
+} from '@/services/keepa-product-normalizer';
 import { KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS } from '@/services/keepa-refresh-policy.js';
 
 export const keepaHistoryMetricKeys = [
@@ -39,7 +44,7 @@ type GetProductHistoryPointsParams = {
 };
 
 type KeepaResponse = {
-    products?: KeepaProduct[];
+    products?: KeepaProductPayload[];
     tokensConsumed?: number;
     tokensLeft?: number;
     refillIn?: number;
@@ -48,13 +53,6 @@ type KeepaResponse = {
         code?: string;
         message?: string;
     };
-};
-
-type KeepaProduct = {
-    asin?: string;
-    csv?: number[][];
-    salesRanks?: Record<string, number[]>;
-    salesRankReference?: number;
 };
 
 type KeepaCategoryResponse = {
@@ -85,15 +83,6 @@ type KeepaTokenResponse = {
         type?: string;
         message?: string;
     };
-};
-
-type ParsedPoint = {
-    metric: string;
-    categoryId: number;
-    observedAt: Date;
-    keepaMinutes: number;
-    valueInt: number | null;
-    isMissing: boolean;
 };
 
 type PointCountSummary = Record<string, number>;
@@ -143,7 +132,6 @@ type CategoryNamesById = Record<string, string>;
 
 const KEEPA_SOURCE = 'keepa';
 const KEEPA_UPDATE_HOURS = 1;
-const KEEPA_MINUTE_EPOCH_OFFSET = 21564000;
 const KEEPA_CATEGORY_BATCH_SIZE = 50;
 const KEEPA_MIN_REFRESH_INTERVAL_MS = KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS;
 const KEEPA_TOKEN_STATE_STALE_MS = 60 * 1000;
@@ -179,6 +167,7 @@ const keepaTokenState: {
 };
 
 let keepaTokenRefreshInFlight: Promise<KeepaRuntimeTokenState> | null = null;
+const keepaProductLoadsInFlight = new Map<string, Promise<KeepaImportSummary>>();
 
 export const getKeepaRuntimeTokenState = (): KeepaRuntimeTokenState => {
     const estimatedTokensLeft = estimateTokensLeft({
@@ -223,7 +212,21 @@ export const ensureFreshKeepaTokenState = async ({
     }
 };
 
-export const loadKeepaProductHistory = async ({
+export const loadKeepaProductHistory = async (params: LoadKeepaProductHistoryParams) => {
+    const key = `${params.marketplaceId}:${params.asin}`;
+    const existingLoad = keepaProductLoadsInFlight.get(key);
+    if (existingLoad) {
+        return await existingLoad;
+    }
+
+    const load = loadKeepaProductHistoryOnce(params).finally(() => {
+        keepaProductLoadsInFlight.delete(key);
+    });
+    keepaProductLoadsInFlight.set(key, load);
+    return await load;
+};
+
+const loadKeepaProductHistoryOnce = async ({
     marketplaceId,
     asin,
     days,
@@ -248,6 +251,7 @@ export const loadKeepaProductHistory = async ({
     const productRow = await db
         .select({
             id: products.id,
+            keepaFetchedAt: products.keepaFetchedAt,
         })
         .from(products)
         .where(and(eq(products.marketplaceId, marketplaceId), eq(products.asin, asin)))
@@ -261,7 +265,10 @@ export const loadKeepaProductHistory = async ({
     }
 
     const productId = productRow[0].id;
-    const recentImport = await getRecentSuccessfulKeepaImport(productId, days);
+    const recentImport = await getRecentSuccessfulKeepaImport(
+        productId,
+        productRow[0].keepaFetchedAt
+    );
     if (recentImport) {
         return buildKeepaImportSummaryFromCachedImport({
             productId,
@@ -278,21 +285,46 @@ export const loadKeepaProductHistory = async ({
         history: 1,
         update: KEEPA_UPDATE_HOURS,
         days,
+        stats: 365,
     };
 
     let keepaResponse: KeepaResponse;
 
     try {
-        keepaResponse = await keepaRateLimiter.schedule(
+        const dispatchResult = await keepaRateLimiter.schedule(
             { priority: getKeepaRateLimiterPriority(queuePriority) },
-            () =>
-                fetchKeepaProduct({
-                    apiKey: keepaApiKey,
-                    domainId: keepaDomainId,
-                    asin,
-                    days,
-                })
+            async () => {
+                const keepaFetchedAt = await getProductKeepaFetchedAt(productId);
+                const importBeforeDispatch = await getRecentSuccessfulKeepaImport(
+                    productId,
+                    keepaFetchedAt
+                );
+                if (importBeforeDispatch) {
+                    return { kind: 'cached', importRow: importBeforeDispatch } as const;
+                }
+
+                return {
+                    kind: 'fetched',
+                    response: await fetchKeepaProduct({
+                        apiKey: keepaApiKey,
+                        domainId: keepaDomainId,
+                        asin,
+                        days,
+                    }),
+                } as const;
+            }
         );
+        if (dispatchResult.kind === 'cached') {
+            return await buildKeepaImportSummaryFromCachedImport({
+                productId,
+                marketplaceId,
+                asin,
+                fallbackDays: days,
+                importRow: dispatchResult.importRow,
+            });
+        }
+
+        keepaResponse = dispatchResult.response;
         updateKeepaTokenState({
             tokensConsumed: keepaResponse.tokensConsumed ?? null,
             tokensLeft: keepaResponse.tokensLeft ?? null,
@@ -330,8 +362,7 @@ export const loadKeepaProductHistory = async ({
         });
     }
 
-    const keepaProduct =
-        keepaResponse.products?.find(product => product.asin === asin) ?? keepaResponse.products?.[0];
+    const keepaProduct = keepaResponse.products?.find(product => product.asin === asin);
 
     if (!keepaProduct) {
         const errorCode = keepaResponse.error?.code ?? 'NO_PRODUCT';
@@ -359,83 +390,30 @@ export const loadKeepaProductHistory = async ({
         });
     }
 
-    const parsedPoints = parseKeepaHistoryPoints(keepaProduct);
+    const fetchedAt = new Date();
+    const ingestion = await ingestKeepaProduct({
+        marketplaceId,
+        asin,
+        product: keepaProduct,
+        fetchedAt,
+        import: {
+            requestParams,
+            responsePayload: keepaResponse as unknown as Record<string, unknown>,
+            tokensConsumed: keepaResponse.tokensConsumed ?? null,
+            tokensLeft: keepaResponse.tokensLeft ?? null,
+            refillInMs: keepaResponse.refillIn ?? null,
+            refillRate: keepaResponse.refillRate ?? null,
+        },
+    });
+    const parsedPoints = ingestion.normalized.historyPoints;
     const pointCounts = getPointCountsByMetric(parsedPoints);
     await resolveCategoryNames({
         marketplaceId,
         categoryIds: parsedPoints.map(point => point.categoryId),
     });
 
-    const [insertedImport] = await db
-        .insert(productHistoryImports)
-        .values({
-            productId,
-            marketplaceId,
-            asin,
-            source: KEEPA_SOURCE,
-            status: 'success',
-            requestParams,
-            responsePayload: keepaResponse,
-            tokensConsumed: keepaResponse.tokensConsumed ?? null,
-            tokensLeft: keepaResponse.tokensLeft ?? null,
-            refillInMs: keepaResponse.refillIn ?? null,
-            refillRate: keepaResponse.refillRate ?? null,
-            errorCode: null,
-            errorMessage: null,
-        })
-        .returning({
-            id: productHistoryImports.id,
-            createdAt: productHistoryImports.createdAt,
-        });
-
-    for (let index = 0; index < parsedPoints.length; index += 500) {
-        const pointsChunk = parsedPoints.slice(index, index + 500);
-
-        await db
-            .insert(productHistoryPoints)
-            .values(
-                pointsChunk.map(point => ({
-                    productId,
-                    marketplaceId,
-                    asin,
-                    source: KEEPA_SOURCE,
-                    metric: point.metric,
-                    categoryId: point.categoryId,
-                    observedAt: point.observedAt,
-                    keepaMinutes: point.keepaMinutes,
-                    valueInt: point.valueInt,
-                    isMissing: point.isMissing,
-                }))
-            )
-            .onConflictDoUpdate({
-                target: [
-                    productHistoryPoints.productId,
-                    productHistoryPoints.source,
-                    productHistoryPoints.metric,
-                    productHistoryPoints.categoryId,
-                    productHistoryPoints.keepaMinutes,
-                ],
-                set: {
-                    observedAt: sql`excluded.observed_at`,
-                    valueInt: sql`excluded.value_int`,
-                    isMissing: sql`excluded.is_missing`,
-                },
-            });
-    }
-
-    await db
-        .delete(productHistoryImports)
-        .where(
-            and(
-                eq(productHistoryImports.productId, productId),
-                eq(productHistoryImports.source, KEEPA_SOURCE),
-                eq(productHistoryImports.status, 'success'),
-                ne(productHistoryImports.id, insertedImport.id)
-            )
-        );
-
     return {
-        importId: insertedImport.id,
+        importId: ingestion.importId,
         marketplaceId,
         asin,
         days,
@@ -447,7 +425,7 @@ export const loadKeepaProductHistory = async ({
         refillRate: keepaResponse.refillRate ?? null,
         status: 'success',
         cached: false,
-        importedAt: insertedImport.createdAt.toISOString(),
+        importedAt: ingestion.importedAt.toISOString(),
         errorCode: null,
         errorMessage: null,
         responsePayload: keepaResponse,
@@ -553,15 +531,14 @@ export const getProductHistoryPoints = async ({
 export const hasRecentSuccessfulKeepaImportForAsin = async ({
     marketplaceId,
     asin,
-    days,
 }: {
     marketplaceId: string;
     asin: string;
-    days: number;
 }) => {
     const productRow = await db
         .select({
             id: products.id,
+            keepaFetchedAt: products.keepaFetchedAt,
         })
         .from(products)
         .where(and(eq(products.marketplaceId, marketplaceId), eq(products.asin, asin)))
@@ -571,7 +548,12 @@ export const hasRecentSuccessfulKeepaImportForAsin = async ({
         return false;
     }
 
-    return Boolean(await getRecentSuccessfulKeepaImport(productRow[0].id, days));
+    return Boolean(
+        await getRecentSuccessfulKeepaImport(
+            productRow[0].id,
+            productRow[0].keepaFetchedAt
+        )
+    );
 };
 
 const fetchKeepaProduct = async ({
@@ -592,6 +574,7 @@ const fetchKeepaProduct = async ({
         history: '1',
         update: String(KEEPA_UPDATE_HOURS),
         days: String(days),
+        stats: '365',
     });
 
     const response = await fetch(`https://api.keepa.com/product?${params.toString()}`);
@@ -768,74 +751,6 @@ const resolveCategoryNames = async ({
     return categoryNames;
 };
 
-const parseKeepaHistoryPoints = (product: KeepaProduct) => {
-    const points: ParsedPoint[] = [];
-    const csv = product.csv ?? [];
-    const mainCategoryId =
-        typeof product.salesRankReference === 'number' && product.salesRankReference > 0
-            ? product.salesRankReference
-            : -1;
-
-    points.push(...parseKeepaPairSeries(csv[3], historyMetricMap.bsrMain, mainCategoryId));
-    points.push(...parseKeepaPairSeries(csv[0], historyMetricMap.priceAmazon, -1));
-    points.push(...parseKeepaPairSeries(csv[1], historyMetricMap.priceNew, -1));
-    points.push(...parseKeepaPairSeries(csv[10], historyMetricMap.priceNewFba, -1));
-
-    if (product.salesRanks) {
-        for (const [categoryIdKey, series] of Object.entries(product.salesRanks)) {
-            const categoryId = Number(categoryIdKey);
-            if (!Number.isFinite(categoryId)) {
-                continue;
-            }
-            points.push(...parseKeepaPairSeries(series, historyMetricMap.bsrCategory, categoryId));
-        }
-    }
-
-    const deduped = new Map<string, ParsedPoint>();
-    for (const point of points) {
-        const pointKey = `${point.metric}:${point.categoryId}:${point.keepaMinutes}`;
-        deduped.set(pointKey, point);
-    }
-
-    return Array.from(deduped.values()).sort((a, b) => a.keepaMinutes - b.keepaMinutes);
-};
-
-const parseKeepaPairSeries = (series: number[] | undefined, metric: string, categoryId: number) => {
-    if (!series || series.length < 2) {
-        return [] as ParsedPoint[];
-    }
-
-    const points: ParsedPoint[] = [];
-
-    for (let index = 0; index + 1 < series.length; index += 2) {
-        const keepaMinutes = series[index];
-        const value = series[index + 1];
-
-        if (!Number.isFinite(keepaMinutes)) {
-            continue;
-        }
-
-        const observedAt = keepaMinuteToDate(keepaMinutes);
-        const isMissing = value < 0;
-
-        points.push({
-            metric,
-            categoryId,
-            observedAt,
-            keepaMinutes,
-            valueInt: isMissing ? null : value,
-            isMissing,
-        });
-    }
-
-    return points;
-};
-
-const keepaMinuteToDate = (keepaMinutes: number) => {
-    const unixMinutes = keepaMinutes + KEEPA_MINUTE_EPOCH_OFFSET;
-    return new Date(unixMinutes * 60 * 1000);
-};
-
 const getKeepaDomainId = (marketplaceId: string): number | null => {
     const mapping: Record<string, number> = {
         ATVPDKIKX0DER: 1,
@@ -853,7 +768,7 @@ const getKeepaDomainId = (marketplaceId: string): number | null => {
     return mapping[marketplaceId] ?? null;
 };
 
-const getPointCountsByMetric = (points: ParsedPoint[]) => {
+const getPointCountsByMetric = (points: NormalizedKeepaHistoryPoint[]) => {
     return points.reduce<PointCountSummary>((counts, point) => {
         counts[point.metric] = (counts[point.metric] ?? 0) + 1;
         return counts;
@@ -945,9 +860,13 @@ const normalizeKeepaErrorPayload = (payload: unknown): Record<string, unknown> |
 
 const getRecentSuccessfulKeepaImport = async (
     productId: string,
-    requestedDays: number
+    keepaFetchedAt: Date | null
 ): Promise<KeepaImportRow | null> => {
     const recentThreshold = new Date(Date.now() - KEEPA_MIN_REFRESH_INTERVAL_MS);
+    if (!keepaFetchedAt || keepaFetchedAt <= recentThreshold) {
+        return null;
+    }
+
     const rows = await db
         .select({
             id: productHistoryImports.id,
@@ -967,24 +886,23 @@ const getRecentSuccessfulKeepaImport = async (
             and(
                 eq(productHistoryImports.productId, productId),
                 eq(productHistoryImports.source, KEEPA_SOURCE),
-                eq(productHistoryImports.status, 'success'),
-                gt(productHistoryImports.createdAt, recentThreshold)
+                eq(productHistoryImports.status, 'success')
             )
         )
         .orderBy(desc(productHistoryImports.createdAt))
         .limit(1);
 
-    return (
-        rows.find(row => {
-            const importedDays = getImportedDays(row.requestParams);
-            return importedDays === null || importedDays >= requestedDays;
-        }) ?? null
-    );
+    return rows[0] ?? null;
 };
 
-const getImportedDays = (requestParams: Record<string, unknown>) => {
-    const days = requestParams.days;
-    return typeof days === 'number' && Number.isFinite(days) ? days : null;
+const getProductKeepaFetchedAt = async (productId: string) => {
+    const rows = await db
+        .select({ keepaFetchedAt: products.keepaFetchedAt })
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+
+    return rows[0]?.keepaFetchedAt ?? null;
 };
 
 const getLatestSuccessfulKeepaImportAt = async ({

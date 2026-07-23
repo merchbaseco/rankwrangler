@@ -187,7 +187,7 @@ export const createColumns = ({
 						rootCategoryBsr={row.original.rootCategoryBsr}
 						rootCategoryDisplayName={null}
 						isMerchListing={row.original.isMerchListing}
-						productLastFetchedAt={row.original.lastFetched}
+						productLastFetchedAt={row.original.spApiFetchedAt}
 						isActive={selectedHistoryKey === rowKey}
 						onSelect={onSelectHistory}
 					/>
@@ -226,10 +226,10 @@ export const createColumns = ({
 		size: 56,
 	},
 	{
-		accessorKey: "lastFetched",
+		accessorKey: "updatedAt",
 		cell: ({ row }) => (
 			<span className="text-muted-foreground whitespace-nowrap font-mono text-xs">
-				{formatRelativeTime(row.getValue("lastFetched"))}
+				{formatRelativeTime(row.getValue("updatedAt"))}
 			</span>
 		),
 		header: "Updated",

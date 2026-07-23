@@ -105,7 +105,7 @@ interface CacheLookupEvent {
 		hasRankData: boolean;
 		metadataSuccess: boolean;
 		metadataCached: boolean;
-		lastFetched: string | null;
+		spApiFetchedAt: string | null;
 	};
 }
 
@@ -433,7 +433,7 @@ export const recordCacheLookup = (
 						hasRankData,
 						metadataSuccess: Boolean(cachedProduct.metadata.success),
 						metadataCached: Boolean(cachedProduct.metadata.cached),
-						lastFetched: cachedProduct.metadata.lastFetched ?? null,
+						spApiFetchedAt: cachedProduct.metadata.spApiFetchedAt ?? null,
 					}
 				: undefined,
 		},

@@ -38,11 +38,11 @@ export async function reprocessStaleProducts() {
     const threshold30Days = new Date(now.getTime() - REFRESH_AFTER_30_DAYS_MS);
 
     // Find stale merch products using BSR tiers:
-    // - BSR < 200k: refresh if lastFetched > 24 hours ago
-    // - BSR < 500k: refresh if lastFetched > 3 days ago
-    // - BSR < 1M: refresh if lastFetched > 7 days ago
-    // - BSR < 3M: refresh if lastFetched > 14 days ago
-    // - BSR >= 3M: refresh if lastFetched > 30 days ago
+    // - BSR < 200k: refresh if spApiFetchedAt > 24 hours ago
+    // - BSR < 500k: refresh if spApiFetchedAt > 3 days ago
+    // - BSR < 1M: refresh if spApiFetchedAt > 7 days ago
+    // - BSR < 3M: refresh if spApiFetchedAt > 14 days ago
+    // - BSR >= 3M: refresh if spApiFetchedAt > 30 days ago
     // - Otherwise (non-merch, null BSR): never by stale job
     const staleProducts = await db
         .select({
@@ -56,33 +56,33 @@ export async function reprocessStaleProducts() {
                 isNotNull(products.rootCategoryBsr),
                 and(
                     or(
-                        // BSR < 200k: requeue if lastFetched > 24 hours ago
+                        // BSR < 200k: requeue if spApiFetchedAt > 24 hours ago
                         and(
                             lt(products.rootCategoryBsr, BSR_THRESHOLD_200K),
-                            lt(products.lastFetched, threshold24Hours)
+                            lt(products.spApiFetchedAt, threshold24Hours)
                         ),
-                        // 200k <= BSR < 500k: requeue if lastFetched > 3 days ago
+                        // 200k <= BSR < 500k: requeue if spApiFetchedAt > 3 days ago
                         and(
                             gte(products.rootCategoryBsr, BSR_THRESHOLD_200K),
                             lt(products.rootCategoryBsr, BSR_THRESHOLD_500K),
-                            lt(products.lastFetched, threshold3Days)
+                            lt(products.spApiFetchedAt, threshold3Days)
                         ),
-                        // 500k <= BSR < 1M: requeue if lastFetched > 7 days ago
+                        // 500k <= BSR < 1M: requeue if spApiFetchedAt > 7 days ago
                         and(
                             gte(products.rootCategoryBsr, BSR_THRESHOLD_500K),
                             lt(products.rootCategoryBsr, BSR_THRESHOLD_1M),
-                            lt(products.lastFetched, threshold7Days)
+                            lt(products.spApiFetchedAt, threshold7Days)
                         ),
-                        // 1M <= BSR < 3M: requeue if lastFetched > 14 days ago
+                        // 1M <= BSR < 3M: requeue if spApiFetchedAt > 14 days ago
                         and(
                             gte(products.rootCategoryBsr, BSR_THRESHOLD_1M),
                             lt(products.rootCategoryBsr, BSR_THRESHOLD_3M),
-                            lt(products.lastFetched, threshold14Days)
+                            lt(products.spApiFetchedAt, threshold14Days)
                         ),
-                        // BSR >= 3M: requeue if lastFetched > 30 days ago
+                        // BSR >= 3M: requeue if spApiFetchedAt > 30 days ago
                         and(
                             gte(products.rootCategoryBsr, BSR_THRESHOLD_3M),
-                            lt(products.lastFetched, threshold30Days)
+                            lt(products.spApiFetchedAt, threshold30Days)
                         )
                     )
                 )

@@ -59,7 +59,7 @@ export const useProductHistoryPanelProduct = ({
 					rootCategoryBsr: productInfo.rootCategoryBsr,
 					rootCategoryDisplayName: productInfo.rootCategoryDisplayName,
 					isMerchListing: productInfo.isMerchListing,
-					productLastFetchedAt: productInfo.metadata.lastFetched,
+					productLastFetchedAt: productInfo.metadata.spApiFetchedAt,
 					productInfoCached: productInfo.metadata.cached,
 				}));
 			} catch {

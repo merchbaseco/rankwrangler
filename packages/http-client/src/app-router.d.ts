@@ -23,8 +23,28 @@ export type ProductInfo = {
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	thumbnailUrl?: string;
+	keepa: {
+		fetchedAt: string;
+		sourceUpdatedAt: string | null;
+		firstTrackedAt: string | null;
+		rootCategoryId: number | null;
+		currentRootCategoryBsr: number | null;
+		currentNewPrice: {
+			amountMinor: number;
+			currencyCode: string;
+		} | null;
+		monthlySold: number | null;
+		averageRootCategoryBsr30: number | null;
+		averageRootCategoryBsr90: number | null;
+		salesRankDrops: {
+			days30: number | null;
+			days90: number | null;
+			days180: number | null;
+			days365: number | null;
+		};
+	} | null;
 	metadata: {
-		lastFetched: string;
+		spApiFetchedAt: string | null;
 		cached: boolean;
 	};
 };

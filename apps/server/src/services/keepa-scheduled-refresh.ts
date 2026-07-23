@@ -40,32 +40,22 @@ export const getKeepaScheduledRefreshCandidates = async ({
           AND (
             (
                 p.root_category_bsr < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM product_history_imports phi
-                    WHERE phi.marketplace_id = p.marketplace_id
-                      AND phi.asin = p.asin
-                      AND phi.source = 'keepa'
-                      AND phi.status = 'success'
-                      AND phi.created_at > now() - (
-                          ${KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
-                      )
+                AND (
+                    p.keepa_fetched_at IS NULL
+                    OR p.keepa_fetched_at <= now() - (
+                        ${KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
+                    )
                 )
             )
             OR
             (
                 p.root_category_bsr >= ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
                 AND p.root_category_bsr < ${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM product_history_imports phi
-                    WHERE phi.marketplace_id = p.marketplace_id
-                      AND phi.asin = p.asin
-                      AND phi.source = 'keepa'
-                      AND phi.status = 'success'
-                      AND phi.created_at > now() - (
-                          ${KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
-                      )
+                AND (
+                    p.keepa_fetched_at IS NULL
+                    OR p.keepa_fetched_at <= now() - (
+                        ${KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
+                    )
                 )
             )
           )

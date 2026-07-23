@@ -148,6 +148,13 @@
       "when": 1772572687416,
       "tag": "0020_perpetual_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784750038449,
+      "tag": "0021_narrow_bastion",
+      "breakpoints": true
     }
   ]
 }

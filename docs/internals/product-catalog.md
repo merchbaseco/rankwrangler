@@ -7,8 +7,8 @@ read_when:
 
 # Product Catalog
 
-**Status:** Canonical Product behavior is current. The split SP-API/Keepa freshness columns and
-current Keepa metrics are accepted target behavior pending their generated database migration.
+**Status:** Canonical Product behavior, split SP-API/Keepa freshness, and current Keepa metrics are
+implemented. The generated Product-schema migration must be applied before deployment.
 
 The Product catalog is RankWrangler's canonical current-state store. One Product is identified by
 `marketplaceId + asin`, regardless of whether it was discovered by the extension, an ASIN lookup,

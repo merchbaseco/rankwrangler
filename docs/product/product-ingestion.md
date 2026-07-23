@@ -7,8 +7,8 @@ read_when:
 
 # Product Ingestion
 
-**Status:** Discovery and SP-API ingestion are current. Source-separated Keepa current metrics
-require the generated Product-schema migration before deployment.
+**Status:** Discovery, SP-API ingestion, and source-separated Keepa current metrics are
+implemented. Apply the generated Product-schema migration before deployment.
 
 Ingestion turns an observed marketplace/ASIN into canonical Product state. Every path uses the same
 Product identity, so repeated observations enrich or refresh a record instead of creating a second

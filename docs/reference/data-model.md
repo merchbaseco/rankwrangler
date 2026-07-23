@@ -7,9 +7,9 @@ read_when:
 
 # Data Model
 
-**Migration status:** The working tree defines the source-separated Product freshness and Keepa
-metric fields below, but their generated database migration is still pending. Treat those fields
-as accepted target schema until the migration is added and applied.
+**Migration status:** The schema and generated migration define the source-separated Product
+freshness and Keepa metric fields below. Deployments must apply that migration before running this
+code.
 
 ## Canonical identity
 

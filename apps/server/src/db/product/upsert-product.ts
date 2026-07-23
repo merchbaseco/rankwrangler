@@ -1,9 +1,14 @@
+import { sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
 import type { ProductInfo } from '@/types/index.js';
 
 // Type for product info without rootCategoryDisplayName (derived from rootCategoryId when retrieved)
-type ProductInfoWithoutDisplayName = Omit<ProductInfo, 'rootCategoryDisplayName'>;
+type ProductInfoWithoutDisplayName = Omit<ProductInfo, 'rootCategoryDisplayName' | 'metadata'> & {
+    metadata: Omit<ProductInfo['metadata'], 'spApiFetchedAt'> & {
+        spApiFetchedAt: string;
+    };
+};
 
 // Upsert a single product with root category BSR in the database
 export async function upsertProductInfo(productInfo: ProductInfoWithoutDisplayName): Promise<void> {
@@ -15,6 +20,7 @@ export async function upsertProductInfo(productInfo: ProductInfoWithoutDisplayNa
         // Use root category information directly from ProductInfo
         const rootCategoryId = productInfo.rootCategoryId;
         const rootCategoryBsr = productInfo.rootCategoryBsr;
+        const spApiFetchedAt = new Date(productInfo.metadata.spApiFetchedAt);
 
         // Insert or update product with root category info
         await db
@@ -31,7 +37,7 @@ export async function upsertProductInfo(productInfo: ProductInfoWithoutDisplayNa
                 bullet2: productInfo.bullet2,
                 rootCategoryId,
                 rootCategoryBsr,
-                lastFetched: new Date(),
+                spApiFetchedAt,
             })
             .onConflictDoUpdate({
                 target: [products.marketplaceId, products.asin],
@@ -43,12 +49,16 @@ export async function upsertProductInfo(productInfo: ProductInfoWithoutDisplayNa
                     isMerchListing: productInfo.isMerchListing,
                     bullet1: productInfo.bullet1,
                     bullet2: productInfo.bullet2,
-                    rootCategoryId,
-                    rootCategoryBsr,
-                    lastFetched: new Date(),
+                    rootCategoryId: preserveExistingOnNull(products.rootCategoryId),
+                    rootCategoryBsr: preserveExistingOnNull(products.rootCategoryBsr),
+                    spApiFetchedAt,
                 },
             });
     } catch (error) {
         console.error(`[Product Store] Error storing result for ${productInfo.asin}:`, error);
     }
 }
+
+const preserveExistingOnNull = (column: { name: string }) => {
+    return sql`COALESCE(${sql.raw(`excluded.${column.name}`)}, ${column})`;
+};

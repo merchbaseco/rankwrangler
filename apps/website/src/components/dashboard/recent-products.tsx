@@ -65,7 +65,7 @@ export function RecentProducts({
 		);
 
 	const [sorting, setSorting] = useState<SortingState>([
-		{ desc: false, id: "lastFetched" },
+		{ desc: false, id: "updatedAt" },
 	]);
 	const [selectedHistoryProduct, setSelectedHistoryProduct] =
 		useState<SelectedHistoryProduct | null>(null);

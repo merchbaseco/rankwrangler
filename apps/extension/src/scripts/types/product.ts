@@ -16,7 +16,7 @@ export interface Product {
 
 	metadata: {
 		success: boolean;
-		lastFetched?: string; // ISO timestamp
+		spApiFetchedAt?: string; // ISO timestamp
 		cached?: boolean;
 	};
 }

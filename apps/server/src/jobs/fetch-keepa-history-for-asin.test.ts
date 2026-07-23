@@ -26,7 +26,7 @@ type FetchKeepaHistoryForAsinDeps = {
         marketplaceId: string;
         asin: string;
         days: number;
-        queuePriority: 'manual' | 'background';
+        queuePriority?: 'manual' | 'background';
     }) => Promise<KeepaImportSummary>;
     getKeepaHistoryDaysForAsin: (params: {
         marketplaceId: string;
@@ -44,17 +44,22 @@ type FetchKeepaHistoryForAsinDeps = {
         marketplaceId: string;
         asin: string;
     }) => Promise<void>;
+    recordKeepaHistoryRefreshFailure: (params: {
+        marketplaceId: string;
+        asin: string;
+        errorMessage: string;
+    }) => Promise<{ failureCount: number; retryDelayMs: number } | null>;
     shouldKeepaHistoryRefreshAsin: (params: {
         marketplaceId: string;
         asin: string;
     }) => Promise<
         | {
               shouldRefresh: true;
-              reason: 'eligible';
+              reason: 'never_fetched' | 'stale_product';
           }
         | {
               shouldRefresh: false;
-              reason: 'product_missing' | 'not_eligible';
+              reason: 'fresh_product' | 'product_missing' | 'not_eligible';
           }
     >;
 };
@@ -99,7 +104,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         expect(eventLog.detailsJson.days).toBe(365);
     });
 
-    it('removes queue item and rethrows NOT_FOUND errors', async () => {
+    it('retains queue item and rethrows NOT_FOUND errors', async () => {
         const { fetchKeepaHistoryForAsin } = await loadSubject();
         const { deps, calls } = createDeps({
             loadKeepaProductHistory: async () => {
@@ -113,7 +118,8 @@ describe('fetchKeepaHistoryForAsin', () => {
         await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
             'Keepa returned no product history for this ASIN'
         );
-        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
+        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(0);
+        expect(calls.recordKeepaHistoryRefreshFailure.mock.calls).toHaveLength(1);
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('error');
         expect(eventLog.status).toBe('failed');
@@ -124,7 +130,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         expect(eventLog.detailsJson.source).toBe('keepa_background_job');
     });
 
-    it('removes queue item and rethrows retryable BAD_GATEWAY errors', async () => {
+    it('retains queue item and rethrows retryable BAD_GATEWAY errors', async () => {
         const { fetchKeepaHistoryForAsin } = await loadSubject();
         const { deps, calls } = createDeps({
             loadKeepaProductHistory: async () => {
@@ -138,7 +144,8 @@ describe('fetchKeepaHistoryForAsin', () => {
         await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
             'Keepa request failed'
         );
-        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
+        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(0);
+        expect(calls.recordKeepaHistoryRefreshFailure.mock.calls).toHaveLength(1);
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('error');
         expect(eventLog.status).toBe('failed');
@@ -147,7 +154,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         expect(eventLog.detailsJson.source).toBe('keepa_background_job');
     });
 
-    it('removes queue item and throws when Keepa returns non-success summary', async () => {
+    it('retains queue item and throws when Keepa returns non-success summary', async () => {
         const { fetchKeepaHistoryForAsin } = await loadSubject();
         const { deps, calls } = createDeps({
             loadKeepaProductHistory: async () => createSummary({ status: 'error' }),
@@ -156,7 +163,8 @@ describe('fetchKeepaHistoryForAsin', () => {
         await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
             'Keepa import failed'
         );
-        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
+        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(0);
+        expect(calls.recordKeepaHistoryRefreshFailure.mock.calls).toHaveLength(1);
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('error');
         expect(eventLog.status).toBe('failed');
@@ -180,6 +188,21 @@ describe('fetchKeepaHistoryForAsin', () => {
         expect(calls.loadKeepaProductHistory.mock.calls).toHaveLength(0);
         expect(calls.createEventLogSafe.mock.calls).toHaveLength(0);
     });
+
+    it('removes queue item without fetching when Product Keepa data is already fresh', async () => {
+        const { fetchKeepaHistoryForAsin } = await loadSubject();
+        const { deps, calls } = createDeps({
+            shouldKeepaHistoryRefreshAsin: async () => ({
+                shouldRefresh: false,
+                reason: 'fresh_product',
+            }),
+        });
+
+        await fetchKeepaHistoryForAsin(params, deps);
+
+        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
+        expect(calls.loadKeepaProductHistory.mock.calls).toHaveLength(0);
+    });
 });
 
 const getSingleEventLogCall = (calls: unknown[][]) => {
@@ -201,9 +224,13 @@ const createDeps = (
             asin: params.asin,
         })),
         removeKeepaHistoryRefreshQueueItem: mock(async () => {}),
+        recordKeepaHistoryRefreshFailure: mock(async () => ({
+            failureCount: 1,
+            retryDelayMs: 300_000,
+        })),
         shouldKeepaHistoryRefreshAsin: mock(async () => ({
             shouldRefresh: true as const,
-            reason: 'eligible' as const,
+            reason: 'stale_product' as const,
         })),
     };
 

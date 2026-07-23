@@ -44,7 +44,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO rankwrangler
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Note: Table schemas are created by Drizzle migrations (see drizzle/ directory)
--- Key tables: licenses, products (includes is_merch_listing, bullet_1, bullet_2),
+-- Key tables: licenses, products (includes source-aware SP-API/Keepa freshness and Keepa metrics),
 -- product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
 -- product_history_points, keepa_categories, top_search_terms_datasets,

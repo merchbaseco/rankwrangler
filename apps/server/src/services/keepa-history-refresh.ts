@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
 import {
@@ -11,8 +11,8 @@ import {
     getKeepaRuntimeTokenState,
 } from '@/services/keepa.js';
 import {
-    getKeepaEnqueueMinRefreshIntervalMs,
-    isEligibleForKeepaHistoryRefresh,
+    getKeepaFailureRetryDelayMs,
+    getKeepaRefreshDecision,
 } from '@/services/keepa-refresh-policy.js';
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -55,39 +55,18 @@ export const enqueueKeepaHistoryRefreshForAsin = async ({
         } as const;
     }
 
-    const enqueueMinRefreshIntervalMs = getKeepaEnqueueMinRefreshIntervalMs(
-        product.isMerchListing,
-        product.rootCategoryBsr
-    );
-    if (enqueueMinRefreshIntervalMs === null) {
+    const refreshDecision = getKeepaRefreshDecision(product);
+    if (refreshDecision.reason === 'not_eligible') {
         return {
             enqueued: false,
             reason: 'not_eligible',
         } as const;
     }
 
-    const recentThreshold = new Date(Date.now() - enqueueMinRefreshIntervalMs);
-    const recentImport = await db
-        .select({
-            id: productHistoryImports.id,
-        })
-        .from(productHistoryImports)
-        .where(
-            and(
-                eq(productHistoryImports.marketplaceId, marketplaceId),
-                eq(productHistoryImports.asin, asin),
-                eq(productHistoryImports.source, 'keepa'),
-                eq(productHistoryImports.status, 'success'),
-                gt(productHistoryImports.createdAt, recentThreshold)
-            )
-        )
-        .orderBy(desc(productHistoryImports.createdAt))
-        .limit(1);
-
-    if (recentImport.length > 0) {
+    if (!refreshDecision.shouldRefresh) {
         return {
             enqueued: false,
-            reason: 'fresh_import_exists',
+            reason: 'fresh_product',
         } as const;
     }
 
@@ -262,6 +241,37 @@ export const removeKeepaHistoryRefreshQueueItem = async ({
         );
 };
 
+export const recordKeepaHistoryRefreshFailure = async ({
+    marketplaceId,
+    asin,
+    errorMessage,
+}: {
+    marketplaceId: string;
+    asin: string;
+    errorMessage: string;
+}) => {
+    const queueItem = await getKeepaHistoryRefreshQueueItem({ marketplaceId, asin });
+    if (!queueItem) {
+        return null;
+    }
+
+    const failureCount = queueItem.attemptCount + 1;
+    const retryDelayMs = getKeepaFailureRetryDelayMs(failureCount);
+    const now = new Date();
+    await db
+        .update(keepaHistoryRefreshQueue)
+        .set({
+            attemptCount: failureCount,
+            lastAttemptAt: now,
+            lastError: errorMessage.slice(0, 2_000),
+            nextAttemptAt: new Date(now.getTime() + retryDelayMs),
+            updatedAt: now,
+        })
+        .where(eq(keepaHistoryRefreshQueue.id, queueItem.id));
+
+    return { failureCount, retryDelayMs };
+};
+
 export const getKeepaHistoryRefreshQueueStats = async () => {
     await ensureFreshKeepaTokenState();
 
@@ -346,17 +356,7 @@ export const shouldKeepaHistoryRefreshAsin = async ({
         } as const;
     }
 
-    if (!isEligibleForKeepaHistoryRefresh(product.isMerchListing, product.rootCategoryBsr)) {
-        return {
-            shouldRefresh: false,
-            reason: 'not_eligible',
-        } as const;
-    }
-
-    return {
-        shouldRefresh: true,
-        reason: 'eligible',
-    } as const;
+    return getKeepaRefreshDecision(product);
 };
 
 const getProductEligibilitySnapshot = async ({
@@ -370,6 +370,7 @@ const getProductEligibilitySnapshot = async ({
         .select({
             isMerchListing: products.isMerchListing,
             rootCategoryBsr: products.rootCategoryBsr,
+            keepaFetchedAt: products.keepaFetchedAt,
         })
         .from(products)
         .where(and(eq(products.marketplaceId, marketplaceId), eq(products.asin, asin)))

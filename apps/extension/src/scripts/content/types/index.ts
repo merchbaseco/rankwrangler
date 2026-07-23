@@ -5,7 +5,7 @@ export interface ProductInfo {
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	metadata: {
-		lastFetched: string; // ISO timestamp
+		spApiFetchedAt: string | null; // ISO timestamp
 		cached: boolean;
 	};
 }

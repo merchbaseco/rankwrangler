@@ -7,6 +7,7 @@ import { loadKeepaProductHistory as loadKeepaProductHistoryService } from '@/ser
 import {
     getKeepaHistoryDaysForAsin as getKeepaHistoryDaysForAsinService,
     getKeepaHistoryRefreshQueueItem as getKeepaHistoryRefreshQueueItemService,
+    recordKeepaHistoryRefreshFailure as recordKeepaHistoryRefreshFailureService,
     removeKeepaHistoryRefreshQueueItem as removeKeepaHistoryRefreshQueueItemService,
     shouldKeepaHistoryRefreshAsin as shouldKeepaHistoryRefreshAsinService,
 } from '@/services/keepa-history-refresh.js';
@@ -22,6 +23,7 @@ type FetchKeepaHistoryForAsinDeps = {
     loadKeepaProductHistory: typeof loadKeepaProductHistoryService;
     getKeepaHistoryDaysForAsin: typeof getKeepaHistoryDaysForAsinService;
     getKeepaHistoryRefreshQueueItem: typeof getKeepaHistoryRefreshQueueItemService;
+    recordKeepaHistoryRefreshFailure: typeof recordKeepaHistoryRefreshFailureService;
     removeKeepaHistoryRefreshQueueItem: typeof removeKeepaHistoryRefreshQueueItemService;
     shouldKeepaHistoryRefreshAsin: typeof shouldKeepaHistoryRefreshAsinService;
 };
@@ -31,6 +33,7 @@ const defaultFetchKeepaHistoryForAsinDeps: FetchKeepaHistoryForAsinDeps = {
     loadKeepaProductHistory: loadKeepaProductHistoryService,
     getKeepaHistoryDaysForAsin: getKeepaHistoryDaysForAsinService,
     getKeepaHistoryRefreshQueueItem: getKeepaHistoryRefreshQueueItemService,
+    recordKeepaHistoryRefreshFailure: recordKeepaHistoryRefreshFailureService,
     removeKeepaHistoryRefreshQueueItem: removeKeepaHistoryRefreshQueueItemService,
     shouldKeepaHistoryRefreshAsin: shouldKeepaHistoryRefreshAsinService,
 };
@@ -133,18 +136,6 @@ export const fetchKeepaHistoryForAsin = async (
         marketplaceId,
         asin,
     });
-    let didRemoveQueueItem = false;
-    const removeQueueItem = async () => {
-        if (didRemoveQueueItem) {
-            return;
-        }
-
-        didRemoveQueueItem = true;
-        await deps.removeKeepaHistoryRefreshQueueItem({
-            marketplaceId,
-            asin,
-        });
-    };
 
     try {
         const summary = await deps.loadKeepaProductHistory({
@@ -154,9 +145,8 @@ export const fetchKeepaHistoryForAsin = async (
             queuePriority: 'background',
         });
 
-        await removeQueueItem();
-
         if (summary.status === 'success') {
+            await deps.removeKeepaHistoryRefreshQueueItem({ marketplaceId, asin });
             await deps.createEventLogSafe({
                 level: 'info',
                 status: 'success',
@@ -186,7 +176,12 @@ export const fetchKeepaHistoryForAsin = async (
                 'Keepa history refresh completed with a non-success status',
         });
     } catch (error) {
-        await removeQueueItem();
+        const errorMessage = getErrorMessage(error);
+        await deps.recordKeepaHistoryRefreshFailure({
+            marketplaceId,
+            asin,
+            errorMessage,
+        });
         await deps.createEventLogSafe({
             level: 'error',
             status: 'failed',
@@ -195,7 +190,7 @@ export const fetchKeepaHistoryForAsin = async (
             primitiveType: 'history',
             message: `History sync failed for ${asin}.`,
             detailsJson: {
-                error: getErrorMessage(error),
+                error: errorMessage,
                 marketplaceId,
                 source: 'keepa_background_job',
             },

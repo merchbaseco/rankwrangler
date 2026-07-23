@@ -8,8 +8,8 @@ const recentProductsInput = z.object({
 	cursor: z
 		.object({
 			asin: z.string(),
-			lastFetched: z.string().datetime(),
 			marketplaceId: z.string(),
+			updatedAt: z.string().datetime(),
 		})
 		.nullish(),
 	limit: z.number().int().min(10).max(100).default(50),
@@ -66,11 +66,16 @@ export const recentProducts = appProcedure
                 `.mapWith((value) =>
 					JSON.parse(value) as Array<{ facet: string; name: string }>
 				),
-				lastFetched: products.lastFetched,
+				spApiFetchedAt: products.spApiFetchedAt,
+				updatedAt: productUpdatedAt,
 			})
 			.from(products)
 			.where(whereCondition)
-            .orderBy(desc(products.lastFetched), desc(products.marketplaceId), desc(products.asin))
+            .orderBy(
+                desc(productUpdatedAt),
+                desc(products.marketplaceId),
+                desc(products.asin)
+            )
             .limit(limit + 1);
 
         const items = rows.slice(0, limit);
@@ -93,8 +98,8 @@ export const recentProducts = appProcedure
         const nextCursor = nextRow
             ? {
 					asin: nextRow.asin,
-					lastFetched: nextRow.lastFetched.toISOString(),
 					marketplaceId: nextRow.marketplaceId,
+					updatedAt: nextRow.updatedAt.toISOString(),
 				}
 			: null;
 
@@ -109,19 +114,19 @@ export const recentProducts = appProcedure
 const buildCursorCondition = (
 	cursor: {
 		asin: string;
-		lastFetched: string;
 		marketplaceId: string;
+		updatedAt: string;
 	} | null,
 ): SQL | undefined => {
 	if (!cursor) {
 		return undefined;
 	}
 
-	const cursorLastFetched = new Date(cursor.lastFetched);
+	const cursorUpdatedAt = new Date(cursor.updatedAt);
 	return or(
-		lt(products.lastFetched, cursorLastFetched),
+		lt(productUpdatedAt, cursorUpdatedAt),
 		and(
-			eq(products.lastFetched, cursorLastFetched),
+			eq(productUpdatedAt, cursorUpdatedAt),
 			or(
 				lt(products.marketplaceId, cursor.marketplaceId),
 				and(eq(products.marketplaceId, cursor.marketplaceId), lt(products.asin, cursor.asin)),
@@ -129,6 +134,12 @@ const buildCursorCondition = (
 		),
 	);
 };
+
+const productUpdatedAt = sql<Date>`GREATEST(
+    COALESCE(${products.spApiFetchedAt}, '-infinity'::timestamp),
+    COALESCE(${products.keepaFetchedAt}, '-infinity'::timestamp),
+    ${products.createdAt}
+)`;
 
 const buildSearchCondition = (search: string | undefined): SQL | undefined => {
 	const tokens = splitSearchTokens(search);

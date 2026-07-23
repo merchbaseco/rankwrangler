@@ -169,11 +169,9 @@ const shouldSyncProductHistory = async (
         return false;
     }
 
-    const days = resolveProductHistorySyncDays(input, agentWindow);
     return !(await hasRecentSuccessfulKeepaImportForAsin({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
-        days,
     }));
 };
 

@@ -37,6 +37,6 @@ volatility without processing thousands of provider change points.
 ## Boundaries
 
 - Sparse points do not mean RankWrangler stopped observing the Product.
-- In the accepted source-separated Product model, `keepaFetchedAt` controls freshness; the newest
-  history change does not. That field still requires the generated database migration.
+- In the source-separated Product model, `keepaFetchedAt` controls freshness; the newest history
+  change does not. Deployments must apply the generated database migration before using that field.
 - Rank and price movement are evidence, not sales totals or an opportunity recommendation.

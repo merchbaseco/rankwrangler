@@ -50,7 +50,7 @@ const SEARCH_PRODUCT: Product = {
 	metadata: {
 		success: true,
 		cached: true,
-		lastFetched: "2026-02-25T11:23:00.000Z",
+		spApiFetchedAt: "2026-02-25T11:23:00.000Z",
 	},
 };
 

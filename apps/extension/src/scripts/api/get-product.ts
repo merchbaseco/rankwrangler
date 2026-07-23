@@ -73,6 +73,7 @@ export const getProduct = async (
 
 		const responseData = response.data ?? {};
 
+		const spApiFetchedAt = responseData.metadata?.spApiFetchedAt;
 		const product: Product = {
 			asin,
 			marketplaceId,
@@ -91,8 +92,7 @@ export const getProduct = async (
 				: {}),
 			metadata: {
 				success: true,
-				lastFetched:
-					responseData.metadata?.lastFetched || new Date().toISOString(),
+				...(typeof spApiFetchedAt === "string" ? { spApiFetchedAt } : {}),
 				cached: Boolean(responseData.metadata?.cached),
 			},
 		};

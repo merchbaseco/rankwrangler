@@ -7,12 +7,21 @@ import { LAST_UPDATED_HOURS } from "@/components/dashboard/recent-products/types
 const HOUR_IN_MS = 60 * 60 * 1000;
 
 export const hydrateProducts = (
-	items: Array<Omit<Product, "lastFetchedMs">>,
+	items: Array<
+		Omit<Product, "spApiFetchedAtMs" | "updatedAt" | "updatedAtMs"> & {
+			updatedAt?: string;
+		}
+	>,
 ): Product[] =>
-	items.map((product) => ({
-		...product,
-		lastFetchedMs: toValidTimestamp(product.lastFetched),
-	}));
+	items.map((product) => {
+		const updatedAt = product.updatedAt ?? product.spApiFetchedAt ?? "";
+		return {
+			...product,
+			spApiFetchedAtMs: toValidTimestamp(product.spApiFetchedAt),
+			updatedAt,
+			updatedAtMs: toValidTimestamp(updatedAt),
+		};
+	});
 
 export const filterProducts = ({
 	activeFacetKeys,
@@ -43,7 +52,7 @@ export const filterProducts = ({
 		if (marketplaceSet && !marketplaceSet.has(product.marketplaceId)) {
 			return false;
 		}
-		if (cutoffMs !== null && product.lastFetchedMs < cutoffMs) {
+		if (cutoffMs !== null && product.updatedAtMs < cutoffMs) {
 			return false;
 		}
 		if (activeFacetSet) {
@@ -58,8 +67,8 @@ export const filterProducts = ({
 	});
 };
 
-const toValidTimestamp = (value: string) => {
-	const timestamp = Date.parse(value);
+const toValidTimestamp = (value: string | null) => {
+	const timestamp = Date.parse(value ?? "");
 	return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 

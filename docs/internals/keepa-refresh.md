@@ -7,8 +7,8 @@ read_when:
 
 # Keepa Refresh
 
-**Status:** The source-separated Keepa ingestion path is implemented in the working tree but
-requires its generated Product-schema migration before deployment.
+**Status:** The source-separated Keepa ingestion path and its Product-schema migration are
+implemented. The migration must be applied before deployment.
 
 All Keepa Product loads use one normalization and persistence path. A successful payload updates
 current Product metrics, deduplicated history points, import provenance, Product freshness, and

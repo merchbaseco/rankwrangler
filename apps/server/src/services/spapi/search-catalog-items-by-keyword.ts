@@ -26,7 +26,7 @@ export type CatalogKeywordSearchItem = {
     rootCategoryBsr: number | null;
     thumbnailUrl: string | null;
     facets: Array<{ facet: string; name: string }>;
-    lastFetched: string;
+    spApiFetchedAt: string;
 };
 
 export type CatalogKeywordSearchResult = {
@@ -34,7 +34,7 @@ export type CatalogKeywordSearchResult = {
     metadata: {
         cached: boolean;
         keyword: string;
-        lastFetched: string;
+        spApiFetchedAt: string;
         marketplaceId: string;
     };
 };
@@ -98,7 +98,7 @@ export const searchCatalogItemsByKeyword = async ({
         metadata: {
             cached: false,
             keyword: normalizedKeyword,
-            lastFetched: fetchedAt,
+            spApiFetchedAt: fetchedAt,
             marketplaceId,
         },
     };
@@ -154,7 +154,7 @@ export const mapCatalogItemFromKeywordSearch = (
         rootCategoryBsr,
         thumbnailUrl,
         facets: [],
-        lastFetched: fetchedAt,
+        spApiFetchedAt: fetchedAt,
     };
 };
 

@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'bun:test';
 import {
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
+    KEEPA_FAILURE_RETRY_BASE_MS,
+    KEEPA_FAILURE_RETRY_MAX_MS,
     KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     getKeepaEnqueueMinRefreshIntervalMs,
+    getKeepaFailureRetryDelayMs,
+    getKeepaRefreshDecision,
     getKeepaRefreshPolicyBucketKey,
     isEligibleForKeepaHistoryRefresh,
-} from '@/services/keepa-refresh-policy.js';
+} from '@/services/keepa-refresh-policy';
 
 describe('getKeepaRefreshPolicyBucketKey', () => {
     it('classifies merch BSR under 300k as daily', () => {
@@ -30,10 +34,72 @@ describe('getKeepaRefreshPolicyBucketKey', () => {
     });
 });
 
+describe('getKeepaFailureRetryDelayMs', () => {
+    it('backs failed queue work off exponentially and caps it at one day', () => {
+        expect(getKeepaFailureRetryDelayMs(1)).toBe(KEEPA_FAILURE_RETRY_BASE_MS);
+        expect(getKeepaFailureRetryDelayMs(2)).toBe(KEEPA_FAILURE_RETRY_BASE_MS * 2);
+        expect(getKeepaFailureRetryDelayMs(99)).toBe(KEEPA_FAILURE_RETRY_MAX_MS);
+    });
+});
+
+describe('getKeepaRefreshDecision', () => {
+    const now = new Date('2026-07-22T14:00:00.000Z');
+
+    it('uses Product Keepa freshness for daily and weekly policy buckets', () => {
+        expect(
+            getKeepaRefreshDecision({
+                isMerchListing: true,
+                rootCategoryBsr: 200_000,
+                keepaFetchedAt: new Date('2026-07-21T15:00:00.000Z'),
+                now,
+            })
+        ).toEqual({ shouldRefresh: false, reason: 'fresh_product' });
+        expect(
+            getKeepaRefreshDecision({
+                isMerchListing: true,
+                rootCategoryBsr: 500_000,
+                keepaFetchedAt: new Date('2026-07-15T13:59:59.000Z'),
+                now,
+            })
+        ).toEqual({ shouldRefresh: true, reason: 'stale_product' });
+    });
+
+    it('treats a Product without accepted Keepa data as stale', () => {
+        expect(
+            getKeepaRefreshDecision({
+                isMerchListing: true,
+                rootCategoryBsr: 200_000,
+                keepaFetchedAt: null,
+                now,
+            })
+        ).toEqual({ shouldRefresh: true, reason: 'never_fetched' });
+    });
+
+    it('rejects Products outside the Keepa refresh policy', () => {
+        expect(
+            getKeepaRefreshDecision({
+                isMerchListing: false,
+                rootCategoryBsr: 200_000,
+                keepaFetchedAt: null,
+                now,
+            })
+        ).toEqual({ shouldRefresh: false, reason: 'not_eligible' });
+        expect(
+            getKeepaRefreshDecision({
+                isMerchListing: true,
+                rootCategoryBsr: 1_000_000,
+                keepaFetchedAt: null,
+                now,
+            })
+        ).toEqual({ shouldRefresh: false, reason: 'not_eligible' });
+    });
+});
+
 describe('isEligibleForKeepaHistoryRefresh', () => {
-    it('returns true for merch with numeric BSR including >= 1M', () => {
+    it('returns true only for merch in an automatic refresh bucket', () => {
         expect(isEligibleForKeepaHistoryRefresh(true, 1)).toBeTrue();
-        expect(isEligibleForKeepaHistoryRefresh(true, 1000000)).toBeTrue();
+        expect(isEligibleForKeepaHistoryRefresh(true, 999_999)).toBeTrue();
+        expect(isEligibleForKeepaHistoryRefresh(true, 1_000_000)).toBeFalse();
     });
 
     it('returns false for non-merch or missing BSR', () => {
@@ -43,11 +109,8 @@ describe('isEligibleForKeepaHistoryRefresh', () => {
 });
 
 describe('getKeepaEnqueueMinRefreshIntervalMs', () => {
-    it('returns a daily interval for <300k and >=1M buckets', () => {
+    it('returns a daily interval only below 300k', () => {
         expect(getKeepaEnqueueMinRefreshIntervalMs(true, 150000)).toBe(
-            KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS
-        );
-        expect(getKeepaEnqueueMinRefreshIntervalMs(true, 1500000)).toBe(
             KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS
         );
     });
@@ -58,7 +121,8 @@ describe('getKeepaEnqueueMinRefreshIntervalMs', () => {
         );
     });
 
-    it('returns null for non-merch or missing BSR', () => {
+    it('returns null for on-demand, non-merch, or missing-BSR Products', () => {
+        expect(getKeepaEnqueueMinRefreshIntervalMs(true, 1_000_000)).toBeNull();
         expect(getKeepaEnqueueMinRefreshIntervalMs(false, 100)).toBeNull();
         expect(getKeepaEnqueueMinRefreshIntervalMs(true, null)).toBeNull();
     });

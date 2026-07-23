@@ -7,8 +7,8 @@ read_when:
 
 # Product Ingestion
 
-**Status:** Discovery and SP-API ingestion are current. The source-separated Keepa merge described
-below requires the generated Product-schema migration before deployment.
+**Status:** Discovery, SP-API ingestion, and the source-separated Keepa merge are implemented. The
+generated Product-schema migration must be applied before deployment.
 
 Product ingestion turns source payloads into canonical Products. Discovery only supplies a
 marketplace and ASIN; it does not own a separate copy of the Product.

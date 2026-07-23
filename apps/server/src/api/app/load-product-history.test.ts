@@ -111,8 +111,9 @@ const createProductInfoResult = () => ({
     rootCategoryId: 7141123011,
     rootCategoryBsr: 12345,
     rootCategoryDisplayName: 'Clothing',
+    keepa: null,
     metadata: {
-        lastFetched: '2026-03-05T00:00:00.000Z',
+        spApiFetchedAt: '2026-03-05T00:00:00.000Z',
         cached: true,
     },
 });

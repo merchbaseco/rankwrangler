@@ -7,8 +7,8 @@ read_when:
 
 # Product Catalog
 
-**Status:** Catalog behavior is current. The source-separated Keepa fields described below are
-accepted target behavior until their generated database migration is added and applied.
+**Status:** Catalog behavior and the source-separated Keepa fields described below are
+implemented. Apply the generated Product-schema migration before deployment.
 
 The catalog stores one canonical current Product for each Amazon marketplace and ASIN. A Product
 outlives the path that discovered it: extension browsing, an API lookup, and a dashboard search all
@@ -24,7 +24,7 @@ converge on the same record.
   Amazon's bought-in-the-past-month value when Keepa supplies it.
 - Links to historical observations; history is not embedded into the current Product record.
 
-The target provider timestamps stay distinct. `spApiFetchedAt` says when RankWrangler accepted SP-API data,
+Provider timestamps stay distinct. `spApiFetchedAt` says when RankWrangler accepted SP-API data,
 `keepaFetchedAt` says when it accepted a Keepa Product, and `keepaSourceUpdatedAt` preserves Keepa's
 own update time.
 

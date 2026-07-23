@@ -42,10 +42,10 @@ not define a second server contract.
 A **Product** is the canonical current state of one marketplace listing, keyed by marketplace and
 ASIN. How RankWrangler discovered it does not create a second Product.
 
-SP-API and Keepa provide observations. The accepted source-separated Product model gives them
-independent freshness watermarks; its generated migration is still pending. Current normalized
-values can update the Product, while event-based rank and price observations remain in Product
-history. Provider diagnostics are not canonical Product state.
+SP-API and Keepa provide observations. The source-separated Product model gives them independent
+freshness watermarks; its generated migration must be applied before deployment. Current
+normalized values can update the Product, while event-based rank and price observations remain in
+Product history. Provider diagnostics are not canonical Product state.
 
 Stored catalog lookup reads Products already known to RankWrangler. External Catalog search calls a
 provider and can discover Products. Search-run membership and position are observations about that

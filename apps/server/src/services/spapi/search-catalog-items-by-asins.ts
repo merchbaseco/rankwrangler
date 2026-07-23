@@ -9,8 +9,12 @@ import {
     VariantSchema,
 } from './search-catalog-items-schema.js';
 
-// Return type for searchCatalogItemsByAsins (omits rootCategoryDisplayName which is derived from rootCategoryId)
-type SearchCatalogItemsResult = Omit<ProductInfo, 'rootCategoryDisplayName'>;
+// SP-API results always carry a fresh SP-API watermark. Cached products may not have one yet.
+type SearchCatalogItemsResult = Omit<ProductInfo, 'rootCategoryDisplayName' | 'metadata'> & {
+    metadata: Omit<ProductInfo['metadata'], 'spApiFetchedAt'> & {
+        spApiFetchedAt: string;
+    };
+};
 const spApiClient = createSpApiClient();
 
 // Get product info using searchCatalogItems API (supports single or multiple ASINs)
@@ -98,8 +102,9 @@ export const searchCatalogItemsByAsins = async (
             rootCategoryId,
             rootCategoryBsr,
             thumbnailUrl,
+            keepa: null,
             metadata: {
-                lastFetched: new Date().toISOString(),
+                spApiFetchedAt: new Date().toISOString(),
                 cached: false,
             },
         };

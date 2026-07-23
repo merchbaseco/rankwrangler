@@ -18,7 +18,10 @@ import {
 	useCursorImageTooltip,
 } from "@/components/ui/tooltip";
 
-type AmazonSearchItem = Omit<Product, "lastFetchedMs">;
+type AmazonSearchItem = Omit<
+	Product,
+	"spApiFetchedAtMs" | "updatedAt" | "updatedAtMs"
+>;
 
 export const AmazonResultsTable = ({
 	items,

@@ -7,8 +7,8 @@ read_when:
 
 # Keepa Refresh Operations
 
-**Status:** These source-separated freshness controls require the generated Product-schema
-migration before deployment.
+**Status:** These source-separated freshness controls are implemented. Apply the generated
+Product-schema migration before deployment.
 
 Keepa refresh is Product-driven. `products.keepa_fetched_at` is the successful-fetch watermark;
 import rows provide provenance and diagnostics but do not schedule refreshes.

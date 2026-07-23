@@ -16,8 +16,10 @@ export type Product = {
 	dateFirstAvailable: string | null;
 	isMerchListing: boolean;
 	facets: Array<{ facet: string; name: string }>;
-	lastFetched: string;
-	lastFetchedMs: number;
+	spApiFetchedAt: string | null;
+	spApiFetchedAtMs: number;
+	updatedAt: string;
+	updatedAtMs: number;
 };
 
 export type SelectedHistoryProduct = {

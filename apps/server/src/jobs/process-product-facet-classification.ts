@@ -129,7 +129,7 @@ const getPendingProducts = async (limit: number) => {
         })
         .from(products)
         .where(eq(products.facetsState, 'pending'))
-        .orderBy(asc(products.lastFetched))
+        .orderBy(asc(products.spApiFetchedAt))
         .limit(limit);
 
     return pendingProducts as ProductFacetClassificationCandidate[];

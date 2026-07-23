@@ -52,7 +52,7 @@ export interface CachedProductDebugEntry {
 	hasRankData: boolean;
 	metadataSuccess: boolean;
 	metadataCached: boolean;
-	lastFetched: string | null;
+	spApiFetchedAt: string | null;
 }
 
 const getCacheEntries = async (
@@ -80,9 +80,9 @@ const getCacheEntries = async (
 				hasRankData,
 				metadataSuccess: Boolean(product.metadata?.success),
 				metadataCached: Boolean(product.metadata?.cached),
-				lastFetched:
-					typeof product.metadata?.lastFetched === "string"
-						? product.metadata.lastFetched
+				spApiFetchedAt:
+					typeof product.metadata?.spApiFetchedAt === "string"
+						? product.metadata.spApiFetchedAt
 						: null,
 			};
 		});
