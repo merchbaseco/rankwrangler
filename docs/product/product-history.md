@@ -29,6 +29,11 @@ Completed Operations contain either a Product-history resource reference or a sa
 history remains readable after provider failure. Operation polling never starts provider work or
 uses another external-work allowance.
 
+The dashboard keeps existing chart points visible and shows `Syncing Keepa…` while that Operation
+is pending. A Clerk-authenticated completion subscription invalidates the affected Operation and
+history reads; polling, reload, and reconnect remain recovery paths when realtime delivery is
+unavailable or missed.
+
 Eligible Merch Products also refresh automatically:
 
 - root-category BSR below 300,000: daily;

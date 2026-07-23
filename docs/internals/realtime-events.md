@@ -9,9 +9,8 @@ read_when:
 
 ## Status
 
-Accepted target architecture; not shipped. Durable Product-history Operations and HTTP polling are
-shipped. The current website uses `httpBatchLink` only and the Fastify server exposes no
-subscription transport.
+Product-history completion is shipped. Catalog-search completion remains accepted target behavior
+until durable Catalog search ships.
 
 ## Contract
 
@@ -19,10 +18,10 @@ Realtime delivery announces that durable domain state changed. It does not own r
 does not stream provider payloads.
 
 Each product noun and action owns its event rather than publishing through a shared application
-event bus. The first accepted subscriptions are:
+event bus. The domain subscriptions are:
 
-- `api.app.product.history.refresh.completed`
-- `api.app.catalog.search.completed`
+- `api.app.product.history.refresh.completed` — shipped;
+- `api.app.catalog.search.completed` — accepted target.
 
 One `completed` event covers successful and failed outcomes. The associated Operation read reveals
 the outcome; separate `succeeded`, `failed`, or `refreshFailed` subscriptions would duplicate the
@@ -33,16 +32,21 @@ Feature hooks subscribe and invalidate the exact tRPC reads that own the display
 
 ## Transport
 
-The target website transport uses tRPC `splitLink`: HTTP for queries and mutations, `wsLink` for
-subscriptions, and Clerk credentials in WebSocket connection parameters. A feature hook owns its
-subscription, targeted invalidations, and reconnect invalidation.
+The website uses tRPC `splitLink`: HTTP batching for queries and mutations, and `/api/trpc`
+WebSockets only for subscriptions. The browser supplies its Clerk token in connection parameters;
+the server verifies it through the same Clerk app boundary as HTTP procedures and closes the
+connection at credential expiry. The dedicated WebSocket router exposes only shipped domain
+subscriptions.
+
+The Product-history panel subscribes by marketplace/ASIN. Its feature hook rejects completion from
+an older Operation and invalidates that Operation plus the panel's exact active history reads.
 
 ## Recovery
 
 WebSocket delivery is best effort. The durable database and Operation read remain authoritative.
-Agents poll after `retryAfterSeconds`; the dashboard can poll while loading and use completion as a
-low-latency invalidation hint. Reload, reconnect, timeout, and missed events recover by reading the
-same Operation and domain resource again.
+Agents poll after `retryAfterSeconds`; the dashboard also polls while showing existing points and
+`Syncing Keepa…`. A completion event lowers latency but carries no outcome. Reload and polling
+recover missed events, while reconnect invalidates the active Operation and history reads.
 
 This boundary keeps the server stateless across connections and prevents realtime delivery from
 becoming a second data store.

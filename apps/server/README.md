@@ -18,6 +18,7 @@ Documentation:
 - [Architecture](../../docs/internals/architecture.md)
 - [Product ingestion](../../docs/internals/product-ingestion.md)
 - [Authentication](../../docs/internals/authentication.md)
+- [Realtime events](../../docs/internals/realtime-events.md)
 - [Background jobs](../../docs/internals/background-jobs.md)
 - [Development](../../docs/operations/development.md)
 - [Public API](../../docs/reference/public-api.md)

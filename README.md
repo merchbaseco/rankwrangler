@@ -38,7 +38,9 @@ rw operations get <operationId>
 ```
 
 History reads return stored points immediately. When collection is needed, the response includes a
-pending durable Operation; poll that receipt, then read history again after completion.
+pending durable Operation; poll that receipt, then read history again after completion. The
+dashboard also uses a Clerk-authenticated Product-history completion subscription as a low-latency
+invalidation hint while polling remains the fallback.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses license keys; dashboard procedures use Clerk sessions.

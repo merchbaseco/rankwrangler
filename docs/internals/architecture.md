@@ -53,10 +53,11 @@ execution, not alternate Product records or guaranteed Amazon organic rank.
 
 ## Request And Work Boundary
 
-HTTP tRPC is the shipped request transport. The server performs cheap reads directly and delegates
-scheduled or provider work to pg-boss. Product-history refresh persists a durable Operation before
-dispatch; callers receive stored history plus the receipt and poll the database-backed outcome.
-WebSocket completion notifications remain accepted target behavior and are not shipped.
+HTTP tRPC owns queries and mutations. Clerk-authenticated tRPC WebSockets own app subscriptions.
+The server performs cheap reads directly and delegates scheduled or provider work to pg-boss.
+Product-history refresh persists a durable Operation before dispatch; callers receive stored
+history plus the receipt and poll the database-backed outcome. Its domain-specific completion
+subscription invalidates dashboard reads without carrying outcome state.
 
 The durable database state is authoritative. Operations own client-requested outcomes,
 job-execution records describe worker attempts, and the activity log describes meaningful domain

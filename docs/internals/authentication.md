@@ -23,8 +23,11 @@ Public Product mutations consume license usage explicitly after authentication. 
 at midnight UTC; a limit breach maps to tRPC `TOO_MANY_REQUESTS`. License status and validation own
 their narrower accounting behavior.
 
-The website obtains a Clerk token and sends it through the tRPC HTTP batch link. The published HTTP
-client scopes its proxy to `api.public.*` and sends the configured license key. Authentication
+The website obtains a Clerk token and sends it through the tRPC HTTP batch link. Its subscription
+transport sends the same token in WebSocket connection parameters; the server verifies it before
+allowing the Product-history app subscription, then closes the connection when that verified
+credential expires. The WebSocket router exposes no query or mutation procedures. The published
+HTTP client scopes its proxy to `api.public.*` and sends the configured license key. Authentication
 belongs at the procedure boundary; shared Product and history services do not branch on caller
 type.
 
@@ -45,5 +48,5 @@ website's optional dev auto-sign-in consumes that path.
 - API keys and Clerk tokens are bearer credentials and must not be logged.
 - Public and app routers share services, not procedures.
 - Admin authorization is enforced server-side.
-- Realtime app authentication is target behavior until the WebSocket transport ships; see
+- Realtime app procedures require Clerk authentication; see
   [Realtime events](realtime-events.md).
