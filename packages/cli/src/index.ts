@@ -34,6 +34,7 @@ const SUPPORTED_COMMANDS = new Set([
     'products:get',
     'products:summary',
     'products:history',
+    'operations:get',
     'license:status',
     'license:validate',
     'auth:status',
@@ -138,6 +139,10 @@ const runApiCommand = async (
         return runProductHistoryCommand(command, client, config);
     }
 
+    if (command.resource === 'operations' && command.verb === 'get') {
+        return runOperationGetCommand(command, client);
+    }
+
     if (command.resource === 'license' && command.verb === 'status') {
         return client.license.status.mutate();
     }
@@ -149,6 +154,17 @@ const runApiCommand = async (
     fail('UNKNOWN_COMMAND', 'Unknown command', {
         command: `${command.resource} ${command.verb}`,
     });
+};
+
+const runOperationGetCommand = async (
+    command: CliCommand,
+    client: ReturnType<typeof createRankWranglerClient>
+) => {
+    if (command.args.length !== 1) {
+        fail('INVALID_INPUT', 'operations get requires exactly one id');
+    }
+
+    return await client.operation.get.query({ id: command.args[0] });
 };
 
 const runProductGetCommand = async (

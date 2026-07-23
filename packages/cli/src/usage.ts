@@ -21,6 +21,7 @@ export const printUsage = (paths: CliPaths) => {
         '  products get <ASIN>',
         '  products summary <ASIN>',
         '  products history <ASIN>',
+        '  operations get <operationId>',
         '  license status',
         '  license validate',
         '  auth status',
@@ -75,6 +76,7 @@ export const printUsage = (paths: CliPaths) => {
         '  rw products summary B0DV53VS61',
         '  rw products get B0DV53VS61 --metrics bsr,price --bucket week',
         '  rw products history B0DV53VS61 --metrics bsr,price --bucket week',
+        '  rw operations get 11111111-1111-4111-8111-111111111111',
         '  rw products history B0DV53VS61 --startAt 2025-01-01 --endAt 2025-12-31 --bucket month',
         '  rankwrangler license status',
     ];

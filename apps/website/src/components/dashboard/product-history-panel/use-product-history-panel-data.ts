@@ -10,6 +10,7 @@ import type {
 	SelectOption,
 } from "@/components/dashboard/product-history-panel/types";
 import { useKeepaAutoSync } from "@/components/dashboard/product-history-panel/use-keepa-auto-sync";
+import { useProductHistoryLoad } from "@/components/dashboard/product-history-panel/use-product-history-load";
 import { useProductHistoryPanelProduct } from "@/components/dashboard/product-history-panel/use-product-history-panel-product";
 import { toastManager } from "@/components/ui/toast";
 import { useAdminAccess } from "@/hooks/use-admin-access";
@@ -172,25 +173,13 @@ export const useProductHistoryPanelData = ({
 		staleTime: 30_000,
 	});
 
-	const loadMutation = api.api.app.loadProductHistory.useMutation({
-		onSuccess: async (data) => {
-			toastManager.add({
-				type: "success",
-				title: `Synced ${data.pointsStored.toLocaleString()} points from Keepa`,
-			});
+	const loadMutation = useProductHistoryLoad({
+		onCompleted: async () =>
 			await Promise.all([
 				rankQuery.refetch(),
 				priceQuery.refetch(),
 				categoryOptionsQuery.refetch(),
-			]);
-		},
-		onError: (error) => {
-			toastManager.add({
-				type: "error",
-				title: "Sync failed",
-				description: error.message,
-			});
-		},
+			]),
 	});
 
 	const fetchFacetsMutation = api.api.app.classifyProductFacets.useMutation({

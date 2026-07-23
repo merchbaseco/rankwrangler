@@ -21,6 +21,7 @@ rw config unset marketplace
 rw products get B0DV53VS61
 rw products summary B0DV53VS61
 rw products history B0DV53VS61 --metrics bsr,price --bucket week
+rw operations get 11111111-1111-4111-8111-111111111111
 RR_LICENSE_KEY=rrk_... rw license status
 # `rankwrangler` is also supported as an alias
 ```
@@ -38,7 +39,10 @@ existing config values when switching. `rw config get <key>`, `rw config unset <
 when set for CI, automation, or agent runtimes.
 `rw products get` returns product summary plus bucketed agent history. `rw products summary`
 returns the cheap summary only. `rw products history` returns bucketed history (`auto`, `day`,
-`week`, or `month`), not raw point series. `rw --version` prints the installed CLI version.
+`week`, or `month`), not raw point series.
+When history is collecting, poll its `operation.id` with `rw operations get`; polling is read-only
+and returns retry guidance until the durable Product-history resource or a safe error is ready.
+`rw --version` prints the installed CLI version.
 `rw changelog` prints the latest bundled release notes shipped with the package.
 
 ## Development

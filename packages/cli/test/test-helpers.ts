@@ -71,15 +71,49 @@ export const spawnCli = (
 ) => {
     return spawnSync('node', [CLI_PATH, ...args], {
         cwd,
-        env: {
-            ...process.env,
-            HOME: home,
-            [INTERNAL_SECRET_STORE_DIR_ENV_VAR]: path.join(home, '.rankwrangler-secure-store'),
-            ...env,
-        },
+        env: buildCliTestEnvironment(home, env),
         encoding: 'utf8',
         input,
     });
+};
+
+export const spawnCliAsync = async (
+    args: string[],
+    {
+        cwd,
+        home,
+        env = {},
+    }: {
+        cwd: string;
+        home: string;
+        env?: Record<string, string>;
+    }
+) => {
+    const process = Bun.spawn(['node', CLI_PATH, ...args], {
+        cwd,
+        env: buildCliTestEnvironment(home, env),
+        stdout: 'pipe',
+        stderr: 'pipe',
+    });
+    const [status, stdout, stderr] = await Promise.all([
+        process.exited,
+        new Response(process.stdout).text(),
+        new Response(process.stderr).text(),
+    ]);
+
+    return { status, stdout, stderr };
+};
+
+const buildCliTestEnvironment = (home: string, overrides: Record<string, string>) => {
+    const inheritedEnvironment = { ...globalThis.process.env };
+    delete inheritedEnvironment.RR_LICENSE_KEY;
+
+    return {
+        ...inheritedEnvironment,
+        HOME: home,
+        [INTERNAL_SECRET_STORE_DIR_ENV_VAR]: path.join(home, '.rankwrangler-secure-store'),
+        ...overrides,
+    };
 };
 
 function getLatestChangelogHeading(changelog: string) {

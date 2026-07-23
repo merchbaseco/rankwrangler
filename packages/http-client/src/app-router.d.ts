@@ -69,6 +69,41 @@ export type HistoryBucketSummary = {
 	firstBucketAt: string | null;
 	latestBucketAt: string | null;
 };
+export type ProductHistoryResource = {
+	type: "productHistory";
+	marketplaceId: string;
+	asin: string;
+};
+export type OperationError = {
+	code: "PROVIDER_UNAVAILABLE" | "RESOURCE_NOT_FOUND" | "INTERNAL_ERROR";
+	message: string;
+};
+export type PublicOperation = {
+	id: string;
+	type: "productHistoryRefresh";
+	status: "pending";
+	retryAfterSeconds: 2;
+	createdAt: string;
+	updatedAt: string;
+} | {
+	id: string;
+	type: "productHistoryRefresh";
+	status: "completed";
+	resource: ProductHistoryResource;
+	error: null;
+	createdAt: string;
+	updatedAt: string;
+	completedAt: string;
+} | {
+	id: string;
+	type: "productHistoryRefresh";
+	status: "completed";
+	resource: null;
+	error: OperationError;
+	createdAt: string;
+	updatedAt: string;
+	completedAt: string;
+};
 export type AgentHistorySeries = {
 	bsr?: {
 		unit: "rank";
@@ -94,6 +129,7 @@ export type AgentHistoryResponse = {
 	status: "collecting" | "ready" | "empty";
 	latestImportAt: string | null;
 	syncTriggered: boolean;
+	operation: PublicOperation | null;
 	range: {
 		startAt: string;
 		endAt: string;
@@ -106,6 +142,7 @@ export type ProductHistoryError = {
 	status: "error";
 	latestImportAt: null;
 	syncTriggered: false;
+	operation: PublicOperation | null;
 	range: {
 		startAt: string;
 		endAt: string;
@@ -280,23 +317,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						format?: "legacy" | "agent" | undefined;
 					};
 					output: AgentHistoryResponse | {
-						syncTriggered: boolean;
-						marketplaceId: string;
-						asin: string;
-						metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
-						latestImportAt: string | null;
-						categoryNames: {
-							[x: string]: string;
-						};
-						points: {
-							categoryId: number;
-							categoryName: string;
-							observedAt: string;
-							keepaMinutes: number;
-							value: number | null;
-							isMissing: boolean;
-						}[];
-					} | {
 						marketplaceId: string;
 						asin: string;
 						metric: "bsrMain";
@@ -312,7 +332,65 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						}[];
 						collecting: boolean;
 						syncTriggered: boolean;
+						operation: PublicOperation | null;
+					} | {
+						collecting: boolean;
+						syncTriggered: boolean;
+						operation: PublicOperation | null;
+						marketplaceId: string;
+						asin: string;
+						metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
+						latestImportAt: string | null;
+						categoryNames: {
+							[x: string]: string;
+						};
+						points: {
+							categoryId: number;
+							categoryName: string;
+							observedAt: string;
+							keepaMinutes: number;
+							value: number | null;
+							isMissing: boolean;
+						}[];
 					};
+					meta: object;
+				}>;
+			}>>;
+			operation: import("@trpc/server").TRPCBuiltRouter<{
+				ctx: {
+					user: ClerkUser;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					license: {
+						key: string;
+						data: LicenseUsageData | undefined;
+					};
+					licenseError: undefined;
+					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+				} | {
+					user: null;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					license: null;
+					licenseError: string | undefined;
+					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+				} | {
+					user: ClerkUser;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					license: null;
+					licenseError: undefined;
+					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+				};
+				meta: object;
+				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
+				transformer: false;
+			}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+				get: import("@trpc/server").TRPCQueryProcedure<{
+					input: {
+						id: string;
+					};
+					output: PublicOperation;
 					meta: object;
 				}>;
 			}>>;

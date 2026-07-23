@@ -35,6 +35,21 @@ export type AgentHistoryResponse = {
     schemaVersion?: number;
     status?: string;
     syncTriggered: boolean;
+    operation: {
+        id: string;
+        type: 'productHistoryRefresh';
+        status: 'pending' | 'completed';
+        retryAfterSeconds?: number;
+        resource?: {
+            type: 'productHistory';
+            marketplaceId: string;
+            asin: string;
+        } | null;
+        error?: {
+            code: string;
+            message: string;
+        } | null;
+    } | null;
     latestImportAt: string | null;
     range?: {
         startAt: string;
@@ -71,6 +86,7 @@ export const buildCliHistoryResponse = ({
         status: status ?? (response.syncTriggered ? 'collecting' : hasAnyBuckets ? 'ready' : 'empty'),
         latestImportAt: response.latestImportAt,
         syncTriggered: response.syncTriggered,
+        operation: response.operation,
         ...(response.range ? { range: response.range } : {}),
         series,
     };

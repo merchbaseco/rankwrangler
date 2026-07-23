@@ -24,6 +24,12 @@ const product = await client.product.get.mutate({
   metrics: ['bsr', 'price'],
   bucket: 'auto'
 });
+
+if (product.history.operation?.status === 'pending') {
+  const operation = await client.operation.get.query({
+    id: product.history.operation.id
+  });
+}
 ```
 
 The client is scoped to the public surface (`api.public.*`) so it stays aligned with CLI usage.
@@ -35,6 +41,7 @@ import type { PublicRouterInputs, PublicRouterOutputs } from '@rankwrangler/http
 
 type GetProductInput = PublicRouterInputs['product']['get'];
 type GetProductOutput = PublicRouterOutputs['product']['get'];
+type OperationGetOutput = PublicRouterOutputs['operation']['get'];
 ```
 
 ## Maintenance
