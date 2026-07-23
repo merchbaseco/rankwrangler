@@ -1,13 +1,11 @@
 import { z } from 'zod';
-import {
-    claimOperationWork,
-    completeOperationWithError,
-} from '@/db/operations.js';
+import { claimOperationWork, completeOperationWithError } from '@/db/operations.js';
 import { defineJob } from '@/jobs/job-router.js';
 import { createEventLogSafe } from '@/services/event-logs.js';
 import { loadKeepaProductHistoryManually } from '@/services/keepa-manual-load.js';
 import { sanitizeOperationError } from '@/services/operations.js';
 import { PRODUCT_HISTORY_OPERATION_JOB_NAME } from '@/services/product-history-operations.js';
+import { notifyProductHistoryRefreshCompleted } from '@/services/product-history-refresh-events';
 
 const refreshProductHistoryOperationInput = z.object({
     operationId: z.string().uuid(),
@@ -18,6 +16,7 @@ export type ProductHistoryOperationWorkerDeps = {
     loadHistory: typeof loadKeepaProductHistoryManually;
     completeWithError: typeof completeOperationWithError;
     createEventLogSafe: typeof createEventLogSafe;
+    notifyCompleted: typeof notifyProductHistoryRefreshCompleted;
 };
 
 const defaultDeps: ProductHistoryOperationWorkerDeps = {
@@ -25,6 +24,7 @@ const defaultDeps: ProductHistoryOperationWorkerDeps = {
     loadHistory: loadKeepaProductHistoryManually,
     completeWithError: completeOperationWithError,
     createEventLogSafe,
+    notifyCompleted: notifyProductHistoryRefreshCompleted,
 };
 
 export const runProductHistoryOperation = async (
@@ -63,6 +63,11 @@ export const runProductHistoryOperation = async (
             asin: operation.input.asin,
             requestId: operationId,
         });
+        deps.notifyCompleted({
+            operationId,
+            marketplaceId: operation.input.marketplaceId,
+            asin: operation.input.asin,
+        });
 
         return { didWork: true, status: 'completed' } as const;
     } catch (error) {
@@ -87,18 +92,20 @@ export const runProductHistoryOperation = async (
             asin: operation.input.asin,
             requestId: operationId,
         });
+        deps.notifyCompleted({
+            operationId,
+            marketplaceId: operation.input.marketplaceId,
+            asin: operation.input.asin,
+        });
 
         return { didWork: true, status: 'failed' } as const;
     }
 };
 
-export const refreshProductHistoryOperationJob = defineJob(
-    PRODUCT_HISTORY_OPERATION_JOB_NAME,
-    {
-        persistSuccess: 'didWork',
-        startupSummary: 'event-driven durable Operation worker',
-    }
-)
+export const refreshProductHistoryOperationJob = defineJob(PRODUCT_HISTORY_OPERATION_JOB_NAME, {
+    persistSuccess: 'didWork',
+    startupSummary: 'event-driven durable Operation worker',
+})
     .input(refreshProductHistoryOperationInput)
     .options({ retryLimit: 0 })
     .work(async job => {

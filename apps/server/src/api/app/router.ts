@@ -13,6 +13,7 @@ import { getProductHistory } from './get-product-history.js';
 import { appLicenseRouter } from './license.js';
 import { loadProductHistory } from './load-product-history.js';
 import { operationGet } from './operation-get.js';
+import { productHistoryRefreshCompleted } from './product-history-refresh-completed';
 import { recentProducts } from './recent-products.js';
 import { searchtermsRouter } from './searchterms-router.js';
 import { topSearchTermsStatus } from './top-search-terms-status.js';
@@ -34,6 +35,13 @@ export const appApiRouter = router({
     loadProductHistory,
     operation: router({
         get: operationGet,
+    }),
+    product: router({
+        history: router({
+            refresh: router({
+                completed: productHistoryRefreshCompleted,
+            }),
+        }),
     }),
     recentProducts,
     license: appLicenseRouter,

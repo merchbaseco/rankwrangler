@@ -20,6 +20,15 @@ describe('Product-history Operation worker', () => {
             operationId: operation.id,
         });
         expect(deps.completeWithError.mock.calls).toHaveLength(0);
+        expect(deps.notifyCompleted.mock.calls).toEqual([
+            [
+                {
+                    operationId: operation.id,
+                    marketplaceId: 'ATVPDKIKX0DER',
+                    asin: 'B012345678',
+                },
+            ],
+        ]);
     });
 
     it('no-ops without another provider request when the receipt is already completed', async () => {
@@ -28,10 +37,7 @@ describe('Product-history Operation worker', () => {
         });
 
         expect(
-            await runProductHistoryOperation(
-                '11111111-1111-4111-8111-111111111111',
-                deps
-            )
+            await runProductHistoryOperation('11111111-1111-4111-8111-111111111111', deps)
         ).toEqual({ didWork: false, status: 'already_completed_or_active' });
         expect(deps.loadHistory.mock.calls).toHaveLength(0);
     });
@@ -58,6 +64,15 @@ describe('Product-history Operation worker', () => {
                 message: 'Product history collection failed. Retry the request shortly.',
             },
         });
+        expect(deps.notifyCompleted.mock.calls).toEqual([
+            [
+                {
+                    operationId: operation.id,
+                    marketplaceId: 'ATVPDKIKX0DER',
+                    asin: 'B012345678',
+                },
+            ],
+        ]);
     });
 });
 
@@ -65,7 +80,8 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
     claimOperationWork: mock(async () => createPendingOperation()),
     loadHistory: mock(async () => ({ status: 'success' as const })),
     completeWithError: mock(async () => createPendingOperation()),
-    createEventLogSafe: mock(async () => {}),
+    createEventLogSafe: mock(async () => undefined),
+    notifyCompleted: mock(() => undefined),
     ...Object.fromEntries(
         Object.entries(overrides).map(([key, implementation]) => [
             key,

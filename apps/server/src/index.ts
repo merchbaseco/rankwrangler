@@ -4,6 +4,7 @@ import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify from 'fastify';
 import { createContext } from '@/api/context.js';
 import { appRouter } from '@/api/router.js';
+import { registerTrpcWebsocketServer, TRPC_WEBSOCKET_PATH } from '@/api/trpc-websocket-server';
 import { PgBoss } from 'pg-boss';
 import { createCorsOriginHandler } from '@/config/cors-origin';
 import { env } from '@/config/env.js';
@@ -79,9 +80,7 @@ console.log('[Server] pg-boss initialized');
 registerSpApiSyncQueueWakeups(boss);
 registerTopSearchTermsJobWakeups(boss);
 registerProductHistoryOperationWakeups(boss);
-console.log(
-    `[Server] Runtime flags: DISABLE_SERVER_JOB_RUNNER=${env.DISABLE_SERVER_JOB_RUNNER}`
-);
+console.log(`[Server] Runtime flags: DISABLE_SERVER_JOB_RUNNER=${env.DISABLE_SERVER_JOB_RUNNER}`);
 
 let recoveredTopSearchTermsDatasetsCount = 0;
 let recoveredProductHistoryOperationsCount = 0;
@@ -90,11 +89,11 @@ const jobsRuntime = serverRuntimeFlags.shouldStartJobRunner
     : createDisabledJobsRuntime();
 
 if (serverRuntimeFlags.shouldStartJobRunner) {
-    recoveredProductHistoryOperationsCount =
-        await recoverStaleProductHistoryOperations();
+    recoveredProductHistoryOperationsCount = await recoverStaleProductHistoryOperations();
     const topSearchTermsRecoveryStartedAt = new Date();
-    const topSearchTermsStaleActiveJobCutoff =
-        getTopSearchTermsFetchStaleActiveJobCutoff(topSearchTermsRecoveryStartedAt);
+    const topSearchTermsStaleActiveJobCutoff = getTopSearchTermsFetchStaleActiveJobCutoff(
+        topSearchTermsRecoveryStartedAt
+    );
     recoveredTopSearchTermsDatasetsCount = await recoverStaleTopSearchTermsDatasets({
         marketplaceId: SPAPI_US_MARKETPLACE_ID,
         staleActiveJobCutoff: topSearchTermsStaleActiveJobCutoff,
@@ -137,6 +136,7 @@ await fastify.register(cors, {
     origin: createCorsOriginHandler({ isProduction: process.env.NODE_ENV === 'production' }),
     credentials: true,
 });
+const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server);
 
 // Health check endpoint
 fastify.get('/api/health', async () => {
@@ -193,6 +193,9 @@ const shutdown = async (signal: string) => {
         console.log('[Server] pg-boss stopped');
 
         // Close Fastify server
+        await trpcWebsocketServer.close();
+        console.log('[Server] tRPC WebSocket server closed');
+
         await fastify.close();
         console.log('[Server] Fastify server closed');
 
@@ -234,9 +237,7 @@ try {
     } else {
         console.log('  • Jobs Registered: Skipped (job runner disabled)');
     }
-    const keepaStatus = env.KEEPA_API_KEY
-        ? 'Configured'
-        : 'Disabled (KEEPA_API_KEY not set)';
+    const keepaStatus = env.KEEPA_API_KEY ? 'Configured' : 'Disabled (KEEPA_API_KEY not set)';
     console.log(`  • Keepa History Sync: ${keepaStatus}`);
     console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
@@ -261,6 +262,7 @@ try {
         : 'Disabled (GEMINI_API_KEY not set)';
     console.log(`  • Product Facet Classification: ${productFacetStatus}`);
     console.log('  • API Routes: tRPC (/api)');
+    console.log(`  • Realtime: tRPC WebSocket (${TRPC_WEBSOCKET_PATH}, Clerk app)`);
     console.log('  • Auth: Clerk (app), License (public)');
     const devClerkSignInStatus = env.DEV_CLERK_SIGN_IN_USER_ID
         ? `Enabled (user: ${env.DEV_CLERK_SIGN_IN_USER_ID})`

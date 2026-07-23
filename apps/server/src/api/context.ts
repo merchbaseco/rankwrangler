@@ -20,8 +20,19 @@ interface LicenseContext {
 
 type AuthType = 'license' | 'clerk' | 'none';
 
-export async function createContext({ req }: CreateFastifyContextOptions) {
-    const token = getBearerToken(req.headers.authorization);
+export interface ContextRequest {
+    headers: {
+        authorization?: string;
+        host?: string;
+    };
+}
+
+export const createContext = async ({ req }: CreateFastifyContextOptions) => {
+    return await createRequestContext(req);
+};
+
+export const createRequestContext = async (request: ContextRequest) => {
+    const token = getBearerToken(request.headers.authorization);
     let licenseError: string | undefined;
 
     if (token) {
@@ -36,12 +47,13 @@ export async function createContext({ req }: CreateFastifyContextOptions) {
                 user,
                 isAdmin: false,
                 authType: 'license' as AuthType,
+                authExpiresAtMs: null,
                 license: {
                     key: token,
                     data: licenseValidation.data,
                 },
                 licenseError: undefined,
-                request: req,
+                request,
             };
         }
 
@@ -55,9 +67,10 @@ export async function createContext({ req }: CreateFastifyContextOptions) {
                 user: null,
                 isAdmin: false,
                 authType: 'none' as AuthType,
+                authExpiresAtMs: null,
                 license: null,
                 licenseError,
-                request: req,
+                request,
             };
         }
 
@@ -74,18 +87,20 @@ export async function createContext({ req }: CreateFastifyContextOptions) {
                 user,
                 isAdmin,
                 authType: 'clerk' as AuthType,
+                authExpiresAtMs: payload.exp * 1000,
                 license: null,
                 licenseError: undefined,
-                request: req,
+                request,
             };
         } catch {
             return {
                 user: null,
                 isAdmin: false,
                 authType: 'none' as AuthType,
+                authExpiresAtMs: null,
                 license: null,
                 licenseError,
-                request: req,
+                request,
             };
         }
     }
@@ -94,11 +109,12 @@ export async function createContext({ req }: CreateFastifyContextOptions) {
         user: null,
         isAdmin: false,
         authType: 'none' as AuthType,
+        authExpiresAtMs: null,
         license: null,
         licenseError: undefined,
-        request: req,
+        request,
     };
-}
+};
 
 export type Context = Awaited<ReturnType<typeof createContext>>;
 
