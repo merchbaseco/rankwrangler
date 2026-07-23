@@ -10,6 +10,12 @@ export interface ClerkUser {
 	sub: string;
 	email?: string;
 }
+export interface ContextRequest {
+	headers: {
+		authorization?: string;
+		host?: string;
+	};
+}
 export type ProductInfo = {
 	asin: string;
 	marketplaceId: string;
@@ -167,26 +173,29 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 		user: ClerkUser;
 		isAdmin: boolean;
 		authType: "license" | "clerk" | "none";
+		authExpiresAtMs: null;
 		license: {
 			key: string;
 			data: LicenseUsageData | undefined;
 		};
 		licenseError: undefined;
-		request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+		request: ContextRequest;
 	} | {
 		user: null;
 		isAdmin: boolean;
 		authType: "license" | "clerk" | "none";
+		authExpiresAtMs: null;
 		license: null;
 		licenseError: string | undefined;
-		request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+		request: ContextRequest;
 	} | {
 		user: ClerkUser;
 		isAdmin: boolean;
 		authType: "license" | "clerk" | "none";
+		authExpiresAtMs: number;
 		license: null;
 		licenseError: undefined;
-		request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+		request: ContextRequest;
 	};
 	meta: object;
 	errorShape: import("@trpc/server").TRPCDefaultErrorShape;
@@ -197,26 +206,29 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 			user: ClerkUser;
 			isAdmin: boolean;
 			authType: "license" | "clerk" | "none";
+			authExpiresAtMs: null;
 			license: {
 				key: string;
 				data: LicenseUsageData | undefined;
 			};
 			licenseError: undefined;
-			request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+			request: ContextRequest;
 		} | {
 			user: null;
 			isAdmin: boolean;
 			authType: "license" | "clerk" | "none";
+			authExpiresAtMs: null;
 			license: null;
 			licenseError: string | undefined;
-			request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+			request: ContextRequest;
 		} | {
 			user: ClerkUser;
 			isAdmin: boolean;
 			authType: "license" | "clerk" | "none";
+			authExpiresAtMs: number;
 			license: null;
 			licenseError: undefined;
-			request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+			request: ContextRequest;
 		};
 		meta: object;
 		errorShape: import("@trpc/server").TRPCDefaultErrorShape;
@@ -227,26 +239,29 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				user: ClerkUser;
 				isAdmin: boolean;
 				authType: "license" | "clerk" | "none";
+				authExpiresAtMs: null;
 				license: {
 					key: string;
 					data: LicenseUsageData | undefined;
 				};
 				licenseError: undefined;
-				request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+				request: ContextRequest;
 			} | {
 				user: null;
 				isAdmin: boolean;
 				authType: "license" | "clerk" | "none";
+				authExpiresAtMs: null;
 				license: null;
 				licenseError: string | undefined;
-				request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+				request: ContextRequest;
 			} | {
 				user: ClerkUser;
 				isAdmin: boolean;
 				authType: "license" | "clerk" | "none";
+				authExpiresAtMs: number;
 				license: null;
 				licenseError: undefined;
-				request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+				request: ContextRequest;
 			};
 			meta: object;
 			errorShape: import("@trpc/server").TRPCDefaultErrorShape;
@@ -257,26 +272,29 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					user: ClerkUser;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
 					license: {
 						key: string;
 						data: LicenseUsageData | undefined;
 					};
 					licenseError: undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				} | {
 					user: null;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
 					license: null;
 					licenseError: string | undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				} | {
 					user: ClerkUser;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: number;
 					license: null;
 					licenseError: undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				};
 				meta: object;
 				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
@@ -361,26 +379,29 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					user: ClerkUser;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
 					license: {
 						key: string;
 						data: LicenseUsageData | undefined;
 					};
 					licenseError: undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				} | {
 					user: null;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
 					license: null;
 					licenseError: string | undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				} | {
 					user: ClerkUser;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: number;
 					license: null;
 					licenseError: undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				};
 				meta: object;
 				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
@@ -399,26 +420,29 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					user: ClerkUser;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
 					license: {
 						key: string;
 						data: LicenseUsageData | undefined;
 					};
 					licenseError: undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				} | {
 					user: null;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
 					license: null;
 					licenseError: string | undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				} | {
 					user: ClerkUser;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: number;
 					license: null;
 					licenseError: undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				};
 				meta: object;
 				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
@@ -438,26 +462,29 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					user: ClerkUser;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
 					license: {
 						key: string;
 						data: LicenseUsageData | undefined;
 					};
 					licenseError: undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				} | {
 					user: null;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
 					license: null;
 					licenseError: string | undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				} | {
 					user: ClerkUser;
 					isAdmin: boolean;
 					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: number;
 					license: null;
 					licenseError: undefined;
-					request: import("fastify").FastifyRequest<import("fastify").RouteGenericInterface, import("fastify").RawServerDefault, import("http").IncomingMessage, import("fastify").FastifySchema, import("fastify").FastifyTypeProviderDefault, unknown, import("fastify").FastifyBaseLogger, import("fastify/types/type-provider.js").ResolveFastifyRequestType<import("fastify").FastifyTypeProviderDefault, import("fastify").FastifySchema, import("fastify").RouteGenericInterface>>;
+					request: ContextRequest;
 				};
 				meta: object;
 				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
