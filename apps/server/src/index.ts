@@ -5,6 +5,7 @@ import Fastify from 'fastify';
 import { createContext } from '@/api/context.js';
 import { appRouter } from '@/api/router.js';
 import { PgBoss } from 'pg-boss';
+import { createCorsOriginHandler } from '@/config/cors-origin';
 import { env } from '@/config/env.js';
 import {
     getProductHistoryOperationsStatus,
@@ -133,34 +134,7 @@ const fastify = Fastify({
 // Register Fastify plugins
 await fastify.register(helmet);
 await fastify.register(cors, {
-    origin: (origin, callback) => {
-        const allowedOrigins = [
-            'https://merchbase.co',
-            'https://rankwrangler.merchbase.co',
-            'http://localhost:3000',
-            'http://localhost:5173',
-        ];
-
-        // Allow Safari extension origins
-        if (origin?.startsWith('safari-web-extension://')) {
-            return callback(null, true);
-        }
-
-        // Allow Chrome extension origins
-        if (origin?.startsWith('chrome-extension://')) {
-            return callback(null, true);
-        }
-
-        // Allow requests with no origin (e.g., mobile apps, server-to-server)
-        if (!origin) return callback(null, true);
-
-        // Check if origin is in allowed list
-        if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-
-        return callback(new Error('Not allowed by CORS'), false);
-    },
+    origin: createCorsOriginHandler({ isProduction: process.env.NODE_ENV === 'production' }),
     credentials: true,
 });
 

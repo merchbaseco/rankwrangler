@@ -45,7 +45,8 @@ requires schedules or background execution; apply the same host database overrid
 
 The direct server listens on port `8080` by default. Vite serves the website on its configured dev
 port and proxies `/api` to the server. Use `dev-port` for new checkout-specific harnesses instead
-of adding fixed ports.
+of adding fixed ports. In non-production environments, the server accepts HTTP CORS origins from
+loopback hosts on any port so checkout-specific website previews can use their assigned port.
 
 ## Docker Development
 
