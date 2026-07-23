@@ -34,7 +34,11 @@ npm install -g @rankwrangler/cli
 rw auth set
 rw products summary B0XXXXXXXX
 rw products history B0XXXXXXXX --metrics bsr,price --bucket auto
+rw operations get <operationId>
 ```
+
+History reads return stored points immediately. When collection is needed, the response includes a
+pending durable Operation; poll that receipt, then read history again after completion.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses license keys; dashboard procedures use Clerk sessions.

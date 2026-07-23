@@ -23,7 +23,8 @@ import rows provide provenance and diagnostics but do not schedule refreshes.
 | Non-merch or missing numeric BSR | Not scheduled |
 
 Every caller shares a strict 24-hour minimum provider gap per marketplace/ASIN. Rich product,
-history, and dashboard requests may load on demand, but cannot bypass that guard.
+history, and dashboard requests create or join a durable Operation for on-demand work and cannot
+bypass that guard.
 
 The hourly cadence scan enqueues stale eligible Products. The queue dispatcher runs every minute,
 sizes work from available Keepa capacity, and caps each batch. A queue row is unique by
@@ -46,6 +47,10 @@ Check these in order:
 3. Check whether a deduplicated queue row already exists and when it is next due.
 4. Inspect recent enqueue, dispatch, and fetch executions in the activity/admin surfaces.
 5. Check provider capacity before manually retrying work.
+
+For a stranded client request, inspect its pending Operation. Undispatched or stale receipts are
+redispatched at startup and by the one-minute recovery job; recovery keeps the same Operation id
+and does not create another Product-history request.
 
 Do not expose Keepa token accounting through public RankWrangler APIs. It is an internal provider
 budget.

@@ -20,10 +20,14 @@ Price values use minor currency units in agent responses. A missing Keepa offer 
 missing data, not as a zero price. Agent history supports day, week, month, or automatically chosen
 buckets and includes range summaries for each requested metric.
 
-History reads return stored coverage first and may load Keepa when coverage is missing. All Product
-history paths share the same ingestion and a strict 24-hour minimum between successful Keepa
-requests for one marketplace/ASIN. Concurrent requests for the same Product join in flight within
-one server process.
+History reads return stored coverage immediately. When coverage is missing, the response includes
+a pending durable Operation and retry guidance instead of waiting for Keepa. Agents poll the
+Operation, then read the completed Product-history resource. Concurrent requests for one
+marketplace/ASIN share the same pending Operation and provider request.
+
+Completed Operations contain either a Product-history resource reference or a safe error. Existing
+history remains readable after provider failure. Operation polling never starts provider work or
+uses another external-work allowance.
 
 Eligible Merch Products also refresh automatically:
 
@@ -31,8 +35,8 @@ Eligible Merch Products also refresh automatically:
 - BSR from 300,000 through 999,999: weekly;
 - BSR at or above 1,000,000, missing BSR, or non-Merch: on demand only.
 
-**Brief user story:** An agent asks for weekly BSR and price buckets, then compares direction and
-volatility without processing thousands of provider change points.
+**Brief user story:** An agent asks for weekly BSR and price buckets, uses available points
+immediately, polls a pending Operation, then reads the expanded history after collection.
 
 ## Boundaries
 

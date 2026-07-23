@@ -54,12 +54,13 @@ execution, not alternate Product records or guaranteed Amazon organic rank.
 ## Request And Work Boundary
 
 HTTP tRPC is the shipped request transport. The server performs cheap reads directly and delegates
-scheduled or batch work to pg-boss. Current manual Product-history refresh can still wait within the
-request; durable client Operations and WebSocket completion notifications are accepted target
-behavior, not yet the active transport.
+scheduled or provider work to pg-boss. Product-history refresh persists a durable Operation before
+dispatch; callers receive stored history plus the receipt and poll the database-backed outcome.
+WebSocket completion notifications remain accepted target behavior and are not shipped.
 
-The durable database state is authoritative. Job-execution records describe worker attempts, and
-the activity log describes meaningful domain outcomes; neither replaces Product or dataset state.
+The durable database state is authoritative. Operations own client-requested outcomes,
+job-execution records describe worker attempts, and the activity log describes meaningful domain
+outcomes. These records remain distinct.
 
 ## Related
 

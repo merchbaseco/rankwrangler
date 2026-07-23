@@ -33,6 +33,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Top Search Terms dataset | marketplace, period, and report window | Current fetch lifecycle for one Amazon Brand Analytics reporting window. |
 | Top Search Terms snapshot | `(datasetId, observedDate)` | One fetched daily observation of a dataset. |
 | Search-term row | `(snapshotId, searchTerm)` | Rank and top-three click/conversion shares for one term in one snapshot. |
+| Operation | generated id; unique pending `(type, targetKey)` | Durable client receipt and terminal resource or safe error. |
 | Activity event | generated id | Searchable record of a product, history, job, or system action. |
 | Job execution | generated id | One completed background-job run with input, output, and error state. |
 | License | generated id; unique key | Public API credential, usage counter, limit, and revocation state. |
@@ -43,8 +44,18 @@ The active schema is split by responsibility:
   categories, and licenses.
 - [`top-search-terms-schema.ts`](../../apps/server/src/db/top-search-terms-schema.ts) owns Brand
   Analytics datasets, snapshots, and daily term rows.
-- [`ops-schema.ts`](../../apps/server/src/db/ops-schema.ts) owns activity events and job execution
-  records.
+- [`ops-schema.ts`](../../apps/server/src/db/ops-schema.ts) owns Operations, activity events, and
+  job execution records.
+
+## Operations
+
+Public Operation state is `pending` or `completed`. Pending rows have no outcome. Completed rows
+have exactly one outcome: a typed resource reference or a sanitized error. Dispatch and worker
+timestamps support recovery but are never exposed through the public contract.
+
+Only one pending `productHistoryRefresh` Operation exists per marketplace/ASIN target. Product
+history, its successful import audit, Product freshness, and successful Operation completion commit
+atomically. A schema migration for the Operations table must be generated before deployment.
 
 ## Product observations
 

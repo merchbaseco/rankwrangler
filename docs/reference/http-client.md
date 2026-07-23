@@ -33,6 +33,12 @@ const product = await client.product.get.mutate({
     metrics: ['bsr', 'price'],
     bucket: 'auto',
 });
+
+if (product.history.operation?.status === 'pending') {
+    const operation = await client.operation.get.query({
+        id: product.history.operation.id,
+    });
+}
 ```
 
 The returned proxy is already scoped to `api.public`; callers use `client.product...`, not
@@ -62,6 +68,7 @@ import type {
 
 type ProductGetInput = PublicRouterInputs['product']['get'];
 type ProductGetOutput = PublicRouterOutputs['product']['get'];
+type OperationGetOutput = PublicRouterOutputs['operation']['get'];
 ```
 
 It also exports `RankWranglerClient`, `RankWranglerClientOptions`, `RouterInputs`,
@@ -84,7 +91,8 @@ Calls return ordinary tRPC promises and reject with tRPC client errors. Server e
 `UNAUTHORIZED`, `TOO_MANY_REQUESTS`, `NOT_FOUND`, and `BAD_REQUEST` are available through the tRPC
 error data.
 
-The client does not add retries, polling, caching, or an operation lifecycle. Product methods have
-the same synchronous request contract documented in the [public API](public-api.md).
+The client does not poll automatically. Product history methods return stored data plus a pending
+Operation when collection is needed. Call `client.operation.get.query` after
+`retryAfterSeconds`; polling is read-only and does not consume another external-work usage unit.
 
 The implementation is [`packages/http-client/src/index.ts`](../../packages/http-client/src/index.ts).

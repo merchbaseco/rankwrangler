@@ -36,15 +36,16 @@ buckets. Price values use minor currency units.
 
 ## Read And Refresh Lifecycle
 
-History reads ensure the canonical Product exists first. When requested history is missing and no
-recent successful Keepa import proves the range was checked, the current service performs an
-on-demand Keepa load and reads the persisted points again. A wider requested window does not bypass
-the global 24-hour Keepa success guard.
+History reads ensure the canonical Product exists, read stored points, and return them without
+waiting for Keepa. When coverage is missing and no recent successful import proves the range was
+checked, the service persists or joins one pending Product-history Operation and dispatches its
+worker. A wider requested window does not bypass the global 24-hour Keepa success guard.
 
-The rich Product read returns summary data even when history fails, with `status: partial` and a
-structured history error. Existing dashboard points remain usable while a stale manual refresh is
-in progress.
+The Operation is unique while pending for a marketplace/ASIN. Successful history persistence and
+successful Operation completion share one transaction. An exhausted provider failure completes
+the same Operation with a sanitized error and leaves existing points intact. Workers no-op after
+completion; startup and the minute recovery job redispatch stale pending receipts.
 
-Durable asynchronous Product-history Operations are accepted target behavior; see
-[Realtime events](realtime-events.md). The shipped manual loader can still retry inside an HTTP
-request for up to two minutes.
+Public and app Operation reads expose only `pending` or `completed`. Pending responses include
+`retryAfterSeconds`; completion contains either a typed Product-history resource or a safe error.
+pg-boss jobs, provider queue rows, imports, and job executions remain internal and distinct.

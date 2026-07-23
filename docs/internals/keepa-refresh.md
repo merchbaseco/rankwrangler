@@ -54,7 +54,8 @@ from five minutes up to 24 hours.
 
 ## On-Demand Loads
 
-Rich Product reads, history reads, and dashboard manual refresh call the high-priority manual path
-directly rather than writing the scheduled queue. They can load Products outside automatic BSR
-eligibility but still respect the 24-hour guard. Retryable provider failures are retried within a
-two-minute request deadline.
+Rich Product reads, history reads, and dashboard manual refresh persist a Product-history
+Operation and return stored points immediately. Its high-priority worker calls the shared Keepa
+ingestion path rather than writing the scheduled queue. It can load Products outside automatic BSR
+eligibility but still respects the 24-hour guard. Retryable provider failures are exhausted in the
+worker, outside the initiating HTTP request.

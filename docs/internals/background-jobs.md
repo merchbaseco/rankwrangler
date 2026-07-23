@@ -24,6 +24,7 @@ where a second attempt would be redundant.
 | SP-API stale Product selection | Every 10 minutes using BSR-dependent freshness tiers. |
 | Keepa candidate selection | Hourly scan of eligible stale Products. |
 | Keepa queue dispatch | Every minute, capacity-bounded, then one singleton fetch per ASIN. |
+| Product-history Operation | Event-driven worker plus one-minute stale-pending recovery. |
 | Top Search Terms dataset sync | Every five minutes with a bounded due-window batch. |
 | Top Search Terms report fetch | Event-driven; one grouped fetch across server instances. |
 | Product facets | One-minute worker definition, currently disabled by policy. |
@@ -35,7 +36,7 @@ pg-boss owns dispatch and execution. Durable domain tables own recoverable state
 - SP-API and Keepa queue tables own pending Product work;
 - Top Search Terms datasets own report ID, status, retry time, and recovery state;
 - Products own source freshness;
-- future Operations own a client-requested outcome across worker attempts.
+- Operations own a client-requested outcome across worker attempts.
 
 Do not use `job_executions` as business state. Those rows record one worker attempt with input,
 output, duration, failure, and structured logs. Some no-op successes are intentionally omitted;
@@ -47,5 +48,6 @@ Jobs must leave retry intent in durable domain state before returning. Queue-spe
 backoff and redispatch rather than relying on hidden generic retries. Fatal job failures emit a
 `job.fatal` activity event with job identity, a bounded error message, and validated job input.
 
-The accepted durable Operation model remains separate: an Operation is one client-visible outcome
-that can span retries, while a job execution is one internal attempt.
+An Operation is one client-visible outcome that can span retries, while a job execution is one
+internal attempt. Product-history recovery reclaims only stale pending Operations and dispatches
+the same Operation id.

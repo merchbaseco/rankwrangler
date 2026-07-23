@@ -9,8 +9,9 @@ read_when:
 
 ## Status
 
-Accepted target architecture; not shipped. The current website uses `httpBatchLink` only, the
-Fastify server exposes no subscription transport, and durable client Operations do not yet exist.
+Accepted target architecture; not shipped. Durable Product-history Operations and HTTP polling are
+shipped. The current website uses `httpBatchLink` only and the Fastify server exposes no
+subscription transport.
 
 ## Contract
 

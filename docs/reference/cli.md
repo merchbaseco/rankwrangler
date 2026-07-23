@@ -41,6 +41,7 @@ printing the secret.
 | `rw products get <ASIN>` | Product summary plus compact bucketed history. |
 | `rw products summary <ASIN>` | Product summary without importing Keepa history. |
 | `rw products history <ASIN>` | Compact bucketed history without the product summary. |
+| `rw operations get <operationId>` | Poll one durable Operation without starting work. |
 | `rw license status` | License email, usage, and limit. |
 | `rw license validate` | Validate the active license and return its current usage. |
 | `rw auth status|set|clear` | Inspect or update secure-store authentication. |
@@ -75,6 +76,16 @@ rw products history B0DV53VS61 \
 
 `bsr` maps to Keepa `bsrMain`; `price` maps to `priceNew`. The CLI returns bucket tuples and
 summaries, never the raw point series.
+
+When `status` is `collecting`, the response includes `operation.id` and
+`retryAfterSeconds`. Poll it with:
+
+```bash
+rw operations get 11111111-1111-4111-8111-111111111111
+```
+
+A completed Operation contains either `resource.type: "productHistory"` with marketplace/ASIN
+identity or a sanitized `error`. Read Product history again after successful completion.
 
 `auto` uses day buckets through 45 days, week buckets through 18 months, and month buckets after
 that. Price values are minor currency units; consult the response's `currencyCode` and

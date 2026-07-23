@@ -14,9 +14,10 @@ RankWrangler separates interactive dashboard sessions from portable agent creden
 | Dashboard | Clerk session | `api.app.*` tRPC procedures |
 | CLI, extension, and integrations | Bearer license key | `api.public.*` tRPC procedures |
 
-The public surface currently exposes Product summary, rich Product, Product history, and license
-status behavior. The published `@rankwrangler/http-client` supplies end-to-end tRPC types, and the
-`rw` CLI presents the same Product primitives as stable JSON output for agents and scripts.
+The public surface exposes Product summary, rich Product, Product history, durable Operation
+polling, and license status behavior. The published `@rankwrangler/http-client` supplies end-to-end
+tRPC types, and the `rw` CLI presents the same primitives as stable JSON output for agents and
+scripts.
 
 Administrators can generate, reveal, copy, and rotate a user's license key in the dashboard. A new
 key replaces prior keys for that email. The dashboard also shows requests used today and the daily

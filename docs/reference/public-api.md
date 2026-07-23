@@ -99,7 +99,7 @@ Public history supports two formats:
 `agent` responses contain:
 
 - `status`: `collecting`, `ready`, or `empty`;
-- `latestImportAt` and `syncTriggered`;
+- `latestImportAt`, `syncTriggered`, and `operation`;
 - the resolved time range and bucket;
 - optional `bsr` and `price` series.
 
@@ -107,9 +107,25 @@ Public history supports two formats:
 for longer windows. BSR values are ranks. Price values are integer minor currency units with an
 explicit currency and scale.
 
-When requested history has never been imported, the product read path may perform a Keepa import
-before returning. A range before the earliest available provider observation can still be empty
-after a successful import.
+When collection is needed, history returns stored points immediately with a pending Operation:
+
+```text
+id
+type: productHistoryRefresh
+status: pending
+retryAfterSeconds: 2
+createdAt
+updatedAt
+```
+
+Poll it with the read-only `api.public.operation.get` query. Polling does not consume another
+external-work usage unit. Completed Operations contain exactly one of:
+
+- `resource: { type: "productHistory", marketplaceId, asin }`;
+- `error: { code, message }`, with provider details removed.
+
+After resource completion, read Product history again. A range before the earliest available
+provider observation can still be empty after successful collection.
 
 ## Contract source
 
