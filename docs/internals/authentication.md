@@ -47,4 +47,3 @@ website's optional dev auto-sign-in consumes that path.
 - Admin authorization is enforced server-side.
 - Realtime app authentication is target behavior until the WebSocket transport ships; see
   [Realtime events](realtime-events.md).
-

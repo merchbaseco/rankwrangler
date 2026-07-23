@@ -24,4 +24,3 @@ can rely on; reference docs own exact request and response shapes.
 | pg-boss scheduling and worker attempts | [Background jobs](background-jobs.md) |
 | Domain completion notifications | [Realtime events](realtime-events.md) |
 | Persisted customer-visible events | [Activity log](activity-log.md) |
-

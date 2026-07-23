@@ -52,4 +52,3 @@ or department fields.
 Stored rows keep `isMerchRelevant` and a reason. When classifier policy changes, existing snapshots
 can be reclassified without refetching the Amazon report; that is an operational workflow, not part
 of normal ingestion.
-

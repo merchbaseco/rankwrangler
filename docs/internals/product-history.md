@@ -48,4 +48,3 @@ in progress.
 Durable asynchronous Product-history Operations are accepted target behavior; see
 [Realtime events](realtime-events.md). The shipped manual loader can still retry inside an HTTP
 request for up to two minutes.
-

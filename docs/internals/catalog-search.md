@@ -58,4 +58,3 @@ Current views combine latest-run membership and position with canonical Product 
 views use the metrics captured on that immutable Search result. RankWrangler exposes source-
 attributed evidence; it does not score opportunities, recommend niches, or automatically promote
 queries into tracking.
-

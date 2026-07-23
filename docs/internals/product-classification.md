@@ -47,4 +47,3 @@ Classification requires `GEMINI_API_KEY`; image download failure falls back to t
 - Facets describe Product subject matter; they do not score demand or recommend an action.
 - A successful facet write replaces the complete facet set for the Product.
 - Success and failure emit `product.facets.classify` activity events.
-

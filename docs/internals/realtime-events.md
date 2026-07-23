@@ -45,4 +45,3 @@ same Operation and domain resource again.
 
 This boundary keeps the server stateless across connections and prevents realtime delivery from
 becoming a second data store.
-
