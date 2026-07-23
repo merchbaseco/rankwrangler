@@ -1,4 +1,5 @@
 import { TRPCError } from '@trpc/server';
+import { completeProductHistoryOperationSuccess } from '@/db/operations.js';
 import { loadKeepaProductHistory, type KeepaImportSummary } from '@/services/keepa.js';
 
 const MANUAL_KEEPA_WAIT_TIMEOUT_MS = 2 * 60 * 1000;
@@ -16,22 +17,28 @@ export const loadKeepaProductHistoryManually = async ({
     marketplaceId,
     asin,
     days,
+    operationId,
 }: {
     marketplaceId: string;
     asin: string;
     days: number;
+    operationId?: string;
 }) => {
     const key = `${marketplaceId}:${asin}`;
     const inFlightLoad = manualLoadInFlight.get(key);
     if (inFlightLoad && inFlightLoad.days >= days) {
-        return await inFlightLoad.promise;
+        const summary = await inFlightLoad.promise;
+        await completeOperationFromExistingLoad({ marketplaceId, asin, operationId });
+        return summary;
     }
 
     if (inFlightLoad) {
         await inFlightLoad.promise.catch(() => {});
         const nextInFlightLoad = manualLoadInFlight.get(key);
         if (nextInFlightLoad && nextInFlightLoad.days >= days) {
-            return await nextInFlightLoad.promise;
+            const summary = await nextInFlightLoad.promise;
+            await completeOperationFromExistingLoad({ marketplaceId, asin, operationId });
+            return summary;
         }
     }
 
@@ -39,22 +46,27 @@ export const loadKeepaProductHistoryManually = async ({
         marketplaceId,
         asin,
         days,
+        operationId,
     }).finally(() => {
         manualLoadInFlight.delete(key);
     });
     manualLoadInFlight.set(key, { days, promise: loadPromise });
 
-    return await loadPromise;
+    const summary = await loadPromise;
+    await completeOperationFromExistingLoad({ marketplaceId, asin, operationId });
+    return summary;
 };
 
 const runKeepaProductHistoryManualLoad = async ({
     marketplaceId,
     asin,
     days,
+    operationId,
 }: {
     marketplaceId: string;
     asin: string;
     days: number;
+    operationId?: string;
 }) => {
     const deadlineMs = Date.now() + MANUAL_KEEPA_WAIT_TIMEOUT_MS;
     let attempt = 0;
@@ -67,6 +79,7 @@ const runKeepaProductHistoryManualLoad = async ({
                 asin,
                 days,
                 queuePriority: 'manual',
+                operationId,
             });
         } catch (error) {
             if (!isRetryableKeepaError(error)) {
@@ -149,4 +162,24 @@ const getRetryDelayMs = (attempt: number) => {
 
 const sleep = async (delayMs: number) => {
     await new Promise(resolve => setTimeout(resolve, delayMs));
+};
+
+const completeOperationFromExistingLoad = async ({
+    marketplaceId,
+    asin,
+    operationId,
+}: {
+    marketplaceId: string;
+    asin: string;
+    operationId?: string;
+}) => {
+    if (!operationId) {
+        return;
+    }
+
+    await completeProductHistoryOperationSuccess({
+        operationId,
+        marketplaceId,
+        asin,
+    });
 };

@@ -63,6 +63,27 @@ describe('ingestKeepaProduct', () => {
         expect(persistAcceptedIngestion.mock.calls).toHaveLength(1);
     });
 
+    it('includes the Operation in the same atomic persistence call', async () => {
+        const persistAcceptedIngestion = mock(async () => ({
+            importId: 'import-1',
+            importedAt: new Date('2026-07-22T14:00:01.000Z'),
+        }));
+
+        await ingestKeepaProduct(
+            {
+                ...input,
+                operationId: '11111111-1111-4111-8111-111111111111',
+            },
+            { persistAcceptedIngestion }
+        );
+
+        expect(persistAcceptedIngestion.mock.calls[0]?.[0]).toMatchObject({
+            operationId: '11111111-1111-4111-8111-111111111111',
+            product: { asin: 'B0MERCH001' },
+            import: input.import,
+        });
+    });
+
     it('rejects a Product with a different ASIN before persistence', async () => {
         const persistAcceptedIngestion = mock(async () => ({
             importId: 'import-1',

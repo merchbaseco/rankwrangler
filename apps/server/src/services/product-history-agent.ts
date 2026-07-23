@@ -9,6 +9,7 @@ import {
     type ProductHistoryBucket,
     type ResolvedHistoryBucket,
 } from '@/services/product-history-buckets.js';
+import type { PublicOperation } from '@/services/operations.js';
 
 export { productHistoryBuckets, resolveAgentHistoryWindow };
 export type { ProductHistoryBucket };
@@ -38,6 +39,7 @@ export type AgentHistoryResponse = {
     status: 'collecting' | 'ready' | 'empty';
     latestImportAt: string | null;
     syncTriggered: boolean;
+    operation: PublicOperation | null;
     range: { startAt: string; endAt: string; bucket: ResolvedHistoryBucket };
     series: AgentHistorySeries;
 };
@@ -66,6 +68,7 @@ export const buildAgentHistoryResponse = ({
     endAt,
     collecting,
     syncTriggered,
+    operation,
     resultsByMetric,
 }: {
     marketplaceId: string;
@@ -76,6 +79,7 @@ export const buildAgentHistoryResponse = ({
     endAt: Date;
     collecting: boolean;
     syncTriggered: boolean;
+    operation: PublicOperation | null;
     resultsByMetric: Partial<Record<ProductHistoryMetric, HistoryMetricResult>>;
 }): AgentHistoryResponse => {
     const bucket = resolveHistoryBucket({ requestedBucket, startAt, endAt });
@@ -103,6 +107,7 @@ export const buildAgentHistoryResponse = ({
             Object.values(resultsByMetric).map(result => result.latestImportAt)
         ),
         syncTriggered,
+        operation,
         range: {
             startAt: startAt.toISOString(),
             endAt: endAt.toISOString(),

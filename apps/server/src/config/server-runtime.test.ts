@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test';
-import { getServerRuntimeFlags } from './server-runtime.js';
+import {
+    getProductHistoryOperationsStatus,
+    getServerRuntimeFlags,
+} from './server-runtime.js';
 
 describe('getServerRuntimeFlags', () => {
     it('enables the job runner when the toggle is false', () => {
@@ -24,5 +27,19 @@ describe('getServerRuntimeFlags', () => {
             shouldStartJobRunner: false,
             jobRunnerStatus: 'Disabled (DISABLE_SERVER_JOB_RUNNER=true)',
         });
+    });
+});
+
+describe('getProductHistoryOperationsStatus', () => {
+    it('reports recovery when workers are enabled', () => {
+        expect(getProductHistoryOperationsStatus(true, 3)).toBe(
+            'Enabled (3 stale receipts redispatched)'
+        );
+    });
+
+    it('reports disabled when the job runner is disabled', () => {
+        expect(getProductHistoryOperationsStatus(false, 0)).toBe(
+            'Disabled at runtime (job runner disabled)'
+        );
     });
 });

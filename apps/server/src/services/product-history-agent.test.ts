@@ -13,6 +13,7 @@ describe('product history agent response', () => {
             endAt: new Date('2026-01-31T23:59:59.999Z'),
             collecting: false,
             syncTriggered: false,
+            operation: null,
             resultsByMetric: {
                 bsr: {
                     latestImportAt: '2026-01-31T12:00:00.000Z',
@@ -47,6 +48,7 @@ describe('product history agent response', () => {
             endAt: new Date('2026-01-01T00:00:00.000Z'),
             collecting: false,
             syncTriggered: false,
+            operation: null,
             resultsByMetric: {
                 bsr: {
                     latestImportAt: '2026-01-01T12:00:00.000Z',
@@ -97,6 +99,7 @@ describe('product history agent response', () => {
             endAt: new Date('2026-01-03T23:59:59.999Z'),
             collecting: false,
             syncTriggered: false,
+            operation: null,
             resultsByMetric: {
                 price: {
                     latestImportAt: '2026-01-03T12:00:00.000Z',

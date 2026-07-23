@@ -1,4 +1,58 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+    check,
+    index,
+    jsonb,
+    pgTable,
+    text,
+    timestamp,
+    uniqueIndex,
+    uuid,
+} from 'drizzle-orm/pg-core';
+
+export const operations = pgTable(
+    'operations',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        type: text('type').notNull(),
+        status: text('status').notNull().default('pending'),
+        targetKey: text('target_key').notNull(),
+        input: jsonb('input').$type<Record<string, unknown>>().notNull(),
+        resource: jsonb('resource').$type<Record<string, unknown>>(),
+        error: jsonb('error').$type<Record<string, unknown>>(),
+        dispatchedAt: timestamp('dispatched_at', { mode: 'date' }),
+        startedAt: timestamp('started_at', { mode: 'date' }),
+        completedAt: timestamp('completed_at', { mode: 'date' }),
+        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+        updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    },
+    table => ({
+        pendingTargetUniqueIdx: uniqueIndex('operations_pending_target_unique_idx')
+            .on(table.type, table.targetKey)
+            .where(sql`${table.status} = 'pending'`),
+        statusUpdatedAtIdx: index('operations_status_updated_at_idx').on(
+            table.status,
+            table.updatedAt
+        ),
+        statusCheck: check(
+            'operations_status_check',
+            sql`${table.status} in ('pending', 'completed')`
+        ),
+        outcomeCheck: check(
+            'operations_outcome_check',
+            sql`(
+                (${table.status} = 'pending'
+                    AND ${table.resource} IS NULL
+                    AND ${table.error} IS NULL
+                    AND ${table.completedAt} IS NULL)
+                OR
+                (${table.status} = 'completed'
+                    AND ${table.completedAt} IS NOT NULL
+                    AND ((${table.resource} IS NULL) <> (${table.error} IS NULL)))
+            )`
+        ),
+    })
+);
 
 export const eventLogs = pgTable(
     'event_logs',

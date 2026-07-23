@@ -1,0 +1,106 @@
+import { z } from 'zod';
+import {
+    claimOperationWork,
+    completeOperationWithError,
+} from '@/db/operations.js';
+import { defineJob } from '@/jobs/job-router.js';
+import { createEventLogSafe } from '@/services/event-logs.js';
+import { loadKeepaProductHistoryManually } from '@/services/keepa-manual-load.js';
+import { sanitizeOperationError } from '@/services/operations.js';
+import { PRODUCT_HISTORY_OPERATION_JOB_NAME } from '@/services/product-history-operations.js';
+
+const refreshProductHistoryOperationInput = z.object({
+    operationId: z.string().uuid(),
+});
+
+export type ProductHistoryOperationWorkerDeps = {
+    claimOperationWork: typeof claimOperationWork;
+    loadHistory: typeof loadKeepaProductHistoryManually;
+    completeWithError: typeof completeOperationWithError;
+    createEventLogSafe: typeof createEventLogSafe;
+};
+
+const defaultDeps: ProductHistoryOperationWorkerDeps = {
+    claimOperationWork,
+    loadHistory: loadKeepaProductHistoryManually,
+    completeWithError: completeOperationWithError,
+    createEventLogSafe,
+};
+
+export const runProductHistoryOperation = async (
+    operationId: string,
+    deps: ProductHistoryOperationWorkerDeps = defaultDeps
+) => {
+    const operation = await deps.claimOperationWork(operationId);
+    if (!operation) {
+        return {
+            didWork: false,
+            status: 'already_completed_or_active',
+        } as const;
+    }
+
+    try {
+        await deps.loadHistory({
+            marketplaceId: operation.input.marketplaceId,
+            asin: operation.input.asin,
+            days: operation.input.days,
+            operationId,
+        });
+        await deps.createEventLogSafe({
+            level: 'info',
+            status: 'success',
+            category: 'history',
+            action: 'history.sync.manual',
+            primitiveType: 'history',
+            message: `Collected history for ${operation.input.asin}.`,
+            detailsJson: {
+                operationId,
+                marketplaceId: operation.input.marketplaceId,
+                source: 'product_history_operation',
+            },
+            primitiveId: operation.input.asin,
+            marketplaceId: operation.input.marketplaceId,
+            asin: operation.input.asin,
+            requestId: operationId,
+        });
+
+        return { didWork: true, status: 'completed' } as const;
+    } catch (error) {
+        await deps.completeWithError({
+            operationId,
+            error: sanitizeOperationError(error),
+        });
+        await deps.createEventLogSafe({
+            level: 'error',
+            status: 'failed',
+            category: 'history',
+            action: 'history.sync.manual',
+            primitiveType: 'history',
+            message: `History collection failed for ${operation.input.asin}.`,
+            detailsJson: {
+                operationId,
+                marketplaceId: operation.input.marketplaceId,
+                source: 'product_history_operation',
+            },
+            primitiveId: operation.input.asin,
+            marketplaceId: operation.input.marketplaceId,
+            asin: operation.input.asin,
+            requestId: operationId,
+        });
+
+        return { didWork: true, status: 'failed' } as const;
+    }
+};
+
+export const refreshProductHistoryOperationJob = defineJob(
+    PRODUCT_HISTORY_OPERATION_JOB_NAME,
+    {
+        persistSuccess: 'didWork',
+        startupSummary: 'event-driven durable Operation worker',
+    }
+)
+    .input(refreshProductHistoryOperationInput)
+    .options({ retryLimit: 0 })
+    .work(async job => {
+        return await runProductHistoryOperation(job.data.operationId);
+    });

@@ -12,6 +12,7 @@ import { jobExecutions } from './job-executions.js';
 import { getProductHistory } from './get-product-history.js';
 import { appLicenseRouter } from './license.js';
 import { loadProductHistory } from './load-product-history.js';
+import { operationGet } from './operation-get.js';
 import { recentProducts } from './recent-products.js';
 import { searchtermsRouter } from './searchterms-router.js';
 import { topSearchTermsStatus } from './top-search-terms-status.js';
@@ -31,6 +32,9 @@ export const appApiRouter = router({
     topSearchTermsStatus,
     getProductHistory,
     loadProductHistory,
+    operation: router({
+        get: operationGet,
+    }),
     recentProducts,
     license: appLicenseRouter,
 });

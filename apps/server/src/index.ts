@@ -6,7 +6,10 @@ import { createContext } from '@/api/context.js';
 import { appRouter } from '@/api/router.js';
 import { PgBoss } from 'pg-boss';
 import { env } from '@/config/env.js';
-import { getServerRuntimeFlags } from '@/config/server-runtime.js';
+import {
+    getProductHistoryOperationsStatus,
+    getServerRuntimeFlags,
+} from '@/config/server-runtime.js';
 import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
 import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
@@ -17,11 +20,14 @@ import {
     sendProcessSpApiSyncQueueJob,
 } from '@/services/spapi-sync-queue.js';
 import {
+    recoverStaleProductHistoryOperations,
+    registerProductHistoryOperationWakeups,
+} from '@/services/product-history-operations.js';
+import {
     getTopSearchTermsFetchStaleActiveJobCutoff,
     registerTopSearchTermsJobWakeups,
     sendSyncTopSearchTermsDatasetsJob,
 } from '@/services/top-search-terms-jobs.js';
-
 type JobsRuntime = Awaited<ReturnType<typeof startJobs>>;
 
 const createDisabledJobsRuntime = (): JobsRuntime => {
@@ -71,16 +77,20 @@ await boss.start();
 console.log('[Server] pg-boss initialized');
 registerSpApiSyncQueueWakeups(boss);
 registerTopSearchTermsJobWakeups(boss);
+registerProductHistoryOperationWakeups(boss);
 console.log(
     `[Server] Runtime flags: DISABLE_SERVER_JOB_RUNNER=${env.DISABLE_SERVER_JOB_RUNNER}`
 );
 
 let recoveredTopSearchTermsDatasetsCount = 0;
+let recoveredProductHistoryOperationsCount = 0;
 const jobsRuntime = serverRuntimeFlags.shouldStartJobRunner
     ? await startJobs(boss)
     : createDisabledJobsRuntime();
 
 if (serverRuntimeFlags.shouldStartJobRunner) {
+    recoveredProductHistoryOperationsCount =
+        await recoverStaleProductHistoryOperations();
     const topSearchTermsRecoveryStartedAt = new Date();
     const topSearchTermsStaleActiveJobCutoff =
         getTopSearchTermsFetchStaleActiveJobCutoff(topSearchTermsRecoveryStartedAt);
@@ -264,6 +274,12 @@ try {
         `  • Top Search Terms Startup Recovery: ${getTopSearchTermsRecoveryStatus(
             serverRuntimeFlags.shouldStartJobRunner,
             recoveredTopSearchTermsDatasetsCount
+        )}`
+    );
+    console.log(
+        `  • Product History Operations: ${getProductHistoryOperationsStatus(
+            serverRuntimeFlags.shouldStartJobRunner,
+            recoveredProductHistoryOperationsCount
         )}`
     );
     const productFacetStatus = env.GEMINI_API_KEY

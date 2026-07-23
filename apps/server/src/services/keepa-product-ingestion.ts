@@ -22,12 +22,14 @@ export const ingestKeepaProduct = async (
         product,
         fetchedAt,
         import: importDetails,
+        operationId,
     }: {
         marketplaceId: string;
         asin: string;
         product: KeepaProductPayload;
         fetchedAt: Date;
         import: KeepaIngestionImport;
+        operationId?: string;
     },
     deps: KeepaProductIngestionDeps = defaultKeepaProductIngestionDeps
 ) => {
@@ -41,6 +43,7 @@ export const ingestKeepaProduct = async (
     const persisted = await deps.persistAcceptedIngestion({
         ...normalized,
         import: importDetails,
+        operationId,
     });
 
     return {

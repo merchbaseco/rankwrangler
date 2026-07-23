@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { loadKeepaProductHistoryManually } from '@/services/keepa-manual-load.js';
+import { getPendingProductHistoryOperation } from '@/db/operations.js';
 import {
     getProductHistoryPoints,
     hasRecentSuccessfulKeepaImportForAsin,
@@ -11,7 +11,12 @@ import {
     type HistoryMetricResult,
 } from '@/services/product-history-agent.js';
 import { type ProductHistoryBucket } from '@/services/product-history-buckets.js';
-import { resolveProductHistorySyncDays } from '@/services/product-history-sync-days.js';
+import { buildLegacyHistoryResponse } from '@/services/product-history-legacy.js';
+import {
+    buildPublicOperation,
+    type PublicOperation,
+} from '@/services/operations.js';
+import { requestProductHistoryRefresh } from '@/services/product-history-operations.js';
 import { fetchProductInfo } from '@/utils/product-info.js';
 
 export const productHistoryMetrics = ['bsr', 'price'] as const;
@@ -41,21 +46,43 @@ type ProductHistorySurfaceInput = {
 
 type MetricEntry = readonly [ProductHistoryMetric, HistoryMetricResult];
 
-export const getProductHistorySurface = async (input: ProductHistorySurfaceInput) => {
-    await fetchProductInfo({
+export type ProductHistorySurfaceDeps = {
+    fetchProductInfo: typeof fetchProductInfo;
+    getProductHistoryPoints: typeof getProductHistoryPoints;
+    hasRecentSuccessfulKeepaImportForAsin: typeof hasRecentSuccessfulKeepaImportForAsin;
+    requestProductHistoryRefresh: typeof requestProductHistoryRefresh;
+    getPendingProductHistoryOperation: typeof getPendingProductHistoryOperation;
+};
+
+const defaultDeps: ProductHistorySurfaceDeps = {
+    fetchProductInfo,
+    getProductHistoryPoints,
+    hasRecentSuccessfulKeepaImportForAsin,
+    requestProductHistoryRefresh,
+    getPendingProductHistoryOperation,
+};
+
+export const getProductHistorySurface = async (
+    input: ProductHistorySurfaceInput,
+    deps: ProductHistorySurfaceDeps = defaultDeps
+) => {
+    await deps.fetchProductInfo({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
         maxAgeMs: PRODUCT_HISTORY_PRODUCT_CACHE_MAX_AGE_MS,
     });
 
     if (input.format === 'points') {
-        return await getPointsHistory(input);
+        return await getPointsHistory(input, deps);
     }
 
-    return await getMetricHistory(input);
+    return await getMetricHistory(input, deps);
 };
 
-const getPointsHistory = async (input: ProductHistorySurfaceInput) => {
+const getPointsHistory = async (
+    input: ProductHistorySurfaceInput,
+    deps: ProductHistorySurfaceDeps
+) => {
     if (!input.metric) {
         throw new TRPCError({
             code: 'BAD_REQUEST',
@@ -63,12 +90,7 @@ const getPointsHistory = async (input: ProductHistorySurfaceInput) => {
         });
     }
 
-    let syncTriggered = false;
-    if (input.refresh === 'force') {
-        syncTriggered = await syncProductHistory(input);
-    }
-
-    let result = await getProductHistoryPoints({
+    const result = await deps.getProductHistoryPoints({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
         metric: input.metric,
@@ -78,26 +100,30 @@ const getPointsHistory = async (input: ProductHistorySurfaceInput) => {
         limit: input.limit,
     });
 
-    if (input.refresh === 'if_missing' && (await shouldSyncProductHistory(input, null, result.points))) {
-        syncTriggered = await syncProductHistory(input);
-        result = await getProductHistoryPoints({
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-            metric: input.metric,
-            categoryId: input.categoryId,
-            startAt: input.startAt,
-            endAt: input.endAt,
-            limit: input.limit,
-        });
-    }
+    const shouldRequest =
+        input.refresh === 'force' ||
+        (input.refresh === 'if_missing' &&
+            (await shouldSyncProductHistory(input, null, result.points, deps)));
+    const requested = shouldRequest
+        ? await deps.requestProductHistoryRefresh({
+              marketplaceId: input.marketplaceId,
+              asin: input.asin,
+          })
+        : null;
+    const operation = requested?.operation ?? (await getPendingOperation(input, deps));
 
     return {
         ...result,
-        syncTriggered,
+        collecting: operation?.status === 'pending',
+        syncTriggered: requested?.created ?? false,
+        operation,
     };
 };
 
-const getMetricHistory = async (input: ProductHistorySurfaceInput) => {
+const getMetricHistory = async (
+    input: ProductHistorySurfaceInput,
+    deps: ProductHistorySurfaceDeps
+) => {
     const requestedMetrics = normalizeRequestedMetrics(input.metrics);
     const agentWindow =
         input.format === 'agent'
@@ -108,26 +134,36 @@ const getMetricHistory = async (input: ProductHistorySurfaceInput) => {
               })
             : null;
 
-    let syncTriggered = false;
-    if (input.refresh === 'force') {
-        syncTriggered = await syncProductHistory(input, agentWindow);
-    }
-
-    let metricEntries = await loadMetricEntries({ input, requestedMetrics, agentWindow });
-    let resultsByMetric = buildResultsByMetric(metricEntries);
+    const metricEntries = await loadMetricEntries({
+        input,
+        requestedMetrics,
+        agentWindow,
+        deps,
+    });
+    const resultsByMetric = buildResultsByMetric(metricEntries);
     const primaryMetric = resolvePrimaryMetric(requestedMetrics);
-    let primaryResult = resultsByMetric[primaryMetric];
+    const primaryResult = resultsByMetric[primaryMetric];
 
-    if (
-        input.refresh === 'if_missing' &&
-        primaryResult &&
-        (await shouldSyncProductHistory(input, agentWindow, primaryResult.points))
-    ) {
-        syncTriggered = (await syncProductHistory(input, agentWindow)) || syncTriggered;
-        metricEntries = await loadMetricEntries({ input, requestedMetrics, agentWindow });
-        resultsByMetric = buildResultsByMetric(metricEntries);
-        primaryResult = resultsByMetric[primaryMetric];
-    }
+    const shouldRequest =
+        input.refresh === 'force' ||
+        (input.refresh === 'if_missing' &&
+            Boolean(
+                primaryResult &&
+                    (await shouldSyncProductHistory(
+                        input,
+                        agentWindow,
+                        primaryResult.points,
+                        deps
+                    ))
+            ));
+    const requested = shouldRequest
+        ? await deps.requestProductHistoryRefresh({
+              marketplaceId: input.marketplaceId,
+              asin: input.asin,
+          })
+        : null;
+    const operation = requested?.operation ?? (await getPendingOperation(input, deps));
+    const syncTriggered = requested?.created ?? false;
 
     if (input.format === 'legacy') {
         const legacyResult = resultsByMetric.bsr;
@@ -138,6 +174,7 @@ const getMetricHistory = async (input: ProductHistorySurfaceInput) => {
             categoryNames: legacyResult?.categoryNames ?? {},
             points: legacyResult?.points ?? [],
             syncTriggered,
+            operation,
         });
     }
 
@@ -154,8 +191,9 @@ const getMetricHistory = async (input: ProductHistorySurfaceInput) => {
         requestedMetrics,
         startAt: agentWindow?.startAt ?? emptyWindow.startAt,
         endAt: agentWindow?.endAt ?? emptyWindow.endAt,
-        collecting: false,
+        collecting: operation?.status === 'pending',
         syncTriggered,
+        operation,
         resultsByMetric: primaryResult ? resultsByMetric : {},
     });
 };
@@ -163,29 +201,17 @@ const getMetricHistory = async (input: ProductHistorySurfaceInput) => {
 const shouldSyncProductHistory = async (
     input: ProductHistorySurfaceInput,
     agentWindow: { startAt: Date; endAt: Date } | null,
-    points: HistoryMetricResult['points']
+    points: HistoryMetricResult['points'],
+    deps: ProductHistorySurfaceDeps
 ) => {
     if (hasHistoryCoverage(points, agentWindow?.startAt ?? input.startAt)) {
         return false;
     }
 
-    return !(await hasRecentSuccessfulKeepaImportForAsin({
+    return !(await deps.hasRecentSuccessfulKeepaImportForAsin({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
     }));
-};
-
-const syncProductHistory = async (
-    input: ProductHistorySurfaceInput,
-    agentWindow: { startAt: Date; endAt: Date } | null = null
-) => {
-    const summary = await loadKeepaProductHistoryManually({
-        marketplaceId: input.marketplaceId,
-        asin: input.asin,
-        days: resolveProductHistorySyncDays(input, agentWindow),
-    });
-
-    return !summary.cached;
 };
 
 const hasHistoryCoverage = (points: HistoryMetricResult['points'], startAt: Date | undefined) => {
@@ -225,14 +251,16 @@ const loadMetricEntries = async ({
     input,
     requestedMetrics,
     agentWindow,
+    deps,
 }: {
     input: ProductHistorySurfaceInput;
     requestedMetrics: ProductHistoryMetric[];
     agentWindow: { startAt: Date; endAt: Date } | null;
+    deps: ProductHistorySurfaceDeps;
 }) => {
     return Promise.all(
         requestedMetrics.map(async metric => {
-            const result = await getProductHistoryPoints({
+            const result = await deps.getProductHistoryPoints({
                 marketplaceId: input.marketplaceId,
                 asin: input.asin,
                 metric: resolveKeepaMetric(metric),
@@ -252,29 +280,13 @@ const buildResultsByMetric = (metricEntries: MetricEntry[]) => {
     >;
 };
 
-const buildLegacyHistoryResponse = ({
-    marketplaceId,
-    asin,
-    latestImportAt,
-    categoryNames,
-    points,
-    syncTriggered,
-}: {
-    marketplaceId: string;
-    asin: string;
-    latestImportAt: string | null;
-    categoryNames: Record<string, string>;
-    points: HistoryMetricResult['points'];
-    syncTriggered: boolean;
-}) => {
-    return {
-        marketplaceId,
-        asin,
-        metric: 'bsrMain' as const,
-        latestImportAt,
-        categoryNames,
-        points,
-        collecting: false,
-        syncTriggered,
-    };
+const getPendingOperation = async (
+    input: ProductHistorySurfaceInput,
+    deps: ProductHistorySurfaceDeps
+) => {
+    const operation = await deps.getPendingProductHistoryOperation({
+        marketplaceId: input.marketplaceId,
+        asin: input.asin,
+    });
+    return operation ? buildPublicOperation(operation) : null;
 };

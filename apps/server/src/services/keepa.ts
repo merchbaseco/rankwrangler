@@ -31,6 +31,7 @@ type LoadKeepaProductHistoryParams = {
     asin: string;
     days: number;
     queuePriority?: 'manual' | 'background';
+    operationId?: string;
 };
 
 type GetProductHistoryPointsParams = {
@@ -231,6 +232,7 @@ const loadKeepaProductHistoryOnce = async ({
     asin,
     days,
     queuePriority = 'background',
+    operationId,
 }: LoadKeepaProductHistoryParams): Promise<KeepaImportSummary> => {
     const keepaApiKey = env.KEEPA_API_KEY;
     if (!keepaApiKey) {
@@ -396,6 +398,7 @@ const loadKeepaProductHistoryOnce = async ({
         asin,
         product: keepaProduct,
         fetchedAt,
+        operationId,
         import: {
             requestParams,
             responsePayload: keepaResponse as unknown as Record<string, unknown>,

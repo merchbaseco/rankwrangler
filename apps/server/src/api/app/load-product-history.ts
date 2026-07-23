@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
-import { createEventLogSafe } from '@/services/event-logs.js';
-import { getErrorMessage } from '@/services/job-executions-utils.js';
-import { loadKeepaProductHistoryManually } from '@/services/keepa-manual-load.js';
+import { requestProductHistoryRefresh } from '@/services/product-history-operations.js';
 import { fetchProductInfo } from '@/utils/product-info.js';
 
 const loadProductHistoryInput = z.object({
@@ -18,89 +16,37 @@ const loadProductHistoryInput = z.object({
 type LoadProductHistoryInput = z.infer<typeof loadProductHistoryInput>;
 
 type LoadProductHistoryDeps = {
-    createEventLogSafe: typeof createEventLogSafe;
     fetchProductInfo: typeof fetchProductInfo;
-    loadKeepaProductHistoryManually: typeof loadKeepaProductHistoryManually;
+    requestProductHistoryRefresh: typeof requestProductHistoryRefresh;
 };
 
 const loadProductHistoryDeps: LoadProductHistoryDeps = {
-    createEventLogSafe,
     fetchProductInfo,
-    loadKeepaProductHistoryManually,
+    requestProductHistoryRefresh,
 };
 
-export const runManualProductHistorySync = async ({
+export const requestManualProductHistorySync = async ({
     input,
-    actor,
     deps = loadProductHistoryDeps,
 }: {
     input: LoadProductHistoryInput;
-    actor: string;
     deps?: LoadProductHistoryDeps;
 }) => {
-    try {
-        // Ensure product cache exists before requesting Keepa history.
-        await deps.fetchProductInfo({
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-        });
+    await deps.fetchProductInfo({
+        marketplaceId: input.marketplaceId,
+        asin: input.asin,
+    });
 
-        const summary = await deps.loadKeepaProductHistoryManually({
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-            days: input.days,
-        });
-
-        await deps.createEventLogSafe({
-            level: 'info',
-            status: 'success',
-            category: 'history',
-            action: 'history.sync.manual',
-            primitiveType: 'history',
-            message: `Synced history for ${input.asin}.`,
-            detailsJson: {
-                actor,
-                days: input.days,
-                importedAt: summary.importedAt,
-                marketplaceId: input.marketplaceId,
-                source: 'manual_request',
-            },
-            primitiveId: input.asin,
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-        });
-
-        return summary;
-    } catch (error) {
-        await deps.createEventLogSafe({
-            level: 'error',
-            status: 'failed',
-            category: 'history',
-            action: 'history.sync.manual',
-            primitiveType: 'history',
-            message: `History sync failed for ${input.asin}.`,
-            detailsJson: {
-                actor,
-                days: input.days,
-                error: getErrorMessage(error),
-                marketplaceId: input.marketplaceId,
-                source: 'manual_request',
-            },
-            primitiveId: input.asin,
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-        });
-
-        throw error;
-    }
+    return await deps.requestProductHistoryRefresh({
+        marketplaceId: input.marketplaceId,
+        asin: input.asin,
+    });
 };
 
 export const loadProductHistory = appProcedure
     .input(loadProductHistoryInput)
-    .mutation(async ({ input, ctx }) => {
-        const actor = ctx.user?.email ?? ctx.user?.sub ?? 'unknown';
-        return await runManualProductHistorySync({
+    .mutation(async ({ input }) => {
+        return await requestManualProductHistorySync({
             input,
-            actor,
         });
     });

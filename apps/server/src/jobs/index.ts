@@ -7,6 +7,8 @@ import { processKeepaHistoryRefreshQueueJob } from '@/jobs/process-keepa-history
 import { processProductFacetClassificationJob } from '@/jobs/process-product-facet-classification.js';
 import { processSpApiSyncQueueJob } from '@/jobs/process-spapi-sync-queue.js';
 import { reprocessStaleProductsJob } from '@/jobs/reprocess-stale-products.js';
+import { recoverStaleProductHistoryOperationsJob } from '@/jobs/recover-stale-product-history-operations.js';
+import { refreshProductHistoryOperationJob } from '@/jobs/refresh-product-history-operation.js';
 import { syncTopSearchTermsDatasetsJob } from '@/jobs/sync-top-search-terms-datasets.js';
 
 const registeredJobs = [
@@ -17,6 +19,8 @@ const registeredJobs = [
     processProductFacetClassificationJob,
     processSpApiSyncQueueJob,
     reprocessStaleProductsJob,
+    recoverStaleProductHistoryOperationsJob,
+    refreshProductHistoryOperationJob,
     syncTopSearchTermsDatasetsJob,
 ];
 

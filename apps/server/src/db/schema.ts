@@ -279,6 +279,7 @@ export {
     eventLogs,
     jobExecutionLogs,
     jobExecutions,
+    operations,
 } from './ops-schema';
 export {
     topSearchTermsDatasets,

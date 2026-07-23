@@ -4,6 +4,7 @@ import {
     type AgentHistoryResponse,
     resolveAgentHistoryWindow,
 } from '@/services/product-history-agent.js';
+import type { PublicOperation } from '@/services/operations.js';
 import { resolveHistoryBucket } from '@/services/product-history-buckets.js';
 import {
     getProductHistorySurface,
@@ -29,6 +30,7 @@ type ProductHistoryError = {
     status: 'error';
     latestImportAt: null;
     syncTriggered: false;
+    operation: PublicOperation | null;
     range: {
         startAt: string;
         endAt: string;
@@ -101,6 +103,7 @@ const buildHistoryError = (input: ProductReadInput, error: unknown): ProductHist
         status: 'error',
         latestImportAt: null,
         syncTriggered: false,
+        operation: null,
         range: {
             startAt: historyWindow.startAt.toISOString(),
             endAt: historyWindow.endAt.toISOString(),

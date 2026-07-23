@@ -23,3 +23,12 @@ export const getServerRuntimeFlags = ({
         jobRunnerStatus: 'Enabled',
     };
 };
+
+export const getProductHistoryOperationsStatus = (
+    shouldStartJobRunner: boolean,
+    recoveredOperationsCount: number
+) => {
+    return shouldStartJobRunner
+        ? `Enabled (${recoveredOperationsCount} stale receipts redispatched)`
+        : 'Disabled at runtime (job runner disabled)';
+};
