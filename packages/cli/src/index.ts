@@ -3,7 +3,9 @@
 import { parseArgs } from 'node:util';
 import { createRankWranglerClient, DEFAULT_API_BASE_URL } from '@rankwrangler/http-client';
 import { resolveApiKey, runAuthCommand } from './cli-auth';
+import { runCatalogCommand } from './cli-catalog-command';
 import { printBundledChangelog, printCliVersion } from './cli-metadata';
+import { runOperationGetCommand } from './cli-operation-command';
 import { runConfigCommand } from './cli-config-command';
 import { loadCliContext, loadCliPathsOrDefault, type CliConfig } from './cli-config';
 import {
@@ -35,6 +37,8 @@ const SUPPORTED_COMMANDS = new Set([
     'products:summary',
     'products:history',
     'operations:get',
+    'catalog:search',
+    'catalog:run',
     'license:status',
     'license:validate',
     'auth:status',
@@ -61,6 +65,7 @@ const { positionals, values } = parseArgs({
         days: { type: 'string' },
         limit: { type: 'string' },
         bucket: { type: 'string' },
+        maxAgeSeconds: { type: 'string' },
         stdin: { type: 'boolean' },
     },
     allowPositionals: true,
@@ -140,7 +145,16 @@ const runApiCommand = async (
     }
 
     if (command.resource === 'operations' && command.verb === 'get') {
-        return runOperationGetCommand(command, client);
+        return runOperationGetCommand(command.args, client, fail);
+    }
+
+    if (command.resource === 'catalog') {
+        return runCatalogCommand(
+            command,
+            client,
+            (values as CliOptionValues).maxAgeSeconds,
+            fail
+        );
     }
 
     if (command.resource === 'license' && command.verb === 'status') {
@@ -154,17 +168,6 @@ const runApiCommand = async (
     fail('UNKNOWN_COMMAND', 'Unknown command', {
         command: `${command.resource} ${command.verb}`,
     });
-};
-
-const runOperationGetCommand = async (
-    command: CliCommand,
-    client: ReturnType<typeof createRankWranglerClient>
-) => {
-    if (command.args.length !== 1) {
-        fail('INVALID_INPUT', 'operations get requires exactly one id');
-    }
-
-    return await client.operation.get.query({ id: command.args[0] });
 };
 
 const runProductGetCommand = async (

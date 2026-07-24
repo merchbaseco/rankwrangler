@@ -54,6 +54,60 @@ export type ProductInfo = {
 		cached: boolean;
 	};
 };
+declare const operationTypes: readonly [
+	"productHistoryRefresh",
+	"catalogSearch"
+];
+export type ProductHistoryResource = {
+	type: "productHistory";
+	marketplaceId: string;
+	asin: string;
+};
+export type CatalogSearchResource = {
+	type: "catalogSearchRun";
+	queryId: string;
+	runId: string;
+};
+export type OperationError = {
+	code: "PROVIDER_UNAVAILABLE" | "RESOURCE_NOT_FOUND" | "INTERNAL_ERROR";
+	message: string;
+};
+export type PublicOperationType = (typeof operationTypes)[number];
+export type PublicOperation = {
+	id: string;
+	type: PublicOperationType;
+	status: "pending";
+	retryAfterSeconds: 2;
+	createdAt: string;
+	updatedAt: string;
+} | {
+	id: string;
+	type: "productHistoryRefresh";
+	status: "completed";
+	resource: ProductHistoryResource;
+	error: null;
+	createdAt: string;
+	updatedAt: string;
+	completedAt: string;
+} | {
+	id: string;
+	type: "catalogSearch";
+	status: "completed";
+	resource: CatalogSearchResource;
+	error: null;
+	createdAt: string;
+	updatedAt: string;
+	completedAt: string;
+} | {
+	id: string;
+	type: PublicOperationType;
+	status: "completed";
+	resource: null;
+	error: OperationError;
+	createdAt: string;
+	updatedAt: string;
+	completedAt: string;
+};
 declare const productHistoryBuckets: readonly [
 	"auto",
 	"day",
@@ -74,41 +128,6 @@ export type HistoryBucketSummary = {
 	count: number;
 	firstBucketAt: string | null;
 	latestBucketAt: string | null;
-};
-export type ProductHistoryResource = {
-	type: "productHistory";
-	marketplaceId: string;
-	asin: string;
-};
-export type OperationError = {
-	code: "PROVIDER_UNAVAILABLE" | "RESOURCE_NOT_FOUND" | "INTERNAL_ERROR";
-	message: string;
-};
-export type PublicOperation = {
-	id: string;
-	type: "productHistoryRefresh";
-	status: "pending";
-	retryAfterSeconds: 2;
-	createdAt: string;
-	updatedAt: string;
-} | {
-	id: string;
-	type: "productHistoryRefresh";
-	status: "completed";
-	resource: ProductHistoryResource;
-	error: null;
-	createdAt: string;
-	updatedAt: string;
-	completedAt: string;
-} | {
-	id: string;
-	type: "productHistoryRefresh";
-	status: "completed";
-	resource: null;
-	error: OperationError;
-	createdAt: string;
-	updatedAt: string;
-	completedAt: string;
 };
 export type AgentHistorySeries = {
 	bsr?: {
@@ -267,6 +286,165 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 			errorShape: import("@trpc/server").TRPCDefaultErrorShape;
 			transformer: false;
 		}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+			catalog: import("@trpc/server").TRPCBuiltRouter<{
+				ctx: {
+					user: ClerkUser;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
+					license: {
+						key: string;
+						data: LicenseUsageData | undefined;
+					};
+					licenseError: undefined;
+					request: ContextRequest;
+				} | {
+					user: null;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: null;
+					license: null;
+					licenseError: string | undefined;
+					request: ContextRequest;
+				} | {
+					user: ClerkUser;
+					isAdmin: boolean;
+					authType: "license" | "clerk" | "none";
+					authExpiresAtMs: number;
+					license: null;
+					licenseError: undefined;
+					request: ContextRequest;
+				};
+				meta: object;
+				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
+				transformer: false;
+			}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+				search: import("@trpc/server").TRPCMutationProcedure<{
+					input: {
+						term: string;
+						maxAgeSeconds?: number | undefined;
+					};
+					output: {
+						status: "ready";
+						run: {
+							id: string;
+							query: {
+								id: string;
+								source: "keepa";
+								marketplaceId: string;
+								normalizedTerm: string;
+								displayTerm: string;
+								page: number;
+							};
+							sourceStartedAt: string;
+							sourceCompletedAt: string;
+							resultCount: number;
+							normalizerVersion: number;
+							createdAt: string;
+							results: {
+								sourcePosition: number;
+								observed: {
+									rootCategoryBsr: number | null;
+									newPriceAmountMinor: number | null;
+									currencyCode: "USD";
+									monthlySold: number | null;
+									averageRootCategoryBsr30: number | null;
+									averageRootCategoryBsr90: number | null;
+									salesRankDrops: {
+										days30: number | null;
+										days90: number | null;
+										days180: number | null;
+										days365: number | null;
+									};
+									sourceUpdatedAt: string | null;
+								};
+								product: ProductInfo;
+							}[];
+						};
+						readonly operation?: undefined;
+					} | {
+						status: "pending";
+						operation: PublicOperation;
+						run?: undefined;
+					};
+					meta: object;
+				}>;
+				run: import("@trpc/server").TRPCBuiltRouter<{
+					ctx: {
+						user: ClerkUser;
+						isAdmin: boolean;
+						authType: "license" | "clerk" | "none";
+						authExpiresAtMs: null;
+						license: {
+							key: string;
+							data: LicenseUsageData | undefined;
+						};
+						licenseError: undefined;
+						request: ContextRequest;
+					} | {
+						user: null;
+						isAdmin: boolean;
+						authType: "license" | "clerk" | "none";
+						authExpiresAtMs: null;
+						license: null;
+						licenseError: string | undefined;
+						request: ContextRequest;
+					} | {
+						user: ClerkUser;
+						isAdmin: boolean;
+						authType: "license" | "clerk" | "none";
+						authExpiresAtMs: number;
+						license: null;
+						licenseError: undefined;
+						request: ContextRequest;
+					};
+					meta: object;
+					errorShape: import("@trpc/server").TRPCDefaultErrorShape;
+					transformer: false;
+				}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+					get: import("@trpc/server").TRPCQueryProcedure<{
+						input: {
+							id: string;
+						};
+						output: {
+							id: string;
+							query: {
+								id: string;
+								source: "keepa";
+								marketplaceId: string;
+								normalizedTerm: string;
+								displayTerm: string;
+								page: number;
+							};
+							sourceStartedAt: string;
+							sourceCompletedAt: string;
+							resultCount: number;
+							normalizerVersion: number;
+							createdAt: string;
+							results: {
+								sourcePosition: number;
+								observed: {
+									rootCategoryBsr: number | null;
+									newPriceAmountMinor: number | null;
+									currencyCode: "USD";
+									monthlySold: number | null;
+									averageRootCategoryBsr30: number | null;
+									averageRootCategoryBsr90: number | null;
+									salesRankDrops: {
+										days30: number | null;
+										days90: number | null;
+										days180: number | null;
+										days365: number | null;
+									};
+									sourceUpdatedAt: string | null;
+								};
+								product: ProductInfo;
+							}[];
+						};
+						meta: object;
+					}>;
+				}>>;
+			}>>;
 			product: import("@trpc/server").TRPCBuiltRouter<{
 				ctx: {
 					user: ClerkUser;

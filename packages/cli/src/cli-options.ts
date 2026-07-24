@@ -18,6 +18,7 @@ export type CliOptionValues = {
     days?: string;
     limit?: string;
     bucket?: string;
+    maxAgeSeconds?: string;
     help?: boolean;
     version?: boolean;
 };
