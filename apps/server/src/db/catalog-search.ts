@@ -18,6 +18,7 @@ export type ResolveCatalogSearchInput = {
     displayTerm: string;
     page: 0;
     maxAgeSeconds: number;
+    priority: 'interactive';
     licenseId?: string;
     now?: Date;
 };
@@ -95,6 +96,7 @@ export const resolveCatalogSearchRequest = async (
             marketplaceId: input.marketplaceId,
             term: input.displayTerm,
             page: input.page,
+            priority: input.priority,
         };
         const [created] = await transaction
             .insert(operations)
@@ -108,6 +110,87 @@ export const resolveCatalogSearchRequest = async (
         if (!created) {
             throw new Error(`Failed to create Catalog-search Operation for ${query.id}`);
         }
+
+        return {
+            kind: 'pending',
+            operation: mapOperationRecord(created),
+            created: true,
+        } as const;
+    });
+};
+
+export const resolveDueCatalogSearchRequest = async ({
+    queryId,
+    now = new Date(),
+    dueIntervalMs,
+    retryIntervalMs,
+}: {
+    queryId: string;
+    now?: Date;
+    dueIntervalMs: number;
+    retryIntervalMs: number;
+}) => {
+    return await db.transaction(async transaction => {
+        await lockCatalogQueryForReconciliation(transaction, queryId);
+        const [query] = await transaction
+            .select()
+            .from(catalogQueries)
+            .where(eq(catalogQueries.id, queryId))
+            .limit(1);
+        const latestRunAgeMs = query?.latestSuccessfulRunAt
+            ? now.getTime() - query.latestSuccessfulRunAt.getTime()
+            : null;
+        if (!query?.trackedAt || (latestRunAgeMs !== null && latestRunAgeMs < dueIntervalMs)) {
+            return { kind: 'notDue' } as const;
+        }
+
+        const [pending] = await transaction
+            .select()
+            .from(operations)
+            .where(
+                and(
+                    eq(operations.type, 'catalogSearch'),
+                    eq(operations.targetKey, query.id),
+                    eq(operations.status, 'pending')
+                )
+            )
+            .limit(1);
+        if (pending) {
+            return {
+                kind: 'pending',
+                operation: mapOperationRecord(pending),
+                created: false,
+            } as const;
+        }
+        if (query.nextTrackingAttemptAt && query.nextTrackingAttemptAt > now) {
+            return { kind: 'notDue' } as const;
+        }
+
+        const operationInput: CatalogSearchOperationInput = {
+            queryId: query.id,
+            marketplaceId: 'ATVPDKIKX0DER',
+            term: query.displayTerm,
+            page: 0,
+            priority: 'scheduled',
+        };
+        const [created] = await transaction
+            .insert(operations)
+            .values({
+                type: 'catalogSearch',
+                targetKey: query.id,
+                input: operationInput,
+            })
+            .returning();
+        if (!created) {
+            throw new Error(`Failed to create scheduled Catalog-search Operation for ${query.id}`);
+        }
+        await transaction
+            .update(catalogQueries)
+            .set({
+                nextTrackingAttemptAt: new Date(now.getTime() + retryIntervalMs),
+                updatedAt: now,
+            })
+            .where(eq(catalogQueries.id, query.id));
 
         return {
             kind: 'pending',

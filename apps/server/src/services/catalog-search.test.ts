@@ -24,6 +24,7 @@ describe('Catalog search application workflow', () => {
             displayTerm: 'Retro Gardening Shirt',
             maxAgeSeconds: 86_400,
         });
+        expect(deps.resolveRequest.mock.calls[0]?.[0].priority).toBe('interactive');
         expect(result).toMatchObject({
             response: {
                 status: 'ready',
@@ -132,6 +133,7 @@ const createPendingOperation = (): OperationRecord => ({
         marketplaceId: 'ATVPDKIKX0DER',
         term: 'shirts',
         page: 0,
+        priority: 'interactive',
     },
     resource: null,
     error: null,

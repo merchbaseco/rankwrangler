@@ -32,6 +32,9 @@ describe('Catalog search worker', () => {
 
         expect(result).toEqual({ didWork: true, status: 'completed', resultCount: 2 });
         expect(deps.searchProvider.mock.calls).toHaveLength(1);
+        expect(deps.searchProvider.mock.calls[0]?.[0]).toMatchObject({
+            priority: 'interactive',
+        });
         expect(deps.persistSuccess.mock.calls).toHaveLength(1);
         expect(deps.persistSuccess.mock.calls[0]?.[0].results).toMatchObject([
             { sourcePosition: 1, normalized: { product: { asin: 'B0MERCH001' } } },
@@ -107,6 +110,7 @@ const createOperation = (): OperationRecord => ({
         marketplaceId: 'ATVPDKIKX0DER',
         term: 'retro gardening shirt',
         page: 0,
+        priority: 'interactive',
     },
     resource: null,
     error: null,

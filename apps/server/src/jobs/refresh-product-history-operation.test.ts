@@ -135,6 +135,7 @@ const createPendingCatalogOperation = (): OperationRecord => ({
         marketplaceId: 'ATVPDKIKX0DER',
         term: 'retro gardening shirt',
         page: 0,
+        priority: 'interactive',
     },
     resource: null,
 });

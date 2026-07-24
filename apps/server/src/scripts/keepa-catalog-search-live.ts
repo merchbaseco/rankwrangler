@@ -19,6 +19,7 @@ for (const term of FIXED_QUERIES) {
     const result = await searchKeepaCatalog({
         marketplaceId: US_MARKETPLACE_ID,
         term,
+        priority: 'interactive',
     });
     totalTokensConsumed += result.internalUsage.tokensConsumed ?? 0;
 

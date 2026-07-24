@@ -90,6 +90,7 @@ describe('Operation public lifecycle', () => {
                 marketplaceId: 'ATVPDKIKX0DER',
                 term: 'shirts',
                 page: 0,
+                priority: 'interactive',
             },
         };
 

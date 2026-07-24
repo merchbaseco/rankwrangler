@@ -25,14 +25,17 @@ type KeepaCatalogSearchPayload = {
 type KeepaCatalogSearchDeps = {
     apiKey: string | undefined;
     fetchImpl: typeof fetch;
-    scheduleRequest: <T>(request: () => Promise<T>) => Promise<T>;
+    scheduleRequest: <T>(
+        priority: 'interactiveCatalog' | 'scheduledCatalog',
+        request: () => Promise<T>
+    ) => Promise<T>;
     recordUsage: typeof recordKeepaProviderUsage;
 };
 
 const defaultDeps: KeepaCatalogSearchDeps = {
     apiKey: env.KEEPA_API_KEY,
     fetchImpl: fetch,
-    scheduleRequest: request => scheduleKeepaProviderRequest('interactive', request),
+    scheduleRequest: (priority, request) => scheduleKeepaProviderRequest(priority, request),
     recordUsage: recordKeepaProviderUsage,
 };
 
@@ -40,9 +43,11 @@ export const searchKeepaCatalog = async (
     {
         marketplaceId,
         term,
+        priority,
     }: {
         marketplaceId: string;
         term: string;
+        priority: 'interactive' | 'scheduled';
     },
     overrides: Partial<KeepaCatalogSearchDeps> = {}
 ) => {
@@ -71,8 +76,9 @@ export const searchKeepaCatalog = async (
         update: '1',
         history: '1',
     });
-    const response = await deps.scheduleRequest(() =>
-        deps.fetchImpl(`https://api.keepa.com/search?${params.toString()}`)
+    const response = await deps.scheduleRequest(
+        priority === 'interactive' ? 'interactiveCatalog' : 'scheduledCatalog',
+        () => deps.fetchImpl(`https://api.keepa.com/search?${params.toString()}`)
     );
     const payload = (await response.json()) as KeepaCatalogSearchPayload;
     const internalUsage = {

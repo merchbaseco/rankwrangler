@@ -12,13 +12,14 @@ let catalogSearchBoss: PgBoss | null = null;
 
 type CatalogSearchResolution = Awaited<ReturnType<typeof resolveCatalogSearchRequest>>;
 type CatalogSearchRun = NonNullable<Awaited<ReturnType<typeof getCatalogSearchRun>>>;
+export type CatalogSearchOperation = Extract<OperationRecord, { type: 'catalogSearch' }>;
 
 export type CatalogSearchDeps = {
     resolveRequest: (input: Parameters<typeof resolveCatalogSearchRequest>[0]) => Promise<
         CatalogSearchResolution
     >;
     getRun: (runId: string) => Promise<CatalogSearchRun | null>;
-    dispatchOperation: (operation: OperationRecord) => Promise<boolean>;
+    dispatchOperation: (operation: CatalogSearchOperation) => Promise<boolean>;
 };
 
 const defaultDeps: CatalogSearchDeps = {
@@ -69,6 +70,7 @@ export const requestCatalogSearch = async (
         page: 0,
         maxAgeSeconds,
         licenseId,
+        priority: 'interactive',
     });
 
     if (resolution.kind === 'ready') {
@@ -88,6 +90,9 @@ export const requestCatalogSearch = async (
     if (resolution.kind === 'billingRejected') {
         throw new CatalogSearchBillingError(resolution.reason, resolution.usageLimit);
     }
+    if (resolution.operation.type !== 'catalogSearch') {
+        throw new Error(`Operation ${resolution.operation.id} is not a Catalog search.`);
+    }
     await deps.dispatchOperation(resolution.operation);
     return {
         response: {
@@ -98,7 +103,7 @@ export const requestCatalogSearch = async (
     };
 };
 
-export const dispatchCatalogSearchOperation = async (operation: OperationRecord) => {
+export const dispatchCatalogSearchOperation = async (operation: CatalogSearchOperation) => {
     const claimed = await claimOperationDispatch(operation.id);
     if (!claimed) {
         return false;
@@ -113,7 +118,7 @@ export const dispatchCatalogSearchOperation = async (operation: OperationRecord)
             { operationId: operation.id },
             {
                 retryLimit: 0,
-                priority: 10,
+                priority: operation.input.priority === 'interactive' ? 10 : 5,
                 singletonKey: `${CATALOG_SEARCH_JOB_NAME}:${operation.id}`,
             }
         );
@@ -132,6 +137,9 @@ export const recoverStaleCatalogSearchOperations = async () => {
     const staleOperations = await listStalePendingCatalogSearchOperations();
     let dispatchedCount = 0;
     for (const operation of staleOperations) {
+        if (operation.type !== 'catalogSearch') {
+            throw new Error(`Operation ${operation.id} is not a Catalog search.`);
+        }
         if (await dispatchCatalogSearchOperation(operation)) {
             dispatchedCount += 1;
         }

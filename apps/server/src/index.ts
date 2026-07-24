@@ -29,6 +29,7 @@ import {
     recoverStaleCatalogSearchOperations,
     registerCatalogSearchWakeups,
 } from '@/services/catalog-search';
+import { collectDueCatalogQueries } from '@/services/catalog-query-tracking';
 import {
     getTopSearchTermsFetchStaleActiveJobCutoff,
     registerTopSearchTermsJobWakeups,
@@ -90,6 +91,7 @@ console.log(`[Server] Runtime flags: DISABLE_SERVER_JOB_RUNNER=${env.DISABLE_SER
 let recoveredTopSearchTermsDatasetsCount = 0;
 let recoveredProductHistoryOperationsCount = 0;
 let recoveredCatalogSearchOperationsCount = 0;
+let startedWeeklyCatalogSearchesCount = 0;
 const jobsRuntime = serverRuntimeFlags.shouldStartJobRunner
     ? await startJobs(boss)
     : createDisabledJobsRuntime();
@@ -97,6 +99,7 @@ const jobsRuntime = serverRuntimeFlags.shouldStartJobRunner
 if (serverRuntimeFlags.shouldStartJobRunner) {
     recoveredProductHistoryOperationsCount = await recoverStaleProductHistoryOperations();
     recoveredCatalogSearchOperationsCount = await recoverStaleCatalogSearchOperations();
+    startedWeeklyCatalogSearchesCount = (await collectDueCatalogQueries()).startedCount;
     const topSearchTermsRecoveryStartedAt = new Date();
     const topSearchTermsStaleActiveJobCutoff = getTopSearchTermsFetchStaleActiveJobCutoff(
         topSearchTermsRecoveryStartedAt
@@ -268,6 +271,13 @@ try {
         `  • Catalog Search Operations: ${
             serverRuntimeFlags.shouldStartJobRunner
                 ? `Enabled (${recoveredCatalogSearchOperationsCount} recovered at startup)`
+                : 'Disabled at runtime (job runner disabled)'
+        }`
+    );
+    console.log(
+        `  • Weekly Catalog Tracking: ${
+            serverRuntimeFlags.shouldStartJobRunner
+                ? `Enabled (${startedWeeklyCatalogSearchesCount} started at startup)`
                 : 'Disabled at runtime (job runner disabled)'
         }`
     );

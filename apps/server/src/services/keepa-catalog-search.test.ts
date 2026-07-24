@@ -1,11 +1,24 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { searchKeepaCatalog } from './keepa-catalog-search';
+import { getKeepaProviderPriority } from './keepa';
 
 const recording = await Bun.file(
     new URL('../../test/fixtures/keepa-catalog-search/retro-gardening-shirt.json', import.meta.url)
 ).json();
 
 describe('Keepa Catalog search adapter', () => {
+    it('orders interactive Catalog, scheduled Catalog, then Product refresh work', () => {
+        expect(getKeepaProviderPriority('interactiveCatalog')).toBeLessThan(
+            getKeepaProviderPriority('scheduledCatalog')
+        );
+        expect(getKeepaProviderPriority('scheduledCatalog')).toBeLessThan(
+            getKeepaProviderPriority('manualProduct')
+        );
+        expect(getKeepaProviderPriority('manualProduct')).toBeLessThan(
+            getKeepaProviderPriority('scheduledProduct')
+        );
+    });
+
     it('replays Product Search through the production boundary in one bounded request', async () => {
         const fetchImpl = mock(async () => Response.json(recording.response));
 
@@ -13,11 +26,12 @@ describe('Keepa Catalog search adapter', () => {
             {
                 marketplaceId: 'ATVPDKIKX0DER',
                 term: recording.request.term,
+                priority: 'interactive',
             },
             {
                 apiKey: 'recording-key',
                 fetchImpl,
-                scheduleRequest: async request => await request(),
+                scheduleRequest: async (_priority, request) => await request(),
                 recordUsage: () => {},
             }
         );
@@ -46,15 +60,42 @@ describe('Keepa Catalog search adapter', () => {
         }));
 
         const result = await searchKeepaCatalog(
-            { marketplaceId: 'ATVPDKIKX0DER', term: 'bounded' },
+            {
+                marketplaceId: 'ATVPDKIKX0DER',
+                term: 'bounded',
+                priority: 'interactive',
+            },
             {
                 apiKey: 'recording-key',
                 fetchImpl: mock(async () => Response.json({ products })),
-                scheduleRequest: async request => await request(),
+                scheduleRequest: async (_priority, request) => await request(),
                 recordUsage: () => {},
             }
         );
 
         expect(result.products).toHaveLength(20);
+    });
+
+    it('preserves interactive and scheduled Catalog priority at the shared Keepa limiter', async () => {
+        const scheduleRequest = mock(
+            async (_priority: 'interactiveCatalog' | 'scheduledCatalog', request: () => Promise<Response>) =>
+                await request()
+        );
+
+        await searchKeepaCatalog(
+            {
+                marketplaceId: 'ATVPDKIKX0DER',
+                term: 'priority',
+                priority: 'scheduled',
+            },
+            {
+                apiKey: 'recording-key',
+                fetchImpl: mock(async () => Response.json({ products: [] })),
+                scheduleRequest,
+                recordUsage: () => {},
+            }
+        );
+
+        expect(scheduleRequest.mock.calls[0]?.[0]).toBe('scheduledCatalog');
     });
 });

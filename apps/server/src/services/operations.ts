@@ -20,6 +20,7 @@ export type CatalogSearchOperationInput = {
     marketplaceId: 'ATVPDKIKX0DER';
     term: string;
     page: 0;
+    priority: 'interactive' | 'scheduled';
 };
 
 export type CatalogSearchResource = {

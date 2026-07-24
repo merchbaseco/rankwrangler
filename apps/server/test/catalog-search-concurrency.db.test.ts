@@ -93,6 +93,7 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
                     marketplaceId: 'ATVPDKIKX0DER',
                     term: 'shirts',
                     page: 0,
+                    priority: 'interactive',
                 },
             })
             .returning({ id: operations.id });
@@ -164,6 +165,7 @@ const createRequest = () => ({
     displayTerm: 'shirts',
     page: 0 as const,
     maxAgeSeconds: 86_400,
+    priority: 'interactive' as const,
     licenseId: LICENSE_ID,
     now: new Date('2026-07-24T12:01:00.000Z'),
 });

@@ -36,7 +36,11 @@ export const getCatalogQuery = async (normalizedTerm: string) => {
         normalizedTerm: query.normalizedTerm,
         displayTerm: query.displayTerm,
         page: query.page,
-        tracking: { enabled: false },
+        tracking: {
+            enabled: query.trackedAt !== null,
+            trackedAt: query.trackedAt?.toISOString() ?? null,
+        },
+        latestSuccessfulCompletionAt: query.latestSuccessfulRunAt?.toISOString() ?? null,
         latestRun: latestRun ? mapRunMetadata(latestRun) : null,
     };
 };

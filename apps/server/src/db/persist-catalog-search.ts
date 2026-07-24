@@ -95,6 +95,7 @@ export const persistCatalogSearchSuccess = async ({
             .update(catalogQueries)
             .set({
                 latestSuccessfulRunAt: sourceCompletedAt,
+                nextTrackingAttemptAt: null,
                 updatedAt: sourceCompletedAt,
             })
             .where(eq(catalogQueries.id, queryId))

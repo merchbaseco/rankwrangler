@@ -146,13 +146,32 @@ const keepaRateLimiter = new Bottleneck({
 });
 
 export const scheduleKeepaProviderRequest = async <T>(
-    priority: 'interactive' | 'background',
+    priority: 'interactiveCatalog' | 'scheduledCatalog',
     request: () => Promise<T>
 ) => {
     return await keepaRateLimiter.schedule(
-        { priority: priority === 'interactive' ? 0 : 5 },
+        { priority: getKeepaProviderPriority(priority) },
         request
     );
+};
+
+export const getKeepaProviderPriority = (
+    priority:
+        | 'interactiveCatalog'
+        | 'scheduledCatalog'
+        | 'manualProduct'
+        | 'scheduledProduct'
+) => {
+    switch (priority) {
+        case 'interactiveCatalog':
+            return 0;
+        case 'scheduledCatalog':
+            return 1;
+        case 'manualProduct':
+            return 2;
+        case 'scheduledProduct':
+            return 5;
+    }
 };
 
 export const recordKeepaProviderUsage = (usage: {
@@ -1079,7 +1098,9 @@ const estimateTokensLeft = ({
 };
 
 const getKeepaRateLimiterPriority = (queuePriority: 'manual' | 'background') => {
-    return queuePriority === 'manual' ? 1 : 5;
+    return getKeepaProviderPriority(
+        queuePriority === 'manual' ? 'manualProduct' : 'scheduledProduct'
+    );
 };
 
 const refreshKeepaTokenStateFromApi = async (apiKey: string): Promise<KeepaRuntimeTokenState> => {

@@ -49,6 +49,7 @@ export const runCatalogSearchOperation = async (
         const providerResult = await deps.searchProvider({
             marketplaceId: input.marketplaceId,
             term: input.term,
+            priority: input.priority,
         });
         const sourceCompletedAt = new Date();
         const results = normalizeSearchResults(

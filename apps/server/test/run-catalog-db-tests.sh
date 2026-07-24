@@ -65,4 +65,5 @@ DISABLE_SERVER_JOB_RUNNER=true \
 RUN_CATALOG_DB_TESTS=true \
 bun test \
     apps/server/test/catalog-search-concurrency.db.test.ts \
-    apps/server/test/catalog-search-history.db.test.ts
+    apps/server/test/catalog-search-history.db.test.ts \
+    apps/server/test/catalog-query-tracking.db.test.ts

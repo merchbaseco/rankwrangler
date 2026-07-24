@@ -169,6 +169,13 @@
       "when": 1784902893775,
       "tag": "0023_condemned_darwin",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784913048350,
+      "tag": "0024_fine_leper_queen",
+      "breakpoints": true
     }
   ]
 }

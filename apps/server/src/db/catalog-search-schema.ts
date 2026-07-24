@@ -22,6 +22,8 @@ export const catalogQueries = pgTable(
         normalizedTerm: text('normalized_term').notNull(),
         displayTerm: text('display_term').notNull(),
         page: integer('page').notNull(),
+        trackedAt: timestamp('tracked_at', { mode: 'date' }),
+        nextTrackingAttemptAt: timestamp('next_tracking_attempt_at', { mode: 'date' }),
         latestSuccessfulRunAt: timestamp('latest_successful_run_at', { mode: 'date' }),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
         updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
@@ -32,6 +34,11 @@ export const catalogQueries = pgTable(
             table.marketplaceId,
             table.normalizedTerm,
             table.page
+        ),
+        trackedDueIdx: index('catalog_queries_tracked_due_idx').on(
+            table.trackedAt,
+            table.nextTrackingAttemptAt,
+            table.latestSuccessfulRunAt
         ),
         v1IdentityCheck: check(
             'catalog_queries_v1_identity_check',
