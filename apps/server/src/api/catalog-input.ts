@@ -8,3 +8,13 @@ export const catalogSearchInput = z.object({
 export const catalogRunGetInput = z.object({
     id: z.string().uuid(),
 });
+
+export const catalogQueryGetInput = z.object({
+    term: z.string().trim().min(1).max(200),
+});
+
+export const catalogRunListInput = z.object({
+    queryId: z.string().uuid(),
+    limit: z.number().int().min(1).max(100).default(20),
+    cursor: z.string().uuid().optional(),
+});

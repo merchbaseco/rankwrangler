@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { catalogRunGetInput } from '@/api/catalog-input';
 import { publicApiProcedure } from '@/api/trpc';
-import { getCatalogSearchRun } from '@/db/catalog-search';
+import { getCatalogSearchRun } from '@/db/catalog-search-history';
 
 export const catalogRunGet = publicApiProcedure
     .input(catalogRunGetInput)

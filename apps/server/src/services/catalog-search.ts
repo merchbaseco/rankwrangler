@@ -1,7 +1,8 @@
 import type { PgBoss } from 'pg-boss';
-import { getCatalogSearchRun, resolveCatalogSearchRequest } from '@/db/catalog-search';
+import { resolveCatalogSearchRequest } from '@/db/catalog-search';
 import { claimOperationDispatch, releaseOperationDispatch } from '@/db/operations';
 import { listStalePendingCatalogSearchOperations } from '@/db/catalog-search-operations';
+import { getCatalogSearchRun } from '@/db/catalog-search-history';
 import { buildPublicOperation, type OperationRecord } from './operations';
 
 export const CATALOG_SEARCH_JOB_NAME = 'catalog-search';
@@ -59,7 +60,7 @@ export const requestCatalogSearch = async (
     },
     deps: CatalogSearchDeps = defaultDeps
 ) => {
-    const displayTerm = normalizeDisplayTerm(term);
+    const displayTerm = normalizeCatalogDisplayTerm(term);
     const resolution = await deps.resolveRequest({
         source: 'keepa',
         marketplaceId: 'ATVPDKIKX0DER',
@@ -138,6 +139,6 @@ export const recoverStaleCatalogSearchOperations = async () => {
     return dispatchedCount;
 };
 
-const normalizeDisplayTerm = (term: string) => {
+export const normalizeCatalogDisplayTerm = (term: string) => {
     return term.trim().replace(/\s+/g, ' ');
 };

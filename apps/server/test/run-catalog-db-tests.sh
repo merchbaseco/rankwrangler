@@ -63,4 +63,6 @@ LICENSE_SECRET=0123456789abcdef0123456789abcdef \
 CLERK_SECRET_KEY=test \
 DISABLE_SERVER_JOB_RUNNER=true \
 RUN_CATALOG_DB_TESTS=true \
-bun test apps/server/test/catalog-search-concurrency.db.test.ts
+bun test \
+    apps/server/test/catalog-search-concurrency.db.test.ts \
+    apps/server/test/catalog-search-history.db.test.ts

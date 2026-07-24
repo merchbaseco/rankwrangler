@@ -2,14 +2,11 @@ import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import {
     catalogQueries,
-    catalogSearchResults,
     catalogSearchRuns,
     operations,
-    products,
 } from '@/db/schema';
 import { mapOperationRecord } from './operations';
 import { consumeCatalogSearchLicenseUsage } from './catalog-search-license';
-import { mapStoredProductInfo } from './product/product-info-mapper';
 import type { CatalogSearchOperationInput } from '@/services/operations';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -118,72 +115,6 @@ export const resolveCatalogSearchRequest = async (
             created: true,
         } as const;
     });
-};
-
-export const getCatalogSearchRun = async (runId: string) => {
-    const rows = await db
-        .select({
-            run: catalogSearchRuns,
-            query: catalogQueries,
-            result: catalogSearchResults,
-            product: products,
-        })
-        .from(catalogSearchRuns)
-        .innerJoin(catalogQueries, eq(catalogQueries.id, catalogSearchRuns.queryId))
-        .leftJoin(catalogSearchResults, eq(catalogSearchResults.runId, catalogSearchRuns.id))
-        .leftJoin(products, eq(products.id, catalogSearchResults.productId))
-        .where(eq(catalogSearchRuns.id, runId))
-        .orderBy(catalogSearchResults.sourcePosition);
-
-    const first = rows[0];
-    if (!first) {
-        return null;
-    }
-
-    return {
-        id: first.run.id,
-        query: {
-            id: first.query.id,
-            source: 'keepa' as const,
-            marketplaceId: first.query.marketplaceId,
-            normalizedTerm: first.query.normalizedTerm,
-            displayTerm: first.query.displayTerm,
-            page: first.query.page,
-        },
-        sourceStartedAt: first.run.sourceStartedAt.toISOString(),
-        sourceCompletedAt: first.run.sourceCompletedAt.toISOString(),
-        resultCount: first.run.resultCount,
-        normalizerVersion: first.run.normalizerVersion,
-        createdAt: first.run.createdAt.toISOString(),
-        results: rows.flatMap(row => {
-            if (!row.result || !row.product) {
-                return [];
-            }
-
-            return [
-                {
-                    sourcePosition: row.result.sourcePosition,
-                    observed: {
-                        rootCategoryBsr: row.result.observedRootCategoryBsr,
-                        newPriceAmountMinor: row.result.observedNewPrice,
-                        currencyCode: 'USD' as const,
-                        monthlySold: row.result.observedMonthlySold,
-                        averageRootCategoryBsr30: row.result.observedBsrAverage30,
-                        averageRootCategoryBsr90: row.result.observedBsrAverage90,
-                        salesRankDrops: {
-                            days30: row.result.observedSalesRankDrops30,
-                            days90: row.result.observedSalesRankDrops90,
-                            days180: row.result.observedSalesRankDrops180,
-                            days365: row.result.observedSalesRankDrops365,
-                        },
-                        sourceUpdatedAt:
-                            row.result.observedSourceUpdatedAt?.toISOString() ?? null,
-                    },
-                    product: mapStoredProductInfo(row.product),
-                },
-            ];
-        }),
-    };
 };
 
 export const lockCatalogQueryForReconciliation = async (
