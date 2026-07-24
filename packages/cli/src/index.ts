@@ -38,7 +38,9 @@ const SUPPORTED_COMMANDS = new Set([
     'products:history',
     'operations:get',
     'catalog:search',
+    'catalog:query',
     'catalog:run',
+    'catalog:runs',
     'license:status',
     'license:validate',
     'auth:status',
@@ -66,6 +68,7 @@ const { positionals, values } = parseArgs({
         limit: { type: 'string' },
         bucket: { type: 'string' },
         maxAgeSeconds: { type: 'string' },
+        cursor: { type: 'string' },
         stdin: { type: 'boolean' },
     },
     allowPositionals: true,
@@ -152,7 +155,7 @@ const runApiCommand = async (
         return runCatalogCommand(
             command,
             client,
-            (values as CliOptionValues).maxAgeSeconds,
+            values as CliOptionValues,
             fail
         );
     }

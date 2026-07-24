@@ -1,7 +1,8 @@
+import { afterEach, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { afterEach, describe, expect, test } from 'bun:test';
+import { serve } from 'bun';
 import { createTempDir, spawnCliAsync } from './test-helpers';
 
 const TEMP_DIRS: string[] = [];
@@ -20,7 +21,7 @@ afterEach(() => {
 
 describe('Catalog CLI', () => {
     test('requests a force-fresh Catalog search and prints the shared pending contract', async () => {
-        const server = Bun.serve({
+        const server = serve({
             port: CLI_TEST_SERVER_PORT,
             async fetch(request) {
                 expect(request.url).toContain('catalog.search');
@@ -74,6 +75,133 @@ describe('Catalog CLI', () => {
                 data: {
                     status: 'pending',
                     operation: { type: 'catalogSearch' },
+                },
+            });
+        } finally {
+            server.stop(true);
+        }
+    });
+
+    test('reads Catalog query state through the matching public procedure', async () => {
+        const server = serve({
+            port: CLI_TEST_SERVER_PORT,
+            fetch(request) {
+                expect(request.url).toContain('catalog.query.get');
+                expect(decodeURIComponent(request.url)).toContain('"term":"retro gardening shirt"');
+                return Response.json([
+                    {
+                        result: {
+                            data: {
+                                id: '11111111-1111-4111-8111-111111111111',
+                                source: 'keepa',
+                                marketplaceId: 'ATVPDKIKX0DER',
+                                normalizedTerm: 'retro gardening shirt',
+                                displayTerm: 'Retro Gardening Shirt',
+                                page: 0,
+                                tracking: { enabled: false },
+                                latestRun: null,
+                            },
+                        },
+                    },
+                ]);
+            },
+        });
+        const { tempHome, workspaceDir } = createCliWorkspace();
+
+        try {
+            const result = await spawnCliAsync(
+                [
+                    'catalog',
+                    'query',
+                    'retro',
+                    'gardening',
+                    'shirt',
+                    '--baseUrl',
+                    `http://127.0.0.1:${server.port}`,
+                ],
+                {
+                    cwd: workspaceDir,
+                    home: tempHome,
+                    env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                }
+            );
+
+            expect(result.status).toBe(0);
+            expect(JSON.parse(result.stdout)).toEqual({
+                ok: true,
+                data: expect.objectContaining({
+                    id: '11111111-1111-4111-8111-111111111111',
+                    tracking: { enabled: false },
+                }),
+            });
+        } finally {
+            server.stop(true);
+        }
+    });
+
+    test('lists one bounded page of Catalog runs through the matching public procedure', async () => {
+        const server = serve({
+            port: CLI_TEST_SERVER_PORT,
+            fetch(request) {
+                expect(request.url).toContain('catalog.run.list');
+                const decodedUrl = decodeURIComponent(request.url);
+                expect(decodedUrl).toContain('"queryId":"11111111-1111-4111-8111-111111111111"');
+                expect(decodedUrl).toContain('"limit":5');
+                expect(decodedUrl).toContain('"cursor":"22222222-2222-4222-8222-222222222222"');
+                return Response.json([
+                    {
+                        result: {
+                            data: {
+                                items: [
+                                    {
+                                        id: '33333333-3333-4333-8333-333333333333',
+                                        sourceStartedAt: '2026-07-23T11:59:00.000Z',
+                                        sourceCompletedAt: '2026-07-23T12:00:00.000Z',
+                                        resultCount: 0,
+                                        normalizerVersion: 1,
+                                        createdAt: '2026-07-23T12:00:00.000Z',
+                                    },
+                                ],
+                                nextCursor: null,
+                            },
+                        },
+                    },
+                ]);
+            },
+        });
+        const { tempHome, workspaceDir } = createCliWorkspace();
+
+        try {
+            const result = await spawnCliAsync(
+                [
+                    'catalog',
+                    'runs',
+                    '11111111-1111-4111-8111-111111111111',
+                    '--limit',
+                    '5',
+                    '--cursor',
+                    '22222222-2222-4222-8222-222222222222',
+                    '--baseUrl',
+                    `http://127.0.0.1:${server.port}`,
+                ],
+                {
+                    cwd: workspaceDir,
+                    home: tempHome,
+                    env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                }
+            );
+
+            expect(result.status).toBe(0);
+            expect(JSON.parse(result.stdout)).toEqual({
+                ok: true,
+                data: {
+                    items: [
+                        expect.objectContaining({
+                            id: '33333333-3333-4333-8333-333333333333',
+                            resultCount: 0,
+                        }),
+                    ],
+                    nextCursor: null,
                 },
             });
         } finally {

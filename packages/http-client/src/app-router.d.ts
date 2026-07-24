@@ -327,7 +327,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					output: {
 						status: "ready";
 						run: {
-							id: string;
 							query: {
 								id: string;
 								source: "keepa";
@@ -336,13 +335,12 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 								displayTerm: string;
 								page: number;
 							};
-							sourceStartedAt: string;
-							sourceCompletedAt: string;
-							resultCount: number;
-							normalizerVersion: number;
-							createdAt: string;
 							results: {
-								sourcePosition: number;
+								productId: string;
+								position: {
+									source: "keepa";
+									value: number;
+								};
 								observed: {
 									rootCategoryBsr: number | null;
 									newPriceAmountMinor: number | null;
@@ -358,8 +356,14 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 									};
 									sourceUpdatedAt: string | null;
 								};
-								product: ProductInfo;
+								currentProduct: ProductInfo | null;
 							}[];
+							id: string;
+							sourceStartedAt: string;
+							sourceCompletedAt: string;
+							resultCount: number;
+							normalizerVersion: number;
+							createdAt: string;
 						};
 						readonly operation?: undefined;
 					} | {
@@ -369,6 +373,65 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					};
 					meta: object;
 				}>;
+				query: import("@trpc/server").TRPCBuiltRouter<{
+					ctx: {
+						user: ClerkUser;
+						isAdmin: boolean;
+						authType: "license" | "clerk" | "none";
+						authExpiresAtMs: null;
+						license: {
+							key: string;
+							data: LicenseUsageData | undefined;
+						};
+						licenseError: undefined;
+						request: ContextRequest;
+					} | {
+						user: null;
+						isAdmin: boolean;
+						authType: "license" | "clerk" | "none";
+						authExpiresAtMs: null;
+						license: null;
+						licenseError: string | undefined;
+						request: ContextRequest;
+					} | {
+						user: ClerkUser;
+						isAdmin: boolean;
+						authType: "license" | "clerk" | "none";
+						authExpiresAtMs: number;
+						license: null;
+						licenseError: undefined;
+						request: ContextRequest;
+					};
+					meta: object;
+					errorShape: import("@trpc/server").TRPCDefaultErrorShape;
+					transformer: false;
+				}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+					get: import("@trpc/server").TRPCQueryProcedure<{
+						input: {
+							term: string;
+						};
+						output: {
+							id: string;
+							source: "keepa";
+							marketplaceId: string;
+							normalizedTerm: string;
+							displayTerm: string;
+							page: number;
+							tracking: {
+								enabled: boolean;
+							};
+							latestRun: {
+								id: string;
+								sourceStartedAt: string;
+								sourceCompletedAt: string;
+								resultCount: number;
+								normalizerVersion: number;
+								createdAt: string;
+							} | null;
+						};
+						meta: object;
+					}>;
+				}>>;
 				run: import("@trpc/server").TRPCBuiltRouter<{
 					ctx: {
 						user: ClerkUser;
@@ -407,7 +470,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							id: string;
 						};
 						output: {
-							id: string;
 							query: {
 								id: string;
 								source: "keepa";
@@ -416,13 +478,12 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 								displayTerm: string;
 								page: number;
 							};
-							sourceStartedAt: string;
-							sourceCompletedAt: string;
-							resultCount: number;
-							normalizerVersion: number;
-							createdAt: string;
 							results: {
-								sourcePosition: number;
+								productId: string;
+								position: {
+									source: "keepa";
+									value: number;
+								};
 								observed: {
 									rootCategoryBsr: number | null;
 									newPriceAmountMinor: number | null;
@@ -438,8 +499,33 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 									};
 									sourceUpdatedAt: string | null;
 								};
-								product: ProductInfo;
+								currentProduct: ProductInfo | null;
 							}[];
+							id: string;
+							sourceStartedAt: string;
+							sourceCompletedAt: string;
+							resultCount: number;
+							normalizerVersion: number;
+							createdAt: string;
+						};
+						meta: object;
+					}>;
+					list: import("@trpc/server").TRPCQueryProcedure<{
+						input: {
+							queryId: string;
+							limit?: number | undefined;
+							cursor?: string | undefined;
+						};
+						output: {
+							items: {
+								id: string;
+								sourceStartedAt: string;
+								sourceCompletedAt: string;
+								resultCount: number;
+								normalizerVersion: number;
+								createdAt: string;
+							}[];
+							nextCursor: string | null;
 						};
 						meta: object;
 					}>;
