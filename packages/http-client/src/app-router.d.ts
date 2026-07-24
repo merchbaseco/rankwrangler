@@ -419,7 +419,9 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							page: number;
 							tracking: {
 								enabled: boolean;
+								trackedAt: string | null;
 							};
+							latestSuccessfulCompletionAt: string | null;
 							latestRun: {
 								id: string;
 								sourceStartedAt: string;
@@ -428,6 +430,32 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 								normalizerVersion: number;
 								createdAt: string;
 							} | null;
+						};
+						meta: object;
+					}>;
+					track: import("@trpc/server").TRPCMutationProcedure<{
+						input: {
+							term: string;
+						};
+						output: {
+							id: string;
+							tracking: {
+								enabled: boolean;
+								trackedAt: string | null;
+							};
+						};
+						meta: object;
+					}>;
+					untrack: import("@trpc/server").TRPCMutationProcedure<{
+						input: {
+							term: string;
+						};
+						output: {
+							id: string;
+							tracking: {
+								enabled: boolean;
+								trackedAt: string | null;
+							};
 						};
 						meta: object;
 					}>;

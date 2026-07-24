@@ -139,6 +139,60 @@ describe('Catalog CLI', () => {
         }
     });
 
+    test('explicitly tracks and untracks a Catalog query', async () => {
+        const requests: string[] = [];
+        const server = serve({
+            port: CLI_TEST_SERVER_PORT,
+            async fetch(request) {
+                requests.push(request.url);
+                const body = JSON.stringify(await request.json());
+                const enabled = request.url.includes('catalog.query.track');
+                expect(body).toContain('"term":"retro gardening shirt"');
+                return Response.json([
+                    {
+                        result: {
+                            data: {
+                                id: '11111111-1111-4111-8111-111111111111',
+                                tracking: {
+                                    enabled,
+                                    trackedAt: enabled ? '2026-07-24T12:00:00.000Z' : null,
+                                },
+                            },
+                        },
+                    },
+                ]);
+            },
+        });
+        const { tempHome, workspaceDir } = createCliWorkspace();
+
+        try {
+            for (const verb of ['track', 'untrack']) {
+                const result = await spawnCliAsync(
+                    [
+                        'catalog',
+                        verb,
+                        'retro',
+                        'gardening',
+                        'shirt',
+                        '--baseUrl',
+                        `http://127.0.0.1:${server.port}`,
+                    ],
+                    {
+                        cwd: workspaceDir,
+                        home: tempHome,
+                        env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                    }
+                );
+                expect(result.status).toBe(0);
+                expect(JSON.parse(result.stdout).data.tracking.enabled).toBe(verb === 'track');
+            }
+            expect(requests[0]).toContain('catalog.query.track');
+            expect(requests[1]).toContain('catalog.query.untrack');
+        } finally {
+            server.stop(true);
+        }
+    });
+
     test('lists one bounded page of Catalog runs through the matching public procedure', async () => {
         const server = serve({
             port: CLI_TEST_SERVER_PORT,

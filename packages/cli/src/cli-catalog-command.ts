@@ -43,6 +43,16 @@ export const runCatalogCommand = async (
         return await client.catalog.query.get.query({ term });
     }
 
+    if (command.verb === 'track' || command.verb === 'untrack') {
+        const term = command.args.join(' ').trim();
+        if (!term) {
+            fail('INVALID_INPUT', `catalog ${command.verb} requires a term`);
+        }
+        const procedure =
+            command.verb === 'track' ? client.catalog.query.track : client.catalog.query.untrack;
+        return await procedure.mutate({ term });
+    }
+
     if (command.verb === 'run') {
         if (command.args.length !== 1) {
             fail('INVALID_INPUT', 'catalog run requires exactly one id');
