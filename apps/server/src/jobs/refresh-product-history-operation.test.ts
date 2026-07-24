@@ -42,6 +42,20 @@ describe('Product-history Operation worker', () => {
         expect(deps.loadHistory.mock.calls).toHaveLength(0);
     });
 
+    it('rejects a misrouted Catalog Operation without completing it as a history failure', async () => {
+        const operation = createPendingCatalogOperation();
+        const deps = createDeps({
+            claimOperationWork: async () => operation,
+        });
+
+        await expect(runProductHistoryOperation(operation.id, deps)).rejects.toThrow(
+            `Operation ${operation.id} is not a Product-history refresh.`
+        );
+        expect(deps.loadHistory.mock.calls).toHaveLength(0);
+        expect(deps.completeWithError.mock.calls).toHaveLength(0);
+        expect(deps.notifyCompleted.mock.calls).toHaveLength(0);
+    });
+
     it('completes exhausted provider failure with a sanitized error', async () => {
         const operation = createPendingOperation();
         const deps = createDeps({
@@ -90,7 +104,10 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
     ),
 });
 
-const createPendingOperation = (): OperationRecord => ({
+const createPendingOperation = (): Extract<
+    OperationRecord,
+    { type: 'productHistoryRefresh' }
+> => ({
     id: '11111111-1111-4111-8111-111111111111',
     type: 'productHistoryRefresh',
     status: 'pending',
@@ -107,4 +124,16 @@ const createPendingOperation = (): OperationRecord => ({
     completedAt: null,
     createdAt: new Date('2026-07-23T12:00:00.000Z'),
     updatedAt: new Date('2026-07-23T12:00:00.000Z'),
+});
+
+const createPendingCatalogOperation = (): OperationRecord => ({
+    ...createPendingOperation(),
+    type: 'catalogSearch',
+    targetKey: '22222222-2222-4222-8222-222222222222',
+    input: {
+        queryId: '22222222-2222-4222-8222-222222222222',
+        marketplaceId: 'ATVPDKIKX0DER',
+        term: 'retro gardening shirt',
+        page: 0,
+    },
 });

@@ -8,6 +8,12 @@ const KEEPA_CSV_INDEX = {
 
 export type KeepaProductPayload = {
     asin?: string;
+    title?: string;
+    brand?: string;
+    imagesCSV?: string;
+    features?: string[];
+    listedSince?: number;
+    rootCategory?: number;
     trackingSince?: number;
     lastUpdate?: number;
     monthlySold?: number;
@@ -28,6 +34,12 @@ export type KeepaProductPayload = {
 export type NormalizedKeepaProductState = {
     marketplaceId: string;
     asin: string;
+    title: string | null;
+    brand: string | null;
+    thumbnailUrl: string | null;
+    bullet1: string | null;
+    bullet2: string | null;
+    dateFirstAvailable: Date | null;
     rootCategoryId: number | null;
     rootCategoryBsr: number | null;
     keepaRootCategoryId: number | null;
@@ -77,12 +89,20 @@ export const normalizeKeepaProduct = ({
         product.csv?.[KEEPA_CSV_INDEX.salesRank]
     );
     const rootCategoryId = normalizePositiveMetric(product.salesRankReference);
+    const listingRootCategoryId =
+        normalizePositiveMetric(product.rootCategory) ?? rootCategoryId;
 
     return {
         product: {
             marketplaceId,
             asin: product.asin,
-            rootCategoryId,
+            title: normalizeText(product.title),
+            brand: normalizeText(product.brand),
+            thumbnailUrl: normalizeKeepaImage(product.imagesCSV),
+            bullet1: normalizeText(product.features?.[0]),
+            bullet2: normalizeText(product.features?.[1]),
+            dateFirstAvailable: keepaMinuteToOptionalDate(product.listedSince),
+            rootCategoryId: listingRootCategoryId,
             rootCategoryBsr: currentBsr,
             keepaRootCategoryId: rootCategoryId,
             keepaCurrentBsr: currentBsr,
@@ -195,6 +215,18 @@ const normalizePositiveMetric = (value: number | undefined) => {
 
 const normalizeNonNegativeMetric = (value: number | undefined) => {
     return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+};
+
+const normalizeText = (value: string | undefined) => {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
+};
+
+const normalizeKeepaImage = (imagesCsv: string | undefined) => {
+    const imageName = imagesCsv?.split(',')[0]?.trim();
+    return imageName
+        ? `https://images-na.ssl-images-amazon.com/images/I/${imageName}`
+        : null;
 };
 
 const keepaMinuteToOptionalDate = (keepaMinutes: number | undefined) => {

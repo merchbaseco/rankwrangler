@@ -38,6 +38,9 @@ export const runProductHistoryOperation = async (
             status: 'already_completed_or_active',
         } as const;
     }
+    if (operation.type !== 'productHistoryRefresh') {
+        throw new Error(`Operation ${operationId} is not a Product-history refresh.`);
+    }
 
     try {
         await deps.loadHistory({

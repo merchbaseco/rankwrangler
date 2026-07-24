@@ -4,6 +4,8 @@ import { operations } from '@/db/ops-schema.js';
 import type {
     OperationError,
     OperationRecord,
+    CatalogSearchOperationInput,
+    CatalogSearchResource,
     ProductHistoryOperationInput,
     ProductHistoryResource,
 } from '@/services/operations.js';
@@ -126,6 +128,12 @@ export const releaseOperationDispatch = async (operationId: string) => {
         .where(and(eq(operations.id, operationId), eq(operations.status, 'pending')));
 };
 
+export const deletePendingOperation = async (operationId: string) => {
+    await db
+        .delete(operations)
+        .where(and(eq(operations.id, operationId), eq(operations.status, 'pending')));
+};
+
 export const claimOperationWork = async (operationId: string, now = new Date()) => {
     const staleBefore = new Date(now.getTime() - OPERATION_DISPATCH_STALE_MS);
     const [claimed] = await db
@@ -235,17 +243,34 @@ const buildProductHistoryTargetKey = ({
     asin: string;
 }) => `${marketplaceId}:${asin}`;
 
-const mapOperationRecord = (row: typeof operations.$inferSelect): OperationRecord => ({
-    id: row.id,
-    type: row.type as OperationRecord['type'],
-    status: row.status as OperationRecord['status'],
-    targetKey: row.targetKey,
-    input: row.input as ProductHistoryOperationInput,
-    resource: row.resource as ProductHistoryResource | null,
-    error: row.error as OperationError | null,
-    dispatchedAt: row.dispatchedAt,
-    startedAt: row.startedAt,
-    completedAt: row.completedAt,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-});
+export const mapOperationRecord = (row: typeof operations.$inferSelect): OperationRecord => {
+    const common = {
+        id: row.id,
+        status: row.status as OperationRecord['status'],
+        targetKey: row.targetKey,
+        error: row.error as OperationError | null,
+        dispatchedAt: row.dispatchedAt,
+        startedAt: row.startedAt,
+        completedAt: row.completedAt,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+    };
+
+    if (row.type === 'productHistoryRefresh') {
+        return {
+            ...common,
+            type: row.type,
+            input: row.input as ProductHistoryOperationInput,
+            resource: row.resource as ProductHistoryResource | null,
+        };
+    }
+    if (row.type === 'catalogSearch') {
+        return {
+            ...common,
+            type: row.type,
+            input: row.input as CatalogSearchOperationInput,
+            resource: row.resource as CatalogSearchResource | null,
+        };
+    }
+    throw new Error(`Unsupported Operation type: ${row.type}`);
+};

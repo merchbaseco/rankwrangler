@@ -2,6 +2,7 @@ import { router } from '@/api/trpc.js';
 import { adminStatus } from './admin-status.js';
 import { amazonRouter } from './amazon-router.js';
 import { classifyProductFacets } from './classify-product-facets.js';
+import { catalogRouter } from './catalog-router';
 import { eventLogsList } from './event-logs.js';
 import { getAdminStats } from './get-admin-stats.js';
 import { keepaLog } from './keepa-log.js';
@@ -22,6 +23,7 @@ export const appApiRouter = router({
     adminStatus,
     amazon: amazonRouter,
     classifyProductFacets,
+    catalog: catalogRouter,
     searchterms: searchtermsRouter,
     eventLogs: eventLogsList,
     getAdminStats,

@@ -35,6 +35,12 @@ describe('normalizeKeepaProduct', () => {
         expect(result.product).toEqual({
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B0MERCH001',
+            title: null,
+            brand: null,
+            thumbnailUrl: null,
+            bullet1: null,
+            bullet2: null,
+            dateFirstAvailable: null,
             rootCategoryId: 12_345,
             rootCategoryBsr: 54_321,
             keepaRootCategoryId: 12_345,

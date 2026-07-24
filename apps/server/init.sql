@@ -50,6 +50,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- product_history_points, keepa_categories, top_search_terms_datasets,
 -- top_search_terms_snapshots, top_search_terms_keyword_daily,
 -- operations, event_logs, job_executions, job_execution_logs
+-- catalog_queries, catalog_search_runs, catalog_search_results
 
 -- Log successful initialization
 \echo 'PostgreSQL initialization completed successfully'

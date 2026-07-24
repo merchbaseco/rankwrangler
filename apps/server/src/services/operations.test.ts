@@ -79,6 +79,29 @@ describe('Operation public lifecycle', () => {
             })
         ).toThrow('must have exactly one outcome');
     });
+
+    it('exposes the same pending contract for Catalog search without provider state', () => {
+        const operation: OperationRecord = {
+            ...createOperation(),
+            type: 'catalogSearch',
+            targetKey: '22222222-2222-4222-8222-222222222222',
+            input: {
+                queryId: '22222222-2222-4222-8222-222222222222',
+                marketplaceId: 'ATVPDKIKX0DER',
+                term: 'shirts',
+                page: 0,
+            },
+        };
+
+        expect(buildPublicOperation(operation)).toEqual({
+            id: operation.id,
+            type: 'catalogSearch',
+            status: 'pending',
+            retryAfterSeconds: 2,
+            createdAt: '2026-07-23T12:00:00.000Z',
+            updatedAt: '2026-07-23T12:00:00.000Z',
+        });
+    });
 });
 
 const createOperation = (): OperationRecord => ({

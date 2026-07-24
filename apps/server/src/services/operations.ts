@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server';
 
-export const operationTypes = ['productHistoryRefresh'] as const;
+export const operationTypes = ['productHistoryRefresh', 'catalogSearch'] as const;
 export const operationStatuses = ['pending', 'completed'] as const;
 
 export type ProductHistoryOperationInput = {
@@ -15,18 +15,28 @@ export type ProductHistoryResource = {
     asin: string;
 };
 
+export type CatalogSearchOperationInput = {
+    queryId: string;
+    marketplaceId: 'ATVPDKIKX0DER';
+    term: string;
+    page: 0;
+};
+
+export type CatalogSearchResource = {
+    type: 'catalogSearchRun';
+    queryId: string;
+    runId: string;
+};
+
 export type OperationError = {
     code: 'PROVIDER_UNAVAILABLE' | 'RESOURCE_NOT_FOUND' | 'INTERNAL_ERROR';
     message: string;
 };
 
-export type OperationRecord = {
+type OperationRecordBase = {
     id: string;
-    type: (typeof operationTypes)[number];
     status: (typeof operationStatuses)[number];
     targetKey: string;
-    input: ProductHistoryOperationInput;
-    resource: ProductHistoryResource | null;
     error: OperationError | null;
     dispatchedAt: Date | null;
     startedAt: Date | null;
@@ -35,10 +45,24 @@ export type OperationRecord = {
     updatedAt: Date;
 };
 
+export type OperationRecord =
+    | (OperationRecordBase & {
+          type: 'productHistoryRefresh';
+          input: ProductHistoryOperationInput;
+          resource: ProductHistoryResource | null;
+      })
+    | (OperationRecordBase & {
+          type: 'catalogSearch';
+          input: CatalogSearchOperationInput;
+          resource: CatalogSearchResource | null;
+      });
+
+type PublicOperationType = (typeof operationTypes)[number];
+
 export type PublicOperation =
     | {
           id: string;
-          type: 'productHistoryRefresh';
+          type: PublicOperationType;
           status: 'pending';
           retryAfterSeconds: 2;
           createdAt: string;
@@ -56,7 +80,17 @@ export type PublicOperation =
       }
     | {
           id: string;
-          type: 'productHistoryRefresh';
+          type: 'catalogSearch';
+          status: 'completed';
+          resource: CatalogSearchResource;
+          error: null;
+          createdAt: string;
+          updatedAt: string;
+          completedAt: string;
+      }
+    | {
+          id: string;
+          type: PublicOperationType;
           status: 'completed';
           resource: null;
           error: OperationError;
@@ -88,8 +122,19 @@ export const buildPublicOperation = (operation: OperationRecord): PublicOperatio
 
     const completedAt = operation.completedAt.toISOString();
     if (operation.resource) {
+        if (operation.type === 'productHistoryRefresh') {
+            return {
+                ...common,
+                type: operation.type,
+                status: 'completed',
+                resource: operation.resource,
+                error: null,
+                completedAt,
+            };
+        }
         return {
             ...common,
+            type: operation.type,
             status: 'completed',
             resource: operation.resource,
             error: null,
@@ -110,11 +155,18 @@ export const buildPublicOperation = (operation: OperationRecord): PublicOperatio
     throw new Error(`Completed Operation ${operation.id} must have exactly one outcome`);
 };
 
-export const sanitizeOperationError = (error: unknown): OperationError => {
+export const sanitizeOperationError = (
+    error: unknown,
+    operationType: PublicOperationType = 'productHistoryRefresh'
+): OperationError => {
+    const isCatalogSearch = operationType === 'catalogSearch';
+
     if (error instanceof TRPCError && error.code === 'NOT_FOUND') {
         return {
             code: 'RESOURCE_NOT_FOUND',
-            message: 'Product history is unavailable for this Product.',
+            message: isCatalogSearch
+                ? 'Catalog search is unavailable.'
+                : 'Product history is unavailable for this Product.',
         };
     }
 
@@ -124,12 +176,16 @@ export const sanitizeOperationError = (error: unknown): OperationError => {
     ) {
         return {
             code: 'PROVIDER_UNAVAILABLE',
-            message: 'Product history collection failed. Retry the request shortly.',
+            message: isCatalogSearch
+                ? 'Catalog search failed. Retry the request shortly.'
+                : 'Product history collection failed. Retry the request shortly.',
         };
     }
 
     return {
         code: 'INTERNAL_ERROR',
-        message: 'Product history collection failed.',
+        message: isCatalogSearch
+            ? 'Catalog search failed.'
+            : 'Product history collection failed.',
     };
 };

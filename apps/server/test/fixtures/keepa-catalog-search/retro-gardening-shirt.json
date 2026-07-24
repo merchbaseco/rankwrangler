@@ -1,0 +1,62 @@
+{
+    "capturedAt": "2026-07-23T12:00:00.000Z",
+    "request": {
+        "marketplaceId": "ATVPDKIKX0DER",
+        "term": "retro gardening shirt",
+        "page": 0,
+        "history": true,
+        "statsDays": 365
+    },
+    "response": {
+        "tokensConsumed": 10,
+        "tokensLeft": 90,
+        "refillIn": 3000,
+        "refillRate": 20,
+        "products": [
+            {
+                "asin": "B0MERCH001",
+                "title": "Retro Gardening Shirt",
+                "brand": "Example Brand",
+                "imagesCSV": "example-one.jpg",
+                "features": ["Garden gift", "Retro design"],
+                "listedSince": 4900000,
+                "trackingSince": 5000000,
+                "lastUpdate": 5001000,
+                "monthlySold": 200,
+                "rootCategory": 12345,
+                "salesRankReference": 12345,
+                "stats": {
+                    "current": [-1, 1999, -1, 54321],
+                    "avg30": [-1, -1, -1, 65000],
+                    "avg90": [-1, -1, -1, 70000],
+                    "salesRankDrops30": 4,
+                    "salesRankDrops90": 11,
+                    "salesRankDrops180": 19,
+                    "salesRankDrops365": 31
+                },
+                "csv": [
+                    [],
+                    [5000900, 2099, 5001000, 1999],
+                    [],
+                    [5000900, 60000, 5001000, 54321]
+                ]
+            },
+            {
+                "asin": "B0MERCH002",
+                "title": "Garden Lover Tee",
+                "monthlySold": 0,
+                "salesRankReference": -1,
+                "stats": {
+                    "current": [-1, -1, -1, -1],
+                    "avg30": [-1, -1, -1, -1],
+                    "avg90": [-1, -1, -1, -1],
+                    "salesRankDrops30": -1,
+                    "salesRankDrops90": -1,
+                    "salesRankDrops180": -1,
+                    "salesRankDrops365": -1
+                },
+                "csv": []
+            }
+        ]
+    }
+}

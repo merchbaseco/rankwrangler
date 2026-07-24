@@ -145,6 +145,25 @@ const keepaRateLimiter = new Bottleneck({
     reservoirRefreshInterval: 60 * 1000,
 });
 
+export const scheduleKeepaProviderRequest = async <T>(
+    priority: 'interactive' | 'background',
+    request: () => Promise<T>
+) => {
+    return await keepaRateLimiter.schedule(
+        { priority: priority === 'interactive' ? 0 : 5 },
+        request
+    );
+};
+
+export const recordKeepaProviderUsage = (usage: {
+    tokensConsumed: number | null;
+    tokensLeft: number | null;
+    refillInMs: number | null;
+    refillRate: number | null;
+}) => {
+    updateKeepaTokenState(usage);
+};
+
 const historyMetricMap: Record<KeepaHistoryMetricKey, string> = {
     bsrMain: 'bsr_main',
     bsrCategory: 'bsr_category',

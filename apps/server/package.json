@@ -10,7 +10,9 @@
         "dev": "dotenv -e ../../.env -- sh -c 'export DISABLE_SERVER_JOB_RUNNER=${DISABLE_SERVER_JOB_RUNNER:-true}; exec tsx src/index.ts'",
         "dev:jobs": "dotenv -e ../../.env -- env DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
         "start": "dotenv -e ../../.env node dist/index.js",
-        "cli": "tsx src/cli.ts"
+        "cli": "tsx src/cli.ts",
+        "test:catalog-db": "bash test/run-catalog-db-tests.sh",
+        "test:keepa-catalog-live": "dotenv -e ../../.env -- tsx src/scripts/keepa-catalog-search-live.ts"
     },
     "dependencies": {
         "@rankwrangler/http-client": "workspace:*",

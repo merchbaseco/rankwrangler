@@ -26,6 +26,10 @@ import {
     registerProductHistoryOperationWakeups,
 } from '@/services/product-history-operations.js';
 import {
+    recoverStaleCatalogSearchOperations,
+    registerCatalogSearchWakeups,
+} from '@/services/catalog-search';
+import {
     getTopSearchTermsFetchStaleActiveJobCutoff,
     registerTopSearchTermsJobWakeups,
     sendSyncTopSearchTermsDatasetsJob,
@@ -80,16 +84,19 @@ console.log('[Server] pg-boss initialized');
 registerSpApiSyncQueueWakeups(boss);
 registerTopSearchTermsJobWakeups(boss);
 registerProductHistoryOperationWakeups(boss);
+registerCatalogSearchWakeups(boss);
 console.log(`[Server] Runtime flags: DISABLE_SERVER_JOB_RUNNER=${env.DISABLE_SERVER_JOB_RUNNER}`);
 
 let recoveredTopSearchTermsDatasetsCount = 0;
 let recoveredProductHistoryOperationsCount = 0;
+let recoveredCatalogSearchOperationsCount = 0;
 const jobsRuntime = serverRuntimeFlags.shouldStartJobRunner
     ? await startJobs(boss)
     : createDisabledJobsRuntime();
 
 if (serverRuntimeFlags.shouldStartJobRunner) {
     recoveredProductHistoryOperationsCount = await recoverStaleProductHistoryOperations();
+    recoveredCatalogSearchOperationsCount = await recoverStaleCatalogSearchOperations();
     const topSearchTermsRecoveryStartedAt = new Date();
     const topSearchTermsStaleActiveJobCutoff = getTopSearchTermsFetchStaleActiveJobCutoff(
         topSearchTermsRecoveryStartedAt
@@ -256,6 +263,13 @@ try {
             serverRuntimeFlags.shouldStartJobRunner,
             recoveredProductHistoryOperationsCount
         )}`
+    );
+    console.log(
+        `  • Catalog Search Operations: ${
+            serverRuntimeFlags.shouldStartJobRunner
+                ? `Enabled (${recoveredCatalogSearchOperationsCount} recovered at startup)`
+                : 'Disabled at runtime (job runner disabled)'
+        }`
     );
     const productFacetStatus = env.GEMINI_API_KEY
         ? 'Enabled (Gemini 2.5 Flash Lite)'

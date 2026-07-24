@@ -162,6 +162,13 @@
       "when": 1784822072816,
       "tag": "0022_whole_tattoo",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784902893775,
+      "tag": "0023_condemned_darwin",
+      "breakpoints": true
     }
   ]
 }
