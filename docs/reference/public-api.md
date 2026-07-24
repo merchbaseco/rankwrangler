@@ -127,6 +127,24 @@ external-work usage unit. Completed Operations contain exactly one of:
 After resource completion, read Product history again. A range before the earliest available
 provider observation can still be empty after successful collection.
 
+## Catalog search
+
+`api.public.catalog.search` is a mutation with `term` and optional `maxAgeSeconds` (default
+`86400`, maximum `604800`). It returns either:
+
+- `{ status: "ready", run }` when a successful Search run satisfies the maximum age; or
+- `{ status: "pending", operation }` when durable provider work is pending.
+
+Set `maxAgeSeconds: 0` for fresh evidence; an identical pending query still joins one Operation.
+The only V1 identity is Keepa, US marketplace, and zero-based page `0`. A successful run contains
+up to 20 source-ordered results. Each result combines immutable observed metrics with the
+canonical current Product. Poll `api.public.operation.get`, then read
+`api.public.catalog.run.get` with the returned `catalogSearchRun.runId`.
+
+Catalog search consumes one license usage unit only when it creates external work. Reused runs,
+joined pending work, Operation polls, and run reads do not consume another unit. Provider token
+state is never returned.
+
 ## Contract source
 
 Use these sources when exact generated types or implementation behavior matter:

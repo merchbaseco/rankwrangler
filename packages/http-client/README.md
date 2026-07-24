@@ -30,6 +30,11 @@ if (product.history.operation?.status === 'pending') {
     id: product.history.operation.id
   });
 }
+
+const search = await client.catalog.search.mutate({
+  term: 'retro gardening shirt',
+  maxAgeSeconds: 0
+});
 ```
 
 The client is scoped to the public surface (`api.public.*`) so it stays aligned with CLI usage.

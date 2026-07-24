@@ -39,6 +39,15 @@ if (product.history.operation?.status === 'pending') {
         id: product.history.operation.id,
     });
 }
+
+const search = await client.catalog.search.mutate({
+    term: 'retro gardening shirt',
+    maxAgeSeconds: 0,
+});
+
+if (search.status === 'pending') {
+    await client.operation.get.query({ id: search.operation.id });
+}
 ```
 
 The returned proxy is already scoped to `api.public`; callers use `client.product...`, not
@@ -69,6 +78,8 @@ import type {
 type ProductGetInput = PublicRouterInputs['product']['get'];
 type ProductGetOutput = PublicRouterOutputs['product']['get'];
 type OperationGetOutput = PublicRouterOutputs['operation']['get'];
+type CatalogSearchOutput = PublicRouterOutputs['catalog']['search'];
+type CatalogRunOutput = PublicRouterOutputs['catalog']['run']['get'];
 ```
 
 It also exports `RankWranglerClient`, `RankWranglerClientOptions`, `RouterInputs`,

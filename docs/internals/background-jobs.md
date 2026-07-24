@@ -25,6 +25,7 @@ where a second attempt would be redundant.
 | Keepa candidate selection | Hourly scan of eligible stale Products. |
 | Keepa queue dispatch | Every minute, capacity-bounded, then one singleton fetch per ASIN. |
 | Product-history Operation | Event-driven worker plus one-minute stale-pending recovery. |
+| Catalog-search Operation | Event-driven first-page Keepa search plus one-minute stale-pending recovery. |
 | Top Search Terms dataset sync | Every five minutes with a bounded due-window batch. |
 | Top Search Terms report fetch | Event-driven; one grouped fetch across server instances. |
 | Product facets | One-minute worker definition, currently disabled by policy. |

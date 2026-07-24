@@ -56,3 +56,18 @@ Do not expose Keepa token accounting through public RankWrangler APIs. It is an 
 budget.
 
 See [Keepa refresh internals](../internals/keepa-refresh.md) for data semantics and ownership.
+
+## Catalog search live smoke
+
+Routine Catalog tests replay the sanitized fixture under
+`apps/server/test/fixtures/keepa-catalog-search/`. To deliberately validate the live Product
+Search boundary and print token consumption:
+
+```bash
+RUN_LIVE_KEEPA_CATALOG_SEARCH=1 \
+  bun run --filter @rankwrangler/server test:keepa-catalog-live
+```
+
+Add `--record` to replace the fixed sanitized recording after inspecting the reported internal
+consumption. The script refuses CI, uses one fixed first-page query, requests histories and
+statistics in that single call, and never follows up per ASIN.

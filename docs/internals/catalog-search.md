@@ -9,8 +9,8 @@ read_when:
 
 ## Status
 
-The SP-API keyword lookup is shipped. Durable Keepa-backed Catalog queries, Search runs, Operations,
-and weekly tracking are an accepted target currently in progress.
+The SP-API keyword lookup and on-demand durable Keepa Catalog search are shipped. Run-history
+listing and weekly tracking remain future slices.
 
 ## Current Behavior
 
@@ -24,7 +24,7 @@ provider.
 
 ## Accepted Durable Model
 
-The target Keepa workflow introduces four nouns:
+The Keepa workflow uses four nouns:
 
 | Noun | Contract |
 | --- | --- |
@@ -36,10 +36,14 @@ The target Keepa workflow introduces four nouns:
 `sourcePosition` means provider response order. It is not Amazon organic rank unless the source
 explicitly guarantees that meaning.
 
-The target worker makes one Keepa Product Search request with Product payloads and history enabled.
+The worker makes one Keepa Product Search request with Product payloads and history enabled.
 It does not issue a follow-up Keepa request for every ASIN. One transaction reconciles canonical
 Products and their histories, writes the immutable run and ordered results, advances query
 freshness, and completes the Operation.
+
+Request resolution is serialized per Catalog query. Fresh-run reuse, pending-work deduplication,
+public license debit, and new Operation creation share one transaction, so unpaid work is never
+visible to callers or recovery and a concurrently completed reusable run does not create a charge.
 
 ## Reuse And Tracking
 

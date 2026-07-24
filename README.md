@@ -17,10 +17,11 @@ magical "find opportunities" score.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity and provider health from the operator dashboard.
 - Access the public license-authenticated surface from `rw` or `@rankwrangler/http-client`.
+- Run a Keepa-backed Catalog search and retain its source-ordered evidence in durable Search runs.
 
-Amazon catalog search is an [accepted target capability](docs/product/catalog-search.md): a query
-returns ranked external observations, reconciles Products into the canonical catalog, and retains
-the search snapshot without creating an opaque recommendation engine.
+Amazon [Catalog search](docs/product/catalog-search.md) returns source-ordered external
+observations, reconciles Products into the canonical catalog, and retains the Search run without
+creating an opaque recommendation engine.
 
 ## Use RankWrangler
 
@@ -35,6 +36,8 @@ rw auth set
 rw products summary B0XXXXXXXX
 rw products history B0XXXXXXXX --metrics bsr,price --bucket auto
 rw operations get <operationId>
+rw catalog search "retro gardening shirt"
+rw catalog run <runId>
 ```
 
 History reads return stored points immediately. When collection is needed, the response includes a

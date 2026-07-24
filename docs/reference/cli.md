@@ -42,6 +42,8 @@ printing the secret.
 | `rw products summary <ASIN>` | Product summary without importing Keepa history. |
 | `rw products history <ASIN>` | Compact bucketed history without the product summary. |
 | `rw operations get <operationId>` | Poll one durable Operation without starting work. |
+| `rw catalog search <term>` | Return a reusable Search run or pending Catalog-search Operation. |
+| `rw catalog run <runId>` | Read one persisted run with current Products and immutable observations. |
 | `rw license status` | License email, usage, and limit. |
 | `rw license validate` | Validate the active license and return its current usage. |
 | `rw auth status|set|clear` | Inspect or update secure-store authentication. |
@@ -86,6 +88,17 @@ rw operations get 11111111-1111-4111-8111-111111111111
 
 A completed Operation contains either `resource.type: "productHistory"` with marketplace/ASIN
 identity or a sanitized `error`. Read Product history again after successful completion.
+
+For Catalog search:
+
+```bash
+rw catalog search "retro gardening shirt"
+rw catalog search "retro gardening shirt" --maxAgeSeconds 0
+rw catalog run 22222222-2222-4222-8222-222222222222
+```
+
+`--maxAgeSeconds` defaults to `86400`; zero forces fresh evidence while joining identical pending
+work. A completed Catalog Operation has `resource.type: "catalogSearchRun"` and a `runId`.
 
 `auto` uses day buckets through 45 days, week buckets through 18 months, and month buckets after
 that. Price values are minor currency units; consult the response's `currencyCode` and

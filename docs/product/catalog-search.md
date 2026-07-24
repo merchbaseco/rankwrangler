@@ -7,8 +7,8 @@ read_when:
 
 # Catalog Search
 
-**Status: Accepted target behavior.** This capability is not yet available as the durable API and
-CLI surface described below.
+**Status:** On-demand Keepa Catalog search is available through the app/public API, typed client,
+and CLI. Run-history listing and weekly tracking remain future slices.
 
 Catalog search collects ranked external results and preserves what the source surfaced at a moment
 in time. It complements catalog lookup:

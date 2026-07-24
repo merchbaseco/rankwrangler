@@ -34,6 +34,9 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Top Search Terms snapshot | `(datasetId, observedDate)` | One fetched daily observation of a dataset. |
 | Search-term row | `(snapshotId, searchTerm)` | Rank and top-three click/conversion shares for one term in one snapshot. |
 | Operation | generated id; unique pending `(type, targetKey)` | Durable client receipt and terminal resource or safe error. |
+| Catalog query | `(source, marketplaceId, normalizedTerm, page)` | Shared external-search identity and latest successful-run watermark. |
+| Search run | generated id | One immutable successful provider execution, including zero-result runs. |
+| Search result | `(runId, productId)` | Immutable source position and nullable metrics observed in that run. |
 | Activity event | generated id | Searchable record of a product, history, job, or system action. |
 | Job execution | generated id | One completed background-job run with input, output, and error state. |
 | License | generated id; unique key | Public API credential, usage counter, limit, and revocation state. |
@@ -53,9 +56,12 @@ Public Operation state is `pending` or `completed`. Pending rows have no outcome
 have exactly one outcome: a typed resource reference or a sanitized error. Dispatch and worker
 timestamps support recovery but are never exposed through the public contract.
 
-Only one pending `productHistoryRefresh` Operation exists per marketplace/ASIN target. Product
+Only one pending `productHistoryRefresh` Operation exists per marketplace/ASIN target, and only
+one pending `catalogSearch` Operation exists per Catalog query. Product
 history, its successful import audit, Product freshness, and successful Operation completion commit
 atomically. A schema migration for the Operations table must be generated before deployment.
+Catalog-search success similarly commits Products, histories, the Search run/results, query
+watermark, and `catalogSearchRun` Operation resource atomically.
 
 ## Product observations
 

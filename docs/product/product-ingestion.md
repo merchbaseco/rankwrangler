@@ -22,14 +22,15 @@ kind of Product.
 | Product lookup | Dashboard, public API, and CLI ASIN reads resolve stored data or fetch SP-API data when needed. |
 | Dashboard Amazon results | Selecting a Top Search Term fetches current SP-API results and queues their ASINs for canonical Product synchronization. |
 | Keepa ingestion | Rich Product/history reads and scheduled refreshes normalize accepted Keepa Product data into the same Product and history records. |
+| Keepa Catalog search | One first-page response imports its accepted Products and histories while preserving Search-run membership separately. |
 
 SP-API owns listing description fields and the deterministic Merch signal. Keepa adds separately
 attributed current metrics and event history. A Keepa write advances its freshness watermark only
 after the Product, history, and import audit persist successfully.
 
 The SP-API synchronization queue batches ASINs and deduplicates marketplace/ASIN work. If Amazon no
-longer returns a queued listing, RankWrangler removes the corresponding Product and records that
-activity.
+longer returns a queued listing, RankWrangler removes the corresponding Product unless immutable
+Search-result history retains it, then records that activity.
 
 **Brief user story:** A seller browses Amazon with the extension; each recognized listing becomes
 available later to an agent through RankWrangler's stored catalog.

@@ -22,6 +22,8 @@ rw products get B0DV53VS61
 rw products summary B0DV53VS61
 rw products history B0DV53VS61 --metrics bsr,price --bucket week
 rw operations get 11111111-1111-4111-8111-111111111111
+rw catalog search "retro gardening shirt" --maxAgeSeconds 0
+rw catalog run 22222222-2222-4222-8222-222222222222
 RR_LICENSE_KEY=rrk_... rw license status
 # `rankwrangler` is also supported as an alias
 ```
@@ -42,6 +44,8 @@ returns the cheap summary only. `rw products history` returns bucketed history (
 `week`, or `month`), not raw point series.
 When history is collecting, poll its `operation.id` with `rw operations get`; polling is read-only
 and returns retry guidance until the durable Product-history resource or a safe error is ready.
+Catalog search returns the same pending Operation contract or a reusable source-ordered Search
+run. `catalog run` reads canonical current Products plus the immutable metrics observed in that run.
 `rw --version` prints the installed CLI version.
 `rw changelog` prints the latest bundled release notes shipped with the package.
 
