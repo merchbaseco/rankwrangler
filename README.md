@@ -37,6 +37,8 @@ rw products summary B0XXXXXXXX
 rw products history B0XXXXXXXX --metrics bsr,price --bucket auto
 rw operations get <operationId>
 rw catalog search "retro gardening shirt"
+rw catalog query "retro gardening shirt"
+rw catalog runs <queryId>
 rw catalog run <runId>
 ```
 

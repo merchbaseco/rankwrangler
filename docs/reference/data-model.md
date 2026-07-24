@@ -63,6 +63,10 @@ atomically. A schema migration for the Operations table must be generated before
 Catalog-search success similarly commits Products, histories, the Search run/results, query
 watermark, and `catalogSearchRun` Operation resource atomically.
 
+Catalog run reads never reconstruct observations from Product. Each result returns its retained
+`productId`, source-qualified position, immutable `observed` fields, and a separate nullable
+`currentProduct`. Missing canonical state therefore does not remove run membership.
+
 ## Product observations
 
 The target product row combines current values from distinct providers without erasing provenance:

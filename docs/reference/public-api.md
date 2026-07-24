@@ -137,13 +137,26 @@ provider observation can still be empty after successful collection.
 
 Set `maxAgeSeconds: 0` for fresh evidence; an identical pending query still joins one Operation.
 The only V1 identity is Keepa, US marketplace, and zero-based page `0`. A successful run contains
-up to 20 source-ordered results. Each result combines immutable observed metrics with the
-canonical current Product. Poll `api.public.operation.get`, then read
+up to 20 source-ordered results. Each result separates immutable observed metrics from the
+nullable canonical current Product. Poll `api.public.operation.get`, then read
 `api.public.catalog.run.get` with the returned `catalogSearchRun.runId`.
 
 Catalog search consumes one license usage unit only when it creates external work. Reused runs,
 joined pending work, Operation polls, and run reads do not consume another unit. Provider token
 state is never returned.
+
+Persisted Catalog reads are tRPC queries and never start provider work:
+
+- `api.public.catalog.query.get` resolves an existing query by `term` and returns normalized
+  identity, latest-run metadata, and `tracking.enabled`;
+- `api.public.catalog.run.list` accepts `queryId`, `limit` (default 20, maximum 100), and an
+  optional run-id `cursor`, then returns a newest-first page and `nextCursor`; and
+- `api.public.catalog.run.get` reads one run's ordered results.
+
+Run lists contain metadata only, including successful zero-result runs. A full result identifies
+its retained `productId`, exposes `position: { source, value }`, keeps immutable metrics under
+`observed`, and places canonical current state under nullable `currentProduct`. No read returns raw
+provider payloads or Product-history arrays.
 
 ## Contract source
 

@@ -35,6 +35,14 @@ const search = await client.catalog.search.mutate({
   term: 'retro gardening shirt',
   maxAgeSeconds: 0
 });
+
+const query = await client.catalog.query.get.query({
+  term: 'retro gardening shirt'
+});
+const runs = await client.catalog.run.list.query({
+  queryId: query.id,
+  limit: 20
+});
 ```
 
 The client is scoped to the public surface (`api.public.*`) so it stays aligned with CLI usage.
@@ -47,6 +55,8 @@ import type { PublicRouterInputs, PublicRouterOutputs } from '@rankwrangler/http
 type GetProductInput = PublicRouterInputs['product']['get'];
 type GetProductOutput = PublicRouterOutputs['product']['get'];
 type OperationGetOutput = PublicRouterOutputs['operation']['get'];
+type CatalogQueryOutput = PublicRouterOutputs['catalog']['query']['get'];
+type CatalogRunListOutput = PublicRouterOutputs['catalog']['run']['list'];
 ```
 
 ## Maintenance

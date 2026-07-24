@@ -48,6 +48,14 @@ const search = await client.catalog.search.mutate({
 if (search.status === 'pending') {
     await client.operation.get.query({ id: search.operation.id });
 }
+
+const query = await client.catalog.query.get.query({
+    term: 'retro gardening shirt',
+});
+const runs = await client.catalog.run.list.query({
+    queryId: query.id,
+    limit: 20,
+});
 ```
 
 The returned proxy is already scoped to `api.public`; callers use `client.product...`, not
@@ -79,6 +87,8 @@ type ProductGetInput = PublicRouterInputs['product']['get'];
 type ProductGetOutput = PublicRouterOutputs['product']['get'];
 type OperationGetOutput = PublicRouterOutputs['operation']['get'];
 type CatalogSearchOutput = PublicRouterOutputs['catalog']['search'];
+type CatalogQueryOutput = PublicRouterOutputs['catalog']['query']['get'];
+type CatalogRunListOutput = PublicRouterOutputs['catalog']['run']['list'];
 type CatalogRunOutput = PublicRouterOutputs['catalog']['run']['get'];
 ```
 

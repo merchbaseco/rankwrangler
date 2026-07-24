@@ -9,8 +9,8 @@ read_when:
 
 ## Status
 
-The SP-API keyword lookup and on-demand durable Keepa Catalog search are shipped. Run-history
-listing and weekly tracking remain future slices.
+The SP-API keyword lookup, on-demand durable Keepa Catalog search, and bounded run-history reads
+are shipped. Weekly tracking remains a future slice.
 
 ## Current Behavior
 
@@ -56,9 +56,14 @@ visible to callers or recovery and a concurrently completed reusable run does no
 Provider tokens remain internal. Agents receive durable IDs and retry guidance, while the dashboard
 shows a loading state and invalidates durable reads on completion.
 
+Catalog query reads resolve existing normalized identity without creating provider work. They
+return the latest successful run metadata and the current tracking state. Run lists use stable
+newest-first cursor pagination, include empty successful runs, and omit result bodies until a
+caller requests one run.
+
 ## Product Boundary
 
-Current views combine latest-run membership and position with canonical Product state. Historical
-views use the metrics captured on that immutable Search result. RankWrangler exposes source-
-attributed evidence; it does not score opportunities, recommend niches, or automatically promote
-queries into tracking.
+Run reads expose source-qualified position and immutable `observed` metrics separately from
+nullable `currentProduct` state. A missing Product join does not remove the retained result row.
+RankWrangler exposes source-attributed evidence; it does not score opportunities, recommend niches,
+or automatically promote queries into tracking.

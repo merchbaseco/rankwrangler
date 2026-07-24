@@ -43,7 +43,9 @@ printing the secret.
 | `rw products history <ASIN>` | Compact bucketed history without the product summary. |
 | `rw operations get <operationId>` | Poll one durable Operation without starting work. |
 | `rw catalog search <term>` | Return a reusable Search run or pending Catalog-search Operation. |
-| `rw catalog run <runId>` | Read one persisted run with current Products and immutable observations. |
+| `rw catalog query <term>` | Read existing query identity, latest run, and tracking state. |
+| `rw catalog runs <queryId>` | List one bounded newest-first page of persisted runs. |
+| `rw catalog run <runId>` | Read one run with nullable current Products and immutable observations. |
 | `rw license status` | License email, usage, and limit. |
 | `rw license validate` | Validate the active license and return its current usage. |
 | `rw auth status|set|clear` | Inspect or update secure-store authentication. |
@@ -94,11 +96,18 @@ For Catalog search:
 ```bash
 rw catalog search "retro gardening shirt"
 rw catalog search "retro gardening shirt" --maxAgeSeconds 0
+rw catalog query "retro gardening shirt"
+rw catalog runs 11111111-1111-4111-8111-111111111111 --limit 20
+rw catalog runs 11111111-1111-4111-8111-111111111111 \
+  --cursor 22222222-2222-4222-8222-222222222222
 rw catalog run 22222222-2222-4222-8222-222222222222
 ```
 
 `--maxAgeSeconds` defaults to `86400`; zero forces fresh evidence while joining identical pending
 work. A completed Catalog Operation has `resource.type: "catalogSearchRun"` and a `runId`.
+Catalog query, run-list, and run reads never start provider work. Run-list `--limit` defaults to 20
+and is bounded at 100; pass its `nextCursor` back through `--cursor`. Run results separate immutable
+`observed` values from nullable canonical `currentProduct` state.
 
 `auto` uses day buckets through 45 days, week buckets through 18 months, and month buckets after
 that. Price values are minor currency units; consult the response's `currencyCode` and
