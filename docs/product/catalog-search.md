@@ -7,8 +7,8 @@ read_when:
 
 # Catalog Search
 
-**Status:** On-demand Keepa Catalog search and immutable run-history reads are available through
-the app/public API, typed client, and CLI. Weekly tracking remains a future slice.
+**Status:** Keepa Catalog search, immutable run-history reads, and explicit weekly tracking are
+available through the app/public API, typed client, and CLI.
 
 Catalog search collects ranked external results and preserves what the source surfaced at a moment
 in time. It complements catalog lookup:
@@ -31,6 +31,8 @@ in time. It complements catalog lookup:
   identical in-flight request still deduplicates.
 - Queries remain on demand until a human or agent explicitly enables weekly tracking. Manual fresh
   runs satisfy the weekly collection window; cached reads do not.
+- A tracked query becomes due when it has never completed or its latest successful fresh run is at
+  least seven days old. Untracking keeps all retained query, run, and result history.
 
 Search work is asynchronous. A request returns either a reusable Search run or a pending Operation
 with a retry hint. Agents wait, poll the Operation, then read its referenced run. The dashboard owns

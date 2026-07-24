@@ -55,6 +55,9 @@ and does not create another Product-history request.
 Do not expose Keepa token accounting through public RankWrangler APIs. It is an internal provider
 budget.
 
+Shared Keepa capacity orders interactive Catalog search before scheduled Catalog search, and
+scheduled Catalog search before Product refresh work.
+
 See [Keepa refresh internals](../internals/keepa-refresh.md) for data semantics and ownership.
 
 ## Catalog search live smoke

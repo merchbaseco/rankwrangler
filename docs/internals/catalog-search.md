@@ -9,8 +9,8 @@ read_when:
 
 ## Status
 
-The SP-API keyword lookup, on-demand durable Keepa Catalog search, and bounded run-history reads
-are shipped. Weekly tracking remains a future slice.
+The SP-API keyword lookup, durable Keepa Catalog search, bounded run-history reads, and explicit
+weekly query tracking are shipped.
 
 ## Current Behavior
 
@@ -52,9 +52,17 @@ visible to callers or recovery and a concurrently completed reusable run does no
 - Queries remain on demand until a consumer explicitly tracks them.
 - Tracked queries collect weekly; a fresh manual run satisfies that week's collection window.
 - Cached reuse does not advance the weekly watermark.
+- A tracked query is due when it has never completed or its latest successful fresh run completed
+  at least seven days ago. Startup and minute scans create at most one current run and never
+  backfill missed weeks.
+- A failed scheduled attempt waits one hour before it is eligible again.
+- Untracking removes only schedule eligibility; query, run, and result history remains intact.
 
 Provider tokens remain internal. Agents receive durable IDs and retry guidance, while the dashboard
 shows a loading state and invalidates durable reads on completion.
+
+Keepa capacity prioritizes interactive Catalog search, then scheduled Catalog search, then Product
+refresh work.
 
 Catalog query reads resolve existing normalized identity without creating provider work. They
 return the latest successful run metadata and the current tracking state. Run lists use stable
