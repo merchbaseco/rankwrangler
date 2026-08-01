@@ -135,11 +135,11 @@ const buildCursorCondition = (
 	);
 };
 
-const productUpdatedAt = sql<Date>`GREATEST(
+export const productUpdatedAt = sql<Date>`GREATEST(
     COALESCE(${products.spApiFetchedAt}, '-infinity'::timestamp),
     COALESCE(${products.keepaFetchedAt}, '-infinity'::timestamp),
     ${products.createdAt}
-)`;
+)`.mapWith(products.createdAt);
 
 const buildSearchCondition = (search: string | undefined): SQL | undefined => {
 	const tokens = splitSearchTokens(search);
