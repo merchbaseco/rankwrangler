@@ -30,8 +30,8 @@ describeCatalogDb('Catalog search history reads', () => {
         const oldestRunId = await insertRun(queryId, '2026-07-01T12:00:00.000Z', 4);
         const emptyRunId = await insertRun(queryId, '2026-07-08T12:00:00.000Z', 0);
         const latestRunId = await insertRun(queryId, '2026-07-15T12:00:00.000Z', 2);
-        const appCaller = appRouter.createCaller(createContext('clerk'));
-        const publicCaller = appRouter.createCaller(createContext('license'));
+        const appCaller = appRouter.createCaller(createContext('app'));
+        const publicCaller = appRouter.createCaller(createContext('public'));
 
         const [appQuery, publicQuery] = await Promise.all([
             appCaller.api.app.catalog.query.get({ term: ' retro   gardening SHIRT ' }),
@@ -84,7 +84,7 @@ describeCatalogDb('Catalog search history reads', () => {
         const runId = await insertRun(queryId, '2026-07-01T12:00:00.000Z', 1);
         const productId = await insertProduct();
         await insertResult(runId, productId);
-        const caller = appRouter.createCaller(createContext('license'));
+        const caller = appRouter.createCaller(createContext('public'));
 
         const before = await caller.api.public.catalog.run.get({ id: runId });
         await db
@@ -123,7 +123,7 @@ describeCatalogDb('Catalog search history reads', () => {
             await transaction.delete(products).where(eq(products.id, productId));
         });
 
-        const caller = appRouter.createCaller(createContext('clerk'));
+        const caller = appRouter.createCaller(createContext('app'));
         const [populated, empty] = await Promise.all([
             caller.api.app.catalog.run.get({ id: populatedRunId }),
             caller.api.app.catalog.run.get({ id: emptyRunId }),
@@ -230,23 +230,25 @@ const insertResult = async (runId: string, productId: string) => {
     });
 };
 
-const createContext = (authType: 'clerk' | 'license') =>
+const createContext = (authType: 'app' | 'public') =>
     ({
-        user: { sub: authType === 'clerk' ? 'user_1' : 'license' },
+        user: { sub: 'mbu_catalog_test' },
         isAdmin: false,
-        authType,
-        license:
-            authType === 'license'
-                ? {
-                      key: 'rrk_test',
-                      data: {
-                          id: '11111111-1111-4111-8111-111111111111',
-                          email: 'test@example.com',
-                          usage: 0,
-                          usageLimit: 100,
-                      },
-                  }
-                : null,
-        licenseError: undefined,
+        authType: 'access',
+        credentialKind: authType === 'app' ? 'session' : 'oauth',
+        authExpiresAtMs: null,
+        accessPrincipal: {
+            id: '11111111-1111-4111-8111-111111111111',
+            service: 'rankwrangler',
+            merchbaseUserId: 'mbu_catalog_test',
+            createdAt: new Date('2026-07-01T00:00:00.000Z'),
+            updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+            lastUsedAt: null,
+            usageToday: 0,
+            usageCount: 0,
+            usageLimit: 100,
+            lastResetAt: new Date('2026-07-01T00:00:00.000Z'),
+        },
+        accessError: null,
         request: { headers: {} },
     }) as Context;

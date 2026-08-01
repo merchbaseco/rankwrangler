@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { and, eq, isNull } from 'drizzle-orm';
-import { db } from '@/db/index';
-import {
-    catalogQueries,
-    catalogSearchResults,
-    catalogSearchRuns,
-    licenses,
-    operations,
-} from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import {
     lockCatalogQueryForReconciliation,
     resolveCatalogSearchRequest,
 } from '@/db/catalog-search';
 import { listStalePendingCatalogSearchOperations } from '@/db/catalog-search-operations';
+import { db } from '@/db/index';
+import {
+    catalogQueries,
+    catalogSearchResults,
+    catalogSearchRuns,
+    operations,
+    rankwranglerServiceAccounts,
+} from '@/db/schema';
 
-const LICENSE_ID = '33333333-3333-4333-8333-333333333333';
+const SERVICE_ACCOUNT_ID = '33333333-3333-4333-8333-333333333333';
 const NOW = new Date('2026-07-24T12:00:00.000Z');
 const isDedicatedCatalogTestDatabase =
     process.env.RUN_CATALOG_DB_TESTS === 'true' &&
@@ -27,16 +27,16 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
         await db.delete(catalogSearchRuns);
         await db.delete(operations);
         await db.delete(catalogQueries);
-        await db.delete(licenses);
+        await db.delete(rankwranglerServiceAccounts);
     });
 
-    it('never publishes, joins, or recovers work while license accounting is paused or rejected', async () => {
-        await insertLicense(0);
+    it('never publishes, joins, or recovers work while service-account accounting is paused or rejected', async () => {
+        await insertServiceAccount(0);
         const billingEntered = createDeferred();
         const continueBilling = createDeferred();
 
         const firstRequest = resolveCatalogSearchRequest(createRequest(), {
-            beforeLicenseCharge: async () => {
+            beforeUsageCharge: async () => {
                 billingEntered.resolve();
                 await continueBilling.promise;
             },
@@ -70,7 +70,7 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
     });
 
     it('returns a completion already holding the query lock without charging or creating work', async () => {
-        await insertLicense(5);
+        await insertServiceAccount(5);
         const [query] = await db
             .insert(catalogQueries)
             .values({
@@ -81,7 +81,9 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
                 page: 0,
             })
             .returning({ id: catalogQueries.id });
-        if (!query) throw new Error('Test Catalog query was not created.');
+        if (!query) {
+            throw new Error('Test Catalog query was not created.');
+        }
 
         const [operation] = await db
             .insert(operations)
@@ -97,7 +99,9 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
                 },
             })
             .returning({ id: operations.id });
-        if (!operation) throw new Error('Test Operation was not created.');
+        if (!operation) {
+            throw new Error('Test Operation was not created.');
+        }
 
         const completionReady = createDeferred<string>();
         const allowCommit = createDeferred();
@@ -114,7 +118,9 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
                     normalizerVersion: 1,
                 })
                 .returning({ id: catalogSearchRuns.id });
-            if (!run) throw new Error('Test Catalog Search run was not created.');
+            if (!run) {
+                throw new Error('Test Catalog Search run was not created.');
+            }
 
             await transaction
                 .update(operations)
@@ -166,15 +172,15 @@ const createRequest = () => ({
     page: 0 as const,
     maxAgeSeconds: 86_400,
     priority: 'interactive' as const,
-    licenseId: LICENSE_ID,
+    serviceAccountId: SERVICE_ACCOUNT_ID,
+    ownerMerchbaseUserId: 'mbu_catalog_test',
     now: new Date('2026-07-24T12:01:00.000Z'),
 });
 
-const insertLicense = async (usageLimit: number) => {
-    await db.insert(licenses).values({
-        id: LICENSE_ID,
-        key: 'rrk_catalog_concurrency_test',
-        email: 'catalog-concurrency@example.com',
+const insertServiceAccount = async (usageLimit: number) => {
+    await db.insert(rankwranglerServiceAccounts).values({
+        id: SERVICE_ACCOUNT_ID,
+        merchbaseUserId: 'mbu_catalog_test',
         usageLimit,
         lastResetAt: NOW,
     });
@@ -188,12 +194,12 @@ const listCatalogOperations = async () => {
 };
 
 const readUsageToday = async () => {
-    const [license] = await db
-        .select({ usageToday: licenses.usageToday })
-        .from(licenses)
-        .where(and(eq(licenses.id, LICENSE_ID), isNull(licenses.revokedAt)))
+    const [account] = await db
+        .select({ usageToday: rankwranglerServiceAccounts.usageToday })
+        .from(rankwranglerServiceAccounts)
+        .where(eq(rankwranglerServiceAccounts.id, SERVICE_ACCOUNT_ID))
         .limit(1);
-    return license?.usageToday ?? null;
+    return account?.usageToday ?? null;
 };
 
 const createDeferred = <T = void>() => {

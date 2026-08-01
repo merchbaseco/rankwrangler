@@ -28,7 +28,12 @@ const seedRequiredEnvForTests = () => {
     process.env.SPAPI_REFRESH_TOKEN = process.env.SPAPI_REFRESH_TOKEN ?? 'test-refresh';
     process.env.SPAPI_CLIENT_ID = process.env.SPAPI_CLIENT_ID ?? 'test-client';
     process.env.SPAPI_APP_CLIENT_SECRET = process.env.SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
-    process.env.LICENSE_SECRET =
-        process.env.LICENSE_SECRET ?? '12345678901234567890123456789012';
     process.env.CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? 'test-clerk';
+    process.env.CLERK_PUBLISHABLE_KEY = process.env.CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
+    process.env.CLERK_JWT_KEY = process.env.CLERK_JWT_KEY ?? 'test-jwt-key';
+    process.env.CLERK_ISSUER = process.env.CLERK_ISSUER ?? 'https://clerk.test';
+    process.env.CLERK_AUTHORIZED_PARTIES =
+        process.env.CLERK_AUTHORIZED_PARTIES ?? 'https://app.test';
+    process.env.CLERK_WEBHOOK_SIGNING_SECRET =
+        process.env.CLERK_WEBHOOK_SIGNING_SECRET ?? 'test-webhook-secret';
 };

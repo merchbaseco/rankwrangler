@@ -176,6 +176,34 @@
       "when": 1784913048350,
       "tag": "0024_fine_leper_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785606104840,
+      "tag": "0025_yummy_johnny_blaze",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1785608425635,
+      "tag": "0026_tricky_catseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1785614061233,
+      "tag": "0027_ambiguous_venus",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1785614061234,
+      "tag": "0028_groovy_black_tom",
+      "breakpoints": true
     }
   ]
 }

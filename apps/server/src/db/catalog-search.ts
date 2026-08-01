@@ -1,13 +1,9 @@
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
-import {
-    catalogQueries,
-    catalogSearchRuns,
-    operations,
-} from '@/db/schema';
-import { mapOperationRecord } from './operations';
-import { consumeCatalogSearchLicenseUsage } from './catalog-search-license';
+import { catalogQueries, catalogSearchRuns, operations } from '@/db/schema';
 import type { CatalogSearchOperationInput } from '@/services/operations';
+import { mapOperationRecord } from './operations';
+import { consumeRankWranglerServiceAccountUsage } from './service-account-usage';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -19,12 +15,13 @@ export type ResolveCatalogSearchInput = {
     page: 0;
     maxAgeSeconds: number;
     priority: 'interactive';
-    licenseId?: string;
+    serviceAccountId?: string;
+    ownerMerchbaseUserId?: string;
     now?: Date;
 };
 
 export type ResolveCatalogSearchHooks = {
-    beforeLicenseCharge?: () => Promise<void>;
+    beforeUsageCharge?: () => Promise<void>;
 };
 
 export const resolveCatalogSearchRequest = async (
@@ -32,12 +29,13 @@ export const resolveCatalogSearchRequest = async (
     hooks: ResolveCatalogSearchHooks = {}
 ) => {
     const now = input.now ?? new Date();
+    const serviceAccountId = input.serviceAccountId;
 
     return await db.transaction(async transaction => {
         const query = await resolveAndLockCatalogQuery(transaction, input, now);
 
         if (input.maxAgeSeconds > 0) {
-            const threshold = new Date(now.getTime() - input.maxAgeSeconds * 1_000);
+            const threshold = new Date(now.getTime() - input.maxAgeSeconds * 1000);
             const [reusableRun] = await transaction
                 .select({ id: catalogSearchRuns.id })
                 .from(catalogSearchRuns)
@@ -75,20 +73,27 @@ export const resolveCatalogSearchRequest = async (
             } as const;
         }
 
-        if (input.licenseId) {
-            await hooks.beforeLicenseCharge?.();
-            const debit = await consumeCatalogSearchLicenseUsage(
-                transaction,
-                input.licenseId,
-                now
-            );
-            if (debit.kind === 'rejected') {
-                return {
-                    kind: 'billingRejected',
-                    reason: debit.reason,
-                    usageLimit: debit.usageLimit,
-                } as const;
-            }
+        if (!serviceAccountId) {
+            return {
+                kind: 'billingRejected',
+                reason: 'serviceAccountNotFound' as const,
+                usageLimit: null,
+            };
+        }
+
+        await hooks.beforeUsageCharge?.();
+        const debit = await consumeRankWranglerServiceAccountUsage(
+            transaction,
+            serviceAccountId,
+            1,
+            now
+        );
+        if (debit.kind === 'rejected') {
+            return {
+                kind: 'billingRejected',
+                reason: debit.reason,
+                usageLimit: debit.usageLimit,
+            } as const;
         }
 
         const operationInput: CatalogSearchOperationInput = {
@@ -97,6 +102,7 @@ export const resolveCatalogSearchRequest = async (
             term: input.displayTerm,
             page: input.page,
             priority: input.priority,
+            ownerMerchbaseUserId: input.ownerMerchbaseUserId,
         };
         const [created] = await transaction
             .insert(operations)
@@ -172,6 +178,7 @@ export const resolveDueCatalogSearchRequest = async ({
             term: query.displayTerm,
             page: 0,
             priority: 'scheduled',
+            ownerMerchbaseUserId: undefined,
         };
         const [created] = await transaction
             .insert(operations)
@@ -243,19 +250,11 @@ const resolveAndLockCatalogQuery = async (
         throw new Error('Failed to resolve Catalog query.');
     }
     await lockCatalogQueryForReconciliation(transaction, concurrent.id);
-    await updateCatalogQueryDisplayTerm(
-        transaction,
-        concurrent.id,
-        input.displayTerm,
-        now
-    );
+    await updateCatalogQueryDisplayTerm(transaction, concurrent.id, input.displayTerm, now);
     return concurrent;
 };
 
-const findCatalogQuery = async (
-    transaction: Transaction,
-    input: ResolveCatalogSearchInput
-) => {
+const findCatalogQuery = async (transaction: Transaction, input: ResolveCatalogSearchInput) => {
     return await transaction
         .select({ id: catalogQueries.id })
         .from(catalogQueries)

@@ -1,11 +1,12 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify from 'fastify';
+import { PgBoss } from 'pg-boss';
 import { createContext } from '@/api/context.js';
 import { appRouter } from '@/api/router.js';
 import { registerTrpcWebsocketServer, TRPC_WEBSOCKET_PATH } from '@/api/trpc-websocket-server';
-import { PgBoss } from 'pg-boss';
 import { createCorsOriginHandler } from '@/config/cors-origin';
 import { env } from '@/config/env.js';
 import {
@@ -16,25 +17,32 @@ import { testConnection } from '@/db/index.js';
 import { runMigrations } from '@/db/migrate.js';
 import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
 import { prepareJobQueues, startJobs } from '@/jobs/index.js';
+import { registerClerkAccessWebhookRoute } from '@/services/access/clerk-webhook-route';
+import {
+    configureRankWranglerAccess,
+    createRankWranglerAccess,
+} from '@/services/access/rankwrangler-access';
+import { collectDueCatalogQueries } from '@/services/catalog-query-tracking';
+import {
+    recoverStaleCatalogSearchOperations,
+    registerCatalogSearchWakeups,
+} from '@/services/catalog-search';
+import {
+    recoverStaleProductHistoryOperations,
+    registerProductHistoryOperationWakeups,
+} from '@/services/product-history-operations.js';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
 import {
     registerSpApiSyncQueueWakeups,
     sendProcessSpApiSyncQueueJob,
 } from '@/services/spapi-sync-queue.js';
-import {
-    recoverStaleProductHistoryOperations,
-    registerProductHistoryOperationWakeups,
-} from '@/services/product-history-operations.js';
-import {
-    recoverStaleCatalogSearchOperations,
-    registerCatalogSearchWakeups,
-} from '@/services/catalog-search';
-import { collectDueCatalogQueries } from '@/services/catalog-query-tracking';
+import { printStartupSummary } from '@/services/startup-summary';
 import {
     getTopSearchTermsFetchStaleActiveJobCutoff,
     registerTopSearchTermsJobWakeups,
     sendSyncTopSearchTermsDatasetsJob,
 } from '@/services/top-search-terms-jobs.js';
+
 type JobsRuntime = Awaited<ReturnType<typeof startJobs>>;
 
 const createDisabledJobsRuntime = (): JobsRuntime => {
@@ -44,21 +52,6 @@ const createDisabledJobsRuntime = (): JobsRuntime => {
     };
 };
 
-const getTopSearchTermsStatus = (shouldStartJobRunner: boolean) => {
-    return shouldStartJobRunner
-        ? 'Enabled (dataset scheduler + fetch worker)'
-        : 'Disabled at runtime (job runner disabled)';
-};
-
-const getTopSearchTermsRecoveryStatus = (
-    shouldStartJobRunner: boolean,
-    recoveredTopSearchTermsDatasetsCount: number
-) => {
-    return shouldStartJobRunner
-        ? `${recoveredTopSearchTermsDatasetsCount} stale rows reset`
-        : 'Skipped (job runner disabled)';
-};
-
 console.log('Starting RankWrangler Server...');
 
 // Run database migrations before starting server
@@ -66,6 +59,18 @@ await runMigrations();
 
 // Test database connection
 await testConnection();
+
+const rankwranglerAccess = createRankWranglerAccess({
+    authorizedParties: env.CLERK_AUTHORIZED_PARTIES.split(',')
+        .map(value => value.trim())
+        .filter(Boolean),
+    issuer: env.CLERK_ISSUER,
+    jwtKey: env.CLERK_JWT_KEY,
+    oauthAudience: env.CLERK_OAUTH_AUDIENCE,
+    publishableKey: env.CLERK_PUBLISHABLE_KEY,
+    secretKey: env.CLERK_SECRET_KEY,
+});
+configureRankWranglerAccess(rankwranglerAccess);
 
 // Initialize pg-boss
 const databaseUser = env.DATABASE_USER || 'rankwrangler';
@@ -146,7 +151,13 @@ await fastify.register(cors, {
     origin: createCorsOriginHandler({ isProduction: process.env.NODE_ENV === 'production' }),
     credentials: true,
 });
-const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server);
+await registerClerkAccessWebhookRoute(fastify, {
+    issuer: env.CLERK_ISSUER,
+    onIdentityChanged: identity => rankwranglerAccess.authenticator.invalidateApiKeys(identity),
+    signingSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
+    store: rankwranglerAccess.projections,
+});
+const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess);
 
 // Health check endpoint
 fastify.get('/api/health', async () => {
@@ -162,7 +173,8 @@ await fastify.register(fastifyTRPCPlugin, {
     prefix: '/api',
     trpcOptions: {
         router: appRouter,
-        createContext,
+        createContext: (options: CreateFastifyContextOptions) =>
+            createContext(options, rankwranglerAccess),
     },
 });
 
@@ -225,75 +237,33 @@ try {
     // Start Fastify server
     await fastify.listen({ port, host: '0.0.0.0' });
 
-    // Print startup status summary
-    console.log('');
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log(`[${new Date().toISOString()}] RankWrangler Server Ready`);
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log(`✓ Server running on port ${port}`);
-    console.log(`✓ Health check endpoint: /api/health`);
-    console.log('');
-    console.log('Status Summary:');
-    console.log(`  • Database: Connected`);
-    console.log(`  • Migrations: Complete`);
-    console.log(`  • Startup Flag DISABLE_SERVER_JOB_RUNNER: ${env.DISABLE_SERVER_JOB_RUNNER}`);
-    console.log(`  • Job Runner: ${serverRuntimeFlags.jobRunnerStatus}`);
-    console.log(`  • Job Queues: Connected (pg-boss)`);
-    if (serverRuntimeFlags.shouldStartJobRunner) {
-        console.log(`  • Jobs Registered:`);
-        for (const jobSummary of jobsRuntime.startupSummary) {
-            console.log(`    - ${jobSummary}`);
-        }
-    } else {
-        console.log('  • Jobs Registered: Skipped (job runner disabled)');
-    }
-    const keepaStatus = env.KEEPA_API_KEY ? 'Configured' : 'Disabled (KEEPA_API_KEY not set)';
-    console.log(`  • Keepa History Sync: ${keepaStatus}`);
-    console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
-    console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
-    console.log('  • User Event Logs: Enabled (dashboard logs page)');
-    console.log(
-        `  • Top Search Terms: ${getTopSearchTermsStatus(serverRuntimeFlags.shouldStartJobRunner)}`
-    );
-    console.log(
-        `  • Top Search Terms Startup Recovery: ${getTopSearchTermsRecoveryStatus(
-            serverRuntimeFlags.shouldStartJobRunner,
-            recoveredTopSearchTermsDatasetsCount
-        )}`
-    );
-    console.log(
-        `  • Product History Operations: ${getProductHistoryOperationsStatus(
+    printStartupSummary({
+        authSummary: 'Merchbase centralized access (session, OAuth, API key)',
+        catalogSearchOperations: serverRuntimeFlags.shouldStartJobRunner
+            ? `Enabled (${recoveredCatalogSearchOperationsCount} recovered at startup)`
+            : 'Disabled at runtime (job runner disabled)',
+        databaseConnected: true,
+        disableServerJobRunner: env.DISABLE_SERVER_JOB_RUNNER,
+        jobRunnerStatus: serverRuntimeFlags.jobRunnerStatus,
+        jobStartupSummary: jobsRuntime.startupSummary,
+        keepaConfigured: Boolean(env.KEEPA_API_KEY),
+        migrationsComplete: true,
+        port,
+        productFacetSummary: env.GEMINI_API_KEY
+            ? 'Enabled (Gemini 2.5 Flash Lite)'
+            : 'Disabled (GEMINI_API_KEY not set)',
+        productHistoryOperations: getProductHistoryOperationsStatus(
             serverRuntimeFlags.shouldStartJobRunner,
             recoveredProductHistoryOperationsCount
-        )}`
-    );
-    console.log(
-        `  • Catalog Search Operations: ${
-            serverRuntimeFlags.shouldStartJobRunner
-                ? `Enabled (${recoveredCatalogSearchOperationsCount} recovered at startup)`
-                : 'Disabled at runtime (job runner disabled)'
-        }`
-    );
-    console.log(
-        `  • Weekly Catalog Tracking: ${
-            serverRuntimeFlags.shouldStartJobRunner
-                ? `Enabled (${startedWeeklyCatalogSearchesCount} started at startup)`
-                : 'Disabled at runtime (job runner disabled)'
-        }`
-    );
-    const productFacetStatus = env.GEMINI_API_KEY
-        ? 'Enabled (Gemini 2.5 Flash Lite)'
-        : 'Disabled (GEMINI_API_KEY not set)';
-    console.log(`  • Product Facet Classification: ${productFacetStatus}`);
-    console.log('  • API Routes: tRPC (/api)');
-    console.log(`  • Realtime: tRPC WebSocket (${TRPC_WEBSOCKET_PATH}, Clerk app)`);
-    console.log('  • Auth: Clerk (app), License (public)');
-    const devClerkSignInStatus = env.DEV_CLERK_SIGN_IN_USER_ID
-        ? `Enabled (user: ${env.DEV_CLERK_SIGN_IN_USER_ID})`
-        : 'Disabled';
-    console.log(`  • Dev Clerk Sign-In Token: ${devClerkSignInStatus}`);
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log('');
+        ),
+        realtimePath: TRPC_WEBSOCKET_PATH,
+        shouldStartJobRunner: serverRuntimeFlags.shouldStartJobRunner,
+        startupCatalogSearches: startedWeeklyCatalogSearchesCount,
+        topSearchTermsRecoveryCount: recoveredTopSearchTermsDatasetsCount,
+        topSearchTermsStatus: serverRuntimeFlags.shouldStartJobRunner
+            ? 'Enabled (dataset scheduler + fetch worker)'
+            : 'Disabled at runtime (job runner disabled)',
+    });
 } catch (err) {
     console.error('Failed to start server:', err);
     process.exit(1);

@@ -15,10 +15,10 @@ const loadProductHistoryInput = z.object({
 
 type LoadProductHistoryInput = z.infer<typeof loadProductHistoryInput>;
 
-type LoadProductHistoryDeps = {
+interface LoadProductHistoryDeps {
     fetchProductInfo: typeof fetchProductInfo;
     requestProductHistoryRefresh: typeof requestProductHistoryRefresh;
-};
+}
 
 const loadProductHistoryDeps: LoadProductHistoryDeps = {
     fetchProductInfo,
@@ -27,9 +27,11 @@ const loadProductHistoryDeps: LoadProductHistoryDeps = {
 
 export const requestManualProductHistorySync = async ({
     input,
+    ownerMerchbaseUserId,
     deps = loadProductHistoryDeps,
 }: {
     input: LoadProductHistoryInput;
+    ownerMerchbaseUserId: string;
     deps?: LoadProductHistoryDeps;
 }) => {
     await deps.fetchProductInfo({
@@ -40,13 +42,15 @@ export const requestManualProductHistorySync = async ({
     return await deps.requestProductHistoryRefresh({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
+        ownerMerchbaseUserId,
     });
 };
 
 export const loadProductHistory = appProcedure
     .input(loadProductHistoryInput)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
         return await requestManualProductHistorySync({
             input,
+            ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
         });
     });

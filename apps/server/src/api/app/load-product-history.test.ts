@@ -26,6 +26,7 @@ describe('manual Product-history request', () => {
         };
 
         const result = await requestManualProductHistorySync({
+            ownerMerchbaseUserId: 'mbu_test',
             input: {
                 marketplaceId: 'ATVPDKIKX0DER',
                 asin: 'B012345678',

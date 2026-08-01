@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { requestCatalogSearch, type CatalogSearchDeps } from './catalog-search';
+import { type CatalogSearchDeps, requestCatalogSearch } from './catalog-search';
 import type { OperationRecord } from './operations';
 
 describe('Catalog search application workflow', () => {
@@ -11,10 +11,7 @@ describe('Catalog search application workflow', () => {
             }),
         });
 
-        const result = await requestCatalogSearch(
-            { term: '  Retro   Gardening Shirt  ' },
-            deps
-        );
+        const result = await requestCatalogSearch({ term: '  Retro   Gardening Shirt  ' }, deps);
 
         expect(deps.resolveRequest.mock.calls[0]?.[0]).toMatchObject({
             source: 'keepa',
@@ -44,10 +41,7 @@ describe('Catalog search application workflow', () => {
             }),
         });
 
-        const result = await requestCatalogSearch(
-            { term: 'shirts', maxAgeSeconds: 0 },
-            deps
-        );
+        const result = await requestCatalogSearch({ term: 'shirts', maxAgeSeconds: 0 }, deps);
 
         expect(deps.resolveRequest.mock.calls[0]?.[0].maxAgeSeconds).toBe(0);
         expect(deps.dispatchOperation.mock.calls).toHaveLength(1);
@@ -64,25 +58,27 @@ describe('Catalog search application workflow', () => {
         expect(result.startedWork).toBe(false);
     });
 
-    it('passes public license accounting into atomic resolution before dispatch', async () => {
+    it('passes service-account metering into atomic resolution before dispatch', async () => {
         const deps = createDeps();
 
         const result = await requestCatalogSearch(
             {
                 term: 'shirts',
-                licenseId: '33333333-3333-4333-8333-333333333333',
+                serviceAccountId: '33333333-3333-4333-8333-333333333333',
+                ownerMerchbaseUserId: 'mbu_test',
             },
             deps
         );
 
         expect(deps.resolveRequest.mock.calls[0]?.[0]).toMatchObject({
-            licenseId: '33333333-3333-4333-8333-333333333333',
+            serviceAccountId: '33333333-3333-4333-8333-333333333333',
+            ownerMerchbaseUserId: 'mbu_test',
         });
         expect(deps.dispatchOperation.mock.calls).toHaveLength(1);
         expect(result.startedWork).toBe(true);
     });
 
-    it('never dispatches work rejected by atomic license accounting', async () => {
+    it('never dispatches work rejected by atomic service-account accounting', async () => {
         const deps = createDeps({
             resolveRequest: async () => ({
                 kind: 'billingRejected' as const,
@@ -95,7 +91,8 @@ describe('Catalog search application workflow', () => {
             requestCatalogSearch(
                 {
                     term: 'shirts',
-                    licenseId: '33333333-3333-4333-8333-333333333333',
+                    serviceAccountId: '33333333-3333-4333-8333-333333333333',
+                    ownerMerchbaseUserId: 'mbu_test',
                 },
                 deps
             )

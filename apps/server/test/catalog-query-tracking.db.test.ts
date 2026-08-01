@@ -3,18 +3,10 @@ import { and, eq } from 'drizzle-orm';
 import type { Context } from '@/api/context';
 import { appRouter } from '@/api/router';
 import { setCatalogQueryTracking } from '@/db/catalog-query-tracking';
-import {
-    resolveCatalogSearchRequest,
-    resolveDueCatalogSearchRequest,
-} from '@/db/catalog-search';
+import { resolveCatalogSearchRequest, resolveDueCatalogSearchRequest } from '@/db/catalog-search';
 import { db } from '@/db/index';
 import { persistCatalogSearchSuccess } from '@/db/persist-catalog-search';
-import {
-    catalogQueries,
-    catalogSearchResults,
-    catalogSearchRuns,
-    operations,
-} from '@/db/schema';
+import { catalogQueries, catalogSearchResults, catalogSearchRuns, operations } from '@/db/schema';
 import {
     CATALOG_QUERY_TRACKING_INTERVAL_MS,
     CATALOG_QUERY_TRACKING_RETRY_INTERVAL_MS,
@@ -36,8 +28,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             const queryId = await insertQuery({
                 latestSuccessfulRunAt: new Date('2026-07-20T12:00:00.000Z'),
             });
-            const appCaller = appRouter.createCaller(createContext('clerk'));
-            const publicCaller = appRouter.createCaller(createContext('license'));
+            const appCaller = appRouter.createCaller(createContext('app'));
+            const publicCaller = appRouter.createCaller(createContext('public'));
 
             const tracked = await appCaller.api.app.catalog.query.track({
                 term: '  Garden   Shirt ',
@@ -69,9 +61,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             const boundaryId = await insertQuery({
                 term: 'boundary',
                 trackedAt: NOW,
-                latestSuccessfulRunAt: new Date(
-                    NOW.getTime() - CATALOG_QUERY_TRACKING_INTERVAL_MS
-                ),
+                latestSuccessfulRunAt: new Date(NOW.getTime() - CATALOG_QUERY_TRACKING_INTERVAL_MS),
             });
             await insertQuery({
                 term: 'fresh',
@@ -90,17 +80,13 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 nextTrackingAttemptAt: new Date(NOW.getTime() + 1),
             });
 
-            const { listDueTrackedCatalogQueries } = await import(
-                '@/db/catalog-query-tracking'
-            );
+            const { listDueTrackedCatalogQueries } = await import('@/db/catalog-query-tracking');
             const due = await listDueTrackedCatalogQueries({
                 dueAtOrBefore: new Date(NOW.getTime() - CATALOG_QUERY_TRACKING_INTERVAL_MS),
                 now: NOW,
             });
 
-            expect(due.map(query => query.id).sort()).toEqual(
-                [neverRunId, boundaryId].sort()
-            );
+            expect(due.map(query => query.id).sort()).toEqual([neverRunId, boundaryId].sort());
         });
 
         it('creates at most one current scheduled run across concurrent and restart scans', async () => {
@@ -126,9 +112,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                     )
                 );
 
-            expect(first.filter(result => result.kind === 'pending' && result.created)).toHaveLength(
-                1
-            );
+            expect(
+                first.filter(result => result.kind === 'pending' && result.created)
+            ).toHaveLength(1);
             expect(afterRestart).toMatchObject({ kind: 'pending', created: false });
             expect(pending).toHaveLength(1);
         });
@@ -147,12 +133,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                     input: createOperationInput(queryId),
                 })
                 .returning({ id: operations.id });
-            if (!operation) throw new Error('Test Operation was not created.');
+            if (!operation) {
+                throw new Error('Test Operation was not created.');
+            }
 
             await persistCatalogSearchSuccess({
                 operationId: operation.id,
                 queryId,
-                sourceStartedAt: new Date(NOW.getTime() - 1_000),
+                sourceStartedAt: new Date(NOW.getTime() - 1000),
                 sourceCompletedAt: NOW,
                 results: [],
                 internalUsage: {
@@ -170,12 +158,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 page: 0,
                 maxAgeSeconds: 86_400,
                 priority: 'interactive',
-                now: new Date(NOW.getTime() + 1_000),
+                now: new Date(NOW.getTime() + 1000),
             });
             await setCatalogQueryTracking({
                 normalizedTerm: 'garden shirt',
                 enabled: false,
-                now: new Date(NOW.getTime() + 2_000),
+                now: new Date(NOW.getTime() + 2000),
             });
             const [storedQuery] = await db
                 .select()
@@ -218,7 +206,9 @@ const insertQuery = async ({
             latestSuccessfulRunAt,
         })
         .returning({ id: catalogQueries.id });
-    if (!query) throw new Error('Test Catalog query was not created.');
+    if (!query) {
+        throw new Error('Test Catalog query was not created.');
+    }
     return query.id;
 };
 
@@ -230,23 +220,25 @@ const createOperationInput = (queryId: string) => ({
     priority: 'interactive' as const,
 });
 
-const createContext = (authType: 'clerk' | 'license') =>
+const createContext = (authType: 'app' | 'public') =>
     ({
-        user: { sub: authType === 'clerk' ? 'user_1' : 'license' },
+        user: { sub: 'mbu_catalog_test' },
         isAdmin: false,
-        authType,
-        license:
-            authType === 'license'
-                ? {
-                      key: 'rrk_test',
-                      data: {
-                          id: '11111111-1111-4111-8111-111111111111',
-                          email: 'test@example.com',
-                          usage: 0,
-                          usageLimit: 100,
-                      },
-                  }
-                : null,
-        licenseError: undefined,
+        authType: 'access',
+        credentialKind: authType === 'app' ? 'session' : 'oauth',
+        authExpiresAtMs: null,
+        accessPrincipal: {
+            id: '11111111-1111-4111-8111-111111111111',
+            service: 'rankwrangler',
+            merchbaseUserId: 'mbu_catalog_test',
+            createdAt: new Date('2026-07-01T00:00:00.000Z'),
+            updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+            lastUsedAt: null,
+            usageToday: 0,
+            usageCount: 0,
+            usageLimit: 100,
+            lastResetAt: new Date('2026-07-01T00:00:00.000Z'),
+        },
+        accessError: null,
         request: { headers: {} },
     }) as Context;

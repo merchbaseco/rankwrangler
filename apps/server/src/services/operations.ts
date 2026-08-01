@@ -7,6 +7,7 @@ export type ProductHistoryOperationInput = {
     marketplaceId: string;
     asin: string;
     days: 3650;
+    ownerMerchbaseUserId: string;
 };
 
 export type ProductHistoryResource = {
@@ -21,6 +22,7 @@ export type CatalogSearchOperationInput = {
     term: string;
     page: 0;
     priority: 'interactive' | 'scheduled';
+    ownerMerchbaseUserId?: string;
 };
 
 export type CatalogSearchResource = {
@@ -30,7 +32,12 @@ export type CatalogSearchResource = {
 };
 
 export type OperationError = {
-    code: 'PROVIDER_UNAVAILABLE' | 'RESOURCE_NOT_FOUND' | 'INTERNAL_ERROR';
+    code:
+        | 'ACCESS_DENIED'
+        | 'ACCESS_UNAVAILABLE'
+        | 'PROVIDER_UNAVAILABLE'
+        | 'RESOURCE_NOT_FOUND'
+        | 'INTERNAL_ERROR';
     message: string;
 };
 
@@ -171,10 +178,7 @@ export const sanitizeOperationError = (
         };
     }
 
-    if (
-        error instanceof TRPCError &&
-        (error.code === 'BAD_GATEWAY' || error.code === 'TIMEOUT')
-    ) {
+    if (error instanceof TRPCError && (error.code === 'BAD_GATEWAY' || error.code === 'TIMEOUT')) {
         return {
             code: 'PROVIDER_UNAVAILABLE',
             message: isCatalogSearch
@@ -185,8 +189,6 @@ export const sanitizeOperationError = (
 
     return {
         code: 'INTERNAL_ERROR',
-        message: isCatalogSearch
-            ? 'Catalog search failed.'
-            : 'Product history collection failed.',
+        message: isCatalogSearch ? 'Catalog search failed.' : 'Product history collection failed.',
     };
 };

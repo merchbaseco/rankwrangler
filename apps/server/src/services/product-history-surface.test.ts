@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { getProductHistorySurface } from './product-history-surface.js';
 import type { OperationRecord } from './operations.js';
+import { getProductHistorySurface } from './product-history-surface.js';
 
 describe('Product-history request surface', () => {
     it('returns existing history immediately with the shared pending Operation', async () => {
@@ -11,11 +11,11 @@ describe('Product-history request surface', () => {
                 categoryNames: {},
                 points: [
                     {
-                        categoryId: 7141123011,
+                        categoryId: 7_141_123_011,
                         categoryName: 'Clothing',
                         observedAt: '2026-07-20T00:00:00.000Z',
-                        keepaMinutes: 82624320,
-                        value: 12345,
+                        keepaMinutes: 82_624_320,
+                        value: 12_345,
                         isMissing: false,
                     },
                 ],
@@ -45,6 +45,7 @@ describe('Product-history request surface', () => {
                 format: 'agent',
                 bucket: 'day',
                 refresh: 'force',
+                ownerMerchbaseUserId: 'mbu_test',
             },
             deps
         );
@@ -69,6 +70,7 @@ const createPendingOperation = (): OperationRecord => ({
         marketplaceId: 'ATVPDKIKX0DER',
         asin: 'B012345678',
         days: 3650,
+        ownerMerchbaseUserId: 'mbu_test',
     },
     resource: null,
     error: null,

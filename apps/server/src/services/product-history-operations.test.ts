@@ -1,10 +1,10 @@
 import { describe, expect, it, mock } from 'bun:test';
+import type { OperationRecord } from './operations.js';
 import {
+    type ProductHistoryOperationDeps,
     recoverStaleProductHistoryOperations,
     requestProductHistoryRefresh,
-    type ProductHistoryOperationDeps,
 } from './product-history-operations.js';
-import type { OperationRecord } from './operations.js';
 
 describe('Product-history Operation dispatch', () => {
     it('shares one pending receipt and one job across concurrent requests', async () => {
@@ -26,11 +26,19 @@ describe('Product-history Operation dispatch', () => {
 
         const [first, second] = await Promise.all([
             requestProductHistoryRefresh(
-                { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+                {
+                    marketplaceId: 'ATVPDKIKX0DER',
+                    asin: 'B012345678',
+                    ownerMerchbaseUserId: 'mbu_test',
+                },
                 deps
             ),
             requestProductHistoryRefresh(
-                { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+                {
+                    marketplaceId: 'ATVPDKIKX0DER',
+                    asin: 'B012345678',
+                    ownerMerchbaseUserId: 'mbu_test',
+                },
                 deps
             ),
         ]);
@@ -61,7 +69,11 @@ describe('Product-history Operation dispatch', () => {
         });
 
         const receipt = await requestProductHistoryRefresh(
-            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+            {
+                marketplaceId: 'ATVPDKIKX0DER',
+                asin: 'B012345678',
+                ownerMerchbaseUserId: 'mbu_test',
+            },
             deps
         );
         expect(receipt.operation.status).toBe('pending');
@@ -80,7 +92,11 @@ describe('Product-history Operation dispatch', () => {
         });
 
         const receipt = await requestProductHistoryRefresh(
-            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+            {
+                marketplaceId: 'ATVPDKIKX0DER',
+                asin: 'B012345678',
+                ownerMerchbaseUserId: 'mbu_test',
+            },
             deps
         );
 
@@ -97,9 +113,7 @@ const createDeps = (overrides: Partial<ProductHistoryOperationDeps> = {}) => {
         ),
         claimOperationDispatch: mock(overrides.claimOperationDispatch ?? (async () => true)),
         releaseOperationDispatch: mock(overrides.releaseOperationDispatch ?? (async () => {})),
-        listStalePendingOperations: mock(
-            overrides.listStalePendingOperations ?? (async () => [])
-        ),
+        listStalePendingOperations: mock(overrides.listStalePendingOperations ?? (async () => [])),
         sendJob: mock(overrides.sendJob ?? (async () => 'job-1')),
     };
 };
@@ -113,6 +127,7 @@ const createPendingOperation = (): OperationRecord => ({
         marketplaceId: 'ATVPDKIKX0DER',
         asin: 'B012345678',
         days: 3650,
+        ownerMerchbaseUserId: 'mbu_test',
     },
     resource: null,
     error: null,

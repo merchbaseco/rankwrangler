@@ -2,8 +2,8 @@ import { describe, expect, it } from 'bun:test';
 import { TRPCError } from '@trpc/server';
 import {
     buildPublicOperation,
-    sanitizeOperationError,
     type OperationRecord,
+    sanitizeOperationError,
 } from './operations.js';
 
 describe('Operation public lifecycle', () => {
@@ -114,6 +114,7 @@ const createOperation = (): OperationRecord => ({
         marketplaceId: 'ATVPDKIKX0DER',
         asin: 'B012345678',
         days: 3650,
+        ownerMerchbaseUserId: 'mbu_test',
     },
     resource: null,
     error: null,

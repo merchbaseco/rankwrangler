@@ -11,10 +11,13 @@
         "dev:jobs": "dotenv -e ../../.env -- env DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
         "start": "dotenv -e ../../.env node dist/index.js",
         "cli": "tsx src/cli.ts",
+        "central-auth:cutover": "tsx src/scripts/central-auth-cutover-runner.ts",
+        "central-auth:preservation-proof": "tsx src/scripts/central-auth-preservation-proof.ts",
         "test:catalog-db": "bash test/run-catalog-db-tests.sh",
         "test:keepa-catalog-live": "dotenv -e ../../.env -- tsx src/scripts/keepa-catalog-search-live.ts"
     },
     "dependencies": {
+        "@merchbaseco/access": "0.2.3",
         "@rankwrangler/http-client": "workspace:*",
         "@amazon-sp-api-release/amazon-sp-api-sdk-js": "1.7.1",
         "@clerk/backend": "2.33.3",

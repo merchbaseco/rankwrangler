@@ -32,10 +32,7 @@ type FetchKeepaHistoryForAsinDeps = {
         marketplaceId: string;
         asin: string;
     }) => Promise<number>;
-    getKeepaHistoryRefreshQueueItem: (params: {
-        marketplaceId: string;
-        asin: string;
-    }) => Promise<{
+    getKeepaHistoryRefreshQueueItem: (params: { marketplaceId: string; asin: string }) => Promise<{
         id: string;
         marketplaceId: string;
         asin: string;
@@ -49,10 +46,7 @@ type FetchKeepaHistoryForAsinDeps = {
         asin: string;
         errorMessage: string;
     }) => Promise<{ failureCount: number; retryDelayMs: number } | null>;
-    shouldKeepaHistoryRefreshAsin: (params: {
-        marketplaceId: string;
-        asin: string;
-    }) => Promise<
+    shouldKeepaHistoryRefreshAsin: (params: { marketplaceId: string; asin: string }) => Promise<
         | {
               shouldRefresh: true;
               reason: 'never_fetched' | 'stale_product';
@@ -124,9 +118,7 @@ describe('fetchKeepaHistoryForAsin', () => {
         expect(eventLog.level).toBe('error');
         expect(eventLog.status).toBe('failed');
         expect(eventLog.action).toBe('history.sync.background');
-        expect(eventLog.detailsJson.error).toBe(
-            'Keepa returned no product history for this ASIN'
-        );
+        expect(eventLog.detailsJson.error).toBe('Keepa returned no product history for this ASIN');
         expect(eventLog.detailsJson.source).toBe('keepa_background_job');
     });
 
@@ -160,9 +152,7 @@ describe('fetchKeepaHistoryForAsin', () => {
             loadKeepaProductHistory: async () => createSummary({ status: 'error' }),
         });
 
-        await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
-            'Keepa import failed'
-        );
+        await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow('Keepa import failed');
         expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(0);
         expect(calls.recordKeepaHistoryRefreshFailure.mock.calls).toHaveLength(1);
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
@@ -211,9 +201,7 @@ const getSingleEventLogCall = (calls: unknown[][]) => {
     return calls[0][0] as EventLogInput;
 };
 
-const createDeps = (
-    overrides: Partial<FetchKeepaHistoryForAsinDeps> = {}
-) => {
+const createDeps = (overrides: Partial<FetchKeepaHistoryForAsinDeps> = {}) => {
     const calls = {
         createEventLogSafe: mock(async () => {}),
         loadKeepaProductHistory: mock(async () => createSummary({ status: 'success' })),
@@ -281,7 +269,12 @@ const seedRequiredEnvForTests = () => {
     process.env.SPAPI_REFRESH_TOKEN = process.env.SPAPI_REFRESH_TOKEN ?? 'test-refresh';
     process.env.SPAPI_CLIENT_ID = process.env.SPAPI_CLIENT_ID ?? 'test-client';
     process.env.SPAPI_APP_CLIENT_SECRET = process.env.SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
-    process.env.LICENSE_SECRET =
-        process.env.LICENSE_SECRET ?? '12345678901234567890123456789012';
     process.env.CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? 'test-clerk';
+    process.env.CLERK_PUBLISHABLE_KEY = process.env.CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
+    process.env.CLERK_JWT_KEY = process.env.CLERK_JWT_KEY ?? 'test-jwt-key';
+    process.env.CLERK_ISSUER = process.env.CLERK_ISSUER ?? 'https://clerk.test';
+    process.env.CLERK_AUTHORIZED_PARTIES =
+        process.env.CLERK_AUTHORIZED_PARTIES ?? 'https://app.test';
+    process.env.CLERK_WEBHOOK_SIGNING_SECRET =
+        process.env.CLERK_WEBHOOK_SIGNING_SECRET ?? 'test-webhook-secret';
 };

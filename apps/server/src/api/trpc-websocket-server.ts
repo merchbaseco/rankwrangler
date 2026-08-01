@@ -4,11 +4,15 @@ import { applyWSSHandler } from '@trpc/server/adapters/ws';
 import { WebSocketServer } from 'ws';
 import { realtimeRouter } from '@/api/realtime-router';
 import { createWebSocketContext } from '@/api/websocket-context';
+import type { RankWranglerAccess } from '@/services/access/rankwrangler-access';
 
 export const TRPC_WEBSOCKET_PATH = '/api/trpc';
 export const TRPC_WEBSOCKET_MAX_PAYLOAD_BYTES = 64 * 1024;
 
-export const registerTrpcWebsocketServer = (server: Server) => {
+export const registerTrpcWebsocketServer = (
+    server: Server,
+    access: RankWranglerAccess | null = null
+) => {
     const websocketServer = new WebSocketServer({
         noServer: true,
         maxPayload: TRPC_WEBSOCKET_MAX_PAYLOAD_BYTES,
@@ -16,7 +20,7 @@ export const registerTrpcWebsocketServer = (server: Server) => {
     applyWSSHandler({
         wss: websocketServer,
         router: realtimeRouter,
-        createContext: createWebSocketContext,
+        createContext: options => createWebSocketContext(options, access),
         keepAlive: {
             enabled: true,
             pingMs: 10_000,

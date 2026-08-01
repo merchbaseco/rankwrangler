@@ -1,5 +1,6 @@
 import type { CreateWSSContextFnOptions } from '@trpc/server/adapters/ws';
-import { createRequestContext } from '@/api/context';
+import { type ContextRequest, createRequestContext } from '@/api/context';
+import type { RankWranglerAccess } from '@/services/access/rankwrangler-access';
 
 const BEARER_PREFIX = 'Bearer ';
 
@@ -18,12 +19,15 @@ export const resolveWebSocketAuthorization = ({
     return token ? `${BEARER_PREFIX}${token}` : undefined;
 };
 
-export const createWebSocketContext = async ({ req, res, info }: CreateWSSContextFnOptions) => {
+export const createWebSocketContext = async (
+    { req, res, info }: CreateWSSContextFnOptions,
+    access: RankWranglerAccess | null
+) => {
     const headerAuthorization = Array.isArray(req.headers.authorization)
         ? req.headers.authorization[0]
         : req.headers.authorization;
 
-    const context = await createRequestContext({
+    const request: ContextRequest = {
         headers: {
             authorization: resolveWebSocketAuthorization({
                 headerAuthorization,
@@ -31,8 +35,13 @@ export const createWebSocketContext = async ({ req, res, info }: CreateWSSContex
             }),
             host: req.headers.host,
         },
-    });
-    if (context.authType === 'clerk' && context.authExpiresAtMs) {
+    };
+    const context = await createRequestContext(request, access);
+    if (
+        context.authType === 'access' &&
+        context.credentialKind === 'session' &&
+        context.authExpiresAtMs
+    ) {
         scheduleWebSocketCredentialExpiry({
             client: res,
             expiresAtMs: context.authExpiresAtMs,

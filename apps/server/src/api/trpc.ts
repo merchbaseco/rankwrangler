@@ -1,3 +1,4 @@
+import type { ServiceAccessErrorCode } from '@merchbaseco/access';
 import { initTRPC, TRPCError } from '@trpc/server';
 import type { Context } from './context.js';
 
@@ -9,8 +10,8 @@ export const publicProcedure = t.procedure;
 export const apiProcedure = t.procedure.use(({ ctx, next }) => {
     if (!ctx.user) {
         throw new TRPCError({
-            code: 'UNAUTHORIZED',
-            message: 'Authentication required',
+            code: mapAccessErrorCode(ctx.accessError),
+            message: accessErrorMessage(ctx.accessError),
         });
     }
 
@@ -22,15 +23,10 @@ export const apiProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 export const publicApiProcedure = t.procedure.use(({ ctx, next }) => {
-    if (ctx.authType !== 'license') {
-        const message = ctx.licenseError ?? 'Valid license key required';
-        const code = ctx.licenseError?.toLowerCase().includes('limit')
-            ? 'TOO_MANY_REQUESTS'
-            : 'UNAUTHORIZED';
-
+    if (ctx.authType !== 'access' || !ctx.accessPrincipal) {
         throw new TRPCError({
-            code,
-            message,
+            code: mapAccessErrorCode(ctx.accessError),
+            message: accessErrorMessage(ctx.accessError),
         });
     }
 
@@ -38,10 +34,10 @@ export const publicApiProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 export const appProcedure = apiProcedure.use(({ ctx, next }) => {
-    if (ctx.authType !== 'clerk') {
+    if (ctx.authType !== 'access' || ctx.credentialKind !== 'session') {
         throw new TRPCError({
             code: 'UNAUTHORIZED',
-            message: 'Clerk authentication required',
+            message: 'Clerk session authentication required',
         });
     }
 
@@ -58,3 +54,30 @@ export const adminProcedure = appProcedure.use(({ ctx, next }) => {
 
     return next({ ctx });
 });
+
+const accessErrorMessage = (error: ServiceAccessErrorCode | null) => {
+    switch (error) {
+        case 'access_denied':
+            return 'RankWrangler access is not granted.';
+        case 'insufficient_scope':
+            return 'Credential scope is insufficient.';
+        case 'access_unavailable':
+            return 'RankWrangler access is temporarily unavailable.';
+        case 'unauthenticated':
+            return 'Authentication required.';
+        default:
+            return 'Authentication required.';
+    }
+};
+
+export const mapAccessErrorCode = (
+    error: ServiceAccessErrorCode | null
+): 'FORBIDDEN' | 'SERVICE_UNAVAILABLE' | 'UNAUTHORIZED' => {
+    if (error === 'access_denied') {
+        return 'FORBIDDEN';
+    }
+    if (error === 'access_unavailable') {
+        return 'SERVICE_UNAVAILABLE';
+    }
+    return 'UNAUTHORIZED';
+};

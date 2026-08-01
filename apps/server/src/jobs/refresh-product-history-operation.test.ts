@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { TRPCError } from '@trpc/server';
-import { runProductHistoryOperation } from './refresh-product-history-operation.js';
 import type { OperationRecord } from '@/services/operations.js';
+import { runProductHistoryOperation } from './refresh-product-history-operation.js';
 
 describe('Product-history Operation worker', () => {
     it('persists history and successful completion through one atomic load call', async () => {
@@ -88,12 +88,70 @@ describe('Product-history Operation worker', () => {
             ],
         ]);
     });
+
+    it('releases claimed work when access verification is unavailable', async () => {
+        const operation = createPendingOperation();
+        const deps = createDeps({
+            claimOperationWork: async () => operation,
+            evaluateAccess: async () => ({ kind: 'unavailable' as const }),
+            releaseOperationWork: async () => undefined,
+        });
+
+        expect(await runProductHistoryOperation(operation.id, deps)).toEqual({
+            didWork: false,
+            status: 'skipped_access_unavailable',
+        });
+        expect(deps.releaseOperationWork.mock.calls).toEqual([[operation.id]]);
+        expect(deps.loadHistory.mock.calls).toHaveLength(0);
+    });
+
+    it('does not run a pending operation without an explicit owner', async () => {
+        const operation = {
+            ...createPendingOperation(),
+            input: {
+                ...createPendingOperation().input,
+                ownerMerchbaseUserId: undefined,
+            },
+        } as unknown as OperationRecord;
+        const deps = createDeps({
+            claimOperationWork: async () => operation,
+            releaseOperationWork: async () => undefined,
+        });
+
+        expect(await runProductHistoryOperation(operation.id, deps)).toEqual({
+            didWork: false,
+            status: 'skipped_access_unavailable',
+        });
+        expect(deps.releaseOperationWork.mock.calls).toEqual([[operation.id]]);
+        expect(deps.evaluateAccess.mock.calls).toHaveLength(0);
+        expect(deps.loadHistory.mock.calls).toHaveLength(0);
+    });
+
+    it('completes claimed work with a sanitized denial when access is revoked', async () => {
+        const operation = createPendingOperation();
+        const deps = createDeps({
+            claimOperationWork: async () => operation,
+            evaluateAccess: async () => ({ kind: 'denied' as const }),
+        });
+
+        expect(await runProductHistoryOperation(operation.id, deps)).toEqual({
+            didWork: true,
+            status: 'skipped_access_denied',
+        });
+        expect(deps.completeWithError.mock.calls[0]?.[0].error).toEqual({
+            code: 'ACCESS_DENIED',
+            message: 'RankWrangler access is no longer granted.',
+        });
+        expect(deps.loadHistory.mock.calls).toHaveLength(0);
+    });
 });
 
 const createDeps = (overrides: Record<string, unknown> = {}) => ({
     claimOperationWork: mock(async () => createPendingOperation()),
     loadHistory: mock(async () => ({ status: 'success' as const })),
     completeWithError: mock(async () => createPendingOperation()),
+    evaluateAccess: mock(async () => ({ kind: 'allowed' as const })),
+    releaseOperationWork: mock(async () => undefined),
     createEventLogSafe: mock(async () => undefined),
     notifyCompleted: mock(() => undefined),
     ...Object.fromEntries(
@@ -104,10 +162,7 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
     ),
 });
 
-const createPendingOperation = (): Extract<
-    OperationRecord,
-    { type: 'productHistoryRefresh' }
-> => ({
+const createPendingOperation = (): Extract<OperationRecord, { type: 'productHistoryRefresh' }> => ({
     id: '11111111-1111-4111-8111-111111111111',
     type: 'productHistoryRefresh',
     status: 'pending',
@@ -116,6 +171,7 @@ const createPendingOperation = (): Extract<
         marketplaceId: 'ATVPDKIKX0DER',
         asin: 'B012345678',
         days: 3650,
+        ownerMerchbaseUserId: 'mbu_test',
     },
     resource: null,
     error: null,

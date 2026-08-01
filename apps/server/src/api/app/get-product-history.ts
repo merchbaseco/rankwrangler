@@ -18,7 +18,7 @@ const getProductHistoryInput = z
         categoryId: z.coerce.number().optional(),
         startAt: z.coerce.date().optional(),
         endAt: z.coerce.date().optional(),
-        limit: z.coerce.number().int().min(1).max(10000).default(5000),
+        limit: z.coerce.number().int().min(1).max(10_000).default(5000),
         days: z.coerce.number().int().min(30).max(3650).default(365),
         refresh: z.enum(productHistoryRefreshModes).default('if_missing'),
     })
@@ -36,10 +36,13 @@ const getProductHistoryInput = z
         }
     });
 
-export const getProductHistory = appProcedure.input(getProductHistoryInput).query(async ({ input }) => {
-    return await getProductHistorySurface({
-        ...input,
-        format: 'points',
-        bucket: 'auto',
+export const getProductHistory = appProcedure
+    .input(getProductHistoryInput)
+    .query(async ({ input, ctx }) => {
+        return await getProductHistorySurface({
+            ...input,
+            format: 'points',
+            bucket: 'auto',
+            ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
+        });
     });
-});

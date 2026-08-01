@@ -38,26 +38,14 @@ if [ "$RR_TEST_DEV_CLERK" = "1" ]; then
     echo ""
 fi
 
-# License-authenticated public API
-if [ -n "$RR_LICENSE_KEY" ]; then
-    echo "🔑 Testing License-authenticated public API..."
-    echo ""
-    echo "✅ Testing api.public.license.validate..."
-    curl -s -X POST "$API_BASE/api/api.public.license.validate" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $RR_LICENSE_KEY" \
-      -d '{"input":null}' | jq '.'
-    echo ""
-    echo "✅ Testing api.public.license.status..."
-    curl -s -X POST "$API_BASE/api/api.public.license.status" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $RR_LICENSE_KEY" \
-      -d '{"input":null}' | jq '.'
+# Merchbase API-key authenticated public API
+if [ -n "$MERCHBASE_API_KEY" ]; then
+    echo "🔑 Testing Merchbase API-key authenticated public API..."
     echo ""
     echo "📦 Testing api.public.product.getSummary..."
     public_product_info_response=$(curl -s -X POST "$API_BASE/api/api.public.product.getSummary" \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -H "Authorization: Bearer $MERCHBASE_API_KEY" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}')
     echo "$public_product_info_response" | jq '.'
     echo "🧾 Merch fields (public):"
@@ -66,23 +54,23 @@ if [ -n "$RR_LICENSE_KEY" ]; then
     echo "📦 Testing api.public.product.get (summary + history)..."
     curl -s -X POST "$API_BASE/api/api.public.product.get" \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -H "Authorization: Bearer $MERCHBASE_API_KEY" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "metrics": ["bsr", "price"], "bucket": "week", "days": 365}}' | jq '.'
     echo ""
     echo "📈 Testing api.public.product.getHistory..."
     curl -s -X POST "$API_BASE/api/api.public.product.getHistory" \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -H "Authorization: Bearer $MERCHBASE_API_KEY" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "limit": 100}}' | jq '.'
     echo ""
     echo "📉 Testing api.public.product.getHistory (agent format, bucketed bsr+price)..."
     curl -s -X POST "$API_BASE/api/api.public.product.getHistory" \
       -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $RR_LICENSE_KEY" \
+      -H "Authorization: Bearer $MERCHBASE_API_KEY" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "metrics": ["bsr", "price"], "format": "agent", "bucket": "week", "days": 365}}' | jq '.'
     echo ""
 else
-    echo "⚠️ Skipping public API tests - set RR_LICENSE_KEY to exercise public endpoints."
+    echo "⚠️ Skipping public API tests - set MERCHBASE_API_KEY to exercise public endpoints."
     echo ""
 fi
 

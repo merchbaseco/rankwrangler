@@ -1,6 +1,11 @@
 import { z } from 'zod';
-import { claimOperationWork, completeOperationWithError } from '@/db/operations.js';
+import {
+    claimOperationWork,
+    completeOperationWithError,
+    releaseOperationWork,
+} from '@/db/operations';
 import { defineJob } from '@/jobs/job-router.js';
+import { evaluateUserOwnedJobAccess } from '@/services/access/job-access';
 import { createEventLogSafe } from '@/services/event-logs.js';
 import { loadKeepaProductHistoryManually } from '@/services/keepa-manual-load.js';
 import { sanitizeOperationError } from '@/services/operations.js';
@@ -15,6 +20,8 @@ export type ProductHistoryOperationWorkerDeps = {
     claimOperationWork: typeof claimOperationWork;
     loadHistory: typeof loadKeepaProductHistoryManually;
     completeWithError: typeof completeOperationWithError;
+    releaseOperationWork?: typeof releaseOperationWork;
+    evaluateAccess?: typeof evaluateUserOwnedJobAccess;
     createEventLogSafe: typeof createEventLogSafe;
     notifyCompleted: typeof notifyProductHistoryRefreshCompleted;
 };
@@ -23,6 +30,8 @@ const defaultDeps: ProductHistoryOperationWorkerDeps = {
     claimOperationWork,
     loadHistory: loadKeepaProductHistoryManually,
     completeWithError: completeOperationWithError,
+    releaseOperationWork,
+    evaluateAccess: evaluateUserOwnedJobAccess,
     createEventLogSafe,
     notifyCompleted: notifyProductHistoryRefreshCompleted,
 };
@@ -40,6 +49,34 @@ export const runProductHistoryOperation = async (
     }
     if (operation.type !== 'productHistoryRefresh') {
         throw new Error(`Operation ${operationId} is not a Product-history refresh.`);
+    }
+
+    if (!operation.input.ownerMerchbaseUserId) {
+        await deps.releaseOperationWork?.(operationId);
+        return { didWork: false, status: 'skipped_access_unavailable' } as const;
+    }
+
+    const access = await (deps.evaluateAccess ?? evaluateUserOwnedJobAccess)(
+        operation.input.ownerMerchbaseUserId
+    );
+    if (access.kind === 'unavailable') {
+        await deps.releaseOperationWork?.(operationId);
+        return { didWork: false, status: 'skipped_access_unavailable' } as const;
+    }
+    if (access.kind === 'denied') {
+        await deps.completeWithError({
+            operationId,
+            error: {
+                code: 'ACCESS_DENIED',
+                message: 'RankWrangler access is no longer granted.',
+            },
+        });
+        deps.notifyCompleted({
+            operationId,
+            marketplaceId: operation.input.marketplaceId,
+            asin: operation.input.asin,
+        });
+        return { didWork: true, status: 'skipped_access_denied' } as const;
     }
 
     try {

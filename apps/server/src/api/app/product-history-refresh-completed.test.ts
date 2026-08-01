@@ -34,10 +34,23 @@ it('publishes Product-history completion at the domain-specific app subscription
 
 const createClerkContext = () =>
     ({
-        user: { sub: 'user_1', email: 'seller@example.com' },
+        user: { sub: 'mbu_test', email: 'seller@example.com' },
         isAdmin: false,
-        authType: 'clerk',
-        license: null,
-        licenseError: undefined,
+        authType: 'access',
+        credentialKind: 'session',
+        authExpiresAtMs: null,
+        accessPrincipal: {
+            id: '11111111-1111-4111-8111-111111111111',
+            service: 'rankwrangler',
+            merchbaseUserId: 'mbu_test',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            lastUsedAt: null,
+            usageToday: 0,
+            usageCount: 0,
+            usageLimit: 100_000,
+            lastResetAt: new Date(),
+        },
+        accessError: null,
         request: { headers: {} },
     }) as Context;

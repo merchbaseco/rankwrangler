@@ -5,17 +5,14 @@ import {
     hasRecentSuccessfulKeepaImportForAsin,
     type KeepaHistoryMetricKey,
 } from '@/services/keepa.js';
+import { buildPublicOperation } from '@/services/operations.js';
 import {
     buildAgentHistoryResponse,
-    resolveAgentHistoryWindow,
     type HistoryMetricResult,
+    resolveAgentHistoryWindow,
 } from '@/services/product-history-agent.js';
-import { type ProductHistoryBucket } from '@/services/product-history-buckets.js';
+import type { ProductHistoryBucket } from '@/services/product-history-buckets.js';
 import { buildLegacyHistoryResponse } from '@/services/product-history-legacy.js';
-import {
-    buildPublicOperation,
-    type PublicOperation,
-} from '@/services/operations.js';
 import { requestProductHistoryRefresh } from '@/services/product-history-operations.js';
 import { fetchProductInfo } from '@/utils/product-info.js';
 
@@ -42,6 +39,7 @@ type ProductHistorySurfaceInput = {
     format: ProductHistoryFormat;
     bucket: ProductHistoryBucket;
     refresh: ProductHistoryRefreshMode;
+    ownerMerchbaseUserId: string;
 };
 
 type MetricEntry = readonly [ProductHistoryMetric, HistoryMetricResult];
@@ -108,6 +106,7 @@ const getPointsHistory = async (
         ? await deps.requestProductHistoryRefresh({
               marketplaceId: input.marketplaceId,
               asin: input.asin,
+              ownerMerchbaseUserId: input.ownerMerchbaseUserId,
           })
         : null;
     const operation = requested?.operation ?? (await getPendingOperation(input, deps));
@@ -149,17 +148,13 @@ const getMetricHistory = async (
         (input.refresh === 'if_missing' &&
             Boolean(
                 primaryResult &&
-                    (await shouldSyncProductHistory(
-                        input,
-                        agentWindow,
-                        primaryResult.points,
-                        deps
-                    ))
+                    (await shouldSyncProductHistory(input, agentWindow, primaryResult.points, deps))
             ));
     const requested = shouldRequest
         ? await deps.requestProductHistoryRefresh({
               marketplaceId: input.marketplaceId,
               asin: input.asin,
+              ownerMerchbaseUserId: input.ownerMerchbaseUserId,
           })
         : null;
     const operation = requested?.operation ?? (await getPendingOperation(input, deps));

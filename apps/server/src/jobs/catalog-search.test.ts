@@ -11,7 +11,7 @@ describe('Catalog search worker', () => {
                 products: [
                     {
                         asin: 'B0MERCH001',
-                        stats: { current: [-1, 1_999, -1, 54_321] },
+                        stats: { current: [-1, 1999, -1, 54_321] },
                     },
                     { asin: 'not-an-asin' },
                     {
@@ -22,7 +22,7 @@ describe('Catalog search worker', () => {
                 internalUsage: {
                     tokensConsumed: 10,
                     tokensLeft: 90,
-                    refillInMs: 3_000,
+                    refillInMs: 3000,
                     refillRate: 20,
                 },
             }),
@@ -93,6 +93,62 @@ describe('Catalog search worker', () => {
         });
         expect(deps.persistSuccess.mock.calls[0]?.[0].results).toEqual([]);
     });
+
+    it('releases claimed work when access verification is unavailable', async () => {
+        const deps = createDeps({
+            claimOperationWork: async () => createOperation(),
+            evaluateAccess: async () => ({ kind: 'unavailable' as const }),
+            releaseOperationWork: async () => undefined,
+        });
+
+        expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
+            didWork: false,
+            status: 'skipped_access_unavailable',
+        });
+        expect(deps.releaseOperationWork.mock.calls).toEqual([
+            ['11111111-1111-4111-8111-111111111111'],
+        ]);
+        expect(deps.searchProvider.mock.calls).toHaveLength(0);
+    });
+
+    it('does not run interactive work without an explicit owner', async () => {
+        const operation = {
+            ...createOperation(),
+            input: {
+                ...createOperation().input,
+                ownerMerchbaseUserId: undefined,
+            },
+        } as OperationRecord;
+        const deps = createDeps({
+            claimOperationWork: async () => operation,
+            releaseOperationWork: async () => undefined,
+        });
+
+        expect(await runCatalogSearchOperation(operation.id, deps)).toEqual({
+            didWork: false,
+            status: 'skipped_access_unavailable',
+        });
+        expect(deps.releaseOperationWork.mock.calls).toEqual([[operation.id]]);
+        expect(deps.evaluateAccess.mock.calls).toHaveLength(0);
+        expect(deps.searchProvider.mock.calls).toHaveLength(0);
+    });
+
+    it('completes claimed work with a sanitized denial when access is revoked', async () => {
+        const deps = createDeps({
+            claimOperationWork: async () => createOperation(),
+            evaluateAccess: async () => ({ kind: 'denied' as const }),
+        });
+
+        expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
+            didWork: true,
+            status: 'skipped_access_denied',
+        });
+        expect(deps.completeWithError.mock.calls[0]?.[0].error).toEqual({
+            code: 'ACCESS_DENIED',
+            message: 'RankWrangler access is no longer granted.',
+        });
+        expect(deps.searchProvider.mock.calls).toHaveLength(0);
+    });
 });
 
 const createDeps = (overrides: Record<string, unknown> = {}) => ({
@@ -102,12 +158,14 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
         internalUsage: {
             tokensConsumed: 10,
             tokensLeft: 90,
-            refillInMs: 3_000,
+            refillInMs: 3000,
             refillRate: 20,
         },
     })),
     persistSuccess: mock(async () => ({ runId: 'run-1' })),
     completeWithError: mock(async () => createOperation()),
+    evaluateAccess: mock(async () => ({ kind: 'allowed' as const })),
+    releaseOperationWork: mock(async () => undefined),
     notifyCompleted: mock(() => {
         // Completion delivery is asserted through mock calls.
     }),
@@ -130,6 +188,7 @@ const createOperation = (): OperationRecord => ({
         term: 'retro gardening shirt',
         page: 0,
         priority: 'interactive',
+        ownerMerchbaseUserId: 'mbu_test',
     },
     resource: null,
     error: null,

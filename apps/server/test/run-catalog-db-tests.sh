@@ -7,7 +7,17 @@ postgres_bin_dir="$(dirname "$(realpath "$(command -v postgres)")")"
 test_root="$(mktemp -d)"
 test_port="$(dev-port --group | awk 'NR == 3 { print; exit }')"
 database_name="rankwrangler_catalog_test"
+backup_database_name="rankwrangler_catalog_backup_test"
+rollback_database_name="rankwrangler_catalog_rollback_test"
 server_started=false
+migration_subset="$test_root/drizzle-before-cutover"
+legacy_license_id="00000000-0000-4000-8000-000000000001"
+service_account_id="00000000-0000-4000-8000-000000000002"
+legacy_license_id_two="00000000-0000-4000-8000-000000000004"
+service_account_id_two="00000000-0000-4000-8000-000000000005"
+product_id="00000000-0000-4000-8000-000000000003"
+preservation_manifest="$test_root/preservation-before.json"
+backup_path="$test_root/rankwrangler-before-cutover.dump"
 
 cleanup() {
     if [[ "$server_started" == true ]]; then
@@ -36,6 +46,12 @@ server_started=true
     -p "$test_port" \
     -U rankwrangler \
     "$database_name"
+
+mkdir -p "$migration_subset/meta"
+cp "$server_dir"/drizzle/*.sql "$migration_subset/"
+cp "$server_dir"/drizzle/meta/_journal.json "$migration_subset/meta/"
+MIGRATION_JOURNAL="$migration_subset/meta/_journal.json" \
+bun -e "const path = process.env.MIGRATION_JOURNAL; const journal = JSON.parse(await Bun.file(path).text()); journal.entries = journal.entries.filter(entry => entry.idx <= 27); await Bun.write(path, JSON.stringify(journal, null, 2) + '\\n');"
 cd "$server_dir"
 DATABASE_HOST=127.0.0.1 \
 DATABASE_PORT="$test_port" \
@@ -45,10 +61,183 @@ DATABASE_PASSWORD=rankwrangler \
 SPAPI_REFRESH_TOKEN=test \
 SPAPI_CLIENT_ID=test \
 SPAPI_APP_CLIENT_SECRET=test \
-LICENSE_SECRET=0123456789abcdef0123456789abcdef \
 CLERK_SECRET_KEY=test \
+CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+CLERK_JWT_KEY=test-jwt-key \
+CLERK_ISSUER=https://clerk.test \
+CLERK_AUTHORIZED_PARTIES=https://app.test \
+CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 DISABLE_SERVER_JOB_RUNNER=true \
+MIGRATIONS_FOLDER="$migration_subset" \
 bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
+
+"$postgres_bin_dir/psql" \
+    -h 127.0.0.1 \
+    -p "$test_port" \
+    -U rankwrangler \
+    -d "$database_name" \
+    -v ON_ERROR_STOP=1 \
+    -c "insert into licenses (id, key, email, \"lastUsedAt\", \"usageCount\", \"usageToday\", \"lastResetAt\", \"usageLimit\") values ('$legacy_license_id', 'disposable-test-key', 'preservation@example.invalid', '2026-08-01 12:00:00', 17, 5, '2026-08-01 12:00:00', 100);" \
+    -c "insert into products (id, marketplace_id, asin, title) values ('$product_id', 'ATVPDKIKX0DER', 'B000000001', 'disposable preservation product');" \
+    -c "insert into rankwrangler_service_accounts (id, service, merchbase_user_id, usage_today, usage_count, usage_limit, last_used_at, last_reset_at) values ('$service_account_id', 'rankwrangler', 'mbu_test_preservation', 5, 17, 100, '2026-08-01 12:00:00', '2026-08-01 12:00:00');" \
+    -c "insert into access_projection (issuer, subject, state, merchbase_user_id, access, source_updated_at, last_event_id) values ('https://clerk.test', 'user_test_preservation', 'active', 'mbu_test_preservation', 'granted', 1, 'disposable-preservation-event');" \
+    -c "insert into licenses (id, key, email, \"lastUsedAt\", \"usageCount\", \"usageToday\", \"lastResetAt\", \"usageLimit\") values ('$legacy_license_id_two', 'disposable-test-key-two', 'preservation-two@example.invalid', '2026-08-01 13:00:00', 9, 2, '2026-08-01 13:00:00', 50);" \
+    -c "insert into rankwrangler_service_accounts (id, service, merchbase_user_id, usage_today, usage_count, usage_limit, last_used_at, last_reset_at) values ('$service_account_id_two', 'rankwrangler', 'mbu_test_preservation_two', 2, 9, 50, '2026-08-01 13:00:00', '2026-08-01 13:00:00');" \
+    -c "insert into access_projection (issuer, subject, state, merchbase_user_id, access, source_updated_at, last_event_id) values ('https://clerk.test', 'user_test_preservation_two', 'active', 'mbu_test_preservation_two', 'granted', 1, 'disposable-preservation-event-two');" \
+    -c "insert into rankwrangler_cutover_gate (id, legacy_license_id, service_account_id, state, plan_digest, backup_fingerprint, preservation_proof, approved_by, approved_at) values ('$service_account_id', '$legacy_license_id', '$service_account_id', 'approved', repeat('a', 64), repeat('b', 64), repeat('c', 64), 'catalog-db-test', now()), ('$service_account_id_two', '$legacy_license_id_two', '$service_account_id_two', 'approved', repeat('d', 64), repeat('e', 64), repeat('f', 64), 'catalog-db-test', now());"
+
+"$postgres_bin_dir/pg_dump" \
+    -h 127.0.0.1 \
+    -p "$test_port" \
+    -U rankwrangler \
+    --format=custom \
+    --file="$backup_path" \
+    "$database_name"
+"$postgres_bin_dir/createdb" \
+    -h 127.0.0.1 \
+    -p "$test_port" \
+    -U rankwrangler \
+    "$backup_database_name"
+"$postgres_bin_dir/pg_restore" \
+    --host=127.0.0.1 \
+    --port="$test_port" \
+    --username=rankwrangler \
+    --exit-on-error \
+    --no-owner \
+    --no-privileges \
+    --dbname="$backup_database_name" \
+    "$backup_path" >/dev/null
+"$postgres_bin_dir/psql" \
+    -h 127.0.0.1 \
+    -p "$test_port" \
+    -U rankwrangler \
+    -d "$backup_database_name" \
+    -v ON_ERROR_STOP=1 \
+    -c 'select count(*) from products' >/dev/null
+
+"$postgres_bin_dir/createdb" \
+    -h 127.0.0.1 \
+    -p "$test_port" \
+    -U rankwrangler \
+    "$rollback_database_name"
+"$postgres_bin_dir/pg_restore" \
+    --host=127.0.0.1 \
+    --port="$test_port" \
+    --username=rankwrangler \
+    --exit-on-error \
+    --no-owner \
+    --no-privileges \
+    --dbname="$rollback_database_name" \
+    "$backup_path" >/dev/null
+"$postgres_bin_dir/psql" \
+    -h 127.0.0.1 \
+    -p "$test_port" \
+    -U rankwrangler \
+    -d "$rollback_database_name" \
+    -v ON_ERROR_STOP=1 \
+    -c "update rankwrangler_cutover_gate set state = 'pending' where id = '$service_account_id';"
+
+if DATABASE_HOST=127.0.0.1 \
+    DATABASE_PORT="$test_port" \
+    DATABASE_NAME="$rollback_database_name" \
+    DATABASE_USER=rankwrangler \
+    DATABASE_PASSWORD=rankwrangler \
+    SPAPI_REFRESH_TOKEN=test \
+    SPAPI_CLIENT_ID=test \
+    SPAPI_APP_CLIENT_SECRET=test \
+    CLERK_SECRET_KEY=test \
+    CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+    CLERK_JWT_KEY=test-jwt-key \
+    CLERK_ISSUER=https://clerk.test \
+    CLERK_AUTHORIZED_PARTIES=https://app.test \
+    CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
+    DISABLE_SERVER_JOB_RUNNER=true \
+    MIGRATIONS_FOLDER="$server_dir/drizzle" \
+    bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
+then
+    echo 'Expected guarded cutover migration to reject the incomplete rollback fixture.' >&2
+    exit 1
+fi
+
+"$postgres_bin_dir/psql" \
+    -h 127.0.0.1 \
+    -p "$test_port" \
+    -U rankwrangler \
+    -d "$rollback_database_name" \
+    -v ON_ERROR_STOP=1 \
+    -c "DO \$\$
+BEGIN
+    IF to_regclass('public.licenses') IS NULL THEN
+        RAISE EXCEPTION 'Rollback proof lost the legacy licenses table';
+    END IF;
+    IF (SELECT count(*) FROM licenses) <> 2 THEN
+        RAISE EXCEPTION 'Rollback proof changed the legacy license rows';
+    END IF;
+    IF (SELECT count(*) FROM rankwrangler_cutover_gate WHERE state = 'pending') <> 1 THEN
+        RAISE EXCEPTION 'Rollback proof did not retain the incomplete gate';
+    END IF;
+END
+\$\$;"
+
+DATABASE_HOST=127.0.0.1 \
+DATABASE_PORT="$test_port" \
+DATABASE_NAME="$database_name" \
+DATABASE_USER=rankwrangler \
+DATABASE_PASSWORD=rankwrangler \
+bun src/scripts/central-auth-preservation-proof.ts \
+    "--phase=before" \
+    "--legacy-license-id=$legacy_license_id" \
+    "--service-account-id=$service_account_id" \
+    "--manifest=$preservation_manifest"
+
+DATABASE_HOST=127.0.0.1 \
+DATABASE_PORT="$test_port" \
+DATABASE_NAME="$backup_database_name" \
+DATABASE_USER=rankwrangler \
+DATABASE_PASSWORD=rankwrangler \
+SPAPI_REFRESH_TOKEN=test \
+SPAPI_CLIENT_ID=test \
+SPAPI_APP_CLIENT_SECRET=test \
+CLERK_SECRET_KEY=test \
+CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+CLERK_JWT_KEY=test-jwt-key \
+CLERK_ISSUER=https://clerk.test \
+CLERK_AUTHORIZED_PARTIES=https://app.test \
+CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
+DISABLE_SERVER_JOB_RUNNER=true \
+MIGRATIONS_FOLDER="$server_dir/drizzle" \
+bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
+
+DATABASE_HOST=127.0.0.1 \
+DATABASE_PORT="$test_port" \
+DATABASE_NAME="$backup_database_name" \
+DATABASE_USER=rankwrangler \
+DATABASE_PASSWORD=rankwrangler \
+bun src/scripts/central-auth-preservation-proof.ts \
+    "--phase=after" \
+    "--legacy-license-id=$legacy_license_id" \
+    "--service-account-id=$service_account_id" \
+    "--manifest=$preservation_manifest"
+
+DATABASE_HOST=127.0.0.1 \
+DATABASE_PORT="$test_port" \
+DATABASE_NAME="$database_name" \
+DATABASE_USER=rankwrangler \
+DATABASE_PASSWORD=rankwrangler \
+SPAPI_REFRESH_TOKEN=test \
+SPAPI_CLIENT_ID=test \
+SPAPI_APP_CLIENT_SECRET=test \
+CLERK_SECRET_KEY=test \
+CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+CLERK_JWT_KEY=test-jwt-key \
+CLERK_ISSUER=https://clerk.test \
+CLERK_AUTHORIZED_PARTIES=https://app.test \
+CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
+DISABLE_SERVER_JOB_RUNNER=true \
+MIGRATIONS_FOLDER="$server_dir/drizzle" \
+bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
+
+"$postgres_bin_dir/pg_restore" --list "$backup_path" >/dev/null
 
 cd "$repo_dir"
 DATABASE_HOST=127.0.0.1 \
@@ -59,11 +248,16 @@ DATABASE_PASSWORD=rankwrangler \
 SPAPI_REFRESH_TOKEN=test \
 SPAPI_CLIENT_ID=test \
 SPAPI_APP_CLIENT_SECRET=test \
-LICENSE_SECRET=0123456789abcdef0123456789abcdef \
 CLERK_SECRET_KEY=test \
+CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+CLERK_JWT_KEY=test-jwt-key \
+CLERK_ISSUER=https://clerk.test \
+CLERK_AUTHORIZED_PARTIES=https://app.test \
+CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 DISABLE_SERVER_JOB_RUNNER=true \
 RUN_CATALOG_DB_TESTS=true \
 bun test \
+    apps/server/test/central-auth.db.test.ts \
     apps/server/test/catalog-search-concurrency.db.test.ts \
     apps/server/test/catalog-search-history.db.test.ts \
     apps/server/test/catalog-query-tracking.db.test.ts

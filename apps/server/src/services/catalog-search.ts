@@ -1,8 +1,8 @@
 import type { PgBoss } from 'pg-boss';
 import { resolveCatalogSearchRequest } from '@/db/catalog-search';
-import { claimOperationDispatch, releaseOperationDispatch } from '@/db/operations';
-import { listStalePendingCatalogSearchOperations } from '@/db/catalog-search-operations';
 import { getCatalogSearchRun } from '@/db/catalog-search-history';
+import { listStalePendingCatalogSearchOperations } from '@/db/catalog-search-operations';
+import { claimOperationDispatch, releaseOperationDispatch } from '@/db/operations';
 import { buildPublicOperation, type OperationRecord } from './operations';
 
 export const CATALOG_SEARCH_JOB_NAME = 'catalog-search';
@@ -15,9 +15,9 @@ type CatalogSearchRun = NonNullable<Awaited<ReturnType<typeof getCatalogSearchRu
 export type CatalogSearchOperation = Extract<OperationRecord, { type: 'catalogSearch' }>;
 
 export type CatalogSearchDeps = {
-    resolveRequest: (input: Parameters<typeof resolveCatalogSearchRequest>[0]) => Promise<
-        CatalogSearchResolution
-    >;
+    resolveRequest: (
+        input: Parameters<typeof resolveCatalogSearchRequest>[0]
+    ) => Promise<CatalogSearchResolution>;
     getRun: (runId: string) => Promise<CatalogSearchRun | null>;
     dispatchOperation: (operation: CatalogSearchOperation) => Promise<boolean>;
 };
@@ -29,16 +29,16 @@ const defaultDeps: CatalogSearchDeps = {
 };
 
 export class CatalogSearchBillingError extends Error {
-    readonly reason: 'licenseNotFound' | 'usageLimitExceeded';
+    readonly reason: 'serviceAccountNotFound' | 'usageLimitExceeded';
 
     constructor(
-        reason: 'licenseNotFound' | 'usageLimitExceeded',
+        reason: 'serviceAccountNotFound' | 'usageLimitExceeded',
         usageLimit: number | null
     ) {
         const message =
             reason === 'usageLimitExceeded'
                 ? `Daily limit of ${usageLimit ?? 0} requests exceeded. Resets at midnight UTC.`
-                : 'Valid license key required';
+                : 'RankWrangler access is unavailable.';
         super(message);
         this.name = 'CatalogSearchBillingError';
         this.reason = reason;
@@ -53,15 +53,18 @@ export const requestCatalogSearch = async (
     {
         term,
         maxAgeSeconds = CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS,
-        licenseId,
+        serviceAccountId,
+        ownerMerchbaseUserId,
     }: {
         term: string;
         maxAgeSeconds?: number;
-        licenseId?: string;
+        serviceAccountId?: string;
+        ownerMerchbaseUserId?: string;
     },
     deps: CatalogSearchDeps = defaultDeps
 ) => {
     const displayTerm = normalizeCatalogDisplayTerm(term);
+    const resolvedServiceAccountId = serviceAccountId;
     const resolution = await deps.resolveRequest({
         source: 'keepa',
         marketplaceId: 'ATVPDKIKX0DER',
@@ -69,14 +72,19 @@ export const requestCatalogSearch = async (
         displayTerm,
         page: 0,
         maxAgeSeconds,
-        licenseId,
+        serviceAccountId: resolvedServiceAccountId,
+        ownerMerchbaseUserId,
         priority: 'interactive',
     });
 
     if (resolution.kind === 'ready') {
-        const run = await deps.getRun(resolution.runId);
+        const runId = resolution.runId;
+        if (!runId) {
+            throw new Error('Reusable Catalog Search resolution did not include a run.');
+        }
+        const run = await deps.getRun(runId);
         if (!run) {
-            throw new Error(`Reusable Catalog Search run ${resolution.runId} was not found.`);
+            throw new Error(`Reusable Catalog Search run ${runId} was not found.`);
         }
         return {
             response: {
@@ -90,15 +98,19 @@ export const requestCatalogSearch = async (
     if (resolution.kind === 'billingRejected') {
         throw new CatalogSearchBillingError(resolution.reason, resolution.usageLimit);
     }
-    if (resolution.operation.type !== 'catalogSearch') {
-        throw new Error(`Operation ${resolution.operation.id} is not a Catalog search.`);
+    if (resolution.kind !== 'pending' || !resolution.operation) {
+        throw new Error('Catalog search resolution did not produce pending work.');
     }
-    await deps.dispatchOperation(resolution.operation);
+    const operation = resolution.operation;
+    if (operation.type !== 'catalogSearch') {
+        throw new Error(`Operation ${operation.id} is not a Catalog search.`);
+    }
+    await deps.dispatchOperation(operation);
     return {
         response: {
             status: 'pending' as const,
-            queryId: resolution.operation.input.queryId,
-            operation: buildPublicOperation(resolution.operation),
+            queryId: operation.input.queryId,
+            operation: buildPublicOperation(operation),
         },
         startedWork: resolution.created,
     };

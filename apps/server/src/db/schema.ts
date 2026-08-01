@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
     bigint,
     boolean,
@@ -12,29 +13,7 @@ import {
     uniqueIndex,
     uuid,
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 import { products } from './product-schema';
-
-export const licenses = pgTable(
-    'licenses',
-    {
-        id: uuid('id').primaryKey().defaultRandom(),
-        key: text('key').notNull(),
-        email: text('email').notNull(),
-        createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
-        revokedAt: timestamp('revokedAt', { mode: 'date' }),
-        lastUsedAt: timestamp('lastUsedAt', { mode: 'date' }),
-        usageToday: integer('usageToday').notNull().default(0),
-        usageCount: integer('usageCount').notNull().default(0),
-        usageLimit: integer('usageLimit').notNull().default(100000),
-        lastResetAt: timestamp('lastResetAt', { mode: 'date' }).notNull().defaultNow(),
-    },
-    table => ({
-        keyIdx: uniqueIndex('licenses_key_unique').on(table.key),
-        emailIdx: index('licenses_email_idx').on(table.email),
-        revokedIdx: index('licenses_revoked_at_idx').on(table.revokedAt),
-    })
-);
 
 const productFacetAllowedValuesSql = [
     'profession',
@@ -85,7 +64,10 @@ export const productFacets = pgTable(
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
     },
     table => ({
-        pk: primaryKey({ columns: [table.productId, table.facetValueId], name: 'product_facets_pk' }),
+        pk: primaryKey({
+            columns: [table.productId, table.facetValueId],
+            name: 'product_facets_pk',
+        }),
         facetValueIdx: index('product_facets_facet_value_idx').on(table.facetValueId),
     })
 );
@@ -159,11 +141,9 @@ export const productHistoryImports = pgTable(
             table.productId,
             table.createdAt
         ),
-        marketplaceAsinCreatedAtIdx: index('product_history_imports_marketplace_asin_created_at_idx').on(
-            table.marketplaceId,
-            table.asin,
-            table.createdAt
-        ),
+        marketplaceAsinCreatedAtIdx: index(
+            'product_history_imports_marketplace_asin_created_at_idx'
+        ).on(table.marketplaceId, table.asin, table.createdAt),
     })
 );
 
@@ -193,12 +173,9 @@ export const productHistoryPoints = pgTable(
             table.categoryId,
             table.keepaMinutes
         ),
-        marketplaceAsinMetricObservedAtIdx: index('product_history_points_marketplace_asin_metric_observed_at_idx').on(
-            table.marketplaceId,
-            table.asin,
-            table.metric,
-            table.observedAt
-        ),
+        marketplaceAsinMetricObservedAtIdx: index(
+            'product_history_points_marketplace_asin_metric_observed_at_idx'
+        ).on(table.marketplaceId, table.asin, table.metric, table.observedAt),
     })
 );
 
@@ -224,18 +201,21 @@ export const keepaCategories = pgTable(
     })
 );
 
+export { accessProjection, accessProjectionEvents } from './access-schema';
+export {
+    catalogQueries,
+    catalogSearchResults,
+    catalogSearchRuns,
+} from './catalog-search-schema';
+export { rankwranglerCutoverGate } from './cutover-gate-schema';
 export {
     eventLogs,
     jobExecutionLogs,
     jobExecutions,
     operations,
 } from './ops-schema';
-export {
-    catalogQueries,
-    catalogSearchResults,
-    catalogSearchRuns,
-} from './catalog-search-schema';
 export { products } from './product-schema';
+export { rankwranglerServiceAccounts } from './service-account-schema';
 export {
     topSearchTermsDatasets,
     topSearchTermsKeywordDaily,

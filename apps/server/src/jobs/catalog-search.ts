@@ -1,14 +1,19 @@
 import { z } from 'zod';
-import { claimOperationWork, completeOperationWithError } from '@/db/operations';
 import {
-    persistCatalogSearchSuccess,
+    claimOperationWork,
+    completeOperationWithError,
+    releaseOperationWork,
+} from '@/db/operations';
+import {
     type CatalogSearchPersistenceResult,
+    persistCatalogSearchSuccess,
 } from '@/db/persist-catalog-search';
+import { evaluateUserOwnedJobAccess } from '@/services/access/job-access';
 import { CATALOG_SEARCH_JOB_NAME } from '@/services/catalog-search';
 import { notifyCatalogSearchCompleted } from '@/services/catalog-search-events';
 import { searchKeepaCatalog } from '@/services/keepa-catalog-search';
 import { normalizeKeepaProduct } from '@/services/keepa-product-normalizer';
-import { sanitizeOperationError, type CatalogSearchOperationInput } from '@/services/operations';
+import { type CatalogSearchOperationInput, sanitizeOperationError } from '@/services/operations';
 import { defineJob } from './job-router';
 
 const catalogSearchJobInput = z.object({
@@ -20,6 +25,8 @@ export type CatalogSearchWorkerDeps = {
     searchProvider: typeof searchKeepaCatalog;
     persistSuccess: typeof persistCatalogSearchSuccess;
     completeWithError: typeof completeOperationWithError;
+    releaseOperationWork?: typeof releaseOperationWork;
+    evaluateAccess?: typeof evaluateUserOwnedJobAccess;
     notifyCompleted: typeof notifyCatalogSearchCompleted;
 };
 
@@ -28,6 +35,8 @@ const defaultDeps: CatalogSearchWorkerDeps = {
     searchProvider: searchKeepaCatalog,
     persistSuccess: persistCatalogSearchSuccess,
     completeWithError: completeOperationWithError,
+    releaseOperationWork,
+    evaluateAccess: evaluateUserOwnedJobAccess,
     notifyCompleted: notifyCatalogSearchCompleted,
 };
 
@@ -44,6 +53,33 @@ export const runCatalogSearchOperation = async (
     }
     const input = operation.input as CatalogSearchOperationInput;
     const sourceStartedAt = new Date();
+
+    if (input.priority === 'interactive' && !input.ownerMerchbaseUserId) {
+        await deps.releaseOperationWork?.(operationId);
+        return { didWork: false, status: 'skipped_access_unavailable' } as const;
+    }
+
+    const access = await (deps.evaluateAccess ?? evaluateUserOwnedJobAccess)(
+        input.ownerMerchbaseUserId
+    );
+    if (access.kind === 'unavailable') {
+        await deps.releaseOperationWork?.(operationId);
+        return { didWork: false, status: 'skipped_access_unavailable' } as const;
+    }
+    if (access.kind === 'denied') {
+        await deps.completeWithError({
+            operationId,
+            error: {
+                code: 'ACCESS_DENIED',
+                message: 'RankWrangler access is no longer granted.',
+            },
+        });
+        deps.notifyCompleted({
+            operationId,
+            queryId: input.queryId,
+        });
+        return { didWork: true, status: 'skipped_access_denied' } as const;
+    }
 
     try {
         const providerResult = await deps.searchProvider({
@@ -106,7 +142,7 @@ const normalizeSearchResults = (
     const accepted = new Map<string, CatalogSearchPersistenceResult>();
 
     for (const [index, product] of products.entries()) {
-        if (!product.asin || !/^[A-Z0-9]{10}$/i.test(product.asin)) {
+        if (!(product.asin && /^[A-Z0-9]{10}$/i.test(product.asin))) {
             continue;
         }
         const asin = product.asin.toUpperCase();
@@ -123,9 +159,7 @@ const normalizeSearchResults = (
                     fetchedAt,
                 }),
             });
-        } catch {
-            continue;
-        }
+        } catch {}
     }
 
     return Array.from(accepted.values());

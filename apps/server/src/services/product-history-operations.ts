@@ -50,13 +50,19 @@ export const requestProductHistoryRefresh = async (
     {
         marketplaceId,
         asin,
+        ownerMerchbaseUserId,
     }: {
         marketplaceId: string;
         asin: string;
+        ownerMerchbaseUserId: string;
     },
     deps: ProductHistoryOperationDeps = defaultDeps
 ) => {
-    const ensured = await deps.ensurePendingOperation({ marketplaceId, asin });
+    const ensured = await deps.ensurePendingOperation({
+        marketplaceId,
+        asin,
+        ownerMerchbaseUserId,
+    });
     await dispatchPendingOperation(ensured.operation, deps);
 
     return {

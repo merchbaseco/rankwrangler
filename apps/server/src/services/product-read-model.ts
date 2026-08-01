@@ -1,15 +1,15 @@
 import { TRPCError } from '@trpc/server';
-import type { ProductInfo } from '@/types/index.js';
+import type { PublicOperation } from '@/services/operations.js';
 import {
     type AgentHistoryResponse,
     resolveAgentHistoryWindow,
 } from '@/services/product-history-agent.js';
-import type { PublicOperation } from '@/services/operations.js';
 import { resolveHistoryBucket } from '@/services/product-history-buckets.js';
 import {
     getProductHistorySurface,
     type ProductHistoryMetric,
 } from '@/services/product-history-surface.js';
+import type { ProductInfo } from '@/types/index.js';
 import { fetchProductInfo } from '@/utils/product-info.js';
 
 const DEFAULT_PRODUCT_GET_METRICS: readonly ProductHistoryMetric[] = ['bsr', 'price'];
@@ -23,6 +23,7 @@ type ProductReadInput = {
     days: number;
     metrics?: ProductHistoryMetric[];
     bucket: 'auto' | 'day' | 'week' | 'month';
+    ownerMerchbaseUserId: string;
 };
 
 type ProductHistoryError = {
@@ -64,6 +65,7 @@ export const getProductReadModel = async (input: ProductReadInput): Promise<Prod
             metrics: input.metrics ?? [...DEFAULT_PRODUCT_GET_METRICS],
             format: 'agent',
             refresh: 'if_missing',
+            ownerMerchbaseUserId: input.ownerMerchbaseUserId,
         })) as AgentHistoryResponse;
 
         return {

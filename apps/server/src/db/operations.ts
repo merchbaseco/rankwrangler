@@ -2,10 +2,10 @@ import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { operations } from '@/db/ops-schema.js';
 import type {
-    OperationError,
-    OperationRecord,
     CatalogSearchOperationInput,
     CatalogSearchResource,
+    OperationError,
+    OperationRecord,
     ProductHistoryOperationInput,
     ProductHistoryResource,
 } from '@/services/operations.js';
@@ -15,9 +15,11 @@ const OPERATION_DISPATCH_STALE_MS = 5 * 60 * 1000;
 export const ensurePendingProductHistoryOperation = async ({
     marketplaceId,
     asin,
+    ownerMerchbaseUserId,
 }: {
     marketplaceId: string;
     asin: string;
+    ownerMerchbaseUserId: string;
 }) => {
     const targetKey = buildProductHistoryTargetKey({ marketplaceId, asin });
     const lockKey = `productHistoryRefresh:${targetKey}`;
@@ -45,6 +47,7 @@ export const ensurePendingProductHistoryOperation = async ({
             marketplaceId,
             asin,
             days: 3650,
+            ownerMerchbaseUserId,
         };
         const [created] = await transaction
             .insert(operations)
@@ -95,10 +98,7 @@ export const getPendingProductHistoryOperation = async ({
     return operation ? mapOperationRecord(operation) : null;
 };
 
-export const claimOperationDispatch = async (
-    operationId: string,
-    now = new Date()
-) => {
+export const claimOperationDispatch = async (operationId: string, now = new Date()) => {
     const staleBefore = new Date(now.getTime() - OPERATION_DISPATCH_STALE_MS);
     const claimed = await db
         .update(operations)
@@ -154,6 +154,16 @@ export const claimOperationWork = async (operationId: string, now = new Date()) 
     return claimed ? mapOperationRecord(claimed) : null;
 };
 
+export const releaseOperationWork = async (operationId: string) => {
+    await db
+        .update(operations)
+        .set({
+            startedAt: null,
+            updatedAt: new Date(),
+        })
+        .where(and(eq(operations.id, operationId), eq(operations.status, 'pending')));
+};
+
 export const completeOperationWithError = async ({
     operationId,
     error,
@@ -203,10 +213,7 @@ export const completeProductHistoryOperationSuccess = async ({
     return completed ? mapOperationRecord(completed) : await getOperationById(operationId);
 };
 
-export const listStalePendingProductHistoryOperations = async (
-    now = new Date(),
-    limit = 100
-) => {
+export const listStalePendingProductHistoryOperations = async (now = new Date(), limit = 100) => {
     const staleBefore = new Date(now.getTime() - OPERATION_DISPATCH_STALE_MS);
     const rows = await db
         .select()
