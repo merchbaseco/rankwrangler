@@ -49,12 +49,9 @@ bun run --filter rankwrangler-extension build
 ### Component Patterns
 - File names use kebab-case (`search-badge.tsx`), components use PascalCase.
 - UI primitives live under `src/components/ui`.
-- Popup and content script share license helpers in `src/scripts/**/*.`
-
-### License Display
-- Unlimited plans detected by `licenseData.dailyLimit === -1`.
-- Popup shows “X (Unlimited)” vs “X/Y” usage and renders badges accordingly.
-- Components degrade gracefully when license data is missing or validation is pending.
+- Popup and content script share centralized-auth helpers in `src/scripts/**/*.`
+- Chrome delegates interactive auth to the Clerk Sync Host; Safari delegates OAuth to the native
+  handler. Neither path stores a suite API key in extension storage.
 
 ### Content Script Behaviour
 - Mutation observers in `src/scripts/content/app.tsx` watch Amazon result pages.
@@ -95,4 +92,4 @@ bun run --filter rankwrangler-extension build
 4. Avoid committing derived `dist/` output unless explicitly required.
 5. When touching Safari resources, ensure both iOS and macOS targets still compile.
 
-Ask for clarification before altering production endpoints or license logic.
+Ask for clarification before altering production endpoints or centralized-auth contracts.

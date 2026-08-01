@@ -35,7 +35,7 @@ describe('Operation CLI', () => {
             {
                 cwd: workspaceDir,
                 home: tempHome,
-                env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                env: { MERCHBASE_API_KEY: 'ak_test_value' },
             }
         );
 
@@ -49,7 +49,7 @@ describe('Operation CLI', () => {
             port: CLI_TEST_SERVER_PORT,
             fetch(request) {
                 expect(request.url).toContain('operation.get');
-                expect(request.headers.get('authorization')).toBe('Bearer rrk_test_value');
+                expect(request.headers.get('authorization')).toBe('Bearer ak_test_value');
                 return Response.json([
                     {
                         result: {
@@ -86,7 +86,7 @@ describe('Operation CLI', () => {
                 {
                     cwd: workspaceDir,
                     home: tempHome,
-                    env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                    env: { MERCHBASE_API_KEY: 'ak_test_value' },
                 }
             );
 

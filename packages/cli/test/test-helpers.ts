@@ -106,7 +106,7 @@ export const spawnCliAsync = async (
 
 const buildCliTestEnvironment = (home: string, overrides: Record<string, string>) => {
     const inheritedEnvironment = { ...globalThis.process.env };
-    delete inheritedEnvironment.RR_LICENSE_KEY;
+    delete inheritedEnvironment.MERCHBASE_API_KEY;
 
     return {
         ...inheritedEnvironment,

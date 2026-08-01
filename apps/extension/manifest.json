@@ -3,8 +3,12 @@
 	"name": "RankWrangler",
 	"version": "1.0",
 	"description": "Get product rankings and metrics in Amazon search results.",
-	"permissions": ["storage", "tabs", "alarms", "scripting"],
-	"host_permissions": ["*://*.amazon.com/*", "https://rankwrangler.merchbase.co/api/*"],
+	"permissions": ["storage", "tabs", "alarms", "scripting", "cookies"],
+	"host_permissions": [
+		"*://*.amazon.com/*",
+		"https://rankwrangler.merchbase.co/api/*",
+		"https://clerk.merchbase.co/*"
+	],
 	"icons": {
 		"32": "images/icon-32-safari.png",
 		"64": "images/icon-64.png",

@@ -1,4 +1,4 @@
-import { CliAuthError } from './cli-auth';
+import { CliAuthError } from './cli-auth-error';
 import { CliStorageError } from './cli-config';
 
 type CliSuccess<T> = {

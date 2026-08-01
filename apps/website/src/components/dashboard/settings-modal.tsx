@@ -11,7 +11,7 @@ import {
 	User,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { ApiKeyCard } from "@/components/dashboard/api-key-card";
+import { AccessCard } from "@/components/dashboard/access-card";
 import { KeepaMetricsPanel } from "@/components/dashboard/keepa-metrics-panel";
 import { ProductFacetMetricsPanel } from "@/components/dashboard/product-facet-metrics-panel";
 import { SpApiMetricsPanel } from "@/components/dashboard/spapi-metrics-panel";
@@ -45,7 +45,7 @@ type NavItem = { key: SettingsPage; label: string; icon: typeof Key };
 
 const BASE_SETTINGS_NAV: NavItem[] = [
 	{ key: "general", label: "General", icon: BarChart3 },
-	{ key: "api", label: "API Keys & Usage", icon: Key },
+	{ key: "api", label: "Access & Usage", icon: Key },
 	{ key: "notifications", label: "Notifications", icon: Bell },
 	{ key: "account", label: "Account", icon: User },
 ];
@@ -211,7 +211,7 @@ const ApiSettings = () => (
 	<div>
 		<UsageCard />
 		<div className="border-t border-border">
-			<ApiKeyCard />
+			<AccessCard />
 		</div>
 	</div>
 );

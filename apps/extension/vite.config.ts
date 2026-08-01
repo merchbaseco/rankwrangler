@@ -82,7 +82,8 @@ export default defineConfig(async () => {
                         if (styleTagRegex.test(htmlContent)) {
                             htmlContent = htmlContent.replace(
                                 styleTagRegex,
-                                `<style>$1\n${cssContent}</style>`
+                                (_match, existingStyles) =>
+                                    `<style>${existingStyles.trimEnd()}\n${cssContent}</style>`
                             );
                         } else {
                             htmlContent = htmlContent.replace(

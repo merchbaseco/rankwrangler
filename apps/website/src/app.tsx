@@ -21,7 +21,7 @@ import {
 } from "@/components/dashboard/recent-products";
 import { SearchBar } from "@/components/dashboard/search-bar";
 import { SettingsModal } from "@/components/dashboard/settings-modal";
-import { useLicense } from "@/hooks/use-license";
+import { useAccessUsage } from "@/hooks/use-access-usage";
 import { useTheme } from "@/hooks/use-theme";
 
 export function App() {
@@ -51,7 +51,7 @@ export function App() {
 		totalMerchProducts: null,
 		totalProducts: null,
 	});
-	const { license } = useLicense();
+	const { usage } = useAccessUsage();
 	const { theme, setTheme } = useTheme();
 
 	const handleProductStatusChange = useCallback(
@@ -155,8 +155,8 @@ export function App() {
 				totalMerchProducts={productStatus.totalMerchProducts}
 				totalProducts={productStatus.totalProducts}
 				theme={theme}
-				usageLimit={license?.usageLimit ?? null}
-				usageToday={license?.usageToday ?? null}
+				usageLimit={usage?.usageLimit ?? null}
+				usageToday={usage?.usageToday ?? null}
 			/>
 
 			<div className="flex min-h-0 flex-1 overflow-hidden">

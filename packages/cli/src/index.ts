@@ -43,8 +43,6 @@ const SUPPORTED_COMMANDS = new Set([
     'catalog:untrack',
     'catalog:run',
     'catalog:runs',
-    'license:status',
-    'license:validate',
     'auth:status',
     'auth:set',
     'auth:clear',
@@ -120,7 +118,7 @@ const main = async () => {
     if (!apiKey) {
         fail(
             'MISSING_CONFIG',
-            'license key is required. run `rw auth set`, `rw auth set --stdin`, or set RR_LICENSE_KEY'
+            'Merchbase API key is required. run `rw auth set`, `rw auth set --stdin`, or set MERCHBASE_API_KEY'
         );
     }
 
@@ -160,14 +158,6 @@ const runApiCommand = async (
             values as CliOptionValues,
             fail
         );
-    }
-
-    if (command.resource === 'license' && command.verb === 'status') {
-        return client.license.status.mutate();
-    }
-
-    if (command.resource === 'license' && command.verb === 'validate') {
-        return client.license.validate.mutate();
     }
 
     fail('UNKNOWN_COMMAND', 'Unknown command', {

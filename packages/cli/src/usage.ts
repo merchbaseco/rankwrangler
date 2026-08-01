@@ -1,4 +1,4 @@
-import { LICENSE_KEY_ENV_VAR } from './cli-auth';
+import { API_KEY_ENV_VAR } from './cli-auth';
 import type { CliPaths } from './cli-config';
 
 const DEFAULT_MARKETPLACE_ID = 'ATVPDKIKX0DER';
@@ -28,10 +28,8 @@ export const printUsage = (paths: CliPaths) => {
         '  catalog untrack <term>',
         '  catalog run <runId>',
         '  catalog runs <queryId>',
-        '  license status',
-        '  license validate',
         '  auth status',
-        '  auth set [licenseKey]',
+        '  auth set [apiKey]',
         '  auth set --stdin',
         '  auth clear',
         '  config show',
@@ -63,7 +61,7 @@ export const printUsage = (paths: CliPaths) => {
         `  ${paths.globalConfigPath}           Global CLI settings`,
         '',
         'ENVIRONMENT',
-        `  ${LICENSE_KEY_ENV_VAR}           License key override for CI/automation`,
+        `  ${API_KEY_ENV_VAR}           Merchbase API key override for CI/automation`,
         '  RR_API_URL               API origin fallback',
         '  RR_MARKETPLACE_ID        Marketplace fallback',
         '  RR_STORAGE_DIR           Storage directory override',
@@ -72,9 +70,9 @@ export const printUsage = (paths: CliPaths) => {
         '  RR_HISTORY_METRICS       Comma-separated history metrics fallback',
         '',
         'EXAMPLES',
-        '  rw auth set rrk_...',
-        '  printf %s "$RR_LICENSE_KEY" | rw auth set --stdin',
-        `  ${LICENSE_KEY_ENV_VAR}=rrk_... rw products get B0DV53VS61`,
+        '  rw auth set ak_...',
+        '  printf %s "$MERCHBASE_API_KEY" | rw auth set --stdin',
+        `  ${API_KEY_ENV_VAR}=ak_... rw products get B0DV53VS61`,
         '  RR_STORAGE_DIR=~/.config/rankwrangler rw config show',
         '  rw --version',
         '  rw changelog',
@@ -92,7 +90,7 @@ export const printUsage = (paths: CliPaths) => {
         '  rw catalog run 22222222-2222-4222-8222-222222222222',
         '  rw catalog runs 11111111-1111-4111-8111-111111111111 --limit 20',
         '  rw products history B0DV53VS61 --startAt 2025-01-01 --endAt 2025-12-31 --bucket month',
-        '  rankwrangler license status',
+        '  rankwrangler auth status',
     ];
 
     console.log(usage.join('\n'));

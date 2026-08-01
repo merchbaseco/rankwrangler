@@ -87,23 +87,12 @@ export interface Stats {
 	failureCount: number;
 }
 
-// License management messages
-export interface ValidateLicenseMessage {
-	type: "validateLicense";
-	licenseKey?: string;
+export interface GetAuthStateMessage {
+	type: "getAuthState";
 }
 
-export interface SetLicenseMessage {
-	type: "setLicense";
-	licenseKey: string;
-}
-
-export interface RemoveLicenseMessage {
-	type: "removeLicense";
-}
-
-export interface GetLicenseStatusMessage {
-	type: "getLicenseStatus";
+export interface OpenAccountMessage {
+	type: "openAccount";
 }
 
 export interface ToggleDebugModeMessage {
@@ -125,10 +114,8 @@ export type BackgroundMessage =
 	| FetchProductInfoMessage
 	| FetchProductHistoryMessage
 	| { type: "ping" }
-	| ValidateLicenseMessage
-	| SetLicenseMessage
-	| RemoveLicenseMessage
-	| GetLicenseStatusMessage
+	| GetAuthStateMessage
+	| OpenAccountMessage
 	| ToggleDebugModeMessage
 	| ClearCacheMessage;
 
@@ -138,24 +125,13 @@ export interface StatsResponse {
 	queueCount?: number;
 }
 
-// License status and response types
-import type { License } from "../../types/license";
-
-export interface LicenseResponse {
+export interface AuthStateResponse {
 	success: boolean;
-	license?: License | null;
+	state?:
+		| { status: "signed-out"; email: null; error?: undefined }
+		| { status: "signed-in"; email: string | null; error?: undefined }
+		| { status: "denied"; email: null; error: string };
 	error?: string;
-}
-
-export interface ValidationResponse {
-	success: boolean;
-	valid: boolean;
-	error?: string;
-	data?: {
-		email: string;
-		usage: number;
-		usageLimit: number;
-	};
 }
 
 export interface ClearCacheResponse {

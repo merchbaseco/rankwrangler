@@ -134,21 +134,21 @@ describe('cli behavior', () => {
         });
     });
 
-    test('stores auth in the secure store and keeps secrets out of config', () => {
+    test('stores the API key in the secure store and keeps secrets out of config', () => {
         const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
         mkdirSync(workspaceDir, { recursive: true });
 
-        const setResult = runCli(['auth', 'set', 'rrk_test_value'], {
+        const setResult = runCli(['auth', 'set', 'ak_test_value'], {
             cwd: workspaceDir,
             home: tempHome,
         });
         expect(setResult.data.saved).toBe(true);
         expect(setResult.data.source).toBe('secure-store');
         expect(setResult.data.secureStore.available).toBe(true);
-        expect(setResult.data.secureStore.hasStoredLicenseKey).toBe(true);
+        expect(setResult.data.secureStore.hasStoredApiKey).toBe(true);
 
         const authStatus = runCli(['auth', 'status'], {
             cwd: workspaceDir,
@@ -158,11 +158,11 @@ describe('cli behavior', () => {
         expect(authStatus.data.envOverride).toBe(false);
 
         const configPath = path.join(tempHome, '.rankwrangler', 'config.json');
-        const secretStorePath = path.join(tempHome, '.rankwrangler-secure-store', 'license-key.json');
+        const secretStorePath = path.join(tempHome, '.rankwrangler-secure-store', 'api-key.json');
 
         expect(existsSync(configPath)).toBe(false);
         expect(readJson(secretStorePath)).toEqual({
-            licenseKey: 'rrk_test_value',
+            apiKey: 'ak_test_value',
         });
 
         const clearResult = runCli(['auth', 'clear'], {
@@ -171,7 +171,7 @@ describe('cli behavior', () => {
         });
         expect(clearResult.data.cleared).toBe(true);
         expect(clearResult.data.source).toBe('none');
-        expect(clearResult.data.secureStore.hasStoredLicenseKey).toBe(false);
+        expect(clearResult.data.secureStore.hasStoredApiKey).toBe(false);
         expect(existsSync(secretStorePath)).toBe(false);
     });
 
@@ -185,25 +185,25 @@ describe('cli behavior', () => {
         const setResult = runCli(['auth', 'set', '--stdin'], {
             cwd: workspaceDir,
             home: tempHome,
-            input: 'rrk_stdin_value\n',
+            input: 'ak_stdin_value\n',
         });
         expect(setResult.data.saved).toBe(true);
         expect(setResult.data.source).toBe('secure-store');
 
-        const secretStorePath = path.join(tempHome, '.rankwrangler-secure-store', 'license-key.json');
+        const secretStorePath = path.join(tempHome, '.rankwrangler-secure-store', 'api-key.json');
         expect(readJson(secretStorePath)).toEqual({
-            licenseKey: 'rrk_stdin_value',
+            apiKey: 'ak_stdin_value',
         });
     });
 
-    test('lets RR_LICENSE_KEY override the stored auth', () => {
+    test('lets MERCHBASE_API_KEY override the stored auth', () => {
         const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
         mkdirSync(workspaceDir, { recursive: true });
 
-        runCli(['auth', 'set', 'rrk_stored_value'], {
+        runCli(['auth', 'set', 'ak_stored_value'], {
             cwd: workspaceDir,
             home: tempHome,
         });
@@ -212,12 +212,12 @@ describe('cli behavior', () => {
             cwd: workspaceDir,
             home: tempHome,
             env: {
-                RR_LICENSE_KEY: 'rrk_env_value',
+                MERCHBASE_API_KEY: 'ak_env_value',
             },
         });
         expect(statusResult.data.source).toBe('env');
         expect(statusResult.data.envOverride).toBe(true);
-        expect(statusResult.data.secureStore.hasStoredLicenseKey).toBe(true);
+        expect(statusResult.data.secureStore.hasStoredApiKey).toBe(true);
     });
 
     test('rejects config api-key input and requires auth when no override or stored key exists', () => {
@@ -227,7 +227,7 @@ describe('cli behavior', () => {
         mkdirSync(tempHome, { recursive: true });
         mkdirSync(workspaceDir, { recursive: true });
 
-        const configFailure = runCliFailure(['config', 'set', 'api-key', 'rrk_test_value'], {
+        const configFailure = runCliFailure(['config', 'set', 'api-key', 'ak_test_value'], {
             cwd: workspaceDir,
             home: tempHome,
         });
@@ -243,7 +243,7 @@ describe('cli behavior', () => {
         });
         expect(missingKeyFailure.error.code).toBe('MISSING_CONFIG');
         expect(missingKeyFailure.error.message).toBe(
-            'license key is required. run `rw auth set`, `rw auth set --stdin`, or set RR_LICENSE_KEY'
+            'Merchbase API key is required. run `rw auth set`, `rw auth set --stdin`, or set MERCHBASE_API_KEY'
         );
     });
 
@@ -253,7 +253,7 @@ describe('cli behavior', () => {
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
         mkdirSync(workspaceDir, { recursive: true });
-        const env = { RR_LICENSE_KEY: 'rrk_test_value' };
+        const env = { MERCHBASE_API_KEY: 'ak_test_value' };
 
         const getFailure = runCliFailure(
             ['products', 'get', 'B0DV53VS61', 'B0DV53VS62'],

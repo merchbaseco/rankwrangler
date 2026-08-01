@@ -2,10 +2,16 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import readline from 'node:readline';
+import {
+    MERCHBASE_API_KEY_ENV,
+    MERCHBASE_API_KEY_KEYCHAIN_ACCOUNT,
+    MERCHBASE_API_KEY_KEYCHAIN_SERVICE,
+} from '@merchbaseco/access';
+import { CliAuthError } from './cli-auth-error';
 
-export const LICENSE_KEY_ENV_VAR = 'RR_LICENSE_KEY';
-export const AUTH_SERVICE_NAME = 'RankWrangler CLI';
-export const AUTH_ACCOUNT_NAME = 'license-key';
+export const API_KEY_ENV_VAR = MERCHBASE_API_KEY_ENV;
+export const AUTH_SERVICE_NAME = MERCHBASE_API_KEY_KEYCHAIN_SERVICE;
+export const AUTH_ACCOUNT_NAME = MERCHBASE_API_KEY_KEYCHAIN_ACCOUNT;
 
 const INTERNAL_SECRET_STORE_DIR_ENV_VAR = 'RW_INTERNAL_CLI_SECRET_STORE_DIR';
 
@@ -35,22 +41,10 @@ type KeytarModule = {
     setPassword: (service: string, account: string, password: string) => Promise<void>;
 };
 
-export class CliAuthError extends Error {
-    readonly code: string;
-    readonly details?: unknown;
-
-    constructor(code: string, message: string, details?: unknown) {
-        super(message);
-        this.name = 'CliAuthError';
-        this.code = code;
-        this.details = details;
-    }
-}
-
 export const resolveApiKey = async () => {
-    const envLicenseKey = resolveEnvLicenseKey();
-    if (envLicenseKey) {
-        return envLicenseKey;
+    const envApiKey = resolveEnvApiKey();
+    if (envApiKey) {
+        return envApiKey;
     }
 
     const secureStore = await createSecureStore();
@@ -92,33 +86,33 @@ export const runAuthCommand = async (
 };
 
 export const buildAuthStatus = async () => {
-    const envLicenseKey = resolveEnvLicenseKey();
+    const envApiKey = resolveEnvApiKey();
 
     try {
         const secureStore = await createSecureStore();
-        const storedLicenseKey = await secureStore.get();
+        const storedApiKey = await secureStore.get();
 
         return {
-            source: envLicenseKey ? 'env' : storedLicenseKey ? 'secure-store' : 'none',
-            envOverride: Boolean(envLicenseKey),
+            source: envApiKey ? 'env' : storedApiKey ? 'secure-store' : 'none',
+            envOverride: Boolean(envApiKey),
             secureStore: {
                 backend: secureStore.backend,
                 serviceName: secureStore.serviceName,
                 accountName: secureStore.accountName,
                 available: true,
-                hasStoredLicenseKey: Boolean(storedLicenseKey),
+                hasStoredApiKey: Boolean(storedApiKey),
             },
         };
     } catch (error) {
         return {
-            source: envLicenseKey ? 'env' : 'none',
-            envOverride: Boolean(envLicenseKey),
+            source: envApiKey ? 'env' : 'none',
+            envOverride: Boolean(envApiKey),
             secureStore: {
                 backend: getSecureStoreBackendLabel(),
                 serviceName: AUTH_SERVICE_NAME,
                 accountName: AUTH_ACCOUNT_NAME,
                 available: false,
-                hasStoredLicenseKey: null,
+                hasStoredApiKey: null,
                 error: error instanceof Error ? error.message : 'Unknown secure-store error',
             },
         };
@@ -141,26 +135,26 @@ const resolveAuthSetValue = async (
             return stdinValue;
         }
 
-        fail('INVALID_INPUT', 'auth set --stdin received an empty license key');
+        fail('INVALID_INPUT', 'auth set --stdin received an empty API key');
     }
 
-    const envLicenseKey = resolveEnvLicenseKey();
-    if (envLicenseKey) {
-        return envLicenseKey;
+    const envApiKey = resolveEnvApiKey();
+    if (envApiKey) {
+        return envApiKey;
     }
 
     if (process.stdin.isTTY && process.stderr.isTTY) {
-        const promptValue = await readSecretFromPrompt('RankWrangler license key: ');
+        const promptValue = await readSecretFromPrompt('Merchbase API key: ');
         if (promptValue) {
             return promptValue;
         }
 
-        fail('INVALID_INPUT', 'auth set received an empty license key');
+        fail('INVALID_INPUT', 'auth set received an empty API key');
     }
 
     fail(
         'INVALID_INPUT',
-        `auth set requires <licenseKey>, --stdin, or ${LICENSE_KEY_ENV_VAR}`
+        `auth set requires <apiKey>, --stdin, or ${API_KEY_ENV_VAR}`
     );
 };
 
@@ -206,8 +200,8 @@ const setTerminalEcho = (enabled: boolean) => {
     });
 };
 
-const resolveEnvLicenseKey = () => {
-    const value = process.env[LICENSE_KEY_ENV_VAR]?.trim();
+const resolveEnvApiKey = () => {
+    const value = process.env[API_KEY_ENV_VAR]?.trim();
     return value ? value : undefined;
 };
 
@@ -254,7 +248,7 @@ const getSecureStoreBackendLabel = () => {
 };
 
 const createFileSecretStore = (secretStoreDir: string): CliSecureStore => {
-    const secretPath = path.join(secretStoreDir, 'license-key.json');
+    const secretPath = path.join(secretStoreDir, 'api-key.json');
 
     return {
         backend: 'test-file-store',
@@ -263,9 +257,9 @@ const createFileSecretStore = (secretStoreDir: string): CliSecureStore => {
         get: async () => {
             try {
                 const raw = await readFile(secretPath, 'utf8');
-                const parsed = JSON.parse(raw) as { licenseKey?: unknown };
+                const parsed = JSON.parse(raw) as { apiKey?: unknown };
 
-                return typeof parsed.licenseKey === 'string' ? parsed.licenseKey : null;
+                return typeof parsed.apiKey === 'string' ? parsed.apiKey : null;
             } catch (error) {
                 if (
                     error &&
@@ -281,7 +275,7 @@ const createFileSecretStore = (secretStoreDir: string): CliSecureStore => {
         },
         set: async value => {
             await mkdir(secretStoreDir, { recursive: true });
-            await writeFile(secretPath, `${JSON.stringify({ licenseKey: value }, null, 2)}\n`, 'utf8');
+            await writeFile(secretPath, `${JSON.stringify({ apiKey: value }, null, 2)}\n`, 'utf8');
         },
         clear: async () => {
             try {

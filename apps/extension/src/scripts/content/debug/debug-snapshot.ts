@@ -189,13 +189,6 @@ const sanitizeUnknown = (value: unknown, depth = 0): unknown => {
 	return String(value);
 };
 
-const maskLicenseKey = (value: string): string => {
-	if (value.length <= 8) {
-		return value;
-	}
-	return `${value.slice(0, 4)}...${value.slice(-4)}`;
-};
-
 const getPageType = (
 	pathname: string
 ): "product_detail" | "search_results" | "other" => {
@@ -478,40 +471,12 @@ export const buildDebugDump = async (
 		requestsInProgress,
 		cacheEntries,
 	] = await Promise.all([
-		browser.storage.local.get(["debugMode", "license", "reactRootsCount"]),
+		browser.storage.local.get(["debugMode", "reactRootsCount"]),
 		ProductCache.getCacheSize(),
 		ProductRequestTracker.getRequestsInProgressCount(),
 		ProductRequestTracker.getRequestsInProgress(50),
 		ProductCache.getCacheEntries(50),
 	]);
-
-	const licenseState =
-		storageState.license && typeof storageState.license === "object"
-			? {
-					isValid: Boolean(
-						(storageState.license as { isValid?: boolean }).isValid
-					),
-					email:
-						typeof (storageState.license as { email?: string }).email ===
-						"string"
-							? (storageState.license as { email: string }).email
-							: null,
-					usage:
-						typeof (storageState.license as { usage?: number }).usage ===
-						"number"
-							? (storageState.license as { usage: number }).usage
-							: null,
-					usageLimit:
-						typeof (storageState.license as { usageLimit?: number })
-							.usageLimit === "number"
-							? (storageState.license as { usageLimit: number }).usageLimit
-							: null,
-					keyPreview:
-						typeof (storageState.license as { key?: string }).key === "string"
-							? maskLicenseKey((storageState.license as { key: string }).key)
-							: null,
-				}
-			: null;
 
 	const payload = {
 		schemaVersion: 1,
@@ -538,7 +503,7 @@ export const buildDebugDump = async (
 			userAgent: navigator.userAgent,
 			platform: navigator.platform,
 		},
-		license: licenseState,
+		auth: "background-managed",
 		page: getPageSummary(),
 		requests: {
 			productFetch: getProductRequestSummary(),

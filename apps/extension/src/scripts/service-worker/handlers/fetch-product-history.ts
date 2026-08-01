@@ -7,31 +7,30 @@ import type {
 	ProductHistoryResponse,
 } from "@/scripts/content/types";
 import { log } from "../../../utils/logger";
-import { resolveStoredLicenseKey } from "./license-utils";
+import { getExtensionToken } from "../extension-auth";
 
 export async function handleFetchProductHistory(
 	message: FetchProductHistoryMessage
 ): Promise<ProductHistoryResponse> {
 	try {
-		const activeLicenseKey = await resolveStoredLicenseKey();
+		const sessionToken = await getExtensionToken();
 
-		if (!activeLicenseKey) {
+		if (!sessionToken) {
 			log.warn(
-				"Attempting to fetch product history without an active license key",
+				"Attempting to fetch product history without an active Clerk session",
 				{
 					asin: message.asin,
 				}
 			);
 			return {
 				success: false,
-				error:
-					"Invalid or missing license key. Please check your license settings.",
+				error: "Sign in to your Merchbase account to use RankWrangler.",
 			};
 		}
 
 		const apiClient = createRankWranglerClient({
 			baseUrl: DEFAULT_API_BASE_URL,
-			apiKey: activeLicenseKey,
+			headers: { Authorization: `Bearer ${sessionToken}` },
 		});
 
 		const response = await apiClient.product.getHistory.mutate({
@@ -59,8 +58,7 @@ export async function handleFetchProductHistory(
 		if (errorCode === "UNAUTHORIZED") {
 			return {
 				success: false,
-				error:
-					"Invalid or missing license key. Please check your license settings.",
+				error: "Your Merchbase session is not authorized for RankWrangler.",
 			};
 		}
 
@@ -68,7 +66,7 @@ export async function handleFetchProductHistory(
 			return {
 				success: false,
 				error:
-					"Daily usage limit exceeded. License will reset at midnight UTC.",
+					"Daily RankWrangler usage limit exceeded. Try again after reset.",
 			};
 		}
 

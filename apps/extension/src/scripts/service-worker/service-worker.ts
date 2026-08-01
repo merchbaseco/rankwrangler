@@ -4,12 +4,10 @@ import type { BackgroundMessage } from "../content/types";
 import { handleClearCache } from "./handlers/clear-cache";
 import { handleFetchProductHistory } from "./handlers/fetch-product-history";
 import { handleFetchProductInfo } from "./handlers/fetch-product-info";
-import { handleGetLicenseStatus } from "./handlers/get-license-status";
+import { handleGetAuthState } from "./handlers/get-auth-state";
+import { handleOpenAccount } from "./handlers/open-account";
 import { handlePing } from "./handlers/ping";
-import { handleRemoveLicense } from "./handlers/remove-license";
-import { handleSetLicense } from "./handlers/set-license";
 import { handleToggleDebugMode } from "./handlers/toggle-debug-mode";
-import { handleValidateLicense } from "./handlers/validate-license";
 
 log.ready("Background Service Worker Loaded");
 
@@ -31,17 +29,11 @@ browser.runtime.onMessage.addListener((message: BackgroundMessage, _sender) => {
 		case "fetchProductHistory":
 			return handleFetchProductHistory(message);
 
-		case "validateLicense":
-			return handleValidateLicense(message);
+		case "getAuthState":
+			return handleGetAuthState(message);
 
-		case "setLicense":
-			return handleSetLicense(message);
-
-		case "removeLicense":
-			return handleRemoveLicense(message);
-
-		case "getLicenseStatus":
-			return handleGetLicenseStatus(message);
+		case "openAccount":
+			return handleOpenAccount(message);
 
 		case "toggleDebugMode":
 			return handleToggleDebugMode(message);

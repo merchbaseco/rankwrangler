@@ -18,7 +18,7 @@ try {
 	console.error("Please run these commands:");
 	console.error("1. Install Xcode from the App Store if not already installed");
 	console.error(
-		"2. Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer",
+		"2. Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
 	);
 	console.error("3. Run: sudo xcodebuild -license accept");
 	process.exit(1);
@@ -28,11 +28,18 @@ console.log("🏗  Building RankWrangler...\n");
 
 // Build the web extension
 console.log("📦 Building web extension...");
-execSync("bun run build", { stdio: "inherit", cwd: workspaceRoot });
+execSync("bun run build", {
+	stdio: "inherit",
+	cwd: workspaceRoot,
+	env: {
+		...process.env,
+		VITE_EXTENSION_AUTH_MODE: "safari",
+	},
+});
 
 const RESOURCES_DIR = join(
 	workspaceRoot,
-	"safari-extension/Shared (Extension)/Resources",
+	"safari-extension/Shared (Extension)/Resources"
 );
 const EXTENSION_DIST = join(workspaceRoot, "dist");
 
@@ -51,11 +58,11 @@ try {
 		{
 			stdio: "inherit",
 			cwd: join(workspaceRoot, "safari-extension"),
-		},
+		}
 	);
 } catch (_error) {
 	console.warn(
-		"⚠️  Clean step failed – continuing with build. Consider cleaning manually in Xcode if issues persist.",
+		"⚠️  Clean step failed – continuing with build. Consider cleaning manually in Xcode if issues persist."
 	);
 }
 
@@ -66,14 +73,14 @@ try {
 		{
 			stdio: "inherit",
 			cwd: join(workspaceRoot, "safari-extension"),
-		},
+		}
 	);
 } catch (_error) {
 	console.error("\n❌ Failed to build Safari app!");
 	console.error("Make sure Xcode is properly configured:");
 	console.error("1. Open Xcode and accept the license agreement");
 	console.error(
-		"2. Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer",
+		"2. Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"
 	);
 	process.exit(1);
 }
@@ -82,9 +89,9 @@ console.log("\n✅ Safari build complete!\n");
 console.log("To test in Safari:");
 console.log("1. Open Safari");
 console.log(
-	"2. Enable Developer menu: Safari > Settings > Advanced > 'Show Develop menu in menu bar'",
+	"2. Enable Developer menu: Safari > Settings > Advanced > 'Show Develop menu in menu bar'"
 );
 console.log(
-	"3. Enable unsigned extensions: Develop > Allow Unsigned Extensions",
+	"3. Enable unsigned extensions: Develop > Allow Unsigned Extensions"
 );
 console.log("4. Open Safari Settings > Extensions and enable RankWrangler");

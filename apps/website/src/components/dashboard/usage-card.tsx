@@ -1,13 +1,13 @@
 import { Progress } from "@/components/ui/progress";
-import { useLicense } from "@/hooks/use-license";
+import { useAccessUsage } from "@/hooks/use-access-usage";
 import { formatNumber } from "@/lib/utils";
 
 export const UsageCard = () => {
-	const { license, isLoading } = useLicense();
+	const { usage, isLoading } = useAccessUsage();
 
-	const hasLicense = Boolean(license);
-	const usageToday = license?.usageToday ?? 0;
-	const dailyLimit = license?.usageLimit ?? 0;
+	const hasUsage = Boolean(usage);
+	const usageToday = usage?.usageToday ?? 0;
+	const dailyLimit = usage?.usageLimit ?? 0;
 	const isUnlimited = dailyLimit === -1;
 	const progress =
 		isUnlimited || dailyLimit <= 0
@@ -20,7 +20,7 @@ export const UsageCard = () => {
 				<p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
 					Usage
 				</p>
-				{!isLoading && hasLicense && (
+				{!isLoading && hasUsage && (
 					<p className="font-mono text-xs tabular-nums text-muted-foreground">
 						{isUnlimited
 							? "Unlimited"
@@ -34,7 +34,7 @@ export const UsageCard = () => {
 				) : (
 					<div className="flex items-center gap-4">
 						<p className="stat-value font-mono text-2xl font-bold text-foreground">
-							{hasLicense ? formatNumber(usageToday) : "0"}
+							{hasUsage ? formatNumber(usageToday) : "0"}
 						</p>
 						<div className="min-w-0 flex-1">
 							<p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -42,7 +42,7 @@ export const UsageCard = () => {
 							</p>
 							<div className="mt-1.5">
 								<Progress
-									value={hasLicense ? (isUnlimited ? 100 : progress) : 0}
+									value={hasUsage ? (isUnlimited ? 100 : progress) : 0}
 								/>
 							</div>
 						</div>

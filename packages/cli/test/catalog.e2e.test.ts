@@ -65,7 +65,7 @@ describe('Catalog CLI', () => {
                 {
                     cwd: workspaceDir,
                     home: tempHome,
-                    env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                    env: { MERCHBASE_API_KEY: 'ak_test_value' },
                 }
             );
 
@@ -122,7 +122,7 @@ describe('Catalog CLI', () => {
                 {
                     cwd: workspaceDir,
                     home: tempHome,
-                    env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                    env: { MERCHBASE_API_KEY: 'ak_test_value' },
                 }
             );
 
@@ -180,7 +180,7 @@ describe('Catalog CLI', () => {
                     {
                         cwd: workspaceDir,
                         home: tempHome,
-                        env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                        env: { MERCHBASE_API_KEY: 'ak_test_value' },
                     }
                 );
                 expect(result.status).toBe(0);
@@ -241,7 +241,7 @@ describe('Catalog CLI', () => {
                 {
                     cwd: workspaceDir,
                     home: tempHome,
-                    env: { RR_LICENSE_KEY: 'rrk_test_value' },
+                    env: { MERCHBASE_API_KEY: 'ak_test_value' },
                 }
             );
 
