@@ -14,19 +14,19 @@ binary alias.
 
 ```bash
 npm install -g @rankwrangler/cli
-rw auth set rrk_...
+rw auth set ak_...
 rw auth status
 ```
 
 For non-interactive secret entry:
 
 ```bash
-printf %s "$RR_LICENSE_KEY" | rw auth set --stdin
+printf %s "$MERCHBASE_API_KEY" | rw auth set --stdin
 ```
 
-License-key resolution order is:
+Merchbase API-key resolution order is:
 
-1. `RR_LICENSE_KEY` environment override;
+1. `MERCHBASE_API_KEY` environment override;
 2. key stored in the platform secure store;
 3. `MISSING_CONFIG` failure.
 
@@ -48,8 +48,6 @@ printing the secret.
 | `rw catalog untrack <term>` | Disable collection without deleting query or run history. |
 | `rw catalog runs <queryId>` | List one bounded newest-first page of persisted runs. |
 | `rw catalog run <runId>` | Read one run with nullable current Products and immutable observations. |
-| `rw license status` | License email, usage, and limit. |
-| `rw license validate` | Validate the active license and return its current usage. |
 | `rw auth status|set|clear` | Inspect or update secure-store authentication. |
 | `rw config show|get|set|unset|reset` | Inspect or update non-secret local configuration. |
 | `rw --version` | Installed version as plain text. |
@@ -134,7 +132,7 @@ directory.
 
 | Setting | Resolution order |
 | --- | --- |
-| License key | `RR_LICENSE_KEY`, secure store |
+| Merchbase API key | `MERCHBASE_API_KEY`, secure store |
 | API origin | `--baseUrl`, saved `base-url`, `RR_API_URL`, production origin |
 | Marketplace | `--marketplace`, saved `marketplace`, `RR_MARKETPLACE_ID`, US marketplace |
 | Storage directory | `RR_STORAGE_DIR`, saved global pointer, `~/.rankwrangler` |
@@ -164,7 +162,7 @@ Failure is written to stderr and exits with status 1:
   "ok": false,
   "error": {
     "code": "MISSING_CONFIG",
-    "message": "license key is required"
+    "message": "Merchbase API key is required"
   }
 }
 ```

@@ -16,7 +16,7 @@ magical "find opportunities" score.
 - Explore Amazon Brand Analytics Top Search Terms across daily, weekly, and custom windows.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity and provider health from the operator dashboard.
-- Access the public license-authenticated surface from `rw` or `@rankwrangler/http-client`.
+- Access the public Merchbase-credential surface from `rw` or `@rankwrangler/http-client`.
 - Explore Keepa-backed Catalog searches in the dashboard and retain source-ordered evidence in
   durable Search runs.
 
@@ -50,7 +50,7 @@ dashboard also uses Clerk-authenticated Product-history and Catalog-search compl
 subscriptions as low-latency invalidation hints while polling remains the fallback.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
-public API uses license keys; dashboard procedures use Clerk sessions.
+public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.
 
 ## Repository
 

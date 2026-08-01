@@ -44,7 +44,7 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 
 - All APIs are tRPC only (no REST surface).
 - Router split:
-  - `api.public.*`: license-key auth.
+  - `api.public.*`: Merchbase API-key/OAuth auth.
   - `api.app.*`: Clerk auth.
 - Keep shared behavior in utils/libs (not shared routers).
 - Each tRPC procedure should live in its own file under `apps/server/src/api/public` or `apps/server/src/api/app`.

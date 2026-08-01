@@ -42,7 +42,7 @@ Products and their histories, writes the immutable run and ordered results, adva
 freshness, and completes the Operation.
 
 Request resolution is serialized per Catalog query. Fresh-run reuse, pending-work deduplication,
-public license debit, and new Operation creation share one transaction, so unpaid work is never
+mapped Service Account debit, and new Operation creation share one transaction, so unpaid work is never
 visible to callers or recovery and a concurrently completed reusable run does not create a charge.
 
 ## Reuse And Tracking

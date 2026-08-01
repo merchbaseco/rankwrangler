@@ -39,12 +39,13 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Search result | `(runId, productId)` | Immutable source position and nullable metrics observed in that run. |
 | Activity event | generated id | Searchable record of a product, history, job, or system action. |
 | Job execution | generated id | One completed background-job run with input, output, and error state. |
-| License | generated id; unique key | Public API credential, usage counter, limit, and revocation state. |
+| Access Projection | `(issuer, subject)` | Local Clerk identity projection, access state, stable Merchbase User, source watermark, and tombstone. |
+| Service Account | fixed `rankwrangler` service plus stable Merchbase User | One mapped principal with lifetime/daily usage, limit, and reset state. |
 
 The active schema is split by responsibility:
 
 - [`schema.ts`](../../apps/server/src/db/schema.ts) owns products, facets, queues, Keepa history,
-  categories, and licenses.
+  categories, access projections, Service Accounts, and the guarded cutover gate.
 - [`top-search-terms-schema.ts`](../../apps/server/src/db/top-search-terms-schema.ts) owns Brand
   Analytics datasets, snapshots, and daily term rows.
 - [`ops-schema.ts`](../../apps/server/src/db/ops-schema.ts) owns Operations, activity events, and

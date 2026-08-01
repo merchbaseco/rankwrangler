@@ -1,5 +1,5 @@
 ---
-summary: Defines construction, authentication, batching, generated types, and product calls for the @rankwrangler/http-client package.
+summary: Defines construction, centralized authentication, batching, generated types, and product calls for the @rankwrangler/http-client package.
 read_when:
   - integrating RankWrangler into TypeScript or JavaScript without spawning the CLI
   - changing the public router, generated client types, client options, or HTTP link behavior
@@ -24,7 +24,7 @@ import { createRankWranglerClient } from '@rankwrangler/http-client';
 
 const client = createRankWranglerClient({
     baseUrl: 'https://rankwrangler.merchbase.co',
-    apiKey: process.env.RR_LICENSE_KEY,
+    apiKey: process.env.MERCHBASE_API_KEY,
 });
 
 const product = await client.product.get.mutate({
@@ -72,7 +72,7 @@ The returned proxy is already scoped to `api.public`; callers use `client.produc
 | Option | Contract |
 | --- | --- |
 | `baseUrl` | Required origin. Trailing slashes are removed; the client appends `/api`. |
-| `apiKey` | Optional license key sent as `Authorization: Bearer ...`. Public calls fail without valid auth. |
+| `apiKey` | Optional Merchbase API key sent as `Authorization: Bearer ...`. Public calls fail without valid auth. |
 | `headers` | Optional additional request headers. |
 | `batch` | Use tRPC HTTP batching; defaults to `true`. Set `false` for one HTTP request per call. |
 

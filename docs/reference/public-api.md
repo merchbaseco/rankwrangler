@@ -1,5 +1,5 @@
 ---
-summary: Defines the shipped license-key tRPC transport, authentication, product inputs, history formats, and raw HTTP invocation pattern.
+summary: Defines the shipped Merchbase-credential tRPC transport, authentication, product inputs, history formats, and raw HTTP invocation pattern.
 read_when:
   - calling RankWrangler without the CLI or typed npm client
   - changing public authentication, product input validation, history output, or API transport
@@ -25,16 +25,18 @@ Production origin:
 https://rankwrangler.merchbase.co
 ```
 
-Public procedures live under `api.public.*` and require a license key:
+Public integration calls live under `api.public.*` and require a Merchbase API key or OAuth bearer;
+the extension may use a transient Clerk session token for the same data procedures:
 
 ```http
-Authorization: Bearer rrk_...
+Authorization: Bearer ak_... | oat_...
 Content-Type: application/json
 ```
 
-An invalid or absent license produces tRPC `UNAUTHORIZED`. An exhausted license allowance
-produces `TOO_MANY_REQUESTS`. Clerk-authenticated `api.app.*` procedures are dashboard
-application contracts, not part of the public integration surface.
+An invalid or absent credential produces tRPC `UNAUTHORIZED`; denied centralized access produces
+`FORBIDDEN`; unavailable centralized access produces `SERVICE_UNAVAILABLE`; an exhausted Service
+Account allowance produces `TOO_MANY_REQUESTS`. Clerk-authenticated `api.app.*` procedures are
+dashboard application contracts, not part of the public integration surface.
 
 ## Raw request
 
@@ -44,7 +46,7 @@ tRPC mutations use an `input` envelope:
 curl -s -X POST \
   https://rankwrangler.merchbase.co/api/api.public.product.get \
   -H 'Content-Type: application/json' \
-  -H "Authorization: Bearer $RR_LICENSE_KEY" \
+  -H "Authorization: Bearer $MERCHBASE_API_KEY" \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","metrics":["bsr","price"],"bucket":"auto","days":365}}'
 ```
 
@@ -142,7 +144,7 @@ up to 20 source-ordered results. Each result separates immutable observed metric
 nullable canonical current Product. Poll `api.public.operation.get`, then read
 `api.public.catalog.run.get` with the returned `catalogSearchRun.runId`.
 
-Catalog search consumes one license usage unit only when it creates external work. Reused runs,
+Catalog search consumes one mapped Service Account usage unit only when it creates external work. Reused runs,
 joined pending work, Operation polls, and run reads do not consume another unit. Provider token
 state is never returned.
 

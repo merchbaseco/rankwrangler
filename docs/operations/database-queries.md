@@ -25,8 +25,13 @@ psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" \
   -U "$DATABASE_USER" -d "$DATABASE_NAME" -c 'SELECT 1;'
 ```
 
-Use tight filters, explicit time windows, and `LIMIT`. Do not expose credentials or complete
-license keys in output.
+Use tight filters, explicit time windows, and `LIMIT`. Do not expose credentials, complete API
+keys, or identity mappings in output.
+
+For central-auth migration work, the only supported production reads are bounded inspection of the
+Access Projection, mapped `rankwrangler` Service Accounts, and sanitized aggregate fingerprints.
+Do not run the cutover operator, mapping command, backup restore, or migration against production
+from an inspection session.
 
 ## Useful Patterns
 
@@ -61,3 +66,24 @@ Report exactly what changed and how it was verified.
 The primary product/server schema is `apps/server/src/db/schema.ts`; operations and Top Search
 Terms also have subsystem schema modules under `apps/server/src/db`. Generated migrations live in
 `apps/server/drizzle/`.
+
+## Central-auth preservation proof
+
+Run the proof in two environments: capture the `before` manifest while the legacy table still
+exists, then restore a disposable PostgreSQL backup, apply migrations through the guarded cutover,
+and run the `after` verification there. The proof emits only counts and fingerprints:
+
+```bash
+bun run --cwd apps/server central-auth:preservation-proof -- \
+  --phase=before --legacy-license-id=<uuid> --service-account-id=<uuid> \
+  --manifest=/tmp/rankwrangler-before.json
+
+bun run --cwd apps/server central-auth:preservation-proof -- \
+  --phase=after --legacy-license-id=<uuid> --service-account-id=<uuid> \
+  --manifest=/tmp/rankwrangler-before.json
+```
+
+The database connection remains read-only; writing the local manifest is the only file mutation.
+Use `pg_dump --format=custom --file=<disposable-backup>` and `pg_restore` into a disposable
+database before applying the final migration. Never include raw license, Clerk, or Merchbase
+identifiers in evidence.
