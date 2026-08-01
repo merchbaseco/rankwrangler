@@ -8,7 +8,7 @@ read_when:
 # Catalog Search
 
 **Status:** Keepa Catalog search, immutable run-history reads, and explicit weekly tracking are
-available through the app/public API, typed client, and CLI.
+available through the dashboard, app/public API, typed client, and CLI.
 
 Catalog search collects ranked external results and preserves what the source surfaced at a moment
 in time. It complements catalog lookup:
@@ -38,6 +38,12 @@ Search work is asynchronous. A request returns either a reusable Search run or a
 with a retry hint. Agents wait, poll the Operation, then read its referenced run. The dashboard owns
 polling and may also invalidate reads after a domain-specific completion event; it shows a loading
 state, not an internal `queued` state.
+
+The dashboard Catalog explorer keeps the active term plus pending Operation and query identities
+in the URL, so a reload resumes polling without pairing work with another query. It presents Keepa
+source position and immutable observed metrics separately from current canonical Product fields,
+preserves earlier successful runs through empty or failed refreshes, and changes weekly tracking
+only after server-confirmed mutations.
 
 Existing-query and run-history reads never contact Keepa. Query state includes identity, latest-run
 metadata, and whether tracking is enabled. Run pages are bounded, newest-first, and include

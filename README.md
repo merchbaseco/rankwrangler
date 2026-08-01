@@ -17,7 +17,8 @@ magical "find opportunities" score.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity and provider health from the operator dashboard.
 - Access the public license-authenticated surface from `rw` or `@rankwrangler/http-client`.
-- Run a Keepa-backed Catalog search and retain its source-ordered evidence in durable Search runs.
+- Explore Keepa-backed Catalog searches in the dashboard and retain source-ordered evidence in
+  durable Search runs.
 
 Amazon [Catalog search](docs/product/catalog-search.md) returns source-ordered external
 observations, reconciles Products into the canonical catalog, and retains the Search run without
@@ -45,8 +46,8 @@ rw catalog run <runId>
 
 History reads return stored points immediately. When collection is needed, the response includes a
 pending durable Operation; poll that receipt, then read history again after completion. The
-dashboard also uses a Clerk-authenticated Product-history completion subscription as a low-latency
-invalidation hint while polling remains the fallback.
+dashboard also uses Clerk-authenticated Product-history and Catalog-search completion
+subscriptions as low-latency invalidation hints while polling remains the fallback.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses license keys; dashboard procedures use Clerk sessions.

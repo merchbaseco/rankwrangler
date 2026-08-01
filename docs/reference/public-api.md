@@ -133,7 +133,8 @@ provider observation can still be empty after successful collection.
 `86400`, maximum `604800`). It returns either:
 
 - `{ status: "ready", run }` when a successful Search run satisfies the maximum age; or
-- `{ status: "pending", operation }` when durable provider work is pending.
+- `{ status: "pending", queryId, operation }` when durable provider work is pending. `queryId`
+  identifies the durable query read that the Operation will invalidate.
 
 Set `maxAgeSeconds: 0` for fresh evidence; an identical pending query still joins one Operation.
 The only V1 identity is Keepa, US marketplace, and zero-based page `0`. A successful run contains
@@ -160,8 +161,9 @@ its retained `productId`, exposes `position: { source, value }`, keeps immutable
 `observed`, and places canonical current state under nullable `currentProduct`. No read returns raw
 provider payloads or Product-history arrays.
 
-The Clerk app router exposes matching `api.app.catalog.query.track` and `untrack` mutations.
-Queries are never auto-promoted into tracking.
+The Clerk app router exposes the search request at `api.app.catalog.search.request`, completion
+invalidation at `api.app.catalog.search.completed`, and matching `api.app.catalog.query.track` and
+`untrack` mutations. Queries are never auto-promoted into tracking.
 
 ## Contract source
 

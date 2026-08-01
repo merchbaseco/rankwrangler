@@ -9,8 +9,7 @@ read_when:
 
 ## Status
 
-Product-history completion is shipped. Catalog-search completion remains accepted target behavior
-until durable Catalog search ships.
+Product-history and Catalog-search completion are shipped.
 
 ## Contract
 
@@ -21,7 +20,7 @@ Each product noun and action owns its event rather than publishing through a sha
 event bus. The domain subscriptions are:
 
 - `api.app.product.history.refresh.completed` — shipped;
-- `api.app.catalog.search.completed` — accepted target.
+- `api.app.catalog.search.completed` — shipped.
 
 One `completed` event covers successful and failed outcomes. The associated Operation read reveals
 the outcome; separate `succeeded`, `failed`, or `refreshFailed` subscriptions would duplicate the
@@ -40,6 +39,9 @@ subscriptions.
 
 The Product-history panel subscribes by marketplace/ASIN. Its feature hook rejects completion from
 an older Operation and invalidates that Operation plus the panel's exact active history reads.
+The Catalog explorer subscribes by Catalog query and rejects events from another query or
+Operation. It invalidates the affected Operation, query, and run list; the completed Operation then
+identifies the exact run read to invalidate.
 
 ## Recovery
 
@@ -47,6 +49,8 @@ WebSocket delivery is best effort. The durable database and Operation read remai
 Agents poll after `retryAfterSeconds`; the dashboard also polls while showing existing points and
 `Syncing Keepa…`. A completion event lowers latency but carries no outcome. Reload and polling
 recover missed events, while reconnect invalidates the active Operation and history reads.
+Catalog-search Operations follow the same recovery model. The active term and Operation ID remain
+in the dashboard URL so reload resumes the durable read without depending on WebSocket delivery.
 
 This boundary keeps the server stateless across connections and prevents realtime delivery from
 becoming a second data store.
