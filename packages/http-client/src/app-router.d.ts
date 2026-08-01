@@ -365,9 +365,11 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							normalizerVersion: number;
 							createdAt: string;
 						};
+						queryId?: undefined;
 						readonly operation?: undefined;
 					} | {
 						status: "pending";
+						queryId: string;
 						operation: PublicOperation;
 						run?: undefined;
 					};

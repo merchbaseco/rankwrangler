@@ -4,14 +4,12 @@ import {
     persistCatalogSearchSuccess,
     type CatalogSearchPersistenceResult,
 } from '@/db/persist-catalog-search';
-import { defineJob } from './job-router';
 import { CATALOG_SEARCH_JOB_NAME } from '@/services/catalog-search';
+import { notifyCatalogSearchCompleted } from '@/services/catalog-search-events';
 import { searchKeepaCatalog } from '@/services/keepa-catalog-search';
 import { normalizeKeepaProduct } from '@/services/keepa-product-normalizer';
-import {
-    sanitizeOperationError,
-    type CatalogSearchOperationInput,
-} from '@/services/operations';
+import { sanitizeOperationError, type CatalogSearchOperationInput } from '@/services/operations';
+import { defineJob } from './job-router';
 
 const catalogSearchJobInput = z.object({
     operationId: z.string().uuid(),
@@ -22,6 +20,7 @@ export type CatalogSearchWorkerDeps = {
     searchProvider: typeof searchKeepaCatalog;
     persistSuccess: typeof persistCatalogSearchSuccess;
     completeWithError: typeof completeOperationWithError;
+    notifyCompleted: typeof notifyCatalogSearchCompleted;
 };
 
 const defaultDeps: CatalogSearchWorkerDeps = {
@@ -29,6 +28,7 @@ const defaultDeps: CatalogSearchWorkerDeps = {
     searchProvider: searchKeepaCatalog,
     persistSuccess: persistCatalogSearchSuccess,
     completeWithError: completeOperationWithError,
+    notifyCompleted: notifyCatalogSearchCompleted,
 };
 
 export const runCatalogSearchOperation = async (
@@ -65,6 +65,10 @@ export const runCatalogSearchOperation = async (
             results,
             internalUsage: providerResult.internalUsage,
         });
+        deps.notifyCompleted({
+            operationId,
+            queryId: input.queryId,
+        });
 
         return {
             didWork: true,
@@ -75,6 +79,10 @@ export const runCatalogSearchOperation = async (
         await deps.completeWithError({
             operationId,
             error: sanitizeOperationError(error, 'catalogSearch'),
+        });
+        deps.notifyCompleted({
+            operationId,
+            queryId: input.queryId,
         });
         return { didWork: true, status: 'failed' } as const;
     }

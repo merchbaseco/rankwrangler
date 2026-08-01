@@ -97,6 +97,7 @@ export const requestCatalogSearch = async (
     return {
         response: {
             status: 'pending' as const,
+            queryId: resolution.operation.input.queryId,
             operation: buildPublicOperation(resolution.operation),
         },
         startedWork: resolution.created,

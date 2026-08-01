@@ -8,8 +8,9 @@ import {
     TRPC_WEBSOCKET_PATH,
 } from '@/api/trpc-websocket-server';
 
-it('exposes only the Product-history completion subscription over WebSockets', () => {
+it('exposes only domain completion subscriptions over WebSockets', () => {
     expect(Object.keys(realtimeRouter._def.procedures)).toEqual([
+        'api.app.catalog.search.completed',
         'api.app.product.history.refresh.completed',
     ]);
 });

@@ -2,6 +2,8 @@ import { Moon, Settings, Sun, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/utils";
 
+export type DashboardPage = "products" | "catalog" | "logs" | "keywords";
+
 export const TopBar = ({
 	activePage,
 	onPageChange,
@@ -13,8 +15,8 @@ export const TopBar = ({
 	usageLimit,
 	usageToday,
 }: {
-	activePage: "products" | "logs" | "keywords";
-	onPageChange: (page: "products" | "logs" | "keywords") => void;
+	activePage: DashboardPage;
+	onPageChange: (page: DashboardPage) => void;
 	onOpenSettings: () => void;
 	onToggleTheme: () => void;
 	totalMerchProducts: number | null;
@@ -41,6 +43,15 @@ export const TopBar = ({
 				</span>
 				<span className="text-border">|</span>
 				<div className="flex items-center rounded-sm border border-border bg-background/80 p-0.5">
+					<Button
+						type="button"
+						variant={activePage === "catalog" ? "secondary" : "ghost"}
+						size="sm"
+						className="h-6 rounded-sm px-2 text-[11px] uppercase"
+						onClick={() => onPageChange("catalog")}
+					>
+						Catalog Search
+					</Button>
 					<Button
 						type="button"
 						variant={activePage === "products" ? "secondary" : "ghost"}

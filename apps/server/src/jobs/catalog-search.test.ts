@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { TRPCError } from '@trpc/server';
-import { runCatalogSearchOperation } from './catalog-search';
 import type { OperationRecord } from '@/services/operations';
+import { runCatalogSearchOperation } from './catalog-search';
 
 describe('Catalog search worker', () => {
     it('normalizes one provider response and reconciles accepted Products atomically', async () => {
@@ -41,6 +41,14 @@ describe('Catalog search worker', () => {
             { sourcePosition: 3, normalized: { product: { asin: 'B0MERCH002' } } },
         ]);
         expect(deps.completeWithError.mock.calls).toHaveLength(0);
+        expect(deps.notifyCompleted.mock.calls).toEqual([
+            [
+                {
+                    operationId: '11111111-1111-4111-8111-111111111111',
+                    queryId: '22222222-2222-4222-8222-222222222222',
+                },
+            ],
+        ]);
     });
 
     it('completes failure with a sanitized error and never persists a partial run', async () => {
@@ -63,6 +71,14 @@ describe('Catalog search worker', () => {
             code: 'PROVIDER_UNAVAILABLE',
             message: 'Catalog search failed. Retry the request shortly.',
         });
+        expect(deps.notifyCompleted.mock.calls).toEqual([
+            [
+                {
+                    operationId: '11111111-1111-4111-8111-111111111111',
+                    queryId: '22222222-2222-4222-8222-222222222222',
+                },
+            ],
+        ]);
     });
 
     it('persists a visible zero-result run', async () => {
@@ -92,6 +108,9 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
     })),
     persistSuccess: mock(async () => ({ runId: 'run-1' })),
     completeWithError: mock(async () => createOperation()),
+    notifyCompleted: mock(() => {
+        // Completion delivery is asserted through mock calls.
+    }),
     ...Object.fromEntries(
         Object.entries(overrides).map(([key, implementation]) => [
             key,

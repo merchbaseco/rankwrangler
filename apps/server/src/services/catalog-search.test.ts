@@ -53,6 +53,7 @@ describe('Catalog search application workflow', () => {
         expect(deps.dispatchOperation.mock.calls).toHaveLength(1);
         expect(result.response).toMatchObject({
             status: 'pending',
+            queryId: operation.input.queryId,
             operation: {
                 id: operation.id,
                 type: 'catalogSearch',
