@@ -59,6 +59,18 @@ Configure Clerk's production `user.created`, `user.updated`, and `user.deleted` 
 `https://rankwrangler.merchbase.co/api/webhooks/clerk/access`. The shorter
 `/api/webhooks/clerk` path is not a route and returns `404`.
 
+Before the extension or centralized-auth stack is verified, enable the Clerk production Native API
+and set `CLERK_AUTHORIZED_PARTIES` in the production `.env` to the complete three-party list:
+
+```text
+https://rankwrangler.merchbase.co,chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc,https://clerk.merchbase.co
+```
+
+The website/API origin, permanent Chrome extension origin, and Clerk Sync Host are all required.
+Omitting the Sync Host can leave extension requests unauthorized even when the website and extension
+origins are present. Compose passes this value to the server; do not replace it with a manual SQL or
+projection change.
+
 Use this sequence:
 
 1. Keep production `.env` at `DATABASE_MIGRATION_TARGET=pre-cutover`. The first workflow run builds

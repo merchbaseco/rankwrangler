@@ -61,7 +61,7 @@ jq -e -s '.[0].key == .[1].key' apps/extension/dist/manifest.json apps/extension
 In Chrome, `chrome://extensions` must show the same ID after **Load unpacked**. A build without a
 manifest key has an ephemeral ID and is not a valid production verification artifact.
 
-The Clerk production instance must allow exactly:
+The Clerk production instance's browser-extension allowed-origin setting must include exactly:
 
 ```text
 chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc
@@ -69,6 +69,18 @@ chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc
 
 Configure the same exact origin in the Clerk development instance only when testing a development
 build. This is an operator-controlled Clerk setting; the build and this task do not mutate it.
+
+The Clerk production Native API must also be enabled. The server's `CLERK_AUTHORIZED_PARTIES` must
+contain all three production bearer-token parties, exactly as shown in the deployment environment
+example:
+
+```text
+https://rankwrangler.merchbase.co,chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc,https://clerk.merchbase.co
+```
+
+The first value authorizes the website/API origin, the second authorizes the stable Chrome
+extension, and the third authorizes the Sync Host. Website and extension origins alone are
+insufficient for Sync Host sessions and produce unauthorized API requests.
 
 The manifest keeps `storage` and `cookies` for Clerk Sync Host state, `tabs` for the account page
 and extension messaging, `scripting` for the existing debug control, and the existing Amazon,
