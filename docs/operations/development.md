@@ -10,12 +10,14 @@ read_when:
 ## Setup
 
 ```bash
+export GITHUB_PACKAGES_TOKEN=<read token from the approved secret store>
 bun install --frozen-lockfile
 cp .env.example .env
 ```
 
 Populate the root `.env`; never commit it. New server variables belong in both
-`apps/server/src/config/env.ts` and `.env.example`.
+`apps/server/src/config/env.ts` and `.env.example`. The GitHub Packages token is build/install-only;
+keep it in the invoking shell or CI secret store rather than a runtime container.
 
 The example environment uses the Compose hostname `postgres`. For host-run development, start the
 database container and override that connection:
@@ -53,6 +55,7 @@ loopback hosts on any port so checkout-specific website previews can use their a
 From the repository root:
 
 ```bash
+export GITHUB_PACKAGES_TOKEN=<read token from the approved secret store>
 docker compose --env-file .env -f apps/server/compose.yml up --build
 ```
 

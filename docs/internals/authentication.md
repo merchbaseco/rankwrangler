@@ -13,6 +13,10 @@ Service Account. A missing projection is cold-loaded from Clerk; webhook events 
 and API-key cache current, and the daily repair job refreshes every explicitly mapped Service
 Account.
 
+Clerk OAuth JWTs are suite-wide credentials and do not contain a protected-resource audience.
+RankWrangler does not request or verify an OAuth audience; the fixed service name and local Access
+Projection are the product authorization boundary.
+
 ## Procedure Boundaries
 
 | Surface | Credential | Intended consumer |

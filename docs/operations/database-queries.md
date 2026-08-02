@@ -86,4 +86,5 @@ bun run --cwd apps/server central-auth:preservation-proof -- \
 The database connection remains read-only; writing the local manifest is the only file mutation.
 Use `pg_dump --format=custom --file=<disposable-backup>` and `pg_restore` into a disposable
 database before applying the final migration. Never include raw license, Clerk, or Merchbase
-identifiers in evidence.
+identifiers in evidence. The production `0028` run is a maintenance-window operation, not an
+automatic startup migration; follow the staged sequence in [Deployment](deployment.md).
