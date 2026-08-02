@@ -3,6 +3,7 @@
 	"name": "RankWrangler",
 	"version": "1.0",
 	"description": "Get product rankings and metrics in Amazon search results.",
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAj9z/DGS0R6L7u4KJAufm1awcR7RWZodr067paiMqCOqkU79IY3uO16l4Uj0z20tnL63kYNM7wIxjX3MKvaC8g9cIG2inDgnpN8NgknZ8nUGRA/VnRlQOA1FuObEDmOj6EaY/bgiplhuRvqQan2vStrsiBa+UbVjlLhjsFlICwcIdjgw1M0MfhdsG/3jTsgCPem/F3qDPhRy0gpgfizH16DGJX7j9Y2OkcIJrT2PsULv+DHkjxKogfCXjesKTXKN/eOWLCCx+Tx99MPUQTJJo5WRGYF7Cs62xFRnwQut3c2XxiXjh+Hf1bZ63PI6Xa9Thc4bE2vUv/rJ3seXvsfT0bwIDAQAB",
 	"permissions": ["storage", "tabs", "alarms", "scripting", "cookies"],
 	"host_permissions": [
 		"*://*.amazon.com/*",

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,12 +8,29 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const workspaceRoot = resolve(__dirname, "..");
+const buildEnvironment = {
+	...process.env,
+	CHROME_RELEASE_BUILD: "1",
+	NODE_ENV: "production",
+	VITE_EXTENSION_AUTH_MODE: "chrome",
+};
 
-console.log("🏗  Building RankWrangler for Chrome...\n");
+console.log("🏗  Building RankWrangler for Chrome (production)...\n");
+
+console.log("🔒 Checking production auth configuration...");
+execFileSync("bun", ["run", "validate:chrome"], {
+	stdio: "inherit",
+	cwd: workspaceRoot,
+	env: buildEnvironment,
+});
 
 // Build the web extension
 console.log("📦 Building web extension...");
-execSync("bun run build", { stdio: "inherit", cwd: workspaceRoot });
+execFileSync("bun", ["run", "build", "--mode", "production"], {
+	stdio: "inherit",
+	cwd: workspaceRoot,
+	env: buildEnvironment,
+});
 
 console.log("\n✅ Chrome build complete!\n");
 console.log("Chrome extension ready in: dist/");

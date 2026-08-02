@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, LogIn, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 import { browser } from "webextension-polyfill-ts";
 import { Button } from "@/components/ui/button";
 import type { AuthStateResponse } from "@/scripts/content/types";
@@ -9,19 +10,34 @@ const readAuthState = async () => {
 		type: "getAuthState",
 	})) as AuthStateResponse;
 	if (!(response.success && response.state)) {
-		throw new Error(response.error ?? "Unable to read account state.");
+		throw new Error("Unable to read your Merchbase account session.");
 	}
 	return response.state;
 };
 
 export const AuthStatus = () => {
+	const [isOpening, setIsOpening] = useState(false);
+	const [openError, setOpenError] = useState<string | null>(null);
 	const { data, isLoading, error } = useQuery({
 		queryKey: ["extension-auth"],
 		queryFn: readAuthState,
 	});
 
 	const openAccount = async () => {
-		await browser.runtime.sendMessage({ type: "openAccount" });
+		setIsOpening(true);
+		setOpenError(null);
+		try {
+			const response = (await browser.runtime.sendMessage({
+				type: "openAccount",
+			})) as { success: boolean; error?: string };
+			if (!response.success) {
+				throw new Error(response.error);
+			}
+		} catch {
+			setOpenError("Unable to open the Merchbase account page. Try again.");
+		} finally {
+			setIsOpening(false);
+		}
 	};
 
 	return (
@@ -36,7 +52,12 @@ export const AuthStatus = () => {
 				{isLoading ? (
 					<p className="text-slate-500 text-xs">Checking account session…</p>
 				) : null}
-				{error ? <p className="text-red-600 text-xs">{error.message}</p> : null}
+				{error ? (
+					<p className="text-red-600 text-xs">
+						Unable to read your Merchbase account session.
+					</p>
+				) : null}
+				{openError ? <p className="text-red-600 text-xs">{openError}</p> : null}
 				{data?.status === "signed-in" ? (
 					<>
 						<p className="text-slate-600 text-xs">
@@ -45,6 +66,7 @@ export const AuthStatus = () => {
 						</p>
 						<Button
 							className="h-7 w-full text-xs"
+							disabled={isOpening}
 							onClick={openAccount}
 							size="sm"
 							variant="outline"
@@ -60,6 +82,7 @@ export const AuthStatus = () => {
 						</p>
 						<Button
 							className="h-7 w-full text-xs"
+							disabled={isOpening}
 							onClick={openAccount}
 							size="sm"
 						>
@@ -68,9 +91,18 @@ export const AuthStatus = () => {
 					</>
 				) : null}
 				{data?.status === "denied" ? (
-					<p className="text-red-600 text-xs">
-						{data.error || "Account access is unavailable."}
-					</p>
+					<>
+						<p className="text-red-600 text-xs">{data.error}</p>
+						<Button
+							className="h-7 w-full text-xs"
+							disabled={isOpening}
+							onClick={openAccount}
+							size="sm"
+							variant="outline"
+						>
+							<ExternalLink className="size-3" /> Open account
+						</Button>
+					</>
 				) : null}
 			</div>
 		</div>

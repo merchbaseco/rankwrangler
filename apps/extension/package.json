@@ -18,6 +18,8 @@
         "build:content": "vite build --config vite.config.content.ts",
         "build:safari": "node scripts/build-safari.js",
         "build:chrome": "node scripts/build-chrome.js",
+        "validate:chrome": "bun scripts/validate-chrome-build.ts",
+        "test:auth": "bun test scripts/chrome-extension-config.test.ts",
         "preview": "vite preview",
         "lint": "biome check src/",
         "lint:fix": "biome check --write --unsafe src/"

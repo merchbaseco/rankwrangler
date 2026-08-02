@@ -6,6 +6,7 @@ const extensionAuthMode =
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim();
 const syncHost =
 	import.meta.env.VITE_CLERK_SYNC_HOST?.trim() ?? "https://clerk.merchbase.co";
+const accountUrl = import.meta.env.VITE_CLERK_ACCOUNT_URL?.trim() || syncHost;
 const safariNativeApplicationId =
 	import.meta.env.VITE_SAFARI_NATIVE_APPLICATION_ID?.trim() ??
 	"merchbase.rankwrangler";
@@ -86,12 +87,12 @@ export const getExtensionAuthState = async (): Promise<ExtensionAuthState> => {
 			status: "signed-in",
 			email: clerk.user?.primaryEmailAddress?.emailAddress ?? null,
 		};
-	} catch (error) {
+	} catch (_error) {
 		return {
 			status: "denied",
 			email: null,
 			error:
-				error instanceof Error ? error.message : "Authentication unavailable.",
+				"Unable to connect to your Merchbase account. Check your connection and try again.",
 		};
 	}
 };
@@ -105,7 +106,7 @@ export const openExtensionAccount = async () => {
 		return;
 	}
 
-	await browser.tabs.create({ url: syncHost });
+	await browser.tabs.create({ url: accountUrl });
 };
 
 type SafariNativeResponse =

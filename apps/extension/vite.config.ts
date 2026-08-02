@@ -10,6 +10,7 @@ export default defineConfig(async () => {
 
     return {
         base: './',
+        envDir: path.resolve(__dirname, '../..'),
         resolve: {
             alias: [
                 ...(isChromePreview

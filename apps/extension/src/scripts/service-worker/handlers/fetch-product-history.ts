@@ -52,9 +52,11 @@ export async function handleFetchProductHistory(
 			data: response,
 		};
 	} catch (error) {
-		log.error("ProductHistory fetch failed:", error);
-
 		const errorCode = resolveTrpcErrorCode(error);
+		log.error("ProductHistory fetch failed", {
+			asin: message.asin,
+			errorCode: errorCode ?? "UNKNOWN",
+		});
 		if (errorCode === "UNAUTHORIZED") {
 			return {
 				success: false,
@@ -73,9 +75,7 @@ export async function handleFetchProductHistory(
 		return {
 			success: false,
 			error:
-				error instanceof Error
-					? error.message
-					: "Network error. Please check your connection.",
+				"Unable to reach RankWrangler. Check your connection and try again.",
 		};
 	}
 }

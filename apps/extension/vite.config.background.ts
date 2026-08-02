@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(async () => ({
     base: './',
+    envDir: path.resolve(__dirname, '../..'),
     resolve: {
         alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
     },

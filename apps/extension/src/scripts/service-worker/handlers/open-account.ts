@@ -5,10 +5,10 @@ export const handleOpenAccount = async (_message: OpenAccountMessage) => {
 	try {
 		await openExtensionAccount();
 		return { success: true };
-	} catch (error) {
+	} catch (_error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Unable to open account.",
+			error: "Unable to open the Merchbase account page. Try again.",
 		};
 	}
 };

@@ -11,6 +11,7 @@ const { name }: { name: string } = packageJson;
 console.info(' ---> Starting Content Script Build 🤞 <---');
 
 const config = defineConfig(async () => ({
+    envDir: path.resolve(__dirname, '../..'),
     plugins: [
         (await import('@tailwindcss/vite')).default(),
         react(),
