@@ -19,4 +19,5 @@ read_when:
 | Provider and classification metrics | [Provider usage](provider-usage.md) |
 | Browser extension UI preview | [Extension preview](extension-preview.md) |
 | Real-browser verification | [UI verification](ui-verification.md) |
+| Chrome extension production build and stable identity | [Extension release](extension-release.md) |
 | Reclassifying stored Top Search Terms | [Search-term reclassification](search-terms-reclassification.md) |

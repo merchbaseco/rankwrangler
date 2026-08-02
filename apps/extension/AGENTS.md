@@ -12,14 +12,16 @@ Use this document when assisting with the browser extension + Safari wrapper rep
   - Content script – `src/scripts/content/index.tsx`
   - Popup – `src/scripts/popup/index.tsx`
   - Background/service worker – `src/scripts/service-worker/service-worker.ts`
-- **Environment**: Pure front-end, no secret environment files in repo.
+- **Environment**: Pure front-end. Chrome build inputs come from the repository-root `.env`; only
+  `VITE_` values are bundled, and production Chrome builds reject development Clerk keys.
 
 ## Core Commands
 
 - `bun run dev` – Vite dev server (Chrome/Firefox builds).
 - `bun run build` – Full build (background, popup, content) outputs to `dist/`.
 - `bun run build:safari` – Runs `scripts/build-safari.js` to rebuild the extension and Xcode project. Uses `dist/`.
-- `bun run build:chrome` – Runs `scripts/build-chrome.js` to build Chrome extension. Uses `dist/`.
+- `bun run build:chrome` – Runs the production Chrome build preflight and writes the extension to `dist/`.
+- `bun run test:auth` – Verifies the permanent Chrome public key/ID and production auth preflight.
 - `bun run preview:chrome` – Opens local UI preview page with extension surfaces (no extension reload loop).
 - `bun run tailwind` – Regenerate extension styles.
 - `bun run lint` / `bun run lint:fix` – Biome checks and autofixes.
@@ -52,6 +54,8 @@ bun run --filter rankwrangler-extension build
 - Popup and content script share centralized-auth helpers in `src/scripts/**/*.`
 - Chrome delegates interactive auth to the Clerk Sync Host; Safari delegates OAuth to the native
   handler. Neither path stores a suite API key in extension storage.
+- Chrome's committed public CRX key derives to `hfoliiddbbblflnaakfggibiiphalbnc`. Keep that key
+  unchanged for unpacked builds; the production build preflight rejects a changed key or ID.
 
 ### Content Script Behaviour
 - Mutation observers in `src/scripts/content/app.tsx` watch Amazon result pages.
@@ -77,8 +81,13 @@ bun run --filter rankwrangler-extension build
 ## Chrome Build
 
 - `bun run build:chrome`:
-  1. Runs `bun run build` (cleans and builds to `dist/`).
-  2. Extension ready in `dist/` for loading as unpacked extension.
+  1. Requires an explicit production `pk_live_` Clerk publishable key, the production Sync Host,
+     and the explicit Merchbase account URL.
+  2. Runs `bun run build --mode production` (cleans and builds to `dist/`).
+  3. Extension ready in `dist/` for loading as unpacked extension.
+
+See [`docs/operations/extension-release.md`](../../docs/operations/extension-release.md) for the
+stable Chrome origin, Clerk allowed-origin, and live verification contract.
 - To test in Chrome:
   1. Open `chrome://extensions`
   2. Enable "Developer mode"
