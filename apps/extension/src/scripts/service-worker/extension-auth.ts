@@ -1,5 +1,6 @@
 import { createClerkClient } from "@clerk/chrome-extension/background";
 import { browser } from "webextension-polyfill-ts";
+import { createClerkTokenProvider } from "./clerk-token-cache";
 
 const extensionAuthMode =
 	import.meta.env.VITE_EXTENSION_AUTH_MODE?.trim() ?? "chrome";
@@ -34,6 +35,7 @@ export type ExtensionAuthState =
 let clerkPromise: Promise<
 	Awaited<ReturnType<typeof createClerkClient>>
 > | null = null;
+const chromeTokenProvider = createClerkTokenProvider();
 
 const getClerk = () => {
 	if (!publishableKey) {
@@ -64,7 +66,13 @@ export const getExtensionToken = async () => {
 	}
 
 	const clerk = await getClerk();
-	return clerk.session?.getToken() ?? null;
+	const session = clerk.session;
+	if (!session) {
+		chromeTokenProvider.clear();
+		return null;
+	}
+
+	return chromeTokenProvider.getToken(session);
 };
 
 export const getExtensionAuthState = async (): Promise<ExtensionAuthState> => {
@@ -80,6 +88,7 @@ export const getExtensionAuthState = async (): Promise<ExtensionAuthState> => {
 
 		const clerk = await getClerk();
 		if (!clerk.session) {
+			chromeTokenProvider.clear();
 			return { status: "signed-out", email: null };
 		}
 

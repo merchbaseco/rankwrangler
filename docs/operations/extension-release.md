@@ -95,10 +95,15 @@ Use a built and loaded extension; the mocked preview does not prove permissions 
 2. From the popup, click **Sign in**. It opens `VITE_CLERK_ACCOUNT_URL`; complete interactive Clerk
    authentication there and return to the extension.
 3. Confirm the popup changes from signed out to signed in. The background worker must obtain the
-   current Clerk session token through `getToken()`; it must not read extension storage for an API
-   key.
-4. On an Amazon product/search page, confirm the RankWrangler request reaches `/api` with the
-   transient Clerk bearer token. Confirm a refreshed session token is used after expiry.
+   current Clerk session token through the Chrome refresh path (`getToken({ skipCache: true })` when
+   issuing or refreshing a token, with only a short-lived in-memory reuse before `exp`). It must not
+   read extension storage for an API key.
+4. Prove refresh beyond one token lifetime. Record a successful Amazon product/search request, wait
+   at least 75 seconds (the current production Native API token lifetime is 60 seconds), then issue
+   another request and several concurrent product requests if available. Every post-wait request
+   must remain `200`, proving the worker did not replay an expired Sync Host token. Inspect only
+   redacted `iss`/`azp`/`exp` metadata or request status when validating the refreshed JWT; never copy,
+   log, or display the bearer token value.
 5. Sign out or revoke access. Product and history calls must stop with the signed-out/unauthorized
    message; the popup must offer a retry/account action and must not show a raw token or server
    error.
