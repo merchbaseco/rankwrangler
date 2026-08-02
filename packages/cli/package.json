@@ -24,7 +24,7 @@
         "provenance": true
     },
     "dependencies": {
-        "@merchbaseco/access": "0.2.3",
+        "@merchbaseco/access": "0.3.0",
         "@rankwrangler/http-client": "^0.6.0",
         "keytar": "7.9.0"
     },

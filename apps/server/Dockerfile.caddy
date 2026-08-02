@@ -11,7 +11,7 @@ ARG VITE_CLERK_PUBLISHABLE_KEY=""
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY}
 
-COPY package.json bun.lock ./
+COPY package.json bun.lock .npmrc ./
 #
 # Bun workspaces: include referenced workspace manifests so `bun install` can resolve.
 #
@@ -19,7 +19,9 @@ COPY packages/http-client/package.json packages/http-client/package.json
 COPY packages/history-chart/package.json packages/history-chart/package.json
 COPY apps ./apps
 
-RUN bun install --frozen-lockfile
+RUN --mount=type=secret,id=github_packages_token,required=true \
+    GITHUB_PACKAGES_TOKEN="$(cat /run/secrets/github_packages_token)" \
+    bun install --frozen-lockfile
 COPY packages/history-chart ./packages/history-chart
 RUN bun run --filter @rankwrangler/website build
 

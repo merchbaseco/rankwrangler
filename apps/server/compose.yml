@@ -26,6 +26,8 @@ services:
       # Build from repo root so Bun workspaces (packages/*) are available.
       context: ../..
       dockerfile: apps/server/Dockerfile
+      secrets:
+        - github_packages_token
     image: rankwrangler-server:local
     container_name: rankwrangler-server
     # Prevent crash-looping forever if the app fails fast (e.g. missing env vars).
@@ -47,9 +49,9 @@ services:
       CLERK_ISSUER: ${CLERK_ISSUER}
       CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES}
       CLERK_WEBHOOK_SIGNING_SECRET: ${CLERK_WEBHOOK_SIGNING_SECRET}
-      CLERK_OAUTH_AUDIENCE: ${CLERK_OAUTH_AUDIENCE}
       ADMIN_MERCHBASE_USER_ID: ${ADMIN_MERCHBASE_USER_ID}
       KEEPA_API_KEY: ${KEEPA_API_KEY}
+      DATABASE_MIGRATION_TARGET: ${DATABASE_MIGRATION_TARGET:-pre-cutover}
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,6 +69,8 @@ services:
       # Build context is repo root so we can build the website workspace.
       context: ../..
       dockerfile: apps/server/Dockerfile.caddy
+      secrets:
+        - github_packages_token
       args:
         # Optional (defaults to same-origin /api)
         VITE_API_URL: ${VITE_API_URL:-}
@@ -97,6 +101,10 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
+
+secrets:
+  github_packages_token:
+    environment: GITHUB_PACKAGES_TOKEN
 
 networks:
   rankwrangler:

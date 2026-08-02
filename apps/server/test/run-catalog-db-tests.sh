@@ -10,7 +10,6 @@ database_name="rankwrangler_catalog_test"
 backup_database_name="rankwrangler_catalog_backup_test"
 rollback_database_name="rankwrangler_catalog_rollback_test"
 server_started=false
-migration_subset="$test_root/drizzle-before-cutover"
 legacy_license_id="00000000-0000-4000-8000-000000000001"
 service_account_id="00000000-0000-4000-8000-000000000002"
 legacy_license_id_two="00000000-0000-4000-8000-000000000004"
@@ -47,11 +46,6 @@ server_started=true
     -U rankwrangler \
     "$database_name"
 
-mkdir -p "$migration_subset/meta"
-cp "$server_dir"/drizzle/*.sql "$migration_subset/"
-cp "$server_dir"/drizzle/meta/_journal.json "$migration_subset/meta/"
-MIGRATION_JOURNAL="$migration_subset/meta/_journal.json" \
-bun -e "const path = process.env.MIGRATION_JOURNAL; const journal = JSON.parse(await Bun.file(path).text()); journal.entries = journal.entries.filter(entry => entry.idx <= 27); await Bun.write(path, JSON.stringify(journal, null, 2) + '\\n');"
 cd "$server_dir"
 DATABASE_HOST=127.0.0.1 \
 DATABASE_PORT="$test_port" \
@@ -68,8 +62,25 @@ CLERK_ISSUER=https://clerk.test \
 CLERK_AUTHORIZED_PARTIES=https://app.test \
 CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 DISABLE_SERVER_JOB_RUNNER=true \
-MIGRATIONS_FOLDER="$migration_subset" \
-bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
+MIGRATIONS_FOLDER="$server_dir/drizzle" \
+bun -e "import { runMigrations, verifyMigrationTarget } from './src/db/migrate.ts'; await runMigrations(); await verifyMigrationTarget();"
+
+"$postgres_bin_dir/psql" \
+    -h 127.0.0.1 \
+    -p "$test_port" \
+    -U rankwrangler \
+    -d "$database_name" \
+    -v ON_ERROR_STOP=1 \
+    -c "DO \$\$
+BEGIN
+    IF to_regclass('public.licenses') IS NULL THEN
+        RAISE EXCEPTION 'Pre-cutover migration target applied the guarded cleanup';
+    END IF;
+    IF to_regclass('public.rankwrangler_cutover_gate') IS NULL THEN
+        RAISE EXCEPTION 'Pre-cutover migration target did not reach the additive gate schema';
+    END IF;
+END
+\$\$;"
 
 "$postgres_bin_dir/psql" \
     -h 127.0.0.1 \
@@ -152,6 +163,7 @@ if DATABASE_HOST=127.0.0.1 \
     CLERK_AUTHORIZED_PARTIES=https://app.test \
     CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
     DISABLE_SERVER_JOB_RUNNER=true \
+    DATABASE_MIGRATION_TARGET=latest \
     MIGRATIONS_FOLDER="$server_dir/drizzle" \
     bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
 then
@@ -205,8 +217,9 @@ CLERK_ISSUER=https://clerk.test \
 CLERK_AUTHORIZED_PARTIES=https://app.test \
 CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 DISABLE_SERVER_JOB_RUNNER=true \
+DATABASE_MIGRATION_TARGET=latest \
 MIGRATIONS_FOLDER="$server_dir/drizzle" \
-bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
+bun -e "import { runMigrations, verifyMigrationTarget } from './src/db/migrate.ts'; await runMigrations(); await verifyMigrationTarget();"
 
 DATABASE_HOST=127.0.0.1 \
 DATABASE_PORT="$test_port" \
@@ -234,8 +247,9 @@ CLERK_ISSUER=https://clerk.test \
 CLERK_AUTHORIZED_PARTIES=https://app.test \
 CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 DISABLE_SERVER_JOB_RUNNER=true \
+DATABASE_MIGRATION_TARGET=latest \
 MIGRATIONS_FOLDER="$server_dir/drizzle" \
-bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
+bun -e "import { runMigrations, verifyMigrationTarget } from './src/db/migrate.ts'; await runMigrations(); await verifyMigrationTarget();"
 
 "$postgres_bin_dir/pg_restore" --list "$backup_path" >/dev/null
 

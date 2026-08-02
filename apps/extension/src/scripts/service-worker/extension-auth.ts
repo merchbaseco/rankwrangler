@@ -23,7 +23,6 @@ const safariOAuthConfiguration = {
 		"rankwrangler://oauth/callback",
 	scopes:
 		import.meta.env.VITE_CLERK_OAUTH_SCOPES?.trim() ?? "openid email profile",
-	audience: import.meta.env.VITE_CLERK_OAUTH_AUDIENCE?.trim() ?? "",
 };
 
 export type ExtensionAuthState =

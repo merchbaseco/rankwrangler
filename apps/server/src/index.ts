@@ -14,9 +14,17 @@ import {
     getServerRuntimeFlags,
 } from '@/config/server-runtime.js';
 import { testConnection } from '@/db/index.js';
-import { runMigrations } from '@/db/migrate.js';
+import {
+    resolveMigrationTargetForCommand,
+    runMigrations,
+    verifyMigrationTarget,
+} from '@/db/migrate.js';
 import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
 import { prepareJobQueues, startJobs } from '@/jobs/index.js';
+import {
+    bootstrapAccessProjection,
+    parseProjectionBootstrapOptions,
+} from '@/scripts/central-auth-projection-bootstrap';
 import { registerClerkAccessWebhookRoute } from '@/services/access/clerk-webhook-route';
 import {
     configureRankWranglerAccess,
@@ -47,15 +55,30 @@ type JobsRuntime = Awaited<ReturnType<typeof startJobs>>;
 
 const createDisabledJobsRuntime = (): JobsRuntime => {
     return {
-        stop: async () => {},
+        stop: () => Promise.resolve(),
         startupSummary: [],
     };
 };
 
 console.log('Starting RankWrangler Server...');
 
+if (process.argv.includes('--verify-migrations')) {
+    await verifyMigrationTarget();
+    process.exit(0);
+}
+
+const shouldBootstrapAccessProjection = process.argv.includes('--bootstrap-access-projection');
+
 // Run database migrations before starting server
-await runMigrations();
+await runMigrations(
+    process.env.MIGRATIONS_FOLDER ?? './drizzle',
+    resolveMigrationTargetForCommand(process.argv, env.DATABASE_MIGRATION_TARGET)
+);
+
+if (process.argv.includes('--migrate-only')) {
+    console.log('[Migration] Migration-only run complete');
+    process.exit(0);
+}
 
 // Test database connection
 await testConnection();
@@ -66,11 +89,23 @@ const rankwranglerAccess = createRankWranglerAccess({
         .filter(Boolean),
     issuer: env.CLERK_ISSUER,
     jwtKey: env.CLERK_JWT_KEY,
-    oauthAudience: env.CLERK_OAUTH_AUDIENCE,
     publishableKey: env.CLERK_PUBLISHABLE_KEY,
     secretKey: env.CLERK_SECRET_KEY,
 });
 configureRankWranglerAccess(rankwranglerAccess);
+
+if (shouldBootstrapAccessProjection) {
+    const options = parseProjectionBootstrapOptions(
+        process.argv.slice(2).filter(argument => argument !== '--bootstrap-access-projection')
+    );
+    const result = await bootstrapAccessProjection(options, {
+        authenticator: rankwranglerAccess.authenticator,
+        issuer: env.CLERK_ISSUER,
+        store: rankwranglerAccess.projections,
+    });
+    console.log(JSON.stringify({ mode: 'projection-bootstrap', ...result }, null, 2));
+    process.exit(0);
+}
 
 // Initialize pg-boss
 const databaseUser = env.DATABASE_USER || 'rankwrangler';
@@ -160,7 +195,7 @@ await registerClerkAccessWebhookRoute(fastify, {
 const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess);
 
 // Health check endpoint
-fastify.get('/api/health', async () => {
+fastify.get('/api/health', () => {
     return {
         status: 'ok',
         timestamp: new Date().toISOString(),
@@ -179,7 +214,7 @@ await fastify.register(fastifyTRPCPlugin, {
 });
 
 // 404 handler
-fastify.setNotFoundHandler(async (_request, reply) => {
+fastify.setNotFoundHandler((_request, reply) => {
     reply.status(404);
     return {
         success: false,
@@ -188,7 +223,7 @@ fastify.setNotFoundHandler(async (_request, reply) => {
 });
 
 // Error handler
-fastify.setErrorHandler(async (error, _request, reply) => {
+fastify.setErrorHandler((error, _request, reply) => {
     console.error(`[${new Date().toISOString()}] Unhandled error:`, error);
     reply.status(500);
     return {

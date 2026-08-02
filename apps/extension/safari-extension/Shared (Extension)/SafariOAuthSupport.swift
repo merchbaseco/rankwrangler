@@ -13,7 +13,6 @@ struct OAuthConfiguration {
     let clientId: String
     let redirectURI: URL
     let scopes: String
-    let audience: String
 
     init?(message: [String: Any]) {
         guard
@@ -38,8 +37,6 @@ struct OAuthConfiguration {
         self.redirectURI = redirectURI
         self.scopes = (message["scopes"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
             ?? "openid email profile"
-        self.audience = (message["audience"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            ?? ""
     }
 }
 

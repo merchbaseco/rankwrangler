@@ -118,9 +118,6 @@ final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling,
             URLQueryItem(name: "code_challenge", value: verifier.challenge),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
         ]
-        if !configuration.audience.isEmpty {
-            components?.queryItems?.append(URLQueryItem(name: "audience", value: configuration.audience))
-        }
         guard let authorizationURL = components?.url else {
             throw OAuthError.invalidConfiguration
         }

@@ -10,11 +10,13 @@ FROM oven/bun:1.1.27 AS deps
 WORKDIR /app
 
 # Copy only the workspace manifests first for better layer caching.
-COPY package.json bun.lock ./
+COPY package.json bun.lock .npmrc ./
 COPY apps/server/package.json apps/server/package.json
 COPY packages/http-client/package.json packages/http-client/package.json
 
-RUN bun install --frozen-lockfile
+RUN --mount=type=secret,id=github_packages_token,required=true \
+    GITHUB_PACKAGES_TOKEN="$(cat /run/secrets/github_packages_token)" \
+    bun install --frozen-lockfile
 
 FROM deps AS build
 WORKDIR /app

@@ -18,12 +18,10 @@ export type RankWranglerServicePrincipal = Omit<
 
 export interface CreateRankWranglerAccessOptions extends ClerkAuthenticatorOptions {
     database?: Database;
-    oauthAudience?: string;
 }
 
 export const createRankWranglerAccess = ({
     database = db,
-    oauthAudience,
     ...authenticatorOptions
 }: CreateRankWranglerAccessOptions) => {
     const authenticator = createClerkAuthenticator(authenticatorOptions);
@@ -45,7 +43,6 @@ export const createRankWranglerAccess = ({
         oauthAccess: createServiceAccess({
             ...common,
             acceptedCredentialKinds: ['oauth'],
-            oauthAudience,
         }),
         projections,
         sessionAccess: createServiceAccess({

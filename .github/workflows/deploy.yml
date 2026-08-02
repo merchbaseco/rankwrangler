@@ -9,6 +9,9 @@ jobs:
   deploy:
     name: Build and Deploy
     runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,6 +20,7 @@ jobs:
         working-directory: /Users/zknicker/srv/rankwrangler
         env:
           DEPLOY_ROOT: /Users/zknicker/srv/rankwrangler
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
         run: |
           # Sync the long-lived deploy checkout to the exact pushed commit.
           # This discards tracked-file edits on the host that would otherwise
@@ -33,8 +37,39 @@ jobs:
           # Without --env-file, Docker Compose will look for .env in apps/server/ and
           # substitute blanks (causing Postgres to fail).
           # Use -p rankwrangler so Compose targets the existing containers/networks (container_name is fixed).
+          # GITHUB_PACKAGES_TOKEN is exposed to BuildKit only as an ephemeral secret mount.
           docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml build
-          docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml up -d
+
+          migration_target="$(
+            awk -F= '
+              /^[[:space:]]*DATABASE_MIGRATION_TARGET[[:space:]]*=/ {
+                value = $0
+                sub(/^[^=]*=/, "", value)
+                gsub(/^[[:space:]"]+|[[:space:]"]+$/, "", value)
+              }
+              END { print value }
+            ' "${DEPLOY_ROOT}/.env"
+          )"
+          migration_target="${migration_target:-pre-cutover}"
+
+          case "${migration_target}" in
+            pre-cutover)
+              docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml \
+                run --rm --no-deps -e DATABASE_MIGRATION_TARGET=pre-cutover \
+                server node dist/index.js --migrate-only
+              echo "Pre-cutover schema prepared; existing production containers remain unchanged."
+              ;;
+            latest)
+              docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml \
+                run --rm --no-deps -e DATABASE_MIGRATION_TARGET=latest \
+                server node dist/index.js --verify-migrations
+              docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml up -d
+              ;;
+            *)
+              echo "Unsupported DATABASE_MIGRATION_TARGET: ${migration_target}" >&2
+              exit 1
+              ;;
+          esac
 
           # Show status
           docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml ps
