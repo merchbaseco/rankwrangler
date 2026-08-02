@@ -55,6 +55,10 @@ Migration `0028` deletes legacy licenses and therefore is never an ordinary firs
 | `pre-cutover` | Apply through additive migration `0027`; leave the existing production containers unchanged. |
 | `latest` | Require the guarded migration to be already applied, then start the new containers. |
 
+Configure Clerk's production `user.created`, `user.updated`, and `user.deleted` webhook endpoint as
+`https://rankwrangler.merchbase.co/api/webhooks/clerk/access`. The shorter
+`/api/webhooks/clerk` path is not a route and returns `404`.
+
 Use this sequence:
 
 1. Keep production `.env` at `DATABASE_MIGRATION_TARGET=pre-cutover`. The first workflow run builds
