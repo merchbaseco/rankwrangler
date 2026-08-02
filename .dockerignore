@@ -13,3 +13,6 @@
 **/.env
 **/.env.*
 
+# Temporary centralized-auth cutover artifacts on the deployment host
+**/.central-auth-cutover-backup
+**/.env.pre-central-auth-cutover
