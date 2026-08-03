@@ -4,8 +4,10 @@ import { upsertProductInfo } from '@/db/product/upsert-product.js';
 import { deleteSpApiSyncQueueItems } from '@/db/spapi-sync-queue/delete-queue-items.js';
 import { getSpApiSyncQueueItems } from '@/db/spapi-sync-queue/get-queue-items.js';
 import { defineJob } from '@/jobs/job-router.js';
+import type { ProcessSpApiSyncQueueResult } from '@/jobs/process-spapi-sync-queue-types';
 import { createEventLogSafe, createEventLogsSafe } from '@/services/event-logs.js';
 import { getErrorMessage } from '@/services/job-executions-utils.js';
+import { notifyProductSyncCompleted } from '@/services/product-sync-events';
 import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 
@@ -21,14 +23,7 @@ type ProcessSpApiSyncQueueDeps = {
     deleteProductByMarketplaceAsin: typeof deleteProductByMarketplaceAsin;
     deleteSpApiSyncQueueItems: typeof deleteSpApiSyncQueueItems;
     createEventLogsSafe: typeof createEventLogsSafe;
-};
-export type ProcessSpApiSyncQueueResult = {
-    didWork: boolean;
-    marketplaceId: string | null;
-    queueCount: number;
-    upsertedCount: number;
-    deletedCount: number;
-    hasMore: boolean;
+    notifyProductSyncCompleted: typeof notifyProductSyncCompleted;
 };
 const defaultProcessSpApiSyncQueueDeps: ProcessSpApiSyncQueueDeps = {
     getSpApiSyncQueueItems,
@@ -37,12 +32,12 @@ const defaultProcessSpApiSyncQueueDeps: ProcessSpApiSyncQueueDeps = {
     deleteProductByMarketplaceAsin,
     deleteSpApiSyncQueueItems,
     createEventLogsSafe,
+    notifyProductSyncCompleted,
 };
 export async function processSpApiSyncQueue(
     deps: ProcessSpApiSyncQueueDeps = defaultProcessSpApiSyncQueueDeps
 ) {
     const queueItems = await deps.getSpApiSyncQueueItems(SP_API_SYNC_BATCH_SIZE + 1);
-
     if (queueItems.length === 0) {
         return {
             didWork: false,
@@ -53,7 +48,6 @@ export async function processSpApiSyncQueue(
             hasMore: false,
         } satisfies ProcessSpApiSyncQueueResult;
     }
-
     let hasMore = queueItems.length > SP_API_SYNC_BATCH_SIZE;
     const queueItemsToProcess = hasMore
         ? queueItems.slice(0, SP_API_SYNC_BATCH_SIZE)
@@ -76,6 +70,10 @@ export async function processSpApiSyncQueue(
             for (const productInfo of fetchedProducts) {
                 await deps.upsertProductInfo(productInfo);
                 syncedAsinSet.add(productInfo.asin);
+                deps.notifyProductSyncCompleted({
+                    marketplaceId: productInfo.marketplaceId,
+                    asin: productInfo.asin,
+                });
             }
         }
 
@@ -97,6 +95,12 @@ export async function processSpApiSyncQueue(
 
         failureStage = 'delete_queue';
         await deps.deleteSpApiSyncQueueItems(itemIds);
+        for (const queueItem of noPayloadQueueItems) {
+            deps.notifyProductSyncCompleted({
+                marketplaceId: queueItem.marketplaceId,
+                asin: queueItem.asin,
+            });
+        }
     } catch (error) {
         const failedQueueItems = queueItemsToProcess.filter(
             queueItem => !syncedAsinSet.has(queueItem.asin)

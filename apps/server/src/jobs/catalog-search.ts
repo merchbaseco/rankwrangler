@@ -14,6 +14,7 @@ import { notifyCatalogSearchCompleted } from '@/services/catalog-search-events';
 import { searchKeepaCatalog } from '@/services/keepa-catalog-search';
 import { normalizeKeepaProduct } from '@/services/keepa-product-normalizer';
 import { type CatalogSearchOperationInput, sanitizeOperationError } from '@/services/operations';
+import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue';
 import { defineJob } from './job-router';
 
 const catalogSearchJobInput = z.object({
@@ -29,6 +30,8 @@ export interface CatalogSearchWorkerDeps {
     releaseOperationWork?: typeof releaseOperationWork;
     evaluateAccess?: typeof evaluateUserOwnedJobAccess;
     notifyCompleted: typeof notifyCatalogSearchCompleted;
+    enqueueSyncItems: typeof enqueueSpApiSyncQueueItems;
+    logEnqueueError: typeof console.error;
 }
 
 const defaultDeps: CatalogSearchWorkerDeps = {
@@ -39,6 +42,8 @@ const defaultDeps: CatalogSearchWorkerDeps = {
     releaseOperationWork,
     evaluateAccess: evaluateUserOwnedJobAccess,
     notifyCompleted: notifyCatalogSearchCompleted,
+    enqueueSyncItems: enqueueSpApiSyncQueueItems,
+    logEnqueueError: console.error,
 };
 
 export const runCatalogSearchOperation = async (
@@ -94,7 +99,7 @@ export const runCatalogSearchOperation = async (
             providerResult.products,
             sourceCompletedAt
         );
-        await deps.persistSuccess({
+        const persisted = await deps.persistSuccess({
             operationId,
             queryId: input.queryId,
             sourceStartedAt,
@@ -102,6 +107,11 @@ export const runCatalogSearchOperation = async (
             trigger: input.trigger,
             results,
             internalUsage: providerResult.internalUsage,
+        });
+        await enqueueCatalogProductSyncCandidates({
+            candidates: persisted.productSyncCandidates,
+            enqueue: deps.enqueueSyncItems,
+            logError: deps.logEnqueueError,
         });
         deps.notifyCompleted({
             operationId,
@@ -123,6 +133,26 @@ export const runCatalogSearchOperation = async (
             queryId: input.queryId,
         });
         return { didWork: true, status: 'failed' } as const;
+    }
+};
+
+const enqueueCatalogProductSyncCandidates = async ({
+    candidates,
+    enqueue,
+    logError,
+}: {
+    candidates: Array<{ marketplaceId: string; asin: string }>;
+    enqueue: typeof enqueueSpApiSyncQueueItems;
+    logError: typeof console.error;
+}) => {
+    if (candidates.length === 0) {
+        return;
+    }
+
+    try {
+        await enqueue(candidates);
+    } catch (error) {
+        logError('[Catalog Search] Failed to enqueue Products for SP-API sync:', error);
     }
 };
 

@@ -70,7 +70,10 @@ export const persistNormalizedKeepaProduct = async (
                 keepaFetchedAt: product.keepaFetchedAt,
             },
         })
-        .returning({ id: products.id });
+        .returning({
+            id: products.id,
+            spApiFetchedAt: products.spApiFetchedAt,
+        });
 
     if (!storedProduct) {
         throw new Error(`Failed to persist Keepa Product ${product.asin}`);
@@ -153,6 +156,7 @@ export const persistNormalizedKeepaProduct = async (
 
     return {
         productId: storedProduct.id,
+        spApiFetchedAt: storedProduct.spApiFetchedAt,
         importId: insertedImport.id,
         importedAt: insertedImport.createdAt,
     };

@@ -1,6 +1,12 @@
 import { and, desc, eq, lt, or } from 'drizzle-orm';
 import { db } from '@/db/index';
-import { catalogQueries, catalogSearchResults, catalogSearchRuns, products } from '@/db/schema';
+import {
+    catalogQueries,
+    catalogSearchResults,
+    catalogSearchRuns,
+    products,
+    spApiSyncQueue,
+} from '@/db/schema';
 import { mapCatalogRunMetadata } from './catalog-query-read-model';
 import { mapStoredProductInfo } from './product/product-info-mapper';
 
@@ -77,11 +83,19 @@ export const getCatalogSearchRun = async (runId: string) => {
             query: catalogQueries,
             result: catalogSearchResults,
             product: products,
+            syncQueueId: spApiSyncQueue.id,
         })
         .from(catalogSearchRuns)
         .innerJoin(catalogQueries, eq(catalogQueries.id, catalogSearchRuns.queryId))
         .leftJoin(catalogSearchResults, eq(catalogSearchResults.runId, catalogSearchRuns.id))
         .leftJoin(products, eq(products.id, catalogSearchResults.productId))
+        .leftJoin(
+            spApiSyncQueue,
+            and(
+                eq(spApiSyncQueue.marketplaceId, products.marketplaceId),
+                eq(spApiSyncQueue.asin, products.asin)
+            )
+        )
         .where(eq(catalogSearchRuns.id, runId))
         .orderBy(catalogSearchResults.sourcePosition);
     const first = rows[0];
@@ -113,6 +127,7 @@ export const getCatalogSearchRun = async (runId: string) => {
                     },
                     observed: mapObservation(row.result),
                     currentProduct: row.product ? mapStoredProductInfo(row.product) : null,
+                    currentProductSyncPending: row.syncQueueId !== null,
                 },
             ];
         }),

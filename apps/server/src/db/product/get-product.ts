@@ -1,8 +1,36 @@
 import { and, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { mapStoredProductInfo } from '@/db/product/product-info-mapper';
-import { products } from '@/db/schema.js';
+import { products, spApiSyncQueue } from '@/db/schema.js';
 import type { ProductInfo } from '@/types/index.js';
+
+export const getStoredProductByIdentity = async (
+    marketplaceId: string,
+    asin: string
+): Promise<{ product: ProductInfo; syncPending: boolean } | null> => {
+    const [row] = await db
+        .select({
+            product: products,
+            syncQueueId: spApiSyncQueue.id,
+        })
+        .from(products)
+        .leftJoin(
+            spApiSyncQueue,
+            and(
+                eq(spApiSyncQueue.marketplaceId, products.marketplaceId),
+                eq(spApiSyncQueue.asin, products.asin)
+            )
+        )
+        .where(and(eq(products.marketplaceId, marketplaceId), eq(products.asin, asin)))
+        .limit(1);
+
+    return row
+        ? {
+              product: mapStoredProductInfo(row.product),
+              syncPending: row.syncQueueId !== null,
+          }
+        : null;
+};
 
 // Retrieve product info from store (if exists and not older than maxAge)
 export async function getProductInfoFromStore(
