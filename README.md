@@ -49,8 +49,9 @@ backfill. Search history labels Requested search versus Automatic refresh.
 
 History reads return stored points immediately. When collection is needed, the response includes a
 pending durable Operation; poll that receipt, then read history again after completion. The
-dashboard also uses Clerk-authenticated Product-history and Catalog-search completion
-subscriptions as low-latency invalidation hints while polling remains the fallback.
+dashboard also uses Clerk-authenticated completion subscriptions for Product history, Catalog
+search, and per-ASIN SP-API Product synchronization. Product-sync events invalidate only the
+affected Product query; they do not refetch a Catalog result list.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.

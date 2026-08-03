@@ -1,7 +1,7 @@
 ---
 summary: Records the accepted domain-specific tRPC WebSocket completion-event contract and its current implementation status.
 read_when:
-  - implementing tRPC WebSockets, Product-history completion, Catalog-search completion, or dashboard invalidation
+  - implementing tRPC WebSockets, Product-history, Catalog-search, Product-sync completion, or dashboard invalidation
   - deciding whether to add a generic event bus or send result data through a subscription
 ---
 
@@ -9,7 +9,7 @@ read_when:
 
 ## Status
 
-Product-history and Catalog-search completion are shipped.
+Product-history, Catalog-search, and SP-API Product-sync completion are shipped.
 
 ## Contract
 
@@ -20,6 +20,7 @@ Each product noun and action owns its event rather than publishing through a sha
 event bus. The domain subscriptions are:
 
 - `api.app.product.history.refresh.completed` — shipped;
+- `api.app.product.sync.completed` — shipped;
 - `api.app.catalog.search.completed` — shipped.
 
 One `completed` event covers successful and failed outcomes. The associated Operation read reveals
@@ -39,9 +40,14 @@ subscriptions.
 
 The Product-history panel subscribes by marketplace/ASIN. Its feature hook rejects completion from
 an older Operation and invalidates that Operation plus the panel's exact active history reads.
-The Catalog explorer subscribes by Catalog query and rejects events from another query or
+The Keyword-research page subscribes by Catalog query and rejects events from another query or
 Operation. It invalidates the affected Operation, query, and run list; the completed Operation then
 identifies the exact run read to invalidate.
+
+The Keyword-research page subscribes to Product-sync completion by marketplace. Each event carries
+one ASIN and invalidates only `api.app.product.get` for that marketplace/ASIN. Catalog-run reads
+seed those normalized Product caches, so mounting a result list does not fan out initial Product
+requests. Reconnect invalidates only visible Products still missing `spApiFetchedAt`.
 
 ## Recovery
 
@@ -51,6 +57,9 @@ Agents poll after `retryAfterSeconds`; the dashboard also polls while showing ex
 recover missed events, while reconnect invalidates the active Operation and history reads.
 Catalog-search Operations follow the same recovery model. The active term and Operation ID remain
 in the dashboard URL so reload resumes the durable read without depending on WebSocket delivery.
+SP-API Product enrichment does not poll: `spApiFetchedAt` plus durable queue membership distinguish
+ready, pending, and unavailable states. The queue survives restart, realtime lowers update
+latency, and reload reads current Product state.
 
 This boundary keeps the server stateless across connections and prevents realtime delivery from
 becoming a second data store.

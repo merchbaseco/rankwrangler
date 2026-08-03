@@ -41,6 +41,9 @@ It does not issue a follow-up Keepa request for every ASIN. One transaction reco
 Products and their histories, writes the immutable run and ordered results, advances query
 freshness, and completes the Operation.
 
+Products without an accepted SP-API payload are then deduplicated into the existing SP-API sync
+queue. Already-enriched Products are not enqueued again merely because a keyword refreshed.
+
 Request resolution is serialized per Catalog query. Fresh-run reuse, pending-work deduplication,
 mapped Service Account debit, and new Operation creation share one transaction, so unpaid work is never
 visible to callers or recovery and a concurrently completed reusable run does not create a charge.
@@ -74,6 +77,8 @@ bodies until a caller requests one run.
 ## Product Boundary
 
 Run reads expose source-qualified position and immutable `observed` metrics separately from
-nullable `currentProduct` state. A missing Product join does not remove the retained result row.
+nullable `currentProduct` state. The dashboard seeds a per-ASIN Product query from that snapshot;
+SP-API completion invalidates only the affected Product query rather than the Search-run read. A
+missing Product join does not remove the retained result row.
 RankWrangler exposes source-attributed evidence; it does not score opportunities, recommend niches,
 or promote queries from Brand Analytics data into product-search refresh activity.

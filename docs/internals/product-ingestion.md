@@ -23,7 +23,7 @@ marketplace and ASIN; it does not own a separate copy of the Product.
 | Dashboard Amazon keyword search | Returns live search rows, then asynchronously enqueues unique result ASINs. |
 | Scheduled SP-API refresh | Selects stale Merch Products by BSR cadence and enqueues their ASINs. |
 | Keepa load | Reconciles Keepa current metrics and history into the same Product. |
-| Keepa Catalog search | Reconciles up to 20 included Product payloads and histories in the successful Search-run transaction. |
+| Keepa Catalog search | Reconciles up to 20 included Product payloads and histories, then queues only Products missing accepted SP-API listing data. |
 
 An ordinary single-ASIN SP-API read treats Product data as fresh for two days by default and joins
 identical in-flight requests within the process.
@@ -37,7 +37,8 @@ The worker processes up to 20 ASINs at once, validates the provider response, an
 accepted Product. A queued ASIN missing from the provider response is removed from the catalog
 unless immutable Search-result history retains that canonical Product.
 Queue rows are deleted only after reconciliation succeeds; failures remain retryable by a later
-wakeup and emit structured activity events.
+wakeup and emit structured activity events. Each committed Product upsert also emits an
+identity-only completion event so active dashboard Product queries can invalidate precisely.
 
 ## Source Normalization
 

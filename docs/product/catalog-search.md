@@ -42,11 +42,16 @@ with a retry hint. Agents wait, poll the Operation, then read its referenced run
 polling and may also invalidate reads after a domain-specific completion event; it shows a loading
 state, not an internal `queued` state.
 
-The dashboard Catalog explorer keeps the active term plus pending Operation and query identities
+The dashboard Keyword-research page keeps the active term plus pending Operation and query identities
 in the URL, so a reload resumes polling without pairing work with another query. It presents Keepa
 source position and immutable observed metrics separately from current canonical Product fields,
 preserves earlier successful runs through empty or failed refreshes, and renews keyword activity
 when the search request is accepted.
+
+When a result has Keepa evidence but no accepted SP-API listing payload yet, the dashboard shows an
+Amazon-listing spinner in that Product row. SP-API completion swaps in the thumbnail and listing
+metadata by refreshing only that ASIN; it does not poll or reload the Search-run list. A completed
+SP-API payload with no image shows a distinct unavailable-image state.
 
 Existing-query and run-history reads never contact Keepa. Query state includes identity, activity
 timestamps, derived status, observation count, and latest-run metadata. Run pages are bounded,
