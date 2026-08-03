@@ -7,11 +7,38 @@ import {
 	CatalogStatusPanel,
 } from "./catalog-status-panel";
 import { useCatalogSearchExplorer } from "./use-catalog-search-explorer";
+import { useProductSyncInvalidation } from "./use-product-sync-invalidation";
+import { useSeedCatalogProductQueries } from "./use-seed-catalog-product-queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const CatalogPage = () => {
 	const explorer = useCatalogSearchExplorer();
+	useSeedCatalogProductQueries(explorer.selectedRun);
+	const pendingProducts = useMemo(
+		() =>
+			explorer.selectedRun?.results.flatMap((result) => {
+				const product = result.currentProduct;
+				if (
+					!product ||
+					product.metadata.spApiFetchedAt ||
+					!result.currentProductSyncPending
+				) {
+					return [];
+				}
+				return [
+					{
+						marketplaceId: product.marketplaceId,
+						asin: product.asin,
+					},
+				];
+			}) ?? [],
+		[explorer.selectedRun],
+	);
+	useProductSyncInvalidation({
+		marketplaceId: explorer.selectedRun?.query.marketplaceId ?? null,
+		pendingProducts,
+	});
 	const status = useMemo<CatalogDisplayStatus>(() => {
 		if (explorer.isSearching) {
 			return { kind: "pending" };
@@ -51,7 +78,7 @@ export const CatalogPage = () => {
 						<div className="flex items-center gap-2">
 							<Sparkles className="size-4 text-muted-foreground" />
 							<h1 className="font-display text-lg font-semibold">
-								Catalog explorer
+								Keyword research
 							</h1>
 						</div>
 						<p className="mt-1 text-xs text-muted-foreground">

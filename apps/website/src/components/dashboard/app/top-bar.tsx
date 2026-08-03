@@ -50,7 +50,7 @@ export const TopBar = ({
 						className="h-6 rounded-sm px-2 text-[11px] uppercase"
 						onClick={() => onPageChange("catalog")}
 					>
-						Catalog Search
+						Keywords
 					</Button>
 					<Button
 						type="button"
