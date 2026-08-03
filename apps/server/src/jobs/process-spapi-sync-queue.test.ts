@@ -144,6 +144,20 @@ describe('processSpApiSyncQueue', () => {
         expect(
             typedEventLogs.find(log => log.asin === 'B000000022')?.detailsJson.deletedFromStore
         ).toBe(true);
+        expect(calls.notifyProductSyncCompleted.mock.calls).toEqual([
+            [
+                {
+                    marketplaceId: 'ATVPDKIKX0DER',
+                    asin: 'B000000021',
+                },
+            ],
+            [
+                {
+                    marketplaceId: 'ATVPDKIKX0DER',
+                    asin: 'B000000022',
+                },
+            ],
+        ]);
     });
 });
 
@@ -153,6 +167,7 @@ const createDeps = (overrides: Partial<ProcessSpApiSyncQueueDeps> = {}) => {
         deleteProductByMarketplaceAsin: mock(async () => false),
         deleteSpApiSyncQueueItems: mock(async () => {}),
         getSpApiSyncQueueItems: mock(async () => []),
+        notifyProductSyncCompleted: mock(() => {}),
         searchCatalogItemsByAsins: mock(async () => []),
         upsertProductInfo: mock(async () => {}),
     };
@@ -170,6 +185,7 @@ const createQueueItem = ({ id, asin }: { id: string; asin: string }) => ({
     id,
     marketplaceId: 'ATVPDKIKX0DER',
     asin,
+    createdAt: new Date('2026-08-03T12:00:00.000Z'),
 });
 
 const createFetchedProduct = ({ asin, marketplaceId }: { asin: string; marketplaceId: string }) => {

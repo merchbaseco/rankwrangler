@@ -1,10 +1,10 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { TRPCError } from '@trpc/server';
 import type { OperationRecord } from '@/services/operations';
-import { runCatalogSearchOperation } from './catalog-search';
 
 describe('Catalog search worker', () => {
     it('normalizes one provider response and reconciles accepted Products atomically', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
         const deps = createDeps({
             claimOperationWork: async () => createOperation(),
             searchProvider: async () => ({
@@ -40,6 +40,14 @@ describe('Catalog search worker', () => {
             { sourcePosition: 1, normalized: { product: { asin: 'B0MERCH001' } } },
             { sourcePosition: 3, normalized: { product: { asin: 'B0MERCH002' } } },
         ]);
+        expect(deps.enqueueSyncItems.mock.calls).toEqual([
+            [
+                [
+                    { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0MERCH001' },
+                    { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0MERCH002' },
+                ],
+            ],
+        ]);
         expect(deps.completeWithError.mock.calls).toHaveLength(0);
         expect(deps.notifyCompleted.mock.calls).toEqual([
             [
@@ -52,6 +60,7 @@ describe('Catalog search worker', () => {
     });
 
     it('completes failure with a sanitized error and never persists a partial run', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
         const deps = createDeps({
             claimOperationWork: async () => createOperation(),
             searchProvider: async () => {
@@ -82,6 +91,7 @@ describe('Catalog search worker', () => {
     });
 
     it('persists a visible zero-result run', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
         const deps = createDeps({
             claimOperationWork: async () => createOperation(),
         });
@@ -92,9 +102,39 @@ describe('Catalog search worker', () => {
             resultCount: 0,
         });
         expect(deps.persistSuccess.mock.calls[0]?.[0].results).toEqual([]);
+        expect(deps.enqueueSyncItems.mock.calls).toHaveLength(0);
+    });
+
+    it('keeps a successful Catalog run when SP-API enqueueing fails', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
+        const deps = createDeps({
+            claimOperationWork: async () => createOperation(),
+            searchProvider: async () => ({
+                products: [{ asin: 'B0MERCH001' }],
+                internalUsage: {
+                    tokensConsumed: 10,
+                    tokensLeft: 90,
+                    refillInMs: 3000,
+                    refillRate: 20,
+                },
+            }),
+            enqueueSyncItems: async () => {
+                throw new Error('queue unavailable');
+            },
+        });
+
+        expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
+            didWork: true,
+            status: 'completed',
+            resultCount: 1,
+        });
+        expect(deps.completeWithError.mock.calls).toHaveLength(0);
+        expect(deps.logEnqueueError.mock.calls).toHaveLength(1);
+        expect(deps.notifyCompleted.mock.calls).toHaveLength(1);
     });
 
     it('releases claimed work when access verification is unavailable', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
         const deps = createDeps({
             claimOperationWork: async () => createOperation(),
             evaluateAccess: async () => ({ kind: 'unavailable' as const }),
@@ -112,6 +152,7 @@ describe('Catalog search worker', () => {
     });
 
     it('does not run interactive work without an explicit owner', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
         const operation = {
             ...createOperation(),
             input: {
@@ -134,6 +175,7 @@ describe('Catalog search worker', () => {
     });
 
     it('completes claimed work with a sanitized denial when access is revoked', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
         const deps = createDeps({
             claimOperationWork: async () => createOperation(),
             evaluateAccess: async () => ({ kind: 'denied' as const }),
@@ -162,9 +204,23 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
             refillRate: 20,
         },
     })),
-    persistSuccess: mock(async () => ({ runId: 'run-1' })),
+    persistSuccess: mock(
+        async ({
+            results,
+        }: {
+            results: Array<{ normalized: { product: { marketplaceId: string; asin: string } } }>;
+        }) => ({
+            runId: 'run-1',
+            productSyncCandidates: results.map(result => ({
+                marketplaceId: result.normalized.product.marketplaceId,
+                asin: result.normalized.product.asin,
+            })),
+        })
+    ),
     completeWithError: mock(async () => createOperation()),
+    enqueueSyncItems: mock(async () => 0),
     evaluateAccess: mock(async () => ({ kind: 'allowed' as const })),
+    logEnqueueError: mock(() => {}),
     releaseOperationWork: mock(async () => undefined),
     notifyCompleted: mock(() => {
         // Completion delivery is asserted through mock calls.
@@ -199,3 +255,22 @@ const createOperation = (): OperationRecord => ({
     createdAt: new Date('2026-07-23T12:00:00.000Z'),
     updatedAt: new Date('2026-07-23T12:00:00.000Z'),
 });
+
+const loadSubject = async () => {
+    seedRequiredEnvForTests();
+    return await import('./catalog-search');
+};
+
+const seedRequiredEnvForTests = () => {
+    process.env.SPAPI_REFRESH_TOKEN = process.env.SPAPI_REFRESH_TOKEN ?? 'test-refresh';
+    process.env.SPAPI_CLIENT_ID = process.env.SPAPI_CLIENT_ID ?? 'test-client';
+    process.env.SPAPI_APP_CLIENT_SECRET = process.env.SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
+    process.env.CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY ?? 'test-clerk';
+    process.env.CLERK_PUBLISHABLE_KEY = process.env.CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
+    process.env.CLERK_JWT_KEY = process.env.CLERK_JWT_KEY ?? 'test-jwt-key';
+    process.env.CLERK_ISSUER = process.env.CLERK_ISSUER ?? 'https://clerk.test';
+    process.env.CLERK_AUTHORIZED_PARTIES =
+        process.env.CLERK_AUTHORIZED_PARTIES ?? 'https://app.test';
+    process.env.CLERK_WEBHOOK_SIGNING_SECRET =
+        process.env.CLERK_WEBHOOK_SIGNING_SECRET ?? 'test-webhook-secret';
+};
