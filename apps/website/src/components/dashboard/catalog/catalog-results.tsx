@@ -33,6 +33,11 @@ export const CatalogResults = ({
 						<Badge className="rounded-sm" variant="outline">
 							Keepa · US
 						</Badge>
+						<Badge className="rounded-sm" variant="outline">
+							{run.trigger === "automatic"
+								? "Automatic refresh"
+								: "Requested search"}
+						</Badge>
 					</div>
 					<p className="mt-1 text-xs text-muted-foreground">
 						Source positions and Observed columns are immutable from{" "}

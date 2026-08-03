@@ -1,10 +1,10 @@
 import { z } from 'zod';
+import { collectDueCatalogQueries } from '@/services/catalog-query-refresh';
 import { defineJob } from './job-router';
-import { collectDueCatalogQueries } from '@/services/catalog-query-tracking';
 
 export const collectDueCatalogQueriesJob = defineJob('collect-due-catalog-queries', {
     persistSuccess: 'didWork',
-    startupSummary: 'minute scan for explicitly tracked weekly Catalog queries',
+    startupSummary: 'minute scan for active weekly Catalog keyword refreshes',
 })
     .input(z.object({}))
     .options({
@@ -12,7 +12,7 @@ export const collectDueCatalogQueriesJob = defineJob('collect-due-catalog-querie
         retryLimit: 0,
     })
     .interval({
-        everyMs: 60 * 1_000,
+        everyMs: 60 * 1000,
         payload: {},
     })
     .work(async () => {

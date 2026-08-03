@@ -12,7 +12,7 @@ export interface StartupSummaryInput {
     productHistoryOperations: string;
     realtimePath: string;
     shouldStartJobRunner: boolean;
-    startupCatalogSearches: number;
+    startupCatalogKeywordRefreshes: number;
     topSearchTermsRecoveryCount: number;
     topSearchTermsStatus: string;
 }
@@ -58,9 +58,9 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
     console.log(`  • Product History Operations: ${input.productHistoryOperations}`);
     console.log(`  • Catalog Search Operations: ${input.catalogSearchOperations}`);
     console.log(
-        `  • Weekly Catalog Tracking: ${
+        `  • Catalog Keyword Refresh: ${
             input.shouldStartJobRunner
-                ? `Enabled (${input.startupCatalogSearches} started at startup)`
+                ? `Enabled (${input.startupCatalogKeywordRefreshes} started at startup)`
                 : 'Disabled at runtime (job runner disabled)'
         }`
     );

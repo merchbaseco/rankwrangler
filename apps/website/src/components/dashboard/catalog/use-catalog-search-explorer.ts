@@ -63,8 +63,6 @@ export const useCatalogSearchExplorer = () => {
 		{ enabled: Boolean(selectedRunId) },
 	);
 	const search = api.api.app.catalog.search.request.useMutation();
-	const track = api.api.app.catalog.query.track.useMutation();
-	const untrack = api.api.app.catalog.query.untrack.useMutation();
 	const runItems = useMemo(
 		() => runs.data?.pages.flatMap((page) => page.items) ?? [],
 		[runs.data],
@@ -201,24 +199,6 @@ export const useCatalogSearchExplorer = () => {
 		],
 	);
 
-	const setTracking = useCallback(
-		async (enabled: boolean) => {
-			if (!activeTerm) {
-				return;
-			}
-			track.reset();
-			untrack.reset();
-			const mutation = enabled ? track : untrack;
-			try {
-				await mutation.mutateAsync({ term: activeTerm });
-				await utils.api.app.catalog.query.get.invalidate({ term: activeTerm });
-			} catch {
-				// The mutation's public error state is rendered beside the control.
-			}
-		},
-		[activeTerm, track, untrack, utils],
-	);
-
 	const terminalError =
 		operation.data?.status === "completed" &&
 		operationQueryId === query.data?.id
@@ -246,8 +226,6 @@ export const useCatalogSearchExplorer = () => {
 		activeTerm,
 		inputTerm,
 		isSearching: isRequestStarting || search.isPending || isWaitingForRun,
-		isTrackingMutationPending: track.isPending || untrack.isPending,
-		trackingError: track.error?.message ?? untrack.error?.message ?? null,
 		operationError:
 			terminalError?.message ??
 			operationReadError ??
@@ -263,7 +241,6 @@ export const useCatalogSearchExplorer = () => {
 		selectedRunId,
 		setInputTerm,
 		setSelectedRunId,
-		setTracking,
 		submitSearch,
 	};
 };

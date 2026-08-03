@@ -34,6 +34,9 @@ export const operations = pgTable(
             table.status,
             table.updatedAt
         ),
+        catalogSearchTargetUpdatedIdx: index('operations_catalog_search_target_updated_idx')
+            .on(table.targetKey, table.updatedAt, table.id)
+            .where(sql`${table.type} = 'catalogSearch'`),
         statusCheck: check(
             'operations_status_check',
             sql`${table.status} in ('pending', 'completed')`

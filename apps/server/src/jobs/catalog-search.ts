@@ -19,8 +19,9 @@ import { defineJob } from './job-router';
 const catalogSearchJobInput = z.object({
     operationId: z.string().uuid(),
 });
+const CATALOG_ASIN_PATTERN = /^[A-Z0-9]{10}$/i;
 
-export type CatalogSearchWorkerDeps = {
+export interface CatalogSearchWorkerDeps {
     claimOperationWork: typeof claimOperationWork;
     searchProvider: typeof searchKeepaCatalog;
     persistSuccess: typeof persistCatalogSearchSuccess;
@@ -28,7 +29,7 @@ export type CatalogSearchWorkerDeps = {
     releaseOperationWork?: typeof releaseOperationWork;
     evaluateAccess?: typeof evaluateUserOwnedJobAccess;
     notifyCompleted: typeof notifyCatalogSearchCompleted;
-};
+}
 
 const defaultDeps: CatalogSearchWorkerDeps = {
     claimOperationWork,
@@ -98,6 +99,7 @@ export const runCatalogSearchOperation = async (
             queryId: input.queryId,
             sourceStartedAt,
             sourceCompletedAt,
+            trigger: input.trigger,
             results,
             internalUsage: providerResult.internalUsage,
         });
@@ -142,7 +144,7 @@ const normalizeSearchResults = (
     const accepted = new Map<string, CatalogSearchPersistenceResult>();
 
     for (const [index, product] of products.entries()) {
-        if (!(product.asin && /^[A-Z0-9]{10}$/i.test(product.asin))) {
+        if (!(product.asin && CATALOG_ASIN_PATTERN.test(product.asin))) {
             continue;
         }
         const asin = product.asin.toUpperCase();
@@ -159,7 +161,9 @@ const normalizeSearchResults = (
                     fetchedAt,
                 }),
             });
-        } catch {}
+        } catch {
+            // Ignore malformed provider products; other results remain usable.
+        }
     }
 
     return Array.from(accepted.values());

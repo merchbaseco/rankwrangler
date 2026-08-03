@@ -39,8 +39,6 @@ const SUPPORTED_COMMANDS = new Set([
     'operations:get',
     'catalog:search',
     'catalog:query',
-    'catalog:track',
-    'catalog:untrack',
     'catalog:run',
     'catalog:runs',
     'auth:status',

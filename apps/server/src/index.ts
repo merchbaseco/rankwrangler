@@ -30,7 +30,7 @@ import {
     configureRankWranglerAccess,
     createRankWranglerAccess,
 } from '@/services/access/rankwrangler-access';
-import { collectDueCatalogQueries } from '@/services/catalog-query-tracking';
+import { collectDueCatalogQueries } from '@/services/catalog-query-refresh';
 import {
     recoverStaleCatalogSearchOperations,
     registerCatalogSearchWakeups,
@@ -69,7 +69,6 @@ if (process.argv.includes('--verify-migrations')) {
 
 const shouldBootstrapAccessProjection = process.argv.includes('--bootstrap-access-projection');
 
-// Run database migrations before starting server
 await runMigrations(
     process.env.MIGRATIONS_FOLDER ?? './drizzle',
     resolveMigrationTargetForCommand(process.argv, env.DATABASE_MIGRATION_TARGET)
@@ -80,7 +79,6 @@ if (process.argv.includes('--migrate-only')) {
     process.exit(0);
 }
 
-// Test database connection
 await testConnection();
 
 const rankwranglerAccess = createRankWranglerAccess({
@@ -107,7 +105,6 @@ if (shouldBootstrapAccessProjection) {
     process.exit(0);
 }
 
-// Initialize pg-boss
 const databaseUser = env.DATABASE_USER || 'rankwrangler';
 const databasePassword = env.DATABASE_PASSWORD || 'SecurePass123';
 const databaseHost = env.DATABASE_HOST || 'postgres';
@@ -131,7 +128,7 @@ console.log(`[Server] Runtime flags: DISABLE_SERVER_JOB_RUNNER=${env.DISABLE_SER
 let recoveredTopSearchTermsDatasetsCount = 0;
 let recoveredProductHistoryOperationsCount = 0;
 let recoveredCatalogSearchOperationsCount = 0;
-let startedWeeklyCatalogSearchesCount = 0;
+let startedCatalogKeywordRefreshesCount = 0;
 const jobsRuntime = serverRuntimeFlags.shouldStartJobRunner
     ? await startJobs(boss)
     : createDisabledJobsRuntime();
@@ -139,7 +136,7 @@ const jobsRuntime = serverRuntimeFlags.shouldStartJobRunner
 if (serverRuntimeFlags.shouldStartJobRunner) {
     recoveredProductHistoryOperationsCount = await recoverStaleProductHistoryOperations();
     recoveredCatalogSearchOperationsCount = await recoverStaleCatalogSearchOperations();
-    startedWeeklyCatalogSearchesCount = (await collectDueCatalogQueries()).startedCount;
+    startedCatalogKeywordRefreshesCount = (await collectDueCatalogQueries()).startedCount;
     const topSearchTermsRecoveryStartedAt = new Date();
     const topSearchTermsStaleActiveJobCutoff = getTopSearchTermsFetchStaleActiveJobCutoff(
         topSearchTermsRecoveryStartedAt
@@ -194,7 +191,6 @@ await registerClerkAccessWebhookRoute(fastify, {
 });
 const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess);
 
-// Health check endpoint
 fastify.get('/api/health', () => {
     return {
         status: 'ok',
@@ -203,7 +199,6 @@ fastify.get('/api/health', () => {
     };
 });
 
-// tRPC API routes
 await fastify.register(fastifyTRPCPlugin, {
     prefix: '/api',
     trpcOptions: {
@@ -213,7 +208,6 @@ await fastify.register(fastifyTRPCPlugin, {
     },
 });
 
-// 404 handler
 fastify.setNotFoundHandler((_request, reply) => {
     reply.status(404);
     return {
@@ -222,7 +216,6 @@ fastify.setNotFoundHandler((_request, reply) => {
     };
 });
 
-// Error handler
 fastify.setErrorHandler((error, _request, reply) => {
     console.error(`[${new Date().toISOString()}] Unhandled error:`, error);
     reply.status(500);
@@ -293,7 +286,7 @@ try {
         ),
         realtimePath: TRPC_WEBSOCKET_PATH,
         shouldStartJobRunner: serverRuntimeFlags.shouldStartJobRunner,
-        startupCatalogSearches: startedWeeklyCatalogSearchesCount,
+        startupCatalogKeywordRefreshes: startedCatalogKeywordRefreshesCount,
         topSearchTermsRecoveryCount: recoveredTopSearchTermsDatasetsCount,
         topSearchTermsStatus: serverRuntimeFlags.shouldStartJobRunner
             ? 'Enabled (dataset scheduler + fetch worker)'

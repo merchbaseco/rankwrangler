@@ -2,36 +2,44 @@ import { TRPCError } from '@trpc/server';
 
 export const operationTypes = ['productHistoryRefresh', 'catalogSearch'] as const;
 export const operationStatuses = ['pending', 'completed'] as const;
+export const catalogSearchTriggers = ['requested', 'automatic'] as const;
+export type CatalogSearchTrigger = (typeof catalogSearchTriggers)[number];
 
-export type ProductHistoryOperationInput = {
+export interface ProductHistoryOperationInput {
+    [key: string]: unknown;
     marketplaceId: string;
     asin: string;
     days: 3650;
     ownerMerchbaseUserId: string;
-};
+}
 
-export type ProductHistoryResource = {
+export interface ProductHistoryResource {
+    [key: string]: unknown;
     type: 'productHistory';
     marketplaceId: string;
     asin: string;
-};
+}
 
-export type CatalogSearchOperationInput = {
+export interface CatalogSearchOperationInput {
+    [key: string]: unknown;
     queryId: string;
     marketplaceId: 'ATVPDKIKX0DER';
     term: string;
     page: 0;
     priority: 'interactive' | 'scheduled';
+    trigger: CatalogSearchTrigger;
     ownerMerchbaseUserId?: string;
-};
+}
 
-export type CatalogSearchResource = {
+export interface CatalogSearchResource {
+    [key: string]: unknown;
     type: 'catalogSearchRun';
     queryId: string;
     runId: string;
-};
+}
 
-export type OperationError = {
+export interface OperationError {
+    [key: string]: unknown;
     code:
         | 'ACCESS_DENIED'
         | 'ACCESS_UNAVAILABLE'
@@ -39,9 +47,9 @@ export type OperationError = {
         | 'RESOURCE_NOT_FOUND'
         | 'INTERNAL_ERROR';
     message: string;
-};
+}
 
-type OperationRecordBase = {
+interface OperationRecordBase {
     id: string;
     status: (typeof operationStatuses)[number];
     targetKey: string;
@@ -51,7 +59,7 @@ type OperationRecordBase = {
     completedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
-};
+}
 
 export type OperationRecord =
     | (OperationRecordBase & {

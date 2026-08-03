@@ -1,28 +1,25 @@
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { catalogQueries, catalogSearchRuns, operations } from '@/db/schema';
+import {
+    CATALOG_QUERY_REFRESH_INTERVAL_MS,
+    CATALOG_QUERY_REFRESH_RETRY_INTERVAL_MS,
+} from '@/services/catalog-query-refresh-policy';
 import type { CatalogSearchOperationInput } from '@/services/operations';
+import type { ResolveCatalogSearchInput } from './catalog-query-resolution';
+import {
+    lockCatalogQueryForReconciliation,
+    renewCatalogQueryInterest,
+    resolveAndLockCatalogQuery,
+} from './catalog-query-resolution';
 import { mapOperationRecord } from './operations';
 import { consumeRankWranglerServiceAccountUsage } from './service-account-usage';
 
-type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type { ResolveCatalogSearchInput } from './catalog-query-resolution';
 
-export type ResolveCatalogSearchInput = {
-    source: 'keepa';
-    marketplaceId: 'ATVPDKIKX0DER';
-    normalizedTerm: string;
-    displayTerm: string;
-    page: 0;
-    maxAgeSeconds: number;
-    priority: 'interactive';
-    serviceAccountId?: string;
-    ownerMerchbaseUserId?: string;
-    now?: Date;
-};
-
-export type ResolveCatalogSearchHooks = {
+export interface ResolveCatalogSearchHooks {
     beforeUsageCharge?: () => Promise<void>;
-};
+}
 
 export const resolveCatalogSearchRequest = async (
     input: ResolveCatalogSearchInput,
@@ -49,6 +46,7 @@ export const resolveCatalogSearchRequest = async (
                 .limit(1);
 
             if (reusableRun) {
+                await renewCatalogQueryInterest(transaction, query.id, now);
                 return { kind: 'ready', runId: reusableRun.id } as const;
             }
         }
@@ -66,6 +64,7 @@ export const resolveCatalogSearchRequest = async (
             .limit(1);
 
         if (pending) {
+            await renewCatalogQueryInterest(transaction, query.id, now);
             return {
                 kind: 'pending',
                 operation: mapOperationRecord(pending),
@@ -95,6 +94,7 @@ export const resolveCatalogSearchRequest = async (
                 usageLimit: debit.usageLimit,
             } as const;
         }
+        await renewCatalogQueryInterest(transaction, query.id, now);
 
         const operationInput: CatalogSearchOperationInput = {
             queryId: query.id,
@@ -102,6 +102,7 @@ export const resolveCatalogSearchRequest = async (
             term: input.displayTerm,
             page: input.page,
             priority: input.priority,
+            trigger: input.trigger,
             ownerMerchbaseUserId: input.ownerMerchbaseUserId,
         };
         const [created] = await transaction
@@ -128,13 +129,9 @@ export const resolveCatalogSearchRequest = async (
 export const resolveDueCatalogSearchRequest = async ({
     queryId,
     now = new Date(),
-    dueIntervalMs,
-    retryIntervalMs,
 }: {
     queryId: string;
     now?: Date;
-    dueIntervalMs: number;
-    retryIntervalMs: number;
 }) => {
     return await db.transaction(async transaction => {
         await lockCatalogQueryForReconciliation(transaction, queryId);
@@ -146,7 +143,11 @@ export const resolveDueCatalogSearchRequest = async ({
         const latestRunAgeMs = query?.latestSuccessfulRunAt
             ? now.getTime() - query.latestSuccessfulRunAt.getTime()
             : null;
-        if (!query?.trackedAt || (latestRunAgeMs !== null && latestRunAgeMs < dueIntervalMs)) {
+        if (
+            !query?.activeUntil ||
+            query.activeUntil <= now ||
+            (latestRunAgeMs !== null && latestRunAgeMs < CATALOG_QUERY_REFRESH_INTERVAL_MS)
+        ) {
             return { kind: 'notDue' } as const;
         }
 
@@ -168,7 +169,7 @@ export const resolveDueCatalogSearchRequest = async ({
                 created: false,
             } as const;
         }
-        if (query.nextTrackingAttemptAt && query.nextTrackingAttemptAt > now) {
+        if (query.nextRefreshAttemptAt && query.nextRefreshAttemptAt > now) {
             return { kind: 'notDue' } as const;
         }
 
@@ -178,6 +179,7 @@ export const resolveDueCatalogSearchRequest = async ({
             term: query.displayTerm,
             page: 0,
             priority: 'scheduled',
+            trigger: 'automatic',
             ownerMerchbaseUserId: undefined,
         };
         const [created] = await transaction
@@ -194,7 +196,10 @@ export const resolveDueCatalogSearchRequest = async ({
         await transaction
             .update(catalogQueries)
             .set({
-                nextTrackingAttemptAt: new Date(now.getTime() + retryIntervalMs),
+                nextRefreshAttemptAt: new Date(
+                    now.getTime() + CATALOG_QUERY_REFRESH_RETRY_INTERVAL_MS
+                ),
+                lastRefreshAttemptAt: now,
                 updatedAt: now,
             })
             .where(eq(catalogQueries.id, query.id));
@@ -205,78 +210,4 @@ export const resolveDueCatalogSearchRequest = async ({
             created: true,
         } as const;
     });
-};
-
-export const lockCatalogQueryForReconciliation = async (
-    transaction: Transaction,
-    queryId: string
-) => {
-    await transaction.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${'catalogSearch:' + queryId}))`
-    );
-};
-
-const resolveAndLockCatalogQuery = async (
-    transaction: Transaction,
-    input: ResolveCatalogSearchInput,
-    now: Date
-) => {
-    const [existing] = await findCatalogQuery(transaction, input);
-    if (existing) {
-        await lockCatalogQueryForReconciliation(transaction, existing.id);
-        await updateCatalogQueryDisplayTerm(transaction, existing.id, input.displayTerm, now);
-        return existing;
-    }
-
-    const [created] = await transaction
-        .insert(catalogQueries)
-        .values({
-            source: input.source,
-            marketplaceId: input.marketplaceId,
-            normalizedTerm: input.normalizedTerm,
-            displayTerm: input.displayTerm,
-            page: input.page,
-        })
-        .onConflictDoNothing()
-        .returning({ id: catalogQueries.id });
-
-    if (created) {
-        await lockCatalogQueryForReconciliation(transaction, created.id);
-        return created;
-    }
-
-    const [concurrent] = await findCatalogQuery(transaction, input);
-    if (!concurrent) {
-        throw new Error('Failed to resolve Catalog query.');
-    }
-    await lockCatalogQueryForReconciliation(transaction, concurrent.id);
-    await updateCatalogQueryDisplayTerm(transaction, concurrent.id, input.displayTerm, now);
-    return concurrent;
-};
-
-const findCatalogQuery = async (transaction: Transaction, input: ResolveCatalogSearchInput) => {
-    return await transaction
-        .select({ id: catalogQueries.id })
-        .from(catalogQueries)
-        .where(
-            and(
-                eq(catalogQueries.source, input.source),
-                eq(catalogQueries.marketplaceId, input.marketplaceId),
-                eq(catalogQueries.normalizedTerm, input.normalizedTerm),
-                eq(catalogQueries.page, input.page)
-            )
-        )
-        .limit(1);
-};
-
-const updateCatalogQueryDisplayTerm = async (
-    transaction: Transaction,
-    queryId: string,
-    displayTerm: string,
-    now: Date
-) => {
-    await transaction
-        .update(catalogQueries)
-        .set({ displayTerm, updatedAt: now })
-        .where(eq(catalogQueries.id, queryId));
 };

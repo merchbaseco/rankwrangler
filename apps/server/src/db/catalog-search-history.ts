@@ -1,49 +1,10 @@
 import { and, desc, eq, lt, or } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { catalogQueries, catalogSearchResults, catalogSearchRuns, products } from '@/db/schema';
+import { mapCatalogRunMetadata } from './catalog-query-read-model';
 import { mapStoredProductInfo } from './product/product-info-mapper';
 
 const CATALOG_SOURCE = 'keepa' as const;
-
-export const getCatalogQuery = async (normalizedTerm: string) => {
-    const [query] = await db
-        .select()
-        .from(catalogQueries)
-        .where(
-            and(
-                eq(catalogQueries.source, CATALOG_SOURCE),
-                eq(catalogQueries.marketplaceId, 'ATVPDKIKX0DER'),
-                eq(catalogQueries.normalizedTerm, normalizedTerm),
-                eq(catalogQueries.page, 0)
-            )
-        )
-        .limit(1);
-    if (!query) {
-        return null;
-    }
-
-    const [latestRun] = await db
-        .select()
-        .from(catalogSearchRuns)
-        .where(eq(catalogSearchRuns.queryId, query.id))
-        .orderBy(desc(catalogSearchRuns.sourceCompletedAt), desc(catalogSearchRuns.id))
-        .limit(1);
-
-    return {
-        id: query.id,
-        source: CATALOG_SOURCE,
-        marketplaceId: query.marketplaceId,
-        normalizedTerm: query.normalizedTerm,
-        displayTerm: query.displayTerm,
-        page: query.page,
-        tracking: {
-            enabled: query.trackedAt !== null,
-            trackedAt: query.trackedAt?.toISOString() ?? null,
-        },
-        latestSuccessfulCompletionAt: query.latestSuccessfulRunAt?.toISOString() ?? null,
-        latestRun: latestRun ? mapRunMetadata(latestRun) : null,
-    };
-};
 
 export const listCatalogSearchRuns = async ({
     queryId,
@@ -101,7 +62,7 @@ export const listCatalogSearchRuns = async ({
         .orderBy(desc(catalogSearchRuns.sourceCompletedAt), desc(catalogSearchRuns.id))
         .limit(limit + 1);
     const hasNextPage = rows.length > limit;
-    const items = rows.slice(0, limit).map(mapRunMetadata);
+    const items = rows.slice(0, limit).map(mapCatalogRunMetadata);
 
     return {
         items,
@@ -129,7 +90,7 @@ export const getCatalogSearchRun = async (runId: string) => {
     }
 
     return {
-        ...mapRunMetadata(first.run),
+        ...mapCatalogRunMetadata(first.run),
         query: {
             id: first.query.id,
             source: CATALOG_SOURCE,
@@ -157,15 +118,6 @@ export const getCatalogSearchRun = async (runId: string) => {
         }),
     };
 };
-
-const mapRunMetadata = (run: typeof catalogSearchRuns.$inferSelect) => ({
-    id: run.id,
-    sourceStartedAt: run.sourceStartedAt.toISOString(),
-    sourceCompletedAt: run.sourceCompletedAt.toISOString(),
-    resultCount: run.resultCount,
-    normalizerVersion: run.normalizerVersion,
-    createdAt: run.createdAt.toISOString(),
-});
 
 const mapObservation = (result: typeof catalogSearchResults.$inferSelect) => ({
     rootCategoryBsr: result.observedRootCategoryBsr,

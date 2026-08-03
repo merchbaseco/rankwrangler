@@ -239,20 +239,28 @@ declare const operationTypes: readonly [
 	"productHistoryRefresh",
 	"catalogSearch"
 ];
-export type ProductHistoryResource = {
+declare const catalogSearchTriggers: readonly [
+	"requested",
+	"automatic"
+];
+export type CatalogSearchTrigger = (typeof catalogSearchTriggers)[number];
+export interface ProductHistoryResource {
+	[key: string]: unknown;
 	type: "productHistory";
 	marketplaceId: string;
 	asin: string;
-};
-export type CatalogSearchResource = {
+}
+export interface CatalogSearchResource {
+	[key: string]: unknown;
 	type: "catalogSearchRun";
 	queryId: string;
 	runId: string;
-};
-export type OperationError = {
+}
+export interface OperationError {
+	[key: string]: unknown;
 	code: "ACCESS_DENIED" | "ACCESS_UNAVAILABLE" | "PROVIDER_UNAVAILABLE" | "RESOURCE_NOT_FOUND" | "INTERNAL_ERROR";
 	message: string;
-};
+}
 export type PublicOperationType = (typeof operationTypes)[number];
 export type PublicOperation = {
 	id: string;
@@ -506,6 +514,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							id: string;
 							sourceStartedAt: string;
 							sourceCompletedAt: string;
+							trigger: CatalogSearchTrigger;
 							resultCount: number;
 							normalizerVersion: number;
 							createdAt: string;
@@ -555,45 +564,23 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							normalizedTerm: string;
 							displayTerm: string;
 							page: number;
-							tracking: {
-								enabled: boolean;
-								trackedAt: string | null;
-							};
-							latestSuccessfulCompletionAt: string | null;
+							lastRequestedAt: string | null;
+							activeUntil: string | null;
+							latestSuccessfulRunAt: string | null;
+							nextRefreshAttemptAt: string | null;
+							lastRefreshAttemptAt: string | null;
+							nextRefreshAt: string | null;
+							status: "pending" | "inactive" | "failed" | "due" | "deferred" | "expiringSoon" | "waiting";
+							observationCount: number;
 							latestRun: {
 								id: string;
 								sourceStartedAt: string;
 								sourceCompletedAt: string;
+								trigger: CatalogSearchTrigger;
 								resultCount: number;
 								normalizerVersion: number;
 								createdAt: string;
 							} | null;
-						};
-						meta: object;
-					}>;
-					track: import("@trpc/server").TRPCMutationProcedure<{
-						input: {
-							term: string;
-						};
-						output: {
-							id: string;
-							tracking: {
-								enabled: boolean;
-								trackedAt: string | null;
-							};
-						};
-						meta: object;
-					}>;
-					untrack: import("@trpc/server").TRPCMutationProcedure<{
-						input: {
-							term: string;
-						};
-						output: {
-							id: string;
-							tracking: {
-								enabled: boolean;
-								trackedAt: string | null;
-							};
 						};
 						meta: object;
 					}>;
@@ -661,6 +648,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							id: string;
 							sourceStartedAt: string;
 							sourceCompletedAt: string;
+							trigger: CatalogSearchTrigger;
 							resultCount: number;
 							normalizerVersion: number;
 							createdAt: string;
@@ -678,6 +666,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 								id: string;
 								sourceStartedAt: string;
 								sourceCompletedAt: string;
+								trigger: CatalogSearchTrigger;
 								resultCount: number;
 								normalizerVersion: number;
 								createdAt: string;

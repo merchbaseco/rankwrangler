@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { catalogQueryGetInput } from '@/api/catalog-input';
 import { appProcedure } from '@/api/trpc';
-import { getCatalogQuery } from '@/db/catalog-search-history';
+import { getCatalogQuery } from '@/db/catalog-query-read-model';
 import { normalizeCatalogDisplayTerm } from '@/services/catalog-search';
 
 export const catalogQueryGet = appProcedure.input(catalogQueryGetInput).query(async ({ input }) => {

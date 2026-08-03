@@ -1,6 +1,5 @@
 import { sql } from 'drizzle-orm';
 import {
-    bigint,
     check,
     index,
     integer,
@@ -22,8 +21,10 @@ export const catalogQueries = pgTable(
         normalizedTerm: text('normalized_term').notNull(),
         displayTerm: text('display_term').notNull(),
         page: integer('page').notNull(),
-        trackedAt: timestamp('tracked_at', { mode: 'date' }),
-        nextTrackingAttemptAt: timestamp('next_tracking_attempt_at', { mode: 'date' }),
+        lastRequestedAt: timestamp('last_requested_at', { mode: 'date' }),
+        activeUntil: timestamp('active_until', { mode: 'date' }),
+        nextRefreshAttemptAt: timestamp('next_refresh_attempt_at', { mode: 'date' }),
+        lastRefreshAttemptAt: timestamp('last_refresh_attempt_at', { mode: 'date' }),
         latestSuccessfulRunAt: timestamp('latest_successful_run_at', { mode: 'date' }),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
         updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
@@ -35,9 +36,9 @@ export const catalogQueries = pgTable(
             table.normalizedTerm,
             table.page
         ),
-        trackedDueIdx: index('catalog_queries_tracked_due_idx').on(
-            table.trackedAt,
-            table.nextTrackingAttemptAt,
+        activeRefreshDueIdx: index('catalog_queries_active_refresh_due_idx').on(
+            table.activeUntil,
+            table.nextRefreshAttemptAt,
             table.latestSuccessfulRunAt
         ),
         v1IdentityCheck: check(
@@ -59,6 +60,7 @@ export const catalogSearchRuns = pgTable(
             .notNull(),
         sourceStartedAt: timestamp('source_started_at', { mode: 'date' }).notNull(),
         sourceCompletedAt: timestamp('source_completed_at', { mode: 'date' }).notNull(),
+        trigger: text('trigger').notNull(),
         resultCount: integer('result_count').notNull(),
         normalizerVersion: integer('normalizer_version').notNull(),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
@@ -72,6 +74,10 @@ export const catalogSearchRuns = pgTable(
         resultCountCheck: check(
             'catalog_search_runs_result_count_check',
             sql`${table.resultCount} >= 0 AND ${table.resultCount} <= 20`
+        ),
+        triggerCheck: check(
+            'catalog_search_runs_trigger_check',
+            sql`${table.trigger} in ('requested', 'automatic')`
         ),
     })
 );

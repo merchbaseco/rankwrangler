@@ -1,7 +1,6 @@
 import { router } from '@/api/trpc';
 import { catalogQueryGet } from './catalog-query-get';
-import { catalogQueryTrack } from './catalog-query-track';
-import { catalogQueryUntrack } from './catalog-query-untrack';
+import { catalogQueryList } from './catalog-query-list';
 import { catalogRunGet } from './catalog-run-get';
 import { catalogRunList } from './catalog-run-list';
 import { catalogSearch } from './catalog-search';
@@ -14,8 +13,7 @@ export const catalogRouter = router({
     }),
     query: router({
         get: catalogQueryGet,
-        track: catalogQueryTrack,
-        untrack: catalogQueryUntrack,
+        list: catalogQueryList,
     }),
     run: router({
         get: catalogRunGet,

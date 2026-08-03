@@ -97,12 +97,8 @@ export const CatalogPage = () => {
 					isFetchingNextPage={explorer.isLoadingMoreRuns}
 					onLoadMore={() => void explorer.loadMoreRuns()}
 					onSelectRun={explorer.setSelectedRunId}
-					onSetTracking={(enabled) => void explorer.setTracking(enabled)}
-					query={explorer.query}
 					runs={explorer.runs}
 					selectedRunId={explorer.selectedRunId}
-					trackingError={explorer.trackingError}
-					trackingPending={explorer.isTrackingMutationPending}
 				/>
 				<main className="flex min-h-0 min-w-0 flex-1 flex-col">
 					<CatalogStatusPanel

@@ -1,28 +1,25 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/index';
-import {
-    catalogQueries,
-    catalogSearchResults,
-    catalogSearchRuns,
-    operations,
-} from '@/db/schema';
-import { buildCatalogSearchResource } from './catalog-search-operations';
-import { lockCatalogQueryForReconciliation } from './catalog-search';
-import { persistNormalizedKeepaProduct } from './product/persist-normalized-keepa-product';
+import { catalogQueries, catalogSearchResults, catalogSearchRuns, operations } from '@/db/schema';
 import type { NormalizedKeepaProduct } from '@/services/keepa-product-normalizer';
+import type { CatalogSearchOperationInput } from '@/services/operations';
+import { lockCatalogQueryForReconciliation } from './catalog-query-resolution';
+import { buildCatalogSearchResource } from './catalog-search-operations';
+import { persistNormalizedKeepaProduct } from './product/persist-normalized-keepa-product';
 
 const CATALOG_NORMALIZER_VERSION = 1;
 
-export type CatalogSearchPersistenceResult = {
+export interface CatalogSearchPersistenceResult {
     sourcePosition: number;
     normalized: NormalizedKeepaProduct;
-};
+}
 
 export const persistCatalogSearchSuccess = async ({
     operationId,
     queryId,
     sourceStartedAt,
     sourceCompletedAt,
+    trigger,
     results,
     internalUsage,
 }: {
@@ -30,6 +27,7 @@ export const persistCatalogSearchSuccess = async ({
     queryId: string;
     sourceStartedAt: Date;
     sourceCompletedAt: Date;
+    trigger: CatalogSearchOperationInput['trigger'];
     results: CatalogSearchPersistenceResult[];
     internalUsage: {
         tokensConsumed: number | null;
@@ -48,6 +46,7 @@ export const persistCatalogSearchSuccess = async ({
                 operationId,
                 sourceStartedAt,
                 sourceCompletedAt,
+                trigger,
                 resultCount: results.length,
                 normalizerVersion: CATALOG_NORMALIZER_VERSION,
             })
@@ -57,22 +56,18 @@ export const persistCatalogSearchSuccess = async ({
         }
 
         for (const [index, result] of results.entries()) {
-            const persisted = await persistNormalizedKeepaProduct(
-                transaction,
-                result.normalized,
-                {
-                    requestParams: {
-                        kind: 'catalogSearch',
-                        queryId,
-                        operationId,
-                    },
-                    responsePayload: null,
-                    tokensConsumed: index === 0 ? internalUsage.tokensConsumed : null,
-                    tokensLeft: index === 0 ? internalUsage.tokensLeft : null,
-                    refillInMs: index === 0 ? internalUsage.refillInMs : null,
-                    refillRate: index === 0 ? internalUsage.refillRate : null,
-                }
-            );
+            const persisted = await persistNormalizedKeepaProduct(transaction, result.normalized, {
+                requestParams: {
+                    kind: 'catalogSearch',
+                    queryId,
+                    operationId,
+                },
+                responsePayload: null,
+                tokensConsumed: index === 0 ? internalUsage.tokensConsumed : null,
+                tokensLeft: index === 0 ? internalUsage.tokensLeft : null,
+                refillInMs: index === 0 ? internalUsage.refillInMs : null,
+                refillRate: index === 0 ? internalUsage.refillRate : null,
+            });
             const observed = result.normalized.product;
             await transaction.insert(catalogSearchResults).values({
                 runId: run.id,
@@ -95,7 +90,7 @@ export const persistCatalogSearchSuccess = async ({
             .update(catalogQueries)
             .set({
                 latestSuccessfulRunAt: sourceCompletedAt,
-                nextTrackingAttemptAt: null,
+                nextRefreshAttemptAt: null,
                 updatedAt: sourceCompletedAt,
             })
             .where(eq(catalogQueries.id, queryId))

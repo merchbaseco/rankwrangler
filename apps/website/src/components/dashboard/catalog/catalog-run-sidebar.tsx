@@ -1,63 +1,25 @@
-import { CalendarClock, Radio } from "lucide-react";
-import type { CatalogQuery, CatalogRunMetadata } from "./types";
+import { CalendarClock } from "lucide-react";
+import type { CatalogRunMetadata } from "./types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatCalendarDate, formatRelativeTime } from "@/lib/utils";
 
 export const CatalogRunSidebar = ({
-	query,
 	runs,
 	selectedRunId,
-	trackingError,
-	trackingPending,
 	hasNextPage,
 	isFetchingNextPage,
 	onLoadMore,
 	onSelectRun,
-	onSetTracking,
 }: {
-	query: CatalogQuery | null;
 	runs: CatalogRunMetadata[];
 	selectedRunId: string | null;
-	trackingError: string | null;
-	trackingPending: boolean;
 	hasNextPage: boolean;
 	isFetchingNextPage: boolean;
 	onLoadMore: () => void;
 	onSelectRun: (runId: string) => void;
-	onSetTracking: (enabled: boolean) => void;
 }) => (
 	<aside className="flex min-h-0 w-64 shrink-0 flex-col border-r border-border bg-card">
-		<div className="border-b border-border p-4">
-			<div className="flex items-center gap-2">
-				<Radio className="size-4 text-muted-foreground" />
-				<span className="text-xs font-medium uppercase tracking-wide">
-					Weekly tracking
-				</span>
-			</div>
-			<p className="mt-2 text-xs text-muted-foreground">
-				{query?.tracking.enabled
-					? `Enabled ${formatRelativeTime(query.tracking.trackedAt)}`
-					: "Off until you explicitly enable it."}
-			</p>
-			<Button
-				className="mt-3 w-full rounded-sm"
-				disabled={!query || trackingPending}
-				onClick={() => onSetTracking(!query?.tracking.enabled)}
-				size="xs"
-				variant={query?.tracking.enabled ? "outline" : "secondary"}
-			>
-				{trackingPending
-					? "Saving…"
-					: query?.tracking.enabled
-						? "Stop tracking"
-						: "Track weekly"}
-			</Button>
-			{trackingError ? (
-				<p className="mt-2 text-xs text-destructive">{trackingError}</p>
-			) : null}
-		</div>
-
 		<div className="flex min-h-0 flex-1 flex-col">
 			<div className="flex items-center gap-2 border-b border-border px-4 py-3">
 				<CalendarClock className="size-4 text-muted-foreground" />
@@ -89,7 +51,12 @@ export const CatalogRunSidebar = ({
 								) : null}
 							</div>
 							<div className="mt-1 text-[11px] text-muted-foreground">
-								{run.resultCount} {run.resultCount === 1 ? "Product" : "Products"} ·{" "}
+								<span className="font-medium text-foreground">
+									{run.trigger === "automatic"
+										? "Automatic refresh"
+										: "Requested search"}
+								</span>{" "}· {run.resultCount}{" "}
+								{run.resultCount === 1 ? "Product" : "Products"} ·{" "}
 								{formatRelativeTime(run.sourceCompletedAt)}
 							</div>
 						</button>

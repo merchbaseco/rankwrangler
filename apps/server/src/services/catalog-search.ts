@@ -14,13 +14,13 @@ type CatalogSearchResolution = Awaited<ReturnType<typeof resolveCatalogSearchReq
 type CatalogSearchRun = NonNullable<Awaited<ReturnType<typeof getCatalogSearchRun>>>;
 export type CatalogSearchOperation = Extract<OperationRecord, { type: 'catalogSearch' }>;
 
-export type CatalogSearchDeps = {
+export interface CatalogSearchDeps {
     resolveRequest: (
         input: Parameters<typeof resolveCatalogSearchRequest>[0]
     ) => Promise<CatalogSearchResolution>;
     getRun: (runId: string) => Promise<CatalogSearchRun | null>;
     dispatchOperation: (operation: CatalogSearchOperation) => Promise<boolean>;
-};
+}
 
 const defaultDeps: CatalogSearchDeps = {
     resolveRequest: resolveCatalogSearchRequest,
@@ -72,6 +72,7 @@ export const requestCatalogSearch = async (
         displayTerm,
         page: 0,
         maxAgeSeconds,
+        trigger: 'requested',
         serviceAccountId: resolvedServiceAccountId,
         ownerMerchbaseUserId,
         priority: 'interactive',
