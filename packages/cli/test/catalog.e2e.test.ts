@@ -98,7 +98,14 @@ describe('Catalog CLI', () => {
                                 normalizedTerm: 'retro gardening shirt',
                                 displayTerm: 'Retro Gardening Shirt',
                                 page: 0,
-                                tracking: { enabled: false },
+                                lastRequestedAt: null,
+                                activeUntil: null,
+                                nextRefreshAttemptAt: null,
+                                lastRefreshAttemptAt: null,
+                                latestSuccessfulRunAt: null,
+                                nextRefreshAt: null,
+                                status: 'inactive',
+                                observationCount: 0,
                                 latestRun: null,
                             },
                         },
@@ -131,7 +138,7 @@ describe('Catalog CLI', () => {
                 ok: true,
                 data: expect.objectContaining({
                     id: '11111111-1111-4111-8111-111111111111',
-                    tracking: { enabled: false },
+                    status: 'inactive',
                 }),
             });
         } finally {
@@ -139,57 +146,22 @@ describe('Catalog CLI', () => {
         }
     });
 
-    test('explicitly tracks and untracks a Catalog query', async () => {
-        const requests: string[] = [];
-        const server = serve({
-            port: CLI_TEST_SERVER_PORT,
-            async fetch(request) {
-                requests.push(request.url);
-                const body = JSON.stringify(await request.json());
-                const enabled = request.url.includes('catalog.query.track');
-                expect(body).toContain('"term":"retro gardening shirt"');
-                return Response.json([
-                    {
-                        result: {
-                            data: {
-                                id: '11111111-1111-4111-8111-111111111111',
-                                tracking: {
-                                    enabled,
-                                    trackedAt: enabled ? '2026-07-24T12:00:00.000Z' : null,
-                                },
-                            },
-                        },
-                    },
-                ]);
-            },
-        });
+    test('rejects removed Catalog commands', async () => {
         const { tempHome, workspaceDir } = createCliWorkspace();
 
-        try {
-            for (const verb of ['track', 'untrack']) {
-                const result = await spawnCliAsync(
-                    [
-                        'catalog',
-                        verb,
-                        'retro',
-                        'gardening',
-                        'shirt',
-                        '--baseUrl',
-                        `http://127.0.0.1:${server.port}`,
-                    ],
-                    {
-                        cwd: workspaceDir,
-                        home: tempHome,
-                        env: { MERCHBASE_API_KEY: 'ak_test_value' },
-                    }
-                );
-                expect(result.status).toBe(0);
-                expect(JSON.parse(result.stdout).data.tracking.enabled).toBe(verb === 'track');
-            }
-            expect(requests[0]).toContain('catalog.query.track');
-            expect(requests[1]).toContain('catalog.query.untrack');
-        } finally {
-            server.stop(true);
+        for (const verb of ['track', 'untrack']) {
+            const result = await spawnCliAsync(
+                ['catalog', verb, 'retro', 'gardening', 'shirt'],
+                {
+                    cwd: workspaceDir,
+                    home: tempHome,
+                }
+            );
+            expect(result.status).toBe(1);
+            expect(JSON.parse(result.stderr)).toMatchObject({
+                ok: false,
+                error: { code: 'UNKNOWN_COMMAND' },
+            });
         }
     });
 
@@ -211,6 +183,7 @@ describe('Catalog CLI', () => {
                                         id: '33333333-3333-4333-8333-333333333333',
                                         sourceStartedAt: '2026-07-23T11:59:00.000Z',
                                         sourceCompletedAt: '2026-07-23T12:00:00.000Z',
+                                        trigger: 'requested',
                                         resultCount: 0,
                                         normalizerVersion: 1,
                                         createdAt: '2026-07-23T12:00:00.000Z',

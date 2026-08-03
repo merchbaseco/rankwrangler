@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
-import {
-    lockCatalogQueryForReconciliation,
-    resolveCatalogSearchRequest,
-} from '@/db/catalog-search';
+import { lockCatalogQueryForReconciliation } from '@/db/catalog-query-resolution';
+import { resolveCatalogSearchRequest } from '@/db/catalog-search';
 import { listStalePendingCatalogSearchOperations } from '@/db/catalog-search-operations';
 import { db } from '@/db/index';
 import {
@@ -96,6 +94,7 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
                     term: 'shirts',
                     page: 0,
                     priority: 'interactive',
+                    trigger: 'requested',
                 },
             })
             .returning({ id: operations.id });
@@ -114,6 +113,7 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
                     operationId: operation.id,
                     sourceStartedAt: new Date('2026-07-24T11:59:00.000Z'),
                     sourceCompletedAt: NOW,
+                    trigger: 'requested',
                     resultCount: 0,
                     normalizerVersion: 1,
                 })
@@ -172,6 +172,7 @@ const createRequest = () => ({
     page: 0 as const,
     maxAgeSeconds: 86_400,
     priority: 'interactive' as const,
+    trigger: 'requested' as const,
     serviceAccountId: SERVICE_ACCOUNT_ID,
     ownerMerchbaseUserId: 'mbu_catalog_test',
     now: new Date('2026-07-24T12:01:00.000Z'),

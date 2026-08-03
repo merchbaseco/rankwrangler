@@ -192,6 +192,7 @@ const createPendingCatalogOperation = (): OperationRecord => ({
         term: 'retro gardening shirt',
         page: 0,
         priority: 'interactive',
+        trigger: 'requested',
     },
     resource: null,
 });

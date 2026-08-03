@@ -45,7 +45,11 @@ describeCatalogDb('Catalog search history reads', () => {
             normalizedTerm: 'retro gardening shirt',
             displayTerm: 'Retro Gardening Shirt',
             page: 0,
-            tracking: { enabled: false },
+            lastRequestedAt: null,
+            activeUntil: null,
+            latestSuccessfulRunAt: '2026-07-15T12:00:00.000Z',
+            status: 'inactive',
+            observationCount: 3,
             latestRun: {
                 id: latestRunId,
                 resultCount: 2,
@@ -165,7 +169,7 @@ const insertRun = async (queryId: string, completedAt: string, resultCount: numb
         .values({
             type: 'catalogSearch',
             targetKey: queryId,
-            input: { queryId },
+            input: { queryId, trigger: 'requested' },
         })
         .returning({ id: operations.id });
     if (!operation) {
@@ -178,6 +182,7 @@ const insertRun = async (queryId: string, completedAt: string, resultCount: numb
             operationId: operation.id,
             sourceStartedAt: new Date(completedDate.getTime() - 60_000),
             sourceCompletedAt: completedDate,
+            trigger: 'requested',
             resultCount,
             normalizerVersion: 1,
             createdAt: completedDate,

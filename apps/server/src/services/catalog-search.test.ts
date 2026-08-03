@@ -20,6 +20,7 @@ describe('Catalog search application workflow', () => {
             normalizedTerm: 'retro gardening shirt',
             displayTerm: 'Retro Gardening Shirt',
             maxAgeSeconds: 86_400,
+            trigger: 'requested',
         });
         expect(deps.resolveRequest.mock.calls[0]?.[0].priority).toBe('interactive');
         expect(result).toMatchObject({
@@ -132,6 +133,7 @@ const createPendingOperation = (): OperationRecord => ({
         term: 'shirts',
         page: 0,
         priority: 'interactive',
+        trigger: 'requested',
     },
     resource: null,
     error: null,

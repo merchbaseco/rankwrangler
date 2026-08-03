@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 describe('collectDueCatalogQueriesJob', () => {
-    it('runs a singleton minute scan and reports weekly tracking in startup status', async () => {
+    it('runs a singleton minute scan for active keyword refreshes', async () => {
         const { collectDueCatalogQueriesJob } = await loadSubject();
 
         expect(collectDueCatalogQueriesJob.sendOptions.singletonKey).toBe(
@@ -12,7 +12,7 @@ describe('collectDueCatalogQueriesJob', () => {
             everyMs: 60_000,
         });
         expect(collectDueCatalogQueriesJob.startupSummary).toBe(
-            'minute scan for explicitly tracked weekly Catalog queries'
+            'minute scan for active weekly Catalog keyword refreshes'
         );
     });
 });

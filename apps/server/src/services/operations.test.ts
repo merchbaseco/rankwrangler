@@ -91,6 +91,7 @@ describe('Operation public lifecycle', () => {
                 term: 'shirts',
                 page: 0,
                 priority: 'interactive',
+                trigger: 'requested',
             },
         };
 

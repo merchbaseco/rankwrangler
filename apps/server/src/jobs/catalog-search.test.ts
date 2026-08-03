@@ -188,6 +188,7 @@ const createOperation = (): OperationRecord => ({
         term: 'retro gardening shirt',
         page: 0,
         priority: 'interactive',
+        trigger: 'requested',
         ownerMerchbaseUserId: 'mbu_test',
     },
     resource: null,

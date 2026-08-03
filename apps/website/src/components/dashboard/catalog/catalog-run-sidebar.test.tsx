@@ -10,16 +10,12 @@ describe("Catalog run sidebar", () => {
 				isFetchingNextPage={false}
 				onLoadMore={() => {}}
 				onSelectRun={() => {}}
-				onSetTracking={() => {}}
-				query={null}
 				runs={[]}
 				selectedRunId={null}
-				trackingError="Tracking could not be updated."
-				trackingPending={false}
 			/>,
 		);
 
 		expect(markup).toContain("Load older runs");
-		expect(markup).toContain("Tracking could not be updated.");
+		expect(markup).not.toContain("tracked");
 	});
 });

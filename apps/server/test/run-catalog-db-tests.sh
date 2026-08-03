@@ -274,4 +274,4 @@ bun test \
     apps/server/test/central-auth.db.test.ts \
     apps/server/test/catalog-search-concurrency.db.test.ts \
     apps/server/test/catalog-search-history.db.test.ts \
-    apps/server/test/catalog-query-tracking.db.test.ts
+    apps/server/test/catalog-query-refresh.db.test.ts
