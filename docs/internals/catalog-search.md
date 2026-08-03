@@ -1,7 +1,7 @@
 ---
 summary: Separates shipped transient Amazon keyword lookup from the accepted durable Keepa Catalog-search architecture.
 read_when:
-  - changing Amazon keyword lookup or implementing Catalog queries, Search runs, Search results, or tracking
+  - changing Amazon keyword lookup or implementing Catalog queries, Search runs, Search results, or keyword refresh
   - deciding whether query results belong on Products or in immutable run history
 ---
 
@@ -9,8 +9,8 @@ read_when:
 
 ## Status
 
-The SP-API keyword lookup, durable Keepa Catalog search, bounded run-history reads, and explicit
-weekly query tracking are shipped.
+The SP-API keyword lookup, durable Keepa Catalog search, bounded run-history reads, and decaying
+weekly keyword refresh are shipped.
 
 ## Current Behavior
 
@@ -45,18 +45,20 @@ Request resolution is serialized per Catalog query. Fresh-run reuse, pending-wor
 mapped Service Account debit, and new Operation creation share one transaction, so unpaid work is never
 visible to callers or recovery and a concurrently completed reusable run does not create a charge.
 
-## Reuse And Tracking
+## Reuse And Keyword Refresh
 
 - By default, a successful run no older than 24 hours is returned again.
 - A force-fresh request still joins identical in-flight work.
-- Queries remain on demand until a consumer explicitly tracks them.
-- Tracked queries collect weekly; a fresh manual run satisfies that week's collection window.
-- Cached reuse does not advance the weekly watermark.
-- A tracked query is due when it has never completed or its latest successful fresh run completed
-  at least seven days ago. Startup and minute scans create at most one current run and never
-  backfill missed weeks.
+- Every product search request renews `lastRequestedAt` and `activeUntil` for 30 days, including
+  cached reuse. The request is recorded as a `requested` Search-run trigger when it produces a run.
+- Active queries collect weekly. A query is due when it has never completed or its latest successful
+  run completed at least seven days ago. Startup and minute scans create at most one current run
+  and never backfill missed weeks.
 - A failed scheduled attempt waits one hour before it is eligible again.
-- Untracking removes only schedule eligibility; query, run, and result history remains intact.
+- `activeUntil`, latest success, pending Operation state, failure state, and retry timestamps derive
+  visible statuses such as inactive, due, waiting, deferred, and failed.
+- Automatic runs carry `trigger: automatic`; requested runs carry `trigger: requested`. Trigger is
+  run-history provenance only and is absent from canonical Product/result shapes.
 
 Provider tokens remain internal. Agents receive durable IDs and retry guidance, while the dashboard
 shows a loading state and invalidates durable reads on completion.
@@ -65,13 +67,13 @@ Keepa capacity prioritizes interactive Catalog search, then scheduled Catalog se
 refresh work.
 
 Catalog query reads resolve existing normalized identity without creating provider work. They
-return the latest successful run metadata and the current tracking state. Run lists use stable
-newest-first cursor pagination, include empty successful runs, and omit result bodies until a
-caller requests one run.
+return activity timestamps, derived status, observation count, and latest successful run metadata.
+Run lists use stable newest-first cursor pagination, include empty successful runs, and omit result
+bodies until a caller requests one run.
 
 ## Product Boundary
 
 Run reads expose source-qualified position and immutable `observed` metrics separately from
 nullable `currentProduct` state. A missing Product join does not remove the retained result row.
 RankWrangler exposes source-attributed evidence; it does not score opportunities, recommend niches,
-or automatically promote queries into tracking.
+or promote queries from Brand Analytics data into product-search refresh activity.

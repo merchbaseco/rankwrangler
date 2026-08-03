@@ -39,10 +39,13 @@ rw products history B0XXXXXXXX --metrics bsr,price --bucket auto
 rw operations get <operationId>
 rw catalog search "retro gardening shirt"
 rw catalog query "retro gardening shirt"
-rw catalog track "retro gardening shirt"
 rw catalog runs <queryId>
 rw catalog run <runId>
 ```
+
+Each catalog search request renews the keyword's 30-day active window, including cached reuse.
+Active keywords receive automatic weekly refreshes; expired keywords become inactive without
+backfill. Search history labels Requested search versus Automatic refresh.
 
 History reads return stored points immediately. When collection is needed, the response includes a
 pending durable Operation; poll that receipt, then read history again after completion. The

@@ -48,6 +48,9 @@ and returns retry guidance until the durable Product-history resource or a safe 
 Catalog search returns the same pending Operation contract or a reusable source-ordered Search
 run. `catalog query` and `catalog runs` inspect existing persisted state without provider work.
 `catalog run` separates nullable canonical current Products from immutable observed metrics.
+Each product search renews the keyword's 30-day active window, including cached reuse. Active
+keywords are eligible for weekly automatic refresh; expired interest becomes inactive without
+backfill. Search history identifies Requested search versus Automatic refresh.
 `rw --version` prints the installed CLI version.
 `rw changelog` prints the latest bundled release notes shipped with the package.
 

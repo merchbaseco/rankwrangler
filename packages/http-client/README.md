@@ -45,6 +45,10 @@ const runs = await client.catalog.run.list.query({
 });
 ```
 
+Each product search renews the keyword's 30-day active window, including cached reuse. Active
+keywords are eligible for weekly automatic refresh; expired interest becomes inactive without
+backfill. Search-run metadata identifies Requested search versus Automatic refresh.
+
 The client is scoped to the public surface (`api.public.*`) so it stays aligned with CLI usage.
 
 ## Types

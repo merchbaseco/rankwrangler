@@ -52,12 +52,6 @@ if (search.status === 'pending') {
 const query = await client.catalog.query.get.query({
     term: 'retro gardening shirt',
 });
-await client.catalog.query.track.mutate({
-    term: 'retro gardening shirt',
-});
-await client.catalog.query.untrack.mutate({
-    term: 'retro gardening shirt',
-});
 const runs = await client.catalog.run.list.query({
     queryId: query.id,
     limit: 20,

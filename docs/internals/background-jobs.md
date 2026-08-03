@@ -26,7 +26,7 @@ where a second attempt would be redundant.
 | Keepa queue dispatch | Every minute, capacity-bounded, then one singleton fetch per ASIN. |
 | Product-history Operation | Event-driven worker plus one-minute stale-pending recovery. |
 | Catalog-search Operation | Event-driven first-page Keepa search plus one-minute stale-pending recovery. |
-| Tracked Catalog query | One-minute due scan plus one startup scan; one current run, no backfill. |
+| Active Catalog keyword | One-minute due scan plus one startup scan; one current run, no backfill. |
 | Top Search Terms dataset sync | Every five minutes with a bounded due-window batch. |
 | Top Search Terms report fetch | Event-driven; one grouped fetch across server instances. |
 | Product facets | One-minute worker definition, currently disabled by policy. |
@@ -38,7 +38,10 @@ pg-boss owns dispatch and execution. Durable domain tables own recoverable state
 - SP-API and Keepa queue tables own pending Product work;
 - Top Search Terms datasets own report ID, status, retry time, and recovery state;
 - Products own source freshness;
-- Operations own a client-requested outcome across worker attempts.
+- Catalog queries own keyword activity leases, refresh-attempt timestamps, and latest successful
+  run watermarks;
+- Operations own a durable outcome across worker attempts, whether the trigger was requested or
+  automatic.
 
 Do not use `job_executions` as business state. Those rows record one worker attempt with input,
 output, duration, failure, and structured logs. Some no-op successes are intentionally omitted;

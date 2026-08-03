@@ -1,13 +1,13 @@
 ---
 summary: Defines the accepted external Amazon catalog-search experience for agents and the dashboard.
 read_when:
-  - planning or implementing Catalog queries, Search runs, or tracked searches
+  - planning or implementing Catalog queries, Search runs, or keyword refresh
   - deciding whether a request is stored catalog lookup or external Amazon catalog search
 ---
 
 # Catalog Search
 
-**Status:** Keepa Catalog search, immutable run-history reads, and explicit weekly tracking are
+**Status:** Keepa Catalog search, immutable run-history reads, and decaying keyword refresh are
 available through the dashboard, app/public API, typed client, and CLI.
 
 Catalog search collects ranked external results and preserves what the source surfaced at a moment
@@ -29,10 +29,13 @@ in time. It complements catalog lookup:
   retain the immutable values observed in each run.
 - A successful run can be reused for 24 hours by default. A caller can request fresh data, while an
   identical in-flight request still deduplicates.
-- Queries remain on demand until a human or agent explicitly enables weekly tracking. Manual fresh
-  runs satisfy the weekly collection window; cached reads do not.
-- A tracked query becomes due when it has never completed or its latest successful fresh run is at
-  least seven days old. Untracking keeps all retained query, run, and result history.
+- A product search request renews keyword interest for 30 days, even when it reuses the 24-hour
+  cache. This is the only activation event; there is no permanent subscription or manual toggle.
+- Active keywords are due for automatic refresh when their latest successful run is at least seven
+  days old, or when no successful run exists. Inactive keywords expire automatically and are not
+  backfilled. Failed attempts remain observable and retry after bounded backoff.
+- Each Search run records `trigger: requested | automatic`. History labels these as Requested
+  search or Automatic refresh; Product and `currentProduct` shapes do not carry that field.
 
 Search work is asynchronous. A request returns either a reusable Search run or a pending Operation
 with a retry hint. Agents wait, poll the Operation, then read its referenced run. The dashboard owns
@@ -42,13 +45,14 @@ state, not an internal `queued` state.
 The dashboard Catalog explorer keeps the active term plus pending Operation and query identities
 in the URL, so a reload resumes polling without pairing work with another query. It presents Keepa
 source position and immutable observed metrics separately from current canonical Product fields,
-preserves earlier successful runs through empty or failed refreshes, and changes weekly tracking
-only after server-confirmed mutations.
+preserves earlier successful runs through empty or failed refreshes, and renews keyword activity
+when the search request is accepted.
 
-Existing-query and run-history reads never contact Keepa. Query state includes identity, latest-run
-metadata, and whether tracking is enabled. Run pages are bounded, newest-first, and include
-successful empty runs. A run result keeps immutable `observed` values and a source-qualified
-position; `currentProduct` is a separate nullable view of today's canonical Product.
+Existing-query and run-history reads never contact Keepa. Query state includes identity, activity
+timestamps, derived status, observation count, and latest-run metadata. Run pages are bounded,
+newest-first, and include successful empty runs. A run result keeps immutable `observed` values and
+a source-qualified position; `currentProduct` is a separate nullable view of today's canonical
+Product.
 
 **Brief user story:** An agent searches `retro gardening shirt`, waits for completion, and compares
 eight weekly runs by result membership, source position, BSR, and bought-in-the-past-month evidence.
@@ -57,7 +61,8 @@ eight weekly runs by result membership, source position, BSR, and bought-in-the-
 
 - Source position is not called Amazon organic rank unless the provider guarantees that meaning.
 - Search does not score niches, infer intent, or recommend a design.
-- Tracking is never enabled from popularity, request count, or inferred seasonality.
+- Automatic refresh is never enabled from popularity, Brand Analytics Top Search Terms, or inferred
+  seasonality; that ingestion remains a separate automatic workflow.
 - Keepa tokens, refill timing, and provider scheduling stay internal.
 - V1 does not include private tenant queries, additional pages or marketplaces, arbitrary cadences,
   or raw Keepa payload retention.

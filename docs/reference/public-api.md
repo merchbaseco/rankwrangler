@@ -151,9 +151,7 @@ state is never returned.
 Persisted Catalog reads are tRPC queries and never start provider work:
 
 - `api.public.catalog.query.get` resolves an existing query by `term` and returns normalized
-  identity, `latestSuccessfulCompletionAt`, latest-run metadata, and tracking state;
-- `api.public.catalog.query.track` and `api.public.catalog.query.untrack` explicitly enable or
-  disable weekly collection for an existing query without deleting history;
+  identity, activity timestamps, derived status, observation count, and latest-run metadata;
 - `api.public.catalog.run.list` accepts `queryId`, `limit` (default 20, maximum 100), and an
   optional run-id `cursor`, then returns a newest-first page and `nextCursor`; and
 - `api.public.catalog.run.get` reads one run's ordered results.
@@ -161,11 +159,15 @@ Persisted Catalog reads are tRPC queries and never start provider work:
 Run lists contain metadata only, including successful zero-result runs. A full result identifies
 its retained `productId`, exposes `position: { source, value }`, keeps immutable metrics under
 `observed`, and places canonical current state under nullable `currentProduct`. No read returns raw
-provider payloads or Product-history arrays.
+provider payloads or Product-history arrays. Run metadata includes `trigger: requested | automatic`;
+that provenance is not copied onto Products or individual result/currentProduct shapes.
 
 The Clerk app router exposes the search request at `api.app.catalog.search.request`, completion
-invalidation at `api.app.catalog.search.completed`, and matching `api.app.catalog.query.track` and
-`untrack` mutations. Queries are never auto-promoted into tracking.
+invalidation at `api.app.catalog.search.completed`, and an activity-aware
+`api.app.catalog.query.list` read for Automation settings. A search request renews keyword interest
+for 30 days, including cached reuse; active keywords are eligible for weekly automatic refresh and
+expired keywords are inactive without backfill. Brand Analytics Top Search Terms remains a
+separate automatic ingestion workflow.
 
 ## Contract source
 

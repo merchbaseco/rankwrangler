@@ -43,9 +43,7 @@ printing the secret.
 | `rw products history <ASIN>` | Compact bucketed history without the product summary. |
 | `rw operations get <operationId>` | Poll one durable Operation without starting work. |
 | `rw catalog search <term>` | Return a reusable Search run or pending Catalog-search Operation. |
-| `rw catalog query <term>` | Read existing query identity, latest run, and tracking state. |
-| `rw catalog track <term>` | Enable weekly collection for an existing Catalog query. |
-| `rw catalog untrack <term>` | Disable collection without deleting query or run history. |
+| `rw catalog query <term>` | Read existing query identity, activity state, and latest run. A search request renews its keyword interest. |
 | `rw catalog runs <queryId>` | List one bounded newest-first page of persisted runs. |
 | `rw catalog run <runId>` | Read one run with nullable current Products and immutable observations. |
 | `rw auth status|set|clear` | Inspect or update secure-store authentication. |
@@ -97,8 +95,6 @@ For Catalog search:
 rw catalog search "retro gardening shirt"
 rw catalog search "retro gardening shirt" --maxAgeSeconds 0
 rw catalog query "retro gardening shirt"
-rw catalog track "retro gardening shirt"
-rw catalog untrack "retro gardening shirt"
 rw catalog runs 11111111-1111-4111-8111-111111111111 --limit 20
 rw catalog runs 11111111-1111-4111-8111-111111111111 \
   --cursor 22222222-2222-4222-8222-222222222222
@@ -111,8 +107,10 @@ Catalog query, run-list, and run reads never start provider work. Run-list `--li
 and is bounded at 100; pass its `nextCursor` back through `--cursor`. Run results separate immutable
 `observed` values from nullable canonical `currentProduct` state.
 
-Tracking is always explicit. Weekly collection is due after seven days or when a tracked query has
-never completed. A fresh manual run advances that watermark; cached reuse does not.
+Each catalog search request renews keyword interest for 30 days, including cached reuse. Active
+keywords are refreshed automatically when their latest successful run is at least seven days old;
+expired keywords become inactive with no backfill. Query reads expose activity timestamps and
+derived status. Search-run history labels each observation as Requested search or Automatic refresh.
 
 `auto` uses day buckets through 45 days, week buckets through 18 months, and month buckets after
 that. Price values are minor currency units; consult the response's `currencyCode` and
