@@ -14,9 +14,9 @@ weekly keyword refresh are shipped.
 
 ## Current Behavior
 
-`api.app.amazon.search` performs a US SP-API Catalog Items keyword query for up to 20 results. It
-keeps a five-minute in-memory cache and returns normalized transient rows. Returned ASINs are
-deduplicated into the SP-API sync queue so they become canonical Products asynchronously.
+`api.app.amazon.search` performs a US Amazon Catalog Items keyword query for up to 20 results. It
+keeps a five-minute in-memory cache, returns normalized transient rows, and passes their identities
+through the shared Product retrieval service with background policy.
 
 Current keyword lookup does **not** persist the query, result ordering, or a dated run. A dashboard
 catalog lookup, by contrast, searches Products already stored in RankWrangler and does not call a
@@ -36,13 +36,12 @@ The Keepa workflow uses four nouns:
 `sourcePosition` means provider response order. It is not Amazon organic rank unless the source
 explicitly guarantees that meaning.
 
-The worker makes one Keepa Product Search request with Product payloads and history enabled.
-It does not issue a follow-up Keepa request for every ASIN. One transaction reconciles canonical
-Products and their histories, writes the immutable run and ordered results, advances query
-freshness, and completes the Operation.
-
-Products without an accepted SP-API payload are then deduplicated into the existing SP-API sync
-queue. Already-enriched Products are not enqueued again merely because a keyword refreshed.
+The worker makes one Keepa Product Search request with Product payloads and history enabled. It does
+not issue a follow-up Keepa request for every ASIN. One transaction persists Keepa observations,
+writes the immutable run and ordered results, advances query freshness, and completes the Operation.
+It does not inspect listing freshness or enqueue listing work. Run reads pass retained canonical
+identities through the shared Product retrieval service with background policy, so fresh and cached
+run paths behave identically.
 
 Request resolution is serialized per Catalog query. Fresh-run reuse, pending-work deduplication,
 mapped Service Account debit, and new Operation creation share one transaction, so unpaid work is never
@@ -77,8 +76,10 @@ bodies until a caller requests one run.
 ## Product Boundary
 
 Run reads expose source-qualified position and immutable `observed` metrics separately from
-nullable `currentProduct` state. The dashboard seeds a per-ASIN Product query from that snapshot;
-SP-API completion invalidates only the affected Product query rather than the Search-run read. A
-missing Product join does not remove the retained result row.
+nullable `currentProduct` state plus named `currentProductAvailability`. The dashboard seeds a
+per-ASIN Product query from that snapshot; Product completion invalidates only the affected exact
+ASIN Product query rather than the Search-run list. Pending is derived from durable queue membership,
+and a completed empty lookup is represented as unavailable rather than requeued forever. A missing
+Product join does not remove the retained result row.
 RankWrangler exposes source-attributed evidence; it does not score opportunities, recommend niches,
 or promote queries from Brand Analytics data into product-search refresh activity.

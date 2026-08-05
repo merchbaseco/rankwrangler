@@ -103,9 +103,10 @@ rw catalog run 22222222-2222-4222-8222-222222222222
 
 `--maxAgeSeconds` defaults to `86400`; zero forces fresh evidence while joining identical pending
 work. A completed Catalog Operation has `resource.type: "catalogSearchRun"` and a `runId`.
-Catalog query, run-list, and run reads never start provider work. Run-list `--limit` defaults to 20
-and is bounded at 100; pass its `nextCursor` back through `--cursor`. Run results separate immutable
-`observed` values from nullable canonical `currentProduct` state.
+Catalog query and run-list reads never start provider work; a run read may enqueue background Product
+enrichment without blocking on a provider. Run-list `--limit` defaults to 20 and is bounded at 100;
+pass its `nextCursor` back through `--cursor`. Run results separate immutable `observed` values from
+nullable canonical `currentProduct` state and its Product availability.
 
 Each catalog search request renews keyword interest for 30 days, including cached reuse. Active
 keywords are refreshed automatically when their latest successful run is at least seven days old;

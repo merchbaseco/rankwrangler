@@ -7,9 +7,8 @@ read_when:
 
 # Data Model
 
-**Migration status:** The schema and generated migration define the source-separated Product
-freshness and Keepa metric fields below. Deployments must apply that migration before running this
-code.
+**Migration status:** The owning schema adds the durable Product listing-resolution timestamp used
+below. Generate and apply the Drizzle migration before deploying this code.
 
 ## Canonical identity
 
@@ -76,7 +75,7 @@ The target product row combines current values from distinct providers without e
 
 | Provider | Examples | Freshness fields |
 | --- | --- | --- |
-| Amazon SP-API | title, brand, bullets, thumbnail, first-available date, listing category, BSR, and deterministic Merch detection | `spApiFetchedAt` |
+| Amazon listing enrichment | title, brand, bullets, thumbnail, first-available date, listing category, BSR, and deterministic Merch detection | internal `spApiFetchedAt`, `spApiResolvedAt` |
 | Keepa | current BSR, new price, monthly sold, BSR averages, sales-rank drops | `keepaFetchedAt`, `keepaSourceUpdatedAt`, `keepaFirstTrackedAt` |
 | RankWrangler facet classification | Semantic facet assignments | `facetsState`, `facetsUpdatedAt` |
 
@@ -94,7 +93,8 @@ The target public Product summary exposes:
 - listing title, brand, bullets, thumbnail, first-available date, and Merch classification;
 - current root-category id, name, and BSR;
 - optional Keepa observations and their timestamps;
-- SP-API cache metadata.
+- `thumbnail: { status: "pending" } | { status: "available", url } | { status: "unavailable" }`;
+- generic cached metadata with `updatedAt`. Provider status is not part of the frontend/API DTO.
 
 `keepa` is `null` until Keepa-backed current observations exist. Price uses integer minor units:
 `amountMinor: 1999` with `currencyCode: "USD"` means USD 19.99.

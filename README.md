@@ -24,6 +24,11 @@ Amazon [Catalog search](docs/product/catalog-search.md) returns source-ordered e
 observations, reconciles Products into the canonical catalog, and retains the Search run without
 creating an opaque recommendation engine.
 
+Canonical Product retrieval is shared across blocking ASIN reads and background bulk workflows.
+Catalog runs retain immutable search membership while their current Products resolve independently;
+cached and fresh runs use the same background path. Product thumbnails report `pending`, `available`,
+or `unavailable` without exposing provider-specific availability fields.
+
 ## Use RankWrangler
 
 The authenticated dashboard is served at

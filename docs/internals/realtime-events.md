@@ -47,7 +47,7 @@ identifies the exact run read to invalidate.
 The Keyword-research page subscribes to Product-sync completion by marketplace. Each event carries
 one ASIN and invalidates only `api.app.product.get` for that marketplace/ASIN. Catalog-run reads
 seed those normalized Product caches, so mounting a result list does not fan out initial Product
-requests. Reconnect invalidates only visible Products still missing `spApiFetchedAt`.
+requests. Reconnect invalidates only visible Products whose Product availability is still pending.
 
 ## Recovery
 
@@ -57,9 +57,9 @@ Agents poll after `retryAfterSeconds`; the dashboard also polls while showing ex
 recover missed events, while reconnect invalidates the active Operation and history reads.
 Catalog-search Operations follow the same recovery model. The active term and Operation ID remain
 in the dashboard URL so reload resumes the durable read without depending on WebSocket delivery.
-SP-API Product enrichment does not poll: `spApiFetchedAt` plus durable queue membership distinguish
-ready, pending, and unavailable states. The queue survives restart, realtime lowers update
-latency, and reload reads current Product state.
+Product enrichment does not poll: durable queue membership plus the resolution marker distinguish
+pending, available, and unavailable category states. The queue survives restart, realtime lowers
+update latency, and reload reads current Product state.
 
 This boundary keeps the server stateless across connections and prevents realtime delivery from
 becoming a second data store.

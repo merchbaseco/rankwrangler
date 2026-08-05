@@ -148,7 +148,9 @@ Catalog search consumes one mapped Service Account usage unit only when it creat
 joined pending work, Operation polls, and run reads do not consume another unit. Provider token
 state is never returned.
 
-Persisted Catalog reads are tRPC queries and never start provider work:
+Persisted Catalog query and run-list reads are tRPC queries and do not start provider work. A run
+read may enqueue background Product enrichment for retained identities, but it never blocks on a
+provider request:
 
 - `api.public.catalog.query.get` resolves an existing query by `term` and returns normalized
   identity, activity timestamps, derived status, observation count, and latest-run metadata;

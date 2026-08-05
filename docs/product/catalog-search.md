@@ -48,10 +48,10 @@ source position and immutable observed metrics separately from current canonical
 preserves earlier successful runs through empty or failed refreshes, and renews keyword activity
 when the search request is accepted.
 
-When a result has Keepa evidence but no accepted SP-API listing payload yet, the dashboard shows an
-Amazon-listing spinner in that Product row. SP-API completion swaps in the thumbnail and listing
-metadata by refreshing only that ASIN; it does not poll or reload the Search-run list. A completed
-SP-API payload with no image shows a distinct unavailable-image state.
+When a result has retained search evidence but no resolved Product thumbnail yet, the dashboard
+shows a pending-thumbnail state in that Product row. Product completion swaps in the thumbnail and
+listing metadata by refreshing only that exact ASIN; it does not poll or reload the Search-run list.
+A completed lookup with no image shows a distinct unavailable-thumbnail state.
 
 Existing-query and run-history reads never contact Keepa. Query state includes identity, activity
 timestamps, derived status, observation count, and latest-run metadata. Run pages are bounded,

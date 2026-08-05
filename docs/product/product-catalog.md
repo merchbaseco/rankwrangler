@@ -24,9 +24,9 @@ converge on the same record.
   Amazon's bought-in-the-past-month value when Keepa supplies it.
 - Links to historical observations; history is not embedded into the current Product record.
 
-Provider timestamps stay distinct. `spApiFetchedAt` says when RankWrangler accepted SP-API data,
-`keepaFetchedAt` says when it accepted a Keepa Product, and `keepaSourceUpdatedAt` preserves Keepa's
-own update time.
+Provider timestamps stay distinct internally. Product responses expose category-level availability
+through the `thumbnail` union (`pending`, `available` with a URL, or `unavailable`) and generic
+`metadata.updatedAt`; they do not expose provider status fields.
 
 ## Using the catalog
 
@@ -34,8 +34,10 @@ The dashboard lists stored Products and supports text search across ASIN, brand,
 can narrow the visible set by marketplace, BSR, freshness, and assigned facets, then open a Product
 to inspect details and history.
 
-Agents use the public API, typed client, or CLI to read a Product by marketplace and ASIN. A direct
-lookup can add a missing Product or refresh stale SP-API data before returning it.
+Agents use the public API, typed client, or CLI to read a Product by marketplace and ASIN. Blocking
+reads use the shared Product retrieval service, which adds a missing identity or refreshes stale
+listing data before returning it. Bulk and Catalog reads return stored state immediately while
+queueing unresolved or stale identities in the background.
 
 **Brief user story:** An agent resolves an ASIN once, then reads the same canonical Product when it
 later appears in a different research workflow.
