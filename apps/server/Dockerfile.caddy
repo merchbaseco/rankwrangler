@@ -17,6 +17,7 @@ COPY package.json bun.lock .npmrc ./
 #
 COPY packages/http-client/package.json packages/http-client/package.json
 COPY packages/history-chart/package.json packages/history-chart/package.json
+COPY packages/cli/package.json packages/cli/package.json
 COPY apps ./apps
 
 RUN --mount=type=secret,id=github_packages_token,required=true \
