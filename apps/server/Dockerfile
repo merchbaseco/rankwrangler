@@ -6,7 +6,7 @@
 # packages/http-client resolve during `bun install`.
 #
 
-FROM oven/bun:1.1.27 AS deps
+FROM oven/bun:1.3.5 AS deps
 WORKDIR /app
 
 # Copy only the workspace manifests first for better layer caching.
