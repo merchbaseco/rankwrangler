@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "sp_api_resolved_at" timestamp;
