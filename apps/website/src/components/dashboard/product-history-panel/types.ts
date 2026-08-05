@@ -7,6 +7,7 @@ import {
 	HISTORY_RANGE_PRESETS,
 	type HistoryRangePresetKey,
 } from "@rankwrangler/history-chart/history-chart-types";
+import type { ProductThumbnail } from "@/components/dashboard/recent-products/types";
 
 export type HistoryPoint = { timestamp: number; value: number };
 export type HistoryTimeDomain = { startAt: number; endAt: number };
@@ -18,14 +19,14 @@ export type ProductHistoryPanelProduct = {
 	asin: string;
 	marketplaceId: string;
 	title: string | null;
-	thumbnailUrl: string | null;
+	thumbnail: ProductThumbnail;
 	brand: string | null;
 	facets: Array<{ facet: string; name: string }>;
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean;
-	productLastFetchedAt: string | null;
+	productUpdatedAt: string | null;
 	productInfoCached: boolean | null;
 };
 

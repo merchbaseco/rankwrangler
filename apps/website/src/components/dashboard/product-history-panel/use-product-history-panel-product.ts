@@ -26,14 +26,14 @@ export const useProductHistoryPanelProduct = ({
 			asin: product.asin,
 			marketplaceId: product.marketplaceId,
 			title: product.title,
-			thumbnailUrl: product.thumbnailUrl,
+			thumbnail: product.thumbnail,
 			brand: product.brand,
 			facets: product.facets,
 			dateFirstAvailable: product.dateFirstAvailable,
 			rootCategoryBsr: product.rootCategoryBsr,
 			rootCategoryDisplayName: product.rootCategoryDisplayName,
 			isMerchListing: product.isMerchListing,
-			productLastFetchedAt: product.productLastFetchedAt,
+			productUpdatedAt: product.productUpdatedAt,
 			productInfoCached: product.productInfoCached,
 		});
 
@@ -51,7 +51,7 @@ export const useProductHistoryPanelProduct = ({
 					asin: productInfo.asin,
 					marketplaceId: productInfo.marketplaceId,
 					title: productInfo.title,
-					thumbnailUrl: productInfo.thumbnailUrl ?? null,
+					thumbnail: productInfo.thumbnail,
 					brand: productInfo.brand,
 					// Preserve facets loaded from DB query to avoid async overwrite races.
 					facets: previous.facets,
@@ -59,7 +59,7 @@ export const useProductHistoryPanelProduct = ({
 					rootCategoryBsr: productInfo.rootCategoryBsr,
 					rootCategoryDisplayName: productInfo.rootCategoryDisplayName,
 					isMerchListing: productInfo.isMerchListing,
-					productLastFetchedAt: productInfo.metadata.spApiFetchedAt,
+					productUpdatedAt: productInfo.metadata.updatedAt,
 					productInfoCached: productInfo.metadata.cached,
 				}));
 			} catch {
@@ -80,14 +80,14 @@ export const useProductHistoryPanelProduct = ({
 		product.asin,
 		product.marketplaceId,
 		product.title,
-		product.thumbnailUrl,
+		product.thumbnail,
 		product.brand,
 		product.facets,
 		product.dateFirstAvailable,
 		product.rootCategoryBsr,
 		product.rootCategoryDisplayName,
 		product.isMerchListing,
-		product.productLastFetchedAt,
+		product.productUpdatedAt,
 		product.productInfoCached,
 	]);
 

@@ -7,10 +7,10 @@ import {
 } from "./catalog-product-thumbnail";
 
 describe("Catalog Product thumbnail", () => {
-	it("renders an explicit SP-API pending spinner", () => {
+	it("renders an explicit pending thumbnail spinner", () => {
 		const markup = renderToStaticMarkup(<PendingCatalogProductThumbnail />);
 
-		expect(markup).toContain("Loading Amazon listing data");
+		expect(markup).toContain("Loading product thumbnail");
 		expect(markup).toContain("animate-spin");
 		expect(markup).not.toContain("N/A");
 	});
@@ -33,7 +33,7 @@ describe("Catalog Product thumbnail", () => {
 			<UnavailableCatalogProductThumbnail />,
 		);
 
-		expect(markup).toContain("Amazon listing has no thumbnail");
+		expect(markup).toContain("No product thumbnail available");
 		expect(markup).not.toContain("animate-spin");
 	});
 });

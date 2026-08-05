@@ -13,14 +13,14 @@ const RowBsrButton = ({
 	asin,
 	marketplaceId,
 	title,
-	thumbnailUrl,
+	thumbnail,
 	brand,
 	facets,
 	dateFirstAvailable,
 	rootCategoryBsr,
 	rootCategoryDisplayName,
 	isMerchListing,
-	productLastFetchedAt,
+	productUpdatedAt,
 	isActive,
 	onSelect,
 }: {
@@ -28,14 +28,14 @@ const RowBsrButton = ({
 	asin: string;
 	marketplaceId: string;
 	title: string | null;
-	thumbnailUrl: string | null;
+	thumbnail: Product["thumbnail"];
 	brand: string | null;
 	facets: Array<{ facet: string; name: string }>;
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean;
-	productLastFetchedAt: string | null;
+	productUpdatedAt: string | null;
 	isActive: boolean;
 	onSelect: (product: SelectedHistoryProduct) => void;
 }) => (
@@ -47,7 +47,7 @@ const RowBsrButton = ({
 				asin,
 				marketplaceId,
 				title,
-				thumbnailUrl,
+				thumbnail,
 				brand,
 				facets,
 				dateFirstAvailable,
@@ -55,7 +55,7 @@ const RowBsrButton = ({
 				rootCategoryDisplayName,
 				isMerchListing,
 				productInfoCached: null,
-				productLastFetchedAt,
+				productUpdatedAt,
 			});
 		}}
 		size="sm"
@@ -81,9 +81,10 @@ export const createColumns = ({
 	selectedHistoryKey: string | null;
 }): ColumnDef<Product>[] => [
 	{
-		accessorKey: "thumbnailUrl",
+		accessorKey: "thumbnail",
 		cell: ({ row }) => {
-			const url = row.getValue("thumbnailUrl") as string | null;
+			const thumbnail = row.getValue("thumbnail") as Product["thumbnail"];
+			const url = thumbnail.status === "available" ? thumbnail.url : null;
 			return url ? (
 				<div
 					className="flex w-8 items-center justify-center overflow-hidden rounded-sm border border-border bg-muted"
@@ -180,14 +181,14 @@ export const createColumns = ({
 						asin={row.original.asin}
 						marketplaceId={row.original.marketplaceId}
 						title={row.original.title}
-						thumbnailUrl={row.original.thumbnailUrl}
+						thumbnail={row.original.thumbnail}
 						brand={row.original.brand}
 						facets={row.original.facets}
 						dateFirstAvailable={row.original.dateFirstAvailable}
 						rootCategoryBsr={row.original.rootCategoryBsr}
 						rootCategoryDisplayName={null}
 						isMerchListing={row.original.isMerchListing}
-						productLastFetchedAt={row.original.spApiFetchedAt}
+						productUpdatedAt={row.original.updatedAt}
 						isActive={selectedHistoryKey === rowKey}
 						onSelect={onSelectHistory}
 					/>

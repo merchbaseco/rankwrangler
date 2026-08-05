@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createSpApiClient } from '@/services/spapi/spapi-client.js';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
+import type { ProductThumbnail } from '@/types/index.js';
 import { classifyMerchBullets } from '@/utils/merch-bullets.js';
 import {
     getMarketplaceBulletPoints,
@@ -24,9 +25,9 @@ export type CatalogKeywordSearchItem = {
     bullet2: string | null;
     isMerchListing: boolean;
     rootCategoryBsr: number | null;
-    thumbnailUrl: string | null;
+    thumbnail: ProductThumbnail;
     facets: Array<{ facet: string; name: string }>;
-    spApiFetchedAt: string;
+    fetchedAt: string;
 };
 
 export type CatalogKeywordSearchResult = {
@@ -34,7 +35,7 @@ export type CatalogKeywordSearchResult = {
     metadata: {
         cached: boolean;
         keyword: string;
-        spApiFetchedAt: string;
+        fetchedAt: string;
         marketplaceId: string;
     };
 };
@@ -98,7 +99,7 @@ export const searchCatalogItemsByKeyword = async ({
         metadata: {
             cached: false,
             keyword: normalizedKeyword,
-            spApiFetchedAt: fetchedAt,
+            fetchedAt,
             marketplaceId,
         },
     };
@@ -152,9 +153,11 @@ export const mapCatalogItemFromKeywordSearch = (
         bullet2: merchClassification.bullet2,
         isMerchListing: merchClassification.isMerchListing,
         rootCategoryBsr,
-        thumbnailUrl,
+        thumbnail: thumbnailUrl
+            ? { status: 'available', url: thumbnailUrl }
+            : { status: 'unavailable' },
         facets: [],
-        spApiFetchedAt: fetchedAt,
+        fetchedAt,
     };
 };
 

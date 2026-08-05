@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
+import { getRequiredProduct } from '@/services/product-retrieval';
 import { requestProductHistoryRefresh } from '@/services/product-history-operations.js';
-import { fetchProductInfo } from '@/utils/product-info.js';
 
 const loadProductHistoryInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),
@@ -16,12 +16,12 @@ const loadProductHistoryInput = z.object({
 type LoadProductHistoryInput = z.infer<typeof loadProductHistoryInput>;
 
 interface LoadProductHistoryDeps {
-    fetchProductInfo: typeof fetchProductInfo;
+    getRequiredProduct: typeof getRequiredProduct;
     requestProductHistoryRefresh: typeof requestProductHistoryRefresh;
 }
 
 const loadProductHistoryDeps: LoadProductHistoryDeps = {
-    fetchProductInfo,
+    getRequiredProduct,
     requestProductHistoryRefresh,
 };
 
@@ -34,7 +34,7 @@ export const requestManualProductHistorySync = async ({
     ownerMerchbaseUserId: string;
     deps?: LoadProductHistoryDeps;
 }) => {
-    await deps.fetchProductInfo({
+    await deps.getRequiredProduct({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
     });

@@ -73,7 +73,8 @@ export const getProduct = async (
 
 		const responseData = response.data ?? {};
 
-		const spApiFetchedAt = responseData.metadata?.spApiFetchedAt;
+		const thumbnailStatus = responseData.thumbnail?.status;
+		const updatedAt = responseData.metadata?.updatedAt;
 		const product: Product = {
 			asin,
 			marketplaceId,
@@ -92,7 +93,12 @@ export const getProduct = async (
 				: {}),
 			metadata: {
 				success: true,
-				...(typeof spApiFetchedAt === "string" ? { spApiFetchedAt } : {}),
+				...(thumbnailStatus === "pending" ||
+				thumbnailStatus === "available" ||
+				thumbnailStatus === "unavailable"
+					? { thumbnailStatus }
+					: {}),
+				...(typeof updatedAt === "string" ? { updatedAt } : {}),
 				cached: Boolean(responseData.metadata?.cached),
 			},
 		};

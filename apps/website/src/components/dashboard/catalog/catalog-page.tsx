@@ -21,8 +21,7 @@ export const CatalogPage = () => {
 				const product = result.currentProduct;
 				if (
 					!product ||
-					product.metadata.spApiFetchedAt ||
-					!result.currentProductSyncPending
+					result.currentProductAvailability !== "pending"
 				) {
 					return [];
 				}

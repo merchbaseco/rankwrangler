@@ -14,6 +14,7 @@ type StoredProductInfo = {
     rootCategoryId: number | null;
     rootCategoryBsr: number | null;
     spApiFetchedAt: Date | null;
+    spApiResolvedAt: Date | null;
     keepaFetchedAt: Date | null;
     keepaSourceUpdatedAt: Date | null;
     keepaFirstTrackedAt: Date | null;
@@ -27,9 +28,13 @@ type StoredProductInfo = {
     keepaSalesRankDrops90: number | null;
     keepaSalesRankDrops180: number | null;
     keepaSalesRankDrops365: number | null;
+    createdAt: Date;
 };
 
-export const mapStoredProductInfo = (product: StoredProductInfo): ProductInfo => {
+export const mapStoredProductInfo = (
+    product: StoredProductInfo,
+    { thumbnailPending }: { thumbnailPending: boolean }
+): ProductInfo => {
     const currencyCode = getMarketplaceCurrencyCode(product.marketplaceId);
 
     return {
@@ -41,7 +46,11 @@ export const mapStoredProductInfo = (product: StoredProductInfo): ProductInfo =>
         isMerchListing: product.isMerchListing,
         bullet1: product.bullet1,
         bullet2: product.bullet2,
-        thumbnailUrl: product.thumbnailUrl ?? undefined,
+        thumbnail: thumbnailPending
+            ? { status: 'pending' }
+            : hasLatestSpApiPayload(product) && product.thumbnailUrl
+              ? { status: 'available', url: product.thumbnailUrl }
+              : { status: 'unavailable' },
         rootCategoryId: product.rootCategoryId,
         rootCategoryBsr: product.rootCategoryBsr,
         rootCategoryDisplayName:
@@ -74,10 +83,29 @@ export const mapStoredProductInfo = (product: StoredProductInfo): ProductInfo =>
               }
             : null,
         metadata: {
-            spApiFetchedAt: product.spApiFetchedAt?.toISOString() ?? null,
             cached: true,
+            updatedAt: getProductUpdatedAt(product).toISOString(),
         },
     };
+};
+
+const hasLatestSpApiPayload = (product: StoredProductInfo) => {
+    if (!product.spApiFetchedAt) {
+        return false;
+    }
+
+    return !product.spApiResolvedAt || product.spApiFetchedAt >= product.spApiResolvedAt;
+};
+
+const getProductUpdatedAt = (product: StoredProductInfo) => {
+    const timestamps = [
+        product.createdAt,
+        product.spApiFetchedAt,
+        product.spApiResolvedAt,
+        product.keepaFetchedAt,
+    ].filter((value): value is Date => value !== null);
+
+    return timestamps.reduce((latest, value) => (value > latest ? value : latest), new Date(0));
 };
 
 const getMarketplaceCurrencyCode = (marketplaceId: string) => {

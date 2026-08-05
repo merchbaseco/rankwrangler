@@ -12,13 +12,13 @@ describe("Catalog Product query seeding", () => {
 				marketplaceId: "ATVPDKIKX0DER",
 				asin: "B000000001",
 				product: { title: "First" },
-				syncPending: true,
+				availability: "pending",
 			},
 			{
 				marketplaceId: "ATVPDKIKX0DER",
 				asin: "B000000002",
 				product: { title: "Second" },
-				syncPending: false,
+				availability: "available",
 			},
 		];
 
@@ -32,14 +32,14 @@ describe("Catalog Product query seeding", () => {
 		expect(setProduct.mock.calls).toEqual([[seeds[0]], [seeds[1]]]);
 	});
 
-	it("does not replace a completed SP-API read with an older pending seed", () => {
+	it("does not replace a completed Product read with an older pending seed", () => {
 		const current = createProductRead({
-			spApiFetchedAt: "2026-08-03T12:05:00.000Z",
-			syncPending: false,
+			updatedAt: "2026-08-03T12:05:00.000Z",
+			availability: "available",
 		});
 		const seed = createProductRead({
 			keepaFetchedAt: "2026-08-03T12:00:00.000Z",
-			syncPending: true,
+			availability: "pending",
 		});
 
 		expect(selectFreshestProductRead(current, seed)).toBe(current);
@@ -48,11 +48,11 @@ describe("Catalog Product query seeding", () => {
 	it("uses a newer Catalog-run snapshot to refresh cached Keepa state", () => {
 		const current = createProductRead({
 			keepaFetchedAt: "2026-08-03T12:00:00.000Z",
-			syncPending: false,
+			availability: "available",
 		});
 		const seed = createProductRead({
 			keepaFetchedAt: "2026-08-03T12:05:00.000Z",
-			syncPending: false,
+			availability: "available",
 		});
 
 		expect(selectFreshestProductRead(current, seed)).toBe(seed);
@@ -61,17 +61,17 @@ describe("Catalog Product query seeding", () => {
 
 const createProductRead = ({
 	keepaFetchedAt = null,
-	spApiFetchedAt = null,
-	syncPending,
+	updatedAt = null,
+	availability,
 }: {
 	keepaFetchedAt?: string | null;
-	spApiFetchedAt?: string | null;
-	syncPending: boolean;
+	updatedAt?: string | null;
+	availability: "pending" | "available" | "unavailable";
 }) =>
 	({
 		product: {
-			metadata: { spApiFetchedAt },
+			metadata: { cached: true, updatedAt: updatedAt ?? "" },
 			keepa: keepaFetchedAt ? { fetchedAt: keepaFetchedAt } : null,
 		},
-		syncPending,
+		availability,
 	}) as Parameters<typeof selectFreshestProductRead>[1];

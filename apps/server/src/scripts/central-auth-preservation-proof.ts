@@ -79,7 +79,12 @@ const capture = async (sql: postgres.Sql, options: Options): Promise<Preservatio
             'product_history_points',
             'to_jsonb(product_history_points)::text'
         ),
-        products: await captureCollection(sql, 'products', 'to_jsonb(products)::text'),
+        // Ignore the additive resolution marker so a nullable schema column is not treated as data loss.
+        products: await captureCollection(
+            sql,
+            'products',
+            "(to_jsonb(products) - 'sp_api_resolved_at')::text"
+        ),
     };
 
     if (options.phase === 'before') {

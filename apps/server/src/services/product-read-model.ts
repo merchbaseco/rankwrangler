@@ -10,7 +10,7 @@ import {
     type ProductHistoryMetric,
 } from '@/services/product-history-surface.js';
 import type { ProductInfo } from '@/types/index.js';
-import { fetchProductInfo } from '@/utils/product-info.js';
+import { getRequiredProduct } from './product-retrieval';
 
 const DEFAULT_PRODUCT_GET_METRICS: readonly ProductHistoryMetric[] = ['bsr', 'price'];
 
@@ -54,7 +54,7 @@ export type ProductReadModel = {
 };
 
 export const getProductReadModel = async (input: ProductReadInput): Promise<ProductReadModel> => {
-    const summary = await fetchProductInfo({
+    const summary = await getRequiredProduct({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
     });

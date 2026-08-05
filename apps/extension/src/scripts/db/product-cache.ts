@@ -52,7 +52,7 @@ export interface CachedProductDebugEntry {
 	hasRankData: boolean;
 	metadataSuccess: boolean;
 	metadataCached: boolean;
-	spApiFetchedAt: string | null;
+	thumbnailStatus: "pending" | "available" | "unavailable" | null;
 }
 
 const getCacheEntries = async (
@@ -80,10 +80,7 @@ const getCacheEntries = async (
 				hasRankData,
 				metadataSuccess: Boolean(product.metadata?.success),
 				metadataCached: Boolean(product.metadata?.cached),
-				spApiFetchedAt:
-					typeof product.metadata?.spApiFetchedAt === "string"
-						? product.metadata.spApiFetchedAt
-						: null,
+				thumbnailStatus: product.metadata?.thumbnailStatus ?? null,
 			};
 		});
 };

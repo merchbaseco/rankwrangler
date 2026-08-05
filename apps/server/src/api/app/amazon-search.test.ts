@@ -1,115 +1,41 @@
-import { describe, expect, it } from 'bun:test';
-import {
-    buildAmazonSearchSyncQueueItems,
-    enqueueAmazonSearchSyncQueueItems,
-} from '@/api/app/amazon-search.js';
+import { describe, expect, it, mock } from 'bun:test';
+import { retrieveAmazonSearchProducts } from '@/api/app/amazon-search.js';
 
-describe('buildAmazonSearchSyncQueueItems', () => {
-    it('normalizes, deduplicates, and filters keyword search items for queueing', () => {
-        const queueItems = buildAmazonSearchSyncQueueItems([
-            {
-                asin: 'b000123456',
-                marketplaceId: 'ATVPDKIKX0DER',
-                dateFirstAvailable: null,
-                title: 'Shirt',
-                brand: 'Brand',
-                bullet1: null,
-                bullet2: null,
-                isMerchListing: false,
-                rootCategoryBsr: null,
-                thumbnailUrl: null,
-                facets: [],
-                spApiFetchedAt: '2026-03-04T00:00:00.000Z',
-            },
-            {
-                asin: ' B000123456 ',
-                marketplaceId: 'ATVPDKIKX0DER',
-                dateFirstAvailable: null,
-                title: 'Shirt',
-                brand: 'Brand',
-                bullet1: null,
-                bullet2: null,
-                isMerchListing: false,
-                rootCategoryBsr: null,
-                thumbnailUrl: null,
-                facets: [],
-                spApiFetchedAt: '2026-03-04T00:00:00.000Z',
-            },
-            {
-                asin: 'B000987654',
-                marketplaceId: 'A1F83G8C2ARO7P',
-                dateFirstAvailable: null,
-                title: 'Hoodie',
-                brand: 'Brand',
-                bullet1: null,
-                bullet2: null,
-                isMerchListing: true,
-                rootCategoryBsr: 12345,
-                thumbnailUrl: null,
-                facets: [],
-                spApiFetchedAt: '2026-03-04T00:00:00.000Z',
-            },
-            {
-                asin: ' ',
-                marketplaceId: 'ATVPDKIKX0DER',
-                dateFirstAvailable: null,
-                title: null,
-                brand: null,
-                bullet1: null,
-                bullet2: null,
-                isMerchListing: false,
-                rootCategoryBsr: null,
-                thumbnailUrl: null,
-                facets: [],
-                spApiFetchedAt: '2026-03-04T00:00:00.000Z',
-            },
-        ]);
-
-        expect(queueItems).toEqual([
-            {
-                marketplaceId: 'ATVPDKIKX0DER',
-                asin: 'B000123456',
-            },
-            {
-                marketplaceId: 'A1F83G8C2ARO7P',
-                asin: 'B000987654',
-            },
-        ]);
-    });
-
-    it('swallows queue enqueue failures so keyword search responses are not blocked', async () => {
-        const loggedErrors: unknown[][] = [];
-
-        const insertedCount = await enqueueAmazonSearchSyncQueueItems({
-            items: [
-                {
-                    asin: 'B000123456',
-                    marketplaceId: 'ATVPDKIKX0DER',
-                    dateFirstAvailable: null,
-                    title: 'Shirt',
-                    brand: 'Brand',
-                    bullet1: null,
-                    bullet2: null,
-                    isMerchListing: false,
-                    rootCategoryBsr: null,
-                    thumbnailUrl: null,
-                    facets: [],
-                    spApiFetchedAt: '2026-03-04T00:00:00.000Z',
-                },
-            ],
-            enqueue: async () => {
-                throw new Error('queue offline');
-            },
-            logError: (...args) => {
-                loggedErrors.push(args);
-            },
+describe('Amazon keyword Product retrieval', () => {
+    it('sends keyword identities through the shared background Product service', async () => {
+        const retrieve = mock(async (input: Parameters<typeof import('@/services/product-retrieval.js')['getProducts']>[0]) => {
+            expect(input.fetchPolicy).toBe('background');
+            return input.products.map(identity => ({
+                identity,
+                product: null,
+                availability: 'pending' as const,
+            }));
         });
 
-        expect(insertedCount).toBe(0);
-        expect(loggedErrors).toHaveLength(1);
-        expect(loggedErrors[0]?.[0]).toBe(
-            '[api.app.amazon.search] Failed to enqueue keyword results for sync:'
+        const result = await retrieveAmazonSearchProducts(
+            [
+                createKeywordItem({ asin: 'B000123456' }),
+                createKeywordItem({ asin: 'B000987654' }),
+            ],
+            retrieve
         );
-        expect(loggedErrors[0]?.[1]).toBeInstanceOf(Error);
+
+        expect(result.map(read => read.identity.asin)).toEqual(['B000123456', 'B000987654']);
+        expect(retrieve.mock.calls).toHaveLength(1);
     });
+});
+
+const createKeywordItem = ({ asin }: { asin: string }) => ({
+    asin,
+    marketplaceId: 'ATVPDKIKX0DER',
+    dateFirstAvailable: null,
+    title: null,
+    brand: null,
+    bullet1: null,
+    bullet2: null,
+    isMerchListing: false,
+    rootCategoryBsr: null,
+    thumbnail: { status: 'unavailable' as const },
+    facets: [],
+    fetchedAt: '2026-08-03T12:00:00.000Z',
 });

@@ -5,10 +5,9 @@ import {
     catalogSearchResults,
     catalogSearchRuns,
     products,
-    spApiSyncQueue,
 } from '@/db/schema';
+import { getProducts } from '@/services/product-retrieval';
 import { mapCatalogRunMetadata } from './catalog-query-read-model';
-import { mapStoredProductInfo } from './product/product-info-mapper';
 
 const CATALOG_SOURCE = 'keepa' as const;
 
@@ -76,32 +75,40 @@ export const listCatalogSearchRuns = async ({
     };
 };
 
-export const getCatalogSearchRun = async (runId: string) => {
+export const getCatalogSearchRun = async (
+    runId: string,
+    retrieveProducts: typeof getProducts = getProducts
+) => {
     const rows = await db
         .select({
             run: catalogSearchRuns,
             query: catalogQueries,
             result: catalogSearchResults,
             product: products,
-            syncQueueId: spApiSyncQueue.id,
         })
         .from(catalogSearchRuns)
         .innerJoin(catalogQueries, eq(catalogQueries.id, catalogSearchRuns.queryId))
         .leftJoin(catalogSearchResults, eq(catalogSearchResults.runId, catalogSearchRuns.id))
         .leftJoin(products, eq(products.id, catalogSearchResults.productId))
-        .leftJoin(
-            spApiSyncQueue,
-            and(
-                eq(spApiSyncQueue.marketplaceId, products.marketplaceId),
-                eq(spApiSyncQueue.asin, products.asin)
-            )
-        )
         .where(eq(catalogSearchRuns.id, runId))
         .orderBy(catalogSearchResults.sourcePosition);
     const first = rows[0];
     if (!first) {
         return null;
     }
+
+    const identities = rows.flatMap(row =>
+        row.product
+            ? [{ marketplaceId: row.product.marketplaceId, asin: row.product.asin }]
+            : []
+    );
+    const productReads = await retrieveProducts({
+        products: identities,
+        fetchPolicy: 'background',
+    });
+    const productReadsByKey = new Map(
+        productReads.map(read => [`${read.identity.marketplaceId}:${read.identity.asin}`, read])
+    );
 
     return {
         ...mapCatalogRunMetadata(first.run),
@@ -126,8 +133,16 @@ export const getCatalogSearchRun = async (runId: string) => {
                         value: row.result.sourcePosition,
                     },
                     observed: mapObservation(row.result),
-                    currentProduct: row.product ? mapStoredProductInfo(row.product) : null,
-                    currentProductSyncPending: row.syncQueueId !== null,
+                    currentProduct: row.product
+                        ? (productReadsByKey.get(
+                              `${row.product.marketplaceId}:${row.product.asin}`
+                          )?.product ?? null)
+                        : null,
+                    currentProductAvailability: row.product
+                        ? (productReadsByKey.get(
+                              `${row.product.marketplaceId}:${row.product.asin}`
+                          )?.availability ?? 'unavailable')
+                        : 'unavailable',
                 },
             ];
         }),

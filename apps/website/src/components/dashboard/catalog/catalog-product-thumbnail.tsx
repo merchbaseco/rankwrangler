@@ -8,13 +8,13 @@ import {
 export const PendingCatalogProductThumbnail = () => (
 	<Tooltip delay={0}>
 		<TooltipTrigger
-			aria-label="Loading Amazon listing data"
+			aria-label="Loading product thumbnail"
 			className="flex h-12 w-10 cursor-wait items-center justify-center rounded-sm border border-border bg-muted"
 			render={<div />}
 		>
 			<LoaderCircle className="size-4 animate-spin text-muted-foreground" />
 		</TooltipTrigger>
-		<TooltipPopup>Loading Amazon listing data…</TooltipPopup>
+		<TooltipPopup>Loading product thumbnail…</TooltipPopup>
 	</Tooltip>
 );
 
@@ -39,12 +39,12 @@ export const AvailableCatalogProductThumbnail = ({
 export const UnavailableCatalogProductThumbnail = () => (
 	<Tooltip delay={0}>
 		<TooltipTrigger
-			aria-label="Amazon listing has no thumbnail"
+			aria-label="No product thumbnail available"
 			className="flex h-12 w-10 items-center justify-center rounded-sm border border-border bg-muted"
 			render={<div />}
 		>
 			<ImageOff className="size-4 text-muted-foreground/70" />
 		</TooltipTrigger>
-		<TooltipPopup>Amazon listing has no thumbnail</TooltipPopup>
+		<TooltipPopup>No product thumbnail available</TooltipPopup>
 	</Tooltip>
 );

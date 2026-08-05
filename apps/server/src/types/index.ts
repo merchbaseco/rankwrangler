@@ -1,3 +1,8 @@
+export type ProductThumbnail =
+    | { status: 'pending' }
+    | { status: 'available'; url: string }
+    | { status: 'unavailable' };
+
 export type ProductInfo = {
     asin: string;
     marketplaceId: string;
@@ -15,8 +20,7 @@ export type ProductInfo = {
     rootCategoryBsr: number | null;
     rootCategoryDisplayName: string | null;
 
-    // Thumbnail URL from SP-API
-    thumbnailUrl?: string;
+    thumbnail: ProductThumbnail;
 
     keepa: {
         fetchedAt: string;
@@ -40,7 +44,12 @@ export type ProductInfo = {
     } | null;
 
     metadata: {
-        spApiFetchedAt: string | null; // ISO timestamp when data was fetched from SP-API
-        cached: boolean; // true if served from product store, false if fresh from SP-API
+        cached: boolean;
+        updatedAt: string;
     };
+};
+
+export type SpApiProduct = Omit<ProductInfo, 'rootCategoryDisplayName' | 'thumbnail' | 'metadata'> & {
+    fetchedAt: string;
+    thumbnailUrl: string | null;
 };

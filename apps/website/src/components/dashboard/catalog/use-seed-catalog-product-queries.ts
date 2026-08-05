@@ -6,7 +6,7 @@ type CatalogProductSeed = {
 	marketplaceId: string;
 	asin: string;
 	product: NonNullable<CatalogRun["results"][number]["currentProduct"]>;
-	syncPending: boolean;
+	availability: "pending" | "available" | "unavailable";
 };
 type ProductRead = RouterOutputs["api"]["app"]["product"]["get"];
 
@@ -50,7 +50,7 @@ export const useSeedCatalogProductQueries = (run: CatalogRun | null) => {
 						marketplaceId: product.marketplaceId,
 						asin: product.asin,
 						product,
-						syncPending: result.currentProductSyncPending,
+						availability: result.currentProductAvailability,
 					},
 				];
 			}) ?? [];
@@ -60,7 +60,7 @@ export const useSeedCatalogProductQueries = (run: CatalogRun | null) => {
 			setProduct: (seed) => {
 				const productRead = {
 					product: seed.product,
-					syncPending: seed.syncPending,
+					availability: seed.availability,
 				};
 				utils.api.app.product.get.setData(
 					{
@@ -76,7 +76,7 @@ export const useSeedCatalogProductQueries = (run: CatalogRun | null) => {
 
 const getLatestSourceTimestamp = (read: NonNullable<ProductRead>) => {
 	const timestamps = [
-		read.product.metadata.spApiFetchedAt,
+		read.product.metadata.updatedAt,
 		read.product.keepa?.fetchedAt ?? null,
 	].flatMap(value => {
 		if (!value) {

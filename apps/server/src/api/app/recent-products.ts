@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import { db } from '@/db/index.js';
 import { productFacets, productFacetValues, products } from '@/db/schema.js';
+import { getProducts } from '@/services/product-retrieval';
 
 const recentProductsInput = z.object({
 	cursor: z
@@ -38,7 +39,6 @@ export const recentProducts = appProcedure
 			.select({
 				asin: products.asin,
 				title: products.title,
-				thumbnailUrl: products.thumbnailUrl,
 				brand: products.brand,
 				bullet1: products.bullet1,
 				bullet2: products.bullet2,
@@ -66,7 +66,6 @@ export const recentProducts = appProcedure
                 `.mapWith((value) =>
 					JSON.parse(value) as Array<{ facet: string; name: string }>
 				),
-				spApiFetchedAt: products.spApiFetchedAt,
 				updatedAt: productUpdatedAt,
 			})
 			.from(products)
@@ -79,6 +78,25 @@ export const recentProducts = appProcedure
             .limit(limit + 1);
 
         const items = rows.slice(0, limit);
+        const productReads = await getProducts({
+            products: items.map(item => ({
+                marketplaceId: item.marketplaceId,
+                asin: item.asin,
+            })),
+            fetchPolicy: 'background',
+        });
+        const productReadsByKey = new Map(
+            productReads.map(read => [
+                `${read.identity.marketplaceId}:${read.identity.asin}`,
+                read,
+            ])
+        );
+        const productItems = items.map(item => ({
+            ...item,
+            thumbnail:
+                productReadsByKey.get(`${item.marketplaceId}:${item.asin}`)?.product
+                    ?.thumbnail ?? { status: 'pending' as const },
+        }));
         let trackedTotals: { totalMerchProducts: number; totalProducts: number } | null = null;
         let availableFacets: Array<{ facet: string; name: string }> | null = null;
 
@@ -104,7 +122,7 @@ export const recentProducts = appProcedure
 			: null;
 
 		return {
-            items,
+            items: productItems,
             nextCursor,
             trackedTotals,
             availableFacets,
@@ -137,6 +155,7 @@ const buildCursorCondition = (
 
 export const productUpdatedAt = sql<Date>`GREATEST(
     COALESCE(${products.spApiFetchedAt}, '-infinity'::timestamp),
+    COALESCE(${products.spApiResolvedAt}, '-infinity'::timestamp),
     COALESCE(${products.keepaFetchedAt}, '-infinity'::timestamp),
     ${products.createdAt}
 )`.mapWith(products.createdAt);

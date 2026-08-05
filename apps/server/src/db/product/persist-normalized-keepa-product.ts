@@ -72,7 +72,6 @@ export const persistNormalizedKeepaProduct = async (
         })
         .returning({
             id: products.id,
-            spApiFetchedAt: products.spApiFetchedAt,
         });
 
     if (!storedProduct) {
@@ -156,7 +155,6 @@ export const persistNormalizedKeepaProduct = async (
 
     return {
         productId: storedProduct.id,
-        spApiFetchedAt: storedProduct.spApiFetchedAt,
         importId: insertedImport.id,
         importedAt: insertedImport.createdAt,
     };

@@ -146,7 +146,7 @@ describeCatalogDb('Catalog search history reads', () => {
         expect(empty).toMatchObject({ id: emptyRunId, resultCount: 0, results: [] });
     });
 
-    it('derives per-ASIN SP-API pending state from the durable queue', async () => {
+    it('derives Product availability from the durable queue and resolution state', async () => {
         const queryId = await insertQuery('Pending Product');
         const runId = await insertRun(queryId, '2026-07-01T12:00:00.000Z', 1);
         const productId = await insertProduct();
@@ -154,29 +154,30 @@ describeCatalogDb('Catalog search history reads', () => {
         const caller = appRouter.createCaller(createContext('app'));
 
         expect((await caller.api.app.catalog.run.get({ id: runId })).results[0]).toMatchObject({
-            currentProductSyncPending: false,
+            currentProductAvailability: 'pending',
+            currentProduct: { thumbnail: { status: 'pending' } },
         });
+        expect(await db.select().from(spApiSyncQueue)).toHaveLength(1);
 
-        await db.insert(spApiSyncQueue).values({
-            marketplaceId: 'ATVPDKIKX0DER',
-            asin: 'B012345678',
-        });
         expect(await caller.api.app.product.get({
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B012345678',
         })).toMatchObject({
-            syncPending: true,
-        });
-        expect((await caller.api.app.catalog.run.get({ id: runId })).results[0]).toMatchObject({
-            currentProductSyncPending: true,
+            availability: 'pending',
+            product: { thumbnail: { status: 'pending' } },
         });
 
         await db.delete(spApiSyncQueue);
+        await db
+            .update(products)
+            .set({ spApiResolvedAt: new Date(Date.now() + 60_000) })
+            .where(eq(products.id, productId));
         expect(await caller.api.app.product.get({
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B012345678',
         })).toMatchObject({
-            syncPending: false,
+            availability: 'unavailable',
+            product: { thumbnail: { status: 'unavailable' } },
         });
     });
 });

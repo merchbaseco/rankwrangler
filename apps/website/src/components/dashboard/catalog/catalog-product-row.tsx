@@ -41,32 +41,32 @@ const ResolvedCatalogProductRow = ({
 }) => {
 	const productQuery = useCatalogProductQuery({
 		initialProduct,
-		initialSyncPending: result.currentProductSyncPending,
+		initialAvailability: result.currentProductAvailability,
 	});
 	const product = productQuery.data?.product ?? initialProduct;
 	const current = product.keepa;
-	const isSpApiPending =
-		product.metadata.spApiFetchedAt === null &&
-		(productQuery.data?.syncPending ?? result.currentProductSyncPending);
+	const isProductPending =
+		(productQuery.data?.availability ?? result.currentProductAvailability) ===
+		"pending";
 
 	return (
 		<TableRow key={`${runId}:${result.productId}`}>
 			<PositionCell value={result.position.value} />
 			<TableCell>
-				{isSpApiPending ? (
+				{product.thumbnail.status === "pending" ? (
 					<PendingCatalogProductThumbnail />
-				) : product.thumbnailUrl ? (
+				) : product.thumbnail.status === "available" ? (
 					<AvailableCatalogProductThumbnail
 						asin={product.asin}
 						title={product.title}
-						url={product.thumbnailUrl}
+						url={product.thumbnail.url}
 					/>
 				) : (
 					<UnavailableCatalogProductThumbnail />
 				)}
 			</TableCell>
 			<TableCell className="max-w-80 whitespace-normal">
-				{isSpApiPending ? (
+				{isProductPending ? (
 					<PendingProductSummary product={product} />
 				) : (
 					<ProductSummary product={product} />

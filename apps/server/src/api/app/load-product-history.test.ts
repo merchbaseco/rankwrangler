@@ -5,7 +5,7 @@ describe('manual Product-history request', () => {
     it('ensures the Product then returns a pending durable Operation', async () => {
         let productEnsured = false;
         const deps = {
-            fetchProductInfo: mock(async () => {
+            getRequiredProduct: mock(async () => {
                 productEnsured = true;
                 return { asin: 'B012345678' } as never;
             }),

@@ -14,7 +14,7 @@ import {
 import type { ProductHistoryBucket } from '@/services/product-history-buckets.js';
 import { buildLegacyHistoryResponse } from '@/services/product-history-legacy.js';
 import { requestProductHistoryRefresh } from '@/services/product-history-operations.js';
-import { fetchProductInfo } from '@/utils/product-info.js';
+import { getRequiredProduct } from './product-retrieval';
 
 export const productHistoryMetrics = ['bsr', 'price'] as const;
 export const productHistoryFormats = ['points', 'legacy', 'agent'] as const;
@@ -45,7 +45,7 @@ type ProductHistorySurfaceInput = {
 type MetricEntry = readonly [ProductHistoryMetric, HistoryMetricResult];
 
 export type ProductHistorySurfaceDeps = {
-    fetchProductInfo: typeof fetchProductInfo;
+    getRequiredProduct: typeof getRequiredProduct;
     getProductHistoryPoints: typeof getProductHistoryPoints;
     hasRecentSuccessfulKeepaImportForAsin: typeof hasRecentSuccessfulKeepaImportForAsin;
     requestProductHistoryRefresh: typeof requestProductHistoryRefresh;
@@ -53,7 +53,7 @@ export type ProductHistorySurfaceDeps = {
 };
 
 const defaultDeps: ProductHistorySurfaceDeps = {
-    fetchProductInfo,
+    getRequiredProduct,
     getProductHistoryPoints,
     hasRecentSuccessfulKeepaImportForAsin,
     requestProductHistoryRefresh,
@@ -64,7 +64,7 @@ export const getProductHistorySurface = async (
     input: ProductHistorySurfaceInput,
     deps: ProductHistorySurfaceDeps = defaultDeps
 ) => {
-    await deps.fetchProductInfo({
+    await deps.getRequiredProduct({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
         maxAgeMs: PRODUCT_HISTORY_PRODUCT_CACHE_MAX_AGE_MS,

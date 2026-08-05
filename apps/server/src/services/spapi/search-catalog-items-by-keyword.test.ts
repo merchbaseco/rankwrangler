@@ -68,9 +68,12 @@ describe('mapCatalogItemFromKeywordSearch', () => {
             bullet2: null,
             isMerchListing: true,
             rootCategoryBsr: 11234,
-            thumbnailUrl: 'https://images.example.com/main.jpg',
+            thumbnail: {
+                status: 'available',
+                url: 'https://images.example.com/main.jpg',
+            },
             facets: [],
-            spApiFetchedAt: '2026-03-04T20:10:00.000Z',
+            fetchedAt: '2026-03-04T20:10:00.000Z',
         });
     });
 });

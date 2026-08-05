@@ -5,10 +5,10 @@ type CatalogProduct = NonNullable<CatalogResult["currentProduct"]>;
 
 export const useCatalogProductQuery = ({
 	initialProduct,
-	initialSyncPending,
+	initialAvailability,
 }: {
 	initialProduct: CatalogProduct;
-	initialSyncPending: boolean;
+	initialAvailability: "pending" | "available" | "unavailable";
 }) => {
 	return api.api.app.product.get.useQuery(
 		{
@@ -18,7 +18,7 @@ export const useCatalogProductQuery = ({
 		{
 			initialData: {
 				product: initialProduct,
-				syncPending: initialSyncPending,
+				availability: initialAvailability,
 			},
 			refetchOnWindowFocus: false,
 			staleTime: Number.POSITIVE_INFINITY,

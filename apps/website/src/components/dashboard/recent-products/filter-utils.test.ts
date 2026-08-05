@@ -7,7 +7,7 @@ import {
 const baseProduct = {
 	asin: "B0MERCH001",
 	title: "Example shirt",
-	thumbnailUrl: null,
+	thumbnail: { status: "unavailable" as const },
 	brand: "Example",
 	bullet1: null,
 	bullet2: null,
@@ -19,13 +19,13 @@ const baseProduct = {
 };
 
 describe("hydrateProducts", () => {
-	it("uses SP-API freshness as the update time for transient Amazon search rows", () => {
-		const spApiFetchedAt = new Date().toISOString();
+	it("uses the row update time for transient Amazon search rows", () => {
+		const updatedAt = new Date().toISOString();
 
-		const [product] = hydrateProducts([{ ...baseProduct, spApiFetchedAt }]);
+		const [product] = hydrateProducts([{ ...baseProduct, updatedAt }]);
 
-		expect(product.updatedAt).toBe(spApiFetchedAt);
-		expect(product.updatedAtMs).toBe(Date.parse(spApiFetchedAt));
+		expect(product.updatedAt).toBe(updatedAt);
+		expect(product.updatedAtMs).toBe(Date.parse(updatedAt));
 	});
 });
 
@@ -35,7 +35,7 @@ describe("filterProducts", () => {
 		const [product] = hydrateProducts([
 			{
 				...baseProduct,
-				spApiFetchedAt: new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString(),
+				updatedAt: new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString(),
 				updatedAt: new Date(now - 60 * 60 * 1000).toISOString(),
 			},
 		]);

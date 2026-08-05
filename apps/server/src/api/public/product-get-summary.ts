@@ -1,5 +1,5 @@
 import { publicApiProcedure } from '@/api/trpc.js';
-import { fetchProductInfo } from '@/utils/product-info.js';
+import { getRequiredProduct } from '@/services/product-retrieval';
 import { consumeServiceAccountUsageForRequest } from './consume-service-account-usage';
 import { productSummaryInput } from './product-input.js';
 
@@ -8,7 +8,7 @@ export const productGetSummary = publicApiProcedure
     .mutation(async ({ input, ctx }) => {
         await consumeServiceAccountUsageForRequest(ctx, 1);
 
-        return await fetchProductInfo({
+        return await getRequiredProduct({
             marketplaceId: input.marketplaceId,
             asin: input.asin,
         });

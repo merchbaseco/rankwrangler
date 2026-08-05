@@ -38,7 +38,6 @@ export const persistCatalogSearchSuccess = async ({
 }) => {
     return await db.transaction(async transaction => {
         await lockCatalogQueryForReconciliation(transaction, queryId);
-        const productSyncCandidates: Array<{ marketplaceId: string; asin: string }> = [];
 
         const [run] = await transaction
             .insert(catalogSearchRuns)
@@ -70,12 +69,6 @@ export const persistCatalogSearchSuccess = async ({
                 refillRate: index === 0 ? internalUsage.refillRate : null,
             });
             const observed = result.normalized.product;
-            if (!persisted.spApiFetchedAt) {
-                productSyncCandidates.push({
-                    marketplaceId: observed.marketplaceId,
-                    asin: observed.asin,
-                });
-            }
             await transaction.insert(catalogSearchResults).values({
                 runId: run.id,
                 productId: persisted.productId,
@@ -126,6 +119,6 @@ export const persistCatalogSearchSuccess = async ({
             throw new Error(`Failed to complete Catalog-search Operation ${operationId}`);
         }
 
-        return { runId: run.id, productSyncCandidates };
+        return { runId: run.id };
     });
 };

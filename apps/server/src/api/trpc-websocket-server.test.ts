@@ -11,6 +11,7 @@ import {
 it('exposes only domain completion subscriptions over WebSockets', () => {
     expect(Object.keys(realtimeRouter._def.procedures)).toEqual([
         'api.app.catalog.search.completed',
+        'api.app.product.sync.completed',
         'api.app.product.history.refresh.completed',
     ]);
 });

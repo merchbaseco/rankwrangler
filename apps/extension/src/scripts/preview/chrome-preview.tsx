@@ -15,7 +15,8 @@ const SEARCH_PRODUCT: Product = {
 	metadata: {
 		success: true,
 		cached: true,
-		spApiFetchedAt: "2026-02-25T11:23:00.000Z",
+		thumbnailStatus: "available",
+		updatedAt: "2026-02-25T11:23:00.000Z",
 	},
 };
 

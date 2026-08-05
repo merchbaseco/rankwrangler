@@ -40,14 +40,6 @@ describe('Catalog search worker', () => {
             { sourcePosition: 1, normalized: { product: { asin: 'B0MERCH001' } } },
             { sourcePosition: 3, normalized: { product: { asin: 'B0MERCH002' } } },
         ]);
-        expect(deps.enqueueSyncItems.mock.calls).toEqual([
-            [
-                [
-                    { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0MERCH001' },
-                    { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0MERCH002' },
-                ],
-            ],
-        ]);
         expect(deps.completeWithError.mock.calls).toHaveLength(0);
         expect(deps.notifyCompleted.mock.calls).toEqual([
             [
@@ -102,10 +94,9 @@ describe('Catalog search worker', () => {
             resultCount: 0,
         });
         expect(deps.persistSuccess.mock.calls[0]?.[0].results).toEqual([]);
-        expect(deps.enqueueSyncItems.mock.calls).toHaveLength(0);
     });
 
-    it('keeps a successful Catalog run when SP-API enqueueing fails', async () => {
+    it('persists a successful Catalog run without coupling persistence to Product enrichment', async () => {
         const { runCatalogSearchOperation } = await loadSubject();
         const deps = createDeps({
             claimOperationWork: async () => createOperation(),
@@ -118,9 +109,6 @@ describe('Catalog search worker', () => {
                     refillRate: 20,
                 },
             }),
-            enqueueSyncItems: async () => {
-                throw new Error('queue unavailable');
-            },
         });
 
         expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
@@ -129,7 +117,6 @@ describe('Catalog search worker', () => {
             resultCount: 1,
         });
         expect(deps.completeWithError.mock.calls).toHaveLength(0);
-        expect(deps.logEnqueueError.mock.calls).toHaveLength(1);
         expect(deps.notifyCompleted.mock.calls).toHaveLength(1);
     });
 
@@ -211,16 +198,10 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
             results: Array<{ normalized: { product: { marketplaceId: string; asin: string } } }>;
         }) => ({
             runId: 'run-1',
-            productSyncCandidates: results.map(result => ({
-                marketplaceId: result.normalized.product.marketplaceId,
-                asin: result.normalized.product.asin,
-            })),
         })
     ),
     completeWithError: mock(async () => createOperation()),
-    enqueueSyncItems: mock(async () => 0),
     evaluateAccess: mock(async () => ({ kind: 'allowed' as const })),
-    logEnqueueError: mock(() => {}),
     releaseOperationWork: mock(async () => undefined),
     notifyCompleted: mock(() => {
         // Completion delivery is asserted through mock calls.

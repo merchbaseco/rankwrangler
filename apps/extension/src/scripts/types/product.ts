@@ -16,7 +16,8 @@ export interface Product {
 
 	metadata: {
 		success: boolean;
-		spApiFetchedAt?: string; // ISO timestamp
+		thumbnailStatus?: "pending" | "available" | "unavailable";
+		updatedAt?: string; // ISO timestamp
 		cached?: boolean;
 	};
 }

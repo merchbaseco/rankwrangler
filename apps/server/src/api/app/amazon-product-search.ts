@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
-import { fetchProductInfo } from '@/utils/product-info.js';
+import { getRequiredProduct } from '@/services/product-retrieval';
 
 const amazonProductSearchInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),
@@ -14,7 +14,7 @@ const amazonProductSearchInput = z.object({
 export const amazonProductSearch = appProcedure
     .input(amazonProductSearchInput)
     .mutation(async ({ input }) => {
-        return fetchProductInfo({
+        return getRequiredProduct({
             marketplaceId: input.marketplaceId,
             asin: input.asin,
         });

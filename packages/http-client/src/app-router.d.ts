@@ -197,6 +197,14 @@ export interface ContextRequest {
 		host?: string;
 	};
 }
+export type ProductThumbnail = {
+	status: "pending";
+} | {
+	status: "available";
+	url: string;
+} | {
+	status: "unavailable";
+};
 export type ProductInfo = {
 	asin: string;
 	marketplaceId: string;
@@ -209,7 +217,7 @@ export type ProductInfo = {
 	rootCategoryId: number | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
-	thumbnailUrl?: string;
+	thumbnail: ProductThumbnail;
 	keepa: {
 		fetchedAt: string;
 		sourceUpdatedAt: string | null;
@@ -231,10 +239,11 @@ export type ProductInfo = {
 		};
 	} | null;
 	metadata: {
-		spApiFetchedAt: string | null;
 		cached: boolean;
+		updatedAt: string;
 	};
 };
+export type ProductAvailability = "pending" | "available" | "unavailable";
 declare const operationTypes: readonly [
 	"productHistoryRefresh",
 	"catalogSearch"
@@ -510,6 +519,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 									sourceUpdatedAt: string | null;
 								};
 								currentProduct: ProductInfo | null;
+								currentProductAvailability: ProductAvailability;
 							}[];
 							id: string;
 							sourceStartedAt: string;
@@ -644,6 +654,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 									sourceUpdatedAt: string | null;
 								};
 								currentProduct: ProductInfo | null;
+								currentProductAvailability: ProductAvailability;
 							}[];
 							id: string;
 							sourceStartedAt: string;

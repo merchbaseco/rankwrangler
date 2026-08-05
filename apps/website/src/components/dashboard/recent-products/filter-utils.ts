@@ -8,16 +8,15 @@ const HOUR_IN_MS = 60 * 60 * 1000;
 
 export const hydrateProducts = (
 	items: Array<
-		Omit<Product, "spApiFetchedAtMs" | "updatedAt" | "updatedAtMs"> & {
+			Omit<Product, "updatedAt" | "updatedAtMs"> & {
 			updatedAt?: string;
 		}
 	>,
 ): Product[] =>
 	items.map((product) => {
-		const updatedAt = product.updatedAt ?? product.spApiFetchedAt ?? "";
+		const updatedAt = product.updatedAt ?? "";
 		return {
 			...product,
-			spApiFetchedAtMs: toValidTimestamp(product.spApiFetchedAt),
 			updatedAt,
 			updatedAtMs: toValidTimestamp(updatedAt),
 		};

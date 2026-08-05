@@ -20,7 +20,7 @@ import {
 
 type AmazonSearchItem = Omit<
 	Product,
-	"spApiFetchedAtMs" | "updatedAt" | "updatedAtMs"
+	"updatedAt" | "updatedAtMs"
 >;
 
 export const AmazonResultsTable = ({

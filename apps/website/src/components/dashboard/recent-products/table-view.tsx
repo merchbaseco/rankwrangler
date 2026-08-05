@@ -128,7 +128,7 @@ export const RecentProductsTableView = ({
 									onMouseEnter={(event) => {
 										onRowMouseEnter({
 											event,
-											imageUrl: row.original.thumbnailUrl,
+											imageUrl: getThumbnailUrl(row.original.thumbnail),
 											title: row.original.title,
 											asin: row.original.asin,
 										});
@@ -136,7 +136,7 @@ export const RecentProductsTableView = ({
 									onMouseMove={(event) => {
 										onRowMouseMove({
 											event,
-											imageUrl: row.original.thumbnailUrl,
+											imageUrl: getThumbnailUrl(row.original.thumbnail),
 										});
 									}}
 									onMouseLeave={onRowMouseLeave}
@@ -193,3 +193,6 @@ export const RecentProductsTableView = ({
 		</div>
 	</div>
 );
+
+const getThumbnailUrl = (thumbnail: Product["thumbnail"]) =>
+	thumbnail.status === "available" ? thumbnail.url : null;

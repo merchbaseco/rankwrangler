@@ -1,6 +1,6 @@
 import { createSpApiClient } from '@/services/spapi/spapi-client.js';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
-import type { ProductInfo } from '@/types/index.js';
+import type { SpApiProduct } from '@/types/index.js';
 import { classifyMerchBullets } from '@/utils/merch-bullets.js';
 import {
     getMarketplaceBulletPoints,
@@ -9,19 +9,13 @@ import {
     VariantSchema,
 } from './search-catalog-items-schema.js';
 
-// SP-API results always carry a fresh SP-API watermark. Cached products may not have one yet.
-type SearchCatalogItemsResult = Omit<ProductInfo, 'rootCategoryDisplayName' | 'metadata'> & {
-    metadata: Omit<ProductInfo['metadata'], 'spApiFetchedAt'> & {
-        spApiFetchedAt: string;
-    };
-};
 const spApiClient = createSpApiClient();
 
 // Get product info using searchCatalogItems API (supports single or multiple ASINs)
 export const searchCatalogItemsByAsins = async (
     marketplaceId: string,
     asins: string[]
-): Promise<SearchCatalogItemsResult[]> => {
+): Promise<SpApiProduct[]> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
     }
@@ -36,7 +30,7 @@ export const searchCatalogItemsByAsins = async (
     });
 
     // Validate response and parse items
-    const results: SearchCatalogItemsResult[] = [];
+    const results: SpApiProduct[] = [];
     // Validate response with Zod schema
     const response = ItemSearchResultsSchema.parse(rawResponse);
     const items = response.items;
@@ -83,14 +77,14 @@ export const searchCatalogItemsByAsins = async (
         const mainImage =
             imageGroup?.images?.find(img => img.variant === VariantSchema.enum.MAIN) ??
             imageGroup?.images?.[0];
-        const thumbnailUrl = mainImage?.link;
+        const thumbnailUrl = mainImage?.link ?? null;
 
         // Extract title and brand from summaries
         const summary = item.summaries?.find(s => s.marketplaceId === marketplaceId);
         const title = summary?.itemName || null;
         const brand = summary?.brand || summary?.brandName || null;
 
-        const productInfo: SearchCatalogItemsResult = {
+        const productInfo: SpApiProduct = {
             asin,
             marketplaceId,
             dateFirstAvailable,
@@ -103,10 +97,7 @@ export const searchCatalogItemsByAsins = async (
             rootCategoryBsr,
             thumbnailUrl,
             keepa: null,
-            metadata: {
-                spApiFetchedAt: new Date().toISOString(),
-                cached: false,
-            },
+            fetchedAt: new Date().toISOString(),
         };
 
         results.push(productInfo);
@@ -114,7 +105,7 @@ export const searchCatalogItemsByAsins = async (
 
     const orderedResults = asins
         .map(asin => results.find(item => item.asin === asin))
-        .filter((item): item is SearchCatalogItemsResult => Boolean(item));
+        .filter((item): item is SpApiProduct => Boolean(item));
 
     return orderedResults ?? [];
 };

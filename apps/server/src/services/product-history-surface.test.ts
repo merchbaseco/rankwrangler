@@ -5,7 +5,7 @@ import { getProductHistorySurface } from './product-history-surface.js';
 describe('Product-history request surface', () => {
     it('returns existing history immediately with the shared pending Operation', async () => {
         const deps = {
-            fetchProductInfo: mock(async () => ({ asin: 'B012345678' })),
+            getRequiredProduct: mock(async () => ({ asin: 'B012345678' }) as never),
             getProductHistoryPoints: mock(async () => ({
                 latestImportAt: null,
                 categoryNames: {},

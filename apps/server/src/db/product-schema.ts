@@ -30,6 +30,7 @@ export const products = pgTable(
         facetsState: text('facets_state').notNull().default('pending'),
         facetsUpdatedAt: timestamp('facets_updated_at', { mode: 'date' }),
         spApiFetchedAt: timestamp('sp_api_fetched_at', { mode: 'date' }),
+        spApiResolvedAt: timestamp('sp_api_resolved_at', { mode: 'date' }),
         keepaFetchedAt: timestamp('keepa_fetched_at', { mode: 'date' }),
         keepaSourceUpdatedAt: timestamp('keepa_source_updated_at', { mode: 'date' }),
         keepaFirstTrackedAt: timestamp('keepa_first_tracked_at', { mode: 'date' }),

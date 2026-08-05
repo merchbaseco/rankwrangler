@@ -4,8 +4,12 @@ export interface ProductInfo {
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
+	thumbnail:
+		| { status: "pending" }
+		| { status: "available"; url: string }
+		| { status: "unavailable" };
 	metadata: {
-		spApiFetchedAt: string | null; // ISO timestamp
+		updatedAt: string; // ISO timestamp
 		cached: boolean;
 	};
 }

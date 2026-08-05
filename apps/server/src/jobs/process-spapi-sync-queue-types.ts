@@ -3,6 +3,6 @@ export type ProcessSpApiSyncQueueResult = {
     marketplaceId: string | null;
     queueCount: number;
     upsertedCount: number;
-    deletedCount: number;
+    unavailableCount: number;
     hasMore: boolean;
 };

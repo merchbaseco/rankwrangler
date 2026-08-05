@@ -4,10 +4,15 @@ export type FilterState = {
 	lastUpdated: "all" | "24h" | "7d" | "30d";
 };
 
+export type ProductThumbnail =
+	| { status: "pending" }
+	| { status: "available"; url: string }
+	| { status: "unavailable" };
+
 export type Product = {
 	asin: string;
 	title: string | null;
-	thumbnailUrl: string | null;
+	thumbnail: ProductThumbnail;
 	brand: string | null;
 	bullet1: string | null;
 	bullet2: string | null;
@@ -16,8 +21,6 @@ export type Product = {
 	dateFirstAvailable: string | null;
 	isMerchListing: boolean;
 	facets: Array<{ facet: string; name: string }>;
-	spApiFetchedAt: string | null;
-	spApiFetchedAtMs: number;
 	updatedAt: string;
 	updatedAtMs: number;
 };
@@ -26,14 +29,14 @@ export type SelectedHistoryProduct = {
 	asin: string;
 	marketplaceId: string;
 	title: string | null;
-	thumbnailUrl: string | null;
+	thumbnail: ProductThumbnail;
 	brand: string | null;
 	facets: Array<{ facet: string; name: string }>;
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean;
-	productLastFetchedAt: string | null;
+	productUpdatedAt: string | null;
 	productInfoCached: boolean | null;
 };
 
