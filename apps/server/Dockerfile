@@ -39,12 +39,18 @@ RUN apk add --no-cache dumb-init \
 # Node modules from Bun install (includes workspace links).
 COPY --from=deps /app/node_modules ./node_modules
 
+# Preserve Bun's workspace links alongside the server artifact. The server
+# workspace links resolve through the root `.bun` store.
+COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
+
 # Minimal runtime artifacts from the server workspace.
-COPY --from=build /app/apps/server/package.json ./package.json
-COPY --from=build /app/apps/server/dist ./dist
-COPY --from=build /app/apps/server/drizzle ./drizzle
+COPY --from=build /app/apps/server/package.json ./apps/server/package.json
+COPY --from=build /app/apps/server/dist ./apps/server/dist
+COPY --from=build /app/apps/server/drizzle ./apps/server/drizzle
 
 USER nodejs
+
+WORKDIR /app/apps/server
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
