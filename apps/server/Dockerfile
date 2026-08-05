@@ -11,7 +11,11 @@ WORKDIR /app
 
 # Copy only the workspace manifests first for better layer caching.
 COPY package.json bun.lock .npmrc ./
+COPY apps/extension/package.json apps/extension/package.json
 COPY apps/server/package.json apps/server/package.json
+COPY apps/website/package.json apps/website/package.json
+COPY packages/cli/package.json packages/cli/package.json
+COPY packages/history-chart/package.json packages/history-chart/package.json
 COPY packages/http-client/package.json packages/http-client/package.json
 
 RUN --mount=type=secret,id=github_packages_token,required=true \
