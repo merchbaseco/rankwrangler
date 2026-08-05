@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.6
 
 # Build the RankWrangler website (Vite -> static assets)
-FROM oven/bun:1.1.27 AS webbuild
+FROM oven/bun:1.3.5 AS webbuild
 WORKDIR /repo
 
 # Vite exposes env vars prefixed with VITE_ at build time.
