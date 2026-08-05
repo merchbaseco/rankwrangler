@@ -19,7 +19,7 @@ export const CatalogRunSidebar = ({
 	onLoadMore: () => void;
 	onSelectRun: (runId: string) => void;
 }) => (
-	<aside className="flex min-h-0 w-64 shrink-0 flex-col border-r border-border bg-card">
+	<aside className="flex min-h-0 w-[230px] shrink-0 flex-col border-r border-border bg-sidebar">
 		<div className="flex min-h-0 flex-1 flex-col">
 			<div className="flex items-center gap-2 border-b border-border px-4 py-3">
 				<CalendarClock className="size-4 text-muted-foreground" />
@@ -30,17 +30,17 @@ export const CatalogRunSidebar = ({
 			<div className="min-h-0 flex-1 overflow-y-auto p-2">
 				{runs.length ? (
 					runs.map((run, index) => (
-						<button
+						<Button
 							key={run.id}
 							className={cn(
-								"mb-1 w-full rounded-sm border border-transparent px-3 py-2 text-left transition-colors hover:bg-muted",
+								"mb-1 h-auto w-full justify-start rounded-sm border border-transparent px-3 py-2 text-left hover:bg-muted",
 								selectedRunId === run.id &&
 									"border-border bg-muted hover:bg-muted",
 							)}
 							onClick={() => onSelectRun(run.id)}
-							type="button"
+							variant="ghost"
 						>
-							<div className="flex items-center justify-between gap-2">
+							<div className="flex w-full items-center justify-between gap-2">
 								<span className="text-xs font-medium">
 									{formatCalendarDate(run.sourceCompletedAt)}
 								</span>
@@ -59,7 +59,7 @@ export const CatalogRunSidebar = ({
 								{run.resultCount === 1 ? "Product" : "Products"} ·{" "}
 								{formatRelativeTime(run.sourceCompletedAt)}
 							</div>
-						</button>
+						</Button>
 					))
 				) : (
 					<p className="p-3 text-xs text-muted-foreground">

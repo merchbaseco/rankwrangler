@@ -6,6 +6,7 @@ import type {
 import { MARKETPLACE_FLAGS } from "@/components/dashboard/recent-products/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ProductThumbnail as ProductThumbnailView } from "@/components/dashboard/product-thumbnail";
 import { cn, formatCalendarDate, formatRelativeTime } from "@/lib/utils";
 
 const RowBsrButton = ({
@@ -84,25 +85,12 @@ export const createColumns = ({
 		accessorKey: "thumbnail",
 		cell: ({ row }) => {
 			const thumbnail = row.getValue("thumbnail") as Product["thumbnail"];
-			const url = thumbnail.status === "available" ? thumbnail.url : null;
-			return url ? (
-				<div
-					className="flex w-8 items-center justify-center overflow-hidden rounded-sm border border-border bg-muted"
-					style={{ aspectRatio: "4/5" }}
-				>
-					<img
-						src={url}
-						alt={row.original.title ?? row.original.asin}
-						className="h-full w-auto max-w-none"
-					/>
-				</div>
-			) : (
-				<div
-					className="bg-muted text-muted-foreground flex w-8 items-center justify-center rounded-sm border border-border text-xs"
-					style={{ aspectRatio: "4/5" }}
-				>
-					N/A
-				</div>
+			return (
+				<ProductThumbnailView
+					asin={row.original.asin}
+					thumbnail={thumbnail}
+					title={row.original.title}
+				/>
 			);
 		},
 		enableSorting: false,
@@ -239,19 +227,6 @@ export const createColumns = ({
 		size: 110,
 	},
 ];
-
-export type ColgroupColumn = {
-	key: string;
-	width: number | undefined;
-};
-
-export const Colgroup = ({ columns }: { columns: ColgroupColumn[] }) => (
-	<colgroup>
-		{columns.map(({ key, width }) => (
-			<col key={key} style={width ? { width, maxWidth: width } : undefined} />
-		))}
-	</colgroup>
-);
 
 const getBsrBadgeVariant = (bsr: number | null) => {
 	if (bsr === null) {

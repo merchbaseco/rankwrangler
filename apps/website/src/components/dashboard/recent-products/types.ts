@@ -1,13 +1,10 @@
+import type { ProductThumbnail } from "@/components/dashboard/product-thumbnail";
+
 export type FilterState = {
 	bsrRange: [number, number] | null;
 	marketplaceIds: string[];
 	lastUpdated: "all" | "24h" | "7d" | "30d";
 };
-
-export type ProductThumbnail =
-	| { status: "pending" }
-	| { status: "available"; url: string }
-	| { status: "unavailable" };
 
 export type Product = {
 	asin: string;

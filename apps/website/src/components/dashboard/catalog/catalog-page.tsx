@@ -10,7 +10,7 @@ import { useCatalogSearchExplorer } from "./use-catalog-search-explorer";
 import { useProductSyncInvalidation } from "./use-product-sync-invalidation";
 import { useSeedCatalogProductQueries } from "./use-seed-catalog-product-queries";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchBar } from "@/components/dashboard/search-bar";
 
 export const CatalogPage = () => {
 	const explorer = useCatalogSearchExplorer();
@@ -85,15 +85,15 @@ export const CatalogPage = () => {
 							state.
 						</p>
 					</div>
-					<form className="flex w-full max-w-2xl items-center gap-2" onSubmit={submit}>
-						<Input
-							aria-label="Catalog search phrase"
-							disabled={explorer.isSearching}
-							onChange={(event) => explorer.setInputTerm(event.target.value)}
-							placeholder="retro gardening shirt"
-							size="lg"
-							value={explorer.inputTerm}
-						/>
+					<SearchBar
+						className="w-full max-w-2xl border-0 bg-transparent"
+						disabled={explorer.isSearching}
+						inputAriaLabel="Catalog search phrase"
+						onSearchValueChange={explorer.setInputTerm}
+						onSubmit={submit}
+						placeholder="retro gardening shirt"
+						searchValue={explorer.inputTerm}
+					>
 						<Button
 							className="rounded-sm"
 							disabled={!explorer.inputTerm.trim() || explorer.isSearching}
@@ -113,7 +113,7 @@ export const CatalogPage = () => {
 								Fetch fresh
 							</Button>
 						) : null}
-					</form>
+					</SearchBar>
 				</div>
 			</header>
 

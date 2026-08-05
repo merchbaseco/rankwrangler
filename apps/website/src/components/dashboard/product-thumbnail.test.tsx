@@ -1,14 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-	AvailableCatalogProductThumbnail,
-	PendingCatalogProductThumbnail,
-	UnavailableCatalogProductThumbnail,
-} from "./catalog-product-thumbnail";
+import { ProductThumbnail } from "@/components/dashboard/product-thumbnail";
 
-describe("Catalog Product thumbnail", () => {
+describe("Product thumbnail", () => {
 	it("renders an explicit pending thumbnail spinner", () => {
-		const markup = renderToStaticMarkup(<PendingCatalogProductThumbnail />);
+		const markup = renderToStaticMarkup(
+			<ProductThumbnail
+				asin="B012345678"
+				thumbnail={{ status: "pending" }}
+				title="Example shirt"
+			/>,
+		);
 
 		expect(markup).toContain("Loading product thumbnail");
 		expect(markup).toContain("animate-spin");
@@ -17,10 +19,13 @@ describe("Catalog Product thumbnail", () => {
 
 	it("renders the Amazon thumbnail once available", () => {
 		const markup = renderToStaticMarkup(
-			<AvailableCatalogProductThumbnail
+			<ProductThumbnail
 				asin="B012345678"
+				thumbnail={{
+					status: "available",
+					url: "https://example.com/product.jpg",
+				}}
 				title="Example shirt"
-				url="https://example.com/product.jpg"
 			/>,
 		);
 
@@ -30,7 +35,11 @@ describe("Catalog Product thumbnail", () => {
 
 	it("renders a distinct unavailable state after enrichment completes", () => {
 		const markup = renderToStaticMarkup(
-			<UnavailableCatalogProductThumbnail />,
+			<ProductThumbnail
+				asin="B012345678"
+				thumbnail={{ status: "unavailable" }}
+				title="Example shirt"
+			/>,
 		);
 
 		expect(markup).toContain("No product thumbnail available");

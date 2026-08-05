@@ -1,6 +1,10 @@
 import { Database, History } from "lucide-react";
 import { CatalogProductRow } from "./catalog-product-row";
 import type { CatalogRun } from "./types";
+import {
+	DashboardTable,
+	type DashboardTableColumn,
+} from "@/components/dashboard/dashboard-table";
 import { Badge } from "@/components/ui/badge";
 import {
 	TableBody,
@@ -50,12 +54,13 @@ export const CatalogResults = ({
 			</div>
 		</div>
 
-		<div className="min-h-0 flex-1 overflow-auto">
-			<table className="w-full min-w-[1120px] text-xs">
+		<DashboardTable
+			colgroupColumns={CATALOG_TABLE_COLUMNS}
+			header={
 				<TableHeader className="sticky top-0 z-10 bg-card">
 					<TableRow className="hover:bg-transparent">
-						<TableHead className="w-20 text-right">Keepa pos.</TableHead>
-						<TableHead className="w-14" />
+						<TableHead className="text-right">Keepa pos.</TableHead>
+						<TableHead />
 						<TableHead>Canonical Product</TableHead>
 						<TableHead className="text-right">Observed BSR</TableHead>
 						<TableHead className="text-right">Current BSR</TableHead>
@@ -65,16 +70,30 @@ export const CatalogResults = ({
 						<TableHead>Source / freshness</TableHead>
 					</TableRow>
 				</TableHeader>
-				<TableBody>
-					{run.results.map((result) => (
-						<CatalogProductRow
-							key={`${run.id}:${result.productId}`}
-							result={result}
-							runId={run.id}
-						/>
-					))}
-				</TableBody>
-			</table>
-		</div>
+			}
+			tableClassName="min-w-[1120px]"
+		>
+			<TableBody>
+				{run.results.map((result) => (
+					<CatalogProductRow
+						key={`${run.id}:${result.productId}`}
+						result={result}
+						runId={run.id}
+					/>
+				))}
+			</TableBody>
+		</DashboardTable>
 	</div>
 );
+
+const CATALOG_TABLE_COLUMNS: DashboardTableColumn[] = [
+	{ key: "position", width: 80 },
+	{ key: "thumbnail", width: 56 },
+	{ key: "product", width: 320 },
+	{ key: "observed-bsr", width: 100 },
+	{ key: "current-bsr", width: 100 },
+	{ key: "observed-price", width: 110 },
+	{ key: "current-price", width: 110 },
+	{ key: "observed-sold", width: 100 },
+	{ key: "source-freshness", width: 200 },
+];

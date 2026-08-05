@@ -1,11 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { ProductThumbnail } from "@/components/dashboard/product-thumbnail";
 import { formatNumber, formatRelativeTime } from "@/lib/utils";
-import {
-	AvailableCatalogProductThumbnail,
-	PendingCatalogProductThumbnail,
-	UnavailableCatalogProductThumbnail,
-} from "./catalog-product-thumbnail";
 import type { CatalogResult } from "./types";
 import { useCatalogProductQuery } from "./use-catalog-product-query";
 
@@ -53,17 +49,11 @@ const ResolvedCatalogProductRow = ({
 		<TableRow key={`${runId}:${result.productId}`}>
 			<PositionCell value={result.position.value} />
 			<TableCell>
-				{product.thumbnail.status === "pending" ? (
-					<PendingCatalogProductThumbnail />
-				) : product.thumbnail.status === "available" ? (
-					<AvailableCatalogProductThumbnail
-						asin={product.asin}
-						title={product.title}
-						url={product.thumbnail.url}
-					/>
-				) : (
-					<UnavailableCatalogProductThumbnail />
-				)}
+				<ProductThumbnail
+					asin={product.asin}
+					thumbnail={product.thumbnail}
+					title={product.title}
+				/>
 			</TableCell>
 			<TableCell className="max-w-80 whitespace-normal">
 				{isProductPending ? (
@@ -101,7 +91,11 @@ const UnavailableCatalogProductRow = ({
 	<TableRow key={`${runId}:${result.productId}`}>
 		<PositionCell value={result.position.value} />
 		<TableCell>
-			<UnavailableCatalogProductThumbnail />
+			<ProductThumbnail
+				asin={result.productId}
+				thumbnail={{ status: "unavailable" }}
+				title={null}
+			/>
 		</TableCell>
 		<TableCell className="max-w-80 whitespace-normal">
 			<div>

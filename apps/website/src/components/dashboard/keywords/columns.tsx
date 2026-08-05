@@ -35,19 +35,6 @@ export const createColumns = (): ColumnDef<SearchTermRow>[] => [
 	},
 ];
 
-export type ColgroupColumn = {
-	key: string;
-	width: number | undefined;
-};
-
-export const Colgroup = ({ columns }: { columns: ColgroupColumn[] }) => (
-	<colgroup>
-		{columns.map(({ key, width }) => (
-			<col key={key} style={width ? { maxWidth: width, width } : undefined} />
-		))}
-	</colgroup>
-);
-
 const getRankBadgeVariant = (rank: number) => {
 	if (rank <= 1000) {
 		return "success" as const;
