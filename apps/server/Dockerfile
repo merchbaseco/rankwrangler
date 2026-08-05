@@ -20,7 +20,7 @@ COPY packages/http-client/package.json packages/http-client/package.json
 
 RUN --mount=type=secret,id=github_packages_token,required=true \
     GITHUB_PACKAGES_TOKEN="$(cat /run/secrets/github_packages_token)" \
-    bun install --frozen-lockfile
+    bun install --frozen-lockfile --ignore-scripts
 
 FROM deps AS build
 WORKDIR /app
