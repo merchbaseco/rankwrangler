@@ -22,7 +22,7 @@ export const createColumns = (): ColumnDef<SearchTermRow>[] => [
 			return (
 				<Badge
 					variant={getRankBadgeVariant(rank)}
-					className="rounded-sm font-mono text-[10px]"
+					className="rounded-sm font-mono text-xs"
 				>
 					#{formatNumber(rank)}
 				</Badge>

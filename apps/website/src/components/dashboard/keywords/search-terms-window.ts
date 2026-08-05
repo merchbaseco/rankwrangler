@@ -1,8 +1,8 @@
 import { differenceInCalendarDays, format } from 'date-fns';
 
 export const SEARCH_TERMS_WINDOW_PRESETS = [
-    { key: 'latest-day', shortLabel: 'LATEST DAY' },
-    { key: 'last-complete-week', shortLabel: 'LAST WEEK' },
+	{ key: 'latest-day', shortLabel: 'Latest day' },
+	{ key: 'last-complete-week', shortLabel: 'Last week' },
 ] as const;
 
 export type SearchTermsWindowPresetKey = (typeof SEARCH_TERMS_WINDOW_PRESETS)[number]['key'];

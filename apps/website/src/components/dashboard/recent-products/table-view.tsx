@@ -5,6 +5,11 @@ import {
 	type DashboardTableColumn,
 	SortableTableHeader,
 } from "@/components/dashboard/dashboard-table";
+import {
+	type ProductRowMouseEnter,
+	type ProductRowMouseMove,
+} from "@/components/dashboard/product-image-tooltip";
+import { getProductThumbnailUrl } from "@/components/dashboard/product-thumbnail";
 import type { Product } from "@/components/dashboard/recent-products/types";
 import { TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -30,16 +35,8 @@ export const RecentProductsTableView = ({
 	isFetchingNextPage: boolean;
 	loadMoreRef: React.RefObject<HTMLDivElement | null>;
 	emptyMessage?: string;
-	onRowMouseEnter: (args: {
-		event: React.MouseEvent<HTMLTableRowElement>;
-		imageUrl: string | null;
-		title: string | null;
-		asin: string;
-	}) => void;
-	onRowMouseMove: (args: {
-		event: React.MouseEvent<HTMLTableRowElement>;
-		imageUrl: string | null;
-	}) => void;
+	onRowMouseEnter: (args: ProductRowMouseEnter) => void;
+	onRowMouseMove: (args: ProductRowMouseMove) => void;
 	onRowMouseLeave: () => void;
 }) => (
 	<DashboardTable
@@ -64,7 +61,7 @@ export const RecentProductsTableView = ({
 							onMouseEnter={(event) => {
 								onRowMouseEnter({
 									event,
-									imageUrl: getThumbnailUrl(row.original.thumbnail),
+									imageUrl: getProductThumbnailUrl(row.original.thumbnail),
 									title: row.original.title,
 									asin: row.original.asin,
 								});
@@ -72,7 +69,7 @@ export const RecentProductsTableView = ({
 							onMouseMove={(event) => {
 								onRowMouseMove({
 									event,
-									imageUrl: getThumbnailUrl(row.original.thumbnail),
+									imageUrl: getProductThumbnailUrl(row.original.thumbnail),
 								});
 							}}
 							onMouseLeave={onRowMouseLeave}
@@ -124,6 +121,3 @@ export const RecentProductsTableView = ({
 		</TableBody>
 	</DashboardTable>
 );
-
-const getThumbnailUrl = (thumbnail: Product["thumbnail"]) =>
-	thumbnail.status === "available" ? thumbnail.url : null;

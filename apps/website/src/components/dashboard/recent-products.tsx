@@ -16,6 +16,10 @@ import {
 	FACET_CATEGORY_META,
 	formatFacetValueLabel,
 } from "@/components/dashboard/app/config";
+import {
+	ProductImageTooltip,
+	useProductImageTooltip,
+} from "@/components/dashboard/product-image-tooltip";
 import { createColumns } from "@/components/dashboard/recent-products/columns";
 import {
 	filterProducts,
@@ -28,10 +32,6 @@ import type {
 	FilterState,
 	SelectedHistoryProduct,
 } from "@/components/dashboard/recent-products/types";
-import {
-	CursorImageTooltip,
-	useCursorImageTooltip,
-} from "@/components/ui/tooltip";
 import { api } from "@/lib/trpc";
 
 export function RecentProducts({
@@ -74,12 +74,12 @@ export function RecentProducts({
 	const deferredFilters = useDeferredValue(filters);
 
 	const {
-		hideTooltip,
-		queueTooltipPositionUpdate,
-		setTooltip,
+		onRowMouseEnter,
+		onRowMouseLeave,
+		onRowMouseMove,
 		tooltip,
 		tooltipRef,
-	} = useCursorImageTooltip();
+	} = useProductImageTooltip();
 
 	const products = useMemo(
 		() => hydrateProducts(data?.pages.flatMap((page) => page.items) ?? []),
@@ -261,22 +261,11 @@ export function RecentProducts({
 				hasNextPage={Boolean(hasNextPage)}
 				isFetchingNextPage={isFetchingNextPage}
 				loadMoreRef={loadMoreRef}
-				onRowMouseEnter={({ event, imageUrl, title, asin }) => {
-					if (!imageUrl) {
-						return;
-					}
-					queueTooltipPositionUpdate(event.clientX, event.clientY);
-					setTooltip({ url: imageUrl, title: title ?? asin });
-				}}
-				onRowMouseMove={({ event, imageUrl }) => {
-					if (!imageUrl) {
-						return;
-					}
-					queueTooltipPositionUpdate(event.clientX, event.clientY);
-				}}
-				onRowMouseLeave={hideTooltip}
+				onRowMouseEnter={onRowMouseEnter}
+				onRowMouseMove={onRowMouseMove}
+				onRowMouseLeave={onRowMouseLeave}
 			/>
-			<CursorImageTooltip tooltip={tooltip} tooltipRef={tooltipRef} />
+			<ProductImageTooltip tooltip={tooltip} tooltipRef={tooltipRef} />
 			<ProductHistorySheet
 				isOpen={isHistorySheetOpen}
 				selectedProduct={selectedHistoryProduct}

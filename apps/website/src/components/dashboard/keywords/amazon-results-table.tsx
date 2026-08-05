@@ -5,6 +5,10 @@ import {
 	useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useRef, useState } from "react";
+import {
+	ProductImageTooltip,
+	useProductImageTooltip,
+} from "@/components/dashboard/product-image-tooltip";
 import { createColumns } from "@/components/dashboard/recent-products/columns";
 import { hydrateProducts } from "@/components/dashboard/recent-products/filter-utils";
 import { ProductHistorySheet } from "@/components/dashboard/recent-products/history-sheet";
@@ -13,10 +17,6 @@ import type {
 	Product,
 	SelectedHistoryProduct,
 } from "@/components/dashboard/recent-products/types";
-import {
-	CursorImageTooltip,
-	useCursorImageTooltip,
-} from "@/components/ui/tooltip";
 
 type AmazonSearchItem = Omit<
 	Product,
@@ -41,12 +41,12 @@ export const AmazonResultsTable = ({
 	const loadMoreRef = useRef<HTMLDivElement>(null);
 
 	const {
-		hideTooltip,
-		queueTooltipPositionUpdate,
-		setTooltip,
+		onRowMouseEnter,
+		onRowMouseLeave,
+		onRowMouseMove,
 		tooltip,
 		tooltipRef,
-	} = useCursorImageTooltip();
+	} = useProductImageTooltip();
 
 	const hydrated = useMemo(() => hydrateProducts(items), [items]);
 
@@ -118,22 +118,11 @@ export const AmazonResultsTable = ({
 				isFetchingNextPage={false}
 				loadMoreRef={loadMoreRef}
 				emptyMessage="No Amazon keyword results available for this term."
-				onRowMouseEnter={({ event, imageUrl, title, asin }) => {
-					if (!imageUrl) {
-						return;
-					}
-					queueTooltipPositionUpdate(event.clientX, event.clientY);
-					setTooltip({ url: imageUrl, title: title ?? asin });
-				}}
-				onRowMouseMove={({ event, imageUrl }) => {
-					if (!imageUrl) {
-						return;
-					}
-					queueTooltipPositionUpdate(event.clientX, event.clientY);
-				}}
-				onRowMouseLeave={hideTooltip}
+				onRowMouseEnter={onRowMouseEnter}
+				onRowMouseMove={onRowMouseMove}
+				onRowMouseLeave={onRowMouseLeave}
 			/>
-			<CursorImageTooltip tooltip={tooltip} tooltipRef={tooltipRef} />
+			<ProductImageTooltip tooltip={tooltip} tooltipRef={tooltipRef} />
 			<ProductHistorySheet
 				isOpen={isHistorySheetOpen}
 				selectedProduct={selectedHistoryProduct}

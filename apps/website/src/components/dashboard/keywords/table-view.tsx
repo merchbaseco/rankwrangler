@@ -40,7 +40,6 @@ export const KeywordsTableView = ({
 		}
 		colgroupColumns={colgroupColumns}
 		header={<SortableTableHeader table={table} />}
-		tableClassName="text-xs"
 	>
 		<TableBody>
 			{isLoading ? (

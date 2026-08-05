@@ -1,25 +1,49 @@
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { ProductThumbnail } from "@/components/dashboard/product-thumbnail";
+import {
+	getProductThumbnailUrl,
+	ProductThumbnail,
+} from "@/components/dashboard/product-thumbnail";
+import type {
+	ProductRowMouseEnter,
+	ProductRowMouseMove,
+} from "@/components/dashboard/product-image-tooltip";
 import { formatNumber, formatRelativeTime } from "@/lib/utils";
 import type { CatalogResult } from "./types";
 import { useCatalogProductQuery } from "./use-catalog-product-query";
 
 export const CatalogProductRow = ({
+	onRowMouseEnter,
+	onRowMouseLeave,
+	onRowMouseMove,
 	result,
 	runId,
 }: {
+	onRowMouseEnter: (args: ProductRowMouseEnter) => void;
+	onRowMouseLeave: () => void;
+	onRowMouseMove: (args: ProductRowMouseMove) => void;
 	result: CatalogResult;
 	runId: string;
 }) => {
 	const initialProduct = result.currentProduct;
 	if (!initialProduct) {
-		return <UnavailableCatalogProductRow result={result} runId={runId} />;
+		return (
+			<UnavailableCatalogProductRow
+				onRowMouseEnter={onRowMouseEnter}
+				onRowMouseLeave={onRowMouseLeave}
+				onRowMouseMove={onRowMouseMove}
+				result={result}
+				runId={runId}
+			/>
+		);
 	}
 
 	return (
 		<ResolvedCatalogProductRow
 			initialProduct={initialProduct}
+			onRowMouseEnter={onRowMouseEnter}
+			onRowMouseLeave={onRowMouseLeave}
+			onRowMouseMove={onRowMouseMove}
 			result={result}
 			runId={runId}
 		/>
@@ -28,10 +52,16 @@ export const CatalogProductRow = ({
 
 const ResolvedCatalogProductRow = ({
 	initialProduct,
+	onRowMouseEnter,
+	onRowMouseLeave,
+	onRowMouseMove,
 	result,
 	runId,
 }: {
 	initialProduct: NonNullable<CatalogResult["currentProduct"]>;
+	onRowMouseEnter: (args: ProductRowMouseEnter) => void;
+	onRowMouseLeave: () => void;
+	onRowMouseMove: (args: ProductRowMouseMove) => void;
 	result: CatalogResult;
 	runId: string;
 }) => {
@@ -46,7 +76,24 @@ const ResolvedCatalogProductRow = ({
 		"pending";
 
 	return (
-		<TableRow key={`${runId}:${result.productId}`}>
+		<TableRow
+			key={`${runId}:${result.productId}`}
+			onMouseEnter={(event) =>
+				onRowMouseEnter({
+					asin: product.asin,
+					event,
+					imageUrl: getProductThumbnailUrl(product.thumbnail),
+					title: product.title,
+				})
+			}
+			onMouseLeave={onRowMouseLeave}
+			onMouseMove={(event) =>
+				onRowMouseMove({
+					event,
+					imageUrl: getProductThumbnailUrl(product.thumbnail),
+				})
+			}
+		>
 			<PositionCell value={result.position.value} />
 			<TableCell>
 				<ProductThumbnail
@@ -82,13 +129,31 @@ const ResolvedCatalogProductRow = ({
 };
 
 const UnavailableCatalogProductRow = ({
+	onRowMouseEnter,
+	onRowMouseLeave,
+	onRowMouseMove,
 	result,
 	runId,
 }: {
+	onRowMouseEnter: (args: ProductRowMouseEnter) => void;
+	onRowMouseLeave: () => void;
+	onRowMouseMove: (args: ProductRowMouseMove) => void;
 	result: CatalogResult;
 	runId: string;
 }) => (
-	<TableRow key={`${runId}:${result.productId}`}>
+	<TableRow
+		key={`${runId}:${result.productId}`}
+		onMouseEnter={(event) =>
+			onRowMouseEnter({
+				asin: result.productId,
+				event,
+				imageUrl: null,
+				title: null,
+			})
+		}
+		onMouseLeave={onRowMouseLeave}
+		onMouseMove={(event) => onRowMouseMove({ event, imageUrl: null })}
+	>
 		<PositionCell value={result.position.value} />
 		<TableCell>
 			<ProductThumbnail

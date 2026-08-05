@@ -51,7 +51,7 @@ export const TrendCanvas = ({
 
 	if (!selectedSearchTerm) {
 		return (
-			<div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+			<div className="flex h-full items-center justify-center bg-background px-6 text-center text-sm text-muted-foreground">
 				Select a search term to view trend history and Amazon results.
 			</div>
 		);
@@ -59,8 +59,12 @@ export const TrendCanvas = ({
 
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-hidden">
-			<div className="border-border shrink-0 border-b">
-				<div className="border-border border-l border-r bg-card">
+			<div className="shrink-0 border-b border-border bg-card">
+				<div className="flex h-10 items-center justify-between border-b border-border px-5">
+					<span className="text-sm font-semibold text-foreground">Trend history</span>
+					<span className="font-mono text-xs text-muted-foreground">90 days</span>
+				</div>
+				<div>
 					{trendQuery.isLoading ? (
 						<div className="bg-muted h-[232px] animate-pulse" />
 					) : trendQuery.error ? (
@@ -73,11 +77,11 @@ export const TrendCanvas = ({
 								const latestValue = latestPoint ? latestPoint[option.key] : null;
 								return (
 									<div key={option.key} className="min-w-0 border-border">
-										<div className="border-border flex h-10 items-center justify-between border-b px-2">
-											<span className="text-xs font-semibold uppercase tracking-wide text-foreground">
+										<div className="flex h-10 items-center justify-between border-b border-border px-3">
+											<span className="text-xs font-medium text-foreground">
 												{option.label}
 											</span>
-											<span className="text-muted-foreground font-mono text-sm">
+											<span className="font-mono text-sm text-muted-foreground">
 												{formatMetricValue(latestValue, option.key)}
 											</span>
 										</div>
@@ -91,9 +95,9 @@ export const TrendCanvas = ({
 			</div>
 
 			<div className="min-h-0 flex-1 overflow-hidden">
-				<div className="border-border flex h-10 items-center border-b px-3 text-xs">
-					<span className="font-medium text-foreground">Amazon Results</span>
-					<span className="text-muted-foreground ml-2">
+				<div className="flex h-10 items-center border-b border-border bg-card px-5">
+					<span className="text-sm font-semibold text-foreground">Amazon results</span>
+					<span className="ml-2 font-mono text-xs text-muted-foreground">
 						{amazonQuery.data
 							? `${amazonQuery.data.items.length} results`
 							: amazonQuery.isLoading

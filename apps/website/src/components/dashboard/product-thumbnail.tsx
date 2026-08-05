@@ -11,6 +11,9 @@ export type ProductThumbnail =
 	| { status: "available"; url: string }
 	| { status: "unavailable" };
 
+export const getProductThumbnailUrl = (thumbnail: ProductThumbnail) =>
+	thumbnail.status === "available" ? thumbnail.url : null;
+
 export const ProductThumbnail = ({
 	asin,
 	className,
