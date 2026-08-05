@@ -39,6 +39,10 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
     manual version edits; do not maintain a persistent `## Unreleased` changelog section. When the
     user says `do a version bump`, follow `docs/operations/releases.md` and complete
     the full release flow, including publish, unless the user explicitly scopes it down.
+14. Production deploys are automatic: a push to `origin/main` triggers the GitHub Actions workflow
+    in `.github/workflows/deploy.yml`. After landing on `main`, verify that workflow and report its
+    result; do not claim that no production deployment occurred merely because no manual deploy
+    command was run.
 
 ## API + Code Design
 
