@@ -1,0 +1,4 @@
+ALTER TABLE "top_search_terms_datasets" ADD COLUMN "refresh_trigger" text DEFAULT 'automatic' NOT NULL;--> statement-breakpoint
+ALTER TABLE "top_search_terms_snapshots" ADD COLUMN "trigger" text DEFAULT 'automatic' NOT NULL;--> statement-breakpoint
+ALTER TABLE "top_search_terms_datasets" ADD CONSTRAINT "top_search_terms_datasets_refresh_trigger_check" CHECK ("top_search_terms_datasets"."refresh_trigger" in ('requested', 'automatic'));--> statement-breakpoint
+ALTER TABLE "top_search_terms_snapshots" ADD CONSTRAINT "top_search_terms_snapshots_trigger_check" CHECK ("top_search_terms_snapshots"."trigger" in ('requested', 'automatic'));

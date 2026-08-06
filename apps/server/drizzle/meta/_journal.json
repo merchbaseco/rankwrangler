@@ -218,6 +218,13 @@
       "when": 1785891451826,
       "tag": "0030_stale_mercury",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1786048958209,
+      "tag": "0031_lumpy_epoch",
+      "breakpoints": true
     }
   ]
 }

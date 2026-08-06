@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import {
     boolean,
+    check,
     index,
     integer,
     pgTable,
@@ -26,6 +28,7 @@ export const topSearchTermsDatasets = pgTable(
         lastFailedAt: timestamp('last_failed_at', { mode: 'date' }),
         lastError: text('last_error'),
         reportId: text('report_id'),
+        refreshTrigger: text('refresh_trigger').notNull().default('automatic'),
         nextRefreshAt: timestamp('next_refresh_at', { mode: 'date' }),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
         updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
@@ -46,6 +49,10 @@ export const topSearchTermsDatasets = pgTable(
             table.status,
             table.updatedAt
         ),
+        refreshTriggerCheck: check(
+            'top_search_terms_datasets_refresh_trigger_check',
+            sql`${table.refreshTrigger} in ('requested', 'automatic')`
+        ),
     })
 );
 
@@ -63,6 +70,7 @@ export const topSearchTermsSnapshots = pgTable(
         observedDate: text('observed_date').notNull(),
         reportId: text('report_id').notNull(),
         sourceJobId: text('source_job_id').notNull(),
+        trigger: text('trigger').notNull().default('automatic'),
         keywordCount: integer('keyword_count').notNull().default(0),
         fetchedAt: timestamp('fetched_at', { mode: 'date' }).notNull(),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
@@ -76,6 +84,10 @@ export const topSearchTermsSnapshots = pgTable(
         datasetFetchedIdx: index('top_search_terms_snapshots_dataset_fetched_idx').on(
             table.datasetId,
             table.fetchedAt
+        ),
+        triggerCheck: check(
+            'top_search_terms_snapshots_trigger_check',
+            sql`${table.trigger} in ('requested', 'automatic')`
         ),
     })
 );
@@ -98,7 +110,9 @@ export const topSearchTermsKeywordDaily = pgTable(
         searchTerm: text('search_term').notNull(),
         searchFrequencyRank: integer('search_frequency_rank').notNull(),
         clickShareTop3SumBasisPoints: integer('click_share_top3_sum_basis_points').notNull(),
-        conversionShareTop3SumBasisPoints: integer('conversion_share_top3_sum_basis_points').notNull(),
+        conversionShareTop3SumBasisPoints: integer(
+            'conversion_share_top3_sum_basis_points'
+        ).notNull(),
         topRowsCount: integer('top_rows_count').notNull().default(1),
         isMerchRelevant: boolean('is_merch_relevant').notNull().default(true),
         merchReason: text('merch_reason').notNull(),
