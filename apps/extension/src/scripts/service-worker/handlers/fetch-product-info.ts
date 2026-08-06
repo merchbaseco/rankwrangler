@@ -33,23 +33,24 @@ export async function handleFetchProductInfo(
 			headers: { Authorization: `Bearer ${sessionToken}` },
 		});
 
-		const response = await apiClient.product.getSummary.mutate({
+		const response = await apiClient.product.get.mutate({
 			asin: message.asin,
 			marketplaceId: message.marketplaceId,
 			refresh: message.refresh ?? false,
 		});
+		const summary = response.summary;
 
 		return {
 			success: true,
 			data: {
-				asin: response.asin ?? message.asin,
-				dateFirstAvailable: response.dateFirstAvailable ?? null,
-				rootCategoryBsr: response.rootCategoryBsr ?? null,
-				rootCategoryDisplayName: response.rootCategoryDisplayName ?? null,
-				thumbnail: response.thumbnail ?? { status: "pending" },
+				asin: summary.asin ?? message.asin,
+				dateFirstAvailable: summary.dateFirstAvailable ?? null,
+				rootCategoryBsr: summary.rootCategoryBsr ?? null,
+				rootCategoryDisplayName: summary.rootCategoryDisplayName ?? null,
+				thumbnail: summary.thumbnail ?? { status: "pending" },
 				freshness: {
-					stale: response.freshness?.stale ?? true,
-					updatedAt: response.freshness?.updatedAt ?? null,
+					stale: summary.freshness?.stale ?? true,
+					updatedAt: summary.freshness?.updatedAt ?? null,
 				},
 			},
 		};

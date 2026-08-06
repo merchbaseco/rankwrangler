@@ -1,5 +1,5 @@
 ---
-summary: Defines RankWrangler CLI commands, authentication, configuration precedence, product-history flags, JSON envelopes, and exit behavior.
+summary: Defines final RankWrangler CLI commands, authentication, configuration, refresh flags, JSON envelopes, and exit behavior.
 read_when:
   - invoking RankWrangler from an agent, shell script, or CI job
   - changing a CLI command, flag, environment variable, configuration key, or output envelope
@@ -24,105 +24,59 @@ For non-interactive secret entry:
 printf %s "$MERCHBASE_API_KEY" | rw auth set --stdin
 ```
 
-Merchbase API-key resolution order is:
-
-1. `MERCHBASE_API_KEY` environment override;
-2. key stored in the platform secure store;
-3. `MISSING_CONFIG` failure.
-
-`rw auth set` stores secrets in the platform credential store, not the JSON config file.
-`rw auth clear` removes the stored key. `auth status` reports the active source and backend without
-printing the secret.
+API-key resolution order is the `MERCHBASE_API_KEY` environment override, platform secure store,
+then `MISSING_CONFIG`. Auth commands never print the secret.
 
 ## Commands
 
 | Command | Result |
 | --- | --- |
-| `rw products get <ASIN>` | Product summary plus compact bucketed history. |
-| `rw products summary <ASIN>` | Product summary without importing Keepa history. |
-| `rw products history <ASIN>` | Compact bucketed history without the product summary. |
-| `rw operations get <operationId>` | Poll one durable Operation without starting work. |
-| `rw catalog search <term>` | Return a reusable Search run or pending Catalog-search Operation. |
-| `rw catalog query <term>` | Read existing query identity, activity state, and latest run. A search request renews its keyword interest. |
-| `rw catalog runs <queryId>` | List one bounded newest-first page of persisted runs. |
-| `rw catalog run <runId>` | Read one run with nullable current Products and immutable observations. |
-| `rw auth status|set|clear` | Inspect or update secure-store authentication. |
-| `rw config show|get|set|unset|reset` | Inspect or update non-secret local configuration. |
+| `rw product get <ASIN>` | Product summary plus compact bucketed history. |
+| `rw product search <keyword>` | Completed Product search data and freshness. |
+| `rw product history <ASIN>` | Compact bucketed Product history. |
+| `rw keyword get <keyword>` | Current keyword evidence. |
+| `rw keyword search <text>` | Filtered keyword evidence. |
+| `rw keyword history <keyword>` | Keyword evidence over time. |
+| `rw auth status\|set\|clear` | Inspect or update secure-store authentication. |
+| `rw config show\|get\|set\|unset\|reset` | Inspect or update non-secret local configuration. |
 | `rw --version` | Installed version as plain text. |
 | `rw changelog` | Latest bundled release entry as plain text. |
 
-One product command accepts exactly one ASIN. ASINs may come from the positional argument,
-`--asin`, `RR_ASIN`, or `RR_ASINS`; resolving more than one is an error.
+Catalog, Operation, plural `products`, summary, and polling commands are not part of the CLI.
 
-## Product history options
+## Options
+
+All Product and keyword retrieval commands accept `--refresh` to request fresh data under the
+server-owned retrieval policy. Common options are `--baseUrl`, `--marketplace`, and `--limit`.
+
+Product history options:
 
 ```bash
-rw products get B0DV53VS61 --metrics bsr,price --bucket week --days 365
-rw products history B0DV53VS61 \
-  --metrics bsr \
-  --startAt 2025-01-01 \
-  --endAt 2025-12-31 \
-  --bucket month
+rw product get B0DV53VS61 --refresh --metrics bsr,price --bucket week --days 365
+rw product history B0DV53VS61 --metrics bsr --startAt 2025-01-01 --endAt 2025-12-31
 ```
 
 | Option | Values and default |
 | --- | --- |
-| `--metrics <list>` | Comma-separated `bsr,price`; default both. |
-| `--bucket <unit>` | `auto`, `day`, `week`, or `month`; default `auto`. |
-| `--days <N>` | 30–3650; default 365. Cannot be combined explicitly with range bounds. |
-| `--startAt <ISO>` | Optional range start. |
-| `--endAt <ISO>` | Optional range end. |
-| `--limit <N>` | Internal point cap, 1–10,000; default 5,000. |
-| `-m, --marketplace <id>` | Marketplace override. |
-| `--baseUrl <origin>` | API-origin override. A trailing `/api` is normalized away. |
+| `--metrics <list>` | `bsr,price`; default both. |
+| `--bucket <unit>` | `auto`, `day`, `week`, `month`; default `auto`. |
+| `--days <N>` | 30–3650; default 365. Cannot combine with explicit range bounds. |
+| `--rangeDays <N>` | Keyword history range, 7–365; default 90. |
+| `--startAt <ISO>` / `--endAt <ISO>` | Product history range bounds. |
+| `--limit <N>` | Product history max 10,000; keyword search max 100. |
+| `--cursor <N>` | Keyword search offset; default 0. |
+| `-m, --marketplace <id>` | Marketplace override; Product defaults to US. |
+| `--baseUrl <origin>` | API-origin override; `/api` is normalized away. |
 
-`bsr` maps to Keepa `bsrMain`; `price` maps to `priceNew`. The CLI returns bucket tuples and
-summaries, never the raw point series.
-
-The response contains `status: ready | empty`, the category-level
-`freshness: { stale, updatedAt }` envelope, and the requested bucketed series. The CLI does not
-expose Product-history Operation identifiers or polling state. Temporary capacity or deadline
-failures exit with a retryable tRPC `TIMEOUT` message containing a retry hint.
-
-For Catalog search:
-
-```bash
-rw catalog search "retro gardening shirt"
-rw catalog search "retro gardening shirt" --maxAgeSeconds 0
-rw catalog query "retro gardening shirt"
-rw catalog runs 11111111-1111-4111-8111-111111111111 --limit 20
-rw catalog runs 11111111-1111-4111-8111-111111111111 \
-  --cursor 22222222-2222-4222-8222-222222222222
-rw catalog run 22222222-2222-4222-8222-222222222222
-```
-
-`--maxAgeSeconds` defaults to `86400`; zero forces fresh evidence while joining identical pending
-work. A completed Catalog Operation has `resource.type: "catalogSearchRun"` and a `runId`.
-Catalog query and run-list reads never start provider work; a run read may enqueue background Product
-enrichment without blocking on a provider. Run-list `--limit` defaults to 20 and is bounded at 100;
-pass its `nextCursor` back through `--cursor`. Run results separate immutable `observed` values from
-nullable canonical `currentProduct` state and its Product availability.
-
-Each catalog search request renews keyword interest for 30 days, including cached reuse. Active
-keywords are refreshed automatically when their latest successful run is at least seven days old;
-expired keywords become inactive with no backfill. Query reads expose activity timestamps and
-derived status. Search-run history labels each observation as Requested search or Automatic refresh.
-
-`auto` uses day buckets through 45 days, week buckets through 18 months, and month buckets after
-that. Price values are minor currency units; consult the response's `currencyCode` and
-`valueScale`.
+The CLI returns compact agent history buckets and summaries, never raw point series. History
+responses include `freshness: { stale, updatedAt }`; no command exposes Operation identifiers,
+provider status, or polling state. Missing data is `NOT_FOUND`; temporary capacity/deadline
+failures are retryable `TIMEOUT` errors with a retry hint.
 
 ## Configuration and precedence
 
-Supported config keys:
-
-- `base-url`
-- `marketplace`
-- `storage-dir`
-
-The active config is `<storage-dir>/config.json`. The default storage directory is
-`~/.rankwrangler`; `~/.rankwrangler/global.json` stores only the pointer to a custom storage
-directory.
+Supported config keys are `base-url`, `marketplace`, and `storage-dir`. The active config is
+`<storage-dir>/config.json`; the default is `~/.rankwrangler`.
 
 | Setting | Resolution order |
 | --- | --- |
@@ -132,36 +86,19 @@ directory.
 | Storage directory | `RR_STORAGE_DIR`, saved global pointer, `~/.rankwrangler` |
 | History metrics | `--metrics`, `RR_HISTORY_METRICS`, `bsr,price` |
 
-`config set storage-dir` makes the target directory active and copies missing non-secret settings
-from the current config. `config unset storage-dir` returns to the default directory. `config
-reset` removes non-secret config and the global pointer; it does not clear secure-store auth.
-
 ## Machine-readable output
 
-API, auth, and config commands write one pretty-printed JSON envelope.
-
-Success:
+API, auth, and config commands write one JSON envelope:
 
 ```json
-{
-  "ok": true,
-  "data": {}
-}
+{ "ok": true, "data": {} }
 ```
 
-Failure is written to stderr and exits with status 1:
+Failures go to stderr and exit with status 1:
 
 ```json
-{
-  "ok": false,
-  "error": {
-    "code": "MISSING_CONFIG",
-    "message": "Merchbase API key is required"
-  }
-}
+{ "ok": false, "error": { "code": "NOT_FOUND", "message": "Product not found" } }
 ```
 
-`error.details` is included when additional structured context exists. Help, version, and
-changelog output are intentionally plain text.
-
-The executable command dispatcher is [`packages/cli/src/index.ts`](../../packages/cli/src/index.ts).
+Help, version, and changelog output are plain text. The dispatcher is
+[`packages/cli/src/index.ts`](../../packages/cli/src/index.ts).

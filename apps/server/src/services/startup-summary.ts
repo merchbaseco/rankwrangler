@@ -6,6 +6,7 @@ export interface StartupSummaryInput {
     jobRunnerStatus: string;
     jobStartupSummary: string[];
     keepaConfigured: boolean;
+    mcpStatus: string;
     migrationsComplete: boolean;
     port: number;
     productFacetSummary: string;
@@ -66,6 +67,7 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
     );
     console.log(`  • Product Facet Classification: ${input.productFacetSummary}`);
     console.log('  • API Routes: tRPC (/api)');
+    console.log(`  • Hosted MCP: ${input.mcpStatus}`);
     console.log(`  • Realtime: tRPC WebSocket (${input.realtimePath}, Clerk app)`);
     console.log(`  • Auth: ${input.authSummary}`);
     const devClerkSignInStatus = 'Configured';

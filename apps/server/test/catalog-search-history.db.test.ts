@@ -27,20 +27,17 @@ describeCatalogDb('Catalog search history reads', () => {
         await db.delete(products);
     });
 
-    it('exposes query state and newest-first paginated runs through app and public APIs', async () => {
+    it('exposes query state and newest-first paginated runs through the app API', async () => {
         const queryId = await insertQuery('Retro Gardening Shirt');
         const oldestRunId = await insertRun(queryId, '2026-07-01T12:00:00.000Z', 4);
         const emptyRunId = await insertRun(queryId, '2026-07-08T12:00:00.000Z', 0);
         const latestRunId = await insertRun(queryId, '2026-07-15T12:00:00.000Z', 2);
         const appCaller = appRouter.createCaller(createContext('app'));
-        const publicCaller = appRouter.createCaller(createContext('public'));
 
-        const [appQuery, publicQuery] = await Promise.all([
-            appCaller.api.app.catalog.query.get({ term: ' retro   gardening SHIRT ' }),
-            publicCaller.api.public.catalog.query.get({ term: 'retro gardening shirt' }),
-        ]);
-        expect(appQuery).toEqual(publicQuery);
-        expect(publicQuery).toMatchObject({
+        const appQuery = await appCaller.api.app.catalog.query.get({
+            term: ' retro   gardening SHIRT ',
+        });
+        expect(appQuery).toMatchObject({
             id: queryId,
             source: 'keepa',
             marketplaceId: 'ATVPDKIKX0DER',
@@ -59,7 +56,7 @@ describeCatalogDb('Catalog search history reads', () => {
             },
         });
 
-        const firstPage = await publicCaller.api.public.catalog.run.list({
+        const firstPage = await appCaller.api.app.catalog.run.list({
             queryId,
             limit: 2,
         });
@@ -90,9 +87,9 @@ describeCatalogDb('Catalog search history reads', () => {
         const runId = await insertRun(queryId, '2026-07-01T12:00:00.000Z', 1);
         const productId = await insertProduct();
         await insertResult(runId, productId);
-        const caller = appRouter.createCaller(createContext('public'));
+        const caller = appRouter.createCaller(createContext('app'));
 
-        const before = await caller.api.public.catalog.run.get({ id: runId });
+        const before = await caller.api.app.catalog.run.get({ id: runId });
         await db
             .update(products)
             .set({
@@ -101,7 +98,7 @@ describeCatalogDb('Catalog search history reads', () => {
                 keepaSourceUpdatedAt: new Date('2026-07-20T12:00:00.000Z'),
             })
             .where(eq(products.id, productId));
-        const after = await caller.api.public.catalog.run.get({ id: runId });
+        const after = await caller.api.app.catalog.run.get({ id: runId });
 
         expect(after.results[0]?.observed).toEqual(before.results[0]?.observed);
         expect(after.results[0]).toMatchObject({

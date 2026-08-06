@@ -197,116 +197,6 @@ export interface ContextRequest {
 		host?: string;
 	};
 }
-export type ProductThumbnail = {
-	status: "pending";
-} | {
-	status: "available";
-	url: string;
-} | {
-	status: "unavailable";
-};
-export interface ProductFreshness {
-	stale: boolean;
-	updatedAt: string | null;
-}
-export interface ProductInfo {
-	asin: string;
-	marketplaceId: string;
-	dateFirstAvailable: string | null;
-	title: string | null;
-	brand: string | null;
-	isMerchListing: boolean;
-	bullet1: string | null;
-	bullet2: string | null;
-	rootCategoryId: number | null;
-	rootCategoryBsr: number | null;
-	rootCategoryDisplayName: string | null;
-	thumbnail: ProductThumbnail;
-	keepa: {
-		fetchedAt: string;
-		sourceUpdatedAt: string | null;
-		firstTrackedAt: string | null;
-		rootCategoryId: number | null;
-		currentRootCategoryBsr: number | null;
-		currentNewPrice: {
-			amountMinor: number;
-			currencyCode: string;
-		} | null;
-		monthlySold: number | null;
-		averageRootCategoryBsr30: number | null;
-		averageRootCategoryBsr90: number | null;
-		salesRankDrops: {
-			days30: number | null;
-			days90: number | null;
-			days180: number | null;
-			days365: number | null;
-		};
-	} | null;
-	freshness: ProductFreshness;
-}
-export type ProductAvailability = "pending" | "available" | "unavailable";
-declare const operationTypes: readonly [
-	"productHistoryRefresh",
-	"catalogSearch"
-];
-declare const catalogSearchTriggers: readonly [
-	"requested",
-	"automatic"
-];
-export type CatalogSearchTrigger = (typeof catalogSearchTriggers)[number];
-export interface ProductHistoryResource {
-	[key: string]: unknown;
-	type: "productHistory";
-	marketplaceId: string;
-	asin: string;
-}
-export interface CatalogSearchResource {
-	[key: string]: unknown;
-	type: "catalogSearchRun";
-	queryId: string;
-	runId: string;
-}
-export interface OperationError {
-	[key: string]: unknown;
-	code: "ACCESS_DENIED" | "ACCESS_UNAVAILABLE" | "PROVIDER_UNAVAILABLE" | "RESOURCE_NOT_FOUND" | "INTERNAL_ERROR";
-	message: string;
-}
-export type PublicOperationType = (typeof operationTypes)[number];
-export type PublicOperation = {
-	id: string;
-	type: PublicOperationType;
-	status: "pending";
-	retryAfterSeconds: 2;
-	createdAt: string;
-	updatedAt: string;
-} | {
-	id: string;
-	type: "productHistoryRefresh";
-	status: "completed";
-	resource: ProductHistoryResource;
-	error: null;
-	createdAt: string;
-	updatedAt: string;
-	completedAt: string;
-} | {
-	id: string;
-	type: "catalogSearch";
-	status: "completed";
-	resource: CatalogSearchResource;
-	error: null;
-	createdAt: string;
-	updatedAt: string;
-	completedAt: string;
-} | {
-	id: string;
-	type: PublicOperationType;
-	status: "completed";
-	resource: null;
-	error: OperationError;
-	createdAt: string;
-	updatedAt: string;
-	completedAt: string;
-};
 declare const TOP_SEARCH_TERMS_REPORT_PERIODS: readonly [
 	"DAY",
 	"WEEK"
@@ -389,6 +279,11 @@ export interface KeywordHistoryResponse {
 	deltas: SearchTermsTrendDeltas;
 	freshness: KeywordFreshness;
 }
+declare const catalogSearchTriggers: readonly [
+	"requested",
+	"automatic"
+];
+export type CatalogSearchTrigger = (typeof catalogSearchTriggers)[number];
 declare const productHistoryBuckets: readonly [
 	"auto",
 	"day",
@@ -445,12 +340,6 @@ export interface AgentHistoryResponse {
 	};
 	series: AgentHistorySeries;
 }
-export interface OperationalAgentHistoryResponse extends Omit<AgentHistoryResponse, "status" | "freshness"> {
-	status: "collecting" | "ready" | "empty";
-	latestImportAt: string | null;
-	syncTriggered: boolean;
-	operation: PublicOperation | null;
-}
 export interface HistoryPoint {
 	categoryId: number;
 	categoryName: string | null;
@@ -459,12 +348,61 @@ export interface HistoryPoint {
 	value: number | null;
 	isMissing: boolean;
 }
+export type ProductThumbnail = {
+	status: "pending";
+} | {
+	status: "available";
+	url: string;
+} | {
+	status: "unavailable";
+};
+export interface ProductFreshness {
+	stale: boolean;
+	updatedAt: string | null;
+}
+export interface ProductInfo {
+	asin: string;
+	marketplaceId: string;
+	dateFirstAvailable: string | null;
+	title: string | null;
+	brand: string | null;
+	isMerchListing: boolean;
+	bullet1: string | null;
+	bullet2: string | null;
+	rootCategoryId: number | null;
+	rootCategoryBsr: number | null;
+	rootCategoryDisplayName: string | null;
+	thumbnail: ProductThumbnail;
+	keepa: {
+		fetchedAt: string;
+		sourceUpdatedAt: string | null;
+		firstTrackedAt: string | null;
+		rootCategoryId: number | null;
+		currentRootCategoryBsr: number | null;
+		currentNewPrice: {
+			amountMinor: number;
+			currencyCode: string;
+		} | null;
+		monthlySold: number | null;
+		averageRootCategoryBsr30: number | null;
+		averageRootCategoryBsr90: number | null;
+		salesRankDrops: {
+			days30: number | null;
+			days90: number | null;
+			days180: number | null;
+			days365: number | null;
+		};
+	} | null;
+	freshness: ProductFreshness;
+}
+export type ProductAvailability = "pending" | "available" | "unavailable";
 export interface ProductHistoryError {
 	schemaVersion: 2;
 	status: "error";
-	latestImportAt: null;
-	syncTriggered: false;
-	operation: PublicOperation | null;
+	freshness: {
+		stale: true;
+		updatedAt: null;
+	};
 	range: {
 		startAt: string;
 		endAt: string;
@@ -474,6 +412,8 @@ export interface ProductHistoryError {
 	error: {
 		code: string;
 		message: string;
+		retryable: boolean;
+		retryAfterSeconds?: number;
 	};
 }
 export interface ProductReadModel {
@@ -482,7 +422,7 @@ export interface ProductReadModel {
 	asin: string;
 	status: "ready" | "partial";
 	summary: ProductInfo;
-	history: OperationalAgentHistoryResponse | ProductHistoryError;
+	history: AgentHistoryResponse | ProductHistoryError;
 }
 export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 	ctx: {
@@ -556,234 +496,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 			errorShape: import("@trpc/server").TRPCDefaultErrorShape;
 			transformer: false;
 		}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
-			catalog: import("@trpc/server").TRPCBuiltRouter<{
-				ctx: {
-					user: null;
-					isAdmin: boolean;
-					authType: "none";
-					credentialKind: null;
-					authExpiresAtMs: null;
-					accessPrincipal: null;
-					accessError: import("@merchbaseco/access").ServiceAccessErrorCode | null;
-					request: ContextRequest;
-				} | {
-					user: ClerkUser;
-					isAdmin: boolean;
-					authType: "access";
-					credentialKind: CredentialKind;
-					authExpiresAtMs: number | null;
-					accessPrincipal: RankWranglerServicePrincipal;
-					accessError: null;
-					request: ContextRequest;
-				};
-				meta: object;
-				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
-				transformer: false;
-			}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
-				search: import("@trpc/server").TRPCMutationProcedure<{
-					input: {
-						term: string;
-						refresh?: boolean | undefined;
-					};
-					output: {
-						status: "ready";
-						run: {
-							query: {
-								id: string;
-								source: "keepa";
-								marketplaceId: string;
-								normalizedTerm: string;
-								displayTerm: string;
-								page: number;
-							};
-							results: {
-								productId: string;
-								position: {
-									source: "keepa";
-									value: number;
-								};
-								observed: {
-									rootCategoryBsr: number | null;
-									newPriceAmountMinor: number | null;
-									currencyCode: "USD";
-									monthlySold: number | null;
-									averageRootCategoryBsr30: number | null;
-									averageRootCategoryBsr90: number | null;
-									salesRankDrops: {
-										days30: number | null;
-										days90: number | null;
-										days180: number | null;
-										days365: number | null;
-									};
-									sourceUpdatedAt: string | null;
-								};
-								currentProduct: ProductInfo | null;
-								currentProductAvailability: ProductAvailability;
-							}[];
-							id: string;
-							sourceStartedAt: string;
-							sourceCompletedAt: string;
-							trigger: CatalogSearchTrigger;
-							resultCount: number;
-							normalizerVersion: number;
-							createdAt: string;
-						};
-						freshness: {
-							stale: boolean;
-							updatedAt: string;
-						};
-					};
-					meta: object;
-				}>;
-				query: import("@trpc/server").TRPCBuiltRouter<{
-					ctx: {
-						user: null;
-						isAdmin: boolean;
-						authType: "none";
-						credentialKind: null;
-						authExpiresAtMs: null;
-						accessPrincipal: null;
-						accessError: import("@merchbaseco/access").ServiceAccessErrorCode | null;
-						request: ContextRequest;
-					} | {
-						user: ClerkUser;
-						isAdmin: boolean;
-						authType: "access";
-						credentialKind: CredentialKind;
-						authExpiresAtMs: number | null;
-						accessPrincipal: RankWranglerServicePrincipal;
-						accessError: null;
-						request: ContextRequest;
-					};
-					meta: object;
-					errorShape: import("@trpc/server").TRPCDefaultErrorShape;
-					transformer: false;
-				}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
-					get: import("@trpc/server").TRPCQueryProcedure<{
-						input: {
-							term: string;
-						};
-						output: {
-							id: string;
-							source: "keepa";
-							marketplaceId: string;
-							normalizedTerm: string;
-							displayTerm: string;
-							page: number;
-							lastRequestedAt: string | null;
-							activeUntil: string | null;
-							latestSuccessfulRunAt: string | null;
-							nextRefreshAttemptAt: string | null;
-							lastRefreshAttemptAt: string | null;
-							nextRefreshAt: string | null;
-							status: "pending" | "inactive" | "failed" | "due" | "deferred" | "expiringSoon" | "waiting";
-							observationCount: number;
-							latestRun: {
-								id: string;
-								sourceStartedAt: string;
-								sourceCompletedAt: string;
-								trigger: CatalogSearchTrigger;
-								resultCount: number;
-								normalizerVersion: number;
-								createdAt: string;
-							} | null;
-						};
-						meta: object;
-					}>;
-				}>>;
-				run: import("@trpc/server").TRPCBuiltRouter<{
-					ctx: {
-						user: null;
-						isAdmin: boolean;
-						authType: "none";
-						credentialKind: null;
-						authExpiresAtMs: null;
-						accessPrincipal: null;
-						accessError: import("@merchbaseco/access").ServiceAccessErrorCode | null;
-						request: ContextRequest;
-					} | {
-						user: ClerkUser;
-						isAdmin: boolean;
-						authType: "access";
-						credentialKind: CredentialKind;
-						authExpiresAtMs: number | null;
-						accessPrincipal: RankWranglerServicePrincipal;
-						accessError: null;
-						request: ContextRequest;
-					};
-					meta: object;
-					errorShape: import("@trpc/server").TRPCDefaultErrorShape;
-					transformer: false;
-				}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
-					get: import("@trpc/server").TRPCQueryProcedure<{
-						input: {
-							id: string;
-						};
-						output: {
-							query: {
-								id: string;
-								source: "keepa";
-								marketplaceId: string;
-								normalizedTerm: string;
-								displayTerm: string;
-								page: number;
-							};
-							results: {
-								productId: string;
-								position: {
-									source: "keepa";
-									value: number;
-								};
-								observed: {
-									rootCategoryBsr: number | null;
-									newPriceAmountMinor: number | null;
-									currencyCode: "USD";
-									monthlySold: number | null;
-									averageRootCategoryBsr30: number | null;
-									averageRootCategoryBsr90: number | null;
-									salesRankDrops: {
-										days30: number | null;
-										days90: number | null;
-										days180: number | null;
-										days365: number | null;
-									};
-									sourceUpdatedAt: string | null;
-								};
-								currentProduct: ProductInfo | null;
-								currentProductAvailability: ProductAvailability;
-							}[];
-							id: string;
-							sourceStartedAt: string;
-							sourceCompletedAt: string;
-							trigger: CatalogSearchTrigger;
-							resultCount: number;
-							normalizerVersion: number;
-							createdAt: string;
-						};
-						meta: object;
-					}>;
-					list: import("@trpc/server").TRPCQueryProcedure<{
-						input: {
-							queryId: string;
-							limit?: number | undefined;
-							cursor?: string | undefined;
-						};
-						output: {
-							items: {
-								id: string;
-								sourceStartedAt: string;
-								sourceCompletedAt: string;
-								trigger: CatalogSearchTrigger;
-								resultCount: number;
-								normalizerVersion: number;
-								createdAt: string;
-							}[];
-							nextCursor: string | null;
-						};
-						meta: object;
-					}>;
-				}>>;
-			}>>;
 			keyword: import("@trpc/server").TRPCBuiltRouter<{
 				ctx: {
 					user: null;
@@ -896,16 +608,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					output: ProductReadModel;
 					meta: object;
 				}>;
-				getSummary: import("@trpc/server").TRPCMutationProcedure<{
-					input: {
-						marketplaceId: string;
-						asin: string;
-						refresh?: boolean | undefined;
-					};
-					output: ProductInfo;
-					meta: object;
-				}>;
-				getHistory: import("@trpc/server").TRPCMutationProcedure<{
+				history: import("@trpc/server").TRPCMutationProcedure<{
 					input: {
 						marketplaceId: string;
 						asin: string;
@@ -947,68 +650,58 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					};
 					meta: object;
 				}>;
-			}>>;
-			operation: import("@trpc/server").TRPCBuiltRouter<{
-				ctx: {
-					user: null;
-					isAdmin: boolean;
-					authType: "none";
-					credentialKind: null;
-					authExpiresAtMs: null;
-					accessPrincipal: null;
-					accessError: import("@merchbaseco/access").ServiceAccessErrorCode | null;
-					request: ContextRequest;
-				} | {
-					user: ClerkUser;
-					isAdmin: boolean;
-					authType: "access";
-					credentialKind: CredentialKind;
-					authExpiresAtMs: number | null;
-					accessPrincipal: RankWranglerServicePrincipal;
-					accessError: null;
-					request: ContextRequest;
-				};
-				meta: object;
-				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
-				transformer: false;
-			}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
-				get: import("@trpc/server").TRPCQueryProcedure<{
+				search: import("@trpc/server").TRPCMutationProcedure<{
 					input: {
-						id: string;
+						term: string;
+						refresh?: boolean | undefined;
 					};
-					output: PublicOperation;
-					meta: object;
-				}>;
-			}>>;
-			dev: import("@trpc/server").TRPCBuiltRouter<{
-				ctx: {
-					user: null;
-					isAdmin: boolean;
-					authType: "none";
-					credentialKind: null;
-					authExpiresAtMs: null;
-					accessPrincipal: null;
-					accessError: import("@merchbaseco/access").ServiceAccessErrorCode | null;
-					request: ContextRequest;
-				} | {
-					user: ClerkUser;
-					isAdmin: boolean;
-					authType: "access";
-					credentialKind: CredentialKind;
-					authExpiresAtMs: number | null;
-					accessPrincipal: RankWranglerServicePrincipal;
-					accessError: null;
-					request: ContextRequest;
-				};
-				meta: object;
-				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
-				transformer: false;
-			}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
-				createClerkSignInToken: import("@trpc/server").TRPCMutationProcedure<{
-					input: void;
 					output: {
-						ticket: string;
-						expiresInSeconds: number;
+						status: "ready";
+						run: {
+							query: {
+								id: string;
+								source: "keepa";
+								marketplaceId: string;
+								normalizedTerm: string;
+								displayTerm: string;
+								page: number;
+							};
+							results: {
+								productId: string;
+								position: {
+									source: "keepa";
+									value: number;
+								};
+								observed: {
+									rootCategoryBsr: number | null;
+									newPriceAmountMinor: number | null;
+									currencyCode: "USD";
+									monthlySold: number | null;
+									averageRootCategoryBsr30: number | null;
+									averageRootCategoryBsr90: number | null;
+									salesRankDrops: {
+										days30: number | null;
+										days90: number | null;
+										days180: number | null;
+										days365: number | null;
+									};
+									sourceUpdatedAt: string | null;
+								};
+								currentProduct: ProductInfo | null;
+								currentProductAvailability: ProductAvailability;
+							}[];
+							id: string;
+							sourceStartedAt: string;
+							sourceCompletedAt: string;
+							trigger: CatalogSearchTrigger;
+							resultCount: number;
+							normalizerVersion: number;
+							createdAt: string;
+						};
+						freshness: {
+							stale: boolean;
+							updatedAt: string;
+						};
 					};
 					meta: object;
 				}>;

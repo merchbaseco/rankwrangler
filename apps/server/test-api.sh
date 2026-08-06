@@ -23,8 +23,8 @@ echo ""
 
 # Optional dev Clerk sign-in token flow
 if [ "$RR_TEST_DEV_CLERK" = "1" ]; then
-    echo "🧪 Testing api.public.dev.createClerkSignInToken (dev only)..."
-    dev_clerk_response=$(curl -s -X POST "$API_BASE/api/api.public.dev.createClerkSignInToken" \
+    echo "🧪 Testing api.dev.createClerkSignInToken (dev only)..."
+    dev_clerk_response=$(curl -s -X POST "$API_BASE/api/api.dev.createClerkSignInToken" \
       -H "Content-Type: application/json" \
       -d '{"input":null}')
     echo "$dev_clerk_response" | jq '.'
@@ -42,29 +42,23 @@ fi
 if [ -n "$MERCHBASE_API_KEY" ]; then
     echo "🔑 Testing Merchbase API-key authenticated public API..."
     echo ""
-    echo "📦 Testing api.public.product.getSummary..."
-    public_product_info_response=$(curl -s -X POST "$API_BASE/api/api.public.product.getSummary" \
+    echo "📦 Testing api.public.product.get (summary + history)..."
+    public_product_info_response=$(curl -s -X POST "$API_BASE/api/api.public.product.get" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $MERCHBASE_API_KEY" \
-      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}')
+      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "metrics": ["bsr", "price"], "bucket": "week", "days": 365}}')
     echo "$public_product_info_response" | jq '.'
     echo "🧾 Merch fields (public):"
-    echo "$public_product_info_response" | jq '.result.data.json | {isMerchListing, bullet1, bullet2}'
+    echo "$public_product_info_response" | jq '.result.data.json.summary | {isMerchListing, bullet1, bullet2}'
     echo ""
-    echo "📦 Testing api.public.product.get (summary + history)..."
-    curl -s -X POST "$API_BASE/api/api.public.product.get" \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer $MERCHBASE_API_KEY" \
-      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "metrics": ["bsr", "price"], "bucket": "week", "days": 365}}' | jq '.'
-    echo ""
-    echo "📈 Testing api.public.product.getHistory..."
-    curl -s -X POST "$API_BASE/api/api.public.product.getHistory" \
+    echo "📈 Testing api.public.product.history..."
+    curl -s -X POST "$API_BASE/api/api.public.product.history" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $MERCHBASE_API_KEY" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "limit": 100}}' | jq '.'
     echo ""
-    echo "📉 Testing api.public.product.getHistory (agent format, bucketed bsr+price)..."
-    curl -s -X POST "$API_BASE/api/api.public.product.getHistory" \
+    echo "📉 Testing api.public.product.history (agent format, bucketed bsr+price)..."
+    curl -s -X POST "$API_BASE/api/api.public.product.history" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $MERCHBASE_API_KEY" \
       -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61", "metrics": ["bsr", "price"], "format": "agent", "bucket": "week", "days": 365}}' | jq '.'

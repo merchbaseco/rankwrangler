@@ -37,7 +37,7 @@ const requestAndActivateSession = async ({
 }) => {
 	try {
 		const response = await fetch(
-			`${apiBaseUrl}/api/api.public.dev.createClerkSignInToken`,
+			`${apiBaseUrl}/api/api.dev.createClerkSignInToken`,
 			{
 				method: "POST",
 				headers: {

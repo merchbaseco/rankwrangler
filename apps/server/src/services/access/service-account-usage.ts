@@ -5,6 +5,7 @@ import {
     consumeRankWranglerServiceAccountUsage,
     getRankWranglerServiceAccountUsage,
 } from '@/db/service-account-usage';
+import { getDailyAllowanceRetryAfterSeconds } from './rate-limit';
 
 export const consumeServiceAccountUsageOrThrow = async (ctx: Context, amount: number) => {
     const serviceAccountId = ctx.accessPrincipal?.id;
@@ -23,9 +24,10 @@ export const consumeServiceAccountUsageOrThrow = async (ctx: Context, amount: nu
     }
 
     if (result.reason === 'usageLimitExceeded') {
+        const retryAfterSeconds = getDailyAllowanceRetryAfterSeconds();
         throw new TRPCError({
             code: 'TOO_MANY_REQUESTS',
-            message: `Daily limit of ${result.usageLimit ?? 0} requests exceeded. Resets at midnight UTC.`,
+            message: `Daily limit of ${result.usageLimit ?? 0} requests exceeded. Retry after ${retryAfterSeconds} seconds. Resets at midnight UTC.`,
         });
     }
 

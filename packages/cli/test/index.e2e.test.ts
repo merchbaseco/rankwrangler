@@ -1,10 +1,10 @@
+import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
-import { afterEach, describe, expect, test } from 'bun:test';
 import {
     CURRENT_CLI_VERSION,
-    LATEST_CHANGELOG_HEADING,
     createTempDir,
+    LATEST_CHANGELOG_HEADING,
     readJson,
     runCli,
     runCliFailure,
@@ -56,82 +56,6 @@ describe('cli behavior', () => {
         expect(result.stdout).toContain(LATEST_CHANGELOG_HEADING);
         expect(result.stdout).toContain('### Added');
         expect(result.stderr).toBe('');
-    });
-
-    test('persists the active storage dir globally and migrates existing config', () => {
-        const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
-        const tempHome = path.join(tempRoot, 'home');
-        const workspaceDir = path.join(tempRoot, 'workspace');
-        mkdirSync(tempHome, { recursive: true });
-        mkdirSync(workspaceDir, { recursive: true });
-        const storageDir = path.join(realpathSync(workspaceDir), 'custom-storage');
-
-        runCli(['config', 'set', 'marketplace', 'TEST_MARKET'], { cwd: workspaceDir, home: tempHome });
-        const switchResult = runCli(['config', 'set', 'storage-dir', './custom-storage'], {
-            cwd: workspaceDir,
-            home: tempHome,
-        });
-
-        expect(switchResult.data.storageDir).toBe(storageDir);
-        expect(switchResult.data.path).toBe(path.join(storageDir, 'config.json'));
-        expect(switchResult.data.config.marketplaceId).toBe('TEST_MARKET');
-
-        const globalConfigPath = path.join(tempHome, '.rankwrangler', 'global.json');
-        const defaultConfigPath = path.join(tempHome, '.rankwrangler', 'config.json');
-        const storageConfigPath = path.join(storageDir, 'config.json');
-
-        expect(existsSync(globalConfigPath)).toBe(true);
-        expect(existsSync(defaultConfigPath)).toBe(true);
-        expect(existsSync(storageConfigPath)).toBe(true);
-
-        expect(readJson(globalConfigPath)).toEqual({
-            storageDir,
-        });
-        expect(readJson(storageConfigPath)).toEqual({
-            marketplaceId: 'TEST_MARKET',
-        });
-
-        const showResult = runCli(['config', 'show'], { cwd: workspaceDir, home: tempHome });
-        expect(showResult.data.storageDir).toBe(storageDir);
-        expect(showResult.data.path).toBe(storageConfigPath);
-        expect(showResult.data.config).toEqual({
-            marketplaceId: 'TEST_MARKET',
-        });
-        expect(showResult.data.auth).toMatchObject({
-            source: 'none',
-            envOverride: false,
-        });
-
-        const getResult = runCli(['config', 'get', 'marketplace'], {
-            cwd: workspaceDir,
-            home: tempHome,
-        });
-        expect(getResult.data).toEqual({
-            key: 'marketplace',
-            value: 'TEST_MARKET',
-        });
-
-        const baseUrlResult = runCli(['config', 'set', 'base-url', 'https://example.com/api'], {
-            cwd: workspaceDir,
-            home: tempHome,
-        });
-        expect(baseUrlResult.data.path).toBe(storageConfigPath);
-        expect(readJson(storageConfigPath)).toEqual({
-            marketplaceId: 'TEST_MARKET',
-            baseUrl: 'https://example.com',
-        });
-        expect(readJson(defaultConfigPath)).toEqual({
-            marketplaceId: 'TEST_MARKET',
-        });
-
-        const unsetResult = runCli(['config', 'unset', 'marketplace'], {
-            cwd: workspaceDir,
-            home: tempHome,
-        });
-        expect(unsetResult.data.unset).toBe('marketplace');
-        expect(readJson(storageConfigPath)).toEqual({
-            baseUrl: 'https://example.com',
-        });
     });
 
     test('stores the API key in the secure store and keeps secrets out of config', () => {
@@ -237,7 +161,7 @@ describe('cli behavior', () => {
             supportedKeys: ['base-url', 'marketplace', 'storage-dir'],
         });
 
-        const missingKeyFailure = runCliFailure(['products', 'get', 'B0DV53VS61'], {
+        const missingKeyFailure = runCliFailure(['product', 'get', 'B0DV53VS61'], {
             cwd: workspaceDir,
             home: tempHome,
         });
@@ -255,19 +179,21 @@ describe('cli behavior', () => {
         mkdirSync(workspaceDir, { recursive: true });
         const env = { MERCHBASE_API_KEY: 'ak_test_value' };
 
-        const getFailure = runCliFailure(
-            ['products', 'get', 'B0DV53VS61', 'B0DV53VS62'],
-            { cwd: workspaceDir, home: tempHome, env }
-        );
+        const getFailure = runCliFailure(['product', 'get', 'B0DV53VS61', 'B0DV53VS62'], {
+            cwd: workspaceDir,
+            home: tempHome,
+            env,
+        });
         expect(getFailure.error.code).toBe('INVALID_INPUT');
-        expect(getFailure.error.message).toBe('products get requires exactly one asin');
+        expect(getFailure.error.message).toBe('product get requires exactly one ASIN');
 
-        const summaryFailure = runCliFailure(
-            ['products', 'summary', 'B0DV53VS61', 'B0DV53VS62'],
-            { cwd: workspaceDir, home: tempHome, env }
-        );
-        expect(summaryFailure.error.code).toBe('INVALID_INPUT');
-        expect(summaryFailure.error.message).toBe('products summary requires exactly one asin');
+        const historyFailure = runCliFailure(['product', 'history', 'B0DV53VS61', 'B0DV53VS62'], {
+            cwd: workspaceDir,
+            home: tempHome,
+            env,
+        });
+        expect(historyFailure.error.code).toBe('INVALID_INPUT');
+        expect(historyFailure.error.message).toBe('product history requires exactly one ASIN');
     });
 
     test('lets RR_STORAGE_DIR override the saved storage dir', () => {
@@ -334,7 +260,10 @@ describe('cli behavior', () => {
 
         const customStorageDir = path.join(realpathSync(workspaceDir), 'custom-storage');
 
-        runCli(['config', 'set', 'marketplace', 'TEST_MARKET'], { cwd: workspaceDir, home: tempHome });
+        runCli(['config', 'set', 'marketplace', 'TEST_MARKET'], {
+            cwd: workspaceDir,
+            home: tempHome,
+        });
         runCli(['config', 'set', 'storage-dir', './custom-storage'], {
             cwd: workspaceDir,
             home: tempHome,

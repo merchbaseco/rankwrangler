@@ -1,7 +1,7 @@
 import { createClerkClient } from '@clerk/backend';
 import { TRPCError } from '@trpc/server';
-import { env } from '@/config/env.js';
 import { publicProcedure } from '@/api/trpc.js';
+import { env } from '@/config/env.js';
 
 const SIGN_IN_TOKEN_TTL_SECONDS = 60;
 

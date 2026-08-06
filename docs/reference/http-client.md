@@ -1,23 +1,20 @@
 ---
-summary: Defines construction, centralized authentication, batching, generated types, and product calls for the @rankwrangler/http-client package.
+summary: Defines construction, authentication, batching, generated types, and final public agent calls for @rankwrangler/http-client.
 read_when:
   - integrating RankWrangler into TypeScript or JavaScript without spawning the CLI
-  - changing the public router, generated client types, client options, or HTTP link behavior
+  - changing the public router, generated client types, client options, or HTTP links
 ---
 
 # HTTP Client
 
 `@rankwrangler/http-client` is the typed TypeScript/JavaScript client for the public tRPC surface.
-It contains transport wiring and generated router declarations; product behavior remains on the
-server.
+It owns transport wiring and generated declarations; retrieval behavior remains on the server.
 
-## Install
+## Install and use
 
 ```bash
 npm install @rankwrangler/http-client
 ```
-
-## Create a client
 
 ```ts
 import { createRankWranglerClient } from '@rankwrangler/http-client';
@@ -30,57 +27,44 @@ const client = createRankWranglerClient({
 const product = await client.product.get.mutate({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B0DV53VS61',
+    refresh: true,
     metrics: ['bsr', 'price'],
     bucket: 'auto',
 });
 
-if (product.history.operation?.status === 'pending') {
-    await client.operation.get.query({ id: product.history.operation.id });
-}
+const search = await client.product.search.mutate({
+    term: 'retro gardening shirt',
+    refresh: true,
+});
 
-const history = await client.product.getHistory.mutate({
+const history = await client.product.history.mutate({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B0DV53VS61',
     format: 'agent',
     metrics: ['bsr', 'price'],
 });
 
-const search = await client.catalog.search.mutate({
-    term: 'retro gardening shirt',
-    maxAgeSeconds: 0,
-});
-
-if (search.status === 'pending') {
-    await client.operation.get.query({ id: search.operation.id });
-}
-
-const query = await client.catalog.query.get.query({
-    term: 'retro gardening shirt',
-});
-const runs = await client.catalog.run.list.query({
-    queryId: query.id,
-    limit: 20,
+const keyword = await client.keyword.get.query({
+    keyword: 'retro gardening shirt',
+    refresh: true,
 });
 ```
 
-The returned proxy is already scoped to `api.public`; callers use `client.product...`, not
-`client.api.public.product...`.
+The returned proxy is already scoped to `api.public`; call `client.product...` and
+`client.keyword...`, not `client.api.public...`.
 
 ## Options
 
 | Option | Contract |
 | --- | --- |
 | `baseUrl` | Required origin. Trailing slashes are removed; the client appends `/api`. |
-| `apiKey` | Optional Merchbase API key sent as `Authorization: Bearer ...`. Public calls fail without valid auth. |
+| `apiKey` | Optional Merchbase API key sent as `Authorization: Bearer ...`. |
 | `headers` | Optional additional request headers. |
-| `batch` | Use tRPC HTTP batching; defaults to `true`. Set `false` for one HTTP request per call. |
+| `batch` | Use tRPC HTTP batching; defaults to `true`. Set `false` for one request per call. |
 
-Passing an explicit `Authorization` value in `headers` takes precedence over the header derived
-from `apiKey`.
+An explicit `Authorization` value in `headers` takes precedence over the `apiKey` header.
 
 ## Generated types
-
-The package exports router-wide types:
 
 ```ts
 import type {
@@ -89,39 +73,34 @@ import type {
 } from '@rankwrangler/http-client';
 
 type ProductGetInput = PublicRouterInputs['product']['get'];
-type ProductGetOutput = PublicRouterOutputs['product']['get'];
-type OperationGetOutput = PublicRouterOutputs['operation']['get'];
-type CatalogSearchOutput = PublicRouterOutputs['catalog']['search'];
-type CatalogQueryOutput = PublicRouterOutputs['catalog']['query']['get'];
-type CatalogRunListOutput = PublicRouterOutputs['catalog']['run']['list'];
-type CatalogRunOutput = PublicRouterOutputs['catalog']['run']['get'];
+type ProductSearchOutput = PublicRouterOutputs['product']['search'];
+type ProductHistoryOutput = PublicRouterOutputs['product']['history'];
+type KeywordSearchOutput = PublicRouterOutputs['keyword']['search'];
 ```
 
-It also exports `RankWranglerClient`, `RankWranglerClientOptions`, `RouterInputs`,
+The package also exports `RankWranglerClient`, `RankWranglerClientOptions`, `RouterInputs`,
 `RouterOutputs`, and `DEFAULT_API_BASE_URL`.
 
-Router declarations are generated from
-[`apps/server/src/api/router-public.ts`](../../apps/server/src/api/router-public.ts). After changing
-the public router:
+Declarations are generated from
+[`apps/server/src/api/router-public.ts`](../../apps/server/src/api/router-public.ts):
 
 ```bash
 bun run http-client:types
 bun run http-client:build
 ```
 
-Commit the regenerated `packages/http-client/src/app-router.d.ts` with the router change.
+Commit the regenerated `packages/http-client/src/app-router.d.ts` with public-router changes.
 
 ## Errors and runtime behavior
 
-Calls return ordinary tRPC promises and reject with tRPC client errors. Server error codes such as
-`UNAUTHORIZED`, `TOO_MANY_REQUESTS`, `NOT_FOUND`, and `BAD_REQUEST` are available through the tRPC
-error data.
+Calls return ordinary tRPC promises and reject with tRPC client errors. `NOT_FOUND` identifies
+missing data. `TIMEOUT` identifies provider-neutral temporary unavailability and includes a
+`Retry after N seconds` hint. Auth and allowance errors remain `UNAUTHORIZED`, `FORBIDDEN`,
+`SERVICE_UNAVAILABLE`, or `TOO_MANY_REQUESTS`; allowance errors include a retry hint for the next
+daily reset.
 
-The client does not poll automatically. `product.getSummary` and the `summary` in `product.get`
-return the Product freshness envelope; available stale Products return immediately, while
-`refresh: true` or missing data waits for the shared Product fetch. Temporary capacity/deadline
-failures reject with tRPC `TIMEOUT` plus a retry hint. `product.getHistory` keeps its own freshness
-and Operation boundary; the richer `product.get` contract retains its existing Operation-shaped
-embedded history.
+The client never polls. Every Product and keyword procedure returns final data or a standard error;
+durable Operations, provider status, and frontend availability are internal server details. Each
+data category exposes its own freshness envelope where the response supports it.
 
 The implementation is [`packages/http-client/src/index.ts`](../../packages/http-client/src/index.ts).

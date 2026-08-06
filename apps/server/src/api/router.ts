@@ -1,11 +1,13 @@
 import { appApiRouter } from './app/router.js';
+import { devRouter } from './dev/router.js';
 import { publicApiRouter } from './public/router.js';
 import { router } from './trpc.js';
 
 export const appRouter = router({
     api: router({
-        public: publicApiRouter,
         app: appApiRouter,
+        dev: devRouter,
+        public: publicApiRouter,
     }),
 });
 

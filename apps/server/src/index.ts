@@ -21,6 +21,7 @@ import {
 } from '@/db/migrate.js';
 import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
 import { prepareJobQueues, startJobs } from '@/jobs/index.js';
+import { registerRankWranglerMcp } from '@/mcp/register';
 import {
     bootstrapAccessProjection,
     parseProjectionBootstrapOptions,
@@ -52,7 +53,6 @@ import {
 } from '@/services/top-search-terms-jobs.js';
 
 type JobsRuntime = Awaited<ReturnType<typeof startJobs>>;
-
 const createDisabledJobsRuntime = (): JobsRuntime => {
     return {
         stop: () => Promise.resolve(),
@@ -162,14 +162,6 @@ if (serverRuntimeFlags.shouldStartJobRunner) {
     console.log('[Server] Job runner disabled; workers, schedules, and startup kicks skipped');
 }
 
-// Run reprocess stale products job on startup
-// try {
-//     await reprocessStaleProducts();
-//     console.log('[Server] Ran reprocess-stale-products job on startup');
-// } catch (error) {
-//     console.error('[Server] Failed to run reprocess-stale-products job on startup:', error);
-// }
-
 const fastify = Fastify({
     logger: false, // Disable Pino logger to avoid bundling issues
     // tRPC batches encode procedure names in a single path segment (comma-separated).
@@ -190,6 +182,13 @@ await registerClerkAccessWebhookRoute(fastify, {
     store: rankwranglerAccess.projections,
 });
 const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess);
+
+registerRankWranglerMcp({
+    access: rankwranglerAccess,
+    adminMerchbaseUserId: env.ADMIN_MERCHBASE_USER_ID,
+    fastify,
+    publishableKey: env.CLERK_PUBLISHABLE_KEY,
+});
 
 fastify.get('/api/health', () => {
     return {
@@ -275,6 +274,9 @@ try {
         jobRunnerStatus: serverRuntimeFlags.jobRunnerStatus,
         jobStartupSummary: jobsRuntime.startupSummary,
         keepaConfigured: Boolean(env.KEEPA_API_KEY),
+        mcpStatus: env.CLERK_PUBLISHABLE_KEY
+            ? 'Enabled (/mcp, OAuth bearer)'
+            : 'Disabled (CLERK_PUBLISHABLE_KEY not set)',
         migrationsComplete: true,
         port,
         productFacetSummary: env.GEMINI_API_KEY

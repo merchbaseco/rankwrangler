@@ -1,23 +1,23 @@
-import { publicApiProcedure } from '@/api/trpc.js';
+import { publicApiProcedure } from '@/api/trpc';
 import {
     getProductHistorySurface,
     type ProductHistorySurfaceInput,
-} from '@/services/product-history-surface.js';
-import { mapRetrievalError } from '@/services/retrieval-coordinator.js';
+} from '@/services/product-history-surface';
+import { mapRetrievalError } from '@/services/retrieval-coordinator';
 import { consumeServiceAccountUsageForRequest } from './consume-service-account-usage';
-import { productHistoryInput } from './product-input.js';
+import { productHistoryInput } from './product-input';
 
-export interface ProductGetHistoryDeps {
+export interface ProductHistoryDeps {
     getProductHistorySurface: typeof getProductHistorySurface;
     consumeServiceAccountUsageForRequest: typeof consumeServiceAccountUsageForRequest;
 }
 
-const defaultDeps: ProductGetHistoryDeps = {
+const defaultDeps: ProductHistoryDeps = {
     getProductHistorySurface,
     consumeServiceAccountUsageForRequest,
 };
 
-export const createProductGetHistoryProcedure = (deps: ProductGetHistoryDeps = defaultDeps) =>
+export const createProductHistoryProcedure = (deps: ProductHistoryDeps = defaultDeps) =>
     publicApiProcedure.input(productHistoryInput).mutation(async ({ input, ctx, signal }) => {
         await deps.consumeServiceAccountUsageForRequest(ctx, 1);
 
@@ -34,4 +34,4 @@ export const createProductGetHistoryProcedure = (deps: ProductGetHistoryDeps = d
         }
     });
 
-export const productGetHistory = createProductGetHistoryProcedure();
+export const productHistory = createProductHistoryProcedure();

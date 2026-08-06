@@ -39,26 +39,24 @@ Install the CLI:
 ```bash
 npm install -g @rankwrangler/cli
 rw auth set
-rw products summary B0XXXXXXXX
-rw products history B0XXXXXXXX --metrics bsr,price --bucket auto
-rw operations get <operationId>
-rw catalog search "retro gardening shirt"
-rw catalog query "retro gardening shirt"
-rw catalog runs <queryId>
-rw catalog run <runId>
+rw product get B0XXXXXXXX
+rw product search "retro gardening shirt"
+rw product history B0XXXXXXXX --metrics bsr,price --bucket auto
+rw keyword get "retro gardening shirt"
+rw keyword search "retro gardening"
+rw keyword history "retro gardening shirt"
 ```
 
 Each catalog search request renews the keyword's 30-day active window, including cached reuse.
 Active keywords receive automatic weekly refreshes; expired keywords become inactive without
 backfill. Search history labels Requested search versus Automatic refresh.
 
-Public Product-history reads return stored points immediately with a freshness envelope. When
+Public Product and keyword reads return final data with category-specific freshness envelopes. When
 collection is needed, the shared server retrieval service waits transparently for policy-compliant
-history or returns a provider-neutral retryable error with a hint; the public response does not
-expose Product-history Operation state. The dashboard retains its app-specific Operation workflow
-and Clerk-authenticated completion subscriptions for Product history, Catalog search, and per-ASIN
-SP-API Product synchronization. Product-sync events invalidate only the affected Product query;
-they do not refetch a Catalog result list.
+data or returns a provider-neutral retryable error with a hint. Public callers never receive
+Operation identifiers or polling state. The dashboard retains its app-specific workflow and
+Clerk-authenticated completion subscriptions for internal Product history, Catalog search, and
+per-ASIN SP-API Product synchronization.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.

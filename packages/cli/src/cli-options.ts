@@ -8,21 +8,21 @@ import {
 
 type CliFail = (code: string, message: string, details?: unknown) => never;
 
-export type CliOptionValues = {
+export interface CliOptionValues {
     baseUrl?: string;
     marketplace?: string;
-    asin?: string[];
     metrics?: string;
     startAt?: string;
     endAt?: string;
     days?: string;
+    rangeDays?: string;
     limit?: string;
     bucket?: string;
-    maxAgeSeconds?: string;
     cursor?: string;
+    refresh?: boolean;
     help?: boolean;
     version?: boolean;
-};
+}
 
 const ASIN_REGEX = /^[A-Z0-9]{10}$/i;
 const TRAILING_SLASHES_REGEX = /\/+$/;
@@ -38,30 +38,16 @@ export const requireMarketplaceId = (values: CliOptionValues, config: CliConfig)
     );
 };
 
-export const requireAsins = (commandArgs: string[], values: CliOptionValues, fail: CliFail) => {
-    const candidates = [...commandArgs, ...(values.asin ?? []), ...resolveEnvAsins()]
-        .map(value => value.trim())
-        .filter(Boolean);
-
-    if (candidates.length === 0) {
-        fail('INVALID_INPUT', 'at least one asin is required');
-    }
-
-    return Array.from(new Set(candidates.map(value => normalizeAsin(value, fail))));
-};
-
 export const requireSingleAsin = (
     commandArgs: string[],
-    values: CliOptionValues,
     fail: CliFail,
-    commandName = 'products history'
+    commandName = 'product history'
 ) => {
-    const asins = requireAsins(commandArgs, values, fail);
-    if (asins.length !== 1) {
-        fail('INVALID_INPUT', `${commandName} requires exactly one asin`);
+    if (commandArgs.length !== 1) {
+        fail('INVALID_INPUT', `${commandName} requires exactly one ASIN`);
     }
 
-    return asins[0];
+    return normalizeAsin(commandArgs[0] ?? '', fail);
 };
 
 export const resolveHistoryMetrics = (values: CliOptionValues, fail: CliFail) => {
@@ -98,7 +84,9 @@ export const resolveHistoryBucket = (values: CliOptionValues, fail: CliFail) => 
 };
 
 export const resolveHistoryWindow = (values: CliOptionValues, fail: CliFail) => {
-    const startAt = values.startAt ? normalizeDateOption('startAt', values.startAt, fail) : undefined;
+    const startAt = values.startAt
+        ? normalizeDateOption('startAt', values.startAt, fail)
+        : undefined;
     const endAt = values.endAt ? normalizeDateOption('endAt', values.endAt, fail) : undefined;
     if (values.days && (startAt || endAt)) {
         fail('INVALID_INPUT', 'use --days or --startAt/--endAt, not both');
@@ -133,7 +121,10 @@ export const resolveBaseUrl = (
 };
 
 export const normalizeBaseUrl = (value: string, fail: CliFail) => {
-    const normalized = value.trim().replace(TRAILING_SLASHES_REGEX, '').replace(API_SUFFIX_REGEX, '');
+    const normalized = value
+        .trim()
+        .replace(TRAILING_SLASHES_REGEX, '')
+        .replace(API_SUFFIX_REGEX, '');
     if (!normalized) {
         fail('INVALID_INPUT', 'base url cannot be empty');
     }
@@ -185,11 +176,4 @@ const normalizeAsin = (value: string, fail: CliFail) => {
     }
 
     return normalized;
-};
-
-const resolveEnvAsins = () => {
-    return [
-        ...(process.env.RR_ASINS ? process.env.RR_ASINS.split(',') : []),
-        ...(process.env.RR_ASIN ? [process.env.RR_ASIN] : []),
-    ];
 };

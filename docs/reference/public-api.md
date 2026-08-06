@@ -1,42 +1,52 @@
 ---
-summary: Defines the shipped Merchbase-credential tRPC transport, authentication, product inputs, history formats, and raw HTTP invocation pattern.
+summary: Defines the shipped public tRPC transport, authentication, Product and keyword agent procedures, freshness, and errors.
 read_when:
   - calling RankWrangler without the CLI or typed npm client
-  - changing public authentication, product input validation, history output, or API transport
+  - changing public authentication, Product inputs, retrieval output, or API transport
 ---
 
 # Public API
 
 RankWrangler's external API is tRPC over HTTP. It is not a separate REST surface. Prefer the
-[typed HTTP client](http-client.md) or [CLI](cli.md); use raw HTTP when integrating from another
-runtime.
+[typed HTTP client](http-client.md) or [CLI](cli.md); use raw HTTP when integrating another
+runtime. The hosted agent-tool contract is documented in [Hosted MCP](mcp.md).
 
 ## Endpoint and authentication
 
-The tRPC endpoint is:
+The tRPC endpoint is `{origin}/api/{procedure}`. Production origin:
+`https://rankwrangler.merchbase.co`.
 
-```text
-{origin}/api/{procedure}
-```
-
-Production origin:
-
-```text
-https://rankwrangler.merchbase.co
-```
-
-Public integration calls live under `api.public.*` and require a Merchbase API key or OAuth bearer;
-the extension may use a transient Clerk session token for the same data procedures:
+Public integration calls live under `api.public.*` and require a Merchbase API key or OAuth bearer.
+The browser extension may use a transient Clerk session token for the same data procedures:
 
 ```http
 Authorization: Bearer ak_... | oat_...
 Content-Type: application/json
 ```
 
-An invalid or absent credential produces tRPC `UNAUTHORIZED`; denied centralized access produces
-`FORBIDDEN`; unavailable centralized access produces `SERVICE_UNAVAILABLE`; an exhausted Service
-Account allowance produces `TOO_MANY_REQUESTS`. Clerk-authenticated `api.app.*` procedures are
-dashboard application contracts, not part of the public integration surface.
+Invalid or absent credentials produce `UNAUTHORIZED`; denied centralized access produces `FORBIDDEN`;
+unavailable centralized access produces `SERVICE_UNAVAILABLE`; exhausted service-account allowance
+produces `TOO_MANY_REQUESTS` with a `Retry after N seconds` hint. Missing Products produce
+`NOT_FOUND`. Temporary retrieval capacity or deadline failures produce `TIMEOUT` with a
+provider-neutral message and `Retry after N seconds`.
+Dashboard `api.app.*` procedures are separate Clerk-authenticated application contracts.
+
+## Public agent procedures
+
+The data surface is deliberately small:
+
+| Procedure | Transport | Purpose |
+| --- | --- | --- |
+| `api.public.product.get` | mutation | Product summary plus bucketed BSR/price history. |
+| `api.public.product.search` | mutation | Synchronous caller-transparent Product search. |
+| `api.public.product.history` | mutation | Product history in `agent` or `legacy` format. |
+| `api.public.keyword.get` | query | Current Brand Analytics keyword evidence. |
+| `api.public.keyword.search` | query | Filtered keyword evidence. |
+| `api.public.keyword.history` | query | Keyword evidence over time. |
+
+There is no public Catalog namespace, Operation namespace, polling procedure, provider status, or
+provider-specific frontend availability state. Durable work remains an internal implementation
+detail.
 
 ## Raw request
 
@@ -47,142 +57,69 @@ curl -s -X POST \
   https://rankwrangler.merchbase.co/api/api.public.product.get \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $MERCHBASE_API_KEY" \
-  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","metrics":["bsr","price"],"bucket":"auto","days":365}}'
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","refresh":true,"metrics":["bsr","price"],"bucket":"auto","days":365}}'
 ```
 
-Use the generated router types for the complete current procedure tree rather than copying a
-procedure inventory into integrations. The canonical router is
-[`public/router.ts`](../../apps/server/src/api/public/router.ts); public product inputs are defined
-in [`product-input.ts`](../../apps/server/src/api/public/product-input.ts).
+Use the generated router types for exact procedure inputs and outputs. The canonical router is
+[`router-public.ts`](../../apps/server/src/api/router-public.ts); Product inputs are defined in
+[`product-input.ts`](../../apps/server/src/api/public/product-input.ts).
 
-## Product inputs
+## Product inputs and freshness
 
-The product read family shares marketplace and ASIN identity:
+Product reads share marketplace and ASIN identity:
 
 | Field | Contract |
 | --- | --- |
-| `marketplaceId` | Required non-empty Amazon marketplace id. US defaulting is a CLI concern. |
+| `marketplaceId` | Required non-empty Amazon marketplace id. The CLI defaults to US. |
 | `asin` | Required 10-character alphanumeric ASIN; normalized to uppercase. |
-| `metrics` | Optional array of one or two values: `bsr`, `price`. |
+| `metrics` | Optional one or two values: `bsr`, `price`. |
 | `bucket` | `auto`, `day`, `week`, or `month`; default `auto`. |
 | `days` | 30–3650; default 365. |
 | `startAt`, `endAt` | Optional date-coercible range bounds. |
-| `limit` | Internal source-point cap from 1–10,000; default 5,000. |
-| `refresh` | Product-details refresh switch for summary/rich reads; default `false`. History refresh remains an independent history policy. |
+| `limit` | Source-point cap from 1–10,000; default 5,000. |
+| `refresh` | Requests fresh summary/history data where policy allows; default `false`. |
 
-Summary reads only require `marketplaceId` and `asin`. An available Product may return stale with
-its freshness envelope while default revalidation runs in the background; `refresh: true` and
-first-time/missing data wait for the shared Product policy. They do not import Keepa history.
+Product summary and history data each expose `{ stale, updatedAt }` where relevant. Available stale
+data may return while server-owned revalidation continues. Missing data and `refresh: true` wait for
+the shared retrieval policy. Equivalent requests join one retrieval.
 
-## Rich product read
+`product.get` returns `schemaVersion`, identity, `status: ready | partial`, `summary`, and an
+embedded agent history response. A usable summary is retained when history is unavailable; the
+embedded history error includes its own stale freshness envelope and retryable error code/message.
 
-The rich product read returns:
+## Product search
 
-```text
-schemaVersion: 1
-marketplaceId
-asin
-status: ready | partial
-summary: ProductInfo
-history: AgentHistoryResponse | history error
+`api.public.product.search` accepts `{ term, refresh }`. It returns a completed source-ordered Search
+run and one freshness envelope:
+
+```json
+{
+  "status": "ready",
+  "run": {},
+  "freshness": { "stale": false, "updatedAt": "2026-08-06T12:00:00.000Z" }
+}
 ```
 
-It ensures a canonical Product exists, then supplies bucketed BSR and price history by default. A
-summary can succeed while history fails; that is represented as `status: "partial"`, with the
-history error embedded in the response instead of discarding the usable summary.
+The server waits inside its bounded retrieval policy and coalesces equivalent requests. The response
+contains Search-run data, never an Operation id. A temporary capacity/deadline failure is a
+retryable `TIMEOUT` with a retry hint.
 
-## History formats
+## Product history
 
-Public history supports two formats:
-
-| Format | Intended consumer | Shape |
-| --- | --- | --- |
-| `agent` | Agents, CLI, and compact integrations | Schema v2 metric series with buckets and summaries. |
-| `legacy` | Existing raw-HTTP consumers | Main-category BSR point rows only. |
-
-`agent` responses contain:
-
-- `status`: `ready` or `empty`;
-- `freshness: { stale, updatedAt }` for the history data category;
-- the resolved time range and bucket;
-- optional `bsr` and `price` series.
-
-`legacy` responses contain main-category BSR points and the same `freshness` envelope. Neither
-format exposes an Operation identifier, polling state, or provider-specific availability fields.
-
-`auto` resolves to day buckets through 45 days, week buckets through 18 months, and month buckets
-for longer windows. BSR values are ranks. Price values are integer minor currency units with an
-explicit currency and scale.
-
-When collection is needed, the history request waits for the existing policy-compliant durable
-work and returns the completed history. Concurrent equivalent requests join one collection. A
-caller timeout detaches without cancelling that work. Temporary capacity or deadline failures use
-tRPC `TIMEOUT` with a provider-neutral message containing `Retry after N seconds`; callers may
-retry without creating duplicate provider work. A valid Product with no history returns a
-successful empty result.
-
-## Catalog search
-
-`api.public.catalog.search` is a mutation with `term` and optional `refresh` (default `false`). It
-returns `{ status: "ready", run, freshness }`, where `freshness` is the single Search-run envelope
-`{ stale, updatedAt }`. A default request returns stale Available evidence immediately while any
-server-owned revalidation continues internally. `refresh: true` waits for a successful run within
-the server-owned 24-hour interactive reuse window; it does not force a provider request.
-
-When no usable Search run exists, the request waits for coalesced durable work within a bounded
-deadline. Temporary capacity or deadline failures use tRPC `TIMEOUT` with a provider-neutral message
-containing `Retry after N seconds`; callers may retry without creating duplicate provider work. The
-response never exposes an Operation identifier or requires polling. The only V1 identity is Keepa,
-US marketplace, and zero-based page `0`. A successful run contains up to 20 source-ordered results.
-Each result separates immutable observed metrics from the nullable canonical current Product.
-
-Catalog search consumes one mapped Service Account usage unit only when it creates external work. Reused runs,
-joined pending work, Operation polls, and run reads do not consume another unit. Provider token
-state is never returned.
-
-Persisted Catalog query and run-list reads are tRPC queries and do not start provider work. A run
-read may enqueue background Product enrichment for retained identities, but it never blocks on a
-provider request:
-
-- `api.public.catalog.query.get` resolves an existing query by `term` and returns normalized
-  identity, activity timestamps, derived status, observation count, and latest-run metadata;
-- `api.public.catalog.run.list` accepts `queryId`, `limit` (default 20, maximum 100), and an
-  optional run-id `cursor`, then returns a newest-first page and `nextCursor`; and
-- `api.public.catalog.run.get` reads one run's ordered results.
-
-Run lists contain metadata only, including successful zero-result runs. A full result identifies
-its retained `productId`, exposes `position: { source, value }`, keeps immutable metrics under
-`observed`, and places canonical current state under nullable `currentProduct`. No read returns raw
-provider payloads or Product-history arrays. Run metadata includes `trigger: requested | automatic`;
-that provenance is not copied onto Products or individual result/currentProduct shapes.
-
-The Clerk app router exposes the search request at `api.app.catalog.search.request`, completion
-invalidation at `api.app.catalog.search.completed`, and an activity-aware
-`api.app.catalog.query.list` read for Automation settings. A search request renews keyword interest
-for 30 days, including cached reuse; active keywords are eligible for weekly automatic refresh and
-expired keywords are inactive without backfill. Brand Analytics Top Search Terms remains a
-separate automatic ingestion workflow.
+`api.public.product.history` accepts the shared Product fields plus `format: agent | legacy`.
+`agent` returns schema-v2 bucketed BSR/price series; `legacy` returns main-category BSR points. Both
+formats include a category-level freshness envelope and no Operation, polling, or provider status.
 
 ## Keyword intelligence
 
-The public keyword family is read-only: `api.public.keyword.get`, `api.public.keyword.search`, and
-`api.public.keyword.history`. Their inputs accept `refresh: true` plus the requested keyword,
-report period, and optional date/range filters. Responses expose available keyword evidence or
-history points and one top-level `freshness: { stale, updatedAt }` envelope.
-
-Reads return available data immediately. Stale data may be returned while the server revalidates in
-the background; missing data and explicit refreshes wait for policy-satisfying data. Equivalent
-work joins by canonical keyword and data category. The public family exposes no Operation,
-provider-job identifier, polling endpoint, or track/untrack procedure. History points identify
-whether their snapshot came from a `requested` or `automatic` refresh.
+The keyword family is read-only: `get`, `search`, and `history`. Inputs accept `refresh: true` plus
+the keyword/text, US marketplace and report-period defaults, and optional date/range filters.
+Responses expose available evidence or history points and one top-level freshness envelope. Missing
+data and explicit refreshes use the same synchronous caller-transparent retrieval policy.
 
 ## Contract source
 
-Use these sources when exact generated types or implementation behavior matter:
-
 - [`router-public.ts`](../../apps/server/src/api/router-public.ts) — publishable router type.
-- [`product-read-model.ts`](../../apps/server/src/services/product-read-model.ts) — rich product
-  response and partial-success behavior.
-- [`product-history-agent.ts`](../../apps/server/src/services/product-history-agent.ts) — agent
-  history response.
+- [`product-read-model.ts`](../../apps/server/src/services/product-read-model.ts) — rich Product response.
+- [`product-history-agent.ts`](../../apps/server/src/services/product-history-agent.ts) — agent history shape.
 - [`ProductInfo`](../../apps/server/src/types/index.ts) — summary fields and units.

@@ -3,44 +3,32 @@
 import { parseArgs } from 'node:util';
 import { createRankWranglerClient, DEFAULT_API_BASE_URL } from '@rankwrangler/http-client';
 import { resolveApiKey, runAuthCommand } from './cli-auth';
-import { runCatalogCommand } from './cli-catalog-command';
-import { printBundledChangelog, printCliVersion } from './cli-metadata';
-import { runOperationGetCommand } from './cli-operation-command';
+import { type CliConfig, loadCliContext, loadCliPathsOrDefault } from './cli-config';
 import { runConfigCommand } from './cli-config-command';
-import { loadCliContext, loadCliPathsOrDefault, type CliConfig } from './cli-config';
-import {
-    parseIntegerOption,
-    requireMarketplaceId,
-    requireSingleAsin,
-    resolveBaseUrl,
-    resolveHistoryBucket,
-    resolveHistoryMetrics,
-    resolveHistoryWindow,
-    type CliOptionValues,
-} from './cli-options';
+import { runKeywordCommand } from './cli-keyword-command';
+import { printBundledChangelog, printCliVersion } from './cli-metadata';
+import { type CliOptionValues, resolveBaseUrl } from './cli-options';
 import { fail, printSuccess, resolveError } from './cli-output';
-import { buildCliHistoryResponse, type AgentHistoryResponse } from './history-response';
+import { runProductCommand } from './cli-product-command';
 import { printUsage } from './usage';
 
-type CliCommand = {
+interface CliCommand {
     resource: string;
     verb: string;
     args: string[];
-};
+}
 
-type CliMetaCommand = {
+interface CliMetaCommand {
     name: 'changelog';
-};
+}
 
 const SUPPORTED_COMMANDS = new Set([
-    'products:get',
-    'products:summary',
-    'products:history',
-    'operations:get',
-    'catalog:search',
-    'catalog:query',
-    'catalog:run',
-    'catalog:runs',
+    'product:get',
+    'product:search',
+    'product:history',
+    'keyword:get',
+    'keyword:search',
+    'keyword:history',
     'auth:status',
     'auth:set',
     'auth:clear',
@@ -58,15 +46,15 @@ const { positionals, values } = parseArgs({
         version: { type: 'boolean' },
         baseUrl: { type: 'string' },
         marketplace: { type: 'string', short: 'm' },
-        asin: { type: 'string', multiple: true },
         metrics: { type: 'string' },
         startAt: { type: 'string' },
         endAt: { type: 'string' },
         days: { type: 'string' },
+        rangeDays: { type: 'string' },
         limit: { type: 'string' },
         bucket: { type: 'string' },
-        maxAgeSeconds: { type: 'string' },
         cursor: { type: 'string' },
+        refresh: { type: 'boolean' },
         stdin: { type: 'boolean' },
     },
     allowPositionals: true,
@@ -86,11 +74,9 @@ const main = async () => {
     }
 
     const metaCommand = resolveMetaCommand(positionals);
-    if (metaCommand) {
-        if (metaCommand.name === 'changelog') {
-            printBundledChangelog();
-            return;
-        }
+    if (metaCommand?.name === 'changelog') {
+        printBundledChangelog();
+        return;
     }
 
     const command = resolveCommandOrFail(positionals);
@@ -101,14 +87,17 @@ const main = async () => {
     }
 
     const { config, paths } = await loadCliContext();
-
     if (command.resource === 'config') {
         printSuccess(await runConfigCommand(command, config, paths, fail));
         return;
     }
 
     if (command.resource === 'auth') {
-        printSuccess(await runAuthCommand(command, fail, { stdin: Boolean(values.stdin) }));
+        printSuccess(
+            await runAuthCommand(command, fail, {
+                stdin: Boolean((values as { stdin?: boolean }).stdin),
+            })
+        );
         return;
     }
 
@@ -125,125 +114,24 @@ const main = async () => {
         apiKey,
     });
 
-    printSuccess(await runApiCommand(command, client, config));
+    printSuccess(await runApiCommand(command, client, config, optionValues));
 };
 
 const runApiCommand = async (
     command: CliCommand,
     client: ReturnType<typeof createRankWranglerClient>,
-    config: CliConfig
+    config: CliConfig,
+    options: CliOptionValues
 ) => {
-    if (command.resource === 'products' && command.verb === 'get') {
-        return runProductGetCommand(command, client, config);
+    if (command.resource === 'product') {
+        return await runProductCommand(command, client, config, options, fail);
     }
-
-    if (command.resource === 'products' && command.verb === 'summary') {
-        return runProductSummaryCommand(command, client, config);
-    }
-
-    if (command.resource === 'products' && command.verb === 'history') {
-        return runProductHistoryCommand(command, client, config);
-    }
-
-    if (command.resource === 'operations' && command.verb === 'get') {
-        return runOperationGetCommand(command.args, client, fail);
-    }
-
-    if (command.resource === 'catalog') {
-        return runCatalogCommand(
-            command,
-            client,
-            values as CliOptionValues,
-            fail
-        );
+    if (command.resource === 'keyword') {
+        return await runKeywordCommand(command, client, options, fail);
     }
 
     fail('UNKNOWN_COMMAND', 'Unknown command', {
         command: `${command.resource} ${command.verb}`,
-    });
-};
-
-const runProductGetCommand = async (
-    command: CliCommand,
-    client: ReturnType<typeof createRankWranglerClient>,
-    config: CliConfig
-) => {
-    const optionValues = values as CliOptionValues;
-    const asin = requireSingleAsin(command.args, optionValues, fail, 'products get');
-    const marketplaceId = requireMarketplaceId(optionValues, config);
-    const metrics = resolveHistoryMetrics(optionValues, fail);
-    const bucket = resolveHistoryBucket(optionValues, fail);
-    const historyWindow = resolveHistoryWindow(optionValues, fail);
-    const limit = parseIntegerOption(
-        {
-            value: optionValues.limit,
-            optionName: 'limit',
-            min: 1,
-            max: 10000,
-            defaultValue: 5000,
-        },
-        fail
-    );
-
-    return await client.product.get.mutate({
-        marketplaceId,
-        asin,
-        metrics,
-        bucket,
-        limit,
-        ...historyWindow,
-    });
-};
-
-const runProductSummaryCommand = async (
-    command: CliCommand,
-    client: ReturnType<typeof createRankWranglerClient>,
-    config: CliConfig
-) => {
-    const optionValues = values as CliOptionValues;
-    const asin = requireSingleAsin(command.args, optionValues, fail, 'products summary');
-    const marketplaceId = requireMarketplaceId(optionValues, config);
-
-    return await client.product.getSummary.mutate({ marketplaceId, asin });
-};
-
-const runProductHistoryCommand = async (
-    command: CliCommand,
-    client: ReturnType<typeof createRankWranglerClient>,
-    config: CliConfig
-) => {
-    const optionValues = values as CliOptionValues;
-    const asin = requireSingleAsin(command.args, optionValues, fail, 'products history');
-    const marketplaceId = requireMarketplaceId(optionValues, config);
-    const metrics = resolveHistoryMetrics(optionValues, fail);
-    const bucket = resolveHistoryBucket(optionValues, fail);
-    const historyWindow = resolveHistoryWindow(optionValues, fail);
-    const limit = parseIntegerOption(
-        {
-            value: optionValues.limit,
-            optionName: 'limit',
-            min: 1,
-            max: 10000,
-            defaultValue: 5000,
-        },
-        fail
-    );
-
-    const response = await client.product.getHistory.mutate({
-        marketplaceId,
-        asin,
-        metrics,
-        format: 'agent',
-        bucket,
-        limit,
-        ...historyWindow,
-    });
-
-    return buildCliHistoryResponse({
-        asin,
-        marketplaceId,
-        metrics,
-        response: response as AgentHistoryResponse,
     });
 };
 
@@ -257,7 +145,7 @@ const resolveMetaCommand = (inputPositionals: string[]): CliMetaCommand | null =
 
 const resolveCommand = (inputPositionals: string[]) => {
     const [first, second, ...rest] = inputPositionals;
-    if (!first || !second) {
+    if (!(first && second)) {
         return null;
     }
 
@@ -278,9 +166,8 @@ const resolveCommandOrFail = (inputPositionals: string[]): CliCommand => {
     throw new Error('unreachable');
 };
 
-const isSupportedCommand = (command: CliCommand) => {
-    return SUPPORTED_COMMANDS.has(`${command.resource}:${command.verb}`);
-};
+const isSupportedCommand = (command: CliCommand) =>
+    SUPPORTED_COMMANDS.has(`${command.resource}:${command.verb}`);
 
 await main().catch(error => {
     const resolved = resolveError(error);

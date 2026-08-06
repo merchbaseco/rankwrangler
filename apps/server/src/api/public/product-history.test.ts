@@ -6,10 +6,7 @@ import type { OperationRecord } from '@/services/operations.js';
 import type { AgentHistoryResponse } from '@/services/product-history-agent.js';
 import { getProductHistorySurface } from '@/services/product-history-surface.js';
 import { RetrievalRetryableError } from '@/services/retrieval-coordinator.js';
-import {
-    createProductGetHistoryProcedure,
-    type ProductGetHistoryDeps,
-} from './product-get-history.js';
+import { createProductHistoryProcedure, type ProductHistoryDeps } from './product-history';
 
 describe('public Product-history tRPC boundary', () => {
     it('returns the shared freshness envelope without exposing work state', async () => {
@@ -30,15 +27,15 @@ describe('public Product-history tRPC boundary', () => {
             series: {},
         };
         const getProductHistorySurface = mock(async () => response);
-        const deps: ProductGetHistoryDeps = {
+        const deps: ProductHistoryDeps = {
             getProductHistorySurface: getProductHistorySurface as never,
             consumeServiceAccountUsageForRequest: mock(async () => undefined),
         };
         const caller = router({
-            getHistory: createProductGetHistoryProcedure(deps),
+            history: createProductHistoryProcedure(deps),
         }).createCaller(createPublicContext());
 
-        const result = await caller.getHistory({
+        const result = await caller.history({
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'b012345678',
             format: 'agent',
@@ -60,7 +57,7 @@ describe('public Product-history tRPC boundary', () => {
     });
 
     it('maps temporary retrieval failure to a provider-neutral retryable error', async () => {
-        const deps: ProductGetHistoryDeps = {
+        const deps: ProductHistoryDeps = {
             getProductHistorySurface: mock(async () => {
                 await Promise.resolve();
                 throw new RetrievalRetryableError(
@@ -71,11 +68,11 @@ describe('public Product-history tRPC boundary', () => {
             consumeServiceAccountUsageForRequest: mock(async () => undefined),
         };
         const caller = router({
-            getHistory: createProductGetHistoryProcedure(deps),
+            history: createProductHistoryProcedure(deps),
         }).createCaller(createPublicContext());
 
         const error = await caller
-            .getHistory({
+            .history({
                 marketplaceId: 'ATVPDKIKX0DER',
                 asin: 'B012345678',
                 format: 'agent',
@@ -147,12 +144,12 @@ describe('public Product-history tRPC boundary', () => {
             sleep: mock(async () => undefined),
             now: () => new Date('2026-08-06T12:01:00.000Z'),
         };
-        const deps: ProductGetHistoryDeps = {
+        const deps: ProductHistoryDeps = {
             getProductHistorySurface: input => getProductHistorySurface(input, surfaceDeps),
             consumeServiceAccountUsageForRequest: mock(async () => undefined),
         };
         const caller = router({
-            getHistory: createProductGetHistoryProcedure(deps),
+            history: createProductHistoryProcedure(deps),
         }).createCaller(createPublicContext());
         const input = {
             marketplaceId: 'ATVPDKIKX0DER',
@@ -165,8 +162,8 @@ describe('public Product-history tRPC boundary', () => {
         };
 
         const [first, second] = (await Promise.all([
-            caller.getHistory(input),
-            caller.getHistory(input),
+            caller.history(input),
+            caller.history(input),
         ])) as [AgentHistoryResponse, AgentHistoryResponse];
 
         expect(first.status).toBe('ready');
@@ -209,16 +206,16 @@ describe('public Product-history tRPC boundary', () => {
             sleep: mock(async () => undefined),
             now: () => new Date('2026-08-06T12:00:01.000Z'),
         };
-        const deps: ProductGetHistoryDeps = {
+        const deps: ProductHistoryDeps = {
             getProductHistorySurface: input => getProductHistorySurface(input, surfaceDeps),
             consumeServiceAccountUsageForRequest: mock(async () => undefined),
         };
         const caller = router({
-            getHistory: createProductGetHistoryProcedure(deps),
+            history: createProductHistoryProcedure(deps),
         }).createCaller(createPublicContext());
 
         const error = await caller
-            .getHistory({
+            .history({
                 marketplaceId: 'ATVPDKIKX0DER',
                 asin: 'B012345678',
                 format: 'agent',

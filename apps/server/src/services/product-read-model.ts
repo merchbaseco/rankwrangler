@@ -1,14 +1,16 @@
 import { TRPCError } from '@trpc/server';
-import type { PublicOperation } from '@/services/operations.js';
-import type { OperationalAgentHistoryResponse } from '@/services/product-history-agent.js';
+import type { AgentHistoryResponse } from '@/services/product-history-agent.js';
 import {
     resolveAgentHistoryWindow,
     resolveHistoryBucket,
 } from '@/services/product-history-buckets.js';
-import { getProductHistoryOperationSurface } from '@/services/product-history-operation-surface.js';
-import type { ProductHistoryMetric } from '@/services/product-history-surface.js';
+import {
+    getProductHistorySurface,
+    type ProductHistoryMetric,
+} from '@/services/product-history-surface.js';
 import type { ProductInfo } from '@/types/index.js';
 import { getRequiredProduct } from './product-retrieval';
+import { mapRetrievalError } from './retrieval-coordinator';
 
 const DEFAULT_PRODUCT_GET_METRICS: readonly ProductHistoryMetric[] = ['bsr', 'price'];
 
@@ -29,9 +31,10 @@ interface ProductReadInput {
 interface ProductHistoryError {
     schemaVersion: 2;
     status: 'error';
-    latestImportAt: null;
-    syncTriggered: false;
-    operation: PublicOperation | null;
+    freshness: {
+        stale: true;
+        updatedAt: null;
+    };
     range: {
         startAt: string;
         endAt: string;
@@ -41,6 +44,8 @@ interface ProductHistoryError {
     error: {
         code: string;
         message: string;
+        retryable: boolean;
+        retryAfterSeconds?: number;
     };
 }
 
@@ -50,7 +55,7 @@ export interface ProductReadModel {
     asin: string;
     status: 'ready' | 'partial';
     summary: ProductInfo;
-    history: OperationalAgentHistoryResponse | ProductHistoryError;
+    history: AgentHistoryResponse | ProductHistoryError;
 }
 
 export const getProductReadModel = async (input: ProductReadInput): Promise<ProductReadModel> => {
@@ -62,13 +67,13 @@ export const getProductReadModel = async (input: ProductReadInput): Promise<Prod
     });
 
     try {
-        const history = (await getProductHistoryOperationSurface({
+        const history = (await getProductHistorySurface({
             ...input,
             metrics: input.metrics ?? [...DEFAULT_PRODUCT_GET_METRICS],
             format: 'agent',
-            refresh: 'if_missing',
+            refresh: input.refresh ?? false,
             ownerMerchbaseUserId: input.ownerMerchbaseUserId,
-        })) as OperationalAgentHistoryResponse;
+        })) as AgentHistoryResponse;
 
         return {
             schemaVersion: 1,
@@ -91,6 +96,7 @@ export const getProductReadModel = async (input: ProductReadInput): Promise<Prod
 };
 
 const buildHistoryError = (input: ProductReadInput, error: unknown): ProductHistoryError => {
+    const publicError = mapRetrievalError(error);
     const historyWindow = resolveAgentHistoryWindow({
         startAt: input.startAt,
         endAt: input.endAt,
@@ -101,13 +107,16 @@ const buildHistoryError = (input: ProductReadInput, error: unknown): ProductHist
         startAt: historyWindow.startAt,
         endAt: historyWindow.endAt,
     });
+    const code = publicError instanceof TRPCError ? publicError.code : 'INTERNAL_SERVER_ERROR';
+    const retryAfterSeconds = resolveRetryAfterSeconds(publicError);
 
     return {
         schemaVersion: 2,
         status: 'error',
-        latestImportAt: null,
-        syncTriggered: false,
-        operation: null,
+        freshness: {
+            stale: true,
+            updatedAt: null,
+        },
         range: {
             startAt: historyWindow.startAt.toISOString(),
             endAt: historyWindow.endAt.toISOString(),
@@ -115,11 +124,24 @@ const buildHistoryError = (input: ProductReadInput, error: unknown): ProductHist
         },
         series: {},
         error: {
-            code: error instanceof TRPCError ? error.code : 'INTERNAL_SERVER_ERROR',
+            code,
             message:
-                error instanceof Error
-                    ? error.message
+                publicError instanceof Error
+                    ? publicError.message
                     : 'Failed to load product history for product get.',
+            retryable: code === 'SERVICE_UNAVAILABLE' || code === 'TIMEOUT',
+            ...(retryAfterSeconds ? { retryAfterSeconds } : {}),
         },
     };
+};
+
+const RETRY_AFTER_PATTERN = /Retry after (\d+) seconds?/i;
+
+const resolveRetryAfterSeconds = (error: unknown) => {
+    if (!(error instanceof Error)) {
+        return undefined;
+    }
+
+    const match = RETRY_AFTER_PATTERN.exec(error.message);
+    return match?.[1] ? Number.parseInt(match[1], 10) : undefined;
 };

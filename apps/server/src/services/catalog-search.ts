@@ -3,6 +3,7 @@ import { resolveCatalogSearchRequest } from '@/db/catalog-search';
 import { getCatalogSearchRun } from '@/db/catalog-search-history';
 import { listStalePendingCatalogSearchOperations } from '@/db/catalog-search-operations';
 import { claimOperationDispatch, releaseOperationDispatch } from '@/db/operations';
+import { getDailyAllowanceRetryAfterSeconds } from './access/rate-limit';
 import { buildPublicOperation, type OperationRecord } from './operations';
 import { RetrievalRetryableError } from './retrieval-coordinator';
 
@@ -38,7 +39,7 @@ export class CatalogSearchBillingError extends Error {
     ) {
         const message =
             reason === 'usageLimitExceeded'
-                ? `Daily limit of ${usageLimit ?? 0} requests exceeded. Resets at midnight UTC.`
+                ? `Daily limit of ${usageLimit ?? 0} requests exceeded. Retry after ${getDailyAllowanceRetryAfterSeconds()} seconds. Resets at midnight UTC.`
                 : 'RankWrangler access is unavailable.';
         super(message);
         this.name = 'CatalogSearchBillingError';

@@ -7,8 +7,9 @@ read_when:
 
 # Catalog Search
 
-**Status:** Keepa Catalog search, immutable run-history reads, and decaying keyword refresh are
-available through the dashboard, app/public API, typed client, and CLI.
+**Status:** Keepa Catalog search, immutable run-history reads, and decaying keyword refresh remain
+internal to the dashboard/app workflow. Public agents receive the caller-transparent Product-search
+contract through `product.search`.
 
 Catalog search collects ranked external results and preserves what the source surfaced at a moment
 in time. It complements catalog lookup:
@@ -40,10 +41,10 @@ in time. It complements catalog lookup:
   search or Automatic refresh; Product and `currentProduct` shapes do not carry that field.
 
 Durable Search work remains asynchronous internally, but the public Product-search request is
-caller-transparent. `api.public.catalog.search` returns `{ status: "ready", run, freshness }` with
+caller-transparent. `api.public.product.search` returns `{ status: "ready", run, freshness }` with
 one Search-run freshness envelope, or a provider-neutral retryable error after a bounded wait. It
-never returns an Operation identifier or asks a caller to poll. The existing dashboard request route
-continues to own its internal Operation-driven loading flow until the cross-surface consolidation.
+never returns an Operation identifier or asks a caller to poll. The dashboard request route retains
+its internal Operation-driven loading flow.
 
 The dashboard Keyword-research page keeps the active term plus pending Operation and query identities
 in the URL, so a reload resumes polling without pairing work with another query. It presents Keepa

@@ -2,6 +2,8 @@ import { describe, expect, it, mock } from 'bun:test';
 import { type CatalogSearchDeps, requestCatalogSearch } from './catalog-search';
 import type { OperationRecord } from './operations';
 
+const DAILY_LIMIT_ERROR_PATTERN = /Daily limit of 0 requests exceeded\. Retry after \d+ seconds\./;
+
 describe('Catalog search application workflow', () => {
     it('normalizes query identity while preserving its display term and defaults to 24h reuse', async () => {
         const deps = createDeps({
@@ -97,7 +99,7 @@ describe('Catalog search application workflow', () => {
                 },
                 deps
             )
-        ).rejects.toThrow('Daily limit of 0 requests exceeded');
+        ).rejects.toThrow(DAILY_LIMIT_ERROR_PATTERN);
 
         expect(deps.dispatchOperation.mock.calls).toHaveLength(0);
     });

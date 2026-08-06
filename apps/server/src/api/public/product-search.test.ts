@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server';
 import type { Context } from '@/api/context';
 import { router } from '@/api/trpc';
 import { RetrievalRetryableError } from '@/services/retrieval-coordinator';
-import { type CatalogSearchProcedureDeps, createCatalogSearchProcedure } from './catalog-search';
+import { createProductSearchProcedure, type ProductSearchProcedureDeps } from './product-search';
 
 describe('public Product-search tRPC boundary', () => {
     it('returns Search-run data and freshness without exposing an Operation', async () => {
@@ -15,14 +15,14 @@ describe('public Product-search tRPC boundary', () => {
                 updatedAt: '2026-08-06T12:00:00.000Z',
             },
         };
-        const retrieveCatalogSearch = mock(async () => response);
-        const caller = createCaller({ retrieveCatalogSearch });
+        const retrieveProductSearch = mock(async () => response);
+        const caller = createCaller({ retrieveProductSearch });
 
         const result = await caller.search({ term: 'shirts', refresh: true });
 
         expect(result).toEqual(response);
         expect(result).not.toHaveProperty('operation');
-        expect(retrieveCatalogSearch.mock.calls[0]?.[0]).toMatchObject({
+        expect(retrieveProductSearch.mock.calls[0]?.[0]).toMatchObject({
             term: 'shirts',
             refresh: true,
             ownerMerchbaseUserId: 'mbu_test',
@@ -31,7 +31,7 @@ describe('public Product-search tRPC boundary', () => {
 
     it('maps temporary Search-run retrieval failure to a provider-neutral retryable error', async () => {
         const caller = createCaller({
-            retrieveCatalogSearch: mock(() => {
+            retrieveProductSearch: mock(() => {
                 throw new RetrievalRetryableError(
                     'Product search is temporarily unavailable. Retry shortly.',
                     { retryAfterSeconds: 9, reason: 'capacity' }
@@ -49,11 +49,11 @@ describe('public Product-search tRPC boundary', () => {
     });
 });
 
-const createCaller = (overrides: Partial<CatalogSearchProcedureDeps> = {}) =>
+const createCaller = (overrides: Partial<ProductSearchProcedureDeps> = {}) =>
     router({
-        search: createCatalogSearchProcedure({
-            retrieveCatalogSearch: mock(
-                overrides.retrieveCatalogSearch ??
+        search: createProductSearchProcedure({
+            retrieveProductSearch: mock(
+                overrides.retrieveProductSearch ??
                     (async () => ({
                         status: 'ready' as const,
                         run: { id: '22222222-2222-4222-8222-222222222222' },

@@ -1,10 +1,10 @@
 import { router } from '@/api/trpc.js';
 import { productGet } from './product-get.js';
-import { productGetHistory } from './product-get-history.js';
-import { productGetSummary } from './product-get-summary.js';
+import { productHistory } from './product-history.js';
+import { productSearch } from './product-search.js';
 
 export const productRouter = router({
     get: productGet,
-    getSummary: productGetSummary,
-    getHistory: productGetHistory,
+    history: productHistory,
+    search: productSearch,
 });

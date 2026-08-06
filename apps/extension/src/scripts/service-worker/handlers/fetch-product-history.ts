@@ -35,7 +35,7 @@ export async function handleFetchProductHistory(
 			headers: { Authorization: `Bearer ${sessionToken}` },
 		});
 
-		const response = await apiClient.product.getHistory.mutate({
+		const response = await apiClient.product.history.mutate({
 			asin: message.asin,
 			marketplaceId: message.marketplaceId,
 			limit: 5000,

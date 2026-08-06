@@ -45,7 +45,7 @@ classification. Hiding a dashboard route is not authorization.
 
 ## Local Automation
 
-`api.public.dev.createClerkSignInToken` exists only for localhost automation. It requires
+`api.dev.createClerkSignInToken` exists only for localhost automation. It requires
 `DEV_CLERK_SIGN_IN_USER_ID`, is disabled in production, and returns a short-lived Clerk ticket. The
 website's optional dev auto-sign-in consumes that path.
 

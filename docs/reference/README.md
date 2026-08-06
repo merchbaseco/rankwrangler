@@ -14,6 +14,7 @@ Reference pages are terse lookup surfaces for behavior that exists today.
 | Public tRPC transport, authentication, inputs, and product responses | [Public API](public-api.md) |
 | Agent-oriented commands, configuration precedence, and JSON output | [CLI](cli.md) |
 | Typed npm client construction and generated router types | [HTTP client](http-client.md) |
+| Hosted MCP endpoint, OAuth boundary, tools, and errors | [Hosted MCP](mcp.md) |
 | Canonical identities, stored observations, provenance, and units | [Data model](data-model.md) |
 | Activity-log fields, statuses, action names, and filtering | [Events](events.md) |
 

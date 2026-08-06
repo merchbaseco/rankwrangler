@@ -1,89 +1,61 @@
 # @rankwrangler/http-client
 
-Typed tRPC client for the RankWrangler public API.
-
-## Install
+Typed tRPC client for the RankWrangler public agent API.
 
 ```bash
 npm install @rankwrangler/http-client
 ```
 
-## Usage
-
 ```ts
 import { createRankWranglerClient } from '@rankwrangler/http-client';
 
 const client = createRankWranglerClient({
-  baseUrl: 'https://rankwrangler.merchbase.co',
-  apiKey: process.env.MERCHBASE_API_KEY
+    baseUrl: 'https://rankwrangler.merchbase.co',
+    apiKey: process.env.MERCHBASE_API_KEY,
 });
 
 const product = await client.product.get.mutate({
-  marketplaceId: 'ATVPDKIKX0DER',
-  asin: 'B0DV53VS61',
-  metrics: ['bsr', 'price'],
-  bucket: 'auto'
+    marketplaceId: 'ATVPDKIKX0DER',
+    asin: 'B0DV53VS61',
+    refresh: true,
 });
 
-if (product.history.operation?.status === 'pending') {
-  await client.operation.get.query({ id: product.history.operation.id });
-}
-
-const history = await client.product.getHistory.mutate({
-  marketplaceId: 'ATVPDKIKX0DER',
-  asin: 'B0DV53VS61',
-  format: 'agent',
-  metrics: ['bsr', 'price']
+const search = await client.product.search.mutate({
+    term: 'retro gardening shirt',
 });
 
-const search = await client.catalog.search.mutate({
-  term: 'retro gardening shirt',
-  maxAgeSeconds: 0
+const history = await client.product.history.mutate({
+    marketplaceId: 'ATVPDKIKX0DER',
+    asin: 'B0DV53VS61',
+    format: 'agent',
 });
 
-const query = await client.catalog.query.get.query({
-  term: 'retro gardening shirt'
-});
-const runs = await client.catalog.run.list.query({
-  queryId: query.id,
-  limit: 20
+const keywords = await client.keyword.search.query({
+    text: 'retro gardening',
 });
 ```
 
-Each product search renews the keyword's 30-day active window, including cached reuse. Active
-keywords are eligible for weekly automatic refresh; expired interest becomes inactive without
-backfill. Search-run metadata identifies Requested search versus Automatic refresh.
-
-The client is scoped to the public surface (`api.public.*`) so it stays aligned with CLI usage.
+The client is scoped to the final public surface (`api.public.*`). It exposes Product
+`get/search/history` and keyword `get/search/history`; it does not expose Catalog, Operation, or
+polling procedures. `NOT_FOUND` and retryable `TIMEOUT` errors are preserved from tRPC, with retry
+hints on temporary unavailability.
 
 ## Types
 
 ```ts
 import type { PublicRouterInputs, PublicRouterOutputs } from '@rankwrangler/http-client';
 
-type GetProductInput = PublicRouterInputs['product']['get'];
-type GetProductOutput = PublicRouterOutputs['product']['get'];
-type OperationGetOutput = PublicRouterOutputs['operation']['get'];
-type CatalogQueryOutput = PublicRouterOutputs['catalog']['query']['get'];
-type CatalogRunListOutput = PublicRouterOutputs['catalog']['run']['list'];
+type ProductGetInput = PublicRouterInputs['product']['get'];
+type ProductSearchOutput = PublicRouterOutputs['product']['search'];
+type KeywordHistoryOutput = PublicRouterOutputs['keyword']['history'];
 ```
 
-## Maintenance
-
-When the public router changes, regenerate the bundled router types:
+When the public router changes, regenerate and build the declarations:
 
 ```bash
 bun run http-client:types
-```
-
-Build the package before publishing:
-
-```bash
 bun run http-client:build
 ```
 
-## Maintainers
-
-See the repository [HTTP client reference](../../docs/reference/http-client.md),
-[release workflow](../../docs/operations/releases.md), and
-[npm publishing workflow](../../docs/operations/npm-packages.md).
+See the [HTTP client reference](../../docs/reference/http-client.md) for transport options and
+release workflow.

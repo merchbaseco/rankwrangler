@@ -1,47 +1,63 @@
 {
-	"manifest_version": 3,
-	"name": "RankWrangler",
-	"version": "1.0",
-	"description": "Get product rankings and metrics in Amazon search results.",
-	"permissions": ["storage", "tabs", "alarms", "scripting", "cookies"],
-	"host_permissions": [
-		"*://*.amazon.com/*",
-		"https://rankwrangler.merchbase.co/api/*",
-		"https://clerk.merchbase.co/*"
-	],
-	"icons": {
-		"32": "images/icon-32-safari.png",
-		"64": "images/icon-64.png",
-		"128": "images/icon-128.png",
-		"512": "images/icon-512.png"
-	},
-	"background": {
-		"service_worker": "background.js",
-		"type": "module"
-	},
-	"action": {
-		"default_popup": "popup.html"
-	},
-	"content_scripts": [
-		{
-			"matches": ["https://www.amazon.com/s*"],
-			"js": ["content.js"],
-			"run_at": "document_end"
-		},
-		{
-			"matches": [
-				"https://www.amazon.com/dp/*",
-				"https://www.amazon.com/*/dp/*",
-				"https://www.amazon.com/gp/product/*"
-			],
-			"js": ["content.js"],
-			"run_at": "document_end"
-		}
-	],
-	"web_accessible_resources": [
-		{
-			"resources": ["images/logo.png"],
-			"matches": ["*://*.amazon.com/*"]
-		}
-	]
+  "manifest_version": 3,
+  "name": "RankWrangler",
+  "version": "1.0",
+  "description": "Get product rankings and metrics in Amazon search results.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "alarms",
+    "scripting",
+    "cookies"
+  ],
+  "host_permissions": [
+    "*://*.amazon.com/*",
+    "https://rankwrangler.merchbase.co/api/*",
+    "https://clerk.merchbase.co/*"
+  ],
+  "icons": {
+    "32": "images/icon-32-safari.png",
+    "64": "images/icon-64.png",
+    "128": "images/icon-128.png",
+    "512": "images/icon-512.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.amazon.com/s*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://www.amazon.com/dp/*",
+        "https://www.amazon.com/*/dp/*",
+        "https://www.amazon.com/gp/product/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "images/logo.png"
+      ],
+      "matches": [
+        "*://*.amazon.com/*"
+      ]
+    }
+  ]
 }

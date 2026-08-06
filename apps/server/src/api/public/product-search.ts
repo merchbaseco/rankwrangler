@@ -5,18 +5,18 @@ import { CatalogSearchBillingError } from '@/services/catalog-search';
 import { awaitCatalogSearchRetrieval } from '@/services/catalog-search-retrieval';
 import { mapRetrievalError } from '@/services/retrieval-coordinator';
 
-export interface CatalogSearchProcedureDeps {
-    retrieveCatalogSearch: typeof awaitCatalogSearchRetrieval;
+export interface ProductSearchProcedureDeps {
+    retrieveProductSearch: typeof awaitCatalogSearchRetrieval;
 }
 
-const defaultDeps: CatalogSearchProcedureDeps = {
-    retrieveCatalogSearch: awaitCatalogSearchRetrieval,
+const defaultDeps: ProductSearchProcedureDeps = {
+    retrieveProductSearch: awaitCatalogSearchRetrieval,
 };
 
-export const createCatalogSearchProcedure = (deps: CatalogSearchProcedureDeps = defaultDeps) =>
+export const createProductSearchProcedure = (deps: ProductSearchProcedureDeps = defaultDeps) =>
     publicApiProcedure.input(publicCatalogSearchInput).mutation(async ({ input, ctx, signal }) => {
         try {
-            return await deps.retrieveCatalogSearch({
+            return await deps.retrieveProductSearch({
                 ...input,
                 serviceAccountId: ctx.accessPrincipal.id,
                 ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
@@ -37,4 +37,4 @@ export const createCatalogSearchProcedure = (deps: CatalogSearchProcedureDeps = 
         }
     });
 
-export const catalogSearch = createCatalogSearchProcedure();
+export const productSearch = createProductSearchProcedure();

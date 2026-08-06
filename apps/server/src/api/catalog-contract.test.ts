@@ -9,11 +9,9 @@ describe('Catalog query API contract', () => {
 
         expect(appProcedures).toContain('api.app.catalog.query.get');
         expect(appProcedures).toContain('api.app.catalog.query.list');
-        expect(publicProcedures).toContain('api.public.catalog.query.get');
         expect(appProcedures).not.toContain('api.app.catalog.query.track');
         expect(appProcedures).not.toContain('api.app.catalog.query.untrack');
-        expect(publicProcedures).not.toContain('api.public.catalog.query.track');
-        expect(publicProcedures).not.toContain('api.public.catalog.query.untrack');
+        expect(publicProcedures).not.toContain('api.public.catalog.query.get');
     });
 
     it('exposes the public keyword intelligence verbs without public tracking controls', () => {
