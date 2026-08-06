@@ -117,10 +117,11 @@ Calls return ordinary tRPC promises and reject with tRPC client errors. Server e
 `UNAUTHORIZED`, `TOO_MANY_REQUESTS`, `NOT_FOUND`, and `BAD_REQUEST` are available through the tRPC
 error data.
 
-The client does not poll automatically. `product.getHistory` returns available data with a
-`freshness` envelope, waits for missing or explicitly refreshed history, and rejects temporary
-capacity/deadline failures with tRPC `TIMEOUT` plus a retry hint. Its Product-history Operation
-state is internal to the server retrieval service. The richer `product.get` contract retains its
-existing Operation-shaped embedded history until that caller migrates.
+The client does not poll automatically. `product.getSummary` and the `summary` in `product.get`
+return the Product freshness envelope; available stale Products return immediately, while
+`refresh: true` or missing data waits for the shared Product fetch. Temporary capacity/deadline
+failures reject with tRPC `TIMEOUT` plus a retry hint. `product.getHistory` keeps its own freshness
+and Operation boundary; the richer `product.get` contract retains its existing Operation-shaped
+embedded history.
 
 The implementation is [`packages/http-client/src/index.ts`](../../packages/http-client/src/index.ts).

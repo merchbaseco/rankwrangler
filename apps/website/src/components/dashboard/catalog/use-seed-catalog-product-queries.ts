@@ -66,6 +66,7 @@ export const useSeedCatalogProductQueries = (run: CatalogRun | null) => {
 					{
 						marketplaceId: seed.marketplaceId,
 						asin: seed.asin,
+						refresh: false,
 					},
 					(current) => selectFreshestProductRead(current, productRead),
 				);
@@ -76,7 +77,7 @@ export const useSeedCatalogProductQueries = (run: CatalogRun | null) => {
 
 const getLatestSourceTimestamp = (read: NonNullable<ProductRead>) => {
 	const timestamps = [
-		read.product.metadata.updatedAt,
+		read.product.freshness.updatedAt,
 		read.product.keepa?.fetchedAt ?? null,
 	].flatMap(value => {
 		if (!value) {

@@ -68,9 +68,11 @@ The product read family shares marketplace and ASIN identity:
 | `days` | 30–3650; default 365. |
 | `startAt`, `endAt` | Optional date-coercible range bounds. |
 | `limit` | Internal source-point cap from 1–10,000; default 5,000. |
+| `refresh` | Product-details refresh switch for summary/rich reads; default `false`. History refresh remains an independent history policy. |
 
-Summary reads only require `marketplaceId` and `asin`. They ensure current Product data but do not
-import Keepa history.
+Summary reads only require `marketplaceId` and `asin`. An available Product may return stale with
+its freshness envelope while default revalidation runs in the background; `refresh: true` and
+first-time/missing data wait for the shared Product policy. They do not import Keepa history.
 
 ## Rich product read
 

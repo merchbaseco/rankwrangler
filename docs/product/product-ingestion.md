@@ -33,8 +33,9 @@ provider returns no listing, RankWrangler retains the canonical identity, record
 and returns an unavailable thumbnail state.
 
 Keyword-research rows remain useful while that background work runs: retained search position and
-metrics stay visible, while a pending thumbnail marks unresolved Product data. A completion event
-refreshes only the affected exact ASIN.
+metrics stay visible, while a pending thumbnail marks unresolved Product data. Available Amazon
+result cards do not show Product freshness controls; a completion event refreshes only the affected
+exact ASIN. Product detail pages expose the shared freshness envelope and Refresh action.
 
 **Brief user story:** A seller browses Amazon with the extension; each recognized listing becomes
 available later to an agent through RankWrangler's stored catalog.

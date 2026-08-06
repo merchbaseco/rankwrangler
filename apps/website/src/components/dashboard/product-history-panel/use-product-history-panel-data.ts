@@ -6,12 +6,12 @@ import { useCallback, useMemo, useState } from "react";
 import { formatUsd } from "@/components/dashboard/product-history-panel/format-usd";
 import { isKeepaSyncStale as getIsKeepaSyncStale } from "@/components/dashboard/product-history-panel/keepa-sync-state";
 import type {
-	CategoryOption,
 	ProductHistoryPanelProduct,
 	SelectOption,
 } from "@/components/dashboard/product-history-panel/types";
 import { useKeepaAutoSync } from "@/components/dashboard/product-history-panel/use-keepa-auto-sync";
 import { useProductHistoryLoad } from "@/components/dashboard/product-history-panel/use-product-history-load";
+import { useProductHistoryPanelCategories } from "@/components/dashboard/product-history-panel/use-product-history-panel-categories";
 import { useProductHistoryPanelProduct } from "@/components/dashboard/product-history-panel/use-product-history-panel-product";
 import { toastManager } from "@/components/ui/toast";
 import { useAdminAccess } from "@/hooks/use-admin-access";
@@ -22,7 +22,12 @@ export const useProductHistoryPanelData = ({
 }: {
 	product: ProductHistoryPanelProduct;
 }) => {
-	const resolvedProduct = useProductHistoryPanelProduct({ product });
+	const {
+		product: resolvedProduct,
+		isProductRefreshing,
+		productRefreshError,
+		triggerProductRefresh,
+	} = useProductHistoryPanelProduct({ product });
 	const { isAdmin } = useAdminAccess();
 	const utils = api.useUtils();
 	const [rankMetricValue, setRankMetricValue] = useState<string>("bsrMain");
@@ -41,83 +46,16 @@ export const useProductHistoryPanelData = ({
 	});
 	const startAt = queryRange.startAt;
 	const endAt = queryRange.endAt;
-
-	const categoryOptionsInput = useMemo(
-		() => ({
-			marketplaceId: product.marketplaceId,
-			asin: product.asin,
-			metric: "bsrCategory" as const,
-			limit: 10_000,
-			refresh: "none" as const,
-		}),
-		[product.asin, product.marketplaceId],
-	);
-	const categoryOptionsQuery = api.api.app.getProductHistory.useQuery(
+	const {
+		availableCategories,
 		categoryOptionsInput,
-		{
-			refetchOnWindowFocus: false,
-			staleTime: 60_000,
-		},
-	);
-
-	const availableCategories = useMemo(() => {
-		if (!categoryOptionsQuery.data) {
-			return [] as CategoryOption[];
-		}
-
-		const categoryMap = new Map<number, string | null>();
-		for (const point of categoryOptionsQuery.data.points) {
-			if (!Number.isFinite(point.categoryId) || point.categoryId <= 0) {
-				continue;
-			}
-
-			const name =
-				categoryOptionsQuery.data.categoryNames[String(point.categoryId)] ??
-				null;
-			if (!categoryMap.has(point.categoryId) || name) {
-				categoryMap.set(point.categoryId, name);
-			}
-		}
-
-		return Array.from(categoryMap.entries())
-			.sort((left, right) => left[0] - right[0])
-			.map(([id, name]) => ({ id, name }));
-	}, [categoryOptionsQuery.data]);
-
-	const mainCategoryInput = useMemo(
-		() => ({
-			marketplaceId: product.marketplaceId,
-			asin: product.asin,
-			metric: "bsrMain" as const,
-			limit: 1,
-			refresh: "none" as const,
-		}),
-		[product.asin, product.marketplaceId],
-	);
-	const mainCategoryQuery = api.api.app.getProductHistory.useQuery(
+		mainCategoryId,
 		mainCategoryInput,
-		{ refetchOnWindowFocus: false, staleTime: Number.POSITIVE_INFINITY },
-	);
-
-	const mainCategoryName = useMemo(() => {
-		const point = mainCategoryQuery.data?.points[0];
-		if (!point) {
-			return "Main Category";
-		}
-		return (
-			mainCategoryQuery.data?.categoryNames[String(point.categoryId)] ??
-			"Main Category"
-		);
-	}, [mainCategoryQuery.data]);
-
-	const mainCategoryId = useMemo(() => {
-		const categoryId = mainCategoryQuery.data?.points[0]?.categoryId;
-		return Number.isFinite(categoryId) &&
-			typeof categoryId === "number" &&
-			categoryId > 0
-			? categoryId
-			: null;
-	}, [mainCategoryQuery.data]);
+		mainCategoryName,
+	} = useProductHistoryPanelCategories({
+		asin: product.asin,
+		marketplaceId: product.marketplaceId,
+	});
 
 	const rankSelectOptions = useMemo(() => {
 		const categoryOptions = availableCategories
@@ -283,6 +221,7 @@ export const useProductHistoryPanelData = ({
 		handleDateRangeSelect,
 		handlePresetClick,
 		isKeepaSyncStale,
+		isProductRefreshing,
 		keepaLastSyncAt,
 		loadMutation,
 		priceQuery,
@@ -291,10 +230,12 @@ export const useProductHistoryPanelData = ({
 		rankQuery,
 		rankSelectOptions,
 		product: resolvedProduct,
+		productRefreshError,
 		setRankMetricValue,
 		canFetchFacets: isAdmin,
 		fetchFacetsMutation,
 		triggerFacetClassification,
 		triggerKeepaSync,
+		triggerProductRefresh,
 	};
 };

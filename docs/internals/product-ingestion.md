@@ -26,7 +26,11 @@ marketplace and ASIN; it does not own a separate copy of the Product.
 | Keepa Catalog search | Persists immutable Keepa membership/observations; run reads pass canonical identities through shared background retrieval. |
 
 The shared Product retrieval service treats listing data as fresh for two days by default, joins
-identical blocking requests within the process, and centralizes background queueing and availability.
+identical Product fetches through the retrieval coordinator, and centralizes background queueing,
+blocking waits, freshness, and availability. The durable SP-API worker and explicit Product
+refreshes use the same detail work coordinator; a completed explicit refresh also removes its
+matching durable queue row. Available stale detail reads return immediately; explicit refreshes
+and missing details wait without exposing a public Operation.
 
 ## SP-API Queue
 

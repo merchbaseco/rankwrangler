@@ -1,8 +1,9 @@
 import { Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLiveRelativeTime } from "@/hooks/use-live-relative-time";
-import { cn } from "@/lib/utils";
+import type { ProductFreshness } from "@/components/dashboard/product-history-panel/types";
 
 export const KeepaStatusButton = ({
 	isSyncing,
@@ -67,46 +68,37 @@ export const KeepaStatusButton = ({
 	);
 };
 
-export const ProductUpdatedBadge = ({
-	productUpdatedAt,
-	rootCategoryBsr,
+export const ProductFreshnessButton = ({
+	freshness,
+	isRefreshing,
+	refreshError,
+	onRefresh,
 }: {
-	productUpdatedAt: string | null;
-	rootCategoryBsr: number | null;
+	freshness: ProductFreshness;
+	isRefreshing: boolean;
+	refreshError: string | null;
+	onRefresh: () => void;
 }) => {
-	const label = useLiveRelativeTime(productUpdatedAt);
-	if (!productUpdatedAt) return null;
-
-	const thresholdMs = getProductRefreshThresholdMs(rootCategoryBsr);
-	const ageMs = Date.now() - new Date(productUpdatedAt).getTime();
-	const isStale = ageMs > thresholdMs;
+	const label = useLiveRelativeTime(freshness.updatedAt);
+	const buttonLabel = isRefreshing ? "Refreshing…" : refreshError ? "Retry" : "Refresh";
 
 	return (
-		<Tooltip>
-			<TooltipTrigger
-				render={
-					<span
-						className={cn(
-							"inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 font-mono text-[11px] font-medium",
-							isStale
-								? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-								: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-						)}
-					/>
-				}
+		<div className="flex items-center gap-1.5">
+			<span className="rounded-sm border border-border bg-muted/30 px-1.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground">
+				Product updated · {label}
+			</span>
+			<Button
+				aria-label={buttonLabel}
+				className="h-auto rounded-sm px-1 py-0 font-mono text-[11px] font-medium text-muted-foreground hover:text-foreground"
+				disabled={isRefreshing}
+				onClick={onRefresh}
+				size="sm"
+				title={refreshError ?? "Refresh Product details"}
+				variant="ghost"
 			>
-				{isStale ? "Product stale" : "Product fresh"} · {label}
-			</TooltipTrigger>
-			<TooltipPopup>Last update for this Product</TooltipPopup>
-		</Tooltip>
+				{isRefreshing ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+				{buttonLabel}
+			</Button>
+		</div>
 	);
-};
-
-const getProductRefreshThresholdMs = (bsr: number | null) => {
-	if (bsr === null) return 48 * 60 * 60 * 1000;
-	if (bsr < 200_000) return 24 * 60 * 60 * 1000;
-	if (bsr < 500_000) return 3 * 24 * 60 * 60 * 1000;
-	if (bsr < 1_000_000) return 7 * 24 * 60 * 60 * 1000;
-	if (bsr < 3_000_000) return 14 * 24 * 60 * 60 * 1000;
-	return 30 * 24 * 60 * 60 * 1000;
 };

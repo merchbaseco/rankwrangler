@@ -42,6 +42,13 @@ Freshness is source-specific:
 `keepaFetchedAt` and `keepaSourceUpdatedAt` answer different questions. Provider import rows remain
 diagnostics and provenance; scheduling reads Product freshness directly.
 
+Product detail responses expose one caller-facing `freshness: { stale, updatedAt }` envelope. A
+canonical Product that is already available is returned immediately even when stale; the default
+read may queue background revalidation. `refresh: true` and a first-time/missing Product wait for
+the shared coordinator's blocking policy without creating a public Operation. Definitive provider
+absence is `NOT_FOUND`; temporary capacity or deadline failures use the shared provider-neutral
+retryable error.
+
 ## Lookup Versus Discovery
 
 The dashboard catalog reads stored Products and supports current-state search, pagination, and

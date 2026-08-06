@@ -17,8 +17,10 @@ export interface Product {
 	metadata: {
 		success: boolean;
 		thumbnailStatus?: "pending" | "available" | "unavailable";
-		updatedAt?: string; // ISO timestamp
-		cached?: boolean;
+	};
+	freshness: {
+		stale: boolean;
+		updatedAt: string | null;
 	};
 }
 
@@ -32,6 +34,10 @@ export const getErrorProduct = (
 		marketplaceId: productIdentifier.marketplaceId,
 		metadata: {
 			success: false,
+		},
+		freshness: {
+			stale: true,
+			updatedAt: null,
 		},
 	};
 };

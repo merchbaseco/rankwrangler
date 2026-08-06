@@ -6,28 +6,29 @@ import {
     type ProductIdentity,
     type StoredProductRead,
 } from '@/db/product/get-products';
+import { mapStoredProductInfo } from '@/db/product/product-info-mapper';
+import { deleteSpApiSyncQueueItemsForIdentities } from '@/db/spapi-sync-queue/delete-queue-items';
 import { upsertProductInfo } from '@/db/product/upsert-product';
 import { searchCatalogItemsByAsins } from '@/services/spapi/search-catalog-items-by-asins';
 import type { ProductInfo, SpApiProduct } from '@/types';
-import { mapStoredProductInfo } from '@/db/product/product-info-mapper';
+import { PRODUCT_DEFAULT_MAX_AGE_MS } from './product-freshness-policy';
+import { enqueueBackgroundProducts, resolveProduct } from './product-retrieval-work';
 import { enqueueSpApiSyncQueueItems } from './spapi-sync-queue';
-
-export const PRODUCT_DEFAULT_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
 
 export type ProductFetchPolicy = 'blocking' | 'background';
 export type ProductAvailability = 'pending' | 'available' | 'unavailable';
 
-export type ProductRetrieval = {
+export interface ProductRetrieval {
     identity: ProductIdentity;
     product: ProductInfo | null;
     availability: ProductAvailability;
-};
+}
 
-export type PersistProductSyncResultsInput = {
+export interface PersistProductSyncResultsInput {
     identities: ProductIdentity[];
     products: SpApiProduct[];
     resolvedAt: Date;
-};
+}
 
 export const persistProductSyncResults = async ({
     identities,
@@ -46,13 +47,14 @@ export const persistProductSyncResults = async ({
     await markProductsSpApiResolved(unavailableIdentities, resolvedAt);
 };
 
-type ProductRetrievalDeps = {
+export interface ProductRetrievalDeps {
     getStoredProducts: typeof getStoredProducts;
     ensureProductIdentities: typeof ensureProductIdentities;
     enqueueSpApiSyncQueueItems: typeof enqueueSpApiSyncQueueItems;
     searchCatalogItemsByAsins: typeof searchCatalogItemsByAsins;
     persistProductSyncResults: typeof persistProductSyncResults;
-};
+    deleteSpApiSyncQueueItemsForIdentities?: typeof deleteSpApiSyncQueueItemsForIdentities;
+}
 
 const defaultDeps: ProductRetrievalDeps = {
     getStoredProducts,
@@ -60,19 +62,22 @@ const defaultDeps: ProductRetrievalDeps = {
     enqueueSpApiSyncQueueItems,
     searchCatalogItemsByAsins,
     persistProductSyncResults,
+    deleteSpApiSyncQueueItemsForIdentities,
 };
-
-const productFetchInFlight = new Map<string, Promise<void>>();
 
 export const getProducts = async (
     {
         products: requestedProducts,
         fetchPolicy,
         maxAgeMs = PRODUCT_DEFAULT_MAX_AGE_MS,
+        signal,
+        timeoutMs,
     }: {
         products: ProductIdentity[];
         fetchPolicy: ProductFetchPolicy;
         maxAgeMs?: number;
+        signal?: AbortSignal;
+        timeoutMs?: number;
     },
     deps: ProductRetrievalDeps = defaultDeps
 ): Promise<ProductRetrieval[]> => {
@@ -89,7 +94,9 @@ export const getProducts = async (
     );
 
     if (fetchPolicy === 'blocking') {
-        await Promise.all(needsResolution.map(identity => resolveProduct(identity, deps)));
+        await Promise.all(
+            needsResolution.map(identity => resolveProduct(identity, deps, signal, timeoutMs))
+        );
         stored = needsResolution.length > 0 ? await deps.getStoredProducts(identities) : stored;
     } else if (needsResolution.length > 0) {
         await enqueueBackgroundProducts(needsResolution, storedByKey, deps);
@@ -102,16 +109,55 @@ export const getProducts = async (
     );
 };
 
-export const getRequiredProduct = async ({
-    marketplaceId,
-    asin,
-    maxAgeMs,
-}: ProductIdentity & { maxAgeMs?: number }) => {
-    const [result] = await getProducts({
-        products: [{ marketplaceId, asin }],
-        fetchPolicy: 'blocking',
-        maxAgeMs,
-    });
+export const getProductDetails = async (
+    {
+        marketplaceId,
+        asin,
+        maxAgeMs = PRODUCT_DEFAULT_MAX_AGE_MS,
+        refresh = false,
+        signal,
+        timeoutMs,
+    }: ProductIdentity & {
+        maxAgeMs?: number;
+        refresh?: boolean;
+        signal?: AbortSignal;
+        timeoutMs?: number;
+    },
+    deps: ProductRetrievalDeps = defaultDeps
+): Promise<ProductRetrieval> => {
+    const [identity] = normalizeIdentities([{ marketplaceId, asin }]);
+    const [stored] = await deps.getStoredProducts([identity]);
+    const result = mapProductRetrieval(identity, stored);
+    const cutoff = new Date(Date.now() - Math.max(0, maxAgeMs));
+
+    if (!(refresh || shouldResolve(stored, cutoff))) {
+        return result;
+    }
+
+    if (result.availability === 'available' && !refresh) {
+        enqueueBackgroundProducts(
+            [identity],
+            indexStoredProducts(stored ? [stored] : []),
+            deps
+        ).catch(() => undefined);
+        return result;
+    }
+
+    await resolveProduct(identity, deps, signal, timeoutMs);
+    const [refreshed] = await deps.getStoredProducts([identity]);
+    return mapProductRetrieval(identity, refreshed);
+};
+
+export const getRequiredProduct = async (
+    input: ProductIdentity & {
+        maxAgeMs?: number;
+        refresh?: boolean;
+        signal?: AbortSignal;
+        timeoutMs?: number;
+    },
+    deps: ProductRetrievalDeps = defaultDeps
+) => {
+    const result = await getProductDetails(input, deps);
 
     if (!result || result.availability !== 'available' || !result.product) {
         throw new TRPCError({
@@ -121,48 +167,6 @@ export const getRequiredProduct = async ({
     }
 
     return result.product;
-};
-
-const resolveProduct = async (identity: ProductIdentity, deps: ProductRetrievalDeps) => {
-    const key = productKey(identity);
-    const existing = productFetchInFlight.get(key);
-    if (existing) {
-        return await existing;
-    }
-
-    const fetch = (async () => {
-        await deps.ensureProductIdentities([identity]);
-        const products = await deps.searchCatalogItemsByAsins(identity.marketplaceId, [
-            identity.asin,
-        ]);
-        await deps.persistProductSyncResults({
-            identities: [identity],
-            products,
-            resolvedAt: new Date(),
-        });
-    })().finally(() => {
-        productFetchInFlight.delete(key);
-    });
-    productFetchInFlight.set(key, fetch);
-    await fetch;
-};
-
-const enqueueBackgroundProducts = async (
-    identities: ProductIdentity[],
-    storedByKey: Map<string, StoredProductRead>,
-    deps: ProductRetrievalDeps
-) => {
-    const missing = identities.filter(identity => !storedByKey.has(productKey(identity)));
-    await deps.ensureProductIdentities(missing);
-
-    const queueItems = identities.filter(identity => {
-        return !storedByKey.get(productKey(identity))?.queuePending;
-    });
-    if (queueItems.length === 0) {
-        return;
-    }
-
-    await deps.enqueueSpApiSyncQueueItems(queueItems);
 };
 
 const mapProductRetrieval = (
@@ -186,10 +190,8 @@ const getAvailability = (stored: StoredProductRead | undefined): ProductAvailabi
     if (!stored) {
         return 'pending';
     }
-    if (stored.product.spApiFetchedAt) {
-        if (hasLatestSpApiPayload(stored.product)) {
-            return 'available';
-        }
+    if (stored.product.spApiFetchedAt && hasLatestSpApiPayload(stored.product)) {
+        return 'available';
     }
     if (stored.queuePending) {
         return 'pending';

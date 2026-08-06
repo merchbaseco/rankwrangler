@@ -1,11 +1,14 @@
-import { appProcedure } from '@/api/trpc';
-import { getProducts } from '@/services/product-retrieval';
 import { productSummaryInput } from '@/api/public/product-input';
+import { appProcedure } from '@/api/trpc';
+import { getProductDetails } from '@/services/product-retrieval';
+import { mapRetrievalError } from '@/services/retrieval-coordinator';
 
-export const productGet = appProcedure.input(productSummaryInput).query(async ({ input }) => {
-    const [result] = await getProducts({
-        products: [input],
-        fetchPolicy: 'background',
+export const productGet = appProcedure
+    .input(productSummaryInput)
+    .query(async ({ input, signal }) => {
+        try {
+            return await getProductDetails({ ...input, signal });
+        } catch (error) {
+            throw mapRetrievalError(error);
+        }
     });
-    return result ?? null;
-});

@@ -8,9 +8,9 @@ export interface ProductInfo {
 		| { status: "pending" }
 		| { status: "available"; url: string }
 		| { status: "unavailable" };
-	metadata: {
-		updatedAt: string; // ISO timestamp
-		cached: boolean;
+	freshness: {
+		stale: boolean;
+		updatedAt: string | null;
 	};
 }
 
@@ -18,6 +18,7 @@ export interface FetchProductInfoMessage {
 	type: "fetchProductInfo";
 	asin: string;
 	marketplaceId: string;
+	refresh?: boolean;
 }
 
 export interface ProductHistoryPoint {

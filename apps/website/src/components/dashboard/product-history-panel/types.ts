@@ -15,6 +15,11 @@ export type HistoryTimeDomain = { startAt: number; endAt: number };
 export type CategoryOption = { id: number; name: string | null };
 export type SelectOption = { value: string; label: string };
 
+export type ProductFreshness = {
+	stale: boolean;
+	updatedAt: string | null;
+};
+
 export type ProductHistoryPanelProduct = {
 	asin: string;
 	marketplaceId: string;
@@ -26,8 +31,7 @@ export type ProductHistoryPanelProduct = {
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean;
-	productUpdatedAt: string | null;
-	productInfoCached: boolean | null;
+	freshness: ProductFreshness;
 };
 
 export type ProductHistoryPanelProps = {

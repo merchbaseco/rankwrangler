@@ -1,7 +1,8 @@
+import { isProductFresh } from '@/services/product-freshness-policy';
 import { type AmazonRootCategoryId, getDisplayGroupName } from '@/types/amazon-root-categories';
-import type { ProductInfo } from '@/types/index';
+import type { ProductFreshness, ProductInfo } from '@/types/index';
 
-type StoredProductInfo = {
+interface StoredProductInfo {
     marketplaceId: string;
     asin: string;
     dateFirstAvailable: Date | null;
@@ -29,7 +30,7 @@ type StoredProductInfo = {
     keepaSalesRankDrops180: number | null;
     keepaSalesRankDrops365: number | null;
     createdAt: Date;
-};
+}
 
 export const mapStoredProductInfo = (
     product: StoredProductInfo,
@@ -46,11 +47,7 @@ export const mapStoredProductInfo = (
         isMerchListing: product.isMerchListing,
         bullet1: product.bullet1,
         bullet2: product.bullet2,
-        thumbnail: thumbnailPending
-            ? { status: 'pending' }
-            : hasLatestSpApiPayload(product) && product.thumbnailUrl
-              ? { status: 'available', url: product.thumbnailUrl }
-              : { status: 'unavailable' },
+        thumbnail: getProductThumbnail(product, thumbnailPending),
         rootCategoryId: product.rootCategoryId,
         rootCategoryBsr: product.rootCategoryBsr,
         rootCategoryDisplayName:
@@ -82,10 +79,7 @@ export const mapStoredProductInfo = (
                   },
               }
             : null,
-        metadata: {
-            cached: true,
-            updatedAt: getProductUpdatedAt(product).toISOString(),
-        },
+        freshness: getProductFreshness(product),
     };
 };
 
@@ -97,15 +91,21 @@ const hasLatestSpApiPayload = (product: StoredProductInfo) => {
     return !product.spApiResolvedAt || product.spApiFetchedAt >= product.spApiResolvedAt;
 };
 
-const getProductUpdatedAt = (product: StoredProductInfo) => {
-    const timestamps = [
-        product.createdAt,
-        product.spApiFetchedAt,
-        product.spApiResolvedAt,
-        product.keepaFetchedAt,
-    ].filter((value): value is Date => value !== null);
+const getProductThumbnail = (product: StoredProductInfo, thumbnailPending: boolean) => {
+    if (thumbnailPending) {
+        return { status: 'pending' as const };
+    }
+    if (hasLatestSpApiPayload(product) && product.thumbnailUrl) {
+        return { status: 'available' as const, url: product.thumbnailUrl };
+    }
+    return { status: 'unavailable' as const };
+};
 
-    return timestamps.reduce((latest, value) => (value > latest ? value : latest), new Date(0));
+const getProductFreshness = (product: StoredProductInfo): ProductFreshness => {
+    const updatedAt = product.spApiFetchedAt?.toISOString() ?? null;
+    const stale = !isProductFresh(product.spApiFetchedAt);
+
+    return { stale, updatedAt };
 };
 
 const getMarketplaceCurrencyCode = (marketplaceId: string) => {

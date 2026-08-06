@@ -13,6 +13,7 @@ export const asinInput = z
 export const productSummaryInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),
     asin: asinInput,
+    refresh: z.boolean().default(false),
 });
 
 export const productGetInput = productSummaryInput.extend({

@@ -19,7 +19,8 @@ const rateLimiter = new RateLimiter({
 });
 
 export const getProduct = async (
-	productIdentifier: ProductIdentifier
+	productIdentifier: ProductIdentifier,
+	{ refresh = false }: { refresh?: boolean } = {}
 ): Promise<Product> => {
 	const { asin, marketplaceId } = productIdentifier;
 	const requestTrace = startProductRequestTrace(productIdentifier);
@@ -40,6 +41,7 @@ export const getProduct = async (
 			type: "fetchProductInfo",
 			asin,
 			marketplaceId,
+			refresh,
 		};
 
 		const response = await browser.runtime.sendMessage(message);
@@ -74,7 +76,7 @@ export const getProduct = async (
 		const responseData = response.data ?? {};
 
 		const thumbnailStatus = responseData.thumbnail?.status;
-		const updatedAt = responseData.metadata?.updatedAt;
+		const freshness = responseData.freshness;
 		const product: Product = {
 			asin,
 			marketplaceId,
@@ -98,8 +100,11 @@ export const getProduct = async (
 				thumbnailStatus === "unavailable"
 					? { thumbnailStatus }
 					: {}),
-				...(typeof updatedAt === "string" ? { updatedAt } : {}),
-				cached: Boolean(responseData.metadata?.cached),
+			},
+			freshness: {
+				stale: Boolean(freshness?.stale),
+				updatedAt:
+					typeof freshness?.updatedAt === "string" ? freshness.updatedAt : null,
 			},
 		};
 

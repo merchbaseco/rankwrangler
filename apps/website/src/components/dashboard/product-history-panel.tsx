@@ -14,10 +14,12 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 		handleDateRangeSelect,
 		handlePresetClick,
 		isKeepaSyncStale,
+		isProductRefreshing,
 		keepaLastSyncAt,
 		loadMutation,
 		priceQuery,
 		product: headerProduct,
+		productRefreshError,
 		rankMetric,
 		rankMetricValue,
 		rankQuery,
@@ -27,6 +29,7 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 		fetchFacetsMutation,
 		triggerFacetClassification,
 		triggerKeepaSync,
+		triggerProductRefresh,
 	} = useProductHistoryPanelData({ product });
 
 	return (
@@ -40,6 +43,9 @@ export const ProductHistoryPanel = ({ product }: ProductHistoryPanelProps) => {
 				canFetchFacets={canFetchFacets}
 				isKeepaSyncStale={isKeepaSyncStale}
 				keepaLastSyncAt={keepaLastSyncAt}
+				isProductRefreshing={isProductRefreshing}
+				productRefreshError={productRefreshError}
+				onProductRefresh={triggerProductRefresh}
 			/>
 			<DateRangeSelector
 				activePreset={activePreset}

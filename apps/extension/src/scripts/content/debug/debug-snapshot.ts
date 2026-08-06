@@ -75,7 +75,8 @@ interface CacheLookupEvent {
 	productSummary?: {
 		hasRankData: boolean;
 		metadataSuccess: boolean;
-		metadataCached: boolean;
+		freshnessStale: boolean;
+		freshnessUpdatedAt: string | null;
 		thumbnailStatus: "pending" | "available" | "unavailable" | null;
 	};
 }
@@ -180,7 +181,8 @@ export const recordCacheLookup = (
 				? {
 						hasRankData,
 						metadataSuccess: Boolean(cachedProduct.metadata.success),
-						metadataCached: Boolean(cachedProduct.metadata.cached),
+						freshnessStale: cachedProduct.freshness.stale,
+						freshnessUpdatedAt: cachedProduct.freshness.updatedAt,
 						thumbnailStatus: cachedProduct.metadata.thumbnailStatus ?? null,
 					}
 				: undefined,

@@ -1,4 +1,5 @@
 import type { ProductThumbnail } from "@/components/dashboard/product-thumbnail";
+import type { ProductFreshness } from "@/components/dashboard/product-history-panel/types";
 
 export type FilterState = {
 	bsrRange: [number, number] | null;
@@ -33,8 +34,7 @@ export type SelectedHistoryProduct = {
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean;
-	productUpdatedAt: string | null;
-	productInfoCached: boolean | null;
+	freshness: ProductFreshness;
 };
 
 export const MARKETPLACE_FLAGS: Record<string, string> = {

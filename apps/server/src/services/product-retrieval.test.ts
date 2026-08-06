@@ -8,21 +8,23 @@ describe('Product retrieval', () => {
             { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000002' },
         ];
         let readCount = 0;
-        const getStoredProducts = mock(async () => {
+        const getStoredProducts = mock(() => {
             readCount += 1;
-            return identities.map(identity => ({
-                product: createStoredProduct(identity),
-                queuePending: readCount > 1,
-            }));
+            return Promise.resolve(
+                identities.map(identity => ({
+                    product: createStoredProduct(identity),
+                    queuePending: readCount > 1,
+                }))
+            );
         });
-        const searchCatalogItemsByAsins = mock(async () => []);
-        const enqueueSpApiSyncQueueItems = mock(async () => identities.length);
+        const searchCatalogItemsByAsins = mock(() => Promise.resolve([]));
+        const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(identities.length));
         const deps = {
             getStoredProducts,
-            ensureProductIdentities: mock(async () => 0),
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
             enqueueSpApiSyncQueueItems,
             searchCatalogItemsByAsins,
-            persistProductSyncResults: mock(async () => undefined),
+            persistProductSyncResults: mock(() => Promise.resolve(undefined)),
         } as never;
 
         const result = await getProducts(
@@ -47,18 +49,18 @@ describe('Product retrieval', () => {
     it('does not report pending when background queueing cannot be made durable', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000007' };
         const deps = {
-            getStoredProducts: mock(async () => [
-                {
-                    product: createStoredProduct(identity),
-                    queuePending: false,
-                },
-            ]),
-            ensureProductIdentities: mock(async () => 0),
-            enqueueSpApiSyncQueueItems: mock(async () => {
-                throw new Error('queue offline');
-            }),
-            searchCatalogItemsByAsins: mock(async () => []),
-            persistProductSyncResults: mock(async () => undefined),
+            getStoredProducts: mock(() =>
+                Promise.resolve([
+                    {
+                        product: createStoredProduct(identity),
+                        queuePending: false,
+                    },
+                ])
+            ),
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
+            enqueueSpApiSyncQueueItems: mock(() => Promise.reject(new Error('queue offline'))),
+            searchCatalogItemsByAsins: mock(() => Promise.resolve([])),
+            persistProductSyncResults: mock(() => Promise.resolve(undefined)),
         } as never;
 
         await expect(
@@ -69,9 +71,9 @@ describe('Product retrieval', () => {
     it('blocks regular Product reads through the same service until provider data is resolved', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000003' };
         let readCount = 0;
-        const getStoredProducts = mock(async () => {
+        const getStoredProducts = mock(() => {
             readCount += 1;
-            return [
+            return Promise.resolve([
                 {
                     product:
                         readCount === 1
@@ -85,7 +87,7 @@ describe('Product retrieval', () => {
                               }),
                     queuePending: false,
                 },
-            ];
+            ]);
         });
         const providerProduct = {
             ...identity,
@@ -101,14 +103,14 @@ describe('Product retrieval', () => {
             keepa: null,
             fetchedAt: new Date().toISOString(),
         };
-        const enqueueSpApiSyncQueueItems = mock(async () => 0);
-        const searchCatalogItemsByAsins = mock(async () => [providerProduct]);
+        const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(0));
+        const searchCatalogItemsByAsins = mock(() => Promise.resolve([providerProduct]));
         const deps = {
             getStoredProducts,
-            ensureProductIdentities: mock(async () => 0),
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
             enqueueSpApiSyncQueueItems,
             searchCatalogItemsByAsins,
-            persistProductSyncResults: mock(async () => undefined),
+            persistProductSyncResults: mock(() => Promise.resolve(undefined)),
         } as never;
 
         const result = await getProducts({ products: [identity], fetchPolicy: 'blocking' }, deps);
@@ -129,9 +131,9 @@ describe('Product retrieval', () => {
     it('returns stale Product data immediately while background refresh is queued', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000004' };
         let readCount = 0;
-        const getStoredProducts = mock(async () => {
+        const getStoredProducts = mock(() => {
             readCount += 1;
-            return [
+            return Promise.resolve([
                 {
                     product: createStoredProduct(identity, {
                         spApiFetchedAt: new Date('2026-07-01T12:00:00.000Z'),
@@ -139,16 +141,16 @@ describe('Product retrieval', () => {
                     }),
                     queuePending: readCount > 1,
                 },
-            ];
+            ]);
         });
-        const enqueueSpApiSyncQueueItems = mock(async () => 1);
-        const searchCatalogItemsByAsins = mock(async () => []);
+        const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(1));
+        const searchCatalogItemsByAsins = mock(() => Promise.resolve([]));
         const deps = {
             getStoredProducts,
-            ensureProductIdentities: mock(async () => 0),
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
             enqueueSpApiSyncQueueItems,
             searchCatalogItemsByAsins,
-            persistProductSyncResults: mock(async () => undefined),
+            persistProductSyncResults: mock(() => Promise.resolve(undefined)),
         } as never;
 
         const [result] = await getProducts(
@@ -166,21 +168,23 @@ describe('Product retrieval', () => {
 
     it('does not requeue a completed empty provider response', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000005' };
-        const enqueueSpApiSyncQueueItems = mock(async () => 0);
-        const searchCatalogItemsByAsins = mock(async () => []);
+        const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(0));
+        const searchCatalogItemsByAsins = mock(() => Promise.resolve([]));
         const deps = {
-            getStoredProducts: mock(async () => [
-                {
-                    product: createStoredProduct(identity, {
-                        spApiResolvedAt: new Date('2026-08-03T12:00:00.000Z'),
-                    }),
-                    queuePending: false,
-                },
-            ]),
-            ensureProductIdentities: mock(async () => 0),
+            getStoredProducts: mock(() =>
+                Promise.resolve([
+                    {
+                        product: createStoredProduct(identity, {
+                            spApiResolvedAt: new Date(Date.now() - 60_000),
+                        }),
+                        queuePending: false,
+                    },
+                ])
+            ),
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
             enqueueSpApiSyncQueueItems,
             searchCatalogItemsByAsins,
-            persistProductSyncResults: mock(async () => undefined),
+            persistProductSyncResults: mock(() => Promise.resolve(undefined)),
         } as never;
 
         const [result] = await getProducts(
@@ -198,23 +202,25 @@ describe('Product retrieval', () => {
 
     it('treats a newer empty resolution as unavailable over older listing data', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000006' };
-        const enqueueSpApiSyncQueueItems = mock(async () => 0);
-        const getStoredProducts = mock(async () => [
-            {
-                product: createStoredProduct(identity, {
-                    thumbnailUrl: 'https://example.com/old.jpg',
-                    spApiFetchedAt: new Date('2026-07-01T12:00:00.000Z'),
-                    spApiResolvedAt: new Date('2026-08-03T12:00:00.000Z'),
-                }),
-                queuePending: false,
-            },
-        ]);
+        const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(0));
+        const getStoredProducts = mock(() =>
+            Promise.resolve([
+                {
+                    product: createStoredProduct(identity, {
+                        thumbnailUrl: 'https://example.com/old.jpg',
+                        spApiFetchedAt: new Date('2026-07-01T12:00:00.000Z'),
+                        spApiResolvedAt: new Date(Date.now() - 60_000),
+                    }),
+                    queuePending: false,
+                },
+            ])
+        );
         const deps = {
             getStoredProducts,
-            ensureProductIdentities: mock(async () => 0),
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
             enqueueSpApiSyncQueueItems,
-            searchCatalogItemsByAsins: mock(async () => []),
-            persistProductSyncResults: mock(async () => undefined),
+            searchCatalogItemsByAsins: mock(() => Promise.resolve([])),
+            persistProductSyncResults: mock(() => Promise.resolve(undefined)),
         } as never;
 
         const [result] = await getProducts(

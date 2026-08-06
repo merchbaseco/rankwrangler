@@ -21,6 +21,8 @@ interface ProductReadInput {
     days: number;
     metrics?: ProductHistoryMetric[];
     bucket: 'auto' | 'day' | 'week' | 'month';
+    refresh?: boolean;
+    signal?: AbortSignal;
     ownerMerchbaseUserId: string;
 }
 
@@ -55,6 +57,8 @@ export const getProductReadModel = async (input: ProductReadInput): Promise<Prod
     const summary = await getRequiredProduct({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
+        refresh: input.refresh,
+        signal: input.signal,
     });
 
     try {

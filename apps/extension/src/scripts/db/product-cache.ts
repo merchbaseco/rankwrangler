@@ -1,5 +1,9 @@
 import type { Product, ProductIdentifier } from "../types/product";
 import { db } from "./index";
+import {
+	type CachedProductRecord,
+	normalizeCachedProduct,
+} from "./normalize-product-cache";
 
 const CACHE_DURATION_MS = 1000 * 60 * 60; // 1 hour
 
@@ -24,7 +28,7 @@ const get = async (
 		return undefined;
 	}
 
-	return cached.product as Product;
+	return normalizeCachedProduct(cached.product as CachedProductRecord);
 };
 
 const set = async (product: Product): Promise<void> => {
@@ -51,7 +55,8 @@ export interface CachedProductDebugEntry {
 	expiresAt: string;
 	hasRankData: boolean;
 	metadataSuccess: boolean;
-	metadataCached: boolean;
+	freshnessStale: boolean;
+	freshnessUpdatedAt: string | null;
 	thumbnailStatus: "pending" | "available" | "unavailable" | null;
 }
 
@@ -79,7 +84,8 @@ const getCacheEntries = async (
 				expiresAt: new Date(entry.expiresAt).toISOString(),
 				hasRankData,
 				metadataSuccess: Boolean(product.metadata?.success),
-				metadataCached: Boolean(product.metadata?.cached),
+				freshnessStale: product.freshness?.stale ?? true,
+				freshnessUpdatedAt: product.freshness?.updatedAt ?? null,
 				thumbnailStatus: product.metadata?.thumbnailStatus ?? null,
 			};
 		});

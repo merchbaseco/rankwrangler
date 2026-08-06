@@ -36,11 +36,22 @@ export async function handleFetchProductInfo(
 		const response = await apiClient.product.getSummary.mutate({
 			asin: message.asin,
 			marketplaceId: message.marketplaceId,
+			refresh: message.refresh ?? false,
 		});
 
 		return {
 			success: true,
-			data: response,
+			data: {
+				asin: response.asin ?? message.asin,
+				dateFirstAvailable: response.dateFirstAvailable ?? null,
+				rootCategoryBsr: response.rootCategoryBsr ?? null,
+				rootCategoryDisplayName: response.rootCategoryDisplayName ?? null,
+				thumbnail: response.thumbnail ?? { status: "pending" },
+				freshness: {
+					stale: response.freshness?.stale ?? true,
+					updatedAt: response.freshness?.updatedAt ?? null,
+				},
+			},
 		};
 	} catch (error) {
 		const errorCode = resolveTrpcErrorCode(error);
@@ -60,6 +71,20 @@ export async function handleFetchProductInfo(
 				success: false,
 				error:
 					"Daily RankWrangler usage limit exceeded. Try again after reset.",
+			};
+		}
+
+		if (errorCode === "TIMEOUT") {
+			return {
+				success: false,
+				error: "Product is temporarily unavailable. Retry shortly.",
+			};
+		}
+
+		if (errorCode === "NOT_FOUND") {
+			return {
+				success: false,
+				error: "Product not found.",
 			};
 		}
 

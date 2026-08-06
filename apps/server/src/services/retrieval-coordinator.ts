@@ -41,6 +41,8 @@ export const mapRetrievalError = (error: unknown) => {
 
 const inFlightRetrievals = new Map<string, Promise<unknown>>();
 
+export const isRetrievalInFlight = (key: string) => inFlightRetrievals.has(key);
+
 export const coordinateRetrieval = async <T>({
     key,
     work,

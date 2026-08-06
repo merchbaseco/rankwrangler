@@ -14,10 +14,14 @@ const SEARCH_PRODUCT: Product = {
 	rootCategoryDisplayName: "Kitchen & Dining",
 	metadata: {
 		success: true,
-		cached: true,
 		thumbnailStatus: "available",
-		updatedAt: "2026-02-25T11:23:00.000Z",
 	},
+	freshness: { stale: false, updatedAt: "2026-02-25T11:23:00.000Z" },
+};
+
+const DETAIL_PRODUCT: Product = {
+	...SEARCH_PRODUCT,
+	freshness: { stale: true, updatedAt: "2026-01-25T11:23:00.000Z" },
 };
 
 export const ChromePreview = () => {
@@ -65,7 +69,16 @@ export const ChromePreview = () => {
 					<div className="space-y-3">
 						<h2 className="font-semibold text-lg">Content Surface</h2>
 						<div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+							<h3 className="mb-3 font-semibold text-sm">Amazon result card</h3>
 							<ProductDisplay mode="search" product={SEARCH_PRODUCT} />
+						</div>
+						<div className="rounded-xl border border-border bg-white p-4 shadow-sm">
+							<h3 className="mb-3 font-semibold text-sm">Product detail</h3>
+							<ProductDisplay
+								mode="detail"
+								onRefresh={() => undefined}
+								product={DETAIL_PRODUCT}
+							/>
 						</div>
 					</div>
 				</section>

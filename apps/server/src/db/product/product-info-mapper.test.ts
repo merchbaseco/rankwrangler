@@ -23,7 +23,7 @@ describe('mapStoredProductInfo', () => {
                 keepaFirstTrackedAt: new Date('2020-07-04T05:20:00.000Z'),
                 keepaRootCategoryId: 12_345,
                 keepaCurrentBsr: 54_321,
-                keepaCurrentNewPrice: 1_999,
+                keepaCurrentNewPrice: 1999,
                 keepaMonthlySold: 200,
                 keepaBsrAverage30: 65_000,
                 keepaBsrAverage90: 70_000,
@@ -36,9 +36,9 @@ describe('mapStoredProductInfo', () => {
             { thumbnailPending: false }
         );
 
-        expect(result.metadata).toEqual({
-            cached: true,
-            updatedAt: '2026-07-22T14:00:00.000Z',
+        expect(result.freshness).toEqual({
+            stale: true,
+            updatedAt: '2026-07-22T13:00:00.000Z',
         });
         expect(result.thumbnail).toEqual({
             status: 'available',
@@ -51,7 +51,7 @@ describe('mapStoredProductInfo', () => {
             rootCategoryId: 12_345,
             currentRootCategoryBsr: 54_321,
             currentNewPrice: {
-                amountMinor: 1_999,
+                amountMinor: 1999,
                 currencyCode: 'USD',
             },
             monthlySold: 200,
@@ -100,7 +100,7 @@ describe('mapStoredProductInfo', () => {
             { thumbnailPending: false }
         );
 
-        expect(result.metadata.updatedAt).toBe('2026-07-22T15:00:00.000Z');
+        expect(result.freshness).toEqual({ stale: true, updatedAt: null });
         expect(result.thumbnail).toEqual({ status: 'unavailable' });
         expect(result.keepa).toEqual({
             fetchedAt: '2026-07-22T14:00:00.000Z',

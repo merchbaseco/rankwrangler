@@ -205,7 +205,11 @@ export type ProductThumbnail = {
 } | {
 	status: "unavailable";
 };
-export type ProductInfo = {
+export interface ProductFreshness {
+	stale: boolean;
+	updatedAt: string | null;
+}
+export interface ProductInfo {
 	asin: string;
 	marketplaceId: string;
 	dateFirstAvailable: string | null;
@@ -238,11 +242,8 @@ export type ProductInfo = {
 			days365: number | null;
 		};
 	} | null;
-	metadata: {
-		cached: boolean;
-		updatedAt: string;
-	};
-};
+	freshness: ProductFreshness;
+}
 export type ProductAvailability = "pending" | "available" | "unavailable";
 declare const operationTypes: readonly [
 	"productHistoryRefresh",
@@ -732,6 +733,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
+						refresh?: boolean | undefined;
 						startAt?: unknown;
 						endAt?: unknown;
 						limit?: unknown;
@@ -746,6 +748,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
+						refresh?: boolean | undefined;
 					};
 					output: ProductInfo;
 					meta: object;

@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	KeepaStatusButton,
-	ProductUpdatedBadge,
+	ProductFreshnessButton,
 } from "@/components/dashboard/product-history-panel/product-status-badges";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, formatCalendarDate } from "@/lib/utils";
@@ -29,6 +29,9 @@ export const PanelHeader = ({
 	canFetchFacets,
 	keepaLastSyncAt,
 	isKeepaSyncStale,
+	isProductRefreshing,
+	productRefreshError,
+	onProductRefresh,
 }: {
 	product: ProductHistoryPanelProduct;
 	onSync: () => void;
@@ -38,6 +41,9 @@ export const PanelHeader = ({
 	canFetchFacets: boolean;
 	keepaLastSyncAt: string | null;
 	isKeepaSyncStale: boolean;
+	isProductRefreshing: boolean;
+	productRefreshError: string | null;
+	onProductRefresh: () => void;
 }) => {
 	const [copied, setCopied] = useState(false);
 	const amazonUrl = `https://www.amazon.com/dp/${product.asin}`;
@@ -170,9 +176,11 @@ export const PanelHeader = ({
 
 			{/* Keepa + actions strip */}
 			<div className="flex items-center gap-1.5 border-t border-border/60 px-3 py-1.5">
-				<ProductUpdatedBadge
-					productUpdatedAt={product.productUpdatedAt}
-					rootCategoryBsr={product.rootCategoryBsr}
+				<ProductFreshnessButton
+					freshness={product.freshness}
+					isRefreshing={isProductRefreshing}
+					refreshError={productRefreshError}
+					onRefresh={onProductRefresh}
 				/>
 				<KeepaStatusButton
 					isSyncing={isSyncing}

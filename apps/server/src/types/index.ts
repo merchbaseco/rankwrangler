@@ -3,7 +3,12 @@ export type ProductThumbnail =
     | { status: 'available'; url: string }
     | { status: 'unavailable' };
 
-export type ProductInfo = {
+export interface ProductFreshness {
+    stale: boolean;
+    updatedAt: string | null;
+}
+
+export interface ProductInfo {
     asin: string;
     marketplaceId: string;
     dateFirstAvailable: string | null;
@@ -43,13 +48,13 @@ export type ProductInfo = {
         };
     } | null;
 
-    metadata: {
-        cached: boolean;
-        updatedAt: string;
-    };
-};
+    freshness: ProductFreshness;
+}
 
-export type SpApiProduct = Omit<ProductInfo, 'rootCategoryDisplayName' | 'thumbnail' | 'metadata'> & {
+export type SpApiProduct = Omit<
+    ProductInfo,
+    'rootCategoryDisplayName' | 'thumbnail' | 'freshness'
+> & {
     fetchedAt: string;
     thumbnailUrl: string | null;
 };

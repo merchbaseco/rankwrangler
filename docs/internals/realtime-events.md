@@ -42,6 +42,10 @@ subscriptions.
 The Product-history panel subscribes by marketplace/ASIN. Its feature hook rejects completion from
 an older Operation exposed through the app boundary and invalidates the panel's exact active
 history reads. Public Product-history responses do not expose that Operation.
+Product detail hooks use the same Product-sync completion stream but accept only their selected
+marketplace/ASIN, then refetch that exact Product cache. Dashboard detail Refresh and extension
+detail reads therefore update the visible Product without invalidating a list or showing a
+provider-specific status.
 The Keyword-research page subscribes by Catalog query and rejects events from another query or
 Operation. It invalidates the affected Operation, query, and run list; the completed Operation then
 identifies the exact run read to invalidate.

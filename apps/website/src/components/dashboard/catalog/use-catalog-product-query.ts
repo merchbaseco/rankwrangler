@@ -14,6 +14,7 @@ export const useCatalogProductQuery = ({
 		{
 			marketplaceId: initialProduct.marketplaceId,
 			asin: initialProduct.asin,
+			refresh: false,
 		},
 		{
 			initialData: {

@@ -21,7 +21,7 @@ const RowBsrButton = ({
 	rootCategoryBsr,
 	rootCategoryDisplayName,
 	isMerchListing,
-	productUpdatedAt,
+	freshness,
 	isActive,
 	onSelect,
 }: {
@@ -36,7 +36,7 @@ const RowBsrButton = ({
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean;
-	productUpdatedAt: string | null;
+	freshness: SelectedHistoryProduct["freshness"];
 	isActive: boolean;
 	onSelect: (product: SelectedHistoryProduct) => void;
 }) => (
@@ -55,8 +55,7 @@ const RowBsrButton = ({
 				rootCategoryBsr,
 				rootCategoryDisplayName,
 				isMerchListing,
-				productInfoCached: null,
-				productUpdatedAt,
+				freshness,
 			});
 		}}
 		size="sm"
@@ -176,7 +175,7 @@ export const createColumns = ({
 						rootCategoryBsr={row.original.rootCategoryBsr}
 						rootCategoryDisplayName={null}
 						isMerchListing={row.original.isMerchListing}
-						productUpdatedAt={row.original.updatedAt}
+						freshness={{ stale: false, updatedAt: row.original.updatedAt }}
 						isActive={selectedHistoryKey === rowKey}
 						onSelect={onSelectHistory}
 					/>

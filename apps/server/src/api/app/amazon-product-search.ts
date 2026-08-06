@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import { getRequiredProduct } from '@/services/product-retrieval';
+import { mapRetrievalError } from '@/services/retrieval-coordinator';
 
 const amazonProductSearchInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),
@@ -9,13 +10,15 @@ const amazonProductSearchInput = z.object({
         .min(1, 'ASIN is required')
         .regex(/^[A-Z0-9]{10}$/i, 'ASIN must be 10 alphanumeric characters')
         .transform(value => value.toUpperCase()),
+    refresh: z.boolean().default(false),
 });
 
 export const amazonProductSearch = appProcedure
     .input(amazonProductSearchInput)
-    .mutation(async ({ input }) => {
-        return getRequiredProduct({
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-        });
+    .mutation(async ({ input, signal }) => {
+        try {
+            return await getRequiredProduct({ ...input, signal });
+        } catch (error) {
+            throw mapRetrievalError(error);
+        }
     });

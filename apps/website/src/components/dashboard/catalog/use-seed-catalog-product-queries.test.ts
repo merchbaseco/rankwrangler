@@ -69,8 +69,8 @@ const createProductRead = ({
 	availability: "pending" | "available" | "unavailable";
 }) =>
 	({
-		product: {
-			metadata: { cached: true, updatedAt: updatedAt ?? "" },
+	product: {
+			freshness: { stale: false, updatedAt },
 			keepa: keepaFetchedAt ? { fetchedAt: keepaFetchedAt } : null,
 		},
 		availability,

@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
-import { getRequiredProduct } from '@/services/product-retrieval';
 import { requestProductHistoryRefresh } from '@/services/product-history-operations.js';
+import { getRequiredProduct } from '@/services/product-retrieval';
+import { mapRetrievalError } from '@/services/retrieval-coordinator';
 
 const loadProductHistoryInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),
@@ -28,15 +29,18 @@ const loadProductHistoryDeps: LoadProductHistoryDeps = {
 export const requestManualProductHistorySync = async ({
     input,
     ownerMerchbaseUserId,
+    signal,
     deps = loadProductHistoryDeps,
 }: {
     input: LoadProductHistoryInput;
     ownerMerchbaseUserId: string;
+    signal?: AbortSignal;
     deps?: LoadProductHistoryDeps;
 }) => {
     await deps.getRequiredProduct({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
+        signal,
     });
 
     return await deps.requestProductHistoryRefresh({
@@ -48,9 +52,14 @@ export const requestManualProductHistorySync = async ({
 
 export const loadProductHistory = appProcedure
     .input(loadProductHistoryInput)
-    .mutation(async ({ input, ctx }) => {
-        return await requestManualProductHistorySync({
-            input,
-            ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
-        });
+    .mutation(async ({ input, ctx, signal }) => {
+        try {
+            return await requestManualProductHistorySync({
+                input,
+                ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
+                signal,
+            });
+        } catch (error) {
+            throw mapRetrievalError(error);
+        }
     });

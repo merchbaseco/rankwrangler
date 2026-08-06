@@ -25,8 +25,9 @@ converge on the same record.
 - Links to historical observations; history is not embedded into the current Product record.
 
 Provider timestamps stay distinct internally. Product responses expose category-level availability
-through the `thumbnail` union (`pending`, `available` with a URL, or `unavailable`) and generic
-`metadata.updatedAt`; they do not expose provider status fields.
+through the `thumbnail` union (`pending`, `available` with a URL, or `unavailable`) and one
+`freshness: { stale, updatedAt }` envelope. They do not expose provider status fields or a
+provider-named freshness label.
 
 ## Using the catalog
 
@@ -35,8 +36,9 @@ can narrow the visible set by marketplace, BSR, freshness, and assigned facets, 
 to inspect details and history.
 
 Agents use the public API, typed client, or CLI to read a Product by marketplace and ASIN. Blocking
-reads use the shared Product retrieval service, which adds a missing identity or refreshes stale
-listing data before returning it. Bulk and Catalog reads return stored state immediately while
+reads use the shared Product retrieval service. An available stale detail returns immediately while
+the default policy may queue revalidation; `refresh: true` and missing detail data wait for the
+coalesced server-owned fetch. Bulk and Catalog reads return stored state immediately while
 queueing unresolved or stale identities in the background.
 
 **Brief user story:** An agent resolves an ASIN once, then reads the same canonical Product when it

@@ -9,6 +9,7 @@ import {
     persistProductSyncResults,
     type PersistProductSyncResultsInput,
 } from '@/services/product-retrieval';
+import { resolveProductDetails } from '@/services/product-retrieval-work';
 import { notifyProductSyncCompleted } from '@/services/product-sync-events';
 import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
@@ -64,16 +65,19 @@ export const processSpApiSyncQueue = async (
     let failureStage: ProcessSpApiSyncQueueFailureStage = 'fetch';
 
     try {
-        fetchedProducts = await deps.searchCatalogItemsByAsins(
-            marketplaceId,
-            identities.map(item => item.asin)
-        );
-        failureStage = 'persist';
-        await deps.persistProductSyncResults({
+        const result = await resolveProductDetails(
             identities,
-            products: fetchedProducts,
-            resolvedAt: new Date(),
-        } satisfies PersistProductSyncResultsInput);
+            {
+                searchCatalogItemsByAsins: deps.searchCatalogItemsByAsins,
+                persistProductSyncResults: async input => {
+                    failureStage = 'persist';
+                    await deps.persistProductSyncResults(input satisfies PersistProductSyncResultsInput);
+                },
+            },
+            undefined,
+            Number.POSITIVE_INFINITY
+        );
+        fetchedProducts = result.products;
 
         failureStage = 'delete_queue';
         await deps.deleteSpApiSyncQueueItems(itemIds);

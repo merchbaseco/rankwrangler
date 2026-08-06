@@ -97,7 +97,8 @@ The target public Product summary exposes:
 - current root-category id, name, and BSR;
 - optional Keepa observations and their timestamps;
 - `thumbnail: { status: "pending" } | { status: "available", url } | { status: "unavailable" }`;
-- generic cached metadata with `updatedAt`. Provider status is not part of the frontend/API DTO.
+- one Product-details freshness envelope, `freshness: { stale, updatedAt }`. Provider status is
+  not part of the frontend/API DTO.
 
 `keepa` is `null` until Keepa-backed current observations exist. Price uses integer minor units:
 `amountMinor: 1999` with `currencyCode: "USD"` means USD 19.99.

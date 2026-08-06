@@ -19,13 +19,14 @@ describe('processSpApiSyncQueue', () => {
             createQueueItem({ id: 'q2', asin: 'B000000002' }),
         ];
         const fetchedProducts = [createFetchedProduct({ asin: 'B000000001' })];
+        const searchCatalogItemsByAsins = mock(async () => fetchedProducts);
         let queueReadCount = 0;
         const { deps, calls } = createDeps({
             getSpApiSyncQueueItems: async () => {
                 queueReadCount += 1;
                 return queueReadCount === 1 ? queueItems : [];
             },
-            searchCatalogItemsByAsins: async () => fetchedProducts,
+            searchCatalogItemsByAsins,
         });
 
         const result = await processSpApiSyncQueue(deps);
@@ -37,6 +38,9 @@ describe('processSpApiSyncQueue', () => {
             unavailableCount: 1,
             hasMore: false,
         });
+        expect(searchCatalogItemsByAsins.mock.calls).toEqual([
+            ['ATVPDKIKX0DER', ['B000000001', 'B000000002']],
+        ]);
         expect(calls.persistProductSyncResults.mock.calls).toHaveLength(1);
         expect(calls.persistProductSyncResults.mock.calls[0]?.[0]).toMatchObject({
             identities: [
@@ -62,6 +66,79 @@ describe('processSpApiSyncQueue', () => {
             action: 'product.sync',
             status: 'success',
             detailsJson: { reason: 'empty_provider_response' },
+        });
+    });
+
+    it('coalesces queue execution with an explicit Product refresh', async () => {
+        const { processSpApiSyncQueue } = await loadSubject();
+        const { getProductDetails } = await import('@/services/product-retrieval');
+        const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000005' };
+        const queueItem = createQueueItem({ id: 'q5', asin: identity.asin });
+        const fetchedProduct = createFetchedProduct({ asin: identity.asin });
+        let releaseProvider: (() => void) | undefined;
+        let signalProviderStarted: (() => void) | undefined;
+        const providerStarted = new Promise<void>(resolve => {
+            signalProviderStarted = resolve;
+        });
+        const providerReleased = new Promise<void>(resolve => {
+            releaseProvider = resolve;
+        });
+        const searchCatalogItemsByAsins = mock(async () => {
+            signalProviderStarted?.();
+            await providerReleased;
+            return [fetchedProduct];
+        });
+        const queuePersist = mock(async () => {});
+        const explicitPersist = mock(async () => {});
+        const explicitDelete = mock(async () => {});
+        let queueReadCount = 0;
+        const { deps: queueDeps, calls } = createDeps({
+            getSpApiSyncQueueItems: async () => {
+                queueReadCount += 1;
+                return queueReadCount === 1 ? [queueItem] : [];
+            },
+            searchCatalogItemsByAsins,
+            persistProductSyncResults: queuePersist,
+        });
+        let productReadCount = 0;
+        const detailDeps = {
+            getStoredProducts: mock(() => {
+                productReadCount += 1;
+                return Promise.resolve([
+                    {
+                        product: createStoredProduct(identity, {
+                            title: productReadCount > 1 ? 'Fetched title' : 'Stale title',
+                            spApiFetchedAt:
+                                productReadCount > 1
+                                    ? new Date()
+                                    : new Date('2026-07-01T12:00:00.000Z'),
+                        }),
+                        queuePending: productReadCount === 1,
+                    },
+                ]);
+            }),
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
+            enqueueSpApiSyncQueueItems: mock(() => Promise.resolve(0)),
+            searchCatalogItemsByAsins,
+            persistProductSyncResults: explicitPersist,
+            deleteSpApiSyncQueueItemsForIdentities: explicitDelete,
+        } as never;
+
+        const queueRun = processSpApiSyncQueue(queueDeps);
+        await providerStarted;
+        const refreshRun = getProductDetails({ ...identity, refresh: true }, detailDeps);
+        releaseProvider?.();
+
+        const [, refreshed] = await Promise.all([queueRun, refreshRun]);
+
+        expect(searchCatalogItemsByAsins).toHaveBeenCalledTimes(1);
+        expect(queuePersist).toHaveBeenCalledTimes(1);
+        expect(explicitPersist).not.toHaveBeenCalled();
+        expect(explicitDelete).toHaveBeenCalledWith([identity]);
+        expect(calls.deleteSpApiSyncQueueItems).toHaveBeenCalledWith(['q5']);
+        expect(refreshed).toMatchObject({
+            availability: 'available',
+            product: { title: 'Fetched title' },
         });
     });
 
@@ -144,6 +221,41 @@ const createFetchedProduct = ({ asin }: { asin: string }) =>
     ({ asin, marketplaceId: 'ATVPDKIKX0DER' }) as Awaited<
         ReturnType<ProcessSpApiSyncQueueDeps['searchCatalogItemsByAsins']>
     >[number];
+
+const createStoredProduct = (
+    { marketplaceId, asin }: { marketplaceId: string; asin: string },
+    overrides: Record<string, unknown> = {}
+) =>
+    ({
+        marketplaceId,
+        asin,
+        dateFirstAvailable: null,
+        thumbnailUrl: null,
+        title: 'Stored title',
+        brand: null,
+        isMerchListing: false,
+        bullet1: null,
+        bullet2: null,
+        rootCategoryId: null,
+        rootCategoryBsr: null,
+        spApiFetchedAt: null,
+        spApiResolvedAt: null,
+        keepaFetchedAt: null,
+        keepaSourceUpdatedAt: null,
+        keepaFirstTrackedAt: null,
+        keepaRootCategoryId: null,
+        keepaCurrentBsr: null,
+        keepaCurrentNewPrice: null,
+        keepaMonthlySold: null,
+        keepaBsrAverage30: null,
+        keepaBsrAverage90: null,
+        keepaSalesRankDrops30: null,
+        keepaSalesRankDrops90: null,
+        keepaSalesRankDrops180: null,
+        keepaSalesRankDrops365: null,
+        createdAt: new Date('2026-08-03T12:00:00.000Z'),
+        ...overrides,
+    }) as never;
 
 const loadSubject = async () => {
     seedRequiredEnvForTests();
