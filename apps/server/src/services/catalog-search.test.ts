@@ -122,7 +122,7 @@ const createDeps = (overrides: Partial<CatalogSearchDeps> = {}): CatalogSearchDe
     dispatchOperation: mock(overrides.dispatchOperation ?? (async () => true)),
 });
 
-const createPendingOperation = (): OperationRecord => ({
+const createPendingOperation = (): Extract<OperationRecord, { type: 'catalogSearch' }> => ({
     id: '11111111-1111-4111-8111-111111111111',
     type: 'catalogSearch',
     status: 'pending',

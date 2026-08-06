@@ -121,18 +121,18 @@ successful empty result.
 
 ## Catalog search
 
-`api.public.catalog.search` is a mutation with `term` and optional `maxAgeSeconds` (default
-`86400`, maximum `604800`). It returns either:
+`api.public.catalog.search` is a mutation with `term` and optional `refresh` (default `false`). It
+returns `{ status: "ready", run, freshness }`, where `freshness` is the single Search-run envelope
+`{ stale, updatedAt }`. A default request returns stale Available evidence immediately while any
+server-owned revalidation continues internally. `refresh: true` waits for a successful run within
+the server-owned 24-hour interactive reuse window; it does not force a provider request.
 
-- `{ status: "ready", run }` when a successful Search run satisfies the maximum age; or
-- `{ status: "pending", queryId, operation }` when durable provider work is pending. `queryId`
-  identifies the durable query read that the Operation will invalidate.
-
-Set `maxAgeSeconds: 0` for fresh evidence; an identical pending query still joins one Operation.
-The only V1 identity is Keepa, US marketplace, and zero-based page `0`. A successful run contains
-up to 20 source-ordered results. Each result separates immutable observed metrics from the
-nullable canonical current Product. Poll `api.public.operation.get`, then read
-`api.public.catalog.run.get` with the returned `catalogSearchRun.runId`.
+When no usable Search run exists, the request waits for coalesced durable work within a bounded
+deadline. Temporary capacity or deadline failures use tRPC `TIMEOUT` with a provider-neutral message
+containing `Retry after N seconds`; callers may retry without creating duplicate provider work. The
+response never exposes an Operation identifier or requires polling. The only V1 identity is Keepa,
+US marketplace, and zero-based page `0`. A successful run contains up to 20 source-ordered results.
+Each result separates immutable observed metrics from the nullable canonical current Product.
 
 Catalog search consumes one mapped Service Account usage unit only when it creates external work. Reused runs,
 joined pending work, Operation polls, and run reads do not consume another unit. Provider token

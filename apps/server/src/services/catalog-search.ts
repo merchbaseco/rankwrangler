@@ -4,6 +4,7 @@ import { getCatalogSearchRun } from '@/db/catalog-search-history';
 import { listStalePendingCatalogSearchOperations } from '@/db/catalog-search-operations';
 import { claimOperationDispatch, releaseOperationDispatch } from '@/db/operations';
 import { buildPublicOperation, type OperationRecord } from './operations';
+import { RetrievalRetryableError } from './retrieval-coordinator';
 
 export const CATALOG_SEARCH_JOB_NAME = 'catalog-search';
 export const CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60;
@@ -98,6 +99,15 @@ export const requestCatalogSearch = async (
 
     if (resolution.kind === 'billingRejected') {
         throw new CatalogSearchBillingError(resolution.reason, resolution.usageLimit);
+    }
+    if (resolution.kind === 'cooldown') {
+        throw new RetrievalRetryableError(
+            'Catalog search is temporarily unavailable. Retry shortly.',
+            {
+                retryAfterSeconds: resolution.retryAfterSeconds,
+                reason: 'capacity',
+            }
+        );
     }
     if (resolution.kind !== 'pending' || !resolution.operation) {
         throw new Error('Catalog search resolution did not produce pending work.');

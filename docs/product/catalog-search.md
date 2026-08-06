@@ -27,8 +27,10 @@ in time. It complements catalog lookup:
   Amazon's bought-in-the-past-month value surfaced through Keepa.
 - Current views combine run membership and position with canonical Product state. Historical views
   retain the immutable values observed in each run.
-- A successful run can be reused for 24 hours by default. A caller can request fresh data, while an
-  identical in-flight request still deduplicates.
+- A successful run can be reused for 24 hours by default. Default callers receive older Available
+  evidence immediately while RankWrangler revalidates it in the background. `refresh: true` waits
+  for a run satisfying the same server-owned 24-hour policy and never forces a provider request.
+  Equivalent in-flight requests still deduplicate.
 - A product search request renews keyword interest for 30 days, even when it reuses the 24-hour
   cache. This is the only activation event; there is no permanent subscription or manual toggle.
 - Active keywords are due for automatic refresh when their latest successful run is at least seven
@@ -37,10 +39,11 @@ in time. It complements catalog lookup:
 - Each Search run records `trigger: requested | automatic`. History labels these as Requested
   search or Automatic refresh; Product and `currentProduct` shapes do not carry that field.
 
-Search work is asynchronous. A request returns either a reusable Search run or a pending Operation
-with a retry hint. Agents wait, poll the Operation, then read its referenced run. The dashboard owns
-polling and may also invalidate reads after a domain-specific completion event; it shows a loading
-state, not an internal `queued` state.
+Durable Search work remains asynchronous internally, but the public Product-search request is
+caller-transparent. `api.public.catalog.search` returns `{ status: "ready", run, freshness }` with
+one Search-run freshness envelope, or a provider-neutral retryable error after a bounded wait. It
+never returns an Operation identifier or asks a caller to poll. The existing dashboard request route
+continues to own its internal Operation-driven loading flow until the cross-surface consolidation.
 
 The dashboard Keyword-research page keeps the active term plus pending Operation and query identities
 in the URL, so a reload resumes polling without pairing work with another query. It presents Keepa

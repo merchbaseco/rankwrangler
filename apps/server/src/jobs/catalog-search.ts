@@ -1,9 +1,6 @@
 import { z } from 'zod';
-import {
-    claimOperationWork,
-    completeOperationWithError,
-    releaseOperationWork,
-} from '@/db/operations';
+import { completeCatalogSearchOperationWithError } from '@/db/catalog-search-operations';
+import { claimOperationWork, releaseOperationWork } from '@/db/operations';
 import {
     type CatalogSearchPersistenceResult,
     persistCatalogSearchSuccess,
@@ -25,7 +22,7 @@ export interface CatalogSearchWorkerDeps {
     claimOperationWork: typeof claimOperationWork;
     searchProvider: typeof searchKeepaCatalog;
     persistSuccess: typeof persistCatalogSearchSuccess;
-    completeWithError: typeof completeOperationWithError;
+    completeWithError: typeof completeCatalogSearchOperationWithError;
     releaseOperationWork?: typeof releaseOperationWork;
     evaluateAccess?: typeof evaluateUserOwnedJobAccess;
     notifyCompleted: typeof notifyCatalogSearchCompleted;
@@ -35,10 +32,10 @@ const defaultDeps: CatalogSearchWorkerDeps = {
     claimOperationWork,
     searchProvider: searchKeepaCatalog,
     persistSuccess: persistCatalogSearchSuccess,
-    completeWithError: completeOperationWithError,
     releaseOperationWork,
     evaluateAccess: evaluateUserOwnedJobAccess,
     notifyCompleted: notifyCatalogSearchCompleted,
+    completeWithError: completeCatalogSearchOperationWithError,
 };
 
 export const runCatalogSearchOperation = async (
@@ -114,9 +111,10 @@ export const runCatalogSearchOperation = async (
             resultCount: results.length,
         } as const;
     } catch (error) {
+        const operationError = sanitizeOperationError(error, 'catalogSearch');
         await deps.completeWithError({
             operationId,
-            error: sanitizeOperationError(error, 'catalogSearch'),
+            error: operationError,
         });
         deps.notifyCompleted({
             operationId,

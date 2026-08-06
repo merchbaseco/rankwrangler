@@ -49,8 +49,11 @@ visible to callers or recovery and a concurrently completed reusable run does no
 
 ## Reuse And Keyword Refresh
 
-- By default, a successful run no older than 24 hours is returned again.
-- A force-fresh request still joins identical in-flight work.
+- By default, a successful run no older than 24 hours is returned again. An older successful run is
+  still Available evidence: the public Product-search caller receives it immediately while a
+  revalidation Operation runs internally.
+- `refresh: true` waits for a successful run no older than 24 hours and never bypasses that
+  server-owned reuse window. Equivalent requests share the same canonical Search-run work.
 - Every product search request renews `lastRequestedAt` and `activeUntil` for 30 days, including
   cached reuse. The request is recorded as a `requested` Search-run trigger when it produces a run.
 - Active queries collect weekly. A query is due when it has never completed or its latest successful
@@ -62,8 +65,9 @@ visible to callers or recovery and a concurrently completed reusable run does no
 - Automatic runs carry `trigger: automatic`; requested runs carry `trigger: requested`. Trigger is
   run-history provenance only and is absent from canonical Product/result shapes.
 
-Provider tokens remain internal. Agents receive durable IDs and retry guidance, while the dashboard
-shows a loading state and invalidates durable reads on completion.
+Provider tokens and durable Operation identifiers remain internal. Public Product-search callers
+receive Search-run data or a provider-neutral retryable error; the dashboard's existing request route
+may still show a loading state and invalidate durable reads on completion.
 
 Keepa capacity prioritizes interactive Catalog search, then scheduled Catalog search, then Product
 refresh work.

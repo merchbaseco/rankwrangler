@@ -1,6 +1,7 @@
 export const CATALOG_QUERY_ACTIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 export const CATALOG_QUERY_REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 export const CATALOG_QUERY_REFRESH_RETRY_INTERVAL_MS = 60 * 60 * 1000;
+export const CATALOG_SEARCH_INTERACTIVE_RETRY_INTERVAL_MS = 5 * 60 * 1000;
 export const CATALOG_QUERY_EXPIRING_SOON_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const catalogQueryStatuses = [

@@ -1,5 +1,5 @@
 ---
-summary: Records why Catalog search persists observations and uses durable asynchronous Operations.
+summary: Records why Catalog search persists observations and keeps durable Operations internal.
 read_when:
   - changing Catalog query identity, Search run retention, reuse, or keyword refresh cadence
   - proposing synchronous provider waits, per-ASIN follow-up calls, or generic realtime events
@@ -26,12 +26,16 @@ Canonical Products own current listing state. Immutable Search results own what 
 at that time. This split avoids duplicating full Product snapshots while preserving query history
 that current Products cannot reconstruct.
 
-Provider work is asynchronous. Public Operations expose only `pending` or `completed`; completion
-contains either a resource reference or a sanitized error. Clients use the retry hint and durable
-read to recover after timeouts or disconnects. Product-specific realtime completion events may
-invalidate dashboard reads, but they do not carry result data or replace polling.
+Provider work is asynchronous internally. Durable Operations contain either a resource reference or
+a sanitized error, but Product-search callers receive a reusable Search run or wait for the
+completed run. Public Product search exposes one `{ stale, updatedAt }` freshness envelope and a
+provider-neutral retryable error; it does not expose Operation identifiers or require polling.
+Product-specific realtime completion events may still invalidate dashboard reads, but they do not
+carry result data or define the public Product-search contract.
 
-Recent successful runs are reusable by default. Identical in-flight searches join one Operation.
+Recent successful runs are reusable by default. Older successful runs remain Available evidence for
+default callers while internal revalidation proceeds. `refresh: true` waits for a run inside the
+server-owned 24-hour interactive reuse window, and identical in-flight searches join one Operation.
 Every product search request renews keyword interest for 30 days, including a request served from
 the 24-hour cache. Active keywords are eligible for one automatic refresh each week; expired
 keywords become inactive without backfill or a permanent subscription. One Keepa Product Search

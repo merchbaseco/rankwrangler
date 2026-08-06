@@ -10,6 +10,11 @@ export const catalogSearchInput = z.object({
         .default(24 * 60 * 60),
 });
 
+export const publicCatalogSearchInput = z.object({
+    term: z.string().trim().min(1).max(200),
+    refresh: z.boolean().default(false),
+});
+
 export const catalogRunGetInput = z.object({
     id: z.string().uuid(),
 });

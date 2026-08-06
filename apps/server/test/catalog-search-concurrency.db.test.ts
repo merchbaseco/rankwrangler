@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
 import { lockCatalogQueryForReconciliation } from '@/db/catalog-query-resolution';
 import { resolveCatalogSearchRequest } from '@/db/catalog-search';
-import { listStalePendingCatalogSearchOperations } from '@/db/catalog-search-operations';
+import {
+    completeCatalogSearchOperationWithError,
+    listStalePendingCatalogSearchOperations,
+} from '@/db/catalog-search-operations';
 import { db } from '@/db/index';
 import {
     catalogQueries,
@@ -48,7 +51,7 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
         const joiningRequest = resolveCatalogSearchRequest(createRequest()).finally(() => {
             joinSettled = true;
         });
-        await Bun.sleep(50);
+        await new Promise(resolve => setTimeout(resolve, 50));
         expect(joinSettled).toBe(false);
 
         continueBilling.resolve();
@@ -152,7 +155,7 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
         const request = resolveCatalogSearchRequest(createRequest()).finally(() => {
             requestSettled = true;
         });
-        await Bun.sleep(50);
+        await new Promise(resolve => setTimeout(resolve, 50));
         expect(requestSettled).toBe(false);
         expect(await readUsageToday()).toBe(0);
 
@@ -161,6 +164,31 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
         expect(await request).toEqual({ kind: 'ready', runId });
         expect(await listCatalogOperations()).toHaveLength(1);
         expect(await readUsageToday()).toBe(0);
+    });
+
+    it('cools down interactive retries after a provider failure without creating duplicate work', async () => {
+        await insertServiceAccount(5);
+        const first = await resolveCatalogSearchRequest(createRequest());
+        if (first.kind !== 'pending') {
+            throw new Error('Expected the first Catalog search to create pending work.');
+        }
+
+        await completeCatalogSearchOperationWithError({
+            operationId: first.operation.id,
+            error: {
+                code: 'PROVIDER_UNAVAILABLE',
+                message: 'Catalog search failed. Retry shortly.',
+            },
+            completedAt: NOW,
+        });
+
+        expect(await resolveCatalogSearchRequest(createRequest())).toEqual({
+            kind: 'cooldown',
+            retryAfterSeconds: 240,
+            staleRunId: null,
+        });
+        expect(await listCatalogOperations()).toHaveLength(1);
+        expect(await readUsageToday()).toBe(1);
     });
 });
 
