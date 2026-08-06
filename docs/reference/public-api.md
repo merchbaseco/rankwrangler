@@ -161,6 +161,19 @@ for 30 days, including cached reuse; active keywords are eligible for weekly aut
 expired keywords are inactive without backfill. Brand Analytics Top Search Terms remains a
 separate automatic ingestion workflow.
 
+## Keyword intelligence
+
+The public keyword family is read-only: `api.public.keyword.get`, `api.public.keyword.search`, and
+`api.public.keyword.history`. Their inputs accept `refresh: true` plus the requested keyword,
+report period, and optional date/range filters. Responses expose available keyword evidence or
+history points and one top-level `freshness: { stale, updatedAt }` envelope.
+
+Reads return available data immediately. Stale data may be returned while the server revalidates in
+the background; missing data and explicit refreshes wait for policy-satisfying data. Equivalent
+work joins by canonical keyword and data category. The public family exposes no Operation,
+provider-job identifier, polling endpoint, or track/untrack procedure. History points identify
+whether their snapshot came from a `requested` or `automatic` refresh.
+
 ## Contract source
 
 Use these sources when exact generated types or implementation behavior matter:

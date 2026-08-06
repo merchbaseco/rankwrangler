@@ -6,8 +6,8 @@ import {
 	type KeywordAutomationItem,
 } from "./keyword-automation-panel";
 
-describe("Keyword automation visibility", () => {
-	it("renders explicit summary labels and derived status text", () => {
+describe("Keyword settings visibility", () => {
+	it("renders refresh policy, volume, and queue state", () => {
 		const markup = renderToStaticMarkup(
 			<KeywordAutomationSummary
 				summary={{
@@ -21,8 +21,9 @@ describe("Keyword automation visibility", () => {
 			/>,
 		);
 
-		expect(markup).toContain("Refreshed recently");
-		expect(markup).toContain("Waiting / deferred");
+		expect(markup).toContain("Useful refreshes");
+		expect(markup).toContain("Queue / capacity");
+		expect(markup).toContain("4 queued");
 		expect(markup).toContain("Expiring soon");
 	});
 

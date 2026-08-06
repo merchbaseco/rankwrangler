@@ -10,6 +10,7 @@ describe('mapTopSearchTermTrendRows', () => {
                 searchFrequencyRank: 42,
                 clickShareTop3SumBasisPoints: 2418,
                 conversionShareTop3SumBasisPoints: 212,
+                trigger: 'requested',
             },
             {
                 latestObservedDate: '2026-04-01',
@@ -17,6 +18,7 @@ describe('mapTopSearchTermTrendRows', () => {
                 searchFrequencyRank: 39,
                 clickShareTop3SumBasisPoints: 2500,
                 conversionShareTop3SumBasisPoints: 240,
+                trigger: 'automatic',
             },
         ]);
 
@@ -28,12 +30,14 @@ describe('mapTopSearchTermTrendRows', () => {
                     searchFrequencyRank: 42,
                     clickShareTop3Sum: 0.2418,
                     conversionShareTop3Sum: 0.0212,
+                    trigger: 'requested',
                 },
                 {
                     observedDate: '2026-04-01',
                     searchFrequencyRank: 39,
                     clickShareTop3Sum: 0.25,
                     conversionShareTop3Sum: 0.024,
+                    trigger: 'automatic',
                 },
             ],
         });

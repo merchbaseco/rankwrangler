@@ -1,10 +1,11 @@
 import type {
     TopSearchTermsDatasetStatus,
+    TopSearchTermsRefreshTrigger,
     TopSearchTermsReportPeriod,
 } from '@/db/top-search-terms/types.js';
-import { topSearchTermsDatasets } from '@/db/top-search-terms-schema.js';
+import type { topSearchTermsDatasets } from '@/db/top-search-terms-schema.js';
 
-export type TopSearchTermsDatasetRecord = {
+export interface TopSearchTermsDatasetRecord {
     id: string;
     marketplaceId: string;
     reportPeriod: TopSearchTermsReportPeriod;
@@ -19,10 +20,11 @@ export type TopSearchTermsDatasetRecord = {
     lastFailedAt: string | null;
     lastError: string | null;
     reportId: string | null;
+    refreshTrigger: TopSearchTermsRefreshTrigger;
     nextRefreshAt: string | null;
     createdAt: string;
     updatedAt: string;
-};
+}
 
 export const mapDatasetRecord = (
     row: typeof topSearchTermsDatasets.$inferSelect
@@ -41,18 +43,27 @@ export const mapDatasetRecord = (
     lastFailedAt: row.lastFailedAt?.toISOString() ?? null,
     lastError: row.lastError,
     reportId: row.reportId,
+    refreshTrigger: normalizeRefreshTrigger(row.refreshTrigger),
     nextRefreshAt: row.nextRefreshAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
 });
 
 const normalizeDatasetStatus = (value: string): TopSearchTermsDatasetStatus => {
-    if (value === 'queued' || value === 'in_progress' || value === 'completed' || value === 'failed') {
+    if (
+        value === 'queued' ||
+        value === 'in_progress' ||
+        value === 'completed' ||
+        value === 'failed'
+    ) {
         return value;
     }
 
     return 'idle';
 };
+
+const normalizeRefreshTrigger = (value: string): TopSearchTermsRefreshTrigger =>
+    value === 'requested' ? 'requested' : 'automatic';
 
 const normalizeReportPeriod = (value: string): TopSearchTermsReportPeriod => {
     if (value === 'DAY' || value === 'WEEK') {

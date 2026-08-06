@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { getTopSearchTermsDatasetById } from '@/db/top-search-terms/datasets.js';
 import {
     setTopSearchTermsDatasetCompleted,
     setTopSearchTermsDatasetFailed,
@@ -7,9 +6,17 @@ import {
     setTopSearchTermsDatasetReportPending,
     setTopSearchTermsDatasetReportRequested,
 } from '@/db/top-search-terms/dataset-status.js';
+import { getTopSearchTermsDatasetById } from '@/db/top-search-terms/datasets.js';
 import { saveTopSearchTermsSnapshot } from '@/db/top-search-terms/snapshots.js';
+import { TOP_SEARCH_TERMS_REFRESH_TRIGGERS } from '@/db/top-search-terms/types.js';
 import { defineJob } from '@/jobs/job-router.js';
 import { getErrorMessage } from '@/services/job-executions-utils.js';
+import {
+    downloadBaKeywordsSnapshot,
+    getBaKeywordsReportStatus,
+    requestBaKeywordsReport,
+} from '@/services/spapi/ba-keywords-service.js';
+import { SpApiBackoffError } from '@/services/spapi/spapi-backoff.js';
 import {
     getNextRefreshAtAfterSuccess,
     getRetryRefreshAt,
@@ -19,12 +26,6 @@ import {
     TOP_SEARCH_TERMS_FETCH_LOCAL_CONCURRENCY,
 } from '@/services/top-search-terms-jobs.js';
 import {
-    downloadBaKeywordsSnapshot,
-    getBaKeywordsReportStatus,
-    requestBaKeywordsReport,
-} from '@/services/spapi/ba-keywords-service.js';
-import { SpApiBackoffError } from '@/services/spapi/spapi-backoff.js';
-import {
     getTopSearchTermsReportAction,
     getTopSearchTermsReportRecheckAt,
     isTopSearchTermsReportPendingTimedOut,
@@ -33,6 +34,7 @@ import { getPacificDateString } from '@/utils/date.js';
 
 const fetchTopSearchTermsDatasetInput = z.object({
     datasetId: z.string().uuid(),
+    trigger: z.enum(TOP_SEARCH_TERMS_REFRESH_TRIGGERS).default('automatic'),
 });
 
 export const fetchTopSearchTermsDatasetJob = defineJob('fetch-top-search-terms-dataset', {
@@ -46,8 +48,7 @@ export const fetchTopSearchTermsDatasetJob = defineJob('fetch-top-search-terms-d
         groupConcurrency: TOP_SEARCH_TERMS_FETCH_GROUP_CONCURRENCY,
         localConcurrency: TOP_SEARCH_TERMS_FETCH_LOCAL_CONCURRENCY,
     })
-    .work(async (job, signal, log) => {
-        void signal;
+    .work(async (job, _signal, log) => {
         const dataset = await getTopSearchTermsDatasetById(job.data.datasetId);
         if (!dataset) {
             return {
@@ -81,6 +82,7 @@ export const fetchTopSearchTermsDatasetJob = defineJob('fetch-top-search-terms-d
                     reportId,
                     requestedAt: startedAt,
                     nextRefreshAt,
+                    trigger: job.data.trigger,
                 });
 
                 log('Top Search Terms report requested', {
@@ -113,9 +115,7 @@ export const fetchTopSearchTermsDatasetJob = defineJob('fetch-top-search-terms-d
                 })
             ) {
                 reportIdOnFailure = null;
-                throw new Error(
-                    `BA report ${dataset.reportId} remained pending for over 3 hours.`
-                );
+                throw new Error(`BA report ${dataset.reportId} remained pending for over 3 hours.`);
             }
 
             const reportStatus = await getBaKeywordsReportStatus(dataset.reportId);
@@ -194,6 +194,7 @@ export const fetchTopSearchTermsDatasetJob = defineJob('fetch-top-search-terms-d
                 observedDate: getPacificDateString(),
                 reportId: snapshot.reportId,
                 sourceJobId: jobId,
+                trigger: job.data.trigger,
                 fetchedAt: new Date(snapshot.fetchedAt),
                 rows: snapshot.rows,
             });
@@ -232,11 +233,7 @@ export const fetchTopSearchTermsDatasetJob = defineJob('fetch-top-search-terms-d
                 step: 'report_processed',
             };
         } catch (error) {
-            if (
-                dataset.reportId &&
-                error instanceof SpApiBackoffError &&
-                !error.retryable
-            ) {
+            if (dataset.reportId && error instanceof SpApiBackoffError && !error.retryable) {
                 // Non-retryable status/download errors should drop stale report ids.
                 reportIdOnFailure = null;
             }

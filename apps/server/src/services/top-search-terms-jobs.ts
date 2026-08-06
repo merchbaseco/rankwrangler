@@ -1,4 +1,5 @@
 import type { PgBoss } from 'pg-boss';
+import type { TopSearchTermsRefreshTrigger } from '@/db/top-search-terms/types.js';
 
 export const FETCH_TOP_SEARCH_TERMS_DATASET_JOB_NAME = 'fetch-top-search-terms-dataset';
 export const SYNC_TOP_SEARCH_TERMS_DATASETS_JOB_NAME = 'sync-top-search-terms-datasets';
@@ -16,8 +17,10 @@ export const registerTopSearchTermsJobWakeups = (boss: PgBoss) => {
 
 export const sendFetchTopSearchTermsDatasetJob = async ({
     datasetId,
+    trigger = 'automatic',
 }: {
     datasetId: string;
+    trigger?: TopSearchTermsRefreshTrigger;
 }): Promise<string | null> => {
     if (!topSearchTermsBoss) {
         throw new Error('Top Search Terms queue is not initialized.');
@@ -25,7 +28,7 @@ export const sendFetchTopSearchTermsDatasetJob = async ({
 
     const jobId = await topSearchTermsBoss.send(
         FETCH_TOP_SEARCH_TERMS_DATASET_JOB_NAME,
-        { datasetId },
+        { datasetId, trigger },
         {
             expireInSeconds: TOP_SEARCH_TERMS_FETCH_EXPIRE_IN_SECONDS,
             group: {

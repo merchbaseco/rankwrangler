@@ -1,15 +1,18 @@
 import { and, asc, desc, eq, gte, ilike, lte, sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
+import type {
+    TopSearchTermsRefreshTrigger,
+    TopSearchTermsWindow,
+} from '@/db/top-search-terms/types.js';
 import {
     topSearchTermsKeywordDaily,
     topSearchTermsSnapshots,
 } from '@/db/top-search-terms-schema.js';
-import type { TopSearchTermsWindow } from '@/db/top-search-terms/types.js';
 import type { BaKeywordRow } from '@/services/spapi/ba-keywords-aggregation.js';
 
 const INSERT_CHUNK_SIZE = 1000;
 
-export type TopSearchTermsSnapshotRecord = {
+export interface TopSearchTermsSnapshotRecord {
     id: string;
     datasetId: string;
     marketplaceId: string;
@@ -19,13 +22,14 @@ export type TopSearchTermsSnapshotRecord = {
     observedDate: string;
     reportId: string;
     sourceJobId: string;
+    trigger: TopSearchTermsRefreshTrigger;
     keywordCount: number;
     fetchedAt: string;
     createdAt: string;
     updatedAt: string;
-};
+}
 
-export type TopSearchTermsKeywordListRow = {
+export interface TopSearchTermsKeywordListRow {
     searchTerm: string;
     searchFrequencyRank: number;
     clickShareTop3Sum: number;
@@ -33,7 +37,7 @@ export type TopSearchTermsKeywordListRow = {
     topRowsCount: number;
     isMerchRelevant: boolean;
     merchReason: string;
-};
+}
 
 export const saveTopSearchTermsSnapshot = async ({
     datasetId,
@@ -41,6 +45,7 @@ export const saveTopSearchTermsSnapshot = async ({
     observedDate,
     reportId,
     sourceJobId,
+    trigger,
     fetchedAt,
     rows,
 }: {
@@ -49,6 +54,7 @@ export const saveTopSearchTermsSnapshot = async ({
     observedDate: string;
     reportId: string;
     sourceJobId: string;
+    trigger: TopSearchTermsRefreshTrigger;
     fetchedAt: Date;
     rows: BaKeywordRow[];
 }) => {
@@ -65,6 +71,7 @@ export const saveTopSearchTermsSnapshot = async ({
                 observedDate,
                 reportId,
                 sourceJobId,
+                trigger,
                 keywordCount: rows.length,
                 fetchedAt,
                 updatedAt: now,
@@ -74,6 +81,7 @@ export const saveTopSearchTermsSnapshot = async ({
                 set: {
                     reportId,
                     sourceJobId,
+                    trigger,
                     keywordCount: rows.length,
                     fetchedAt,
                     updatedAt: now,
@@ -131,6 +139,36 @@ export const getLatestTopSearchTermsSnapshotForDataset = async (datasetId: strin
     return snapshot ? mapSnapshot(snapshot) : null;
 };
 
+export const getTopSearchTermsKeyword = async ({
+    snapshotId,
+    searchTerm,
+}: {
+    snapshotId: string;
+    searchTerm: string;
+}) => {
+    const [row] = await db
+        .select({
+            searchTerm: topSearchTermsKeywordDaily.searchTerm,
+            searchFrequencyRank: topSearchTermsKeywordDaily.searchFrequencyRank,
+            clickShareTop3SumBasisPoints: topSearchTermsKeywordDaily.clickShareTop3SumBasisPoints,
+            conversionShareTop3SumBasisPoints:
+                topSearchTermsKeywordDaily.conversionShareTop3SumBasisPoints,
+            topRowsCount: topSearchTermsKeywordDaily.topRowsCount,
+            isMerchRelevant: topSearchTermsKeywordDaily.isMerchRelevant,
+            merchReason: topSearchTermsKeywordDaily.merchReason,
+        })
+        .from(topSearchTermsKeywordDaily)
+        .where(
+            and(
+                eq(topSearchTermsKeywordDaily.snapshotId, snapshotId),
+                sql`lower(${topSearchTermsKeywordDaily.searchTerm}) = lower(${searchTerm})`
+            )
+        )
+        .limit(1);
+
+    return row ? mapKeywordListRow(row) : null;
+};
+
 export const listTopSearchTermsKeywords = async ({
     snapshotId,
     cursor,
@@ -172,7 +210,8 @@ export const listTopSearchTermsKeywords = async ({
             .select({
                 searchTerm: topSearchTermsKeywordDaily.searchTerm,
                 searchFrequencyRank: topSearchTermsKeywordDaily.searchFrequencyRank,
-                clickShareTop3SumBasisPoints: topSearchTermsKeywordDaily.clickShareTop3SumBasisPoints,
+                clickShareTop3SumBasisPoints:
+                    topSearchTermsKeywordDaily.clickShareTop3SumBasisPoints,
                 conversionShareTop3SumBasisPoints:
                     topSearchTermsKeywordDaily.conversionShareTop3SumBasisPoints,
                 topRowsCount: topSearchTermsKeywordDaily.topRowsCount,
@@ -208,6 +247,7 @@ const mapSnapshot = (
     observedDate: row.observedDate,
     reportId: row.reportId,
     sourceJobId: row.sourceJobId,
+    trigger: normalizeRefreshTrigger(row.trigger),
     keywordCount: row.keywordCount,
     fetchedAt: row.fetchedAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
@@ -225,14 +265,17 @@ const mapKeywordListRow = (row: {
 }): TopSearchTermsKeywordListRow => ({
     searchTerm: row.searchTerm,
     searchFrequencyRank: row.searchFrequencyRank,
-    clickShareTop3Sum: row.clickShareTop3SumBasisPoints / 10000,
-    conversionShareTop3Sum: row.conversionShareTop3SumBasisPoints / 10000,
+    clickShareTop3Sum: row.clickShareTop3SumBasisPoints / 10_000,
+    conversionShareTop3Sum: row.conversionShareTop3SumBasisPoints / 10_000,
     topRowsCount: row.topRowsCount,
     isMerchRelevant: row.isMerchRelevant,
     merchReason: row.merchReason,
 });
 
-const toBasisPoints = (value: number) => Math.round(value * 10000);
+const toBasisPoints = (value: number) => Math.round(value * 10_000);
+
+const normalizeRefreshTrigger = (value: string): TopSearchTermsRefreshTrigger =>
+    value === 'requested' ? 'requested' : 'automatic';
 
 const chunkRows = <T>(values: T[], chunkSize: number): T[][] => {
     if (values.length <= chunkSize) {

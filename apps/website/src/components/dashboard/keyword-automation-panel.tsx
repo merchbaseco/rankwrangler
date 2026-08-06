@@ -69,7 +69,7 @@ export const KeywordAutomationPanel = ({
 
 	return (
 		<div className="flex h-full flex-col overflow-y-auto">
-			<AutomationPolicy />
+			<KeywordPolicy />
 			{query.isLoading ? (
 				<div className="flex items-center gap-2 px-3 py-6 text-sm text-muted-foreground">
 					<LoaderCircle className="size-4 animate-spin" />
@@ -115,7 +115,7 @@ export const KeywordAutomationPanel = ({
 	);
 };
 
-const AutomationPolicy = () => (
+const KeywordPolicy = () => (
 	<div className="border-b border-border bg-accent px-3 py-3">
 		<div className="flex items-center gap-2">
 			<TimerReset className="size-4 text-muted-foreground" />
@@ -125,7 +125,9 @@ const AutomationPolicy = () => (
 			A Product search keeps keyword interest active for 30 days, including when it
 			reuses cached results. Active keywords are refreshed automatically about once a
 			week. Interest expires without backfill, and each run records whether it was a
-			Requested search or an Automatic refresh.
+			Requested search or an Automatic refresh. Active, upcoming, and deferred work
+			below expose queue and provider-capacity state. Keyword performance is fresh for
+			24 hours; stale evidence remains usable while it revalidates.
 		</p>
 	</div>
 );
@@ -136,10 +138,10 @@ export const KeywordAutomationSummary = ({
 	summary: KeywordAutomationData["summary"] | undefined;
 }) => {
 	const metrics = [
-		["Active", summary?.active],
-		["Due", summary?.due],
-		["Refreshed recently", summary?.refreshedRecently],
-		["Waiting / deferred", summary?.waitingOrDeferred],
+		["Active work", summary?.active],
+		["Upcoming", summary?.due],
+		["Useful refreshes", summary?.refreshedRecently],
+		["Queue / capacity", formatQueueState(summary)],
 		["Failed", summary?.failed],
 		["Expiring soon", summary?.expiringSoon],
 	] as const;
@@ -152,12 +154,20 @@ export const KeywordAutomationSummary = ({
 						{label}
 					</p>
 					<p className="mt-0.5 font-mono text-lg font-semibold text-foreground">
-						{value === undefined ? "—" : formatNumber(value)}
+						{value === undefined ? "—" : typeof value === "string" ? value : formatNumber(value)}
 					</p>
 				</div>
 			))}
 		</div>
 	);
+};
+
+const formatQueueState = (summary: KeywordAutomationData["summary"] | undefined) => {
+	if (!summary) {
+		return undefined;
+	}
+
+	return `${formatNumber(summary.due + summary.waitingOrDeferred)} queued`;
 };
 
 export const KeywordAutomationTable = ({

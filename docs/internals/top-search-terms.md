@@ -16,7 +16,7 @@ catalog-result research.
 | Record | Ownership |
 | --- | --- |
 | Dataset | One marketplace, report period, and concrete date window with fetch lifecycle state. |
-| Snapshot | One accepted report observation for a dataset. |
+| Snapshot | One accepted report observation for a dataset, with `requested` or `automatic` refresh provenance. |
 | Keyword row | Normalized term metrics and Merch-relevance classification in a snapshot. |
 
 Daily and weekly windows are supported. Daily datasets are retained for 90 days. The scheduler
@@ -25,6 +25,10 @@ seeds 52 weekly windows; weekly rows are retained after insertion.
 The primary signal is `searchFrequencyRank` over time. Top-three click and conversion share are
 stored as supporting evidence. The app can list a snapshot, inspect fetch status, request refresh,
 and return a term's historical points with 1-, 7-, and 30-day deltas.
+
+Public keyword reads use the shared retrieval coordinator. They return usable stale snapshots while
+background work runs, wait for missing or explicitly refreshed data, and never expose the internal
+pg-boss job or an Operation. Equivalent reads coalesce by canonical keyword and data category.
 
 ## Collection Lifecycle
 

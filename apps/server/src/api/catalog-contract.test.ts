@@ -15,4 +15,15 @@ describe('Catalog query API contract', () => {
         expect(publicProcedures).not.toContain('api.public.catalog.query.track');
         expect(publicProcedures).not.toContain('api.public.catalog.query.untrack');
     });
+
+    it('exposes the public keyword intelligence verbs without public tracking controls', () => {
+        const publicProcedures = Object.keys(publicAppRouter._def.procedures);
+
+        expect(publicProcedures).toContain('api.public.keyword.get');
+        expect(publicProcedures).toContain('api.public.keyword.search');
+        expect(publicProcedures).toContain('api.public.keyword.history');
+        expect(publicProcedures).not.toContain('api.public.keyword.track');
+        expect(publicProcedures).not.toContain('api.public.keyword.untrack');
+        expect(publicProcedures).not.toContain('api.public.keyword.operation');
+    });
 });

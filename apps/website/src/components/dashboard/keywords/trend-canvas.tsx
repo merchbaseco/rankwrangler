@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { AmazonResultsTable } from '@/components/dashboard/keywords/amazon-results-table';
+import { KeywordHistoryProvenance } from '@/components/dashboard/keywords/keyword-history-provenance';
 import {
 	TrendChart,
 	type TrendMetric,
@@ -91,6 +92,9 @@ export const TrendCanvas = ({
 							})}
 						</div>
 					)}
+					{!trendQuery.isLoading && !trendQuery.error ? (
+						<KeywordHistoryProvenance points={points} />
+					) : null}
 				</div>
 			</div>
 

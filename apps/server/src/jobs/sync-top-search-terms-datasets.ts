@@ -1,11 +1,11 @@
 import { z } from 'zod';
+import { setTopSearchTermsDatasetQueued } from '@/db/top-search-terms/dataset-status.js';
 import {
     deleteTopSearchTermsDailyDatasetsBefore,
     insertMissingTopSearchTermsDatasets,
     listDueTopSearchTermsDatasets,
     rescheduleIdleTopSearchTermsDatasets,
 } from '@/db/top-search-terms/datasets.js';
-import { setTopSearchTermsDatasetQueued } from '@/db/top-search-terms/dataset-status.js';
 import { defineJob } from '@/jobs/job-router.js';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
 import {
@@ -35,8 +35,7 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
         singletonKey: 'sync-top-search-terms-datasets',
         retryLimit: 0,
     })
-    .work(async (_job, signal, log) => {
-        void signal;
+    .work(async (_job, _signal, log) => {
         const now = new Date();
         const today = getPacificDateString();
 
@@ -85,7 +84,10 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
 
         let queuedCount = 0;
         for (const dataset of dueDatasets) {
-            const jobId = await sendFetchTopSearchTermsDatasetJob({ datasetId: dataset.id });
+            const jobId = await sendFetchTopSearchTermsDatasetJob({
+                datasetId: dataset.id,
+                trigger: dataset.refreshTrigger,
+            });
             if (!jobId) {
                 continue;
             }
@@ -110,10 +112,7 @@ export const syncTopSearchTermsDatasetsJob = defineJob('sync-top-search-terms-da
 
         return {
             didWork:
-                insertedCount > 0 ||
-                rescheduledCount > 0 ||
-                deletedCount > 0 ||
-                queuedCount > 0,
+                insertedCount > 0 || rescheduledCount > 0 || deletedCount > 0 || queuedCount > 0,
             insertedCount,
             rescheduledCount,
             deletedCount,

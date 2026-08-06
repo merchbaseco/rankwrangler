@@ -4,9 +4,9 @@ import {
     FETCH_TOP_SEARCH_TERMS_DATASET_JOB_NAME,
     getTopSearchTermsFetchStaleActiveJobCutoff,
     registerTopSearchTermsJobWakeups,
+    SYNC_TOP_SEARCH_TERMS_DATASETS_JOB_NAME,
     sendFetchTopSearchTermsDatasetJob,
     sendSyncTopSearchTermsDatasetsJob,
-    SYNC_TOP_SEARCH_TERMS_DATASETS_JOB_NAME,
     TOP_SEARCH_TERMS_FETCH_EXPIRE_IN_SECONDS,
     TOP_SEARCH_TERMS_FETCH_GROUP_ID,
 } from '@/services/top-search-terms-jobs.js';
@@ -23,7 +23,7 @@ describe('sendFetchTopSearchTermsDatasetJob', () => {
         expect(send.mock.calls).toHaveLength(1);
         expect(send.mock.calls[0]).toEqual([
             FETCH_TOP_SEARCH_TERMS_DATASET_JOB_NAME,
-            { datasetId },
+            { datasetId, trigger: 'automatic' },
             {
                 expireInSeconds: TOP_SEARCH_TERMS_FETCH_EXPIRE_IN_SECONDS,
                 group: {
@@ -44,6 +44,21 @@ describe('sendFetchTopSearchTermsDatasetJob', () => {
         });
 
         expect(jobId).toBeNull();
+    });
+
+    it('preserves requested provenance for caller-triggered refreshes', async () => {
+        const send = mock(async () => 'job-id');
+        registerTopSearchTermsJobWakeups({ send } as unknown as PgBoss);
+
+        await sendFetchTopSearchTermsDatasetJob({
+            datasetId: 'b101f8a9-0a95-4cf0-b71e-a0e0219ac006',
+            trigger: 'requested',
+        });
+
+        expect(send.mock.calls[0]?.[1]).toEqual({
+            datasetId: 'b101f8a9-0a95-4cf0-b71e-a0e0219ac006',
+            trigger: 'requested',
+        });
     });
 });
 

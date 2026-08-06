@@ -13,30 +13,35 @@ describe('calculateSearchTermsTrendDeltas', () => {
                 searchFrequencyRank: 150,
                 clickShareTop3Sum: 0.05,
                 conversionShareTop3Sum: 0.01,
+                trigger: 'automatic',
             },
             {
                 observedDate: '2026-02-02',
                 searchFrequencyRank: 100,
                 clickShareTop3Sum: 0.1,
                 conversionShareTop3Sum: 0.02,
+                trigger: 'automatic',
             },
             {
                 observedDate: '2026-02-24',
                 searchFrequencyRank: 70,
                 clickShareTop3Sum: 0.18,
                 conversionShareTop3Sum: 0.04,
+                trigger: 'automatic',
             },
             {
                 observedDate: '2026-03-02',
                 searchFrequencyRank: 52,
                 clickShareTop3Sum: 0.2,
                 conversionShareTop3Sum: 0.05,
+                trigger: 'automatic',
             },
             {
                 observedDate: '2026-03-03',
                 searchFrequencyRank: 50,
                 clickShareTop3Sum: 0.25,
                 conversionShareTop3Sum: 0.06,
+                trigger: 'automatic',
             },
         ]);
 
@@ -66,6 +71,7 @@ describe('calculateSearchTermsTrendDeltas', () => {
                 searchFrequencyRank: 50,
                 clickShareTop3Sum: 0.25,
                 conversionShareTop3Sum: 0.06,
+                trigger: 'automatic',
             },
         ]);
 

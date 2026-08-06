@@ -1,17 +1,22 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { mapDatasetRecord } from '@/db/top-search-terms/dataset-record.js';
+import type {
+    TopSearchTermsDatasetStatus,
+    TopSearchTermsRefreshTrigger,
+} from '@/db/top-search-terms/types.js';
 import { topSearchTermsDatasets } from '@/db/top-search-terms-schema.js';
-import type { TopSearchTermsDatasetStatus } from '@/db/top-search-terms/types.js';
 
 export const setTopSearchTermsDatasetQueued = async ({
     datasetId,
     jobId,
     requestedAt = new Date(),
+    trigger = 'automatic',
 }: {
     datasetId: string;
     jobId: string;
     requestedAt?: Date;
+    trigger?: TopSearchTermsRefreshTrigger;
 }) => {
     return await updateTopSearchTermsDatasetStatus(datasetId, {
         activeJobId: jobId,
@@ -19,6 +24,7 @@ export const setTopSearchTermsDatasetQueued = async ({
         fetchStartedAt: null,
         lastError: null,
         refreshing: true,
+        refreshTrigger: trigger,
         status: 'queued',
         updatedAt: requestedAt,
     });
@@ -60,6 +66,7 @@ export const setTopSearchTermsDatasetCompleted = async ({
         nextRefreshAt,
         refreshing: false,
         reportId,
+        refreshTrigger: 'automatic',
         status: 'completed',
         updatedAt: completedAt,
     });
@@ -84,6 +91,7 @@ export const setTopSearchTermsDatasetFailed = async ({
         lastFailedAt: failedAt,
         nextRefreshAt,
         ...(reportId === undefined ? {} : { reportId }),
+        refreshTrigger: 'automatic',
         refreshing: false,
         status: 'failed',
         updatedAt: failedAt,
@@ -95,11 +103,13 @@ export const setTopSearchTermsDatasetReportRequested = async ({
     reportId,
     requestedAt = new Date(),
     nextRefreshAt,
+    trigger,
 }: {
     datasetId: string;
     reportId: string;
     requestedAt?: Date;
     nextRefreshAt: Date;
+    trigger: TopSearchTermsRefreshTrigger;
 }) => {
     return await updateTopSearchTermsDatasetStatus(datasetId, {
         activeJobId: null,
@@ -109,6 +119,7 @@ export const setTopSearchTermsDatasetReportRequested = async ({
         nextRefreshAt,
         refreshing: false,
         reportId,
+        refreshTrigger: trigger,
         status: 'in_progress',
         updatedAt: requestedAt,
     });

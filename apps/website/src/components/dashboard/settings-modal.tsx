@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 
 type SettingsPage =
 	| "general"
-	| "automation"
+	| "keywords"
 	| "api"
 	| "notifications"
 	| "account"
@@ -46,7 +46,7 @@ type NavItem = { key: SettingsPage; label: string; icon: typeof Key };
 
 const BASE_SETTINGS_NAV: NavItem[] = [
 	{ key: "general", label: "General", icon: BarChart3 },
-	{ key: "automation", label: "Automation", icon: RefreshCw },
+	{ key: "keywords", label: "Keywords", icon: RefreshCw },
 	{ key: "api", label: "Access & Usage", icon: Key },
 	{ key: "notifications", label: "Notifications", icon: Bell },
 	{ key: "account", label: "Account", icon: User },
@@ -122,7 +122,7 @@ export const SettingsModal = ({
 								)}
 							>
 								{page === "general" ? <GeneralSettings /> : null}
-								{page === "automation" ? (
+								{page === "keywords" ? (
 									<KeywordAutomationPanel
 										onOpenResearch={(keyword) => openKeywordResearch(keyword, onOpenChange)}
 									/>

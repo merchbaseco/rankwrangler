@@ -19,6 +19,7 @@ export type TrendPoint = {
 	searchFrequencyRank: number;
 	clickShareTop3Sum: number;
 	conversionShareTop3Sum: number;
+	trigger: "requested" | "automatic";
 };
 
 export const TrendChart = ({

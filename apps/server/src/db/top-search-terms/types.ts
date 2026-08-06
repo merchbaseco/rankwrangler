@@ -1,13 +1,15 @@
 export const TOP_SEARCH_TERMS_REPORT_PERIODS = ['DAY', 'WEEK'] as const;
+export const TOP_SEARCH_TERMS_REFRESH_TRIGGERS = ['requested', 'automatic'] as const;
 
 export type TopSearchTermsReportPeriod = (typeof TOP_SEARCH_TERMS_REPORT_PERIODS)[number];
+export type TopSearchTermsRefreshTrigger = (typeof TOP_SEARCH_TERMS_REFRESH_TRIGGERS)[number];
 
-export type TopSearchTermsWindow = {
+export interface TopSearchTermsWindow {
     marketplaceId: string;
     reportPeriod: TopSearchTermsReportPeriod;
     dataStartDate: string;
     dataEndDate: string;
-};
+}
 
 export type TopSearchTermsDatasetStatus =
     | 'idle'
