@@ -33,24 +33,11 @@ export type AgentHistorySeries = {
 
 export type AgentHistoryResponse = {
     schemaVersion?: number;
-    status?: string;
-    syncTriggered: boolean;
-    operation: {
-        id: string;
-        type: 'productHistoryRefresh';
-        status: 'pending' | 'completed';
-        retryAfterSeconds?: number;
-        resource?: {
-            type: 'productHistory';
-            marketplaceId: string;
-            asin: string;
-        } | null;
-        error?: {
-            code: string;
-            message: string;
-        } | null;
-    } | null;
-    latestImportAt: string | null;
+    status?: 'ready' | 'empty';
+    freshness: {
+        stale: boolean;
+        updatedAt: string | null;
+    };
     range?: {
         startAt: string;
         endAt: string;
@@ -83,17 +70,15 @@ export const buildCliHistoryResponse = ({
         schemaVersion: response.schemaVersion ?? 2,
         asin,
         marketplaceId,
-        status: status ?? (response.syncTriggered ? 'collecting' : hasAnyBuckets ? 'ready' : 'empty'),
-        latestImportAt: response.latestImportAt,
-        syncTriggered: response.syncTriggered,
-        operation: response.operation,
+        status: status ?? (hasAnyBuckets ? 'ready' : 'empty'),
+        freshness: response.freshness,
         ...(response.range ? { range: response.range } : {}),
         series,
     };
 };
 
 const normalizeHistoryStatus = (status: string | undefined) => {
-    if (status === 'ready' || status === 'collecting' || status === 'empty') {
+    if (status === 'ready' || status === 'empty') {
         return status;
     }
 

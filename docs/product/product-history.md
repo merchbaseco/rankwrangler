@@ -20,19 +20,16 @@ Price values use minor currency units in agent responses. A missing Keepa offer 
 missing data, not as a zero price. Agent history supports day, week, month, or automatically chosen
 buckets and includes range summaries for each requested metric.
 
-History reads return stored coverage immediately. When coverage is missing, the response includes
-a pending durable Operation and retry guidance instead of waiting for Keepa. Agents poll the
-Operation, then read the completed Product-history resource. Concurrent requests for one
-marketplace/ASIN share the same pending Operation and provider request.
+History reads return stored coverage immediately with one category-level `freshness` envelope:
+`{ stale, updatedAt }`. When coverage is missing, the shared server retrieval service joins or
+starts durable collection, waits for the policy-compliant result, and returns history or a
+provider-neutral retryable error. A caller timeout detaches only that caller; collection continues.
+Equivalent requests for one marketplace/ASIN and history category share one durable collection.
 
-Completed Operations contain either a Product-history resource reference or a safe error. Existing
-history remains readable after provider failure. Operation polling never starts provider work or
-uses another external-work allowance.
-
-The dashboard keeps existing chart points visible and shows `Syncing Keepa…` while that Operation
-is pending. A Clerk-authenticated completion subscription invalidates the affected Operation and
-history reads; polling, reload, and reconnect remain recovery paths when realtime delivery is
-unavailable or missed.
+A valid Product with no provider history succeeds with an empty or unavailable history result.
+Public history responses do not expose Operation identifiers, polling state, or Keepa availability
+details. Retryable capacity and deadline failures include a retry hint; the server-owned 24-hour
+Keepa guard still applies to `refresh: true`.
 
 Eligible Merch Products also refresh automatically:
 
@@ -40,8 +37,8 @@ Eligible Merch Products also refresh automatically:
 - BSR from 300,000 through 999,999: weekly;
 - BSR at or above 1,000,000, missing BSR, or non-Merch: on demand only.
 
-**Brief user story:** An agent asks for weekly BSR and price buckets, uses available points
-immediately, polls a pending Operation, then reads the expanded history after collection.
+**Brief user story:** An agent asks for weekly BSR and price buckets, receives available points and
+freshness immediately, and transparently waits for missing or explicitly refreshed history.
 
 ## Boundaries
 

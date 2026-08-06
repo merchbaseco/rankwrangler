@@ -40,8 +40,8 @@ pg-boss owns dispatch and execution. Durable domain tables own recoverable state
 - Products own source freshness;
 - Catalog queries own keyword activity leases, refresh-attempt timestamps, and latest successful
   run watermarks;
-- Operations own a durable outcome across worker attempts, whether the trigger was requested or
-  automatic.
+- Operations own a durable outcome across worker attempts. Public Product-history retrieval hides
+  Operations; the existing dashboard app workflow and Catalog workflows can expose them.
 
 Do not use `job_executions` as business state. Those rows record one worker attempt with input,
 output, duration, failure, and structured logs. Some no-op successes are intentionally omitted;
@@ -53,6 +53,6 @@ Jobs must leave retry intent in durable domain state before returning. Queue-spe
 backoff and redispatch rather than relying on hidden generic retries. Fatal job failures emit a
 `job.fatal` activity event with job identity, a bounded error message, and validated job input.
 
-An Operation is one client-visible outcome that can span retries, while a job execution is one
-internal attempt. Product-history recovery reclaims only stale pending Operations and dispatches
-the same Operation id.
+An Operation can span retries, while a job execution is one internal attempt. Product-history
+recovery reclaims only stale pending Operations and dispatches the same Operation id; public
+Product-history reads do not return that id.

@@ -1,9 +1,9 @@
 import { describe, expect, it, mock } from 'bun:test';
 import type { OperationRecord } from './operations.js';
 import {
+    ensureProductHistoryWork,
     type ProductHistoryOperationDeps,
     recoverStaleProductHistoryOperations,
-    requestProductHistoryRefresh,
 } from './product-history-operations.js';
 
 describe('Product-history Operation dispatch', () => {
@@ -16,6 +16,7 @@ describe('Product-history Operation dispatch', () => {
                 created: !dispatchClaimed,
             }),
             claimOperationDispatch: async () => {
+                await Promise.resolve();
                 if (dispatchClaimed) {
                     return false;
                 }
@@ -25,7 +26,7 @@ describe('Product-history Operation dispatch', () => {
         });
 
         const [first, second] = await Promise.all([
-            requestProductHistoryRefresh(
+            ensureProductHistoryWork(
                 {
                     marketplaceId: 'ATVPDKIKX0DER',
                     asin: 'B012345678',
@@ -33,7 +34,7 @@ describe('Product-history Operation dispatch', () => {
                 },
                 deps
             ),
-            requestProductHistoryRefresh(
+            ensureProductHistoryWork(
                 {
                     marketplaceId: 'ATVPDKIKX0DER',
                     asin: 'B012345678',
@@ -53,6 +54,7 @@ describe('Product-history Operation dispatch', () => {
         let dispatchClaimed = false;
         const deps = createDeps({
             claimOperationDispatch: async () => {
+                await Promise.resolve();
                 if (dispatchClaimed) {
                     return false;
                 }
@@ -60,15 +62,17 @@ describe('Product-history Operation dispatch', () => {
                 return true;
             },
             sendJob: async () => {
+                await Promise.resolve();
                 throw new Error('queue unavailable');
             },
             releaseOperationDispatch: async () => {
+                await Promise.resolve();
                 dispatchClaimed = false;
             },
             listStalePendingOperations: async () => [operation],
         });
 
-        const receipt = await requestProductHistoryRefresh(
+        const receipt = await ensureProductHistoryWork(
             {
                 marketplaceId: 'ATVPDKIKX0DER',
                 asin: 'B012345678',
@@ -91,7 +95,7 @@ describe('Product-history Operation dispatch', () => {
             sendJob: async () => null,
         });
 
-        const receipt = await requestProductHistoryRefresh(
+        const receipt = await ensureProductHistoryWork(
             {
                 marketplaceId: 'ATVPDKIKX0DER',
                 asin: 'B012345678',
@@ -103,6 +107,30 @@ describe('Product-history Operation dispatch', () => {
         expect(receipt.operation.status).toBe('pending');
         expect(deps.releaseOperationDispatch.mock.calls).toHaveLength(1);
     });
+
+    it('respects the dispatch cooldown for a recently failed joined request', async () => {
+        const now = new Date('2026-08-06T12:00:00.000Z');
+        const operation = {
+            ...createPendingOperation(),
+            updatedAt: now,
+        };
+        const deps = createDeps({
+            ensurePendingOperation: async () => ({ operation, created: false }),
+            now: () => now,
+        });
+
+        const result = await ensureProductHistoryWork(
+            {
+                marketplaceId: 'ATVPDKIKX0DER',
+                asin: 'B012345678',
+                ownerMerchbaseUserId: 'mbu_test',
+            },
+            deps
+        );
+
+        expect(result).toMatchObject({ created: false, dispatched: false });
+        expect(deps.sendJob.mock.calls).toHaveLength(0);
+    });
 });
 
 const createDeps = (overrides: Partial<ProductHistoryOperationDeps> = {}) => {
@@ -112,9 +140,12 @@ const createDeps = (overrides: Partial<ProductHistoryOperationDeps> = {}) => {
             overrides.ensurePendingOperation ?? (async () => ({ operation, created: true }))
         ),
         claimOperationDispatch: mock(overrides.claimOperationDispatch ?? (async () => true)),
-        releaseOperationDispatch: mock(overrides.releaseOperationDispatch ?? (async () => {})),
+        releaseOperationDispatch: mock(
+            overrides.releaseOperationDispatch ?? (async () => undefined)
+        ),
         listStalePendingOperations: mock(overrides.listStalePendingOperations ?? (async () => [])),
         sendJob: mock(overrides.sendJob ?? (async () => 'job-1')),
+        ...(overrides.now ? { now: overrides.now } : {}),
     };
 };
 

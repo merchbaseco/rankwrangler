@@ -1,22 +1,22 @@
+import type { PublicOperation } from '@/services/operations.js';
 import {
     buildHistoryBuckets,
-    productHistoryBuckets,
-    resolveAgentHistoryWindow,
-    resolveHistoryBucket,
-    summarizeBuckets,
     type HistoryBucketSummary,
     type HistoryBucketTuple,
     type ProductHistoryBucket,
     type ResolvedHistoryBucket,
+    resolveHistoryBucket,
+    summarizeBuckets,
 } from '@/services/product-history-buckets.js';
-import type { PublicOperation } from '@/services/operations.js';
-
-export { productHistoryBuckets, resolveAgentHistoryWindow };
-export type { ProductHistoryBucket };
 
 type ProductHistoryMetric = 'bsr' | 'price';
 
-type AgentHistorySeries = {
+export interface ProductHistoryFreshness {
+    stale: boolean;
+    updatedAt: string | null;
+}
+
+interface AgentHistorySeries {
     bsr?: {
         unit: 'rank';
         category: { id: number; name: string | null } | null;
@@ -30,34 +30,40 @@ type AgentHistorySeries = {
         buckets: HistoryBucketTuple[];
         summary: HistoryBucketSummary;
     };
-};
+}
 
-export type AgentHistoryResponse = {
+export interface AgentHistoryResponse {
     schemaVersion: 2;
     marketplaceId: string;
     asin: string;
+    status: 'ready' | 'empty';
+    freshness: ProductHistoryFreshness;
+    range: { startAt: string; endAt: string; bucket: ResolvedHistoryBucket };
+    series: AgentHistorySeries;
+}
+
+export interface OperationalAgentHistoryResponse
+    extends Omit<AgentHistoryResponse, 'status' | 'freshness'> {
     status: 'collecting' | 'ready' | 'empty';
     latestImportAt: string | null;
     syncTriggered: boolean;
     operation: PublicOperation | null;
-    range: { startAt: string; endAt: string; bucket: ResolvedHistoryBucket };
-    series: AgentHistorySeries;
-};
+}
 
-type HistoryPoint = {
+export interface HistoryPoint {
     categoryId: number;
     categoryName: string | null;
     observedAt: string;
     keepaMinutes: number;
     value: number | null;
     isMissing: boolean;
-};
+}
 
-export type HistoryMetricResult = {
+export interface HistoryMetricResult {
     latestImportAt: string | null;
     categoryNames: Record<string, string>;
     points: HistoryPoint[];
-};
+}
 
 export const buildAgentHistoryResponse = ({
     marketplaceId,
@@ -66,9 +72,7 @@ export const buildAgentHistoryResponse = ({
     requestedMetrics,
     startAt,
     endAt,
-    collecting,
-    syncTriggered,
-    operation,
+    freshness,
     resultsByMetric,
 }: {
     marketplaceId: string;
@@ -77,9 +81,7 @@ export const buildAgentHistoryResponse = ({
     requestedMetrics: ProductHistoryMetric[];
     startAt: Date;
     endAt: Date;
-    collecting: boolean;
-    syncTriggered: boolean;
-    operation: PublicOperation | null;
+    freshness: ProductHistoryFreshness;
     resultsByMetric: Partial<Record<ProductHistoryMetric, HistoryMetricResult>>;
 }): AgentHistoryResponse => {
     const bucket = resolveHistoryBucket({ requestedBucket, startAt, endAt });
@@ -102,18 +104,44 @@ export const buildAgentHistoryResponse = ({
         schemaVersion: 2 as const,
         marketplaceId,
         asin,
-        status: collecting ? ('collecting' as const) : totalBucketCount > 0 ? 'ready' : 'empty',
-        latestImportAt: resolveLatestImportAt(
-            Object.values(resultsByMetric).map(result => result.latestImportAt)
-        ),
-        syncTriggered,
-        operation,
+        status: totalBucketCount > 0 ? 'ready' : 'empty',
+        freshness,
         range: {
             startAt: startAt.toISOString(),
             endAt: endAt.toISOString(),
             bucket,
         },
         series,
+    };
+};
+
+export const buildOperationalAgentHistoryResponse = ({
+    collecting,
+    syncTriggered,
+    operation,
+    resultsByMetric,
+    ...input
+}: Omit<Parameters<typeof buildAgentHistoryResponse>[0], 'freshness'> & {
+    collecting: boolean;
+    syncTriggered: boolean;
+    operation: PublicOperation | null;
+}): OperationalAgentHistoryResponse => {
+    const latestImportAt = resolveLatestImportAt(
+        Object.values(resultsByMetric).map(result => result.latestImportAt)
+    );
+    const response = buildAgentHistoryResponse({
+        ...input,
+        resultsByMetric,
+        freshness: { stale: !latestImportAt, updatedAt: latestImportAt },
+    });
+    const { freshness: _freshness, ...history } = response;
+
+    return {
+        ...history,
+        status: collecting ? 'collecting' : response.status,
+        latestImportAt,
+        syncTriggered,
+        operation,
     };
 };
 
@@ -166,21 +194,19 @@ const resolveBsrCategory = (result: HistoryMetricResult) => {
 
 const resolveLatestImportAt = (latestImportValues: Array<string | null>) => {
     let latestDate: Date | null = null;
-
     for (const value of latestImportValues) {
         if (!value) {
             continue;
         }
 
         const candidateDate = new Date(value);
-        if (!Number.isFinite(candidateDate.getTime())) {
-            continue;
-        }
-
-        if (!latestDate || candidateDate > latestDate) {
+        if (
+            Number.isFinite(candidateDate.getTime()) &&
+            (!latestDate || candidateDate > latestDate)
+        ) {
             latestDate = candidateDate;
         }
     }
 
-    return latestDate ? latestDate.toISOString() : null;
+    return latestDate?.toISOString() ?? null;
 };

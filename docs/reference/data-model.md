@@ -32,7 +32,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Top Search Terms dataset | marketplace, period, and report window | Current fetch lifecycle for one Amazon Brand Analytics reporting window. |
 | Top Search Terms snapshot | `(datasetId, observedDate)` | One fetched daily observation of a dataset. |
 | Search-term row | `(snapshotId, searchTerm)` | Rank and top-three click/conversion shares for one term in one snapshot. |
-| Operation | generated id; unique pending `(type, targetKey)` | Durable client receipt and terminal resource or safe error. |
+| Operation | generated id; unique pending `(type, targetKey)` | Durable coordination record and terminal resource or safe error. |
 | Catalog query | `(source, marketplaceId, normalizedTerm, page)` | Shared external-search identity, 30-day activity lease, refresh-attempt timestamps, and latest successful-run watermark. |
 | Search run | generated id | One immutable successful provider execution, including zero-result runs, with `trigger: requested | automatic`. |
 | Search result | `(runId, productId)` | Immutable source position and nullable metrics observed in that run. |
@@ -52,9 +52,12 @@ The active schema is split by responsibility:
 
 ## Operations
 
-Public Operation state is `pending` or `completed`. Pending rows have no outcome. Completed rows
-have exactly one outcome: a typed resource reference or a sanitized error. Dispatch and worker
-timestamps support recovery but are never exposed through the public contract.
+Catalog-facing Operation state is `pending` or `completed`. Pending rows have no outcome. Completed
+rows have exactly one outcome: a typed resource reference or a sanitized error. Product-history
+Operations use the same durable record internally, but public Product-history callers receive
+history or a provider-neutral retryable error instead of Operation state. The dashboard app keeps
+its existing Operation workflow. Dispatch and worker timestamps support recovery but are never
+exposed through the public contract.
 
 Only one pending `productHistoryRefresh` Operation exists per marketplace/ASIN target, and only
 one pending `catalogSearch` Operation exists per Catalog query. Product

@@ -36,16 +36,19 @@ buckets. Price values use minor currency units.
 
 ## Read And Refresh Lifecycle
 
-History reads ensure the canonical Product exists, read stored points, and return them without
-waiting for Keepa. When coverage is missing and no recent successful import proves the range was
-checked, the service persists or joins one pending Product-history Operation and dispatches its
-worker. A wider requested window does not bypass the global 24-hour Keepa success guard.
+Public history reads ensure the canonical Product exists, read stored points, and return available data
+immediately with one freshness envelope. When coverage is missing, or `refresh: true` requests
+stale data, the shared retrieval coordinator joins or starts one pending Product-history Operation,
+waits for its durable worker, and reads the completed history. A wider requested window does not
+bypass the global 24-hour Keepa success guard.
 
 The Operation is unique while pending for a marketplace/ASIN. Successful history persistence and
 successful Operation completion share one transaction. An exhausted provider failure completes
 the same Operation with a sanitized error and leaves existing points intact. Workers no-op after
-completion; startup and the minute recovery job redispatch stale pending receipts.
+completion; startup and the minute recovery job redispatch stale pending receipts. Caller timeouts
+detach from the coordinator without cancelling the durable worker.
 
-Public and app Operation reads expose only `pending` or `completed`. Pending responses include
-`retryAfterSeconds`; completion contains either a typed Product-history resource or a safe error.
-pg-boss jobs, provider queue rows, imports, and job executions remain internal and distinct.
+The public Product-history response exposes only history and freshness; capacity or deadline
+failures are provider-neutral and include a retry hint. The dashboard app procedures retain their
+existing Operation response until that caller migrates. pg-boss jobs, provider queue rows, imports,
+and job executions remain internal.

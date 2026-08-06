@@ -1,32 +1,33 @@
 import { TRPCError } from '@trpc/server';
-import { getPendingProductHistoryOperation } from '@/db/operations.js';
+import { getLatestProductHistoryOperation, getOperationById } from '@/db/operations.js';
 import {
     getProductHistoryPoints,
     hasRecentSuccessfulKeepaImportForAsin,
     type KeepaHistoryMetricKey,
 } from '@/services/keepa.js';
-import { buildPublicOperation } from '@/services/operations.js';
 import {
-    buildAgentHistoryResponse,
-    type HistoryMetricResult,
+    type ProductHistoryBucket,
     resolveAgentHistoryWindow,
-} from '@/services/product-history-agent.js';
-import type { ProductHistoryBucket } from '@/services/product-history-buckets.js';
-import { buildLegacyHistoryResponse } from '@/services/product-history-legacy.js';
-import { requestProductHistoryRefresh } from '@/services/product-history-operations.js';
+} from '@/services/product-history-buckets.js';
+import { ensureProductHistoryWork } from '@/services/product-history-operations.js';
+import {
+    awaitProductHistoryRetrieval,
+    buildProductHistoryFreshness,
+    type ProductHistoryRetrievalDeps,
+    shouldWaitForProductHistory,
+} from '@/services/product-history-retrieval.js';
+import { buildMetricHistoryResponse } from '@/services/product-history-surface-response.js';
 import { getRequiredProduct } from './product-retrieval';
 
 export const productHistoryMetrics = ['bsr', 'price'] as const;
 export const productHistoryFormats = ['points', 'legacy', 'agent'] as const;
-export const productHistoryRefreshModes = ['none', 'if_missing', 'force'] as const;
 
 const PRODUCT_HISTORY_PRODUCT_CACHE_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 
 export type ProductHistoryMetric = (typeof productHistoryMetrics)[number];
 export type ProductHistoryFormat = (typeof productHistoryFormats)[number];
-export type ProductHistoryRefreshMode = (typeof productHistoryRefreshModes)[number];
 
-type ProductHistorySurfaceInput = {
+interface ProductHistorySurfaceInputBase {
     marketplaceId: string;
     asin: string;
     metric?: KeepaHistoryMetricKey;
@@ -36,45 +37,62 @@ type ProductHistorySurfaceInput = {
     endAt?: Date;
     limit: number;
     days: number;
-    format: ProductHistoryFormat;
     bucket: ProductHistoryBucket;
-    refresh: ProductHistoryRefreshMode;
+    refresh: boolean;
     ownerMerchbaseUserId: string;
-};
+    signal?: AbortSignal;
+    timeoutMs?: number;
+}
 
-type MetricEntry = readonly [ProductHistoryMetric, HistoryMetricResult];
+export type ProductHistorySurfaceInput =
+    | (ProductHistorySurfaceInputBase & { format: 'points' })
+    | (ProductHistorySurfaceInputBase & { format: 'legacy' | 'agent' });
 
-export type ProductHistorySurfaceDeps = {
+type ProductHistoryMetricInput = Extract<
+    ProductHistorySurfaceInput,
+    { format: 'legacy' | 'agent' }
+>;
+
+export interface ProductHistorySurfaceDeps {
     getRequiredProduct: typeof getRequiredProduct;
     getProductHistoryPoints: typeof getProductHistoryPoints;
     hasRecentSuccessfulKeepaImportForAsin: typeof hasRecentSuccessfulKeepaImportForAsin;
-    requestProductHistoryRefresh: typeof requestProductHistoryRefresh;
-    getPendingProductHistoryOperation: typeof getPendingProductHistoryOperation;
-};
+    ensureProductHistoryWork: typeof ensureProductHistoryWork;
+    getOperationById: typeof getOperationById;
+    getLatestProductHistoryOperation: typeof getLatestProductHistoryOperation;
+    sleep: ProductHistoryRetrievalDeps['sleep'];
+    now?: () => Date;
+}
 
 const defaultDeps: ProductHistorySurfaceDeps = {
     getRequiredProduct,
     getProductHistoryPoints,
     hasRecentSuccessfulKeepaImportForAsin,
-    requestProductHistoryRefresh,
-    getPendingProductHistoryOperation,
+    ensureProductHistoryWork,
+    getOperationById,
+    getLatestProductHistoryOperation,
+    sleep: async delayMs => {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+    },
+    now: () => new Date(),
 };
 
 export const getProductHistorySurface = async (
     input: ProductHistorySurfaceInput,
     deps: ProductHistorySurfaceDeps = defaultDeps
 ) => {
+    const canonicalInput = { ...input, asin: input.asin.trim().toUpperCase() };
     await deps.getRequiredProduct({
-        marketplaceId: input.marketplaceId,
-        asin: input.asin,
+        marketplaceId: canonicalInput.marketplaceId,
+        asin: canonicalInput.asin,
         maxAgeMs: PRODUCT_HISTORY_PRODUCT_CACHE_MAX_AGE_MS,
     });
 
-    if (input.format === 'points') {
-        return await getPointsHistory(input, deps);
+    if (canonicalInput.format === 'points') {
+        return await getPointsHistory(canonicalInput, deps);
     }
 
-    return await getMetricHistory(input, deps);
+    return await getMetricHistory(canonicalInput, deps);
 };
 
 const getPointsHistory = async (
@@ -98,29 +116,54 @@ const getPointsHistory = async (
         limit: input.limit,
     });
 
-    const shouldRequest =
-        input.refresh === 'force' ||
-        (input.refresh === 'if_missing' &&
-            (await shouldSyncProductHistory(input, null, result.points, deps)));
-    const requested = shouldRequest
-        ? await deps.requestProductHistoryRefresh({
-              marketplaceId: input.marketplaceId,
-              asin: input.asin,
-              ownerMerchbaseUserId: input.ownerMerchbaseUserId,
-          })
-        : null;
-    const operation = requested?.operation ?? (await getPendingOperation(input, deps));
+    const freshness = buildProductHistoryFreshness([result.latestImportAt], getNow(deps));
+    if (
+        await shouldWaitForProductHistory({
+            refresh: input.refresh,
+            points: result.points,
+            freshness,
+            coverageStartAt: input.startAt,
+            hasRecentSuccessfulImport: () =>
+                deps.hasRecentSuccessfulKeepaImportForAsin({
+                    marketplaceId: input.marketplaceId,
+                    asin: input.asin,
+                }),
+        })
+    ) {
+        await awaitProductHistoryRetrieval(input, getRetrievalDeps(deps));
+        return await getPointsHistoryAfterRetrieval(input, deps);
+    }
+
+    const { latestImportAt: _latestImportAt, ...history } = result;
 
     return {
-        ...result,
-        collecting: operation?.status === 'pending',
-        syncTriggered: requested?.created ?? false,
-        operation,
+        ...history,
+        freshness,
+    };
+};
+
+const getPointsHistoryAfterRetrieval = async (
+    input: ProductHistorySurfaceInput,
+    deps: ProductHistorySurfaceDeps
+) => {
+    const result = await deps.getProductHistoryPoints({
+        marketplaceId: input.marketplaceId,
+        asin: input.asin,
+        metric: input.metric as KeepaHistoryMetricKey,
+        categoryId: input.categoryId,
+        startAt: input.startAt,
+        endAt: input.endAt,
+        limit: input.limit,
+    });
+    const { latestImportAt: _latestImportAt, ...history } = result;
+    return {
+        ...history,
+        freshness: buildProductHistoryFreshness([result.latestImportAt], getNow(deps)),
     };
 };
 
 const getMetricHistory = async (
-    input: ProductHistorySurfaceInput,
+    input: ProductHistoryMetricInput,
     deps: ProductHistorySurfaceDeps
 ) => {
     const requestedMetrics = normalizeRequestedMetrics(input.metrics);
@@ -139,89 +182,79 @@ const getMetricHistory = async (
         agentWindow,
         deps,
     });
-    const resultsByMetric = buildResultsByMetric(metricEntries);
-    const primaryMetric = resolvePrimaryMetric(requestedMetrics);
-    const primaryResult = resultsByMetric[primaryMetric];
+    const primaryResult = metricEntries.find(
+        ([metric]) => metric === resolvePrimaryMetric(requestedMetrics)
+    )?.[1];
 
-    const shouldRequest =
-        input.refresh === 'force' ||
-        (input.refresh === 'if_missing' &&
-            Boolean(
-                primaryResult &&
-                    (await shouldSyncProductHistory(input, agentWindow, primaryResult.points, deps))
-            ));
-    const requested = shouldRequest
-        ? await deps.requestProductHistoryRefresh({
-              marketplaceId: input.marketplaceId,
-              asin: input.asin,
-              ownerMerchbaseUserId: input.ownerMerchbaseUserId,
-          })
-        : null;
-    const operation = requested?.operation ?? (await getPendingOperation(input, deps));
-    const syncTriggered = requested?.created ?? false;
-
-    if (input.format === 'legacy') {
-        const legacyResult = resultsByMetric.bsr;
-        return buildLegacyHistoryResponse({
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-            latestImportAt: legacyResult?.latestImportAt ?? null,
-            categoryNames: legacyResult?.categoryNames ?? {},
-            points: legacyResult?.points ?? [],
-            syncTriggered,
-            operation,
-        });
+    const freshness = buildProductHistoryFreshness(
+        metricEntries.map(([, result]) => result.latestImportAt),
+        getNow(deps)
+    );
+    if (
+        await shouldWaitForProductHistory({
+            refresh: input.refresh,
+            points: primaryResult?.points ?? [],
+            freshness,
+            coverageStartAt: agentWindow?.startAt ?? input.startAt,
+            hasRecentSuccessfulImport: () =>
+                deps.hasRecentSuccessfulKeepaImportForAsin({
+                    marketplaceId: input.marketplaceId,
+                    asin: input.asin,
+                }),
+        })
+    ) {
+        await awaitProductHistoryRetrieval(input, getRetrievalDeps(deps));
+        return await getMetricHistoryAfterRetrieval(input, deps);
     }
 
-    const emptyWindow = resolveAgentHistoryWindow({
-        startAt: input.startAt,
-        endAt: input.endAt,
-        days: input.days,
-    });
-
-    return buildAgentHistoryResponse({
-        marketplaceId: input.marketplaceId,
-        asin: input.asin,
-        requestedBucket: input.bucket,
+    return buildMetricHistoryResponse({
+        input,
         requestedMetrics,
-        startAt: agentWindow?.startAt ?? emptyWindow.startAt,
-        endAt: agentWindow?.endAt ?? emptyWindow.endAt,
-        collecting: operation?.status === 'pending',
-        syncTriggered,
-        operation,
-        resultsByMetric: primaryResult ? resultsByMetric : {},
+        agentWindow,
+        metricEntries,
+        freshness,
     });
 };
 
-const shouldSyncProductHistory = async (
-    input: ProductHistorySurfaceInput,
-    agentWindow: { startAt: Date; endAt: Date } | null,
-    points: HistoryMetricResult['points'],
+const getMetricHistoryAfterRetrieval = async (
+    input: ProductHistoryMetricInput,
     deps: ProductHistorySurfaceDeps
 ) => {
-    if (hasHistoryCoverage(points, agentWindow?.startAt ?? input.startAt)) {
-        return false;
-    }
-
-    return !(await deps.hasRecentSuccessfulKeepaImportForAsin({
-        marketplaceId: input.marketplaceId,
-        asin: input.asin,
-    }));
+    const requestedMetrics = normalizeRequestedMetrics(input.metrics);
+    const agentWindow =
+        input.format === 'agent'
+            ? resolveAgentHistoryWindow({
+                  startAt: input.startAt,
+                  endAt: input.endAt,
+                  days: input.days,
+              })
+            : null;
+    const metricEntries = await loadMetricEntries({
+        input,
+        requestedMetrics,
+        agentWindow,
+        deps,
+    });
+    const freshness = buildProductHistoryFreshness(
+        metricEntries.map(([, result]) => result.latestImportAt),
+        getNow(deps)
+    );
+    return buildMetricHistoryResponse({
+        input,
+        requestedMetrics,
+        agentWindow,
+        metricEntries,
+        freshness,
+    });
 };
-
-const hasHistoryCoverage = (points: HistoryMetricResult['points'], startAt: Date | undefined) => {
-    if (points.length === 0) {
-        return false;
-    }
-
-    if (!startAt) {
-        return true;
-    }
-
-    const startMs = startAt.getTime();
-    return points.some(point => Date.parse(point.observedAt) <= startMs);
-};
-
+const getRetrievalDeps = (deps: ProductHistorySurfaceDeps): ProductHistoryRetrievalDeps => ({
+    ensureProductHistoryWork: deps.ensureProductHistoryWork,
+    getOperationById: deps.getOperationById,
+    getLatestProductHistoryOperation: deps.getLatestProductHistoryOperation,
+    sleep: deps.sleep,
+    now: deps.now,
+});
+const getNow = (deps: ProductHistorySurfaceDeps) => deps.now?.() ?? new Date();
 const normalizeRequestedMetrics = (metrics: ProductHistoryMetric[] | undefined) => {
     if (!metrics || metrics.length === 0) {
         return ['bsr'] as ProductHistoryMetric[];
@@ -229,11 +262,9 @@ const normalizeRequestedMetrics = (metrics: ProductHistoryMetric[] | undefined) 
 
     return Array.from(new Set(metrics));
 };
-
 const resolvePrimaryMetric = (metrics: ProductHistoryMetric[]) => {
     return metrics.includes('bsr') ? 'bsr' : (metrics[0] ?? 'bsr');
 };
-
 const resolveKeepaMetric = (metric: ProductHistoryMetric): KeepaHistoryMetricKey => {
     if (metric === 'bsr') {
         return 'bsrMain';
@@ -241,14 +272,13 @@ const resolveKeepaMetric = (metric: ProductHistoryMetric): KeepaHistoryMetricKey
 
     return 'priceNew';
 };
-
-const loadMetricEntries = async ({
+const loadMetricEntries = ({
     input,
     requestedMetrics,
     agentWindow,
     deps,
 }: {
-    input: ProductHistorySurfaceInput;
+    input: ProductHistoryMetricInput;
     requestedMetrics: ProductHistoryMetric[];
     agentWindow: { startAt: Date; endAt: Date } | null;
     deps: ProductHistorySurfaceDeps;
@@ -267,21 +297,4 @@ const loadMetricEntries = async ({
             return [metric, result] as const;
         })
     );
-};
-
-const buildResultsByMetric = (metricEntries: MetricEntry[]) => {
-    return Object.fromEntries(metricEntries) as Partial<
-        Record<ProductHistoryMetric, MetricEntry[1]>
-    >;
-};
-
-const getPendingOperation = async (
-    input: ProductHistorySurfaceInput,
-    deps: ProductHistorySurfaceDeps
-) => {
-    const operation = await deps.getPendingProductHistoryOperation({
-        marketplaceId: input.marketplaceId,
-        asin: input.asin,
-    });
-    return operation ? buildPublicOperation(operation) : null;
 };

@@ -55,13 +55,15 @@ execution, not alternate Product records or guaranteed Amazon organic rank.
 
 HTTP tRPC owns queries and mutations. Clerk-authenticated tRPC WebSockets own app subscriptions.
 The server performs cheap reads directly and delegates scheduled or provider work to pg-boss.
-Product-history refresh persists a durable Operation before dispatch; callers receive stored
-history plus the receipt and poll the database-backed outcome. Its domain-specific completion
-subscription invalidates dashboard reads without carrying outcome state.
+Product-history refresh persists a durable Operation before dispatch. The public Product-history
+boundary uses a shared retrieval coordinator to hide that lifecycle: it returns stored history
+immediately when available, waits for missing or policy-requested refresh work, or returns a
+provider-neutral retryable error with a retry hint. The dashboard app boundary continues to expose
+its existing Operation workflow and domain-specific completion subscription.
 
-The durable database state is authoritative. Operations own client-requested outcomes,
-job-execution records describe worker attempts, and the activity log describes meaningful domain
-outcomes. These records remain distinct.
+The durable database state is authoritative. Operations own durable work outcomes, whether or not
+the surrounding caller contract exposes them; job-execution records describe worker attempts, and
+the activity log describes meaningful domain outcomes. These records remain distinct.
 
 ## Related
 

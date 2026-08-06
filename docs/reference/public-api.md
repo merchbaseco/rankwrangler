@@ -100,34 +100,24 @@ Public history supports two formats:
 
 `agent` responses contain:
 
-- `status`: `collecting`, `ready`, or `empty`;
-- `latestImportAt`, `syncTriggered`, and `operation`;
+- `status`: `ready` or `empty`;
+- `freshness: { stale, updatedAt }` for the history data category;
 - the resolved time range and bucket;
 - optional `bsr` and `price` series.
+
+`legacy` responses contain main-category BSR points and the same `freshness` envelope. Neither
+format exposes an Operation identifier, polling state, or provider-specific availability fields.
 
 `auto` resolves to day buckets through 45 days, week buckets through 18 months, and month buckets
 for longer windows. BSR values are ranks. Price values are integer minor currency units with an
 explicit currency and scale.
 
-When collection is needed, history returns stored points immediately with a pending Operation:
-
-```text
-id
-type: productHistoryRefresh
-status: pending
-retryAfterSeconds: 2
-createdAt
-updatedAt
-```
-
-Poll it with the read-only `api.public.operation.get` query. Polling does not consume another
-external-work usage unit. Completed Operations contain exactly one of:
-
-- `resource: { type: "productHistory", marketplaceId, asin }`;
-- `error: { code, message }`, with provider details removed.
-
-After resource completion, read Product history again. A range before the earliest available
-provider observation can still be empty after successful collection.
+When collection is needed, the history request waits for the existing policy-compliant durable
+work and returns the completed history. Concurrent equivalent requests join one collection. A
+caller timeout detaches without cancelling that work. Temporary capacity or deadline failures use
+tRPC `TIMEOUT` with a provider-neutral message containing `Retry after N seconds`; callers may
+retry without creating duplicate provider work. A valid Product with no history returns a
+successful empty result.
 
 ## Catalog search
 

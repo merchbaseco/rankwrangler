@@ -23,9 +23,10 @@ event bus. The domain subscriptions are:
 - `api.app.product.sync.completed` — shipped;
 - `api.app.catalog.search.completed` — shipped.
 
-One `completed` event covers successful and failed outcomes. The associated Operation read reveals
-the outcome; separate `succeeded`, `failed`, or `refreshFailed` subscriptions would duplicate the
-lifecycle.
+One `completed` event covers successful and failed outcomes. The dashboard and Catalog consumers
+may use the associated Operation read; public Product-history retrieval hides its Operation and
+re-reads history after the shared wait. Separate `succeeded`, `failed`, or `refreshFailed`
+subscriptions would duplicate the lifecycle.
 
 Event payloads carry only invalidation identity such as `operationId`, `productId`, or `queryId`.
 Feature hooks subscribe and invalidate the exact tRPC reads that own the displayed state.
@@ -39,7 +40,8 @@ connection at credential expiry. The dedicated WebSocket router exposes only shi
 subscriptions.
 
 The Product-history panel subscribes by marketplace/ASIN. Its feature hook rejects completion from
-an older Operation and invalidates that Operation plus the panel's exact active history reads.
+an older Operation exposed through the app boundary and invalidates the panel's exact active
+history reads. Public Product-history responses do not expose that Operation.
 The Keyword-research page subscribes by Catalog query and rejects events from another query or
 Operation. It invalidates the affected Operation, query, and run list; the completed Operation then
 identifies the exact run read to invalidate.
@@ -51,12 +53,13 @@ requests. Reconnect invalidates only visible Products whose Product availability
 
 ## Recovery
 
-WebSocket delivery is best effort. The durable database and Operation read remain authoritative.
-Agents poll after `retryAfterSeconds`; the dashboard also polls while showing existing points and
-`Syncing Keepa…`. A completion event lowers latency but carries no outcome. Reload and polling
-recover missed events, while reconnect invalidates the active Operation and history reads.
+WebSocket delivery is best effort. The durable database remains authoritative. Public
+Product-history callers wait for the shared result or retry a provider-neutral `TIMEOUT`; the
+dashboard continues to poll its app Operation. A completion event lowers latency for cache
+invalidation but carries no outcome. Reload and normal history reads recover missed events.
 Catalog-search Operations follow the same recovery model. The active term and Operation ID remain
-in the dashboard URL so reload resumes the durable read without depending on WebSocket delivery.
+in the dashboard URL so reload resumes the durable Catalog read without depending on WebSocket
+delivery.
 Product enrichment does not poll: durable queue membership plus the resolution marker distinguish
 pending, available, and unavailable category states. The queue survives restart, realtime lowers
 update latency, and reload reads current Product state.

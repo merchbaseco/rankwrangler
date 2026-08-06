@@ -1,20 +1,18 @@
 import { TRPCError } from '@trpc/server';
 import type { PublicOperation } from '@/services/operations.js';
+import type { OperationalAgentHistoryResponse } from '@/services/product-history-agent.js';
 import {
-    type AgentHistoryResponse,
     resolveAgentHistoryWindow,
-} from '@/services/product-history-agent.js';
-import { resolveHistoryBucket } from '@/services/product-history-buckets.js';
-import {
-    getProductHistorySurface,
-    type ProductHistoryMetric,
-} from '@/services/product-history-surface.js';
+    resolveHistoryBucket,
+} from '@/services/product-history-buckets.js';
+import { getProductHistoryOperationSurface } from '@/services/product-history-operation-surface.js';
+import type { ProductHistoryMetric } from '@/services/product-history-surface.js';
 import type { ProductInfo } from '@/types/index.js';
 import { getRequiredProduct } from './product-retrieval';
 
 const DEFAULT_PRODUCT_GET_METRICS: readonly ProductHistoryMetric[] = ['bsr', 'price'];
 
-type ProductReadInput = {
+interface ProductReadInput {
     marketplaceId: string;
     asin: string;
     startAt?: Date;
@@ -24,9 +22,9 @@ type ProductReadInput = {
     metrics?: ProductHistoryMetric[];
     bucket: 'auto' | 'day' | 'week' | 'month';
     ownerMerchbaseUserId: string;
-};
+}
 
-type ProductHistoryError = {
+interface ProductHistoryError {
     schemaVersion: 2;
     status: 'error';
     latestImportAt: null;
@@ -37,21 +35,21 @@ type ProductHistoryError = {
         endAt: string;
         bucket: 'day' | 'week' | 'month';
     };
-    series: {};
+    series: Record<string, never>;
     error: {
         code: string;
         message: string;
     };
-};
+}
 
-export type ProductReadModel = {
+export interface ProductReadModel {
     schemaVersion: 1;
     marketplaceId: string;
     asin: string;
     status: 'ready' | 'partial';
     summary: ProductInfo;
-    history: AgentHistoryResponse | ProductHistoryError;
-};
+    history: OperationalAgentHistoryResponse | ProductHistoryError;
+}
 
 export const getProductReadModel = async (input: ProductReadInput): Promise<ProductReadModel> => {
     const summary = await getRequiredProduct({
@@ -60,13 +58,13 @@ export const getProductReadModel = async (input: ProductReadInput): Promise<Prod
     });
 
     try {
-        const history = (await getProductHistorySurface({
+        const history = (await getProductHistoryOperationSurface({
             ...input,
             metrics: input.metrics ?? [...DEFAULT_PRODUCT_GET_METRICS],
             format: 'agent',
             refresh: 'if_missing',
             ownerMerchbaseUserId: input.ownerMerchbaseUserId,
-        })) as AgentHistoryResponse;
+        })) as OperationalAgentHistoryResponse;
 
         return {
             schemaVersion: 1,

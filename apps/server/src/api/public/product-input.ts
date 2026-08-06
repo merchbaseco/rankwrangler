@@ -18,7 +18,7 @@ export const productSummaryInput = z.object({
 export const productGetInput = productSummaryInput.extend({
     startAt: z.coerce.date().optional(),
     endAt: z.coerce.date().optional(),
-    limit: z.coerce.number().int().min(1).max(10000).default(5000),
+    limit: z.coerce.number().int().min(1).max(10_000).default(5000),
     days: z.coerce.number().int().min(30).max(3650).default(365),
     metrics: z.array(z.enum(productHistoryMetrics)).min(1).max(2).optional(),
     bucket: z.enum(productHistoryBuckets).default('auto'),
@@ -27,6 +27,7 @@ export const productGetInput = productSummaryInput.extend({
 export const productHistoryInput = productGetInput
     .extend({
         format: z.enum(publicHistoryFormat).default('legacy'),
+        refresh: z.boolean().default(false),
     })
     .superRefine((input, ctx) => {
         if (!input.metrics || input.format !== 'legacy') {

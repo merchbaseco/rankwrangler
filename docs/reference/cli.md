@@ -79,15 +79,10 @@ rw products history B0DV53VS61 \
 `bsr` maps to Keepa `bsrMain`; `price` maps to `priceNew`. The CLI returns bucket tuples and
 summaries, never the raw point series.
 
-When `status` is `collecting`, the response includes `operation.id` and
-`retryAfterSeconds`. Poll it with:
-
-```bash
-rw operations get 11111111-1111-4111-8111-111111111111
-```
-
-A completed Operation contains either `resource.type: "productHistory"` with marketplace/ASIN
-identity or a sanitized `error`. Read Product history again after successful completion.
+The response contains `status: ready | empty`, the category-level
+`freshness: { stale, updatedAt }` envelope, and the requested bucketed series. The CLI does not
+expose Product-history Operation identifiers or polling state. Temporary capacity or deadline
+failures exit with a retryable tRPC `TIMEOUT` message containing a retry hint.
 
 For Catalog search:
 

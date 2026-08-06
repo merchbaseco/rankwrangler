@@ -35,10 +35,15 @@ const product = await client.product.get.mutate({
 });
 
 if (product.history.operation?.status === 'pending') {
-    const operation = await client.operation.get.query({
-        id: product.history.operation.id,
-    });
+    await client.operation.get.query({ id: product.history.operation.id });
 }
+
+const history = await client.product.getHistory.mutate({
+    marketplaceId: 'ATVPDKIKX0DER',
+    asin: 'B0DV53VS61',
+    format: 'agent',
+    metrics: ['bsr', 'price'],
+});
 
 const search = await client.catalog.search.mutate({
     term: 'retro gardening shirt',
@@ -112,8 +117,10 @@ Calls return ordinary tRPC promises and reject with tRPC client errors. Server e
 `UNAUTHORIZED`, `TOO_MANY_REQUESTS`, `NOT_FOUND`, and `BAD_REQUEST` are available through the tRPC
 error data.
 
-The client does not poll automatically. Product history methods return stored data plus a pending
-Operation when collection is needed. Call `client.operation.get.query` after
-`retryAfterSeconds`; polling is read-only and does not consume another external-work usage unit.
+The client does not poll automatically. `product.getHistory` returns available data with a
+`freshness` envelope, waits for missing or explicitly refreshed history, and rejects temporary
+capacity/deadline failures with tRPC `TIMEOUT` plus a retry hint. Its Product-history Operation
+state is internal to the server retrieval service. The richer `product.get` contract retains its
+existing Operation-shaped embedded history until that caller migrates.
 
 The implementation is [`packages/http-client/src/index.ts`](../../packages/http-client/src/index.ts).

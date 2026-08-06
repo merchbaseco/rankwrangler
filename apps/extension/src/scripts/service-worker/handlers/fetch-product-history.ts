@@ -4,6 +4,8 @@ import {
 } from "@rankwrangler/http-client";
 import type {
 	FetchProductHistoryMessage,
+	ProductHistory,
+	ProductHistoryPoint,
 	ProductHistoryResponse,
 } from "@/scripts/content/types";
 import { log } from "../../../utils/logger";
@@ -41,7 +43,7 @@ export async function handleFetchProductHistory(
 			format: "legacy",
 		});
 
-		if (!("points" in response && "collecting" in response)) {
+		if (!isTransparentProductHistoryResponse(response)) {
 			throw new Error(
 				"Product history returned an unsupported response format."
 			);
@@ -49,7 +51,16 @@ export async function handleFetchProductHistory(
 
 		return {
 			success: true,
-			data: response,
+			data: {
+				marketplaceId: response.marketplaceId,
+				asin: response.asin,
+				metric: response.metric,
+				latestImportAt: response.freshness.updatedAt,
+				categoryNames: response.categoryNames,
+				points: response.points,
+				collecting: false,
+				syncTriggered: false,
+			},
 		};
 	} catch (error) {
 		const errorCode = resolveTrpcErrorCode(error);
@@ -94,3 +105,71 @@ const resolveTrpcErrorCode = (error: unknown): string | null => {
 
 	return null;
 };
+
+interface TransparentProductHistoryResponse {
+	marketplaceId: string;
+	asin: string;
+	metric: ProductHistory["metric"];
+	categoryNames: Record<string, string>;
+	points: ProductHistoryPoint[];
+	freshness: {
+		stale: boolean;
+		updatedAt: string | null;
+	};
+}
+
+const isTransparentProductHistoryResponse = (
+	value: unknown
+): value is TransparentProductHistoryResponse => {
+	if (!isRecord(value)) {
+		return false;
+	}
+
+	return (
+		typeof value.marketplaceId === "string" &&
+		typeof value.asin === "string" &&
+		isProductHistoryMetric(value.metric) &&
+		isStringRecord(value.categoryNames) &&
+		Array.isArray(value.points) &&
+		value.points.every(isProductHistoryPoint) &&
+		isFreshness(value.freshness)
+	);
+};
+
+const isProductHistoryMetric = (
+	value: unknown
+): value is ProductHistory["metric"] =>
+	["bsrMain", "bsrCategory", "priceAmazon", "priceNew", "priceNewFba"].includes(
+		value as ProductHistory["metric"]
+	);
+
+const isProductHistoryPoint = (
+	value: unknown
+): value is ProductHistoryPoint => {
+	if (!isRecord(value)) {
+		return false;
+	}
+
+	return (
+		typeof value.categoryId === "number" &&
+		(typeof value.categoryName === "string" || value.categoryName === null) &&
+		typeof value.observedAt === "string" &&
+		typeof value.keepaMinutes === "number" &&
+		(typeof value.value === "number" || value.value === null) &&
+		typeof value.isMissing === "boolean"
+	);
+};
+
+const isFreshness = (
+	value: unknown
+): value is TransparentProductHistoryResponse["freshness"] =>
+	isRecord(value) &&
+	typeof value.stale === "boolean" &&
+	(typeof value.updatedAt === "string" || value.updatedAt === null);
+
+const isStringRecord = (value: unknown): value is Record<string, string> =>
+	isRecord(value) &&
+	Object.values(value).every((item) => typeof item === "string");
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null;

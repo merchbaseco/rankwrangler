@@ -8,16 +8,19 @@ import {
 import { buildPublicOperation, type OperationRecord } from '@/services/operations.js';
 
 export const PRODUCT_HISTORY_OPERATION_JOB_NAME = 'refresh-product-history-operation';
+export const PRODUCT_HISTORY_RETRY_AFTER_SECONDS = 2;
+const PRODUCT_HISTORY_DISPATCH_COOLDOWN_MS = PRODUCT_HISTORY_RETRY_AFTER_SECONDS * 1000;
 
 let productHistoryOperationBoss: PgBoss | null = null;
 
-export type ProductHistoryOperationDeps = {
+export interface ProductHistoryOperationDeps {
     ensurePendingOperation: typeof ensurePendingProductHistoryOperation;
     claimOperationDispatch: typeof claimOperationDispatch;
     releaseOperationDispatch: typeof releaseOperationDispatch;
     listStalePendingOperations: typeof listStalePendingProductHistoryOperations;
     sendJob: (input: { operationId: string }) => Promise<string | null>;
-};
+    now?: () => Date;
+}
 
 const defaultDeps: ProductHistoryOperationDeps = {
     ensurePendingOperation: ensurePendingProductHistoryOperation,
@@ -40,13 +43,14 @@ const defaultDeps: ProductHistoryOperationDeps = {
             )) ?? null
         );
     },
+    now: () => new Date(),
 };
 
 export const registerProductHistoryOperationWakeups = (boss: PgBoss) => {
     productHistoryOperationBoss = boss;
 };
 
-export const requestProductHistoryRefresh = async (
+export const ensureProductHistoryWork = async (
     {
         marketplaceId,
         asin,
@@ -63,8 +67,32 @@ export const requestProductHistoryRefresh = async (
         asin,
         ownerMerchbaseUserId,
     });
-    await dispatchPendingOperation(ensured.operation, deps);
+    const now = deps.now?.() ?? new Date();
+    const dispatchDue =
+        ensured.created ||
+        Boolean(ensured.operation.dispatchedAt) ||
+        Boolean(ensured.operation.startedAt) ||
+        now.getTime() - ensured.operation.updatedAt.getTime() >=
+            PRODUCT_HISTORY_DISPATCH_COOLDOWN_MS;
+    const dispatched = dispatchDue
+        ? await dispatchPendingOperation(ensured.operation, deps, true)
+        : false;
 
+    return {
+        ...ensured,
+        dispatched,
+    };
+};
+
+export const requestProductHistoryRefresh = async (
+    input: {
+        marketplaceId: string;
+        asin: string;
+        ownerMerchbaseUserId: string;
+    },
+    deps: ProductHistoryOperationDeps = defaultDeps
+) => {
+    const ensured = await ensureProductHistoryWork(input, deps);
     return {
         operation: buildPublicOperation(ensured.operation),
         created: ensured.created,
@@ -88,11 +116,12 @@ export const recoverStaleProductHistoryOperations = async (
 
 const dispatchPendingOperation = async (
     operation: OperationRecord,
-    deps: ProductHistoryOperationDeps
+    deps: ProductHistoryOperationDeps,
+    joinedWorkCountsAsDispatched = false
 ) => {
     const claimed = await deps.claimOperationDispatch(operation.id);
     if (!claimed) {
-        return false;
+        return joinedWorkCountsAsDispatched;
     }
 
     try {

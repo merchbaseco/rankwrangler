@@ -16,8 +16,9 @@ RankWrangler separates interactive dashboard sessions from portable agent creden
 | Chrome extension | Clerk Sync Host session | Background requests through authenticated data procedures |
 | Safari extension | Native OAuth Authorization Code + PKCE | Background requests through the public surface |
 
-The public surface exposes Product summary, rich Product, Product history, durable Operation
-polling, and Catalog search. The published `@rankwrangler/http-client` supplies end-to-end
+The public surface exposes Product summary, rich Product, caller-transparent Product history, and
+Catalog search. Durable Operation polling remains an internal implementation detail of
+Product-history retrieval. The published `@rankwrangler/http-client` supplies end-to-end
 tRPC types, and the `rw` CLI presents the same primitives as stable JSON output for agents and
 scripts.
 

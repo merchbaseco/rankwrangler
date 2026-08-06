@@ -23,8 +23,10 @@ import rows provide provenance and diagnostics but do not schedule refreshes.
 | Non-merch or missing numeric BSR | Not scheduled |
 
 Every caller shares a strict 24-hour minimum provider gap per marketplace/ASIN. Rich product,
-history, and dashboard requests create or join a durable Operation for on-demand work and cannot
-bypass that guard.
+history, and dashboard requests create or join durable on-demand work and cannot bypass that guard.
+Public Product-history callers wait through the shared retrieval service and do not receive
+Operation identifiers or provider-capacity details. The dashboard app keeps its existing
+Operation-based refresh workflow.
 
 The hourly cadence scan enqueues stale eligible Products. The queue dispatcher runs every minute,
 sizes work from available Keepa capacity, and caps each batch. A queue row is unique by

@@ -2,9 +2,9 @@ import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import { keepaHistoryMetricKeys } from '@/services/keepa.js';
 import {
-    getProductHistorySurface,
+    getProductHistoryOperationSurface,
     productHistoryRefreshModes,
-} from '@/services/product-history-surface.js';
+} from '@/services/product-history-operation-surface.js';
 
 const getProductHistoryInput = z
     .object({
@@ -39,7 +39,7 @@ const getProductHistoryInput = z
 export const getProductHistory = appProcedure
     .input(getProductHistoryInput)
     .query(async ({ input, ctx }) => {
-        return await getProductHistorySurface({
+        return await getProductHistoryOperationSurface({
             ...input,
             format: 'points',
             bucket: 'auto',

@@ -1,4 +1,4 @@
-import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { operations } from '@/db/ops-schema.js';
 import type {
@@ -21,7 +21,8 @@ export const ensurePendingProductHistoryOperation = async ({
     asin: string;
     ownerMerchbaseUserId: string;
 }) => {
-    const targetKey = buildProductHistoryTargetKey({ marketplaceId, asin });
+    const canonicalAsin = asin.trim().toUpperCase();
+    const targetKey = buildProductHistoryTargetKey({ marketplaceId, asin: canonicalAsin });
     const lockKey = `productHistoryRefresh:${targetKey}`;
 
     return await db.transaction(async transaction => {
@@ -45,7 +46,7 @@ export const ensurePendingProductHistoryOperation = async ({
 
         const input: ProductHistoryOperationInput = {
             marketplaceId,
-            asin,
+            asin: canonicalAsin,
             days: 3650,
             ownerMerchbaseUserId,
         };
@@ -76,7 +77,7 @@ export const getOperationById = async (operationId: string) => {
     return operation ? mapOperationRecord(operation) : null;
 };
 
-export const getPendingProductHistoryOperation = async ({
+export const getLatestProductHistoryOperation = async ({
     marketplaceId,
     asin,
 }: {
@@ -89,10 +90,10 @@ export const getPendingProductHistoryOperation = async ({
         .where(
             and(
                 eq(operations.type, 'productHistoryRefresh'),
-                eq(operations.targetKey, buildProductHistoryTargetKey({ marketplaceId, asin })),
-                eq(operations.status, 'pending')
+                eq(operations.targetKey, buildProductHistoryTargetKey({ marketplaceId, asin }))
             )
         )
+        .orderBy(desc(operations.updatedAt), desc(operations.id))
         .limit(1);
 
     return operation ? mapOperationRecord(operation) : null;
@@ -248,7 +249,7 @@ const buildProductHistoryTargetKey = ({
 }: {
     marketplaceId: string;
     asin: string;
-}) => `${marketplaceId}:${asin}`;
+}) => `${marketplaceId}:${asin.trim().toUpperCase()}`;
 
 export const mapOperationRecord = (row: typeof operations.$inferSelect): OperationRecord => {
     const common = {

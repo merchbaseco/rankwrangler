@@ -327,7 +327,11 @@ export type HistoryBucketSummary = {
 	firstBucketAt: string | null;
 	latestBucketAt: string | null;
 };
-export type AgentHistorySeries = {
+export interface ProductHistoryFreshness {
+	stale: boolean;
+	updatedAt: string | null;
+}
+export interface AgentHistorySeries {
 	bsr?: {
 		unit: "rank";
 		category: {
@@ -344,23 +348,35 @@ export type AgentHistorySeries = {
 		buckets: HistoryBucketTuple[];
 		summary: HistoryBucketSummary;
 	};
-};
-export type AgentHistoryResponse = {
+}
+export interface AgentHistoryResponse {
 	schemaVersion: 2;
 	marketplaceId: string;
 	asin: string;
-	status: "collecting" | "ready" | "empty";
-	latestImportAt: string | null;
-	syncTriggered: boolean;
-	operation: PublicOperation | null;
+	status: "ready" | "empty";
+	freshness: ProductHistoryFreshness;
 	range: {
 		startAt: string;
 		endAt: string;
 		bucket: ResolvedHistoryBucket;
 	};
 	series: AgentHistorySeries;
-};
-export type ProductHistoryError = {
+}
+export interface OperationalAgentHistoryResponse extends Omit<AgentHistoryResponse, "status" | "freshness"> {
+	status: "collecting" | "ready" | "empty";
+	latestImportAt: string | null;
+	syncTriggered: boolean;
+	operation: PublicOperation | null;
+}
+export interface HistoryPoint {
+	categoryId: number;
+	categoryName: string | null;
+	observedAt: string;
+	keepaMinutes: number;
+	value: number | null;
+	isMissing: boolean;
+}
+export interface ProductHistoryError {
 	schemaVersion: 2;
 	status: "error";
 	latestImportAt: null;
@@ -371,20 +387,20 @@ export type ProductHistoryError = {
 		endAt: string;
 		bucket: "day" | "week" | "month";
 	};
-	series: {};
+	series: Record<string, never>;
 	error: {
 		code: string;
 		message: string;
 	};
-};
-export type ProductReadModel = {
+}
+export interface ProductReadModel {
 	schemaVersion: 1;
 	marketplaceId: string;
 	asin: string;
 	status: "ready" | "partial";
 	summary: ProductInfo;
-	history: AgentHistoryResponse | ProductHistoryError;
-};
+	history: OperationalAgentHistoryResponse | ProductHistoryError;
+}
 export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 	ctx: {
 		user: null;
@@ -745,32 +761,23 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						metrics?: ("bsr" | "price")[] | undefined;
 						bucket?: "auto" | "day" | "week" | "month" | undefined;
 						format?: "legacy" | "agent" | undefined;
+						refresh?: boolean | undefined;
 					};
 					output: AgentHistoryResponse | {
 						marketplaceId: string;
 						asin: string;
 						metric: "bsrMain";
-						latestImportAt: string | null;
 						categoryNames: Record<string, string>;
-						points: {
-							categoryId: number;
-							categoryName: string | null;
-							observedAt: string;
-							keepaMinutes: number;
-							value: number | null;
-							isMissing: boolean;
-						}[];
-						collecting: boolean;
-						syncTriggered: boolean;
-						operation: PublicOperation | null;
+						points: HistoryPoint[];
+						freshness: {
+							updatedAt: string | null;
+							stale: boolean;
+						};
 					} | {
-						collecting: boolean;
-						syncTriggered: boolean;
-						operation: PublicOperation | null;
+						freshness: ProductHistoryFreshness;
 						marketplaceId: string;
 						asin: string;
 						metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
-						latestImportAt: string | null;
 						categoryNames: {
 							[x: string]: string;
 						};

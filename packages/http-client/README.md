@@ -26,10 +26,15 @@ const product = await client.product.get.mutate({
 });
 
 if (product.history.operation?.status === 'pending') {
-  const operation = await client.operation.get.query({
-    id: product.history.operation.id
-  });
+  await client.operation.get.query({ id: product.history.operation.id });
 }
+
+const history = await client.product.getHistory.mutate({
+  marketplaceId: 'ATVPDKIKX0DER',
+  asin: 'B0DV53VS61',
+  format: 'agent',
+  metrics: ['bsr', 'price']
+});
 
 const search = await client.catalog.search.mutate({
   term: 'retro gardening shirt',

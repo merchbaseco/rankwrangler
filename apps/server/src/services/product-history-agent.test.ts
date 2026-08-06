@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { buildAgentHistoryResponse, resolveAgentHistoryWindow } from './product-history-agent.js';
+import { buildAgentHistoryResponse } from './product-history-agent.js';
+import { resolveAgentHistoryWindow } from './product-history-buckets.js';
 import { resolveProductHistorySyncDays } from './product-history-sync-days.js';
 
 describe('product history agent response', () => {
@@ -11,17 +12,15 @@ describe('product history agent response', () => {
             requestedMetrics: ['bsr'],
             startAt: new Date('2026-01-01T00:00:00.000Z'),
             endAt: new Date('2026-01-31T23:59:59.999Z'),
-            collecting: false,
-            syncTriggered: false,
-            operation: null,
+            freshness: { stale: false, updatedAt: '2026-01-31T12:00:00.000Z' },
             resultsByMetric: {
                 bsr: {
                     latestImportAt: '2026-01-31T12:00:00.000Z',
                     categoryNames: { '123': 'Novelty Clothing' },
                     points: [
-                        point('2026-01-01T12:00:00.000Z', 123, 120000),
-                        point('2026-01-15T12:00:00.000Z', 123, 90000),
-                        point('2026-01-31T12:00:00.000Z', 123, 110000),
+                        point('2026-01-01T12:00:00.000Z', 123, 120_000),
+                        point('2026-01-15T12:00:00.000Z', 123, 90_000),
+                        point('2026-01-31T12:00:00.000Z', 123, 110_000),
                     ],
                 },
             },
@@ -31,10 +30,10 @@ describe('product history agent response', () => {
         expect(response.status).toBe('ready');
         expect(response.range.bucket).toBe('day');
         expect(response.series.bsr?.summary).toMatchObject({
-            first: 120000,
-            latest: 110000,
-            min: 90000,
-            max: 120000,
+            first: 120_000,
+            latest: 110_000,
+            min: 90_000,
+            max: 120_000,
         });
     });
 
@@ -46,17 +45,15 @@ describe('product history agent response', () => {
             requestedMetrics: ['bsr'],
             startAt: new Date('2025-01-01T00:00:00.000Z'),
             endAt: new Date('2026-01-01T00:00:00.000Z'),
-            collecting: false,
-            syncTriggered: false,
-            operation: null,
+            freshness: { stale: false, updatedAt: '2026-01-01T12:00:00.000Z' },
             resultsByMetric: {
                 bsr: {
                     latestImportAt: '2026-01-01T12:00:00.000Z',
                     categoryNames: {},
                     points: [
-                        point('2025-01-01T12:00:00.000Z', 123, 300000),
-                        point('2025-07-01T12:00:00.000Z', 123, 150000),
-                        point('2026-01-01T12:00:00.000Z', 123, 200000),
+                        point('2025-01-01T12:00:00.000Z', 123, 300_000),
+                        point('2025-07-01T12:00:00.000Z', 123, 150_000),
+                        point('2026-01-01T12:00:00.000Z', 123, 200_000),
                     ],
                 },
             },
@@ -97,9 +94,7 @@ describe('product history agent response', () => {
             requestedMetrics: ['price'],
             startAt: new Date('2026-01-01T00:00:00.000Z'),
             endAt: new Date('2026-01-03T23:59:59.999Z'),
-            collecting: false,
-            syncTriggered: false,
-            operation: null,
+            freshness: { stale: false, updatedAt: '2026-01-03T12:00:00.000Z' },
             resultsByMetric: {
                 price: {
                     latestImportAt: '2026-01-03T12:00:00.000Z',

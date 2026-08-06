@@ -43,8 +43,11 @@ state when set for CI, automation, or agent runtimes.
 `rw products get` returns product summary plus bucketed agent history. `rw products summary`
 returns the cheap summary only. `rw products history` returns bucketed history (`auto`, `day`,
 `week`, or `month`), not raw point series.
-When history is collecting, poll its `operation.id` with `rw operations get`; polling is read-only
-and returns retry guidance until the durable Product-history resource or a safe error is ready.
+`rw products history` output includes `status: ready | empty` and a category-level
+`freshness: { stale, updatedAt }` envelope. Product-history Operation identifiers and polling state
+are internal to that command; temporary capacity or deadline failures return a retryable error with
+a hint. `rw products get` retains its existing embedded Operation-shaped history contract until the
+rich Product caller migrates.
 Catalog search returns the same pending Operation contract or a reusable source-ordered Search
 run. `catalog query` and `catalog runs` inspect existing persisted state without provider work.
 `catalog run` separates nullable canonical current Products from immutable observed metrics.
