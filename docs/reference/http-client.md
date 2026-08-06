@@ -24,7 +24,14 @@ import { createRankWranglerClient } from '@rankwrangler/http-client';
 
 const client = createRankWranglerClient({
     baseUrl: 'https://rankwrangler.merchbase.co',
-    apiKey: process.env.MERCHBASE_API_KEY,
+    headers: {
+        Authorization: `Bearer ${clerkOAuthAccessToken}`,
+    },
+});
+
+const summary = await client.product.getSummary.mutate({
+    marketplaceId: 'ATVPDKIKX0DER',
+    asin: 'B0DV53VS61',
 });
 
 const product = await client.product.get.mutate({
@@ -85,6 +92,8 @@ import type {
 
 type ProductGetInput = PublicRouterInputs['product']['get'];
 type ProductGetOutput = PublicRouterOutputs['product']['get'];
+type ProductSummaryInput = PublicRouterInputs['product']['getSummary'];
+type ProductSummaryOutput = PublicRouterOutputs['product']['getSummary'];
 type OperationGetOutput = PublicRouterOutputs['operation']['get'];
 type CatalogSearchOutput = PublicRouterOutputs['catalog']['search'];
 type CatalogQueryOutput = PublicRouterOutputs['catalog']['query']['get'];

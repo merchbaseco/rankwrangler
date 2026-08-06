@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.0 - 2026-08-06
+
+### Added
+
+- Add typed public Product summary, rich Product, Product history, durable Operation, and Catalog
+  search/run-history contracts for agents and integrations.
+- Add Merchbase OAuth bearer authentication and centralized RankWrangler access metering across
+  public clients.
+
+### Changed
+
+- Breaking: replace the removed top-level Product client procedures with the grouped
+  `product.getSummary`, `product.get`, and `product.getHistory` surface.
+- Return canonical source-attributed Product state and durable background-work receipts through the
+  public API instead of exposing provider orchestration to clients.
+
 ## v0.6.0 - 2026-06-15
 
 ### Added
