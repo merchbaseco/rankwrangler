@@ -159,25 +159,14 @@ describeCatalogDb('Catalog search history reads', () => {
         });
         expect(await db.select().from(spApiSyncQueue)).toHaveLength(1);
 
-        expect(await caller.api.app.product.get({
-            marketplaceId: 'ATVPDKIKX0DER',
-            asin: 'B012345678',
-        })).toMatchObject({
-            availability: 'pending',
-            product: { thumbnail: { status: 'pending' } },
-        });
-
         await db.delete(spApiSyncQueue);
         await db
             .update(products)
             .set({ spApiResolvedAt: new Date(Date.now() + 60_000) })
             .where(eq(products.id, productId));
-        expect(await caller.api.app.product.get({
-            marketplaceId: 'ATVPDKIKX0DER',
-            asin: 'B012345678',
-        })).toMatchObject({
-            availability: 'unavailable',
-            product: { thumbnail: { status: 'unavailable' } },
+        expect((await caller.api.app.catalog.run.get({ id: runId })).results[0]).toMatchObject({
+            currentProductAvailability: 'unavailable',
+            currentProduct: { thumbnail: { status: 'unavailable' } },
         });
     });
 });

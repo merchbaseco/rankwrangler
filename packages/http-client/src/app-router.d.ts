@@ -307,6 +307,88 @@ export type PublicOperation = {
 	updatedAt: string;
 	completedAt: string;
 };
+declare const TOP_SEARCH_TERMS_REPORT_PERIODS: readonly [
+	"DAY",
+	"WEEK"
+];
+declare const TOP_SEARCH_TERMS_REFRESH_TRIGGERS: readonly [
+	"requested",
+	"automatic"
+];
+export type TopSearchTermsReportPeriod = (typeof TOP_SEARCH_TERMS_REPORT_PERIODS)[number];
+export type TopSearchTermsRefreshTrigger = (typeof TOP_SEARCH_TERMS_REFRESH_TRIGGERS)[number];
+export type SearchTermsTrendDelta = {
+	rankDelta: number | null;
+	clickShareDelta: number | null;
+	conversionShareDelta: number | null;
+};
+export type SearchTermsTrendDeltas = {
+	d1: SearchTermsTrendDelta;
+	d7: SearchTermsTrendDelta;
+	d30: SearchTermsTrendDelta;
+};
+export interface KeywordFreshness {
+	stale: boolean;
+	updatedAt: string | null;
+}
+export interface KeywordEvidence {
+	searchFrequencyRank: number;
+	clickShareTop3: number;
+	conversionShareTop3: number;
+	topRowsCount: number;
+	isMerchRelevant: boolean;
+	merchReason: string;
+}
+export interface KeywordCurrent {
+	keyword: string;
+	marketplaceId: string;
+	reportPeriod: TopSearchTermsReportPeriod;
+	dataStartDate: string;
+	dataEndDate: string;
+	observedDate: string;
+	fetchedAt: string;
+	trigger: TopSearchTermsRefreshTrigger;
+	evidence: KeywordEvidence;
+}
+export interface KeywordSearchItem extends KeywordEvidence {
+	keyword: string;
+	observedDate: string;
+	trigger: TopSearchTermsRefreshTrigger;
+}
+export interface KeywordSearchSummary {
+	marketplaceId: string;
+	reportPeriod: TopSearchTermsReportPeriod;
+	dataStartDate: string | null;
+	dataEndDate: string | null;
+	observedDate: string | null;
+	fetchedAt: string | null;
+	totalFiltered: number;
+}
+export interface KeywordSearchResponse {
+	status: "ready" | "empty";
+	items: KeywordSearchItem[];
+	nextCursor: number | null;
+	summary: KeywordSearchSummary;
+	freshness: KeywordFreshness;
+}
+export interface KeywordHistoryPoint {
+	observedDate: string;
+	searchFrequencyRank: number;
+	clickShareTop3: number;
+	conversionShareTop3: number;
+	trigger: TopSearchTermsRefreshTrigger;
+}
+export interface KeywordHistoryResponse {
+	keyword: string;
+	marketplaceId: string;
+	reportPeriod: TopSearchTermsReportPeriod;
+	rangeDays: number;
+	status: "ready" | "empty";
+	latestObservedDate: string | null;
+	points: KeywordHistoryPoint[];
+	deltas: SearchTermsTrendDeltas;
+	freshness: KeywordFreshness;
+}
 declare const productHistoryBuckets: readonly [
 	"auto",
 	"day",
@@ -501,7 +583,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				search: import("@trpc/server").TRPCMutationProcedure<{
 					input: {
 						term: string;
-						maxAgeSeconds?: number | undefined;
+						refresh?: boolean | undefined;
 					};
 					output: {
 						status: "ready";
@@ -546,13 +628,10 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							normalizerVersion: number;
 							createdAt: string;
 						};
-						queryId?: undefined;
-						readonly operation?: undefined;
-					} | {
-						status: "pending";
-						queryId: string;
-						operation: PublicOperation;
-						run?: undefined;
+						freshness: {
+							stale: boolean;
+							updatedAt: string;
+						};
 					};
 					meta: object;
 				}>;
@@ -704,6 +783,79 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						meta: object;
 					}>;
 				}>>;
+			}>>;
+			keyword: import("@trpc/server").TRPCBuiltRouter<{
+				ctx: {
+					user: null;
+					isAdmin: boolean;
+					authType: "none";
+					credentialKind: null;
+					authExpiresAtMs: null;
+					accessPrincipal: null;
+					accessError: import("@merchbaseco/access").ServiceAccessErrorCode | null;
+					request: ContextRequest;
+				} | {
+					user: ClerkUser;
+					isAdmin: boolean;
+					authType: "access";
+					credentialKind: CredentialKind;
+					authExpiresAtMs: number | null;
+					accessPrincipal: RankWranglerServicePrincipal;
+					accessError: null;
+					request: ContextRequest;
+				};
+				meta: object;
+				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
+				transformer: false;
+			}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+				get: import("@trpc/server").TRPCQueryProcedure<{
+					input: {
+						keyword: string;
+						refresh?: boolean | undefined;
+						dataEndDate?: string | undefined;
+						dataStartDate?: string | undefined;
+						marketplaceId?: "ATVPDKIKX0DER" | undefined;
+						reportPeriod?: "DAY" | "WEEK" | undefined;
+					};
+					output: {
+						keyword: string;
+						status: "ready" | "empty";
+						current: KeywordCurrent | null;
+						freshness: {
+							stale: boolean;
+							updatedAt: string | null;
+						};
+					};
+					meta: object;
+				}>;
+				history: import("@trpc/server").TRPCQueryProcedure<{
+					input: {
+						keyword: string;
+						marketplaceId?: "ATVPDKIKX0DER" | undefined;
+						rangeDays?: number | undefined;
+						refresh?: boolean | undefined;
+						reportPeriod?: "DAY" | "WEEK" | undefined;
+					};
+					output: KeywordHistoryResponse;
+					meta: object;
+				}>;
+				search: import("@trpc/server").TRPCQueryProcedure<{
+					input: {
+						text: string;
+						cursor?: number | undefined;
+						limit?: number | undefined;
+						maxRank?: number | undefined;
+						merchOnly?: boolean | undefined;
+						minRank?: number | undefined;
+						refresh?: boolean | undefined;
+						dataEndDate?: string | undefined;
+						dataStartDate?: string | undefined;
+						marketplaceId?: "ATVPDKIKX0DER" | undefined;
+						reportPeriod?: "DAY" | "WEEK" | undefined;
+					};
+					output: KeywordSearchResponse;
+					meta: object;
+				}>;
 			}>>;
 			product: import("@trpc/server").TRPCBuiltRouter<{
 				ctx: {
