@@ -7,8 +7,8 @@ import {
     type StoredProductRead,
 } from '@/db/product/get-products';
 import { mapStoredProductInfo } from '@/db/product/product-info-mapper';
-import { deleteSpApiSyncQueueItemsForIdentities } from '@/db/spapi-sync-queue/delete-queue-items';
 import { upsertProductInfo } from '@/db/product/upsert-product';
+import { deleteSpApiSyncQueueItemsForIdentities } from '@/db/spapi-sync-queue/delete-queue-items';
 import { searchCatalogItemsByAsins } from '@/services/spapi/search-catalog-items-by-asins';
 import type { ProductInfo, SpApiProduct } from '@/types';
 import { PRODUCT_DEFAULT_MAX_AGE_MS } from './product-freshness-policy';

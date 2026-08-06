@@ -8,16 +8,16 @@ import {
     RetrievalRetryableError,
 } from './retrieval-coordinator';
 
-export type ProductDetailWorkDeps = {
+export interface ProductDetailWorkDeps {
     ensureProductIdentities?: ProductRetrievalDeps['ensureProductIdentities'];
     searchCatalogItemsByAsins: ProductRetrievalDeps['searchCatalogItemsByAsins'];
     persistProductSyncResults: ProductRetrievalDeps['persistProductSyncResults'];
     deleteSpApiSyncQueueItemsForIdentities?: ProductRetrievalDeps['deleteSpApiSyncQueueItemsForIdentities'];
-};
+}
 
-export type ProductDetailWorkResult = {
+export interface ProductDetailWorkResult {
     products: SpApiProduct[];
-};
+}
 
 const inFlightProductBatches = new Map<string, Promise<ProductDetailWorkResult>>();
 
@@ -79,17 +79,11 @@ export const enqueueBackgroundProducts = async (
     });
 };
 
-const startMissingProductBatches = (
-    identities: ProductIdentity[],
-    deps: ProductDetailWorkDeps
-) => {
+const startMissingProductBatches = (identities: ProductIdentity[], deps: ProductDetailWorkDeps) => {
     const missingByMarketplace = new Map<string, ProductIdentity[]>();
     for (const identity of identities) {
         const key = productKey(identity);
-        if (
-            inFlightProductBatches.has(key) ||
-            isRetrievalInFlight(retrievalKey(identity))
-        ) {
+        if (inFlightProductBatches.has(key) || isRetrievalInFlight(retrievalKey(identity))) {
             continue;
         }
 
@@ -112,7 +106,7 @@ const startMissingProductBatches = (
                 }
             }
         };
-        void batchPromise.then(clearBatch, clearBatch);
+        batchPromise.then(clearBatch, clearBatch);
     }
 };
 

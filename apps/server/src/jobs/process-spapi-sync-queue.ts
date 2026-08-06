@@ -6,26 +6,26 @@ import type { ProcessSpApiSyncQueueResult } from '@/jobs/process-spapi-sync-queu
 import { createEventLogSafe, createEventLogsSafe } from '@/services/event-logs.js';
 import { getErrorMessage } from '@/services/job-executions-utils.js';
 import {
-    persistProductSyncResults,
     type PersistProductSyncResultsInput,
+    persistProductSyncResults,
 } from '@/services/product-retrieval';
 import { resolveProductDetails } from '@/services/product-retrieval-work';
 import { notifyProductSyncCompleted } from '@/services/product-sync-events';
-import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue.js';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
+import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue.js';
 
 const SP_API_SYNC_BATCH_SIZE = 20;
 type ProcessSpApiSyncQueueFailureStage = 'fetch' | 'persist' | 'delete_queue';
 const processSpApiSyncQueueJobDeps = { createEventLogSafe };
 
-type ProcessSpApiSyncQueueDeps = {
+interface ProcessSpApiSyncQueueDeps {
     getSpApiSyncQueueItems: typeof getSpApiSyncQueueItems;
     searchCatalogItemsByAsins: typeof searchCatalogItemsByAsins;
     persistProductSyncResults: typeof persistProductSyncResults;
     deleteSpApiSyncQueueItems: typeof deleteSpApiSyncQueueItems;
     createEventLogsSafe: typeof createEventLogsSafe;
     notifyProductSyncCompleted: typeof notifyProductSyncCompleted;
-};
+}
 
 const defaultProcessSpApiSyncQueueDeps: ProcessSpApiSyncQueueDeps = {
     getSpApiSyncQueueItems,
@@ -52,9 +52,7 @@ export const processSpApiSyncQueue = async (
     }
 
     let hasMore = queueItems.length > SP_API_SYNC_BATCH_SIZE;
-    const queueItemsToProcess = hasMore
-        ? queueItems.slice(0, SP_API_SYNC_BATCH_SIZE)
-        : queueItems;
+    const queueItemsToProcess = hasMore ? queueItems.slice(0, SP_API_SYNC_BATCH_SIZE) : queueItems;
     const marketplaceId = queueItemsToProcess[0].marketplaceId;
     const identities = queueItemsToProcess.map(item => ({
         marketplaceId: item.marketplaceId,
@@ -71,7 +69,9 @@ export const processSpApiSyncQueue = async (
                 searchCatalogItemsByAsins: deps.searchCatalogItemsByAsins,
                 persistProductSyncResults: async input => {
                     failureStage = 'persist';
-                    await deps.persistProductSyncResults(input satisfies PersistProductSyncResultsInput);
+                    await deps.persistProductSyncResults(
+                        input satisfies PersistProductSyncResultsInput
+                    );
                 },
             },
             undefined,
@@ -115,17 +115,13 @@ export const processSpApiSyncQueue = async (
     } satisfies ProcessSpApiSyncQueueResult;
 };
 
-export const processSpApiSyncQueueJob = defineJob(
-    'process-spapi-sync-queue',
-    {
-        persistSuccess: 'didWork',
-        startupSummary: 'event-driven, singleton + startup kick',
-    }
-)
+export const processSpApiSyncQueueJob = defineJob('process-spapi-sync-queue', {
+    persistSuccess: 'didWork',
+    startupSummary: 'event-driven, singleton + startup kick',
+})
     .input(z.record(z.string(), z.unknown()))
     .options({ singletonKey: 'process-spapi-sync-queue', retryLimit: 0 })
-    .work(async (job, signal, log) => {
-        void signal;
+    .work(async (job, _signal, log) => {
         let outcome: 'completed' | 'failed' = 'completed';
 
         try {

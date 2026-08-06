@@ -176,8 +176,9 @@ describe('Product detail retrieval', () => {
             return [];
         });
         const persistProductSyncResults = mock(() => Promise.resolve(undefined));
-        const deleteSpApiSyncQueueItemsForIdentities = mock(async () => {
+        const deleteSpApiSyncQueueItemsForIdentities = mock(() => {
             signalQueueDeleted?.();
+            return Promise.resolve(undefined);
         });
         const deps = {
             getStoredProducts: mock(() =>

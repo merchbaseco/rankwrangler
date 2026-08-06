@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
-	normalizeCachedProduct,
 	type CachedProductRecord,
+	normalizeCachedProduct,
 } from "../src/scripts/db/normalize-product-cache";
 
 describe("normalizeCachedProduct", () => {

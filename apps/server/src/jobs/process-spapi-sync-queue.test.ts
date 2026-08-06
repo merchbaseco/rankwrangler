@@ -4,12 +4,12 @@ type ProcessSpApiSyncQueueDeps = NonNullable<
     Parameters<typeof import('./process-spapi-sync-queue.js')['processSpApiSyncQueue']>[0]
 >;
 
-type EventLogInput = {
+interface EventLogInput {
     asin: string;
     action: string;
     detailsJson: Record<string, unknown>;
     status: string;
-};
+}
 
 describe('processSpApiSyncQueue', () => {
     it('persists fetched and unavailable identities, then completes every identity', async () => {
@@ -22,9 +22,9 @@ describe('processSpApiSyncQueue', () => {
         const searchCatalogItemsByAsins = mock(async () => fetchedProducts);
         let queueReadCount = 0;
         const { deps, calls } = createDeps({
-            getSpApiSyncQueueItems: async () => {
+            getSpApiSyncQueueItems: () => {
                 queueReadCount += 1;
-                return queueReadCount === 1 ? queueItems : [];
+                return Promise.resolve(queueReadCount === 1 ? queueItems : []);
             },
             searchCatalogItemsByAsins,
         });
@@ -88,14 +88,14 @@ describe('processSpApiSyncQueue', () => {
             await providerReleased;
             return [fetchedProduct];
         });
-        const queuePersist = mock(async () => {});
-        const explicitPersist = mock(async () => {});
-        const explicitDelete = mock(async () => {});
+        const queuePersist = mock(() => Promise.resolve(undefined));
+        const explicitPersist = mock(() => Promise.resolve(undefined));
+        const explicitDelete = mock(() => Promise.resolve(undefined));
         let queueReadCount = 0;
         const { deps: queueDeps, calls } = createDeps({
-            getSpApiSyncQueueItems: async () => {
+            getSpApiSyncQueueItems: () => {
                 queueReadCount += 1;
-                return queueReadCount === 1 ? [queueItem] : [];
+                return Promise.resolve(queueReadCount === 1 ? [queueItem] : []);
             },
             searchCatalogItemsByAsins,
             persistProductSyncResults: queuePersist,
@@ -147,9 +147,7 @@ describe('processSpApiSyncQueue', () => {
         const queueItems = [createQueueItem({ id: 'q1', asin: 'B000000003' })];
         const { deps, calls } = createDeps({
             getSpApiSyncQueueItems: async () => queueItems,
-            persistProductSyncResults: async () => {
-                throw new Error('persist exploded');
-            },
+            persistProductSyncResults: () => Promise.reject(new Error('persist exploded')),
             searchCatalogItemsByAsins: async () => [createFetchedProduct({ asin: 'B000000003' })],
         });
 
@@ -172,9 +170,7 @@ describe('processSpApiSyncQueue', () => {
         const queueItems = [createQueueItem({ id: 'q1', asin: 'B000000004' })];
         const { deps, calls } = createDeps({
             getSpApiSyncQueueItems: async () => queueItems,
-            deleteSpApiSyncQueueItems: async () => {
-                throw new Error('delete exploded');
-            },
+            deleteSpApiSyncQueueItems: () => Promise.reject(new Error('delete exploded')),
             searchCatalogItemsByAsins: async () => [createFetchedProduct({ asin: 'B000000004' })],
         });
 
@@ -196,11 +192,11 @@ describe('processSpApiSyncQueue', () => {
 
 const createDeps = (overrides: Partial<ProcessSpApiSyncQueueDeps> = {}) => {
     const calls = {
-        createEventLogsSafe: mock(async () => {}),
-        deleteSpApiSyncQueueItems: mock(async () => {}),
+        createEventLogsSafe: mock(() => Promise.resolve(undefined)),
+        deleteSpApiSyncQueueItems: mock(() => Promise.resolve(undefined)),
         getSpApiSyncQueueItems: mock(async () => []),
-        notifyProductSyncCompleted: mock(() => {}),
-        persistProductSyncResults: mock(async () => {}),
+        notifyProductSyncCompleted: mock(() => undefined),
+        persistProductSyncResults: mock(() => Promise.resolve(undefined)),
         searchCatalogItemsByAsins: mock(async () => []),
     };
 
