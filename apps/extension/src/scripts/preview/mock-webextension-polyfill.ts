@@ -38,7 +38,28 @@ const storageLocal = {
 
 export const browser = {
 	runtime: {
-		sendMessage() {
+		sendMessage(message: unknown) {
+			if (isFetchProductHistoryMessage(message)) {
+				return Promise.resolve({
+					success: true,
+					data: {
+						marketplaceId: message.marketplaceId,
+						asin: message.asin,
+						metric: "bsrMain",
+						latestImportAt: createDaysAgoIso(1),
+						categoryNames: { "0": "Kitchen & Dining" },
+						points: [
+							createHistoryPoint(createDaysAgoIso(65), 72_410),
+							createHistoryPoint(createDaysAgoIso(48), 64_220),
+							createHistoryPoint(createDaysAgoIso(31), 58_970),
+							createHistoryPoint(createDaysAgoIso(14), 61_305),
+							createHistoryPoint(createDaysAgoIso(1), 53_841),
+						],
+						collecting: false,
+						syncTriggered: false,
+					},
+				});
+			}
 			return Promise.resolve(null);
 		},
 		onMessage: {
@@ -69,3 +90,31 @@ export const browser = {
 };
 
 export default browser;
+
+const isFetchProductHistoryMessage = (
+	message: unknown
+): message is {
+	type: "fetchProductHistory";
+	asin: string;
+	marketplaceId: string;
+} =>
+	typeof message === "object" &&
+	message !== null &&
+	"type" in message &&
+	message.type === "fetchProductHistory" &&
+	"asin" in message &&
+	typeof message.asin === "string" &&
+	"marketplaceId" in message &&
+	typeof message.marketplaceId === "string";
+
+const createHistoryPoint = (observedAt: string, value: number) => ({
+	categoryId: 0,
+	categoryName: "Kitchen & Dining",
+	observedAt,
+	keepaMinutes: 0,
+	value,
+	isMissing: false,
+});
+
+const createDaysAgoIso = (days: number) =>
+	new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
