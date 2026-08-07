@@ -15,7 +15,7 @@ can rely on; reference docs own exact request and response shapes.
 | Workspace and service boundaries | [Architecture](architecture.md) |
 | Canonical current Product state | [Product catalog](product-catalog.md) |
 | Product discovery and source ingestion | [Product ingestion](product-ingestion.md) |
-| Merch detection and facets | [Product classification](product-classification.md) |
+| Merch-listing classification and facets | [Product classification](product-classification.md) |
 | Historical rank and price observations | [Product history](product-history.md) |
 | Keepa freshness and scheduling | [Keepa refresh](keepa-refresh.md) |
 | Brand Analytics datasets and trends | [Top Search Terms](top-search-terms.md) |

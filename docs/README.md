@@ -18,8 +18,9 @@ agents. Start with the product contract, then follow the owning technical or ope
 | Development, deployment, releases, diagnostics, and recovery | [Operations](operations/README.md) |
 | Accepted tradeoffs and their consequences | [Decisions](decisions/README.md) |
 
-The root [domain glossary](../CONTEXT.md) defines Product, observation, history, catalog query,
-search run, and search result. Use those nouns consistently.
+The root [domain glossary](../CONTEXT.md) defines Product, Merch-listing knowledge, bullet
+evidence, observation, history, catalog query, search run, and search result. Use those nouns
+consistently.
 
 ## Routing Rules
 
