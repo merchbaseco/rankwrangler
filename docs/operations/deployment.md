@@ -8,7 +8,8 @@ read_when:
 # Deployment
 
 Production is served at `https://rankwrangler.merchbase.co`. Caddy serves the website and proxies
-`/api` to the Fastify server.
+`/api` plus the exact hosted MCP and OAuth discovery paths to the Fastify server. Other website
+paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-local health endpoints.
 
 ## Topology
 
@@ -134,6 +135,10 @@ read-only migration verification in that state and refuses to replace the existi
 
 ```bash
 curl --fail https://rankwrangler.merchbase.co/api/health
+curl --fail https://rankwrangler.merchbase.co/.well-known/oauth-protected-resource/mcp
+curl -i -X POST https://rankwrangler.merchbase.co/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml ps
 docker logs rankwrangler-server --tail 50
 docker logs rankwrangler-caddy --tail 50
@@ -141,6 +146,12 @@ docker logs rankwrangler-caddy --tail 50
 
 Migration or startup failures appear in the server logs. If code is unexpectedly stale, verify
 the deployed commit before forcing a no-cache rebuild.
+
+The MCP POST smoke check should return `401` with a `WWW-Authenticate` bearer challenge when no
+OAuth token is supplied. The protected-resource check should return JSON metadata, not the website
+SPA. Caddy owns only `/mcp`, `/.well-known/oauth-protected-resource`,
+`/.well-known/oauth-protected-resource/mcp`, `/.well-known/oauth-authorization-server`, and
+`/.well-known/oauth-authorization-server/mcp` for this ingress.
 
 ## Schema Changes
 

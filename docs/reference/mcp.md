@@ -11,6 +11,10 @@ The hosted Model Context Protocol endpoint is `https://rankwrangler.merchbase.co
 three tools and requires an OAuth bearer token authorized through the RankWrangler Clerk access
 boundary. The supported OAuth scopes are `openid`, `email`, and `profile`.
 
+Caddy forwards `/mcp` and these exact OAuth discovery paths to Fastify: the protected-resource
+metadata paths with and without `/mcp`, and the authorization-server metadata paths with and
+without `/mcp`. Other website paths are not MCP routes.
+
 ## Tools
 
 | Tool | Input | Result |
