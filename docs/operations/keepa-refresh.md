@@ -20,7 +20,8 @@ import rows provide provenance and diagnostics but do not schedule refreshes.
 | Merch, root BSR below `300,000` | Daily |
 | Merch, root BSR `300,000` through `999,999` | Weekly |
 | Merch, root BSR at least `1,000,000` | On demand |
-| Non-merch or missing numeric BSR | Not scheduled |
+| Unknown classification or non-merch | Not scheduled |
+| Merch with missing numeric BSR | Not scheduled |
 
 Every caller shares a strict 24-hour minimum provider gap per marketplace/ASIN. Rich product,
 history, and dashboard requests create or join durable on-demand work and cannot bypass that guard.
@@ -44,7 +45,8 @@ The admin Keepa metrics surface reports:
 
 Check these in order:
 
-1. Confirm the Product is Merch and has a numeric root-category BSR.
+1. Confirm the Product is known Merch and has a numeric root-category BSR; `null` classification is
+   not known non-Merch.
 2. Compare `keepa_fetched_at` with its policy window and the global 24-hour guard.
 3. Check whether a deduplicated queue row already exists and when it is next due.
 4. Inspect recent enqueue, dispatch, and fetch executions in the activity/admin surfaces.

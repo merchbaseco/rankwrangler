@@ -7,8 +7,10 @@ read_when:
 
 # Data Model
 
-**Migration status:** The owning schema adds the durable Product listing-resolution timestamp used
-below. Generate and apply the Drizzle migration before deploying this code.
+**Migration status:** The owning schema now stores the durable Product listing-resolution timestamp
+and nullable `products.is_merch_listing`; generated migration `0032_useful_skrulls.sql` drops the
+old default/`NOT NULL` constraint without rewriting existing `false` rows. Apply the Drizzle
+migration before deploying this code.
 
 ## Canonical identity
 
@@ -78,7 +80,7 @@ The target product row combines current values from distinct providers without e
 
 | Provider | Examples | Freshness fields |
 | --- | --- | --- |
-| Amazon listing enrichment | title, brand, bullets, thumbnail, first-available date, listing category, BSR, and deterministic Merch detection | internal `spApiFetchedAt`, `spApiResolvedAt` |
+| Amazon listing enrichment | title, brand, bullets, thumbnail, first-available date, listing category, BSR, and deterministic Merch evidence/classification | internal `spApiFetchedAt`, `spApiResolvedAt` |
 | Keepa | current BSR, new price, monthly sold, BSR averages, sales-rank drops | `keepaFetchedAt`, `keepaSourceUpdatedAt`, `keepaFirstTrackedAt` |
 | RankWrangler facet classification | Semantic facet assignments | `facetsState`, `facetsUpdatedAt` |
 
@@ -93,12 +95,17 @@ value remains `null`; it is not evidence of zero sales.
 The target public Product summary exposes:
 
 - marketplace and ASIN identity;
-- listing title, brand, bullets, thumbnail, first-available date, and Merch classification;
+- listing title, brand, bullets, thumbnail, first-available date, and nullable `isMerchListing`;
 - current root-category id, name, and BSR;
 - optional Keepa observations and their timestamps;
 - `thumbnail: { status: "pending" } | { status: "available", url } | { status: "unavailable" }`;
 - one Product-details freshness envelope, `freshness: { stale, updatedAt }`. Provider status is
   not part of the frontend/API DTO.
+
+`isMerchListing` is `true` for known Merch evidence, `false` for available evidence with no known
+template match, and `null` when bullet evidence is unavailable or classification has not run.
+Public consumers receive only this nullable field; provider, freshness, and status metadata are
+not exposed for the property.
 
 `keepa` is `null` until Keepa-backed current observations exist. Price uses integer minor units:
 `amountMinor: 1999` with `currencyCode: "USD"` means USD 19.99.

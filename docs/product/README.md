@@ -22,9 +22,8 @@ that humans and agents can inspect; it does not decide what a seller should crea
 | How can a user inspect work and failures? | [Activity log](activity-log.md) |
 | How do agents and integrations access RankWrangler? | [API access](api-access.md) |
 
-Catalog search and Merch-listing classification are accepted target capabilities and are labeled
-accordingly. Other pages describe current behavior and flag source-separated Keepa fields that
-still require a generated database migration.
+Catalog search and Merch-listing classification are shipped capabilities. Other pages describe
+current behavior and flag generated database migrations that must be applied before deployment.
 
 For shared domain language, see [the project context](../../CONTEXT.md). For the rationale behind
 the product boundary, see [Raw product intelligence](../decisions/raw-product-intelligence.md).

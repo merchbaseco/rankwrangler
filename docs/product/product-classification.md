@@ -7,12 +7,12 @@ read_when:
 
 # Product Classification
 
-**Merch-listing status:** Accepted target behavior. Product facets below describe shipped behavior.
+**Merch-listing status:** Shipped. Product facets below describe shipped behavior.
 
 RankWrangler has two separate Product classification concerns: a deterministic Merch-listing
 classification and optional AI-generated facets. Neither is an opportunity score.
 
-See the accepted [Merch-listing classification decision](../decisions/merch-listing-classification.md)
+See the shipped [Merch-listing classification decision](../decisions/merch-listing-classification.md)
 for evidence availability and persistence reconciliation.
 
 ## Merch-listing knowledge

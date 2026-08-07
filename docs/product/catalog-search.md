@@ -1,5 +1,5 @@
 ---
-summary: Defines the accepted external Amazon catalog-search experience for agents and the dashboard.
+summary: Defines the shipped external Amazon catalog-search experience for agents and the dashboard.
 read_when:
   - planning or implementing Catalog queries, Search runs, or keyword refresh
   - deciding whether a request is stored catalog lookup or external Amazon catalog search
@@ -24,6 +24,8 @@ in time. It complements catalog lookup:
 - Keepa Product Search, US marketplace, first page, up to 20 Products.
 - One provider request returns the result Products and their histories; RankWrangler does not make
   a follow-up Keepa request per ASIN.
+- Available bullet evidence returned by Keepa is classified before Product persistence and does not
+  wait for a second SP-API request.
 - Results preserve source position plus nullable observed BSR, price, rank averages and drops, and
   Amazon's bought-in-the-past-month value surfaced through Keepa.
 - Current views combine run membership and position with canonical Product state. Historical views

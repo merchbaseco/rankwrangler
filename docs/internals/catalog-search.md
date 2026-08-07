@@ -1,5 +1,5 @@
 ---
-summary: Separates shipped transient Amazon keyword lookup from the accepted durable Keepa Catalog-search architecture.
+summary: Defines shipped transient Amazon keyword lookup and durable Keepa Catalog-search architecture.
 read_when:
   - changing Amazon keyword lookup or implementing Catalog queries, Search runs, Search results, or keyword refresh
   - deciding whether query results belong on Products or in immutable run history
@@ -37,8 +37,10 @@ The Keepa workflow uses four nouns:
 explicitly guarantees that meaning.
 
 The worker makes one Keepa Product Search request with Product payloads and history enabled. It does
-not issue a follow-up Keepa request for every ASIN. One transaction persists Keepa observations,
-writes the immutable run and ordered results, advances query freshness, and completes the Operation.
+not issue a follow-up Keepa request for every ASIN. Available bullet evidence in that response is
+classified immediately through the shared Merch classifier; the workflow does not wait for SP-API.
+One transaction persists Keepa observations, writes the immutable run and ordered results, advances
+query freshness, and completes the Operation.
 It does not inspect listing freshness or enqueue listing work. Run reads pass retained canonical
 identities through the shared Product retrieval service with background policy, so fresh and cached
 run paths behave identically.

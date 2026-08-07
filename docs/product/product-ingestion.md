@@ -7,8 +7,9 @@ read_when:
 
 # Product Ingestion
 
-**Status:** Discovery, SP-API ingestion, and source-separated Keepa current metrics are
-implemented. Apply the generated Product-schema migration before deployment.
+**Status:** Discovery, SP-API ingestion, source-separated Keepa current metrics, and nullable
+Merch-listing classification are implemented. Apply the generated Product-schema migration before
+deployment.
 
 Ingestion turns an observed marketplace/ASIN into canonical Product state. Every path uses the same
 Product identity, so repeated observations enrich or refresh a record instead of creating a second
@@ -24,9 +25,10 @@ kind of Product.
 | Keepa ingestion | Rich Product/history reads and scheduled refreshes normalize accepted Keepa Product data into the same Product and history records. |
 | Keepa Catalog search | One first-page response imports Keepa observations and histories, preserves Search-run membership, and leaves Product enrichment to shared background retrieval on run reads. |
 
-SP-API owns listing description fields and the deterministic Merch signal. Keepa adds separately
-attributed current metrics and event history. A Keepa write advances its freshness watermark only
-after the Product, history, and import audit persist successfully.
+SP-API and Keepa adapters extract listing description evidence for one shared deterministic Merch
+classifier. Keepa adds separately attributed current metrics and event history. A Keepa write
+advances its freshness watermark only after the Product, history, and import audit persist
+successfully.
 
 The listing synchronization queue batches ASINs and deduplicates marketplace/ASIN work. If the
 provider returns no listing, RankWrangler retains the canonical identity, records durable resolution,

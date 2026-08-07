@@ -7,20 +7,20 @@ read_when:
 
 # Product Classification
 
-**Merch-listing status:** Accepted target behavior. Semantic facets below describe shipped behavior.
+**Merch-listing status:** Shipped. Semantic facets below describe shipped behavior.
 
 RankWrangler has two distinct Product classifications: deterministic Merch-listing classification
 from source bullet evidence, and model-assisted semantic facets after a Product exists.
 
 ## Merch-Listing Classification
 
-The accepted [Merch-listing classification decision](../decisions/merch-listing-classification.md)
+The shipped [Merch-listing classification decision](../decisions/merch-listing-classification.md)
 defines binary Product truth and nullable classification knowledge. Adapters own bullet extraction,
 not classification. Each adapter reports either available bullet evidence, including `[]`, or
 unavailable evidence.
 
 SP-API and Keepa feed one source-neutral deterministic classifier. Keepa Catalog search classifies
-immediately from returned bullet evidence and does not wait for SP-API.
+immediately from returned bullet evidence before Product persistence and does not wait for SP-API.
 
 | Evidence and result | Persistence reconciliation |
 | --- | --- |

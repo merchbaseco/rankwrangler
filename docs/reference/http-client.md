@@ -104,5 +104,7 @@ daily reset.
 The client never polls. Every Product and keyword procedure returns final data or a standard error;
 durable Operations, provider status, and frontend availability are internal server details. Each
 data category exposes its own freshness envelope where the response supports it.
+Generated Product output preserves nullable `isMerchListing` knowledge; consumers must not coerce
+`null` to `false`.
 
 The implementation is [`packages/http-client/src/index.ts`](../../packages/http-client/src/index.ts).

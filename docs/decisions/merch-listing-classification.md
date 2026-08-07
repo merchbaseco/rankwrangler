@@ -7,7 +7,7 @@ read_when:
 
 # Merch-Listing Classification
 
-Status: Accepted target behavior
+Status: Shipped
 Date: 2026-08-07
 
 The public Product contract is summarized in [Product classification](../product/product-classification.md).
@@ -26,8 +26,10 @@ Adapters report bullet evidence with an explicit availability distinction:
   persistence treats the observation as a no-op.
 
 One source-neutral deterministic classifier consumes available evidence from both SP-API and Keepa.
-Keepa Catalog search classifies from the bullet evidence returned in that search immediately; it
-does not wait for SP-API. SP-API uses the same classifier.
+The provider adapters extract evidence at their source boundaries; the shared classifier owns
+template matching and seller-bullet extraction. Keepa Catalog search classifies from the bullet
+evidence returned in that search immediately; it does not wait for SP-API. SP-API uses the same
+classifier.
 
 Persistence reconciliation follows these rules:
 
@@ -35,6 +37,9 @@ Persistence reconciliation follows these rules:
 - `false` is revisable: later available evidence may change it to `true`.
 - Unavailable evidence never changes stored or public classification knowledge.
 - Existing `false` rows remain `false`; rollout does not reset them to `null`.
+
+The owning Product upserts reconcile these rules atomically on the marketplace/ASIN conflict path,
+so concurrent provider writes cannot downgrade an already-known `true` value.
 
 The public Product shape exposes no Merch-classification provider, freshness, or status metadata.
 The nullable field is the complete public knowledge contract; Top Search Terms' separate

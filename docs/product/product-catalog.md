@@ -18,7 +18,8 @@ converge on the same record.
 
 - Amazon identity and listing details such as ASIN, title, brand, image, bullets, and first-available
   date.
-- Merch-listing classification and normalized facets.
+- Nullable Merch-listing classification and normalized facets. `null` means unknown; it is not
+  silently treated as known non-Merch.
 - Current root-category BSR and source-specific freshness.
 - Current normalized Keepa observations, including BSR, price, rank averages and drops, and
   Amazon's bought-in-the-past-month value when Keepa supplies it.

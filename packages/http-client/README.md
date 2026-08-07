@@ -37,8 +37,9 @@ const keywords = await client.keyword.search.query({
 
 The client is scoped to the final public surface (`api.public.*`). It exposes Product
 `get/search/history` and keyword `get/search/history`; it does not expose Catalog, Operation, or
-polling procedures. `NOT_FOUND` and retryable `TIMEOUT` errors are preserved from tRPC, with retry
-hints on temporary unavailability.
+polling procedures. Product summaries preserve nullable `isMerchListing`; `null` is unknown and
+must not be coerced to `false`. `NOT_FOUND` and retryable `TIMEOUT` errors are preserved from tRPC,
+with retry hints on temporary unavailability.
 
 ## Types
 

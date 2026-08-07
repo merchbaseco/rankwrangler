@@ -7,8 +7,9 @@ read_when:
 
 # Product Ingestion
 
-**Status:** Discovery, SP-API ingestion, and the source-separated Keepa merge are implemented. The
-generated Product-schema migration must be applied before deployment.
+**Status:** Discovery, SP-API ingestion, source-separated Keepa merge, and nullable Merch-listing
+classification are implemented. The generated Product-schema migration must be applied before
+deployment.
 
 Product ingestion turns source payloads into canonical Products. Discovery only supplies a
 marketplace and ASIN; it does not own a separate copy of the Product.
@@ -23,7 +24,7 @@ marketplace and ASIN; it does not own a separate copy of the Product.
 | Dashboard Amazon keyword search | Returns live search rows and passes unique identities through shared background retrieval. |
 | Scheduled SP-API refresh | Selects stale Merch Products by BSR cadence and enqueues their ASINs. |
 | Keepa load | Reconciles Keepa current metrics and history into the same Product. |
-| Keepa Catalog search | Persists immutable Keepa membership/observations; run reads pass canonical identities through shared background retrieval. |
+| Keepa Catalog search | Classifies returned Keepa bullet evidence during normalization, then persists immutable membership/observations; run reads pass canonical identities through shared background retrieval. |
 
 The shared Product retrieval service treats listing data as fresh for two days by default, joins
 identical Product fetches through the retrieval coordinator, and centralizes background queueing,
@@ -47,9 +48,10 @@ identity-only completion event so active dashboard Product queries can invalidat
 
 ## Source Normalization
 
-SP-API normalization owns listing text, image, first-available date, root-category rank, and
-deterministic Merch detection. Keepa normalization owns current Keepa metrics and event-based rank
-and price points. Source-specific timestamps remain separate on the Product.
+SP-API and Keepa adapters own source-specific listing extraction, while one source-neutral module
+owns deterministic Merch template matching and seller-bullet extraction. Keepa normalization also
+owns current Keepa metrics and event-based rank and price points. Source-specific timestamps remain
+separate on the Product.
 
 Ingestion does not assign opportunity scores or interpret whether a seller should pursue the
 listing. Semantic facets are a separate [Product classification](product-classification.md)

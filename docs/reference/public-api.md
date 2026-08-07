@@ -86,6 +86,9 @@ the shared retrieval policy. Equivalent requests join one retrieval.
 `product.get` returns `schemaVersion`, identity, `status: ready | partial`, `summary`, and an
 embedded agent history response. A usable summary is retained when history is unavailable; the
 embedded history error includes its own stale freshness envelope and retryable error code/message.
+The summary's `isMerchListing` is `true | false | null`: `null` means unknown and is distinct from
+known non-Merch (`false`). No provider, classification-freshness, or classification-status object
+is returned.
 
 ## Product search
 

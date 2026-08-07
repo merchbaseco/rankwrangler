@@ -31,7 +31,8 @@ The keyword marketplace is the US marketplace (`ATVPDKIKX0DER`).
 Every data tool call completes synchronously from the caller's perspective. It returns final data,
 including the operation/data freshness envelope where the underlying procedure provides one, or a
 structured error. MCP does not expose Catalog, Operation, polling, provider status, or
-provider-named frontend availability tools.
+provider-named frontend availability tools. Product data carries only nullable
+`isMerchListing`; `null` remains unknown rather than being serialized as `false`.
 
 ## Errors
 

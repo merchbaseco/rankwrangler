@@ -70,7 +70,8 @@ rw product history B0DV53VS61 --metrics bsr --startAt 2025-01-01 --endAt 2025-12
 
 The CLI returns compact agent history buckets and summaries, never raw point series. History
 responses include `freshness: { stale, updatedAt }`; no command exposes Operation identifiers,
-provider status, or polling state. Missing data is `NOT_FOUND`; temporary capacity/deadline
+provider status, classification status, or polling state. Product summaries preserve
+`isMerchListing: true | false | null`; missing classification is `null`, not `false`. Missing data is `NOT_FOUND`; temporary capacity/deadline
 failures are retryable `TIMEOUT` errors with a retry hint.
 
 ## Configuration and precedence

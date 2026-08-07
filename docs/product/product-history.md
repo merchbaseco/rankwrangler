@@ -35,7 +35,9 @@ Eligible Merch Products also refresh automatically:
 
 - root-category BSR below 300,000: daily;
 - BSR from 300,000 through 999,999: weekly;
-- BSR at or above 1,000,000, missing BSR, or non-Merch: on demand only.
+- BSR at or above 1,000,000: on demand only.
+- Missing BSR, unknown classification, or non-Merch: no automatic collection; unknown remains
+  distinct from known non-Merch.
 
 **Brief user story:** An agent asks for weekly BSR and price buckets, receives available points and
 freshness immediately, and transparently waits for missing or explicitly refreshed history.

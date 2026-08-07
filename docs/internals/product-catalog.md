@@ -18,7 +18,8 @@ an Amazon keyword search, or Keepa.
 
 The target Product model combines normalized fields with explicit source boundaries:
 
-- listing identity, title, brand, image, first-available date, seller bullets, and Merch detection;
+- listing identity, title, brand, image, first-available date, seller bullets, and nullable
+  Merch-listing knowledge;
 - current root-category BSR;
 - semantic facets and their classification state;
 - internal provider freshness and resolution markers for listing enrichment;
@@ -66,6 +67,9 @@ not persist query identity, result placement, or run history; that belongs to th
   Keepa queue work in one transaction.
 - A failed Keepa transaction never advances `keepaFetchedAt`.
 - Missing optional Keepa values do not erase useful stored values.
+- `isMerchListing` is nullable knowledge: new unclassified Products start at `null`, available
+  empty bullet evidence stores `false`, and unavailable evidence is a persistence no-op. Stored
+  `true` is monotonic across provider writes.
 - The shared Product retrieval service owns blocking lookups, background queueing, freshness checks,
   in-flight deduplication, and response availability. A completed empty provider response retains
   the canonical identity with an unavailable Product thumbnail and advances `spApiResolvedAt`, so

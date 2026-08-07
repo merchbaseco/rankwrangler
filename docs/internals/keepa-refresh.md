@@ -36,7 +36,8 @@ Automatic Keepa collection applies only to Products classified as Merch with a n
 | Below 300,000 | Stale after 24 hours; automatic daily collection. |
 | 300,000 through 999,999 | Stale after seven days; automatic weekly collection. |
 | 1,000,000 or higher | On demand only. |
-| Missing BSR or non-Merch | No automatic Keepa collection. |
+| Missing BSR | No automatic Keepa collection. |
+| Classification unknown or non-Merch | No automatic Keepa collection; unknown remains distinct from known non-Merch. |
 
 The hourly candidate scan reads BSR and `keepaFetchedAt` directly from Products and excludes work
 already in `keepa_history_refresh_queue`. The queue is unique by marketplace and ASIN.

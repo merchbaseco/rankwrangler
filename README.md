@@ -27,7 +27,9 @@ creating an opaque recommendation engine.
 Canonical Product retrieval is shared across blocking ASIN reads and background bulk workflows.
 Catalog runs retain immutable search membership while their current Products resolve independently;
 cached and fresh runs use the same background path. Product thumbnails report `pending`, `available`,
-or `unavailable` without exposing provider-specific availability fields.
+or `unavailable` without exposing provider-specific availability fields. Product
+`isMerchListing` is nullable knowledge: `null` means unknown, distinct from known non-Merch
+(`false`).
 
 ## Use RankWrangler
 
