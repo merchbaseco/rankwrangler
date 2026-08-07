@@ -21,7 +21,9 @@ import { createRankWranglerClient } from '@rankwrangler/http-client';
 
 const client = createRankWranglerClient({
     baseUrl: 'https://rankwrangler.merchbase.co',
-    apiKey: process.env.MERCHBASE_API_KEY,
+    headers: {
+        Authorization: `Bearer ${clerkOAuthAccessToken}`,
+    },
 });
 
 const product = await client.product.get.mutate({

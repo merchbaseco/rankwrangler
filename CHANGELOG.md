@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.7.0 - 2026-08-06
+
+### Added
+
+- Add typed Product and keyword `get`, `search`, and `history` contracts for agents and integrations.
+- Add Merchbase OAuth bearer authentication and centralized RankWrangler access metering across
+  public clients.
+
+### Changed
+
+- Breaking: replace the previous public client surface with the grouped `product.get`,
+  `product.search`, `product.history`, `keyword.get`, `keyword.search`, and `keyword.history`
+  procedures.
+- Return final source-attributed data and freshness through the public API while keeping Catalog,
+  Operation, polling, and provider orchestration internal.
+
 ## v0.6.0 - 2026-06-15
 
 ### Added

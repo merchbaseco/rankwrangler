@@ -1,6 +1,6 @@
 {
     "name": "@rankwrangler/http-client",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "description": "Typed tRPC client for RankWrangler",
     "type": "module",
     "main": "./dist/index.js",
@@ -15,6 +15,9 @@
         "dist",
         "README.md"
     ],
+    "scripts": {
+        "test": "tsc -p tsconfig.test.json && bun test test/*.test.ts"
+    },
     "publishConfig": {
         "access": "public",
         "provenance": true
