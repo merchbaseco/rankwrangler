@@ -1,4 +1,4 @@
-export const MERCH_TEMPLATE_BULLETS = [
+const MERCH_TEMPLATE_BULLETS = [
     'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
     '8.5 oz, Classic fit, Twill-taped neck',
     'Comfort Colors offers a relaxed fit in adult sizes. Size up for an oversized fit.',
@@ -10,51 +10,34 @@ export const MERCH_TEMPLATE_BULLETS = [
     'Leak-proof flip lid includes BPA free plastic drinking straw',
 ] as const;
 
-type MerchBulletClassification = {
-    isMerchListing: boolean;
-    merchBullets: string[];
-    sellerBullets: string[];
-    bullet1: string | null;
-    bullet2: string | null;
-};
-
 const MAX_SELLER_BULLETS_TO_PERSIST = 2;
 
-export const classifyMerchBullets = (
-    bulletPoints: string[]
-): MerchBulletClassification => {
-    const normalizedBullets = dedupeAndNormalizeBullets(bulletPoints);
-    if (normalizedBullets.length === 0) {
-        return {
-            isMerchListing: false,
-            merchBullets: [],
-            sellerBullets: [],
-            bullet1: null,
-            bullet2: null,
-        };
+export type BulletEvidence =
+    | { kind: 'available'; bullets: readonly string[] }
+    | { kind: 'unavailable' };
+
+export interface MerchListingClassification {
+    isMerchListing: boolean;
+    bullet1: string | null;
+    bullet2: string | null;
+}
+
+export const classifyMerchListing = (
+    evidence: BulletEvidence
+): MerchListingClassification | null => {
+    if (evidence.kind === 'unavailable') {
+        return null;
     }
 
-    const merchBullets: string[] = [];
-    const sellerBullets: string[] = [];
-
-    for (const bullet of normalizedBullets) {
-        if (isMerchTemplateBullet(bullet)) {
-            merchBullets.push(bullet);
-            continue;
-        }
-
-        sellerBullets.push(bullet);
-    }
-
-    const isMerchListing = merchBullets.length > 0;
-    const persistedSellerBullets = isMerchListing
-        ? sellerBullets.slice(0, MAX_SELLER_BULLETS_TO_PERSIST)
+    const normalizedBullets = dedupeAndNormalizeBullets(evidence.bullets);
+    const isMerchListing = normalizedBullets.some(isMerchTemplateBullet);
+    const sellerBullets = isMerchListing
+        ? normalizedBullets.filter(bullet => !isMerchTemplateBullet(bullet))
         : [];
+    const persistedSellerBullets = sellerBullets.slice(0, MAX_SELLER_BULLETS_TO_PERSIST);
 
     return {
         isMerchListing,
-        merchBullets,
-        sellerBullets: persistedSellerBullets,
         bullet1: persistedSellerBullets[0] ?? null,
         bullet2: persistedSellerBullets[1] ?? null,
     };
@@ -64,7 +47,7 @@ const isMerchTemplateBullet = (bullet: string) => {
     return merchTemplateBulletSet.has(normalizeBulletForMatching(bullet));
 };
 
-const dedupeAndNormalizeBullets = (bulletPoints: string[]) => {
+const dedupeAndNormalizeBullets = (bulletPoints: readonly string[]) => {
     const normalizedByKey = new Map<string, string>();
 
     for (const bullet of bulletPoints) {

@@ -1,13 +1,13 @@
-import { z } from 'zod';
+import type { z } from 'zod';
+import { classifyMerchListing } from '@/services/merch-listing-classification';
 import { createSpApiClient } from '@/services/spapi/spapi-client.js';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import type { ProductThumbnail } from '@/types/index.js';
-import { classifyMerchBullets } from '@/utils/merch-bullets.js';
 import {
-    getMarketplaceBulletPoints,
-    ItemSchema,
+    getMarketplaceBulletEvidence,
     ItemSearchResultsSchema,
     VariantSchema,
+    type ItemSchema,
 } from './search-catalog-items-schema.js';
 
 const MAX_PAGE_SIZE = 20;
@@ -23,7 +23,7 @@ export type CatalogKeywordSearchItem = {
     brand: string | null;
     bullet1: string | null;
     bullet2: string | null;
-    isMerchListing: boolean;
+    isMerchListing: boolean | null;
     rootCategoryBsr: number | null;
     thumbnail: ProductThumbnail;
     facets: Array<{ facet: string; name: string }>;
@@ -121,8 +121,11 @@ export const mapCatalogItemFromKeywordSearch = (
         ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
         : null;
 
-    const bulletPoints = getMarketplaceBulletPoints(item.attributes?.bullet_point, marketplaceId);
-    const merchClassification = classifyMerchBullets(bulletPoints);
+    const bulletEvidence = getMarketplaceBulletEvidence(
+        item.attributes?.bullet_point,
+        marketplaceId
+    );
+    const merchClassification = classifyMerchListing(bulletEvidence);
 
     const salesRank = item.salesRanks?.find(rank => rank.marketplaceId === marketplaceId);
     const displayGroupRank = salesRank?.displayGroupRanks?.[0];
@@ -149,9 +152,9 @@ export const mapCatalogItemFromKeywordSearch = (
         dateFirstAvailable,
         title: summary?.itemName ?? null,
         brand: summary?.brand ?? summary?.brandName ?? null,
-        bullet1: merchClassification.bullet1,
-        bullet2: merchClassification.bullet2,
-        isMerchListing: merchClassification.isMerchListing,
+        bullet1: merchClassification?.bullet1 ?? null,
+        bullet2: merchClassification?.bullet2 ?? null,
+        isMerchListing: merchClassification?.isMerchListing ?? null,
         rootCategoryBsr,
         thumbnail: thumbnailUrl
             ? { status: 'available', url: thumbnailUrl }

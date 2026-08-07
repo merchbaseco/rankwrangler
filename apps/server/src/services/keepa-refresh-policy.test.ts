@@ -32,6 +32,10 @@ describe('getKeepaRefreshPolicyBucketKey', () => {
     it('classifies non-merch as nonMerch', () => {
         expect(getKeepaRefreshPolicyBucketKey(false, 1000)).toBe('nonMerch');
     });
+
+    it('keeps unknown classification distinct and out of automatic Merch refresh', () => {
+        expect(getKeepaRefreshPolicyBucketKey(null, 1000)).toBe('unknown');
+    });
 });
 
 describe('getKeepaFailureRetryDelayMs', () => {
@@ -79,6 +83,14 @@ describe('getKeepaRefreshDecision', () => {
         expect(
             getKeepaRefreshDecision({
                 isMerchListing: false,
+                rootCategoryBsr: 200_000,
+                keepaFetchedAt: null,
+                now,
+            })
+        ).toEqual({ shouldRefresh: false, reason: 'not_eligible' });
+        expect(
+            getKeepaRefreshDecision({
+                isMerchListing: null,
                 rootCategoryBsr: 200_000,
                 keepaFetchedAt: null,
                 now,

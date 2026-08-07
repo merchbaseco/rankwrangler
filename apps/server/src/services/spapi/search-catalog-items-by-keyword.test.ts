@@ -76,4 +76,35 @@ describe('mapCatalogItemFromKeywordSearch', () => {
             fetchedAt: '2026-03-04T20:10:00.000Z',
         });
     });
+
+    it('returns unknown when a successful item omits bullet_point', () => {
+        const mapped = mapCatalogItemFromKeywordSearch(
+            { asin: 'B000123456' },
+            'ATVPDKIKX0DER',
+            '2026-03-04T20:10:00.000Z'
+        );
+
+        expect(mapped).toMatchObject({
+            isMerchListing: null,
+            bullet1: null,
+            bullet2: null,
+        });
+    });
+
+    it('classifies an explicitly empty bullet_point array as known non-Merch', () => {
+        const mapped = mapCatalogItemFromKeywordSearch(
+            {
+                asin: 'B000123456',
+                attributes: { bullet_point: [] },
+            },
+            'ATVPDKIKX0DER',
+            '2026-03-04T20:10:00.000Z'
+        );
+
+        expect(mapped).toMatchObject({
+            isMerchListing: false,
+            bullet1: null,
+            bullet2: null,
+        });
+    });
 });

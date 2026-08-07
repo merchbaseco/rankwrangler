@@ -11,6 +11,7 @@ import {
 	formatFacetValueLabel,
 } from "@/components/dashboard/app/config";
 import type { ProductHistoryPanelProduct } from "@/components/dashboard/product-history-panel/types";
+import { MerchListingBadge } from "@/components/dashboard/merch-listing-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -136,11 +137,7 @@ export const PanelHeader = ({
 					<TooltipPopup>View on Amazon</TooltipPopup>
 				</Tooltip>
 				<div className="mx-0.5 h-3 w-px bg-border" />
-				{product.isMerchListing ? (
-					<Badge variant="secondary" size="sm">
-						Merch
-					</Badge>
-				) : null}
+				<MerchListingBadge size="sm" value={product.isMerchListing} />
 				{product.rootCategoryBsr !== null ? (
 					<Badge variant="info" size="sm">
 						#{product.rootCategoryBsr.toLocaleString()}

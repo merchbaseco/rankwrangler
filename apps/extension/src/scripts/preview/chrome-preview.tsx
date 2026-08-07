@@ -9,6 +9,7 @@ import type { Product } from "@/scripts/types/product";
 const SEARCH_PRODUCT: Product = {
 	asin: "B0D2YQ9ABC",
 	marketplaceId: "ATVPDKIKX0DER",
+	isMerchListing: null,
 	creationDate: "2025-07-11T00:00:00.000Z",
 	rootCategoryBsr: 53_841,
 	rootCategoryDisplayName: "Kitchen & Dining",

@@ -45,7 +45,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Note: Table schemas are created by Drizzle migrations (see drizzle/ directory)
 -- Key tables: access_projection, rankwrangler_service_accounts, products
--- (includes source-aware SP-API/Keepa freshness and Keepa metrics),
+-- (includes source-aware SP-API/Keepa freshness, Keepa metrics, and nullable
+-- products.is_merch_listing; NULL means classification knowledge is unavailable),
 -- product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
 -- product_history_points, keepa_categories, top_search_terms_datasets,

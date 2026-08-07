@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
 import type { SpApiProduct } from '@/types/index.js';
+import { reconcileMerchListing, reconcileSellerBullet } from './reconcile-merch-listing';
 
 export const upsertProductInfo = async (productInfo: SpApiProduct): Promise<void> => {
     const dateFirstAvailable = productInfo.dateFirstAvailable
@@ -33,9 +34,9 @@ export const upsertProductInfo = async (productInfo: SpApiProduct): Promise<void
                 thumbnailUrl: productInfo.thumbnailUrl,
                 title: productInfo.title,
                 brand: productInfo.brand,
-                isMerchListing: productInfo.isMerchListing,
-                bullet1: productInfo.bullet1,
-                bullet2: productInfo.bullet2,
+                isMerchListing: reconcileMerchListing(products.isMerchListing),
+                bullet1: reconcileSellerBullet(products.bullet1, products.isMerchListing),
+                bullet2: reconcileSellerBullet(products.bullet2, products.isMerchListing),
                 rootCategoryId: preserveExistingOnNull(products.rootCategoryId),
                 rootCategoryBsr: preserveExistingOnNull(products.rootCategoryBsr),
                 spApiFetchedAt: fetchedAt,

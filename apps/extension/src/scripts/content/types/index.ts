@@ -1,6 +1,7 @@
 // Core product information from API
 export interface ProductInfo {
 	asin: string;
+	isMerchListing: boolean | null;
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;

@@ -17,7 +17,7 @@ export type Product = {
 	marketplaceId: string;
 	rootCategoryBsr: number | null;
 	dateFirstAvailable: string | null;
-	isMerchListing: boolean;
+	isMerchListing: boolean | null;
 	facets: Array<{ facet: string; name: string }>;
 	updatedAt: string;
 	updatedAtMs: number;
@@ -33,7 +33,7 @@ export type SelectedHistoryProduct = {
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
-	isMerchListing: boolean;
+	isMerchListing: boolean | null;
 	freshness: ProductFreshness;
 };
 

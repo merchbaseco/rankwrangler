@@ -16,7 +16,7 @@ export interface ProductInfo {
     // Product title and brand from SP-API
     title: string | null;
     brand: string | null;
-    isMerchListing: boolean;
+    isMerchListing: boolean | null;
     bullet1: string | null;
     bullet2: string | null;
 

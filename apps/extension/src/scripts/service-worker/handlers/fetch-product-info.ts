@@ -44,6 +44,7 @@ export async function handleFetchProductInfo(
 			success: true,
 			data: {
 				asin: summary.asin ?? message.asin,
+				isMerchListing: summary.isMerchListing ?? null,
 				dateFirstAvailable: summary.dateFirstAvailable ?? null,
 				rootCategoryBsr: summary.rootCategoryBsr ?? null,
 				rootCategoryDisplayName: summary.rootCategoryDisplayName ?? null,

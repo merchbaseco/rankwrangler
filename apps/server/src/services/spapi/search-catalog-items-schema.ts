@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { BulletEvidence } from '@/services/merch-listing-classification';
 
 export const VariantSchema = z.enum([
     'MAIN',
@@ -71,7 +72,7 @@ export const ItemSearchResultsSchema = z.object({
     items: z.array(ItemSchema),
 });
 
-export const getMarketplaceBulletPoints = (
+export const getMarketplaceBulletEvidence = (
     bulletPoints:
         | Array<{
               value: string;
@@ -79,13 +80,19 @@ export const getMarketplaceBulletPoints = (
           }>
         | undefined,
     marketplaceId: string
-) => {
-    if (!bulletPoints || bulletPoints.length === 0) {
-        return [];
+): BulletEvidence => {
+    if (!bulletPoints) {
+        return { kind: 'unavailable' };
     }
 
-    return bulletPoints
-        .filter(bulletPoint => !bulletPoint.marketplace_id || bulletPoint.marketplace_id === marketplaceId)
-        .map(bulletPoint => bulletPoint.value)
-        .filter(Boolean);
+    return {
+        kind: 'available',
+        bullets: bulletPoints
+            .filter(
+                bulletPoint =>
+                    !bulletPoint.marketplace_id || bulletPoint.marketplace_id === marketplaceId
+            )
+            .map(bulletPoint => bulletPoint.value)
+            .filter(Boolean),
+    };
 };

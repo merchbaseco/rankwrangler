@@ -366,7 +366,7 @@ export interface ProductInfo {
 	dateFirstAvailable: string | null;
 	title: string | null;
 	brand: string | null;
-	isMerchListing: boolean;
+	isMerchListing: boolean | null;
 	bullet1: string | null;
 	bullet2: string | null;
 	rootCategoryId: number | null;

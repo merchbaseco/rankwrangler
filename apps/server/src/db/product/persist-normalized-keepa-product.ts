@@ -1,13 +1,14 @@
 import { and, eq, ne, sql } from 'drizzle-orm';
-import { db } from '@/db/index';
+import type { db } from '@/db/index';
 import {
     keepaHistoryRefreshQueue,
     productHistoryImports,
     productHistoryPoints,
     products,
 } from '@/db/schema';
-import type { KeepaIngestionImport } from './persist-keepa-product-ingestion';
 import type { NormalizedKeepaProduct } from '@/services/keepa-product-normalizer';
+import type { KeepaIngestionImport } from './persist-keepa-product-ingestion';
+import { reconcileMerchListing, reconcileSellerBullet } from './reconcile-merch-listing';
 
 export type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -25,6 +26,7 @@ export const persistNormalizedKeepaProduct = async (
             title: product.title,
             brand: product.brand,
             thumbnailUrl: product.thumbnailUrl,
+            isMerchListing: product.isMerchListing,
             bullet1: product.bullet1,
             bullet2: product.bullet2,
             dateFirstAvailable: product.dateFirstAvailable,
@@ -47,11 +49,12 @@ export const persistNormalizedKeepaProduct = async (
         .onConflictDoUpdate({
             target: [products.marketplaceId, products.asin],
             set: {
+                isMerchListing: reconcileMerchListing(products.isMerchListing),
                 title: fillMissingCanonicalValue(products.title),
                 brand: fillMissingCanonicalValue(products.brand),
                 thumbnailUrl: fillMissingCanonicalValue(products.thumbnailUrl),
-                bullet1: fillMissingCanonicalValue(products.bullet1),
-                bullet2: fillMissingCanonicalValue(products.bullet2),
+                bullet1: reconcileSellerBullet(products.bullet1, products.isMerchListing),
+                bullet2: reconcileSellerBullet(products.bullet2, products.isMerchListing),
                 dateFirstAvailable: fillMissingCanonicalValue(products.dateFirstAvailable),
                 rootCategoryId: fillMissingCanonicalValue(products.rootCategoryId),
                 rootCategoryBsr: fillMissingCanonicalValue(products.rootCategoryBsr),
@@ -138,20 +141,24 @@ export const persistNormalizedKeepaProduct = async (
             });
     }
 
-    await transaction.delete(productHistoryImports).where(
-        and(
-            eq(productHistoryImports.productId, storedProduct.id),
-            eq(productHistoryImports.source, 'keepa'),
-            eq(productHistoryImports.status, 'success'),
-            ne(productHistoryImports.id, insertedImport.id)
-        )
-    );
-    await transaction.delete(keepaHistoryRefreshQueue).where(
-        and(
-            eq(keepaHistoryRefreshQueue.marketplaceId, product.marketplaceId),
-            eq(keepaHistoryRefreshQueue.asin, product.asin)
-        )
-    );
+    await transaction
+        .delete(productHistoryImports)
+        .where(
+            and(
+                eq(productHistoryImports.productId, storedProduct.id),
+                eq(productHistoryImports.source, 'keepa'),
+                eq(productHistoryImports.status, 'success'),
+                ne(productHistoryImports.id, insertedImport.id)
+            )
+        );
+    await transaction
+        .delete(keepaHistoryRefreshQueue)
+        .where(
+            and(
+                eq(keepaHistoryRefreshQueue.marketplaceId, product.marketplaceId),
+                eq(keepaHistoryRefreshQueue.asin, product.asin)
+            )
+        );
 
     return {
         productId: storedProduct.id,

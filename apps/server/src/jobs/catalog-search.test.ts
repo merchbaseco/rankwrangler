@@ -11,6 +11,10 @@ describe('Catalog search worker', () => {
                 products: [
                     {
                         asin: 'B0MERCH001',
+                        features: [
+                            'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
+                            'Catalog seller detail',
+                        ],
                         stats: { current: [-1, 1999, -1, 54_321] },
                     },
                     { asin: 'not-an-asin' },
@@ -37,7 +41,16 @@ describe('Catalog search worker', () => {
         });
         expect(deps.persistSuccess.mock.calls).toHaveLength(1);
         expect(deps.persistSuccess.mock.calls[0]?.[0].results).toMatchObject([
-            { sourcePosition: 1, normalized: { product: { asin: 'B0MERCH001' } } },
+            {
+                sourcePosition: 1,
+                normalized: {
+                    product: {
+                        asin: 'B0MERCH001',
+                        isMerchListing: true,
+                        bullet1: 'Catalog seller detail',
+                    },
+                },
+            },
             { sourcePosition: 3, normalized: { product: { asin: 'B0MERCH002' } } },
         ]);
         expect(deps.completeWithError.mock.calls).toHaveLength(0);

@@ -75,7 +75,7 @@ describe('mapStoredProductInfo', () => {
                 thumbnailUrl: null,
                 title: null,
                 brand: null,
-                isMerchListing: false,
+                isMerchListing: null,
                 bullet1: null,
                 bullet2: null,
                 rootCategoryId: null,

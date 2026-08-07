@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { MerchListingBadge } from "@/components/dashboard/merch-listing-badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import {
 	getProductThumbnailUrl,
@@ -219,11 +219,10 @@ const ProductSummary = ({
 			<span className="font-mono">{product.asin}</span>
 			<span>·</span>
 			<span>{product.brand ?? "No brand"}</span>
-			{product.isMerchListing ? (
-				<Badge className="rounded-sm px-1 py-0 text-[9px]" variant="secondary">
-					Merch
-				</Badge>
-			) : null}
+			<MerchListingBadge
+				className="rounded-sm px-1 py-0 text-[9px]"
+				value={product.isMerchListing}
+			/>
 		</div>
 	</>
 );

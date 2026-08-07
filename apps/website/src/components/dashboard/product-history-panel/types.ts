@@ -30,7 +30,7 @@ export type ProductHistoryPanelProduct = {
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
-	isMerchListing: boolean;
+	isMerchListing: boolean | null;
 	freshness: ProductFreshness;
 };
 

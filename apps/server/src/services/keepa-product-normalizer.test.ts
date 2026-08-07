@@ -38,6 +38,7 @@ describe('normalizeKeepaProduct', () => {
             title: null,
             brand: null,
             thumbnailUrl: null,
+            isMerchListing: null,
             bullet1: null,
             bullet2: null,
             dateFirstAvailable: null,
@@ -127,6 +128,50 @@ describe('normalizeKeepaProduct', () => {
             rootCategoryBsr: 54_321,
             keepaCurrentBsr: 54_321,
             keepaCurrentNewPrice: 1_999,
+        });
+    });
+
+    it('distinguishes unavailable features from an explicitly empty feature array', () => {
+        const unavailable = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+            product: { asin: 'B0MERCH004' },
+        });
+        const availableEmpty = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+            product: { asin: 'B0MERCH005', features: [] },
+        });
+
+        expect(unavailable.product).toMatchObject({
+            isMerchListing: null,
+            bullet1: null,
+            bullet2: null,
+        });
+        expect(availableEmpty.product).toMatchObject({
+            isMerchListing: false,
+            bullet1: null,
+            bullet2: null,
+        });
+    });
+
+    it('classifies Keepa template features and extracts seller bullets before persistence', () => {
+        const result = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+            product: {
+                asin: 'B0MERCH006',
+                features: [
+                    'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
+                    'Seller-authored detail',
+                ],
+            },
+        });
+
+        expect(result.product).toMatchObject({
+            isMerchListing: true,
+            bullet1: 'Seller-authored detail',
+            bullet2: null,
         });
     });
 });

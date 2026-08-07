@@ -80,6 +80,7 @@ export const getProduct = async (
 		const product: Product = {
 			asin,
 			marketplaceId,
+			isMerchListing: normalizeMerchListingValue(responseData.isMerchListing),
 			...(typeof responseData.dateFirstAvailable === "string" &&
 			responseData.dateFirstAvailable !== null &&
 			responseData.dateFirstAvailable !== ""
@@ -143,3 +144,6 @@ export const getProduct = async (
 		finishProductRequestTrace(requestTrace, requestCompletion);
 	}
 };
+
+const normalizeMerchListingValue = (value: unknown): boolean | null =>
+	typeof value === "boolean" ? value : null;

@@ -1,3 +1,8 @@
+import {
+    classifyMerchListing,
+    type BulletEvidence,
+} from '@/services/merch-listing-classification';
+
 const KEEPA_MINUTE_EPOCH_OFFSET = 21_564_000;
 const KEEPA_CSV_INDEX = {
     amazonPrice: 0,
@@ -11,7 +16,7 @@ export type KeepaProductPayload = {
     title?: string;
     brand?: string;
     imagesCSV?: string;
-    features?: string[];
+    features?: string[] | null;
     listedSince?: number;
     rootCategory?: number;
     trackingSince?: number;
@@ -37,6 +42,7 @@ export type NormalizedKeepaProductState = {
     title: string | null;
     brand: string | null;
     thumbnailUrl: string | null;
+    isMerchListing: boolean | null;
     bullet1: string | null;
     bullet2: string | null;
     dateFirstAvailable: Date | null;
@@ -91,6 +97,7 @@ export const normalizeKeepaProduct = ({
     const rootCategoryId = normalizePositiveMetric(product.salesRankReference);
     const listingRootCategoryId =
         normalizePositiveMetric(product.rootCategory) ?? rootCategoryId;
+    const merchClassification = classifyMerchListing(getKeepaBulletEvidence(product.features));
 
     return {
         product: {
@@ -99,8 +106,9 @@ export const normalizeKeepaProduct = ({
             title: normalizeText(product.title),
             brand: normalizeText(product.brand),
             thumbnailUrl: normalizeKeepaImage(product.imagesCSV),
-            bullet1: normalizeText(product.features?.[0]),
-            bullet2: normalizeText(product.features?.[1]),
+            isMerchListing: merchClassification?.isMerchListing ?? null,
+            bullet1: merchClassification?.bullet1 ?? null,
+            bullet2: merchClassification?.bullet2 ?? null,
             dateFirstAvailable: keepaMinuteToOptionalDate(product.listedSince),
             rootCategoryId: listingRootCategoryId,
             rootCategoryBsr: currentBsr,
@@ -135,6 +143,16 @@ export const normalizeKeepaProduct = ({
         },
         historyPoints: parseKeepaHistoryPoints(product),
     };
+};
+
+const getKeepaBulletEvidence = (
+    features: string[] | null | undefined
+): BulletEvidence => {
+    if (features === null || features === undefined) {
+        return { kind: 'unavailable' };
+    }
+
+    return { kind: 'available', bullets: features };
 };
 
 const parseKeepaHistoryPoints = (product: KeepaProductPayload) => {

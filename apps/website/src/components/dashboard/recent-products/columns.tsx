@@ -3,6 +3,7 @@ import type {
 	Product,
 	SelectedHistoryProduct,
 } from "@/components/dashboard/recent-products/types";
+import { MerchListingBadge } from "@/components/dashboard/merch-listing-badge";
 import { MARKETPLACE_FLAGS } from "@/components/dashboard/recent-products/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ const RowBsrButton = ({
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
-	isMerchListing: boolean;
+	isMerchListing: boolean | null;
 	freshness: SelectedHistoryProduct["freshness"];
 	isActive: boolean;
 	onSelect: (product: SelectedHistoryProduct) => void;
@@ -103,14 +104,10 @@ export const createColumns = ({
 				<span className="text-foreground font-mono text-xs">
 					{row.getValue("asin")}
 				</span>
-				{row.original.isMerchListing && (
-					<Badge
-						variant="secondary"
-						className="rounded-sm px-1 py-0 text-[10px] leading-tight"
-					>
-						Merch
-					</Badge>
-				)}
+				<MerchListingBadge
+					className="rounded-sm px-1 py-0 text-[10px] leading-tight"
+					value={row.original.isMerchListing}
+				/>
 			</div>
 		),
 		header: "ASIN",

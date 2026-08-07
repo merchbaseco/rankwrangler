@@ -1,9 +1,9 @@
+import { classifyMerchListing } from '@/services/merch-listing-classification';
 import { createSpApiClient } from '@/services/spapi/spapi-client.js';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import type { SpApiProduct } from '@/types/index.js';
-import { classifyMerchBullets } from '@/utils/merch-bullets.js';
 import {
-    getMarketplaceBulletPoints,
+    getMarketplaceBulletEvidence,
     ItemSchema,
     ItemSearchResultsSchema,
     VariantSchema,
@@ -51,11 +51,11 @@ export const searchCatalogItemsByAsins = async (
         const dateFirstAvailable = productSiteLaunchDate?.value
             ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
             : null;
-        const bulletPoints = getMarketplaceBulletPoints(
+        const bulletEvidence = getMarketplaceBulletEvidence(
             item.attributes?.bullet_point,
             marketplaceId
         );
-        const merchClassification = classifyMerchBullets(bulletPoints);
+        const merchClassification = classifyMerchListing(bulletEvidence);
 
         // Extract root category ID and BSR from display group rank (only one display group per item)
         const salesRank = item.salesRanks?.find(sr => sr.marketplaceId === marketplaceId);
@@ -90,9 +90,9 @@ export const searchCatalogItemsByAsins = async (
             dateFirstAvailable,
             title,
             brand,
-            isMerchListing: merchClassification.isMerchListing,
-            bullet1: merchClassification.bullet1,
-            bullet2: merchClassification.bullet2,
+            isMerchListing: merchClassification?.isMerchListing ?? null,
+            bullet1: merchClassification?.bullet1 ?? null,
+            bullet2: merchClassification?.bullet2 ?? null,
             rootCategoryId,
             rootCategoryBsr,
             thumbnailUrl,
