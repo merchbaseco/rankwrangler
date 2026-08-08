@@ -36,22 +36,25 @@ export async function handleFetchProductInfo(
 		const response = await apiClient.product.get.mutate({
 			asin: message.asin,
 			marketplaceId: message.marketplaceId,
-			refresh: message.refresh ?? false,
 		});
-		const summary = response.summary;
+		const updatedAt = new Date().toISOString();
+		const thumbnail =
+			response.listing.thumbnail.status === "available"
+				? response.listing.thumbnail
+				: { status: "unavailable" as const };
 
 		return {
 			success: true,
 			data: {
-				asin: summary.asin ?? message.asin,
-				isMerchListing: summary.isMerchListing ?? null,
-				dateFirstAvailable: summary.dateFirstAvailable ?? null,
-				rootCategoryBsr: summary.rootCategoryBsr ?? null,
-				rootCategoryDisplayName: summary.rootCategoryDisplayName ?? null,
-				thumbnail: summary.thumbnail ?? { status: "pending" },
+				asin: response.asin,
+				isMerchListing: response.listing.isMerchListing,
+				dateFirstAvailable: response.listing.firstAvailableAt,
+				rootCategoryBsr: response.salesRank.current,
+				rootCategoryDisplayName: response.category?.name ?? null,
+				thumbnail,
 				freshness: {
-					stale: summary.freshness?.stale ?? true,
-					updatedAt: summary.freshness?.updatedAt ?? null,
+					stale: false,
+					updatedAt,
 				},
 			},
 		};

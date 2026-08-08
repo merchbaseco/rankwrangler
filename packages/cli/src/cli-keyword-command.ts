@@ -11,8 +11,12 @@ export const runKeywordCommand = async (
     options: CliOptionValues,
     fail: CliFail
 ): Promise<unknown> => {
+    if (options.refresh) {
+        fail('INVALID_INPUT', '--refresh is not supported for keyword reads');
+    }
+
     if (command.verb === 'get') {
-        return await runKeywordGet(command.args, client, options, fail);
+        return await runKeywordGet(command.args, client, fail);
     }
     if (command.verb === 'search') {
         return await runKeywordSearch(command.args, client, options, fail);
@@ -26,17 +30,11 @@ export const runKeywordCommand = async (
     });
 };
 
-const runKeywordGet = async (
-    args: string[],
-    client: CliClient,
-    options: CliOptionValues,
-    fail: CliFail
-) => {
+const runKeywordGet = async (args: string[], client: CliClient, fail: CliFail) => {
     const keyword = requireKeyword(args, fail, 'keyword get');
     return await client.keyword.get.query({
         keyword,
         marketplaceId: KEYWORD_MARKETPLACE_ID,
-        refresh: Boolean(options.refresh),
     });
 };
 
@@ -71,7 +69,6 @@ const runKeywordSearch = async (
             fail
         ),
         merchOnly: true,
-        refresh: Boolean(options.refresh),
     });
 };
 
@@ -95,7 +92,6 @@ const runKeywordHistory = async (
             },
             fail
         ),
-        refresh: Boolean(options.refresh),
     });
 };
 

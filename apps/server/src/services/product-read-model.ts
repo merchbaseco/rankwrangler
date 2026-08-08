@@ -1,147 +1,130 @@
-import { TRPCError } from '@trpc/server';
-import type { AgentHistoryResponse } from '@/services/product-history-agent.js';
-import {
-    resolveAgentHistoryWindow,
-    resolveHistoryBucket,
-} from '@/services/product-history-buckets.js';
-import {
-    getProductHistorySurface,
-    type ProductHistoryMetric,
-} from '@/services/product-history-surface.js';
+import type { ProductHistorySurfaceInput } from '@/services/product-history-surface.js';
+import { getProductHistorySurface } from '@/services/product-history-surface.js';
 import type { ProductInfo } from '@/types/index.js';
 import { getRequiredProduct } from './product-retrieval';
-import { mapRetrievalError } from './retrieval-coordinator';
 
-const DEFAULT_PRODUCT_GET_METRICS: readonly ProductHistoryMetric[] = ['bsr', 'price'];
+const PRODUCT_READ_KEEP_A_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
+
+export interface Product {
+    marketplaceId: string;
+    asin: string;
+    listing: {
+        title: string | null;
+        brand: string | null;
+        firstAvailableAt: string | null;
+        bulletPoints: string[];
+        thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
+        isMerchListing: boolean | null;
+    };
+    category: { id: number; name: string | null } | null;
+    salesRank: {
+        current: number | null;
+        averages: {
+            last30Days: number | null;
+            last90Days: number | null;
+        };
+    };
+    price: { amountMinor: number; currencyCode: string } | null;
+    demand: {
+        boughtInPastMonth: number | null;
+        salesRankDrops: {
+            last30Days: number | null;
+            last90Days: number | null;
+            last180Days: number | null;
+            last365Days: number | null;
+        };
+    };
+}
 
 interface ProductReadInput {
     marketplaceId: string;
     asin: string;
-    startAt?: Date;
-    endAt?: Date;
-    limit: number;
-    days: number;
-    metrics?: ProductHistoryMetric[];
-    bucket: 'auto' | 'day' | 'week' | 'month';
-    refresh?: boolean;
-    signal?: AbortSignal;
     ownerMerchbaseUserId: string;
+    signal?: AbortSignal;
 }
 
-interface ProductHistoryError {
-    schemaVersion: 2;
-    status: 'error';
-    freshness: {
-        stale: true;
-        updatedAt: null;
-    };
-    range: {
-        startAt: string;
-        endAt: string;
-        bucket: 'day' | 'week' | 'month';
-    };
-    series: Record<string, never>;
-    error: {
-        code: string;
-        message: string;
-        retryable: boolean;
-        retryAfterSeconds?: number;
-    };
+export interface ProductReadModelDeps {
+    getRequiredProduct: typeof getRequiredProduct;
+    getProductHistorySurface: typeof getProductHistorySurface;
 }
 
-export interface ProductReadModel {
-    schemaVersion: 1;
-    marketplaceId: string;
-    asin: string;
-    status: 'ready' | 'partial';
-    summary: ProductInfo;
-    history: AgentHistoryResponse | ProductHistoryError;
-}
+const defaultDeps: ProductReadModelDeps = {
+    getRequiredProduct,
+    getProductHistorySurface,
+};
 
-export const getProductReadModel = async (input: ProductReadInput): Promise<ProductReadModel> => {
-    const summary = await getRequiredProduct({
+export const getProductReadModel = async (
+    input: ProductReadInput,
+    deps: ProductReadModelDeps = defaultDeps
+): Promise<Product> => {
+    const identity = {
         marketplaceId: input.marketplaceId,
-        asin: input.asin,
-        refresh: input.refresh,
+        asin: input.asin.trim().toUpperCase(),
+    };
+
+    await deps.getRequiredProduct({
+        ...identity,
         signal: input.signal,
     });
 
-    try {
-        const history = (await getProductHistorySurface({
-            ...input,
-            metrics: input.metrics ?? [...DEFAULT_PRODUCT_GET_METRICS],
-            format: 'agent',
-            refresh: input.refresh ?? false,
-            ownerMerchbaseUserId: input.ownerMerchbaseUserId,
-        })) as AgentHistoryResponse;
+    await deps.getProductHistorySurface({
+        ...identity,
+        metrics: ['bsr', 'price'],
+        limit: 1,
+        days: 30,
+        bucket: 'day',
+        format: 'agent',
+        refresh: true,
+        ownerMerchbaseUserId: input.ownerMerchbaseUserId,
+        signal: input.signal,
+    } satisfies ProductHistorySurfaceInput);
 
-        return {
-            schemaVersion: 1,
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-            status: 'ready',
-            summary,
-            history,
-        };
-    } catch (error) {
-        return {
-            schemaVersion: 1,
-            marketplaceId: input.marketplaceId,
-            asin: input.asin,
-            status: 'partial',
-            summary,
-            history: buildHistoryError(input, error),
-        };
-    }
-};
-
-const buildHistoryError = (input: ProductReadInput, error: unknown): ProductHistoryError => {
-    const publicError = mapRetrievalError(error);
-    const historyWindow = resolveAgentHistoryWindow({
-        startAt: input.startAt,
-        endAt: input.endAt,
-        days: input.days,
+    const current = await deps.getRequiredProduct({
+        ...identity,
+        maxAgeMs: PRODUCT_READ_KEEP_A_MAX_AGE_MS,
+        signal: input.signal,
     });
-    const bucket = resolveHistoryBucket({
-        requestedBucket: input.bucket,
-        startAt: historyWindow.startAt,
-        endAt: historyWindow.endAt,
-    });
-    const code = publicError instanceof TRPCError ? publicError.code : 'INTERNAL_SERVER_ERROR';
-    const retryAfterSeconds = resolveRetryAfterSeconds(publicError);
-
-    return {
-        schemaVersion: 2,
-        status: 'error',
-        freshness: {
-            stale: true,
-            updatedAt: null,
-        },
-        range: {
-            startAt: historyWindow.startAt.toISOString(),
-            endAt: historyWindow.endAt.toISOString(),
-            bucket,
-        },
-        series: {},
-        error: {
-            code,
-            message:
-                publicError instanceof Error
-                    ? publicError.message
-                    : 'Failed to load product history for product get.',
-            retryable: code === 'SERVICE_UNAVAILABLE' || code === 'TIMEOUT',
-            ...(retryAfterSeconds ? { retryAfterSeconds } : {}),
-        },
-    };
+    return mapProductToPublicProduct(current);
 };
 
-const RETRY_AFTER_PATTERN = /Retry after (\d+) seconds?/i;
-
-const resolveRetryAfterSeconds = (error: unknown) => {
-    if (!(error instanceof Error)) {
-        return undefined;
-    }
-
-    const match = RETRY_AFTER_PATTERN.exec(error.message);
-    return match?.[1] ? Number.parseInt(match[1], 10) : undefined;
-};
+export const mapProductToPublicProduct = (product: ProductInfo): Product => ({
+    marketplaceId: product.marketplaceId,
+    asin: product.asin,
+    listing: {
+        title: product.title,
+        brand: product.brand,
+        firstAvailableAt: product.dateFirstAvailable,
+        bulletPoints: [product.bullet1, product.bullet2].filter(
+            (bullet): bullet is string => bullet !== null
+        ),
+        thumbnail:
+            product.thumbnail.status === 'available'
+                ? product.thumbnail
+                : { status: 'unavailable' },
+        isMerchListing: product.isMerchListing,
+    },
+    category:
+        product.rootCategoryId === null
+            ? null
+            : {
+                  id: product.rootCategoryId,
+                  name: product.rootCategoryDisplayName,
+              },
+    salesRank: {
+        current: product.keepa?.currentRootCategoryBsr ?? product.rootCategoryBsr,
+        averages: {
+            last30Days: product.keepa?.averageRootCategoryBsr30 ?? null,
+            last90Days: product.keepa?.averageRootCategoryBsr90 ?? null,
+        },
+    },
+    price: product.keepa?.currentNewPrice ?? null,
+    demand: {
+        boughtInPastMonth: product.keepa?.monthlySold ?? null,
+        salesRankDrops: {
+            last30Days: product.keepa?.salesRankDrops.days30 ?? null,
+            last90Days: product.keepa?.salesRankDrops.days90 ?? null,
+            last180Days: product.keepa?.salesRankDrops.days180 ?? null,
+            last365Days: product.keepa?.salesRankDrops.days365 ?? null,
+        },
+    },
+});

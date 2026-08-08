@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { serve } from 'bun';
-import { createTempDir, spawnCli, spawnCliAsync } from './test-helpers';
+import { createTempDir, runCliFailure, spawnCli, spawnCliAsync } from './test-helpers';
 
 const TEMP_DIRS: string[] = [];
 const CLI_TEST_SERVER_PORT = Number(
@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 describe('final public CLI contract', () => {
-    test('runs Product get, search, and history with the shared refresh flag', async () => {
+    test('runs Product get, search, and history with final public contracts', async () => {
         const requests: Array<{ procedure: string; input: Record<string, unknown> }> = [];
         const server = serve({
             port: CLI_TEST_SERVER_PORT,
@@ -48,14 +48,30 @@ describe('final public CLI contract', () => {
                         {
                             result: {
                                 data: {
-                                    schemaVersion: 1,
-                                    asin: 'B012345678',
                                     marketplaceId: 'ATVPDKIKX0DER',
-                                    status: 'ready',
-                                    summary: { asin: 'B012345678' },
-                                    history: {
-                                        status: 'empty',
-                                        freshness: { stale: false, updatedAt: null },
+                                    asin: 'B012345678',
+                                    listing: {
+                                        title: null,
+                                        brand: null,
+                                        firstAvailableAt: null,
+                                        bulletPoints: [],
+                                        thumbnail: { status: 'unavailable' },
+                                        isMerchListing: null,
+                                    },
+                                    category: null,
+                                    salesRank: {
+                                        current: null,
+                                        averages: { last30Days: null, last90Days: null },
+                                    },
+                                    price: null,
+                                    demand: {
+                                        boughtInPastMonth: null,
+                                        salesRankDrops: {
+                                            last30Days: null,
+                                            last90Days: null,
+                                            last180Days: null,
+                                            last365Days: null,
+                                        },
                                     },
                                 },
                             },
@@ -82,11 +98,13 @@ describe('final public CLI contract', () => {
                     {
                         result: {
                             data: {
-                                schemaVersion: 2,
-                                asin: 'B012345678',
                                 marketplaceId: 'ATVPDKIKX0DER',
-                                status: 'empty',
-                                freshness: { stale: false, updatedAt: null },
+                                asin: 'B012345678',
+                                range: {
+                                    startAt: '2026-01-01T00:00:00.000Z',
+                                    endAt: '2026-08-01T00:00:00.000Z',
+                                    interval: 'month',
+                                },
                                 series: {},
                             },
                         },
@@ -97,13 +115,14 @@ describe('final public CLI contract', () => {
         const workspace = createCliWorkspace();
 
         try {
-            const baseArgs = ['--refresh', '--baseUrl', `http://127.0.0.1:${server.port}`];
+            const baseArgs = ['--baseUrl', `http://127.0.0.1:${server.port}`];
+            const searchArgs = ['--refresh', ...baseArgs];
             const getResult = await spawnCliAsync(['product', 'get', 'B012345678', ...baseArgs], {
                 ...workspace,
                 env: { MERCHBASE_API_KEY: 'ak_test_value' },
             });
             const searchResult = await spawnCliAsync(
-                ['product', 'search', 'retro', 'gardening', 'shirt', ...baseArgs],
+                ['product', 'search', 'retro', 'gardening', 'shirt', ...searchArgs],
                 { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
             );
             const historyResult = await spawnCliAsync(
@@ -124,11 +143,6 @@ describe('final public CLI contract', () => {
                     input: {
                         marketplaceId: 'ATVPDKIKX0DER',
                         asin: 'B012345678',
-                        refresh: true,
-                        metrics: ['bsr', 'price'],
-                        bucket: 'auto',
-                        days: 365,
-                        limit: 5000,
                     },
                 },
                 {
@@ -140,9 +154,7 @@ describe('final public CLI contract', () => {
                     input: {
                         marketplaceId: 'ATVPDKIKX0DER',
                         asin: 'B012345678',
-                        refresh: true,
-                        metrics: ['bsr', 'price'],
-                        format: 'agent',
+                        metrics: ['salesRank', 'price'],
                         bucket: 'auto',
                         days: 365,
                         limit: 5000,
@@ -154,7 +166,7 @@ describe('final public CLI contract', () => {
         }
     });
 
-    test('runs keyword get, search, and history with final output envelopes', async () => {
+    test('runs keyword get, search, and history with final output data', async () => {
         const requests: string[] = [];
         const server = serve({
             port: CLI_TEST_SERVER_PORT,
@@ -167,7 +179,6 @@ describe('final public CLI contract', () => {
                         keyword: 'garden shirt',
                         status: 'empty',
                         current: null,
-                        freshness: { stale: false, updatedAt: null },
                     };
                 } else if (procedure === 'search') {
                     data = {
@@ -175,14 +186,12 @@ describe('final public CLI contract', () => {
                         items: [],
                         nextCursor: null,
                         summary: {},
-                        freshness: { stale: false, updatedAt: null },
                     };
                 } else {
                     data = {
                         keyword: 'garden shirt',
                         status: 'empty',
                         points: [],
-                        freshness: { stale: false, updatedAt: null },
                     };
                 }
                 return Response.json([{ result: { data } }]);
@@ -191,7 +200,7 @@ describe('final public CLI contract', () => {
         const workspace = createCliWorkspace();
 
         try {
-            const baseArgs = ['--refresh', '--baseUrl', `http://127.0.0.1:${server.port}`];
+            const baseArgs = ['--baseUrl', `http://127.0.0.1:${server.port}`];
             for (const args of [
                 ['keyword', 'get', 'garden shirt', ...baseArgs],
                 ['keyword', 'search', 'garden shirt', ...baseArgs],
@@ -206,6 +215,27 @@ describe('final public CLI contract', () => {
             expect(requests).toEqual(['get', 'search', 'history']);
         } finally {
             server.stop(true);
+        }
+    });
+
+    test('rejects refresh on Product get/history and keyword reads', () => {
+        const workspace = createCliWorkspace();
+        const commands = [
+            ['product', 'get', 'B012345678', '--refresh'],
+            ['product', 'history', 'B012345678', '--refresh'],
+            ['keyword', 'get', 'garden shirt', '--refresh'],
+        ];
+
+        for (const args of commands) {
+            expect(
+                runCliFailure(args, {
+                    ...workspace,
+                    env: { MERCHBASE_API_KEY: 'ak_test_value' },
+                })
+            ).toMatchObject({
+                ok: false,
+                error: { code: 'INVALID_INPUT' },
+            });
         }
     });
 

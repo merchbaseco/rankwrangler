@@ -19,8 +19,7 @@ const rateLimiter = new RateLimiter({
 });
 
 export const getProduct = async (
-	productIdentifier: ProductIdentifier,
-	{ refresh = false }: { refresh?: boolean } = {}
+	productIdentifier: ProductIdentifier
 ): Promise<Product> => {
 	const { asin, marketplaceId } = productIdentifier;
 	const requestTrace = startProductRequestTrace(productIdentifier);
@@ -41,7 +40,6 @@ export const getProduct = async (
 			type: "fetchProductInfo",
 			asin,
 			marketplaceId,
-			refresh,
 		};
 
 		const response = await browser.runtime.sendMessage(message);

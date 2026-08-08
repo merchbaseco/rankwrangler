@@ -40,8 +40,9 @@ server freshness policy. A current cache hit returns immediately; missing or pol
 starts or joins durable work and waits. Caller deadline exhaustion does not cancel that work, and a
 retry coalesces with it.
 
-Public inputs have no refresh control. Responses expose no stale or pending data, freshness,
-Operations, polling state, provider status or timestamps, or response `schemaVersion`.
+Product `get`/`history` and keyword inputs have no refresh control. Product Search retains its
+separate search input. Product `get`/`history` and keyword responses expose no stale or pending data,
+freshness, Operations, polling state, provider status or response `schemaVersion`.
 
 ## Procedures
 

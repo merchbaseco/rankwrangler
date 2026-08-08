@@ -13,55 +13,32 @@ import { createKeywordGetProcedure } from './keyword-get.js';
 import { createKeywordSearchProcedure } from './keyword-search.js';
 
 describe('public keyword retrieval contract', () => {
-    it('returns available data immediately without scheduling work', async () => {
+    it('returns policy-current data immediately without scheduling work', async () => {
         const fixture = createFixture({ snapshot: createSnapshot() });
         const result = await fixture.caller.get({ keyword: 'Garden Shirt' });
 
         expect(result.status).toBe('ready');
-        expect(result.freshness).toEqual({
-            stale: false,
-            updatedAt: '2026-08-06T12:00:00.000Z',
-        });
+        expect(result).not.toHaveProperty('freshness');
         expect(fixture.sendTriggers).toEqual([]);
     });
 
-    it('treats an explicit refresh as satisfied by already-fresh data', async () => {
-        const fixture = createFixture({ snapshot: createSnapshot() });
-        const result = await fixture.caller.get({ keyword: 'garden shirt', refresh: true });
-
-        expect(result.freshness.stale).toBe(false);
-        expect(fixture.sendTriggers).toEqual([]);
-    });
-
-    it('returns stale data while automatic revalidation runs in the background', async () => {
+    it('waits for policy-expired data before returning the final snapshot', async () => {
         const fixture = createFixture({
             snapshot: createSnapshot('2026-08-04T12:00:00.000Z'),
         });
         const result = await fixture.caller.get({ keyword: 'garden shirt' });
 
         expect(result.status).toBe('ready');
-        expect(result.freshness.stale).toBe(true);
-        await waitForMicrotasks();
-        expect(fixture.sendTriggers).toEqual(['automatic']);
+        expect(result).not.toHaveProperty('freshness');
+        expect(fixture.sendTriggers).toEqual(['requested']);
     });
 
-    it('waits for first-time data and explicit refreshes', async () => {
+    it('waits for first-time data', async () => {
         const firstTime = createFixture({ snapshot: null });
         const firstResult = await firstTime.caller.get({ keyword: 'garden shirt' });
 
-        expect(firstResult.freshness.stale).toBe(false);
+        expect(firstResult).not.toHaveProperty('freshness');
         expect(firstTime.sendTriggers).toEqual(['requested']);
-
-        const explicit = createFixture({
-            snapshot: createSnapshot('2026-08-04T12:00:00.000Z'),
-        });
-        const refreshed = await explicit.caller.get({
-            keyword: 'garden shirt',
-            refresh: true,
-        });
-
-        expect(refreshed.freshness.stale).toBe(false);
-        expect(explicit.sendTriggers).toEqual(['requested']);
     });
 
     it('coalesces canonical equivalent work by keyword category', async () => {

@@ -9,11 +9,6 @@ export const KEYWORD_DEFAULT_LIMIT = 25;
 export const KEYWORD_MAX_LIMIT = 100;
 export const KEYWORD_DEFAULT_HISTORY_DAYS = 90;
 
-export interface KeywordFreshness {
-    stale: boolean;
-    updatedAt: string | null;
-}
-
 export interface KeywordEvidence {
     searchFrequencyRank: number;
     clickShareTop3: number;
@@ -56,7 +51,6 @@ export interface KeywordSearchResponse {
     items: KeywordSearchItem[];
     nextCursor: number | null;
     summary: KeywordSearchSummary;
-    freshness: KeywordFreshness;
 }
 
 export interface KeywordHistoryPoint {
@@ -76,5 +70,4 @@ export interface KeywordHistoryResponse {
     latestObservedDate: string | null;
     points: KeywordHistoryPoint[];
     deltas: SearchTermsTrendDeltas;
-    freshness: KeywordFreshness;
 }

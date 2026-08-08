@@ -9,7 +9,6 @@ import {
     resolveHistoryMetrics,
     resolveHistoryWindow,
 } from './cli-options';
-import { type AgentHistoryResponse, buildCliHistoryResponse } from './history-response';
 
 type CliFail = (code: string, message: string, details?: unknown) => never;
 type CliClient = ReturnType<typeof createRankWranglerClient>;
@@ -21,6 +20,10 @@ export const runProductCommand = async (
     options: CliOptionValues,
     fail: CliFail
 ): Promise<unknown> => {
+    if (command.verb !== 'search' && options.refresh) {
+        fail('INVALID_INPUT', '--refresh is only supported for product search');
+    }
+
     if (command.verb === 'get') {
         return await runProductGet(command.args, client, config, options, fail);
     }
@@ -44,13 +47,10 @@ const runProductGet = async (
     fail: CliFail
 ) => {
     const asin = requireSingleAsin(args, fail, 'product get');
-    const historyOptions = resolveHistoryOptions(options, fail);
 
     return await client.product.get.mutate({
         marketplaceId: requireMarketplaceId(options, config),
         asin,
-        refresh: Boolean(options.refresh),
-        ...historyOptions,
     });
 };
 
@@ -80,19 +80,10 @@ const runProductHistory = async (
 ) => {
     const asin = requireSingleAsin(args, fail, 'product history');
     const historyOptions = resolveHistoryOptions(options, fail);
-    const response = await client.product.history.mutate({
+    return await client.product.history.mutate({
         marketplaceId: requireMarketplaceId(options, config),
         asin,
-        refresh: Boolean(options.refresh),
-        format: 'agent',
         ...historyOptions,
-    });
-
-    return buildCliHistoryResponse({
-        asin,
-        marketplaceId: requireMarketplaceId(options, config),
-        metrics: historyOptions.metrics,
-        response: response as AgentHistoryResponse,
     });
 };
 

@@ -11,8 +11,9 @@ magical "find opportunities" score.
 ## Capabilities
 
 - Browse and filter canonical Products by title, brand, ASIN, marketplace, BSR, freshness, and
-  classified niche.
-- Load Product summaries and event-based BSR/price history sourced from Amazon SP-API and Keepa.
+  classified niche in the dashboard.
+- Load the provider-neutral current Product and compact event-based BSR/price history sourced from
+  Amazon SP-API and Keepa.
 - Explore Amazon Brand Analytics Top Search Terms across daily, weekly, and custom windows.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity and provider health from the operator dashboard.
@@ -26,10 +27,10 @@ creating an opaque recommendation engine.
 
 Canonical Product retrieval is shared across blocking ASIN reads and background bulk workflows.
 Catalog runs retain immutable search membership while their current Products resolve independently;
-cached and fresh runs use the same background path. Product thumbnails report `pending`, `available`,
-or `unavailable` without exposing provider-specific availability fields. Product
-`isMerchListing` is nullable knowledge: `null` means unknown, distinct from known non-Merch
-(`false`).
+cached and fresh runs use the same background path. Dashboard and internal Product records may retain
+`pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to
+`available` or `unavailable`. Product `isMerchListing` is nullable knowledge: `null` means unknown,
+distinct from known non-Merch (`false`).
 
 ## Use RankWrangler
 
@@ -43,7 +44,7 @@ npm install -g @rankwrangler/cli
 rw auth set
 rw product get B0XXXXXXXX
 rw product search "retro gardening shirt"
-rw product history B0XXXXXXXX --metrics bsr,price --bucket auto
+rw product history B0XXXXXXXX --metrics salesRank,price --bucket auto
 rw keyword get "retro gardening shirt"
 rw keyword search "retro gardening"
 rw keyword history "retro gardening shirt"
@@ -53,12 +54,13 @@ Each catalog search request renews the keyword's 30-day active window, including
 Active keywords receive automatic weekly refreshes; expired keywords become inactive without
 backfill. Search history labels Requested search versus Automatic refresh.
 
-Public Product and keyword reads return final data with category-specific freshness envelopes. When
-collection is needed, the shared server retrieval service waits transparently for policy-compliant
-data or returns a provider-neutral retryable error with a hint. Public callers never receive
-Operation identifiers or polling state. The dashboard retains its app-specific workflow and
-Clerk-authenticated completion subscriptions for internal Product history, Catalog search, and
-per-ASIN SP-API Product synchronization.
+Public Product get/history and keyword reads return final policy-current data without freshness
+envelopes or refresh controls. Product Search retains its separate search contract. When collection
+is needed, the shared server retrieval service waits transparently for policy-compliant data or
+returns a provider-neutral retryable error with a hint. Public callers never receive Operation
+identifiers or polling state. The dashboard retains its app-specific workflow and Clerk-authenticated
+completion subscriptions for internal Product history, Catalog search, and per-ASIN SP-API Product
+synchronization.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.

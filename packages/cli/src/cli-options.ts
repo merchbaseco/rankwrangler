@@ -4,7 +4,7 @@ import {
     HISTORY_METRIC_ALIASES,
     type HistoryBucket,
     type HistoryMetricAlias,
-} from './history-response';
+} from './history-options';
 
 type CliFail = (code: string, message: string, details?: unknown) => never;
 
@@ -51,9 +51,9 @@ export const requireSingleAsin = (
 };
 
 export const resolveHistoryMetrics = (values: CliOptionValues, fail: CliFail) => {
-    const requested = (values.metrics ?? process.env.RR_HISTORY_METRICS ?? 'bsr,price')
+    const requested = (values.metrics ?? process.env.RR_HISTORY_METRICS ?? 'salesRank,price')
         .split(',')
-        .map(value => value.trim().toLowerCase())
+        .map(value => normalizeHistoryMetric(value.trim()))
         .filter(Boolean);
 
     if (requested.length === 0) {
@@ -176,4 +176,14 @@ const normalizeAsin = (value: string, fail: CliFail) => {
     }
 
     return normalized;
+};
+
+const normalizeHistoryMetric = (value: string) => {
+    if (value.toLowerCase() === 'salesrank') {
+        return 'salesRank';
+    }
+    if (value.toLowerCase() === 'price') {
+        return 'price';
+    }
+    return value;
 };

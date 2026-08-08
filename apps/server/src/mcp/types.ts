@@ -1,16 +1,9 @@
-export type ProductHistoryMetric = 'bsr' | 'price';
+export type ProductHistoryMetric = 'salesRank' | 'price';
 export type ProductHistoryBucket = 'auto' | 'day' | 'week' | 'month';
 
 export interface ProductGetMcpInput {
     marketplaceId: string;
     asin: string;
-    refresh: boolean;
-    startAt?: string;
-    endAt?: string;
-    limit: number;
-    days: number;
-    metrics?: ProductHistoryMetric[];
-    bucket: ProductHistoryBucket;
 }
 
 export interface ProductSearchMcpInput {
@@ -18,14 +11,20 @@ export interface ProductSearchMcpInput {
     refresh: boolean;
 }
 
-export interface ProductHistoryMcpInput extends ProductGetMcpInput {
-    format: 'agent' | 'legacy';
+export interface ProductHistoryMcpInput {
+    marketplaceId: string;
+    asin: string;
+    startAt?: string;
+    endAt?: string;
+    limit: number;
+    days: number;
+    metrics: ProductHistoryMetric[];
+    bucket: ProductHistoryBucket;
 }
 
 export interface KeywordGetMcpInput {
     keyword: string;
     marketplaceId: 'ATVPDKIKX0DER';
-    refresh: boolean;
 }
 
 export interface KeywordSearchMcpInput {
@@ -33,14 +32,12 @@ export interface KeywordSearchMcpInput {
     marketplaceId: 'ATVPDKIKX0DER';
     cursor: number;
     limit: number;
-    refresh: boolean;
 }
 
 export interface KeywordHistoryMcpInput {
     keyword: string;
     marketplaceId: 'ATVPDKIKX0DER';
     rangeDays: number;
-    refresh: boolean;
 }
 
 export interface RankWranglerMcpStatus {

@@ -26,9 +26,11 @@ without `/mcp`. Other website paths are not MCP routes.
 | `rankwrangler_product` | `operation: get \| search \| history` | Final Product data or a standard error. |
 | `rankwrangler_keyword` | `operation: get \| search \| history` | Final keyword data or a standard error. |
 
-`rankwrangler_product` uses `asin` for `get` and `history`, and `term` for `search`. It accepts
-the public Product-history range, metric, and bucket fields. `rankwrangler_keyword` uses `keyword`
-for `get` and `history`, `text` for `search`, and accepts cursor/limit or range options.
+`rankwrangler_product` uses `asin` and `marketplaceId` for `get`, adds only the documented
+Product-history range, metric, and bucket fields for `history`, and uses `term` for `search`.
+`rankwrangler_keyword` uses `keyword` for `get` and `history`, `text` for `search`, and accepts
+cursor/limit or range options. Product `get`/`history` and keyword inputs do not accept `refresh`.
+The separate Product Search contract retains its existing search input.
 The keyword marketplace is the US marketplace (`ATVPDKIKX0DER`).
 
 Product `search` returns `keyword`, `searchedAt`, and compact `results`. Each result nests

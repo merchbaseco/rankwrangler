@@ -19,7 +19,6 @@ export interface FetchProductInfoMessage {
 	type: "fetchProductInfo";
 	asin: string;
 	marketplaceId: string;
-	refresh?: boolean;
 }
 
 export interface ProductHistoryPoint {

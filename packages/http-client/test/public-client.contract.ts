@@ -6,6 +6,11 @@ type Equal<Left, Right> =
         : false;
 type Assert<Condition extends true> = Condition;
 type ProductSearchInput = PublicRouterInputs['product']['search'];
+type ProductGetInput = PublicRouterInputs['product']['get'];
+type ProductHistoryInput = PublicRouterInputs['product']['history'];
+type ProductOutput = PublicRouterOutputs['product']['get'];
+type ProductHistoryOutput = PublicRouterOutputs['product']['history'];
+type KeywordGetInput = PublicRouterInputs['keyword']['get'];
 type ProductSearchOutput = PublicRouterOutputs['product']['search'];
 type ProductSearchMutation = RankWranglerClient['product']['search'];
 
@@ -21,8 +26,31 @@ export type KeywordProcedureContract = Assert<
 export type ProductSearchOutputContract = Assert<
     Equal<Awaited<ReturnType<ProductSearchMutation['mutate']>>, ProductSearchOutput>
 >;
+export type ProductGetInputContract = Assert<
+    Equal<keyof ProductGetInput, 'marketplaceId' | 'asin'>
+>;
+export type ProductOutputContract = Assert<
+    Equal<
+        keyof ProductOutput,
+        'marketplaceId' | 'asin' | 'listing' | 'category' | 'salesRank' | 'price' | 'demand'
+    >
+>;
+export type ProductHistoryInputContract = Assert<
+    Equal<
+        keyof ProductHistoryInput,
+        'marketplaceId' | 'asin' | 'bucket' | 'days' | 'endAt' | 'limit' | 'metrics' | 'startAt'
+    >
+>;
+export type ProductHistoryOutputContract = Assert<
+    Equal<keyof ProductHistoryOutput, 'marketplaceId' | 'asin' | 'range' | 'series'>
+>;
+export type KeywordGetInputContract = Assert<
+    Equal<
+        keyof KeywordGetInput,
+        'keyword' | 'dataEndDate' | 'dataStartDate' | 'marketplaceId' | 'reportPeriod'
+    >
+>;
 
 export const productSearchInput: ProductSearchInput = {
     term: 'retro gardening shirt',
-    refresh: true,
 };

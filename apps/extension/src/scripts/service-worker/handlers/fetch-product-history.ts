@@ -4,8 +4,6 @@ import {
 } from "@rankwrangler/http-client";
 import type {
 	FetchProductHistoryMessage,
-	ProductHistory,
-	ProductHistoryPoint,
 	ProductHistoryResponse,
 } from "@/scripts/content/types";
 import { log } from "../../../utils/logger";
@@ -35,29 +33,36 @@ export async function handleFetchProductHistory(
 			headers: { Authorization: `Bearer ${sessionToken}` },
 		});
 
-		const response = await apiClient.product.history.mutate({
+		const response = (await apiClient.product.history.mutate({
 			asin: message.asin,
 			marketplaceId: message.marketplaceId,
 			limit: 5000,
 			days: 365,
-			format: "legacy",
-		});
-
-		if (!isTransparentProductHistoryResponse(response)) {
-			throw new Error(
-				"Product history returned an unsupported response format."
-			);
-		}
+			metrics: ["salesRank"],
+		})) as PublicProductHistoryResponse;
+		const salesRank = response.series.salesRank;
+		const categoryId = salesRank?.category?.id ?? 0;
+		const categoryName = salesRank?.category?.name ?? null;
 
 		return {
 			success: true,
 			data: {
 				marketplaceId: response.marketplaceId,
 				asin: response.asin,
-				metric: response.metric,
-				latestImportAt: response.freshness.updatedAt,
-				categoryNames: response.categoryNames,
-				points: response.points,
+				metric: categoryName ? "bsrCategory" : "bsrMain",
+				latestImportAt: null,
+				categoryNames: categoryName
+					? { [String(categoryId)]: categoryName }
+					: {},
+				points:
+					salesRank?.points.map(([observedAt, value]) => ({
+						categoryId,
+						categoryName,
+						observedAt,
+						keepaMinutes: Math.floor(Date.parse(observedAt) / 60_000),
+						value,
+						isMissing: value === null,
+					})) ?? [],
 				collecting: false,
 				syncTriggered: false,
 			},
@@ -91,6 +96,17 @@ export async function handleFetchProductHistory(
 	}
 }
 
+interface PublicProductHistoryResponse {
+	marketplaceId: string;
+	asin: string;
+	series: {
+		salesRank?: {
+			category: { id: number; name: string | null } | null;
+			points: [string, number | null][];
+		};
+	};
+}
+
 const resolveTrpcErrorCode = (error: unknown): string | null => {
 	if (!error || typeof error !== "object") {
 		return null;
@@ -105,71 +121,3 @@ const resolveTrpcErrorCode = (error: unknown): string | null => {
 
 	return null;
 };
-
-interface TransparentProductHistoryResponse {
-	marketplaceId: string;
-	asin: string;
-	metric: ProductHistory["metric"];
-	categoryNames: Record<string, string>;
-	points: ProductHistoryPoint[];
-	freshness: {
-		stale: boolean;
-		updatedAt: string | null;
-	};
-}
-
-const isTransparentProductHistoryResponse = (
-	value: unknown
-): value is TransparentProductHistoryResponse => {
-	if (!isRecord(value)) {
-		return false;
-	}
-
-	return (
-		typeof value.marketplaceId === "string" &&
-		typeof value.asin === "string" &&
-		isProductHistoryMetric(value.metric) &&
-		isStringRecord(value.categoryNames) &&
-		Array.isArray(value.points) &&
-		value.points.every(isProductHistoryPoint) &&
-		isFreshness(value.freshness)
-	);
-};
-
-const isProductHistoryMetric = (
-	value: unknown
-): value is ProductHistory["metric"] =>
-	["bsrMain", "bsrCategory", "priceAmazon", "priceNew", "priceNewFba"].includes(
-		value as ProductHistory["metric"]
-	);
-
-const isProductHistoryPoint = (
-	value: unknown
-): value is ProductHistoryPoint => {
-	if (!isRecord(value)) {
-		return false;
-	}
-
-	return (
-		typeof value.categoryId === "number" &&
-		(typeof value.categoryName === "string" || value.categoryName === null) &&
-		typeof value.observedAt === "string" &&
-		typeof value.keepaMinutes === "number" &&
-		(typeof value.value === "number" || value.value === null) &&
-		typeof value.isMissing === "boolean"
-	);
-};
-
-const isFreshness = (
-	value: unknown
-): value is TransparentProductHistoryResponse["freshness"] =>
-	isRecord(value) &&
-	typeof value.stale === "boolean" &&
-	(typeof value.updatedAt === "string" || value.updatedAt === null);
-
-const isStringRecord = (value: unknown): value is Record<string, string> =>
-	isRecord(value) &&
-	Object.values(value).every((item) => typeof item === "string");
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null;

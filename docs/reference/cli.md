@@ -49,7 +49,8 @@ Catalog, Operation, plural `products`, summary, and polling commands are not par
 
 ## Options
 
-Public freshness policy is server-owned; no command accepts `--refresh`. Common options are
+Public freshness policy is server-owned for Product `get/history` and keyword reads; those commands
+accept no `--refresh`. Product Search retains its separate search contract. Common options are
 `--baseUrl`, `--marketplace`, and `--limit`.
 
 Product history options:

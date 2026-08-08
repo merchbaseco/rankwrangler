@@ -128,6 +128,36 @@ describe('RankWrangler MCP server', () => {
         await client.close();
         await server.close();
     });
+
+    it('rejects removed refresh controls at the noun-tool boundary', async () => {
+        const { client, server } = await connect(dataSource);
+
+        const results = await Promise.all([
+            client.callTool({
+                name: 'rankwrangler_product',
+                arguments: { operation: 'get', asin: 'B012345678', refresh: true },
+            }),
+            client.callTool({
+                name: 'rankwrangler_product',
+                arguments: {
+                    operation: 'history',
+                    asin: 'B012345678',
+                    metrics: ['salesRank'],
+                    refresh: true,
+                },
+            }),
+            client.callTool({
+                name: 'rankwrangler_keyword',
+                arguments: { operation: 'get', keyword: 'shirts', refresh: true },
+            }),
+        ]);
+
+        expect(results.every(result => result.isError === true)).toBe(true);
+        expect(JSON.stringify(results)).toContain('refresh');
+
+        await client.close();
+        await server.close();
+    });
 });
 
 const connect = async (source: RankWranglerMcpDataSource) => {

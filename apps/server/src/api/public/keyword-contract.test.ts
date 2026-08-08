@@ -12,20 +12,14 @@ import { createKeywordHistoryProcedure, type KeywordHistoryDeps } from './keywor
 import { createKeywordSearchProcedure, type KeywordSearchDeps } from './keyword-search.js';
 
 describe('public keyword tRPC boundary', () => {
-    it('exposes get, search, and history with one freshness envelope and no work state', async () => {
-        const freshness = {
-            stale: false,
-            updatedAt: '2026-08-06T12:00:00.000Z',
-        } as const;
-        const getKeywordIntelligence = mock(async (input: { refresh: boolean }) => ({
+    it('exposes final get, search, and history data without freshness or work state', async () => {
+        const getKeywordIntelligence = mock(async () => ({
             keyword: 'garden shirt',
-            status: 'ready' as const,
-            current: { searchFrequencyRank: 12_345 },
-            freshness,
-            refreshRequested: input.refresh,
+            status: 'empty' as const,
+            current: null,
         }));
         const searchKeywordIntelligence = mock(
-            async (_input: { refresh: boolean }) =>
+            async () =>
                 ({
                     items: [],
                     nextCursor: null,
@@ -39,11 +33,10 @@ describe('public keyword tRPC boundary', () => {
                         fetchedAt: null,
                         totalFiltered: 0,
                     },
-                    freshness,
                 }) satisfies KeywordSearchResponse
         );
         const getKeywordHistory = mock(
-            async (_input: { refresh: boolean }) =>
+            async () =>
                 ({
                     keyword: 'garden shirt',
                     marketplaceId: 'ATVPDKIKX0DER',
@@ -69,7 +62,6 @@ describe('public keyword tRPC boundary', () => {
                             conversionShareDelta: null,
                         },
                     },
-                    freshness,
                 }) satisfies KeywordHistoryResponse
         );
         const usage = mock(async () => undefined);
@@ -89,20 +81,20 @@ describe('public keyword tRPC boundary', () => {
         }).createCaller(createPublicContext());
 
         const [getResult, searchResult, historyResult] = await Promise.all([
-            caller.get({ keyword: 'garden shirt', refresh: true }),
-            caller.search({ text: 'garden', refresh: true }),
-            caller.history({ keyword: 'garden shirt', refresh: true }),
+            caller.get({ keyword: 'garden shirt' }),
+            caller.search({ text: 'garden' }),
+            caller.history({ keyword: 'garden shirt' }),
         ]);
 
-        expect(getResult.freshness).toEqual(freshness);
-        expect(searchResult.freshness).toEqual(freshness);
-        expect(historyResult.freshness).toEqual(freshness);
+        expect(getResult).not.toHaveProperty('freshness');
+        expect(searchResult).not.toHaveProperty('freshness');
+        expect(historyResult).not.toHaveProperty('freshness');
         expect(getResult).not.toHaveProperty('operation');
         expect(searchResult).not.toHaveProperty('operation');
         expect(historyResult).not.toHaveProperty('operation');
-        expect(getKeywordIntelligence.mock.calls[0]?.[0].refresh).toBe(true);
-        expect(searchKeywordIntelligence.mock.calls[0]?.[0].refresh).toBe(true);
-        expect(getKeywordHistory.mock.calls[0]?.[0].refresh).toBe(true);
+        expect(getKeywordIntelligence.mock.calls[0]?.[0]).not.toHaveProperty('refresh');
+        expect(searchKeywordIntelligence.mock.calls[0]?.[0]).not.toHaveProperty('refresh');
+        expect(getKeywordHistory.mock.calls[0]?.[0]).not.toHaveProperty('refresh');
         expect(usage.mock.calls).toHaveLength(3);
     });
 

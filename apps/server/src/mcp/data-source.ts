@@ -18,7 +18,7 @@ export const createRankWranglerMcpDataSource = (ctx: Context): RankWranglerMcpDa
         status: async () => RANKWRANGLER_MCP_STATUS,
         product: {
             get: async (input: ProductGetMcpInput) => ({
-                data: await caller.product.get(toProductInput(input)),
+                data: await caller.product.get(input),
                 operation: 'get',
             }),
             search: async (input: ProductSearchMcpInput) => ({
@@ -26,7 +26,7 @@ export const createRankWranglerMcpDataSource = (ctx: Context): RankWranglerMcpDa
                 operation: 'search',
             }),
             history: async (input: ProductHistoryMcpInput) => ({
-                data: await caller.product.history(toProductInput(input)),
+                data: await caller.product.history(toProductHistoryInput(input)),
                 operation: 'history',
             }),
         },
@@ -47,11 +47,7 @@ export const createRankWranglerMcpDataSource = (ctx: Context): RankWranglerMcpDa
     };
 };
 
-const toProductInput = ({
-    startAt,
-    endAt,
-    ...input
-}: ProductGetMcpInput | ProductHistoryMcpInput) => ({
+const toProductHistoryInput = ({ startAt, endAt, ...input }: ProductHistoryMcpInput) => ({
     ...input,
     ...(startAt ? { startAt: new Date(startAt) } : {}),
     ...(endAt ? { endAt: new Date(endAt) } : {}),

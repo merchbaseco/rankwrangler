@@ -46,7 +46,6 @@ interface KeywordWindowInput {
 }
 
 type KeywordReadInput = KeywordWindowInput & {
-    refresh: boolean;
     signal?: AbortSignal;
 };
 
@@ -93,7 +92,6 @@ export const getKeywordIntelligence = async (
             keyword: canonicalKeyword,
             status: 'empty' as const,
             current: null,
-            freshness: context.freshness,
         };
     }
 
@@ -105,7 +103,6 @@ export const getKeywordIntelligence = async (
         keyword: canonicalKeyword,
         status: evidence ? ('ready' as const) : ('empty' as const),
         current: evidence ? mapCurrentKeyword(context.snapshot, evidence) : null,
-        freshness: context.freshness,
     };
 };
 
@@ -133,7 +130,6 @@ export const searchKeywordIntelligence = async (
             items: [],
             nextCursor: null,
             summary: buildEmptyKeywordSearchSummary(input),
-            freshness: context.freshness,
         };
     }
 
@@ -156,7 +152,6 @@ export const searchKeywordIntelligence = async (
         summary: buildKeywordDatasetSummary(snapshot, {
             totalFiltered: listed.totalFiltered,
         }),
-        freshness: context.freshness,
     };
 };
 
@@ -168,7 +163,7 @@ export const getKeywordHistory = async (
     dependencies: KeywordDependencies = defaultDependencies
 ): Promise<KeywordHistoryResponse> => {
     const canonicalKeyword = normalizeKeyword(input.keyword);
-    const context = await loadKeywordContext({
+    const _context = await loadKeywordContext({
         category: 'keyword-performance',
         canonicalKeyword,
         input,
@@ -198,7 +193,6 @@ export const getKeywordHistory = async (
         latestObservedDate: result.latestObservedDate,
         points,
         deltas: calculateSearchTermsTrendDeltas(result.points),
-        freshness: context.freshness,
     };
 };
 
@@ -213,7 +207,7 @@ const loadKeywordContext = async ({
     input: KeywordReadInput;
     dependencies: KeywordDependencies;
 }) => {
-    let context = await resolveKeywordContext(input, dependencies);
+    const context = await resolveKeywordContext(input, dependencies);
     if (!context.freshness.stale) {
         return context;
     }
@@ -224,19 +218,11 @@ const loadKeywordContext = async ({
         window: context.window,
         dataset: context.dataset,
         snapshot: context.snapshot,
-        trigger:
-            input.refresh || !context.snapshot ? ('requested' as const) : ('automatic' as const),
+        trigger: 'requested' as const,
         signal: input.signal,
     };
-    if (!context.snapshot || input.refresh) {
-        await awaitKeywordPerformanceRetrieval(retrievalInput, dependencies);
-        context = await resolveKeywordContext(input, dependencies);
-        return context;
-    }
-
-    const backgroundRefresh = awaitKeywordPerformanceRetrieval(retrievalInput, dependencies);
-    backgroundRefresh.catch(() => undefined);
-    return context;
+    await awaitKeywordPerformanceRetrieval(retrievalInput, dependencies);
+    return await resolveKeywordContext(input, dependencies);
 };
 
 const resolveKeywordContext = async (

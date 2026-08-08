@@ -17,7 +17,6 @@ const client = createRankWranglerClient({
 const product = await client.product.get.mutate({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B0DV53VS61',
-    refresh: true,
 });
 
 const search = await client.product.search.mutate({
@@ -27,7 +26,8 @@ const search = await client.product.search.mutate({
 const history = await client.product.history.mutate({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B0DV53VS61',
-    format: 'agent',
+    metrics: ['salesRank', 'price'],
+    bucket: 'week',
 });
 
 const keywords = await client.keyword.search.query({
@@ -36,10 +36,11 @@ const keywords = await client.keyword.search.query({
 ```
 
 The client is scoped to the final public surface (`api.public.*`). It exposes Product
-`get/search/history` and keyword `get/search/history`; it does not expose Catalog, Operation, or
-polling procedures. Product summaries preserve nullable `isMerchListing`; `null` is unknown and
-must not be coerced to `false`. `NOT_FOUND` and retryable `TIMEOUT` errors are preserved from tRPC,
-with retry hints on temporary unavailability.
+`get/search/history` and keyword `get/search/history`; it does not expose Catalog, Operation,
+polling procedures. Product `get` and `history`, plus keyword reads, expose no refresh controls;
+Product search retains its separate search contract. Product `get` returns the provider-neutral
+current Product shape; Product `history` returns compact rank/price series. `NOT_FOUND` and retryable
+`TIMEOUT` errors are preserved from tRPC, with retry hints on temporary unavailability.
 
 ## Types
 

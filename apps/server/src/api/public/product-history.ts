@@ -1,19 +1,19 @@
 import { publicApiProcedure } from '@/api/trpc';
 import {
-    getProductHistorySurface,
-    type ProductHistorySurfaceInput,
-} from '@/services/product-history-surface';
+    getPublicProductHistory,
+    type PublicProductHistoryInput,
+} from '@/services/public-product-history';
 import { mapRetrievalError } from '@/services/retrieval-coordinator';
 import { consumeServiceAccountUsageForRequest } from './consume-service-account-usage';
 import { productHistoryInput } from './product-input';
 
 export interface ProductHistoryDeps {
-    getProductHistorySurface: typeof getProductHistorySurface;
+    getPublicProductHistory: typeof getPublicProductHistory;
     consumeServiceAccountUsageForRequest: typeof consumeServiceAccountUsageForRequest;
 }
 
 const defaultDeps: ProductHistoryDeps = {
-    getProductHistorySurface,
+    getPublicProductHistory,
     consumeServiceAccountUsageForRequest,
 };
 
@@ -22,13 +22,11 @@ export const createProductHistoryProcedure = (deps: ProductHistoryDeps = default
         await deps.consumeServiceAccountUsageForRequest(ctx, 1);
 
         try {
-            return await deps.getProductHistorySurface({
+            return await deps.getPublicProductHistory({
                 ...input,
-                format: input.format,
-                refresh: input.refresh,
                 ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
                 signal,
-            } satisfies ProductHistorySurfaceInput);
+            } satisfies PublicProductHistoryInput);
         } catch (error) {
             throw mapRetrievalError(error);
         }

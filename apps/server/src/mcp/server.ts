@@ -29,39 +29,66 @@ const toolOutputSchema = z.object({
     operation: z.enum(['get', 'search', 'history']).optional(),
 });
 
-const productInputSchema = z
-    .object({
-        asin: z.string().trim().min(1).max(10).optional(),
-        bucket: z.enum(['auto', 'day', 'week', 'month']).default('auto'),
-        days: z.number().int().min(30).max(3650).default(365),
-        endAt: z.string().datetime().optional(),
-        format: z.enum(['agent', 'legacy']).default('agent'),
-        limit: z.number().int().min(1).max(10_000).default(5000),
-        marketplaceId: z.string().trim().min(1).default('ATVPDKIKX0DER'),
-        metrics: z
-            .array(z.enum(['bsr', 'price']))
-            .min(1)
-            .max(2)
-            .optional(),
-        operation: z.enum(['get', 'search', 'history']),
-        refresh: z.boolean().default(false),
-        startAt: z.string().datetime().optional(),
-        term: z.string().trim().min(1).max(200).optional(),
-    })
-    .strict();
+const productInputSchema = z.discriminatedUnion('operation', [
+    z
+        .object({
+            asin: z.string().trim().min(1).max(10).optional(),
+            marketplaceId: z.string().trim().min(1).default('ATVPDKIKX0DER'),
+            operation: z.literal('get'),
+        })
+        .strict(),
+    z
+        .object({
+            operation: z.literal('search'),
+            refresh: z.boolean().default(false),
+            term: z.string().trim().min(1).max(200),
+        })
+        .strict(),
+    z
+        .object({
+            asin: z.string().trim().min(1).max(10).optional(),
+            bucket: z.enum(['auto', 'day', 'week', 'month']).default('auto'),
+            days: z.number().int().min(30).max(3650).default(365),
+            endAt: z.string().datetime().optional(),
+            limit: z.number().int().min(1).max(10_000).default(5000),
+            marketplaceId: z.string().trim().min(1).default('ATVPDKIKX0DER'),
+            metrics: z
+                .array(z.enum(['salesRank', 'price']))
+                .min(1)
+                .max(2)
+                .default(['salesRank', 'price']),
+            operation: z.literal('history'),
+            startAt: z.string().datetime().optional(),
+        })
+        .strict(),
+]);
 
-const keywordInputSchema = z
-    .object({
-        cursor: z.number().int().min(0).default(0),
-        keyword: z.string().trim().min(1).max(200).optional(),
-        limit: z.number().int().min(1).max(100).default(25),
-        marketplaceId: z.literal('ATVPDKIKX0DER').default('ATVPDKIKX0DER'),
-        operation: z.enum(['get', 'search', 'history']),
-        rangeDays: z.number().int().min(7).max(365).default(90),
-        refresh: z.boolean().default(false),
-        text: z.string().trim().min(1).max(200).optional(),
-    })
-    .strict();
+const keywordInputSchema = z.discriminatedUnion('operation', [
+    z
+        .object({
+            keyword: z.string().trim().min(1).max(200).optional(),
+            marketplaceId: z.literal('ATVPDKIKX0DER').default('ATVPDKIKX0DER'),
+            operation: z.literal('get'),
+        })
+        .strict(),
+    z
+        .object({
+            cursor: z.number().int().min(0).default(0),
+            limit: z.number().int().min(1).max(100).default(25),
+            marketplaceId: z.literal('ATVPDKIKX0DER').default('ATVPDKIKX0DER'),
+            operation: z.literal('search'),
+            text: z.string().trim().min(1).max(200).optional(),
+        })
+        .strict(),
+    z
+        .object({
+            keyword: z.string().trim().min(1).max(200).optional(),
+            marketplaceId: z.literal('ATVPDKIKX0DER').default('ATVPDKIKX0DER'),
+            operation: z.literal('history'),
+            rangeDays: z.number().int().min(7).max(365).default(90),
+        })
+        .strict(),
+]);
 
 const statusOutputSchema = z.object({
     capabilities: z.object({
@@ -108,7 +135,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                     return runReadOnlyTool(async () =>
                         source.product.search({
                             refresh: input.refresh,
-                            term: requireValue(input.term, 'term'),
+                            term: input.term,
                         })
                     );
                 case 'history':
@@ -138,7 +165,6 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                         source.keyword.get({
                             keyword: requireValue(input.keyword, 'keyword'),
                             marketplaceId: input.marketplaceId,
-                            refresh: input.refresh,
                         })
                     );
                 case 'search':
@@ -147,7 +173,6 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                             cursor: input.cursor,
                             limit: input.limit,
                             marketplaceId: input.marketplaceId,
-                            refresh: input.refresh,
                             text: requireValue(input.text, 'text'),
                         })
                     );
@@ -157,7 +182,6 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                             keyword: requireValue(input.keyword, 'keyword'),
                             marketplaceId: input.marketplaceId,
                             rangeDays: input.rangeDays,
-                            refresh: input.refresh,
                         })
                     );
                 default:
@@ -169,7 +193,16 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
     return server;
 };
 
-const toProductGetInput = (input: z.infer<typeof productInputSchema>): ProductGetMcpInput => ({
+type ProductInput = z.infer<typeof productInputSchema>;
+type ProductGetInput = Extract<ProductInput, { operation: 'get' }>;
+type ProductHistoryInput = Extract<ProductInput, { operation: 'history' }>;
+
+const toProductGetInput = (input: ProductGetInput): ProductGetMcpInput => ({
+    asin: requireValue(input.asin, 'asin'),
+    marketplaceId: input.marketplaceId,
+});
+
+const toProductHistoryInput = (input: ProductHistoryInput): ProductHistoryMcpInput => ({
     asin: requireValue(input.asin, 'asin'),
     bucket: input.bucket,
     days: input.days,
@@ -177,15 +210,7 @@ const toProductGetInput = (input: z.infer<typeof productInputSchema>): ProductGe
     limit: input.limit,
     marketplaceId: input.marketplaceId,
     metrics: input.metrics,
-    refresh: input.refresh,
     startAt: input.startAt,
-});
-
-const toProductHistoryInput = (
-    input: z.infer<typeof productInputSchema>
-): ProductHistoryMcpInput => ({
-    ...toProductGetInput(input),
-    format: input.format,
 });
 
 const requireValue = (value: string | undefined, name: string) => {

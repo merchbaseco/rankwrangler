@@ -217,10 +217,6 @@ export type SearchTermsTrendDeltas = {
 	d7: SearchTermsTrendDelta;
 	d30: SearchTermsTrendDelta;
 };
-export interface KeywordFreshness {
-	stale: boolean;
-	updatedAt: string | null;
-}
 export interface KeywordEvidence {
 	searchFrequencyRank: number;
 	clickShareTop3: number;
@@ -259,7 +255,6 @@ export interface KeywordSearchResponse {
 	items: KeywordSearchItem[];
 	nextCursor: number | null;
 	summary: KeywordSearchSummary;
-	freshness: KeywordFreshness;
 }
 export interface KeywordHistoryPoint {
 	observedDate: string;
@@ -277,77 +272,12 @@ export interface KeywordHistoryResponse {
 	latestObservedDate: string | null;
 	points: KeywordHistoryPoint[];
 	deltas: SearchTermsTrendDeltas;
-	freshness: KeywordFreshness;
 }
 declare const catalogSearchTriggers: readonly [
 	"requested",
 	"automatic"
 ];
 export type CatalogSearchTrigger = (typeof catalogSearchTriggers)[number];
-declare const productHistoryBuckets: readonly [
-	"auto",
-	"day",
-	"week",
-	"month"
-];
-export type ProductHistoryBucket = (typeof productHistoryBuckets)[number];
-export type ResolvedHistoryBucket = Exclude<ProductHistoryBucket, "auto">;
-export type HistoryBucketTuple = [
-	string,
-	number | null
-];
-export type HistoryBucketSummary = {
-	first: number | null;
-	latest: number | null;
-	min: number | null;
-	max: number | null;
-	count: number;
-	firstBucketAt: string | null;
-	latestBucketAt: string | null;
-};
-export interface ProductHistoryFreshness {
-	stale: boolean;
-	updatedAt: string | null;
-}
-export interface AgentHistorySeries {
-	bsr?: {
-		unit: "rank";
-		category: {
-			id: number;
-			name: string | null;
-		} | null;
-		buckets: HistoryBucketTuple[];
-		summary: HistoryBucketSummary;
-	};
-	price?: {
-		unit: "minorCurrency";
-		currencyCode: "USD";
-		valueScale: 100;
-		buckets: HistoryBucketTuple[];
-		summary: HistoryBucketSummary;
-	};
-}
-export interface AgentHistoryResponse {
-	schemaVersion: 2;
-	marketplaceId: string;
-	asin: string;
-	status: "ready" | "empty";
-	freshness: ProductHistoryFreshness;
-	range: {
-		startAt: string;
-		endAt: string;
-		bucket: ResolvedHistoryBucket;
-	};
-	series: AgentHistorySeries;
-}
-export interface HistoryPoint {
-	categoryId: number;
-	categoryName: string | null;
-	observedAt: string;
-	keepaMinutes: number;
-	value: number | null;
-	isMissing: boolean;
-}
 export type ProductThumbnail = {
 	status: "pending";
 } | {
@@ -396,33 +326,84 @@ export interface ProductInfo {
 	freshness: ProductFreshness;
 }
 export type ProductAvailability = "pending" | "available" | "unavailable";
-export interface ProductHistoryError {
-	schemaVersion: 2;
-	status: "error";
-	freshness: {
-		stale: true;
-		updatedAt: null;
+export interface Product {
+	marketplaceId: string;
+	asin: string;
+	listing: {
+		title: string | null;
+		brand: string | null;
+		firstAvailableAt: string | null;
+		bulletPoints: string[];
+		thumbnail: {
+			status: "available";
+			url: string;
+		} | {
+			status: "unavailable";
+		};
+		isMerchListing: boolean | null;
 	};
+	category: {
+		id: number;
+		name: string | null;
+	} | null;
+	salesRank: {
+		current: number | null;
+		averages: {
+			last30Days: number | null;
+			last90Days: number | null;
+		};
+	};
+	price: {
+		amountMinor: number;
+		currencyCode: string;
+	} | null;
+	demand: {
+		boughtInPastMonth: number | null;
+		salesRankDrops: {
+			last30Days: number | null;
+			last90Days: number | null;
+			last180Days: number | null;
+			last365Days: number | null;
+		};
+	};
+}
+export interface ProductHistorySummary {
+	first: number | null;
+	latest: number | null;
+	min: number | null;
+	max: number | null;
+}
+export interface PublicProductHistory {
+	marketplaceId: string;
+	asin: string;
 	range: {
 		startAt: string;
 		endAt: string;
-		bucket: "day" | "week" | "month";
+		interval: "day" | "week" | "month";
 	};
-	series: Record<string, never>;
-	error: {
-		code: string;
-		message: string;
-		retryable: boolean;
-		retryAfterSeconds?: number;
+	series: {
+		salesRank?: {
+			unit: "rank";
+			category: {
+				id: number;
+				name: string | null;
+			} | null;
+			points: [
+				periodStart: string,
+				valueAtPeriodEnd: number | null
+			][];
+			summary: ProductHistorySummary;
+		};
+		price?: {
+			unit: "minorCurrency";
+			currencyCode: string;
+			points: [
+				periodStart: string,
+				valueAtPeriodEnd: number | null
+			][];
+			summary: ProductHistorySummary;
+		};
 	};
-}
-export interface ProductReadModel {
-	schemaVersion: 1;
-	marketplaceId: string;
-	asin: string;
-	status: "ready" | "partial";
-	summary: ProductInfo;
-	history: AgentHistoryResponse | ProductHistoryError;
 }
 export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 	ctx: {
@@ -523,7 +504,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				get: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						keyword: string;
-						refresh?: boolean | undefined;
 						dataEndDate?: string | undefined;
 						dataStartDate?: string | undefined;
 						marketplaceId?: "ATVPDKIKX0DER" | undefined;
@@ -533,10 +513,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						keyword: string;
 						status: "ready" | "empty";
 						current: KeywordCurrent | null;
-						freshness: {
-							stale: boolean;
-							updatedAt: string | null;
-						};
 					};
 					meta: object;
 				}>;
@@ -545,7 +521,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						keyword: string;
 						marketplaceId?: "ATVPDKIKX0DER" | undefined;
 						rangeDays?: number | undefined;
-						refresh?: boolean | undefined;
 						reportPeriod?: "DAY" | "WEEK" | undefined;
 					};
 					output: KeywordHistoryResponse;
@@ -559,7 +534,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						maxRank?: number | undefined;
 						merchOnly?: boolean | undefined;
 						minRank?: number | undefined;
-						refresh?: boolean | undefined;
 						dataEndDate?: string | undefined;
 						dataStartDate?: string | undefined;
 						marketplaceId?: "ATVPDKIKX0DER" | undefined;
@@ -597,57 +571,22 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						refresh?: boolean | undefined;
-						startAt?: unknown;
-						endAt?: unknown;
-						limit?: unknown;
-						days?: unknown;
-						metrics?: ("bsr" | "price")[] | undefined;
-						bucket?: "auto" | "day" | "week" | "month" | undefined;
 					};
-					output: ProductReadModel;
+					output: Product;
 					meta: object;
 				}>;
 				history: import("@trpc/server").TRPCMutationProcedure<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						startAt?: unknown;
+						bucket?: "auto" | "day" | "week" | "month" | undefined;
+						days?: unknown;
 						endAt?: unknown;
 						limit?: unknown;
-						days?: unknown;
-						metrics?: ("bsr" | "price")[] | undefined;
-						bucket?: "auto" | "day" | "week" | "month" | undefined;
-						format?: "legacy" | "agent" | undefined;
-						refresh?: boolean | undefined;
+						metrics?: ("price" | "salesRank")[] | undefined;
+						startAt?: unknown;
 					};
-					output: AgentHistoryResponse | {
-						marketplaceId: string;
-						asin: string;
-						metric: "bsrMain";
-						categoryNames: Record<string, string>;
-						points: HistoryPoint[];
-						freshness: {
-							updatedAt: string | null;
-							stale: boolean;
-						};
-					} | {
-						freshness: ProductHistoryFreshness;
-						marketplaceId: string;
-						asin: string;
-						metric: "bsrMain" | "bsrCategory" | "priceAmazon" | "priceNew" | "priceNewFba";
-						categoryNames: {
-							[x: string]: string;
-						};
-						points: {
-							categoryId: number;
-							categoryName: string;
-							observedAt: string;
-							keepaMinutes: number;
-							value: number | null;
-							isMissing: boolean;
-						}[];
-					};
+					output: PublicProductHistory;
 					meta: object;
 				}>;
 				search: import("@trpc/server").TRPCMutationProcedure<{

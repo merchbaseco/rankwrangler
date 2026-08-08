@@ -35,9 +35,9 @@ export const keywordGetInput = z
     .object({
         ...keywordWindow,
         keyword: z.string().trim().min(1).max(200),
-        refresh: z.boolean().default(false),
     })
-    .superRefine(refineCompleteWindow);
+    .superRefine(refineCompleteWindow)
+    .strict();
 
 export const keywordSearchInput = z
     .object({
@@ -47,15 +47,16 @@ export const keywordSearchInput = z
         maxRank: z.number().int().min(1).optional(),
         merchOnly: z.boolean().default(true),
         minRank: z.number().int().min(1).optional(),
-        refresh: z.boolean().default(false),
         text: z.string().trim().min(1).max(200),
     })
-    .superRefine(refineCompleteWindow);
+    .superRefine(refineCompleteWindow)
+    .strict();
 
-export const keywordHistoryInput = z.object({
-    keyword: z.string().trim().min(1).max(200),
-    marketplaceId,
-    rangeDays: z.number().int().min(7).max(365).default(KEYWORD_DEFAULT_HISTORY_DAYS),
-    refresh: z.boolean().default(false),
-    reportPeriod,
-});
+export const keywordHistoryInput = z
+    .object({
+        keyword: z.string().trim().min(1).max(200),
+        marketplaceId,
+        rangeDays: z.number().int().min(7).max(365).default(KEYWORD_DEFAULT_HISTORY_DAYS),
+        reportPeriod,
+    })
+    .strict();

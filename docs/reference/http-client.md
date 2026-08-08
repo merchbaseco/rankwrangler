@@ -104,9 +104,10 @@ missing data. `TIMEOUT` identifies provider-neutral temporary unavailability and
 daily reset.
 
 The client never polls. Every Product and keyword procedure returns policy-current final data or a
-standard error. Missing or policy-expired data may wait while durable work continues. Inputs expose
-no refresh control; outputs expose no stale/pending Product data, freshness, Operations, provider
-status or timestamps, or schema version.
+standard error. Missing or policy-expired data may wait while durable work continues. Product
+`get`/`history` and keyword inputs expose no refresh control; Product Search retains its separate
+search input. Product `get`/`history` and keyword outputs expose no stale/pending data, freshness,
+Operations, provider status or schema version.
 Generated Product output preserves nullable `isMerchListing` knowledge; consumers must not coerce
 `null` to `false`.
 

@@ -28,10 +28,7 @@ export const CachedProductDisplay = ({
 
 		setIsRefreshing(true);
 		setRefreshError(null);
-		const liveProduct = await getProduct(
-			{ asin, marketplaceId },
-			{ refresh: true }
-		);
+		const liveProduct = await getProduct({ asin, marketplaceId });
 		if (liveProduct.metadata.success) {
 			setProduct(liveProduct);
 			setIsLoading(false);
