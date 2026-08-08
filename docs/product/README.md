@@ -17,8 +17,8 @@ that humans and agents can inspect; it does not decide what a seller should crea
 | How are Merch listings and niches identified? | [Product classification](product-classification.md) |
 | What historical BSR and price evidence is available? | [Product history](product-history.md) |
 | What does Brand Analytics say about demand over time? | [Top Search Terms](top-search-terms.md) |
-| How do callers read keyword performance and refresh provenance? | [Keyword intelligence](keyword-intelligence.md) |
-| How will an agent collect and compare external search results? | [Catalog search](catalog-search.md) |
+| How do callers read keyword performance and collection provenance? | [Keyword intelligence](keyword-intelligence.md) |
+| How does an agent retrieve current Products from an external Search run? | [Catalog search](catalog-search.md) |
 | How can a user inspect work and failures? | [Activity log](activity-log.md) |
 | How do agents and integrations access RankWrangler? | [API access](api-access.md) |
 

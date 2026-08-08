@@ -7,6 +7,9 @@ read_when:
 
 # HTTP Client
 
+**Status:** Client construction and generated types are shipped. Retrieval inputs and outputs below
+are the accepted public target.
+
 `@rankwrangler/http-client` is the typed TypeScript/JavaScript client for the public tRPC surface.
 It owns transport wiring and generated declarations; retrieval behavior remains on the server.
 
@@ -29,26 +32,20 @@ const client = createRankWranglerClient({
 const product = await client.product.get.mutate({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B0DV53VS61',
-    refresh: true,
-    metrics: ['bsr', 'price'],
-    bucket: 'auto',
 });
 
 const search = await client.product.search.mutate({
     term: 'retro gardening shirt',
-    refresh: true,
 });
 
 const history = await client.product.history.mutate({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B0DV53VS61',
-    format: 'agent',
-    metrics: ['bsr', 'price'],
+    metrics: ['salesRank', 'price'],
 });
 
 const keyword = await client.keyword.get.query({
     keyword: 'retro gardening shirt',
-    refresh: true,
 });
 ```
 
@@ -101,9 +98,10 @@ missing data. `TIMEOUT` identifies provider-neutral temporary unavailability and
 `SERVICE_UNAVAILABLE`, or `TOO_MANY_REQUESTS`; allowance errors include a retry hint for the next
 daily reset.
 
-The client never polls. Every Product and keyword procedure returns final data or a standard error;
-durable Operations, provider status, and frontend availability are internal server details. Each
-data category exposes its own freshness envelope where the response supports it.
+The client never polls. Every Product and keyword procedure returns policy-current final data or a
+standard error. Missing or policy-expired data may wait while durable work continues. Inputs expose
+no refresh control; outputs expose no stale/pending Product data, freshness, Operations, provider
+status or timestamps, or schema version.
 Generated Product output preserves nullable `isMerchListing` knowledge; consumers must not coerce
 `null` to `false`.
 

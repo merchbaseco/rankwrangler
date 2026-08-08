@@ -48,18 +48,22 @@ normalized values can update the Product, while event-based rank and price obser
 Product history. Provider diagnostics are not canonical Product state.
 
 Stored catalog lookup reads Products already known to RankWrangler. External Catalog search calls a
-provider and can discover Products. Search-run membership and position are observations about that
-execution, not alternate Product records or guaranteed Amazon organic rank.
+provider and can discover Products. Search-run membership and Organic search placement are
+immutable evidence about that execution, not alternate Product records.
 
 ## Request And Work Boundary
 
+The caller-synchronous public boundary below is the accepted target. Dashboard work coordination
+describes current behavior.
+
 HTTP tRPC owns queries and mutations. Clerk-authenticated tRPC WebSockets own app subscriptions.
 The server performs cheap reads directly and delegates scheduled or provider work to pg-boss.
-Product-history refresh persists a durable Operation before dispatch. The public Product-history
-boundary uses a shared retrieval coordinator to hide that lifecycle: it returns stored history
-immediately when available, waits for missing or policy-requested refresh work, or returns a
-provider-neutral retryable error with a retry hint. The dashboard app boundary continues to expose
-its existing Operation workflow and domain-specific completion subscription.
+Provider retrieval persists durable work before dispatch. Every public data capability hides that
+lifecycle behind its own freshness policy: current cached data returns immediately; missing or
+policy-expired data starts or joins work and waits; provider failure or deadline exhaustion returns
+a retryable error. Public contracts expose no refresh input, stale/pending data, Operations,
+polling, provider metadata, or freshness fields. The dashboard app boundary retains source-aware
+observability, Operation workflows, and domain-specific completion subscriptions.
 
 The durable database state is authoritative. Operations own durable work outcomes, whether or not
 the surrounding caller contract exposes them; job-execution records describe worker attempts, and

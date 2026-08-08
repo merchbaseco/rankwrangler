@@ -34,10 +34,10 @@ The listing synchronization queue batches ASINs and deduplicates marketplace/ASI
 provider returns no listing, RankWrangler retains the canonical identity, records durable resolution,
 and returns an unavailable thumbnail state.
 
-Keyword-research rows remain useful while that background work runs: retained search position and
-metrics stay visible, while a pending thumbnail marks unresolved Product data. Available Amazon
-result cards do not show Product freshness controls; a completion event refreshes only the affected
-exact ASIN. Product detail pages expose the shared freshness envelope and Refresh action.
+Keyword-research rows remain useful while background work runs: retained placement and metrics stay
+visible, while a pending thumbnail marks unresolved Product data. Product completion refreshes only
+the affected exact ASIN. Public Search waits for the same enrichment and returns only resolved
+available or unavailable thumbnails.
 
 **Brief user story:** A seller browses Amazon with the extension; each recognized listing becomes
 available later to an agent through RankWrangler's stored catalog.

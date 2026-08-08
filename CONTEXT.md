@@ -6,9 +6,14 @@ marketplace behavior without prescribing what a seller should create.
 ## Language
 
 **Product intelligence**:
-Current and historical, source-attributed observations about Amazon listings and the marketplace
-contexts in which they appear.
+Current and historical observations about Amazon Products and the marketplace contexts in which
+they appear. Providers supply evidence; RankWrangler owns the provider-neutral domain model.
 _Avoid_: Opportunity, recommendation, verdict
+
+**Provider observation**:
+Evidence supplied by an external data source before RankWrangler reconciles it into Product
+intelligence.
+_Avoid_: Product truth, public Product field
 
 **Opportunity assessment**:
 A consumer-specific interpretation of product intelligence used to decide whether to pursue a
@@ -30,13 +35,12 @@ The real-world proposition that a Product either is or is not a Merch listing.
 _Avoid_: unknown as a third truth value
 
 **Merch-listing knowledge**:
-RankWrangler's persisted and public knowledge of Merch-listing truth: `true`, `false`, or `null`.
-A new unclassified Product starts at `null`.
+RankWrangler's knowledge of Merch-listing truth: known Merch, known non-Merch, or unknown.
 _Avoid_: treating `null` as non-Merch
 
 **Bullet evidence**:
-An adapter result that is either available with a bullet array, including `[]`, or unavailable.
-Adapters extract evidence; they do not classify it.
+Listing bullet points available to support Merch-listing classification. An available empty set is
+evidence; unavailable bullets are not evidence of a non-Merch listing.
 
 **Catalog query**:
 A marketplace-scoped product search definition whose results may be observed repeatedly over time.
@@ -47,6 +51,20 @@ A source-attributed execution of a Catalog query at a specific time.
 _Avoid_: Query refresh
 
 **Search result**:
-A Product's membership, position, and surfaced metrics within one Search run. Position describes
-the source result order, not Amazon organic search rank unless the source guarantees that meaning.
-_Avoid_: Product observation, organic rank
+A Product's immutable membership and Organic search placement within one Search run.
+_Avoid_: Product snapshot, Product observation
+
+**Organic search placement**:
+The Product ordinal supplied for one Search run. It is evidence about that run, not a promise of
+exhaustive Amazon rank-tracking coverage.
+_Avoid_: Rank, position history
+
+**Sales-rank drop**:
+An observed numeric improvement in a Product's Best Sellers Rank. It is demand evidence, not a
+confirmed sale.
+_Avoid_: Sale, unit sold
+
+**Keyword interest**:
+A decaying indication that callers still value Search runs for a Catalog query. It enables bounded
+automatic collection without creating a permanent rank-tracking subscription.
+_Avoid_: Subscription, tracked keyword

@@ -12,14 +12,15 @@ Date: 2026-07-22
 
 ## Decision
 
-RankWrangler is infrastructure for collecting, normalizing, and retrieving source-attributed
-Amazon product intelligence. It does not make the consumer-specific decision of what a Merch
-seller should create.
+RankWrangler is infrastructure for collecting, normalizing, and retrieving Amazon product
+intelligence. It preserves source attribution internally and in dashboard observability while the
+stable public Product contract remains provider-neutral. It does not make the consumer-specific
+decision of what a Merch seller should create.
 
 The durable layer should expose:
 
 - canonical current Products;
-- explicit source and freshness for observations;
+- explicit source and freshness for internal observations and app diagnostics;
 - historical BSR, price, demand, and search-result evidence;
 - stable API and CLI primitives that agents can compose; and
 - null or missing values when the source does not support a claim.

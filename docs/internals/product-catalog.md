@@ -16,7 +16,7 @@ an Amazon keyword search, or Keepa.
 
 ## Current State
 
-The target Product model combines normalized fields with explicit source boundaries:
+The persisted Product model combines normalized fields with explicit source boundaries:
 
 - listing identity, title, brand, image, first-available date, seller bullets, and nullable
   Merch-listing knowledge;
@@ -43,12 +43,18 @@ Freshness is source-specific:
 `keepaFetchedAt` and `keepaSourceUpdatedAt` answer different questions. Provider import rows remain
 diagnostics and provenance; scheduling reads Product freshness directly.
 
-Product detail responses expose one caller-facing `freshness: { stale, updatedAt }` envelope. A
-canonical Product that is already available is returned immediately even when stale; the default
-read may queue background revalidation. `refresh: true` and a first-time/missing Product wait for
-the shared coordinator's blocking policy without creating a public Operation. Definitive provider
-absence is `NOT_FOUND`; temporary capacity or deadline failures use the shared provider-neutral
-retryable error.
+The following public projection is the accepted target; persisted source state and dashboard
+observability above remain current.
+
+Public Product reads project the persisted sources into provider-neutral `listing`, `category`,
+`salesRank`, `price`, and `demand` groups. A policy-current Product returns immediately. Missing or
+policy-expired required data waits through the shared coordinator without creating a public
+Operation. Public responses omit source timestamps, freshness, status, and pending availability;
+temporary provider failure or deadline exhaustion uses the shared retryable error.
+
+The dashboard Product drawer remains source-aware. Its tooltips may expose SP-API and Keepa
+provenance, last attempt and success, source observation time, supplied categories, and the latest
+error or retry without changing the public Product projection.
 
 ## Lookup Versus Discovery
 
@@ -70,7 +76,7 @@ not persist query identity, result placement, or run history; that belongs to th
 - `isMerchListing` is nullable knowledge: new unclassified Products start at `null`, available
   empty bullet evidence stores `false`, and unavailable evidence is a persistence no-op. Stored
   `true` is monotonic across provider writes.
-- The shared Product retrieval service owns blocking lookups, background queueing, freshness checks,
+- The shared Product retrieval service owns blocking lookups, durable queueing, freshness checks,
   in-flight deduplication, and response availability. A completed empty provider response retains
   the canonical identity with an unavailable Product thumbnail and advances `spApiResolvedAt`, so
   reads do not enqueue it forever.

@@ -28,10 +28,10 @@ marketplace and ASIN; it does not own a separate copy of the Product.
 
 The shared Product retrieval service treats listing data as fresh for two days by default, joins
 identical Product fetches through the retrieval coordinator, and centralizes background queueing,
-blocking waits, freshness, and availability. The durable SP-API worker and explicit Product
-refreshes use the same detail work coordinator; a completed explicit refresh also removes its
-matching durable queue row. Available stale detail reads return immediately; explicit refreshes
-and missing details wait without exposing a public Operation.
+blocking waits, freshness, and availability. Durable SP-API work uses the same detail coordinator.
+The public behavior in the next sentence is the accepted target.
+Public reads return current cached detail immediately; policy-expired or missing required detail
+waits without exposing a public Operation or refresh control.
 
 ## SP-API Queue
 

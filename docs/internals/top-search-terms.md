@@ -26,9 +26,11 @@ The primary signal is `searchFrequencyRank` over time. Top-three click and conve
 stored as supporting evidence. The app can list a snapshot, inspect fetch status, request refresh,
 and return a term's historical points with 1-, 7-, and 30-day deltas.
 
-Public keyword reads use the shared retrieval coordinator. They return usable stale snapshots while
-background work runs, wait for missing or explicitly refreshed data, and never expose the internal
-pg-boss job or an Operation. Equivalent reads coalesce by canonical keyword and data category.
+The following public read behavior is the accepted target. Public keyword reads use the shared
+retrieval coordinator. Policy-current snapshots return
+immediately; missing or policy-expired data starts or joins durable collection and waits. They never
+expose refresh inputs, freshness, the internal pg-boss job, or an Operation. Equivalent reads
+coalesce by canonical keyword and data category.
 
 ## Collection Lifecycle
 

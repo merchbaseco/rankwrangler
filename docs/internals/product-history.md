@@ -34,13 +34,15 @@ The shared Product-history service supports:
 `auto` chooses daily buckets through 45 days, weekly buckets through 18 months, then monthly
 buckets. Price values use minor currency units.
 
-## Read And Refresh Lifecycle
+## Read Lifecycle
 
-Public history reads ensure the canonical Product exists, read stored points, and return available data
-immediately with one freshness envelope. When coverage is missing, or `refresh: true` requests
-stale data, the shared retrieval coordinator joins or starts one pending Product-history Operation,
-waits for its durable worker, and reads the completed history. A wider requested window does not
-bypass the global 24-hour Keepa success guard.
+The public read lifecycle and projection below are the accepted target. Stored observations and the
+dashboard Operation workflow describe current behavior.
+
+Public history reads ensure the canonical Product exists and apply the history capability's
+freshness policy. Current stored coverage returns immediately. Missing or policy-expired coverage
+joins or starts one pending Product-history Operation, waits for its durable worker, and reads the
+completed history. A wider requested window does not bypass the global 24-hour Keepa success guard.
 
 The Operation is unique while pending for a marketplace/ASIN. Successful history persistence and
 successful Operation completion share one transaction. An exhausted provider failure completes
@@ -48,7 +50,8 @@ the same Operation with a sanitized error and leaves existing points intact. Wor
 completion; startup and the minute recovery job redispatch stale pending receipts. Caller timeouts
 detach from the coordinator without cancelling the durable worker.
 
-The public Product-history response exposes only history and freshness; capacity or deadline
-failures are provider-neutral and include a retry hint. The dashboard app procedures retain their
-existing Operation response until that caller migrates. pg-boss jobs, provider queue rows, imports,
-and job executions remain internal.
+The public Product-history response contains provider-neutral sales-rank and price series. Points
+are `[periodStart, valueAtPeriodEnd]`; summaries contain `first`, `latest`, `min`, and `max` values.
+Valid empty history has empty points and null summaries. The response has no schema version, status,
+freshness, provider, or work state. The dashboard app procedures retain their existing Operation
+response. pg-boss jobs, provider queue rows, imports, and job executions remain internal.

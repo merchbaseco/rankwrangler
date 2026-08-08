@@ -1,5 +1,5 @@
 ---
-summary: Defines the shipped public tRPC transport, authentication, Product and keyword agent procedures, freshness, and errors.
+summary: Defines public tRPC authentication, caller-synchronous retrieval, and provider-neutral response shapes.
 read_when:
   - calling RankWrangler without the CLI or typed npm client
   - changing public authentication, Product inputs, retrieval output, or API transport
@@ -7,11 +7,14 @@ read_when:
 
 # Public API
 
-RankWrangler's external API is tRPC over HTTP. It is not a separate REST surface. Prefer the
-[typed HTTP client](http-client.md) or [CLI](cli.md); use raw HTTP when integrating another
-runtime. The hosted agent-tool contract is documented in [Hosted MCP](mcp.md).
+**Status:** Authentication and transport are shipped. The retrieval behavior and data shapes below
+are the accepted public target.
 
-## Endpoint and authentication
+RankWrangler's external API is tRPC over HTTP, not REST. Prefer the
+[typed HTTP client](http-client.md) or [CLI](cli.md); use raw HTTP when integrating another runtime.
+The hosted agent-tool contract is documented in [Hosted MCP](mcp.md).
+
+## Endpoint And Authentication
 
 The tRPC endpoint is `{origin}/api/{procedure}`. Production origin:
 `https://rankwrangler.merchbase.co`.
@@ -24,31 +27,146 @@ Authorization: Bearer ak_... | oat_...
 Content-Type: application/json
 ```
 
-Invalid or absent credentials produce `UNAUTHORIZED`; denied centralized access produces `FORBIDDEN`;
-unavailable centralized access produces `SERVICE_UNAVAILABLE`; exhausted service-account allowance
-produces `TOO_MANY_REQUESTS` with a `Retry after N seconds` hint. Missing Products produce
-`NOT_FOUND`. Temporary retrieval capacity or deadline failures produce `TIMEOUT` with a
-provider-neutral message and `Retry after N seconds`.
-Dashboard `api.app.*` procedures are separate Clerk-authenticated application contracts.
+Invalid or absent credentials produce `UNAUTHORIZED`; denied centralized access produces
+`FORBIDDEN`; unavailable centralized access produces `SERVICE_UNAVAILABLE`; exhausted allowance
+produces `TOO_MANY_REQUESTS` with a retry hint. Missing Products produce `NOT_FOUND`. Retryable
+provider failure or request deadline exhaustion produces `TIMEOUT` with a provider-neutral message
+and retry hint. Dashboard `api.app.*` procedures are separate Clerk-authenticated contracts.
 
-## Public agent procedures
+## Retrieval Contract
 
-The data surface is deliberately small:
+Every public operation returns final policy-current data or an error. Each capability owns its
+server freshness policy. A current cache hit returns immediately; missing or policy-expired data
+starts or joins durable work and waits. Caller deadline exhaustion does not cancel that work, and a
+retry coalesces with it.
 
-| Procedure | Transport | Purpose |
+Public inputs have no refresh control. Responses expose no stale or pending data, freshness,
+Operations, polling state, provider status or timestamps, or response `schemaVersion`.
+
+## Procedures
+
+| Procedure | Transport | Result |
 | --- | --- | --- |
-| `api.public.product.get` | mutation | Product summary plus bucketed BSR/price history. |
-| `api.public.product.search` | mutation | Synchronous caller-transparent Product search. |
-| `api.public.product.history` | mutation | Product history in `agent` or `legacy` format. |
+| `api.public.product.get` | mutation | One current Product. |
+| `api.public.product.search` | mutation | Current complete Products from one Search run. |
+| `api.public.product.history` | mutation | Product sales-rank and price series. |
 | `api.public.keyword.get` | query | Current Brand Analytics keyword evidence. |
-| `api.public.keyword.search` | query | Filtered keyword evidence. |
-| `api.public.keyword.history` | query | Keyword evidence over time. |
+| `api.public.keyword.search` | query | Current filtered keyword evidence. |
+| `api.public.keyword.history` | query | Current keyword evidence over time. |
 
-There is no public Catalog namespace, Operation namespace, polling procedure, provider status, or
-provider-specific frontend availability state. Durable work remains an internal implementation
-detail.
+There is no public Catalog, Operation, polling, or provider-health namespace.
 
-## Raw request
+## Product
+
+`product.get` accepts only `marketplaceId` and a ten-character alphanumeric `asin`, normalized to
+uppercase. It returns one Product rather than a summary/history composite:
+
+```ts
+type Product = {
+    marketplaceId: string;
+    asin: string;
+    listing: {
+        title: string | null;
+        brand: string | null;
+        firstAvailableAt: string | null;
+        bulletPoints: string[] | null;
+        thumbnail:
+            | { status: 'available'; url: string }
+            | { status: 'unavailable' };
+        isMerchListing: boolean | null;
+    };
+    category: { id: number; name: string | null } | null;
+    salesRank: {
+        current: number | null;
+        average30Days: number | null;
+        average90Days: number | null;
+    };
+    price: { amountMinor: number; currencyCode: string } | null;
+    demand: {
+        boughtInPastMonth: number | null;
+        salesRankDrops: {
+            days30: number | null;
+            days90: number | null;
+            days180: number | null;
+            days365: number | null;
+        };
+    };
+};
+```
+
+`null` means a valid measurement is unavailable. It never means zero, failure, or pending work.
+`isMerchListing` is RankWrangler classification from bullet evidence supplied through either source;
+`null` means the Product has not been classified from available evidence. A Sales-rank drop is an
+observed numeric BSR improvement, not a confirmed sale.
+
+## Product Search
+
+`product.search` accepts `{ term }` and returns:
+
+```ts
+type ProductSearch = {
+    searchedAt: string;
+    products: Array<Product & { organicSearchPlacement: number }>;
+};
+```
+
+Every result is a complete current Product projection, including resolved thumbnail availability.
+`organicSearchPlacement` is the source-supplied Product ordinal for this Search run. Invalid or
+duplicate results leave ordinal gaps. Membership and placement are immutable Search-run evidence;
+the Product fields remain independent current state.
+
+## Product History
+
+`product.history` accepts Product identity plus optional `metrics`, `bucket`, `days`, `startAt`,
+`endAt`, and `limit`. `metrics` contains `salesRank`, `price`, or both; `bucket` is `auto`, `day`,
+`week`, or `month`.
+
+```ts
+type SeriesSummary = {
+    first: number;
+    latest: number;
+    min: number;
+    max: number;
+};
+
+type ProductHistory = {
+    marketplaceId: string;
+    asin: string;
+    range: {
+        startAt: string;
+        endAt: string;
+        period: 'day' | 'week' | 'month';
+    };
+    series: {
+        salesRank?: {
+            unit: 'rank';
+            category: { id: number; name: string | null } | null;
+            points: Array<[periodStart: string, valueAtPeriodEnd: number | null]>;
+            summary: SeriesSummary | null;
+        };
+        price?: {
+            unit: 'minorCurrency';
+            currencyCode: string;
+            valueScale: 100;
+            points: Array<[periodStart: string, valueAtPeriodEnd: number | null]>;
+            summary: SeriesSummary | null;
+        };
+    };
+};
+```
+
+Requested metrics own their series; unrequested series are absent. Current valid empty history
+succeeds with empty points and a `null` summary. Summary values deliberately omit count and point
+dates already represented by the series.
+
+## Keyword Intelligence
+
+The keyword family is read-only: `get`, `search`, and `history`. Inputs accept keyword/text, US
+marketplace and report-period defaults, and optional date, range, cursor, and limit fields. They do
+not accept refresh. Stored snapshots retain `requested` or `automatic` collection provenance where
+the keyword contract exposes history.
+
+## Raw Request
 
 tRPC mutations use an `input` envelope:
 
@@ -57,72 +175,7 @@ curl -s -X POST \
   https://rankwrangler.merchbase.co/api/api.public.product.get \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $MERCHBASE_API_KEY" \
-  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61","refresh":true,"metrics":["bsr","price"],"bucket":"auto","days":365}}'
+  -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'
 ```
 
-Use the generated router types for exact procedure inputs and outputs. The canonical router is
-[`router-public.ts`](../../apps/server/src/api/router-public.ts); Product inputs are defined in
-[`product-input.ts`](../../apps/server/src/api/public/product-input.ts).
-
-## Product inputs and freshness
-
-Product reads share marketplace and ASIN identity:
-
-| Field | Contract |
-| --- | --- |
-| `marketplaceId` | Required non-empty Amazon marketplace id. The CLI defaults to US. |
-| `asin` | Required 10-character alphanumeric ASIN; normalized to uppercase. |
-| `metrics` | Optional one or two values: `bsr`, `price`. |
-| `bucket` | `auto`, `day`, `week`, or `month`; default `auto`. |
-| `days` | 30–3650; default 365. |
-| `startAt`, `endAt` | Optional date-coercible range bounds. |
-| `limit` | Source-point cap from 1–10,000; default 5,000. |
-| `refresh` | Requests fresh summary/history data where policy allows; default `false`. |
-
-Product summary and history data each expose `{ stale, updatedAt }` where relevant. Available stale
-data may return while server-owned revalidation continues. Missing data and `refresh: true` wait for
-the shared retrieval policy. Equivalent requests join one retrieval.
-
-`product.get` returns `schemaVersion`, identity, `status: ready | partial`, `summary`, and an
-embedded agent history response. A usable summary is retained when history is unavailable; the
-embedded history error includes its own stale freshness envelope and retryable error code/message.
-The summary's `isMerchListing` is `true | false | null`: `null` means unknown and is distinct from
-known non-Merch (`false`). No provider, classification-freshness, or classification-status object
-is returned.
-
-## Product search
-
-`api.public.product.search` accepts `{ term, refresh }`. It returns a completed source-ordered Search
-run and one freshness envelope:
-
-```json
-{
-  "status": "ready",
-  "run": {},
-  "freshness": { "stale": false, "updatedAt": "2026-08-06T12:00:00.000Z" }
-}
-```
-
-The server waits inside its bounded retrieval policy and coalesces equivalent requests. The response
-contains Search-run data, never an Operation id. A temporary capacity/deadline failure is a
-retryable `TIMEOUT` with a retry hint.
-
-## Product history
-
-`api.public.product.history` accepts the shared Product fields plus `format: agent | legacy`.
-`agent` returns schema-v2 bucketed BSR/price series; `legacy` returns main-category BSR points. Both
-formats include a category-level freshness envelope and no Operation, polling, or provider status.
-
-## Keyword intelligence
-
-The keyword family is read-only: `get`, `search`, and `history`. Inputs accept `refresh: true` plus
-the keyword/text, US marketplace and report-period defaults, and optional date/range filters.
-Responses expose available evidence or history points and one top-level freshness envelope. Missing
-data and explicit refreshes use the same synchronous caller-transparent retrieval policy.
-
-## Contract source
-
-- [`router-public.ts`](../../apps/server/src/api/router-public.ts) — publishable router type.
-- [`product-read-model.ts`](../../apps/server/src/services/product-read-model.ts) — rich Product response.
-- [`product-history-agent.ts`](../../apps/server/src/services/product-history-agent.ts) — agent history shape.
-- [`ProductInfo`](../../apps/server/src/types/index.ts) — summary fields and units.
+Use generated router types for exact procedure inputs and outputs.

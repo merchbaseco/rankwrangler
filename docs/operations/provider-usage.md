@@ -22,3 +22,8 @@ the provider is down; corroborate it with the activity log and job execution rec
 
 Keep raw provider budget details internal. Public APIs expose RankWrangler product data and usage
 limits, not Keepa tokens or SP-API throttling internals.
+
+Product-drawer tooltips are app observability, not public Product fields. They may expose SP-API and
+Keepa provenance, last attempt and success, source observation time, supplied data categories, and
+the latest error or retry. Public Product reads remain provider-neutral and never use this metadata
+as a caller-managed freshness protocol.

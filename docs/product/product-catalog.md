@@ -7,8 +7,8 @@ read_when:
 
 # Product Catalog
 
-**Status:** Catalog behavior and the source-separated Keepa fields described below are
-implemented. Apply the generated Product-schema migration before deployment.
+**Public retrieval status:** The provider-neutral Product projection below is the accepted target.
+Dashboard catalog behavior is current.
 
 The catalog stores one canonical current Product for each Amazon marketplace and ASIN. A Product
 outlives the path that discovered it: extension browsing, an API lookup, and a dashboard search all
@@ -20,15 +20,14 @@ converge on the same record.
   date.
 - Nullable Merch-listing classification and normalized facets. `null` means unknown; it is not
   silently treated as known non-Merch.
-- Current root-category BSR and source-specific freshness.
-- Current normalized Keepa observations, including BSR, price, rank averages and drops, and
-  Amazon's bought-in-the-past-month value when Keepa supplies it.
+- Current root-category sales rank, 30- and 90-day rank averages, price, bought-in-the-past-month
+  evidence, and Sales-rank drops over 30, 90, 180, and 365 days.
 - Links to historical observations; history is not embedded into the current Product record.
 
-Provider timestamps stay distinct internally. Product responses expose category-level availability
-through the `thumbnail` union (`pending`, `available` with a URL, or `unavailable`) and one
-`freshness: { stale, updatedAt }` envelope. They do not expose provider status fields or a
-provider-named freshness label.
+Public Product responses group this state into provider-neutral `listing`, `category`, `salesRank`,
+`price`, and `demand` concepts. The listing thumbnail is resolved as either available with a URL or
+unavailable; public callers never receive a pending thumbnail. `null` means a valid measurement is
+unavailable, not zero or retrieval failure.
 
 ## Using the catalog
 
@@ -36,11 +35,12 @@ The dashboard lists stored Products and supports text search across ASIN, brand,
 can narrow the visible set by marketplace, BSR, freshness, and assigned facets, then open a Product
 to inspect details and history.
 
-Agents use the public API, typed client, or CLI to read a Product by marketplace and ASIN. Blocking
-reads use the shared Product retrieval service. An available stale detail returns immediately while
-the default policy may queue revalidation; `refresh: true` and missing detail data wait for the
-coalesced server-owned fetch. Bulk and Catalog reads return stored state immediately while
-queueing unresolved or stale identities in the background.
+Agents use the public API, typed client, or CLI to read a Product by marketplace and ASIN. A current
+cached Product returns immediately. Missing or policy-expired Product data starts or joins durable
+work and waits; the public response is one current Product or a retryable error.
+
+The dashboard Product drawer remains source-aware and may explain collection provenance and recent
+work. That observability is not part of the public Product contract.
 
 **Brief user story:** An agent resolves an ASIN once, then reads the same canonical Product when it
 later appears in a different research workflow.
@@ -49,5 +49,5 @@ later appears in a different research workflow.
 
 - Catalog lookup searches stored Products; it is not an Amazon search-results query.
 - Current Product state does not preserve where or in what order the Product was discovered.
-- Nullable provider values remain unknown rather than being inferred.
+- Nullable measurements remain unavailable rather than being inferred or converted to zero.
 - RankWrangler exposes evidence for opportunity assessment, not an opportunity verdict.

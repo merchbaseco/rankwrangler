@@ -1,11 +1,14 @@
 ---
-summary: Defines the caller-transparent keyword intelligence contract and its refresh provenance.
+summary: Defines current public keyword intelligence and its collection provenance.
 read_when:
   - using public keyword get, search, or history data
-  - changing keyword freshness, refresh behavior, provenance, or the Keywords settings page
+  - changing keyword retrieval policy, collection provenance, or the Keywords settings page
 ---
 
 # Keyword intelligence
+
+**Public retrieval status:** The no-refresh caller-synchronous behavior below is the accepted target.
+Stored snapshots and collection provenance are current behavior.
 
 Keyword intelligence exposes Brand Analytics Top Search Terms as one demand-signal data category.
 It complements current Product research; it does not replace Catalog search or become a permanent
@@ -14,22 +17,19 @@ keyword subscription.
 ## Read behavior
 
 The public tRPC procedures are `api.public.keyword.get`, `api.public.keyword.search`, and
-`api.public.keyword.history`. Each accepts optional `refresh: true` and returns one top-level
-`freshness` envelope: `{ stale, updatedAt }`.
+`api.public.keyword.history`. Freshness policy belongs to the server, not their inputs or outputs.
 
 Keyword performance is fresh for 24 hours from the accepted snapshot fetch. The reporting window
 and its fetched timestamp are separate: an older reporting period can still be the requested data
 while its stored snapshot is fresh.
 
-- Available data returns immediately.
-- Stale data remains usable and may start background revalidation.
-- A first-time request, or an explicit refresh that needs newer data, waits for policy-satisfying
-  data when capacity allows.
+- Policy-current data returns immediately.
+- Missing or policy-expired data starts or joins durable work and waits.
 - Equivalent requests join one retrieval keyed by canonical keyword and data category. Caller
   timeouts and retries do not cancel or duplicate the durable dataset work.
 
-The public response does not expose an Operation, provider job, track/untrack control, or polling
-protocol. Temporary capacity or deadline failures are retryable tRPC `TIMEOUT` errors.
+The public response does not expose freshness, an Operation, provider job, track/untrack control,
+or polling protocol. Retryable provider failure or deadline exhaustion produces a retryable error.
 
 ## Provenance and settings
 

@@ -1,11 +1,14 @@
 ---
-summary: Defines final RankWrangler CLI commands, authentication, configuration, refresh flags, JSON envelopes, and exit behavior.
+summary: Defines RankWrangler CLI commands, authentication, caller-synchronous retrieval, JSON envelopes, and exit behavior.
 read_when:
   - invoking RankWrangler from an agent, shell script, or CI job
   - changing a CLI command, flag, environment variable, configuration key, or output envelope
 ---
 
 # CLI
+
+**Status:** Authentication, configuration, and command families are shipped. Retrieval options and
+data shapes below are the accepted public target.
 
 The `rw` CLI is the agent-oriented interface to the public API. `rankwrangler` is an equivalent
 binary alias.
@@ -31,8 +34,8 @@ then `MISSING_CONFIG`. Auth commands never print the secret.
 
 | Command | Result |
 | --- | --- |
-| `rw product get <ASIN>` | Product summary plus compact bucketed history. |
-| `rw product search <keyword>` | Completed Product search data and freshness. |
+| `rw product get <ASIN>` | One current Product. |
+| `rw product search <keyword>` | Current complete Products with Search-run placement. |
 | `rw product history <ASIN>` | Compact bucketed Product history. |
 | `rw keyword get <keyword>` | Current keyword evidence. |
 | `rw keyword search <text>` | Filtered keyword evidence. |
@@ -46,19 +49,19 @@ Catalog, Operation, plural `products`, summary, and polling commands are not par
 
 ## Options
 
-All Product and keyword retrieval commands accept `--refresh` to request fresh data under the
-server-owned retrieval policy. Common options are `--baseUrl`, `--marketplace`, and `--limit`.
+Public freshness policy is server-owned; no command accepts `--refresh`. Common options are
+`--baseUrl`, `--marketplace`, and `--limit`.
 
 Product history options:
 
 ```bash
-rw product get B0DV53VS61 --refresh --metrics bsr,price --bucket week --days 365
-rw product history B0DV53VS61 --metrics bsr --startAt 2025-01-01 --endAt 2025-12-31
+rw product get B0DV53VS61
+rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 ```
 
 | Option | Values and default |
 | --- | --- |
-| `--metrics <list>` | `bsr,price`; default both. |
+| `--metrics <list>` | `salesRank,price`; default both; Product history only. |
 | `--bucket <unit>` | `auto`, `day`, `week`, `month`; default `auto`. |
 | `--days <N>` | 30–3650; default 365. Cannot combine with explicit range bounds. |
 | `--rangeDays <N>` | Keyword history range, 7–365; default 90. |
@@ -68,11 +71,11 @@ rw product history B0DV53VS61 --metrics bsr --startAt 2025-01-01 --endAt 2025-12
 | `-m, --marketplace <id>` | Marketplace override; Product defaults to US. |
 | `--baseUrl <origin>` | API-origin override; `/api` is normalized away. |
 
-The CLI returns compact agent history buckets and summaries, never raw point series. History
-responses include `freshness: { stale, updatedAt }`; no command exposes Operation identifiers,
-provider status, classification status, or polling state. Product summaries preserve
-`isMerchListing: true | false | null`; missing classification is `null`, not `false`. Missing data is `NOT_FOUND`; temporary capacity/deadline
-failures are retryable `TIMEOUT` errors with a retry hint.
+Each data command returns policy-current final data or fails. Missing or policy-expired data may
+wait while durable work runs. No command exposes stale/pending Product data, freshness, Operations,
+provider metadata, or polling state. Product output preserves `isMerchListing: true | false | null`;
+missing classification is `null`, not `false`. Missing data is `NOT_FOUND`; retryable provider
+failure or deadline exhaustion is `TIMEOUT` with a retry hint.
 
 ## Configuration and precedence
 
@@ -85,7 +88,7 @@ Supported config keys are `base-url`, `marketplace`, and `storage-dir`. The acti
 | API origin | `--baseUrl`, saved `base-url`, `RR_API_URL`, production origin |
 | Marketplace | `--marketplace`, saved `marketplace`, `RR_MARKETPLACE_ID`, US marketplace |
 | Storage directory | `RR_STORAGE_DIR`, saved global pointer, `~/.rankwrangler` |
-| History metrics | `--metrics`, `RR_HISTORY_METRICS`, `bsr,price` |
+| History metrics | `--metrics`, `RR_HISTORY_METRICS`, `salesRank,price` |
 
 ## Machine-readable output
 

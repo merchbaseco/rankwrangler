@@ -7,6 +7,9 @@ read_when:
 
 # Hosted MCP
 
+**Status:** Endpoint, OAuth, and tool families are shipped. Retrieval inputs and outputs below are
+the accepted public target.
+
 The hosted Model Context Protocol endpoint is `https://rankwrangler.merchbase.co/mcp`. It exposes
 three tools and requires an OAuth bearer token authorized through the RankWrangler Clerk access
 boundary. The supported OAuth scopes are `openid`, `email`, and `profile`.
@@ -19,20 +22,22 @@ without `/mcp`. Other website paths are not MCP routes.
 
 | Tool | Input | Result |
 | --- | --- | --- |
-| `rankwrangler_status` | `{}` | RankWrangler readiness and the six noun/verb capabilities. |
+| `rankwrangler_status` | `{}` | Connection, authentication, and six supported noun/verb capabilities. |
 | `rankwrangler_product` | `operation: get \| search \| history` | Final Product data or a standard error. |
 | `rankwrangler_keyword` | `operation: get \| search \| history` | Final keyword data or a standard error. |
 
 `rankwrangler_product` uses `asin` for `get` and `history`, and `term` for `search`. It accepts
-the public Product history fields and `refresh`. `rankwrangler_keyword` uses `keyword` for `get`
-and `history`, `text` for `search`, and accepts cursor/limit or range options plus `refresh`.
+the public Product-history range, metric, and bucket fields. `rankwrangler_keyword` uses `keyword`
+for `get` and `history`, `text` for `search`, and accepts cursor/limit or range options.
 The keyword marketplace is the US marketplace (`ATVPDKIKX0DER`).
 
-Every data tool call completes synchronously from the caller's perspective. It returns final data,
-including the operation/data freshness envelope where the underlying procedure provides one, or a
-structured error. MCP does not expose Catalog, Operation, polling, provider status, or
+Every data tool call completes synchronously from the caller's perspective. It returns
+policy-current final data or a structured error. MCP does not expose refresh inputs, stale/pending
+Product data, freshness, Catalog, Operation, polling, provider status or timestamps, or
 provider-named frontend availability tools. Product data carries only nullable
 `isMerchListing`; `null` remains unknown rather than being serialized as `false`.
+
+`rankwrangler_status` does not report data or provider health, freshness, timestamps, or work state.
 
 ## Errors
 

@@ -37,7 +37,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Operation | generated id; unique pending `(type, targetKey)` | Durable coordination record and terminal resource or safe error. |
 | Catalog query | `(source, marketplaceId, normalizedTerm, page)` | Shared external-search identity, 30-day activity lease, refresh-attempt timestamps, and latest successful-run watermark. |
 | Search run | generated id | One immutable successful provider execution, including zero-result runs, with `trigger: requested | automatic`. |
-| Search result | `(runId, productId)` | Immutable source position and nullable metrics observed in that run. |
+| Search result | `(runId, productId)` | Immutable Search-run membership, Product ordinal, and observed metrics. |
 | Activity event | generated id | Searchable record of a product, history, job, or system action. |
 | Job execution | generated id | One completed background-job run with input, output, and error state. |
 | Access Projection | `(issuer, subject)` | Local Clerk identity projection, access state, stable Merchbase User, source watermark, and tombstone. |
@@ -70,9 +70,10 @@ watermark, and `catalogSearchRun` Operation resource atomically. A product-searc
 the query activity lease even when a cached run is reused; automatic refresh only considers active
 queries and never backfills expired interest.
 
-Catalog run reads never reconstruct observations from Product. Each result returns its retained
-`productId`, source-qualified position, immutable `observed` fields, and a separate nullable
-`currentProduct`. Missing canonical state therefore does not remove run membership.
+Catalog run reads never reconstruct observations from Product. Retained membership and placement
+remain independent from current canonical Product state. Public Product search waits for every
+result's complete current Product projection; dashboard run-history reads may expose unresolved
+current state separately.
 
 ## Product observations
 
@@ -87,32 +88,39 @@ The target product row combines current values from distinct providers without e
 `fetchedAt` records when RankWrangler fetched data. `sourceUpdatedAt`, where available, records the
 provider's data timestamp. They answer different freshness questions and must not be substituted.
 
-Keepa `monthlySold` is a provider observation, not a RankWrangler sales count. A missing provider
-value remains `null`; it is not evidence of zero sales.
+Keepa `monthlySold` is normalized publicly as `boughtInPastMonth`, not a RankWrangler sales count.
+A Sales-rank drop is an observed numeric BSR improvement, not a confirmed sale. Missing measurements
+remain `null`; they are not evidence of zero.
 
-## Public product shape
+## Public Product Shape
 
-The target public Product summary exposes:
+The following is the accepted public target; persisted provider observations above describe current
+storage.
+
+The public Product is one current provider-neutral projection:
 
 - marketplace and ASIN identity;
-- listing title, brand, bullets, thumbnail, first-available date, and nullable `isMerchListing`;
-- current root-category id, name, and BSR;
-- optional Keepa observations and their timestamps;
-- `thumbnail: { status: "pending" } | { status: "available", url } | { status: "unavailable" }`;
-- one Product-details freshness envelope, `freshness: { stale, updatedAt }`. Provider status is
-  not part of the frontend/API DTO.
+- `listing`: title, brand, first-available date, bullet points, resolved available/unavailable
+  thumbnail, and nullable `isMerchListing`;
+- `category`: current root-category identity and name;
+- `salesRank`: current rank plus 30- and 90-day averages;
+- `price`: money in integer minor units with currency code; and
+- `demand`: bought-in-the-past-month evidence plus Sales-rank drops over 30, 90, 180, and 365 days.
+
+Public callers never receive a pending thumbnail, provider block or timestamps,
+`trackingStartedAt`, freshness, status, Operations, or `schemaVersion`.
 
 `isMerchListing` is `true` for known Merch evidence, `false` for available evidence with no known
 template match, and `null` when bullet evidence is unavailable or classification has not run.
 Public consumers receive only this nullable field; provider, freshness, and status metadata are
 not exposed for the property.
 
-`keepa` is `null` until Keepa-backed current observations exist. Price uses integer minor units:
-`amountMinor: 1999` with `currencyCode: "USD"` means USD 19.99.
-
-The exact TypeScript contract is [`ProductInfo`](../../apps/server/src/types/index.ts).
+Price uses integer minor units: `amountMinor: 1999` with `currencyCode: "USD"` means USD 19.99.
+Any valid unavailable measurement is `null`, never zero or failure state.
 
 ## Product history
+
+The public projection below is the accepted target. Stored source observations remain current.
 
 History points retain source-level observations rather than one daily row. Important fields:
 
@@ -126,9 +134,18 @@ History points retain source-level observations rather than one daily row. Impor
 | `valueInt` | Integer value: rank for BSR, minor currency units for price. |
 | `isMissing` | Provider explicitly represented the value as missing. |
 
-Agent responses project those points into `day`, `week`, or `month` buckets. A bucket is a tuple
-`[bucketStartIso, valueOrNull]`; summaries expose first, latest, min, max, count, and boundary
-timestamps. `bsr` maps to `bsrMain`; `price` maps to `priceNew`.
+Public responses project those observations under `series.salesRank` and `series.price`, with the
+requested range and a resolved `day`, `week`, or `month` period. A point is
+`[periodStart, valueAtPeriodEnd]`. Summaries expose only `first`, `latest`, `min`, and `max` values;
+they omit count and duplicate first/latest point dates. A current valid empty series has empty
+points and a `null` summary; an unrequested series is absent.
+
+## Public Product Search
+
+Public Search returns `searchedAt` and source-ordered complete current Product projections. Each
+Product carries `organicSearchPlacement`, the ordinal supplied for that Search run. Invalid or
+duplicate provider results preserve gaps. Search-run membership and placement are immutable;
+canonical Product fields remain independent current state.
 
 ## Facet lifecycle
 

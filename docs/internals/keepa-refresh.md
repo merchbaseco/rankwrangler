@@ -55,9 +55,12 @@ from five minutes up to 24 hours.
 
 ## On-Demand Loads
 
-Public Product-history reads coordinate through a durable Product-history Operation internally.
-They receive stored points immediately when available and wait transparently when policy requires
-collection. Rich Product reads and the dashboard retain their existing Operation-shaped contracts.
-The high-priority worker calls the shared Keepa ingestion path rather than writing the scheduled
-queue. It can load Products outside automatic BSR eligibility but still respects the 24-hour guard.
-Retryable provider failures are exhausted in the worker, outside the initiating HTTP request.
+The public behavior below is the accepted target. Dashboard and provider-work mechanics remain
+current.
+
+Public Product and history reads coordinate through durable work internally. They receive
+policy-current stored data immediately and wait transparently when policy requires collection. The
+dashboard retains its existing source-aware and Operation-shaped contracts. The high-priority
+worker calls the shared Keepa ingestion path rather than writing the scheduled queue. It can load
+Products outside automatic BSR eligibility but still respects the 24-hour guard. Retryable provider
+failures are exhausted in the worker, outside the initiating HTTP request.
