@@ -23,8 +23,10 @@ time. It complements stored catalog lookup:
 - Search covers the US marketplace, first page, and up to 20 Products.
 - One provider request supplies result Products and histories; RankWrangler does not make a second
   history request for every ASIN.
-- Each public result combines immutable Search-run membership and `organicSearchPlacement` with a
-  complete current Product projection, including resolved thumbnail availability.
+- The public response contains `keyword`, `searchedAt`, and source-ordered `results`. Each result
+  combines immutable `organicSearchPlacement` with a compact current Product projection: identity,
+  title, brand, resolved thumbnail, Merch classification, category, current sales rank, price, and
+  bought-in-the-past-month evidence.
 - A policy-current successful run can be reused. When no current run exists, the caller starts or
   joins Search and Product-enrichment work and waits. Equivalent requests deduplicate.
 - Every requested Product search renews keyword interest for 30 days, including cached reuse. This
@@ -33,9 +35,10 @@ time. It complements stored catalog lookup:
   backfill. Each Search run retains `requested` or `automatic` provenance.
 
 Durable Search work is asynchronous internally, but public `product.search` returns final data from
-the caller's perspective. The response contains `searchedAt` and source-order Products, never
-freshness, provider, Operation, polling, pending-thumbnail, or status fields. Retryable provider
-failure or deadline exhaustion is the only temporary result.
+the caller's perspective. Its compact Product projection intentionally omits bullets, rank averages
+and drop windows, full demand, history, freshness, provider metadata, Operation, polling,
+pending-thumbnail, and status fields. Retryable provider failure or deadline exhaustion is the only
+temporary result.
 
 The dashboard retains its Operation-driven loading and run-history workflow. It may show a pending
 thumbnail while enriching a retained Search run; public Search waits for that same Product work and

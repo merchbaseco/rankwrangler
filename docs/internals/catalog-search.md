@@ -42,7 +42,7 @@ classified immediately through the shared Merch classifier; the workflow does no
 One transaction persists Keepa observations, writes the immutable run and ordered results, advances
 query freshness, and completes the Operation.
 Public Search then passes retained canonical identities through shared Product retrieval and waits
-until every result has the complete current Product projection, including a resolved available or
+until every result has its compact current Search projection, including a resolved available or
 unavailable thumbnail.
 
 Request resolution is serialized per Catalog query. Fresh-run reuse, pending-work deduplication,
@@ -66,10 +66,12 @@ visible to callers or recovery and a concurrently completed reusable run does no
   run-history provenance only and is absent from canonical Product/result shapes.
 
 Provider tokens and durable Operation identifiers remain internal. Public Product-search callers
-receive `searchedAt` plus complete current Product projections carrying their immutable
-`organicSearchPlacement`, or a retryable error after provider failure or deadline exhaustion. The
-dashboard's existing request route may still show loading and invalidate durable reads on
-completion.
+receive `keyword`, `searchedAt`, and compact `results`. Each result carries immutable
+`organicSearchPlacement` plus identity, title, brand, resolved thumbnail, classification, category,
+current sales rank, price, and bought-in-the-past-month evidence. It omits bullets, averages, drop
+windows, full demand, and history. Provider failure or deadline exhaustion returns a retryable
+error. The dashboard's existing request route may still show loading and invalidate durable reads
+on completion.
 
 Keepa capacity prioritizes interactive Catalog search, then scheduled Catalog search, then Product
 refresh work.
@@ -87,10 +89,10 @@ Search-run list. Pending is derived from durable queue membership, and a complet
 unavailable rather than requeued forever. A missing Product join does not remove retained Search
 membership.
 
-Official Keepa documentation does not contract Amazon organic ordering; available integration
-evidence indicates sponsored results are excluded and organic order is preserved. Existing Search
-runs remain opportunistic first-page evidence under decaying keyword interest. Standalone placement
-history is out of scope. A future rank tracker needs deliberate multi-page collection,
-observed-depth semantics, and continuous bounded scheduling.
+Official Keepa Product Search documentation does not contract Amazon organic ordering; available
+integration evidence indicates sponsored results are excluded and organic order is preserved.
+Existing Search runs remain opportunistic first-page evidence under decaying keyword interest.
+Standalone placement history is out of scope. A future rank tracker needs deliberate multi-page
+collection, observed-depth semantics, and continuous bounded scheduling.
 RankWrangler exposes source-attributed evidence; it does not score opportunities, recommend niches,
 or promote queries from Brand Analytics data into product-search refresh activity.

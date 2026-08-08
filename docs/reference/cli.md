@@ -35,7 +35,7 @@ then `MISSING_CONFIG`. Auth commands never print the secret.
 | Command | Result |
 | --- | --- |
 | `rw product get <ASIN>` | One current Product. |
-| `rw product search <keyword>` | Current complete Products with Search-run placement. |
+| `rw product search <keyword>` | Keyword, search time, and compact Product results with placement. |
 | `rw product history <ASIN>` | Compact bucketed Product history. |
 | `rw keyword get <keyword>` | Current keyword evidence. |
 | `rw keyword search <text>` | Filtered keyword evidence. |
@@ -70,6 +70,14 @@ rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 | `--cursor <N>` | Keyword search offset; default 0. |
 | `-m, --marketplace <id>` | Marketplace override; Product defaults to US. |
 | `--baseUrl <origin>` | API-origin override; `/api` is normalized away. |
+
+Product Search returns the public compact projection: placement plus identity, title, brand,
+resolved thumbnail, classification, category, current sales rank, price, and
+bought-in-the-past-month evidence. It does not return full Products.
+
+Product history reports its resolved range `interval`. Requested series always contain a summary;
+empty series return `points: []` with `first`, `latest`, `min`, and `max` all `null`. Price history
+has minor-currency unit and currency code, without a scale field.
 
 Each data command returns policy-current final data or fails. Missing or policy-expired data may
 wait while durable work runs. No command exposes stale/pending Product data, freshness, Operations,

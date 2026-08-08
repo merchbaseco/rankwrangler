@@ -72,7 +72,7 @@ queries and never backfills expired interest.
 
 Catalog run reads never reconstruct observations from Product. Retained membership and placement
 remain independent from current canonical Product state. Public Product search waits for every
-result's complete current Product projection; dashboard run-history reads may expose unresolved
+result's compact current Search projection; dashboard run-history reads may expose unresolved
 current state separately.
 
 ## Product observations
@@ -100,12 +100,13 @@ storage.
 The public Product is one current provider-neutral projection:
 
 - marketplace and ASIN identity;
-- `listing`: title, brand, first-available date, bullet points, resolved available/unavailable
+- `listing`: title, brand, first-available date, a bullet-point array, resolved available/unavailable
   thumbnail, and nullable `isMerchListing`;
 - `category`: current root-category identity and name;
-- `salesRank`: current rank plus 30- and 90-day averages;
+- `salesRank`: current rank plus `averages.last30Days` and `averages.last90Days`;
 - `price`: money in integer minor units with currency code; and
-- `demand`: bought-in-the-past-month evidence plus Sales-rank drops over 30, 90, 180, and 365 days.
+- `demand`: `boughtInPastMonth` plus Sales-rank drops keyed as `last30Days`, `last90Days`,
+  `last180Days`, and `last365Days`.
 
 Public callers never receive a pending thumbnail, provider block or timestamps,
 `trackingStartedAt`, freshness, status, Operations, or `schemaVersion`.
@@ -116,7 +117,8 @@ Public consumers receive only this nullable field; provider, freshness, and stat
 not exposed for the property.
 
 Price uses integer minor units: `amountMinor: 1999` with `currencyCode: "USD"` means USD 19.99.
-Any valid unavailable measurement is `null`, never zero or failure state.
+`listing.bulletPoints` is always an array; no bullets is `[]`. Any valid unavailable measurement is
+`null`, never zero or failure state.
 
 ## Product history
 
@@ -135,17 +137,21 @@ History points retain source-level observations rather than one daily row. Impor
 | `isMissing` | Provider explicitly represented the value as missing. |
 
 Public responses project those observations under `series.salesRank` and `series.price`, with the
-requested range and a resolved `day`, `week`, or `month` period. A point is
+requested range and a resolved `day`, `week`, or `month` `interval`. A point is
 `[periodStart, valueAtPeriodEnd]`. Summaries expose only `first`, `latest`, `min`, and `max` values;
-they omit count and duplicate first/latest point dates. A current valid empty series has empty
-points and a `null` summary; an unrequested series is absent.
+they omit count and duplicate first/latest point dates. The summary object always exists. A current
+valid empty series has `points: []` and `null` for all four summary values; an unrequested series is
+absent. Price history exposes `unit: "minorCurrency"`, `currencyCode`, points, and summary without a
+public scale field.
 
 ## Public Product Search
 
-Public Search returns `searchedAt` and source-ordered complete current Product projections. Each
-Product carries `organicSearchPlacement`, the ordinal supplied for that Search run. Invalid or
-duplicate provider results preserve gaps. Search-run membership and placement are immutable;
-canonical Product fields remain independent current state.
+Public Search returns `keyword`, `searchedAt`, and source-ordered `results`. Each result contains
+`organicSearchPlacement` plus a compact `product` with identity, title, brand, resolved thumbnail,
+nullable Merch classification, category, current sales rank, price, and bought-in-the-past-month
+evidence. It omits bullets, rank averages and drop windows, full demand, history, provider metadata,
+and freshness. Invalid or duplicate provider results preserve ordinal gaps. Search-run membership
+and placement are immutable; projected Product fields remain independent current state.
 
 ## Facet lifecycle
 

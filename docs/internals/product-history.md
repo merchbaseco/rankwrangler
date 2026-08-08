@@ -50,8 +50,10 @@ the same Operation with a sanitized error and leaves existing points intact. Wor
 completion; startup and the minute recovery job redispatch stale pending receipts. Caller timeouts
 detach from the coordinator without cancelling the durable worker.
 
-The public Product-history response contains provider-neutral sales-rank and price series. Points
-are `[periodStart, valueAtPeriodEnd]`; summaries contain `first`, `latest`, `min`, and `max` values.
-Valid empty history has empty points and null summaries. The response has no schema version, status,
-freshness, provider, or work state. The dashboard app procedures retain their existing Operation
-response. pg-boss jobs, provider queue rows, imports, and job executions remain internal.
+The public Product-history response contains provider-neutral sales-rank and price series with a
+resolved `interval`. Points are `[periodStart, valueAtPeriodEnd]`; summaries always exist with
+nullable `first`, `latest`, `min`, and `max` values. Valid empty history has `points: []` and all
+four summary values `null`. Price exposes minor-currency unit, currency code, points, and summary,
+without a public scale. The response has no schema version, status, freshness, provider, or work
+state. The dashboard app procedures retain their existing Operation response. pg-boss jobs,
+provider queue rows, imports, and job executions remain internal.

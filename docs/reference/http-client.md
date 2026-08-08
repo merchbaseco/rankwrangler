@@ -49,6 +49,11 @@ const keyword = await client.keyword.get.query({
 });
 ```
 
+`search` contains `keyword`, `searchedAt`, and compact `results`; each result nests its
+`organicSearchPlacement` and compact `product`. It is not an array of full Product responses.
+History output uses `range.interval`; every requested series has an always-present nullable summary,
+and price history has no scale field.
+
 The returned proxy is already scoped to `api.public`; call `client.product...` and
 `client.keyword...`, not `client.api.public...`.
 

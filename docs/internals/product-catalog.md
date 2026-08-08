@@ -18,7 +18,7 @@ an Amazon keyword search, or Keepa.
 
 The persisted Product model combines normalized fields with explicit source boundaries:
 
-- listing identity, title, brand, image, first-available date, seller bullets, and nullable
+- listing identity, title, brand, image, first-available date, seller-bullet array, and nullable
   Merch-listing knowledge;
 - current root-category BSR;
 - semantic facets and their classification state;
@@ -51,6 +51,10 @@ Public Product reads project the persisted sources into provider-neutral `listin
 policy-expired required data waits through the shared coordinator without creating a public
 Operation. Public responses omit source timestamps, freshness, status, and pending availability;
 temporary provider failure or deadline exhaustion uses the shared retryable error.
+
+`listing.bulletPoints` is always an array, with `[]` for no bullets. `salesRank` contains `current`
+and `averages.last30Days`/`averages.last90Days`; demand drop windows use `last30Days`, `last90Days`,
+`last180Days`, and `last365Days`.
 
 The dashboard Product drawer remains source-aware. Its tooltips may expose SP-API and Keepa
 provenance, last attempt and success, source observation time, supplied categories, and the latest

@@ -48,7 +48,7 @@ Operations, polling state, provider status or timestamps, or response `schemaVer
 | Procedure | Transport | Result |
 | --- | --- | --- |
 | `api.public.product.get` | mutation | One current Product. |
-| `api.public.product.search` | mutation | Current complete Products from one Search run. |
+| `api.public.product.search` | mutation | Keyword, search time, and compact Product results with placement. |
 | `api.public.product.history` | mutation | Product sales-rank and price series. |
 | `api.public.keyword.get` | query | Current Brand Analytics keyword evidence. |
 | `api.public.keyword.search` | query | Current filtered keyword evidence. |
@@ -69,7 +69,7 @@ type Product = {
         title: string | null;
         brand: string | null;
         firstAvailableAt: string | null;
-        bulletPoints: string[] | null;
+        bulletPoints: string[];
         thumbnail:
             | { status: 'available'; url: string }
             | { status: 'unavailable' };
@@ -78,23 +78,26 @@ type Product = {
     category: { id: number; name: string | null } | null;
     salesRank: {
         current: number | null;
-        average30Days: number | null;
-        average90Days: number | null;
+        averages: {
+            last30Days: number | null;
+            last90Days: number | null;
+        };
     };
     price: { amountMinor: number; currencyCode: string } | null;
     demand: {
         boughtInPastMonth: number | null;
         salesRankDrops: {
-            days30: number | null;
-            days90: number | null;
-            days180: number | null;
-            days365: number | null;
+            last30Days: number | null;
+            last90Days: number | null;
+            last180Days: number | null;
+            last365Days: number | null;
         };
     };
 };
 ```
 
-`null` means a valid measurement is unavailable. It never means zero, failure, or pending work.
+`bulletPoints` is always an array; a current Product with no bullets returns `[]`. For nullable
+measurements, `null` means valid data is unavailable. It never means zero, failure, or pending work.
 `isMerchListing` is RankWrangler classification from bullet evidence supplied through either source;
 `null` means the Product has not been classified from available evidence. A Sales-rank drop is an
 observed numeric BSR improvement, not a confirmed sale.
@@ -105,15 +108,33 @@ observed numeric BSR improvement, not a confirmed sale.
 
 ```ts
 type ProductSearch = {
+    keyword: string;
     searchedAt: string;
-    products: Array<Product & { organicSearchPlacement: number }>;
+    results: Array<{
+        organicSearchPlacement: number;
+        product: {
+            marketplaceId: string;
+            asin: string;
+            title: string | null;
+            brand: string | null;
+            thumbnail:
+                | { status: 'available'; url: string }
+                | { status: 'unavailable' };
+            isMerchListing: boolean | null;
+            category: { id: number; name: string | null } | null;
+            salesRank: number | null;
+            price: { amountMinor: number; currencyCode: string } | null;
+            boughtInPastMonth: number | null;
+        };
+    }>;
 };
 ```
 
-Every result is a complete current Product projection, including resolved thumbnail availability.
+Every result is a compact current Search projection with resolved thumbnail availability. It omits
+bullets, rank averages and drop windows, full demand, history, provider metadata, and freshness.
 `organicSearchPlacement` is the source-supplied Product ordinal for this Search run. Invalid or
 duplicate results leave ordinal gaps. Membership and placement are immutable Search-run evidence;
-the Product fields remain independent current state.
+the projected Product fields remain independent current state.
 
 ## Product History
 
@@ -123,10 +144,10 @@ the Product fields remain independent current state.
 
 ```ts
 type SeriesSummary = {
-    first: number;
-    latest: number;
-    min: number;
-    max: number;
+    first: number | null;
+    latest: number | null;
+    min: number | null;
+    max: number | null;
 };
 
 type ProductHistory = {
@@ -135,29 +156,28 @@ type ProductHistory = {
     range: {
         startAt: string;
         endAt: string;
-        period: 'day' | 'week' | 'month';
+        interval: 'day' | 'week' | 'month';
     };
     series: {
         salesRank?: {
             unit: 'rank';
             category: { id: number; name: string | null } | null;
             points: Array<[periodStart: string, valueAtPeriodEnd: number | null]>;
-            summary: SeriesSummary | null;
+            summary: SeriesSummary;
         };
         price?: {
             unit: 'minorCurrency';
             currencyCode: string;
-            valueScale: 100;
             points: Array<[periodStart: string, valueAtPeriodEnd: number | null]>;
-            summary: SeriesSummary | null;
+            summary: SeriesSummary;
         };
     };
 };
 ```
 
 Requested metrics own their series; unrequested series are absent. Current valid empty history
-succeeds with empty points and a `null` summary. Summary values deliberately omit count and point
-dates already represented by the series.
+succeeds with `points: []` and a summary whose four values are `null`. Summary values deliberately
+omit count and point dates already represented by the series.
 
 ## Keyword Intelligence
 

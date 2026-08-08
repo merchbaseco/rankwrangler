@@ -16,12 +16,13 @@ converge on the same record.
 
 ## What a Product carries
 
-- Amazon identity and listing details such as ASIN, title, brand, image, bullets, and first-available
-  date.
+- Amazon identity and listing details such as ASIN, title, brand, image, a bullet-point array, and
+  first-available date. A current Product with no bullets carries `[]`.
 - Nullable Merch-listing classification and normalized facets. `null` means unknown; it is not
   silently treated as known non-Merch.
-- Current root-category sales rank, 30- and 90-day rank averages, price, bought-in-the-past-month
-  evidence, and Sales-rank drops over 30, 90, 180, and 365 days.
+- Current root-category sales rank with `last30Days` and `last90Days` averages, price,
+  bought-in-the-past-month evidence, and Sales-rank drops over `last30Days`, `last90Days`,
+  `last180Days`, and `last365Days`.
 - Links to historical observations; history is not embedded into the current Product record.
 
 Public Product responses group this state into provider-neutral `listing`, `category`, `salesRank`,

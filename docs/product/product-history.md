@@ -20,24 +20,25 @@ therefore contain few points. Charts treat values as step functions and include 
 before a requested range when needed to establish the starting value.
 
 Price values use minor currency units. Missing price or rank is represented as `null`, not zero.
-Public history supports day, week, month, or automatically chosen periods. Each point is
-`[periodStart, valueAtPeriodEnd]`; each metric summary contains only `first`, `latest`, `min`, and
-`max` values.
+Public history resolves a day, week, or month `interval`. Each point is
+`[periodStart, valueAtPeriodEnd]`; each metric summary always exists and contains only `first`,
+`latest`, `min`, and `max`, each nullable.
 
 Current stored coverage returns immediately. Missing or policy-expired coverage starts or joins
 durable collection and waits for the policy-compliant result. Provider failure or request deadline
 exhaustion returns a retryable error; a caller timeout detaches only that caller, and collection may
 continue. Equivalent requests share one durable collection.
 
-A current valid Product with no rank or price history succeeds with empty point arrays and `null`
-summaries. Public history responses expose no schema version, status, freshness, provider,
-Operation, or polling fields.
+A current valid Product with no rank or price history succeeds with `points: []` and a summary whose
+four values are `null`. Price history exposes minor-currency unit, currency code, points, and summary.
+Public history responses expose no scale, schema version, status, freshness, provider, Operation,
+or polling fields.
 
 Eligible Merch Products also collect history automatically under BSR-dependent server policy.
 Missing BSR, unknown classification, and non-Merch classification remain distinct and do not imply
 automatic collection.
 
-**Brief user story:** An agent asks for weekly sales-rank and price periods and receives current
+**Brief user story:** An agent asks for a weekly sales-rank and price interval and receives current
 points, transparently waiting when stored coverage no longer satisfies policy.
 
 ## Boundaries

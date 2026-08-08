@@ -42,7 +42,7 @@ keywords become inactive without backfill or a permanent subscription. One Keepa
 response supplies result Products and histories, avoiding a second request for every ASIN.
 
 Search runs store `trigger` as `requested` or `automatic`. The trigger belongs to the run and its
-history, not to canonical Products or public Search-result Product projections. Query activity is
+history, not to canonical Products or compact public Search-result projections. Query activity is
 represented by `lastRequestedAt`, `activeUntil`, `latestSuccessfulRunAt`, and refresh-attempt
 timestamps. Derived query status and summaries use those timestamps plus durable Operation state.
 Automatic work retains the existing capacity ordering, pending dedupe, bounded scans, retry
@@ -60,7 +60,7 @@ backoff, and idempotent Operation behavior.
 ## Placement Scope
 
 `organicSearchPlacement` is the Product ordinal supplied for one Search run. Keepa's official
-Product Finder documentation does not contract Amazon's organic ordering; available integration
+Product Search documentation does not contract Amazon's organic ordering; available integration
 evidence indicates that sponsored results are excluded and organic order is preserved. Invalid or
 duplicate entries are discarded without renumbering, so ordinal gaps remain honest evidence.
 

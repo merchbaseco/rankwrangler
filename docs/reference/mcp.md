@@ -31,6 +31,15 @@ the public Product-history range, metric, and bucket fields. `rankwrangler_keywo
 for `get` and `history`, `text` for `search`, and accepts cursor/limit or range options.
 The keyword marketplace is the US marketplace (`ATVPDKIKX0DER`).
 
+Product `search` returns `keyword`, `searchedAt`, and compact `results`. Each result nests
+`organicSearchPlacement` and a compact Product projection with identity, title, brand, resolved
+thumbnail, classification, category, current sales rank, price, and bought-in-the-past-month
+evidence. It is not a full Product response.
+
+Product `history` returns `range.interval`. Every requested series has an always-present summary;
+valid empty series return `points: []` and `null` for `first`, `latest`, `min`, and `max`. Price
+history exposes minor-currency unit and currency code without a scale field.
+
 Every data tool call completes synchronously from the caller's perspective. It returns
 policy-current final data or a structured error. MCP does not expose refresh inputs, stale/pending
 Product data, freshness, Catalog, Operation, polling, provider status or timestamps, or
