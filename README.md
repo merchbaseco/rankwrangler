@@ -28,7 +28,9 @@ creating an opaque recommendation engine.
 
 Canonical Product retrieval is shared across blocking ASIN reads and background bulk workflows.
 The public `product.getMany` procedure resolves up to 200 unique marketplace/ASIN pairs into compact
-title and thumbnail results, persists every identity, and batches cold SP-API work by marketplace.
+fixed-shape title, thumbnail, and `isUnavailable` results, persists every identity, and batches cold
+SP-API work by marketplace. `isUnavailable` means the Amazon listing is effectively deleted and
+unavailable for customers to purchase; RankWrangler retains its last-known listing values.
 Catalog runs retain immutable search membership while their current Products resolve independently;
 cached and fresh runs use the same background path. Dashboard and internal Product records may retain
 `pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to

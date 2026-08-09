@@ -121,7 +121,8 @@ not exposed for the property.
 
 `listing.isUnavailable` is set only when a successful SP-API Catalog response omits the requested
 ASIN. Provider failures preserve the prior value, and a later successful response containing the
-ASIN clears it. The state does not erase the last accepted listing payload.
+ASIN clears it. Publicly, the state means the Amazon listing is effectively deleted and unavailable
+for customers to purchase. It does not erase the last accepted listing payload.
 
 Price uses integer minor units: `amountMinor: 1999` with `currencyCode: "USD"` means USD 19.99.
 `listing.bulletPoints` is always an array; no bullets is `[]`. Any valid unavailable measurement is

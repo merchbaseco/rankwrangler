@@ -27,9 +27,14 @@ without `/mcp`. Other website paths are not MCP routes.
 | `rankwrangler_keyword` | `operation: get \| search \| history` | Keyword data or a standard error. |
 
 `rankwrangler_product` uses `asin` and `marketplaceId` for `get`; `getMany` accepts `products` with
-1–200 unique `{ asin, marketplaceId }` pairs and returns the basic Product array. It adds only the
-documented Product-history range, metric, and bucket fields for `history`, and uses `term` for
-`search`.
+1–200 unique `{ asin, marketplaceId }` pairs and returns a fixed-shape basic Product array. Every
+result includes identity, nullable title, resolved thumbnail, and `isUnavailable`. A true
+`isUnavailable` means the Amazon listing is effectively deleted and unavailable for customers to
+purchase in that marketplace. RankWrangler confirms the state when a successful Amazon Catalog
+lookup does not return the ASIN; pending work and provider failures do not set it. Retained title
+and thumbnail values are last-known listing data. An unavailable thumbnail alone means no usable
+image, not an unavailable Product. The tool adds only the documented Product-history range, metric,
+and bucket fields for `history`, and uses `term` for `search`.
 `rankwrangler_keyword` uses `keyword` for `get` and `history`, `text` for `search`, and accepts
 cursor/limit or range options. Product `get`/`getMany`/`history` and keyword inputs do not accept
 `refresh`. The separate Product Search contract retains its existing search input.
@@ -48,8 +53,9 @@ Every data tool call completes synchronously from the caller's perspective. It r
 policy-current data or a structured error. MCP does not expose stale/pending Product data,
 freshness, Catalog, Operation, polling, provider status or timestamps, or provider-named frontend
 availability tools. Product `get`/`getMany`/`history` and keyword operations have no refresh input;
-Product Search retains its separate Search input. Product data carries only nullable
-`isMerchListing`; `null` remains unknown rather than being serialized as `false`.
+Product Search retains its separate Search input. Nullable `isMerchListing` remains unknown rather
+than being serialized as `false`; Product listing availability is exposed separately as
+`isUnavailable`.
 
 `rankwrangler_status` does not report data or provider health, freshness, timestamps, or work state.
 

@@ -117,6 +117,9 @@ standard error. Missing or policy-expired data may wait while durable work conti
 separate search input. Product `get`/`getMany`/`history` and keyword outputs expose no stale/pending
 data, freshness, Operations, provider status or schema version.
 Generated Product output preserves nullable `isMerchListing` knowledge; consumers must not coerce
-`null` to `false`.
+`null` to `false`. Basic `getMany` results always contain identity, nullable title, resolved
+thumbnail, and `isUnavailable`; a true value means the Amazon listing is effectively deleted and
+unavailable for customers to purchase in that marketplace. Retained listing values remain
+last-known data, while an unavailable thumbnail alone only means no usable image.
 
 The implementation is [`packages/http-client/src/index.ts`](../../packages/http-client/src/index.ts).

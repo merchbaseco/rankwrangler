@@ -46,9 +46,10 @@ diagnostics and provenance; scheduling reads Product freshness directly.
 
 `isUnavailable` records the listing outcome separately from those call timestamps. A successful
 SP-API response that omits a requested ASIN sets it; a later response containing the ASIN clears
-it. Provider failures do not change it. Last-known listing fields remain readable while unavailable.
-Unavailable Products are terminal for automatic SP-API freshness work. Only an explicit refresh or
-a newer authoritative Catalog discovery rechecks them.
+it. Provider failures do not change it. The public meaning is that the Amazon listing is effectively
+deleted and unavailable for customers to purchase. Last-known listing fields remain readable while
+unavailable. Unavailable Products are terminal for automatic SP-API freshness work. Only an explicit
+refresh or a newer authoritative Catalog discovery rechecks them.
 
 The following public projection is the accepted target; persisted source state and dashboard
 observability above remain current.

@@ -28,9 +28,11 @@ converge on the same record.
 
 Public Product responses group this state into provider-neutral `listing`, `category`, `salesRank`,
 `price`, and `demand` concepts. `listing.isUnavailable` is separate from the thumbnail, which is
-resolved as either available with a URL or unavailable. An unavailable Product keeps its last-known
-listing fields and image. Public callers never receive a pending thumbnail. `null` means a valid
-measurement is unavailable, not zero or retrieval failure.
+resolved as either available with a URL or unavailable. `isUnavailable` means the Amazon listing is
+effectively deleted and unavailable for customers to purchase; thumbnail unavailability only means
+there is no usable image. An unavailable Product keeps its last-known listing fields and image.
+Public callers never receive a pending thumbnail. `null` means a valid measurement is unavailable,
+not zero or retrieval failure.
 
 ## Using the catalog
 
@@ -43,9 +45,10 @@ cached Product returns immediately. Missing or policy-expired Product data start
 work and waits; the public response is one current Product or a retryable error.
 
 Integrations that only need listing labels use the public basic Product batch. It accepts up to 200
-unique marketplace/ASIN pairs, preserves request order, and returns title and resolved thumbnail
-state for each available listing. Every requested identity joins the canonical catalog; eligible
-Products begin Keepa history collection asynchronously under the normal tracking policy.
+unique marketplace/ASIN pairs, preserves request order, and returns fixed-shape identity, title,
+thumbnail, and availability fields. An unavailable Product retains last-known listing values. Every
+requested identity joins the canonical catalog; eligible Products begin Keepa history collection
+asynchronously under the normal tracking policy.
 
 The dashboard Product drawer remains source-aware and may explain collection provenance and recent
 work. That observability is not part of the public Product contract.
