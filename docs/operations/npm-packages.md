@@ -28,12 +28,16 @@ when invoked from either package directory.
 ```bash
 cd packages/http-client
 node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
-node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm publish --access public --provenance=false --userconfig ../../.npmrc
 
 cd ../cli
 node ../../scripts/release/with-npm-token.mjs npm whoami --userconfig ../../.npmrc
-node ../../scripts/release/with-npm-token.mjs npm publish --access public --userconfig ../../.npmrc
+node ../../scripts/release/with-npm-token.mjs npm publish --access public --provenance=false --userconfig ../../.npmrc
 ```
+
+Local releases disable automatic provenance because npm only supports generating attestations from
+recognized CI providers. Keep each package's `publishConfig.provenance` enabled for future CI-based
+publishing.
 
 Verify from the repository root:
 
