@@ -347,10 +347,9 @@ export interface ProductSearch {
 		product: ProductSearchProduct;
 	}>;
 }
-export type BasicProduct = {
+export interface BasicProduct {
 	marketplaceId: string;
 	asin: string;
-	status: "available";
 	title: string | null;
 	thumbnail: {
 		status: "available";
@@ -358,11 +357,8 @@ export type BasicProduct = {
 	} | {
 		status: "unavailable";
 	};
-} | {
-	marketplaceId: string;
-	asin: string;
-	status: "unavailable";
-};
+	isUnavailable: boolean;
+}
 export interface ProductHistorySummary {
 	first: number | null;
 	latest: number | null;
