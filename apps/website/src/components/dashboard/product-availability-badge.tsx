@@ -1,13 +1,16 @@
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export const ProductAvailabilityBadge = ({
 	isUnavailable,
+	className,
 }: {
 	isUnavailable: boolean;
+	className?: string;
 }) =>
 	isUnavailable ? (
 		<Badge
-			className="rounded-sm px-1 py-0 text-[10px] leading-tight"
+			className={cn("rounded-sm font-mono text-xs", className)}
 			variant="error"
 		>
 			Unavailable

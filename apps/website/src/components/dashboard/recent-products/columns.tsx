@@ -23,11 +23,12 @@ const RowBsrButton = ({
 	rootCategoryBsr,
 	rootCategoryDisplayName,
 	isMerchListing,
+	isUnavailable,
 	freshness,
 	isActive,
 	onSelect,
 }: {
-	bsr: number;
+	bsr: number | null;
 	asin: string;
 	marketplaceId: string;
 	title: string | null;
@@ -38,12 +39,13 @@ const RowBsrButton = ({
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean | null;
+	isUnavailable: boolean;
 	freshness: SelectedHistoryProduct["freshness"];
 	isActive: boolean;
 	onSelect: (product: SelectedHistoryProduct) => void;
 }) => (
 	<Button
-		aria-label="Open BSR history"
+		aria-label={isUnavailable ? "Open unavailable Product details" : "Open BSR history"}
 		className="h-auto rounded-sm p-0 focus-visible:ring-1"
 		onClick={() => {
 			onSelect({
@@ -63,15 +65,22 @@ const RowBsrButton = ({
 		size="sm"
 		variant="ghost"
 	>
-		<Badge
-			variant={getBsrBadgeVariant(bsr)}
-			className={cn(
-				"rounded-sm font-mono text-xs transition-colors",
-				isActive && "bg-primary text-primary-foreground",
-			)}
-		>
-			#{bsr.toLocaleString()}
-		</Badge>
+		{isUnavailable ? (
+			<ProductAvailabilityBadge
+				className={cn(isActive && "bg-primary text-primary-foreground")}
+				isUnavailable={true}
+			/>
+		) : (
+			<Badge
+				variant={getBsrBadgeVariant(bsr)}
+				className={cn(
+					"rounded-sm font-mono text-xs transition-colors",
+					isActive && "bg-primary text-primary-foreground",
+				)}
+			>
+				#{bsr?.toLocaleString()}
+			</Badge>
+		)}
 	</Button>
 );
 
@@ -154,16 +163,8 @@ export const createColumns = ({
 	{
 		accessorKey: "rootCategoryBsr",
 		cell: ({ row }) => {
-			if (row.original.isUnavailable) {
-				return (
-					<div className="flex items-center justify-end">
-						<ProductAvailabilityBadge isUnavailable={true} />
-					</div>
-				);
-			}
-
 			const bsr = row.getValue("rootCategoryBsr") as number | null;
-			if (bsr === null) {
+			if (bsr === null && !row.original.isUnavailable) {
 				return <span className="text-muted-foreground text-xs">--</span>;
 			}
 			const rowKey = `${row.original.marketplaceId}:${row.original.asin}`;
@@ -181,6 +182,7 @@ export const createColumns = ({
 						rootCategoryBsr={row.original.rootCategoryBsr}
 						rootCategoryDisplayName={null}
 						isMerchListing={row.original.isMerchListing}
+						isUnavailable={row.original.isUnavailable}
 						freshness={{ stale: false, updatedAt: row.original.updatedAt }}
 						isActive={selectedHistoryKey === rowKey}
 						onSelect={onSelectHistory}
