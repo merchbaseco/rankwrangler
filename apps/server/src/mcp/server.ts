@@ -142,7 +142,15 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler Product data synchronously. operation=get uses asin and marketplaceId; getMany uses products and returns basic title and thumbnail data for up to 200 identities; search uses term; history uses asin plus range options. Responses contain data or a standard error.',
+                'Read RankWrangler Product data synchronously. operation=get uses asin and ' +
+                'marketplaceId; getMany uses products and returns fixed-shape basic title and ' +
+                'thumbnail data for up to 200 identities. In getMany results, ' +
+                'isUnavailable=true means the Amazon listing is effectively deleted and no longer ' +
+                'available for customers to purchase; retained title or thumbnail values are ' +
+                'last-known data. An unavailable thumbnail alone does not mean the Product is ' +
+                'unavailable. ' +
+                'search uses term; history uses asin plus range options. Responses contain data or ' +
+                'a standard error.',
             inputSchema: productInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler Product',

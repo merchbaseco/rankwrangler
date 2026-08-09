@@ -2,19 +2,13 @@ import type { ProductIdentity } from '@/db/product/get-products';
 import { getProducts, type ProductRetrieval } from './product-retrieval';
 import { RetrievalRetryableError } from './retrieval-coordinator';
 
-export type BasicProduct =
-    | {
-          marketplaceId: string;
-          asin: string;
-          status: 'available';
-          title: string | null;
-          thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
-      }
-    | {
-          marketplaceId: string;
-          asin: string;
-          status: 'unavailable';
-      };
+export interface BasicProduct {
+    marketplaceId: string;
+    asin: string;
+    title: string | null;
+    thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
+    isUnavailable: boolean;
+}
 
 interface BasicProductReadInput {
     products: ProductIdentity[];
@@ -49,20 +43,14 @@ const mapBasicProduct = (retrieval: ProductRetrieval): BasicProduct => {
         );
     }
 
-    if (retrieval.availability === 'unavailable' || !retrieval.product) {
-        return {
-            ...retrieval.identity,
-            status: 'unavailable',
-        };
-    }
-
     return {
         ...retrieval.identity,
-        status: 'available',
-        title: retrieval.product.title,
+        title: retrieval.product?.title ?? null,
         thumbnail:
-            retrieval.product.thumbnail.status === 'available'
+            retrieval.product?.thumbnail.status === 'available'
                 ? retrieval.product.thumbnail
                 : { status: 'unavailable' },
+        isUnavailable:
+            retrieval.availability === 'unavailable' || retrieval.product?.isUnavailable === true,
     };
 };
