@@ -18,6 +18,7 @@ export type Product = {
 	rootCategoryBsr: number | null;
 	dateFirstAvailable: string | null;
 	isMerchListing: boolean | null;
+	isUnavailable: boolean;
 	facets: Array<{ facet: string; name: string }>;
 	updatedAt: string;
 	updatedAtMs: number;

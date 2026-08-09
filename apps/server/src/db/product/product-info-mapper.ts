@@ -10,6 +10,7 @@ interface StoredProductInfo {
     title: string | null;
     brand: string | null;
     isMerchListing: boolean | null;
+    isUnavailable: boolean;
     bullet1: string | null;
     bullet2: string | null;
     rootCategoryId: number | null;
@@ -45,6 +46,7 @@ export const mapStoredProductInfo = (
         title: product.title,
         brand: product.brand,
         isMerchListing: product.isMerchListing,
+        isUnavailable: product.isUnavailable,
         bullet1: product.bullet1,
         bullet2: product.bullet2,
         thumbnail: getProductThumbnail(product, thumbnailPending),
@@ -83,19 +85,11 @@ export const mapStoredProductInfo = (
     };
 };
 
-const hasLatestSpApiPayload = (product: StoredProductInfo) => {
-    if (!product.spApiFetchedAt) {
-        return false;
-    }
-
-    return !product.spApiResolvedAt || product.spApiFetchedAt >= product.spApiResolvedAt;
-};
-
 const getProductThumbnail = (product: StoredProductInfo, thumbnailPending: boolean) => {
     if (thumbnailPending) {
         return { status: 'pending' as const };
     }
-    if (hasLatestSpApiPayload(product) && product.thumbnailUrl) {
+    if (product.thumbnailUrl) {
         return { status: 'available' as const, url: product.thumbnailUrl };
     }
     return { status: 'unavailable' as const };

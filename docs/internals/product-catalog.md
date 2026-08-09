@@ -20,6 +20,7 @@ The persisted Product model combines normalized fields with explicit source boun
 
 - listing identity, title, brand, image, first-available date, seller-bullet array, and nullable
   Merch-listing knowledge;
+- explicit Amazon listing availability from successful SP-API Catalog responses;
 - current root-category BSR;
 - semantic facets and their classification state;
 - internal provider freshness and resolution markers for listing enrichment;
@@ -42,6 +43,10 @@ Freshness is source-specific:
 
 `keepaFetchedAt` and `keepaSourceUpdatedAt` answer different questions. Provider import rows remain
 diagnostics and provenance; scheduling reads Product freshness directly.
+
+`isUnavailable` records the listing outcome separately from those call timestamps. A successful
+SP-API response that omits a requested ASIN sets it; a later response containing the ASIN clears
+it. Provider failures do not change it. Last-known listing fields remain readable while unavailable.
 
 The following public projection is the accepted target; persisted source state and dashboard
 observability above remain current.
@@ -82,5 +87,5 @@ not persist query identity, result placement, or run history; that belongs to th
   `true` is monotonic across provider writes.
 - The shared Product retrieval service owns blocking lookups, durable queueing, freshness checks,
   in-flight deduplication, and response availability. A completed empty provider response retains
-  the canonical identity with an unavailable Product thumbnail and advances `spApiResolvedAt`, so
-  reads do not enqueue it forever.
+  the canonical identity and last-known listing data, marks the Product unavailable, and advances
+  `spApiResolvedAt`.

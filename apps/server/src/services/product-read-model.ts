@@ -15,6 +15,7 @@ export interface Product {
         bulletPoints: string[];
         thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
         isMerchListing: boolean | null;
+        isUnavailable: boolean;
     };
     category: { id: number; name: string | null } | null;
     salesRank: {
@@ -43,6 +44,7 @@ export interface ProductSearchProduct {
     brand: string | null;
     thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
     isMerchListing: boolean | null;
+    isUnavailable: boolean;
     category: { id: number; name: string | null } | null;
     salesRank: number | null;
     price: { amountMinor: number; currencyCode: string } | null;
@@ -124,6 +126,7 @@ export const mapProductToPublicProduct = (product: ProductInfo): Product => ({
                 ? product.thumbnail
                 : { status: 'unavailable' },
         isMerchListing: product.isMerchListing,
+        isUnavailable: product.isUnavailable,
     },
     category:
         product.rootCategoryId === null
@@ -158,6 +161,7 @@ export const mapProductToCompactProductSearch = (product: Product): ProductSearc
     brand: product.listing.brand,
     thumbnail: product.listing.thumbnail,
     isMerchListing: product.listing.isMerchListing,
+    isUnavailable: product.listing.isUnavailable,
     category: product.category,
     salesRank: product.salesRank.current,
     price: product.price,

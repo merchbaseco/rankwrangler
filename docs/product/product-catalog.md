@@ -20,15 +20,17 @@ converge on the same record.
   first-available date. A current Product with no bullets carries `[]`.
 - Nullable Merch-listing classification and normalized facets. `null` means unknown; it is not
   silently treated as known non-Merch.
+- Whether Amazon currently returns the listing through SP-API Catalog Items.
 - Current root-category sales rank with `last30Days` and `last90Days` averages, price,
   bought-in-the-past-month evidence, and Sales-rank drops over `last30Days`, `last90Days`,
   `last180Days`, and `last365Days`.
 - Links to historical observations; history is not embedded into the current Product record.
 
 Public Product responses group this state into provider-neutral `listing`, `category`, `salesRank`,
-`price`, and `demand` concepts. The listing thumbnail is resolved as either available with a URL or
-unavailable; public callers never receive a pending thumbnail. `null` means a valid measurement is
-unavailable, not zero or retrieval failure.
+`price`, and `demand` concepts. `listing.isUnavailable` is separate from the thumbnail, which is
+resolved as either available with a URL or unavailable. An unavailable Product keeps its last-known
+listing fields and image. Public callers never receive a pending thumbnail. `null` means a valid
+measurement is unavailable, not zero or retrieval failure.
 
 ## Using the catalog
 

@@ -68,7 +68,7 @@ export const ensureProductIdentities = async (identities: ProductIdentity[]) => 
     return inserted.length;
 };
 
-export const markProductsSpApiResolved = async (
+export const markProductsUnavailable = async (
     identities: ProductIdentity[],
     resolvedAt: Date
 ) => {
@@ -90,7 +90,7 @@ export const markProductsSpApiResolved = async (
 
     const updated = await db
         .update(products)
-        .set({ spApiResolvedAt: resolvedAt })
+        .set({ isUnavailable: true, spApiResolvedAt: resolvedAt })
         .where(identityCondition)
         .returning({ id: products.id });
 

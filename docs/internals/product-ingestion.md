@@ -39,12 +39,13 @@ The SP-API queue is unique by marketplace and ASIN. Inserting new work triggers 
 singleton pg-boss wakeup; startup also kicks the queue so persisted rows survive a restart.
 
 The worker processes up to 20 ASINs at once, validates the provider response, and upserts each
-accepted Product. A queued ASIN missing from the provider response remains as a canonical identity,
-gets a durable resolution timestamp, and is returned as unavailable instead of being requeued
-forever.
+accepted Product. A queued ASIN missing from a successful provider response remains as a canonical
+identity, keeps its last-known listing data, gets a durable resolution timestamp, and is marked
+unavailable. A later response containing the ASIN clears that state. Provider failures do neither.
 Queue rows are deleted only after reconciliation succeeds; failures remain retryable by a later
 wakeup and emit structured activity events. Each committed Product upsert also emits an
 identity-only completion event so active dashboard Product queries can invalidate precisely.
+Unavailable Products use a 30-day scheduled recheck instead of BSR-tier refresh urgency.
 
 ## Source Normalization
 

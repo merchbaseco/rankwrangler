@@ -1,4 +1,4 @@
-import { and, gte, isNotNull, lt, or } from 'drizzle-orm';
+import { and, eq, gte, isNotNull, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
@@ -37,13 +37,14 @@ export async function reprocessStaleProducts() {
     const threshold14Days = new Date(now.getTime() - REFRESH_AFTER_14_DAYS_MS);
     const threshold30Days = new Date(now.getTime() - REFRESH_AFTER_30_DAYS_MS);
 
-    // Find stale merch products using BSR tiers:
+    // Find available stale Merch Products using BSR tiers:
     // - BSR < 200k: refresh if spApiFetchedAt > 24 hours ago
     // - BSR < 500k: refresh if spApiFetchedAt > 3 days ago
     // - BSR < 1M: refresh if spApiFetchedAt > 7 days ago
     // - BSR < 3M: refresh if spApiFetchedAt > 14 days ago
     // - BSR >= 3M: refresh if spApiFetchedAt > 30 days ago
-    // - Otherwise (non-merch, null BSR): never by stale job
+    // - Unavailable Products: recheck 30 days after the last completed lookup
+    // - Otherwise (available non-Merch or null BSR): never by stale job
     const staleProducts = await db
         .select({
             marketplaceId: products.marketplaceId,
@@ -51,10 +52,12 @@ export async function reprocessStaleProducts() {
         })
         .from(products)
         .where(
-            and(
-                products.isMerchListing,
-                isNotNull(products.rootCategoryBsr),
+            or(
+                buildUnavailableRefreshCondition(threshold30Days),
                 and(
+                    products.isMerchListing,
+                    eq(products.isUnavailable, false),
+                    isNotNull(products.rootCategoryBsr),
                     or(
                         // BSR < 200k: requeue if spApiFetchedAt > 24 hours ago
                         and(
@@ -189,3 +192,6 @@ export const reprocessStaleProductsJob = defineJob('reprocess-stale-products', {
             });
         }
     });
+
+export const buildUnavailableRefreshCondition = (threshold: Date) =>
+    and(eq(products.isUnavailable, true), lt(products.spApiResolvedAt, threshold));

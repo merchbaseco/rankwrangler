@@ -15,6 +15,7 @@ const baseProduct = {
 	rootCategoryBsr: 123_456,
 	dateFirstAvailable: null,
 	isMerchListing: true,
+	isUnavailable: false,
 	facets: [],
 };
 
@@ -35,7 +36,6 @@ describe("filterProducts", () => {
 		const [product] = hydrateProducts([
 			{
 				...baseProduct,
-				updatedAt: new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString(),
 				updatedAt: new Date(now - 60 * 60 * 1000).toISOString(),
 			},
 		]);

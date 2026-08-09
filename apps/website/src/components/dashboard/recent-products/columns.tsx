@@ -4,6 +4,7 @@ import type {
 	SelectedHistoryProduct,
 } from "@/components/dashboard/recent-products/types";
 import { MerchListingBadge } from "@/components/dashboard/merch-listing-badge";
+import { ProductAvailabilityBadge } from "@/components/dashboard/product-availability-badge";
 import { MARKETPLACE_FLAGS } from "@/components/dashboard/recent-products/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -107,6 +108,9 @@ export const createColumns = ({
 				<MerchListingBadge
 					className="rounded-sm px-1 py-0 text-[10px] leading-tight"
 					value={row.original.isMerchListing}
+				/>
+				<ProductAvailabilityBadge
+					isUnavailable={row.original.isUnavailable}
 				/>
 			</div>
 		),

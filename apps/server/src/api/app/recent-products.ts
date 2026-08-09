@@ -46,6 +46,7 @@ export const recentProducts = appProcedure
 				rootCategoryBsr: products.rootCategoryBsr,
 				dateFirstAvailable: products.dateFirstAvailable,
 				isMerchListing: products.isMerchListing,
+				isUnavailable: products.isUnavailable,
 				facets: sql<string>`
                     COALESCE(
                         (
@@ -91,12 +92,16 @@ export const recentProducts = appProcedure
                 read,
             ])
         );
-        const productItems = items.map(item => ({
-            ...item,
-            thumbnail:
-                productReadsByKey.get(`${item.marketplaceId}:${item.asin}`)?.product
-                    ?.thumbnail ?? { status: 'pending' as const },
-        }));
+        const productItems = items.map(item => {
+            const product = productReadsByKey.get(
+                `${item.marketplaceId}:${item.asin}`
+            )?.product;
+            return {
+                ...item,
+                isUnavailable: product?.isUnavailable ?? item.isUnavailable,
+                thumbnail: product?.thumbnail ?? { status: 'pending' as const },
+            };
+        });
         let trackedTotals: { totalMerchProducts: number; totalProducts: number } | null = null;
         let availableFacets: Array<{ facet: string; name: string }> | null = null;
 

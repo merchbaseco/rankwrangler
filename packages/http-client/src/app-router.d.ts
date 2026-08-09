@@ -288,6 +288,7 @@ export interface Product {
 			status: "unavailable";
 		};
 		isMerchListing: boolean | null;
+		isUnavailable: boolean;
 	};
 	category: {
 		id: number;
@@ -326,6 +327,7 @@ export interface ProductSearchProduct {
 		status: "unavailable";
 	};
 	isMerchListing: boolean | null;
+	isUnavailable: boolean;
 	category: {
 		id: number;
 		name: string | null;

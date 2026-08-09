@@ -14,6 +14,7 @@ describe("normalizeCachedProduct", () => {
 
 		expect(normalizeCachedProduct(legacyProduct)).toMatchObject({
 			isMerchListing: null,
+			isUnavailable: false,
 			freshness: { stale: true, updatedAt: null },
 		});
 	});

@@ -105,6 +105,7 @@ export const createProduct = ({
         title,
         brand,
         isMerchListing,
+        isUnavailable: false,
         bullet1: null,
         bullet2: null,
         rootCategoryId: category?.id ?? null,

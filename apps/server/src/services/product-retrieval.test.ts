@@ -1,5 +1,26 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { getProducts } from './product-retrieval';
+import { getProducts, persistProductSyncResults } from './product-retrieval';
+
+describe('Product sync persistence', () => {
+    it('records omitted ASINs as unavailable after a successful provider response', async () => {
+        const identities = [
+            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' },
+            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000002' },
+        ];
+        const products = [createSpApiProduct(identities[0])];
+        const resolvedAt = new Date('2026-08-08T12:00:00.000Z');
+        const deps = {
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
+            upsertProductInfo: mock(() => Promise.resolve(undefined)),
+            markProductsUnavailable: mock(() => Promise.resolve(1)),
+        };
+
+        await persistProductSyncResults({ identities, products, resolvedAt }, deps);
+
+        expect(deps.upsertProductInfo).toHaveBeenCalledWith(products[0]);
+        expect(deps.markProductsUnavailable).toHaveBeenCalledWith([identities[1]], resolvedAt);
+    });
+});
 
 describe('Product retrieval', () => {
     it('returns cached Products as pending and batch-enqueues without a provider fetch', async () => {
@@ -175,6 +196,7 @@ describe('Product retrieval', () => {
                 Promise.resolve([
                     {
                         product: createStoredProduct(identity, {
+                            isUnavailable: true,
                             spApiResolvedAt: new Date(Date.now() - 60_000),
                         }),
                         queuePending: false,
@@ -200,13 +222,14 @@ describe('Product retrieval', () => {
         });
     });
 
-    it('treats a newer empty resolution as unavailable over older listing data', async () => {
+    it('keeps last-known listing data visible when Amazon marks the Product unavailable', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000006' };
         const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(0));
         const getStoredProducts = mock(() =>
             Promise.resolve([
                 {
                     product: createStoredProduct(identity, {
+                        isUnavailable: true,
                         thumbnailUrl: 'https://example.com/old.jpg',
                         spApiFetchedAt: new Date('2026-07-01T12:00:00.000Z'),
                         spApiResolvedAt: new Date(Date.now() - 60_000),
@@ -230,8 +253,11 @@ describe('Product retrieval', () => {
 
         expect(enqueueSpApiSyncQueueItems).not.toHaveBeenCalled();
         expect(result).toMatchObject({
-            availability: 'unavailable',
-            product: { thumbnail: { status: 'unavailable' } },
+            availability: 'available',
+            product: {
+                isUnavailable: true,
+                thumbnail: { status: 'available', url: 'https://example.com/old.jpg' },
+            },
         });
     });
 });
@@ -254,6 +280,7 @@ const createStoredProduct = (
         title: 'Keepa title',
         brand: null,
         isMerchListing: false,
+        isUnavailable: false,
         bullet1: null,
         bullet2: null,
         rootCategoryId: null,
@@ -276,3 +303,19 @@ const createStoredProduct = (
         createdAt: new Date('2026-08-03T12:00:00.000Z'),
         ...overrides,
     }) as never;
+
+const createSpApiProduct = ({ marketplaceId, asin }: { marketplaceId: string; asin: string }) => ({
+    marketplaceId,
+    asin,
+    dateFirstAvailable: null,
+    title: 'Fetched title',
+    brand: null,
+    isMerchListing: false,
+    bullet1: null,
+    bullet2: null,
+    rootCategoryId: null,
+    rootCategoryBsr: null,
+    thumbnailUrl: null,
+    keepa: null,
+    fetchedAt: '2026-08-08T12:00:00.000Z',
+});

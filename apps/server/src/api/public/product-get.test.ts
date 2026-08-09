@@ -18,6 +18,7 @@ describe('public Product tRPC boundary', () => {
                 bulletPoints: ['Made for gardeners'],
                 thumbnail: { status: 'available' as const, url: 'https://example.com/image.jpg' },
                 isMerchListing: null,
+                isUnavailable: false,
             },
             category: { id: 12_345, name: 'Clothing' },
             salesRank: {
@@ -100,6 +101,7 @@ const createProduct = (): Product => ({
         bulletPoints: [],
         thumbnail: { status: 'unavailable' },
         isMerchListing: null,
+        isUnavailable: true,
     },
     category: null,
     salesRank: {

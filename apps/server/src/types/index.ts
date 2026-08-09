@@ -17,6 +17,7 @@ export interface ProductInfo {
     title: string | null;
     brand: string | null;
     isMerchListing: boolean | null;
+    isUnavailable: boolean;
     bullet1: string | null;
     bullet2: string | null;
 
@@ -53,7 +54,7 @@ export interface ProductInfo {
 
 export type SpApiProduct = Omit<
     ProductInfo,
-    'rootCategoryDisplayName' | 'thumbnail' | 'freshness'
+    'rootCategoryDisplayName' | 'thumbnail' | 'freshness' | 'isUnavailable'
 > & {
     fetchedAt: string;
     thumbnailUrl: string | null;

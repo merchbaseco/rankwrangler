@@ -9,6 +9,7 @@ export interface Product {
 	asin: string;
 	marketplaceId: string;
 	isMerchListing: boolean | null;
+	isUnavailable: boolean;
 	creationDate?: string;
 
 	// Root category information
@@ -34,6 +35,7 @@ export const getErrorProduct = (
 		asin: productIdentifier.asin,
 		marketplaceId: productIdentifier.marketplaceId,
 		isMerchListing: null,
+		isUnavailable: false,
 		metadata: {
 			success: false,
 		},

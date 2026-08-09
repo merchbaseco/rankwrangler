@@ -2,6 +2,7 @@
 export interface ProductInfo {
 	asin: string;
 	isMerchListing: boolean | null;
+	isUnavailable: boolean;
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;

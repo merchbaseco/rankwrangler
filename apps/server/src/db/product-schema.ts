@@ -23,6 +23,7 @@ export const products = pgTable(
         title: text('title'),
         brand: text('brand'),
         isMerchListing: boolean('is_merch_listing'),
+        isUnavailable: boolean('is_unavailable').notNull().default(false),
         bullet1: text('bullet_1'),
         bullet2: text('bullet_2'),
         rootCategoryId: bigint('root_category_id', { mode: 'number' }),

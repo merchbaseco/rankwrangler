@@ -12,6 +12,7 @@ describe('mapStoredProductInfo', () => {
                 title: 'Example shirt',
                 brand: 'Example brand',
                 isMerchListing: true,
+                isUnavailable: false,
                 bullet1: 'First bullet',
                 bullet2: 'Second bullet',
                 rootCategoryId: 12_345,
@@ -76,6 +77,7 @@ describe('mapStoredProductInfo', () => {
                 title: null,
                 brand: null,
                 isMerchListing: null,
+                isUnavailable: true,
                 bullet1: null,
                 bullet2: null,
                 rootCategoryId: null,
@@ -101,6 +103,7 @@ describe('mapStoredProductInfo', () => {
         );
 
         expect(result.freshness).toEqual({ stale: true, updatedAt: null });
+        expect(result.isUnavailable).toBe(true);
         expect(result.thumbnail).toEqual({ status: 'unavailable' });
         expect(result.keepa).toEqual({
             fetchedAt: '2026-07-22T14:00:00.000Z',

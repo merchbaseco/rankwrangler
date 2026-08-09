@@ -79,6 +79,7 @@ export const getProduct = async (
 			asin,
 			marketplaceId,
 			isMerchListing: normalizeMerchListingValue(responseData.isMerchListing),
+			isUnavailable: Boolean(responseData.isUnavailable),
 			...(typeof responseData.dateFirstAvailable === "string" &&
 			responseData.dateFirstAvailable !== null &&
 			responseData.dateFirstAvailable !== ""

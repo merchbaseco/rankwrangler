@@ -2,7 +2,7 @@ import { TRPCError } from '@trpc/server';
 import {
     ensureProductIdentities,
     getStoredProducts,
-    markProductsSpApiResolved,
+    markProductsUnavailable,
     type ProductIdentity,
     type StoredProductRead,
 } from '@/db/product/get-products';
@@ -30,21 +30,33 @@ export interface PersistProductSyncResultsInput {
     resolvedAt: Date;
 }
 
+interface PersistProductSyncResultsDeps {
+    ensureProductIdentities: typeof ensureProductIdentities;
+    upsertProductInfo: typeof upsertProductInfo;
+    markProductsUnavailable: typeof markProductsUnavailable;
+}
+
+const defaultPersistProductSyncResultsDeps: PersistProductSyncResultsDeps = {
+    ensureProductIdentities,
+    upsertProductInfo,
+    markProductsUnavailable,
+};
+
 export const persistProductSyncResults = async ({
     identities,
     products,
     resolvedAt,
-}: PersistProductSyncResultsInput) => {
-    await ensureProductIdentities(identities);
+}: PersistProductSyncResultsInput, deps = defaultPersistProductSyncResultsDeps) => {
+    await deps.ensureProductIdentities(identities);
     const fetchedIdentities = new Set(products.map(product => productKey(product)));
     for (const product of products) {
-        await upsertProductInfo(product);
+        await deps.upsertProductInfo(product);
     }
 
     const unavailableIdentities = identities.filter(
         identity => !fetchedIdentities.has(productKey(identity))
     );
-    await markProductsSpApiResolved(unavailableIdentities, resolvedAt);
+    await deps.markProductsUnavailable(unavailableIdentities, resolvedAt);
 };
 
 export interface ProductRetrievalDeps {
@@ -173,13 +185,11 @@ const mapProductRetrieval = (
     identity: ProductIdentity,
     stored: StoredProductRead | undefined
 ): ProductRetrieval => {
-    const hasLatestProviderData = stored ? hasLatestSpApiPayload(stored.product) : false;
-
     return {
         identity,
         product: stored
             ? mapStoredProductInfo(stored.product, {
-                  thumbnailPending: stored.queuePending && !hasLatestProviderData,
+                  thumbnailPending: stored.queuePending && !stored.product.thumbnailUrl,
               })
             : null,
         availability: getAvailability(stored),
@@ -190,13 +200,13 @@ const getAvailability = (stored: StoredProductRead | undefined): ProductAvailabi
     if (!stored) {
         return 'pending';
     }
-    if (stored.product.spApiFetchedAt && hasLatestSpApiPayload(stored.product)) {
+    if (stored.product.spApiFetchedAt) {
         return 'available';
     }
     if (stored.queuePending) {
         return 'pending';
     }
-    if (stored.product.spApiResolvedAt) {
+    if (stored.product.isUnavailable) {
         return 'unavailable';
     }
     return 'pending';
@@ -209,14 +219,6 @@ const shouldResolve = (stored: StoredProductRead | undefined, cutoff: Date) => {
 
     const resolvedAt = getLatestSpApiTimestamp(stored.product);
     return !resolvedAt || resolvedAt < cutoff;
-};
-
-const hasLatestSpApiPayload = (product: StoredProductRead['product']) => {
-    if (!product.spApiFetchedAt) {
-        return false;
-    }
-
-    return !product.spApiResolvedAt || product.spApiFetchedAt >= product.spApiResolvedAt;
 };
 
 const getLatestSpApiTimestamp = (product: StoredProductRead['product']) => {
