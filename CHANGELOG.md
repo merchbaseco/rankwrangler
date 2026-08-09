@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.9.0 - 2026-08-09
+
+### Added
+
+- Add short-lived typed Provider-attempt telemetry for Keepa and SP-API operations, including
+  outcome, latency, and error context for operator diagnostics.
+
+### Changed
+
+- Breaking: replace the `product.getMany` available/unavailable result union with one fixed shape
+  containing identity, nullable title, resolved thumbnail, and `isUnavailable`. Unavailable Amazon
+  listings retain their last-known title and thumbnail data.
+
+### Fixed
+
+- Advertise Claude-compatible MCP Product and keyword schemas so fresh chats can discover and call
+  `getMany` directly, with clear unavailable-listing semantics in the Product tool description.
+- Stop unavailable Products from triggering automatic Keepa synchronization when their dashboard
+  drawer opens.
+
 ## v0.8.0 - 2026-08-09
 
 ### Added
