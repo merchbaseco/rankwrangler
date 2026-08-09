@@ -8,12 +8,13 @@ const dataSource: RankWranglerMcpDataSource = {
         service: 'rankwrangler',
         status: 'ready',
         capabilities: {
-            product: ['get', 'search', 'history'],
+            product: ['get', 'getMany', 'search', 'history'],
             keyword: ['get', 'search', 'history'],
         },
     }),
     product: {
         get: async input => ({ operation: 'get', data: { asin: input.asin } }),
+        getMany: async input => ({ operation: 'getMany', data: { products: input.products } }),
         search: async input => ({ operation: 'search', data: { term: input.term } }),
         history: async input => ({ operation: 'history', data: { asin: input.asin } }),
     },
@@ -40,7 +41,7 @@ describe('RankWrangler MCP server', () => {
             type: 'object',
         });
         const productTool = result.tools.find(tool => tool.name === 'rankwrangler_product');
-        expect(productTool?.description).toContain('get, search, or history');
+        expect(productTool?.description).toContain('get, getMany, search, or history');
         expect(productTool?.description).not.toContain('final');
         expect(productTool?.description).not.toContain('Keepa');
         expect(JSON.stringify(result.tools)).not.toContain('operation.get');
@@ -58,6 +59,16 @@ describe('RankWrangler MCP server', () => {
             client.callTool({
                 name: 'rankwrangler_product',
                 arguments: { operation: 'get', asin: 'B012345678' },
+            }),
+            client.callTool({
+                name: 'rankwrangler_product',
+                arguments: {
+                    operation: 'getMany',
+                    products: [
+                        { asin: 'b012345678', marketplaceId: 'ATVPDKIKX0DER' },
+                        { asin: 'B087654321', marketplaceId: 'ATVPDKIKX0DER' },
+                    ],
+                },
             }),
             client.callTool({
                 name: 'rankwrangler_product',
@@ -85,6 +96,15 @@ describe('RankWrangler MCP server', () => {
         expect(calls.map(call => call.structuredContent)).toEqual([
             expect.objectContaining({ service: 'rankwrangler' }),
             { operation: 'get', data: { asin: 'B012345678' } },
+            {
+                operation: 'getMany',
+                data: {
+                    products: [
+                        { asin: 'B012345678', marketplaceId: 'ATVPDKIKX0DER' },
+                        { asin: 'B087654321', marketplaceId: 'ATVPDKIKX0DER' },
+                    ],
+                },
+            },
             { operation: 'search', data: { term: 'shirts' } },
             { operation: 'history', data: { asin: 'B012345678' } },
             { operation: 'get', data: { keyword: 'shirts' } },
@@ -128,6 +148,26 @@ describe('RankWrangler MCP server', () => {
                 },
             },
         });
+
+        await client.close();
+        await server.close();
+    });
+
+    it('rejects duplicate Product pairs in getMany', async () => {
+        const { client, server } = await connect(dataSource);
+        const result = await client.callTool({
+            name: 'rankwrangler_product',
+            arguments: {
+                operation: 'getMany',
+                products: [
+                    { asin: 'B012345678', marketplaceId: 'ATVPDKIKX0DER' },
+                    { asin: 'b012345678', marketplaceId: 'ATVPDKIKX0DER' },
+                ],
+            },
+        });
+
+        expect(result.isError).toBe(true);
+        expect(JSON.stringify(result.content)).toContain('Product pairs must be unique');
 
         await client.close();
         await server.close();

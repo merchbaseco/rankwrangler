@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 describe('final public CLI contract', () => {
-    test('runs Product get, search, and history with final public contracts', async () => {
+    test('routes one or many Product get ASINs to the matching public contract', async () => {
         const requests: Array<{ procedure: string; input: Record<string, unknown> }> = [];
         const server = serve({
             port: CLI_TEST_SERVER_PORT,
@@ -42,6 +42,29 @@ describe('final public CLI contract', () => {
                     procedure,
                     input: input ?? {},
                 });
+
+                if (procedure === 'getMany') {
+                    return Response.json([
+                        {
+                            result: {
+                                data: [
+                                    {
+                                        marketplaceId: 'ATVPDKIKX0DER',
+                                        asin: 'B012345678',
+                                        status: 'available',
+                                        title: 'Garden shirt',
+                                        thumbnail: { status: 'unavailable' },
+                                    },
+                                    {
+                                        marketplaceId: 'ATVPDKIKX0DER',
+                                        asin: 'B087654321',
+                                        status: 'unavailable',
+                                    },
+                                ],
+                            },
+                        },
+                    ]);
+                }
 
                 if (procedure === 'get') {
                     return Response.json([
@@ -118,6 +141,13 @@ describe('final public CLI contract', () => {
                 ...workspace,
                 env: { MERCHBASE_API_KEY: 'ak_test_value' },
             });
+            const getManyResult = await spawnCliAsync(
+                ['product', 'get', 'b012345678', 'B087654321', ...baseArgs],
+                {
+                    ...workspace,
+                    env: { MERCHBASE_API_KEY: 'ak_test_value' },
+                }
+            );
             const searchResult = await spawnCliAsync(
                 ['product', 'search', 'retro', 'gardening', 'shirt', ...searchArgs],
                 { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
@@ -128,8 +158,16 @@ describe('final public CLI contract', () => {
             );
 
             expect(getResult.status).toBe(0);
+            expect(getManyResult.status).toBe(0);
             expect(searchResult.status).toBe(0);
             expect(historyResult.status).toBe(0);
+            expect(JSON.parse(getManyResult.stdout)).toMatchObject({
+                ok: true,
+                data: [
+                    { asin: 'B012345678', status: 'available', title: 'Garden shirt' },
+                    { asin: 'B087654321', status: 'unavailable' },
+                ],
+            });
             expect(JSON.parse(searchResult.stdout)).toMatchObject({
                 ok: true,
                 data: {
@@ -144,6 +182,15 @@ describe('final public CLI contract', () => {
                     input: {
                         marketplaceId: 'ATVPDKIKX0DER',
                         asin: 'B012345678',
+                    },
+                },
+                {
+                    procedure: 'getMany',
+                    input: {
+                        products: [
+                            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+                            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B087654321' },
+                        ],
                     },
                 },
                 {
@@ -223,8 +270,34 @@ describe('final public CLI contract', () => {
         const workspace = createCliWorkspace();
         const commands = [
             ['product', 'get', 'B012345678', '--refresh'],
+            ['product', 'get', 'B012345678', 'B087654321', '--refresh'],
             ['product', 'history', 'B012345678', '--refresh'],
             ['keyword', 'get', 'garden shirt', '--refresh'],
+        ];
+
+        for (const args of commands) {
+            expect(
+                runCliFailure(args, {
+                    ...workspace,
+                    env: { MERCHBASE_API_KEY: 'ak_test_value' },
+                })
+            ).toMatchObject({
+                ok: false,
+                error: { code: 'INVALID_INPUT' },
+            });
+        }
+    });
+
+    test('rejects invalid Product get batches before making a request', () => {
+        const workspace = createCliWorkspace();
+        const commands = [
+            ['product', 'get'],
+            ['product', 'get', 'B012345678', 'b012345678'],
+            [
+                'product',
+                'get',
+                ...Array.from({ length: 201 }, (_, index) => `B${String(index).padStart(9, '0')}`),
+            ],
         ];
 
         for (const args of commands) {

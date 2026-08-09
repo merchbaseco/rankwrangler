@@ -347,6 +347,22 @@ export interface ProductSearch {
 		product: ProductSearchProduct;
 	}>;
 }
+export type BasicProduct = {
+	marketplaceId: string;
+	asin: string;
+	status: "available";
+	title: string | null;
+	thumbnail: {
+		status: "available";
+		url: string;
+	} | {
+		status: "unavailable";
+	};
+} | {
+	marketplaceId: string;
+	asin: string;
+	status: "unavailable";
+};
 export interface ProductHistorySummary {
 	first: number | null;
 	latest: number | null;
@@ -553,6 +569,16 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						asin: string;
 					};
 					output: Product;
+					meta: object;
+				}>;
+				getMany: import("@trpc/server").TRPCMutationProcedure<{
+					input: {
+						products: {
+							marketplaceId: string;
+							asin: string;
+						}[];
+					};
+					output: BasicProduct[];
 					meta: object;
 				}>;
 				history: import("@trpc/server").TRPCMutationProcedure<{

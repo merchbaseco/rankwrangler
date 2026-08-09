@@ -9,10 +9,31 @@ export const asinInput = z
     .regex(/^[A-Z0-9]{10}$/i, 'ASIN must be 10 alphanumeric characters')
     .transform(value => value.toUpperCase());
 
-const productIdentityInput = z.object({
+export const productIdentityInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),
     asin: asinInput,
 });
+
+export const productGetManyInput = z
+    .object({
+        products: z.array(productIdentityInput.strict()).min(1).max(200),
+    })
+    .strict()
+    .superRefine(({ products }, context) => {
+        const identities = new Set<string>();
+
+        products.forEach((product, index) => {
+            const key = `${product.marketplaceId}:${product.asin}`;
+            if (identities.has(key)) {
+                context.addIssue({
+                    code: 'custom',
+                    message: 'Product pairs must be unique',
+                    path: ['products', index],
+                });
+            }
+            identities.add(key);
+        });
+    });
 
 export const productSummaryInput = z.object({
     marketplaceId: z.string().min(1, 'Marketplace ID is required'),

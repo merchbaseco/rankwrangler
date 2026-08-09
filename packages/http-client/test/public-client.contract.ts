@@ -7,18 +7,21 @@ type Equal<Left, Right> =
 type Assert<Condition extends true> = Condition;
 type ProductSearchInput = PublicRouterInputs['product']['search'];
 type ProductGetInput = PublicRouterInputs['product']['get'];
+type ProductGetManyInput = PublicRouterInputs['product']['getMany'];
 type ProductHistoryInput = PublicRouterInputs['product']['history'];
 type ProductOutput = PublicRouterOutputs['product']['get'];
+type ProductGetManyOutput = PublicRouterOutputs['product']['getMany'];
 type ProductHistoryOutput = PublicRouterOutputs['product']['history'];
 type KeywordGetInput = PublicRouterInputs['keyword']['get'];
 type ProductSearchOutput = PublicRouterOutputs['product']['search'];
 type ProductSearchMutation = RankWranglerClient['product']['search'];
+type ProductGetManyMutation = RankWranglerClient['product']['getMany'];
 
 export type PublicNamespaceContract = Assert<
     Equal<keyof PublicRouterInputs, 'product' | 'keyword'>
 >;
 export type ProductProcedureContract = Assert<
-    Equal<keyof PublicRouterInputs['product'], 'get' | 'search' | 'history'>
+    Equal<keyof PublicRouterInputs['product'], 'get' | 'getMany' | 'search' | 'history'>
 >;
 export type KeywordProcedureContract = Assert<
     Equal<keyof PublicRouterInputs['keyword'], 'get' | 'search' | 'history'>
@@ -30,10 +33,7 @@ export type ProductSearchOutputKeysContract = Assert<
     Equal<keyof ProductSearchOutput, 'keyword' | 'searchedAt' | 'results'>
 >;
 export type ProductSearchResultKeysContract = Assert<
-    Equal<
-        keyof ProductSearchOutput['results'][number],
-        'organicSearchPlacement' | 'product'
-    >
+    Equal<keyof ProductSearchOutput['results'][number], 'organicSearchPlacement' | 'product'>
 >;
 export type ProductSearchProductKeysContract = Assert<
     Equal<
@@ -44,6 +44,7 @@ export type ProductSearchProductKeysContract = Assert<
         | 'brand'
         | 'thumbnail'
         | 'isMerchListing'
+        | 'isUnavailable'
         | 'category'
         | 'salesRank'
         | 'price'
@@ -52,6 +53,10 @@ export type ProductSearchProductKeysContract = Assert<
 >;
 export type ProductGetInputContract = Assert<
     Equal<keyof ProductGetInput, 'marketplaceId' | 'asin'>
+>;
+export type ProductGetManyInputContract = Assert<Equal<keyof ProductGetManyInput, 'products'>>;
+export type ProductGetManyOutputContract = Assert<
+    Equal<Awaited<ReturnType<ProductGetManyMutation['mutate']>>, ProductGetManyOutput>
 >;
 export type ProductOutputContract = Assert<
     Equal<

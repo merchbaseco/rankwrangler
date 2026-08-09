@@ -12,7 +12,11 @@ import { deleteSpApiSyncQueueItemsForIdentities } from '@/db/spapi-sync-queue/de
 import { searchCatalogItemsByAsins } from '@/services/spapi/search-catalog-items-by-asins';
 import type { ProductInfo, SpApiProduct } from '@/types';
 import { PRODUCT_DEFAULT_MAX_AGE_MS } from './product-freshness-policy';
-import { enqueueBackgroundProducts, resolveProduct } from './product-retrieval-work';
+import {
+    enqueueBackgroundProducts,
+    resolveProduct,
+    resolveProducts,
+} from './product-retrieval-work';
 import { enqueueSpApiSyncQueueItems } from './spapi-sync-queue';
 
 export type ProductFetchPolicy = 'blocking' | 'background';
@@ -42,11 +46,10 @@ const defaultPersistProductSyncResultsDeps: PersistProductSyncResultsDeps = {
     markProductsUnavailable,
 };
 
-export const persistProductSyncResults = async ({
-    identities,
-    products,
-    resolvedAt,
-}: PersistProductSyncResultsInput, deps = defaultPersistProductSyncResultsDeps) => {
+export const persistProductSyncResults = async (
+    { identities, products, resolvedAt }: PersistProductSyncResultsInput,
+    deps = defaultPersistProductSyncResultsDeps
+) => {
     await deps.ensureProductIdentities(identities);
     const fetchedIdentities = new Set(products.map(product => productKey(product)));
     for (const product of products) {
@@ -108,9 +111,7 @@ export const getProducts = async (
     );
 
     if (fetchPolicy === 'blocking') {
-        await Promise.all(
-            needsResolution.map(identity => resolveProduct(identity, deps, signal, timeoutMs))
-        );
+        await resolveProducts(needsResolution, deps, signal, timeoutMs);
         stored = needsResolution.length > 0 ? await deps.getStoredProducts(identities) : stored;
     } else if (needsResolution.length > 0) {
         await enqueueBackgroundProducts(needsResolution, storedByKey, deps);

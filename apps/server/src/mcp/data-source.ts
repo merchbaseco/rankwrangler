@@ -4,6 +4,7 @@ import {
     type KeywordGetMcpInput,
     type KeywordHistoryMcpInput,
     type KeywordSearchMcpInput,
+    type ProductGetManyMcpInput,
     type ProductGetMcpInput,
     type ProductHistoryMcpInput,
     type ProductSearchMcpInput,
@@ -20,6 +21,10 @@ export const createRankWranglerMcpDataSource = (ctx: Context): RankWranglerMcpDa
             get: async (input: ProductGetMcpInput) => ({
                 data: await caller.product.get(input),
                 operation: 'get',
+            }),
+            getMany: async (input: ProductGetManyMcpInput) => ({
+                data: await caller.product.getMany(input),
+                operation: 'getMany',
             }),
             search: async (input: ProductSearchMcpInput) => ({
                 data: await caller.product.search(input),

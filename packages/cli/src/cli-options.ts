@@ -50,6 +50,19 @@ export const requireSingleAsin = (
     return normalizeAsin(commandArgs[0] ?? '', fail);
 };
 
+export const requireAsins = (commandArgs: string[], fail: CliFail, commandName = 'product get') => {
+    if (commandArgs.length < 1 || commandArgs.length > 200) {
+        fail('INVALID_INPUT', `${commandName} requires between 1 and 200 ASINs`);
+    }
+
+    const asins = commandArgs.map(value => normalizeAsin(value, fail));
+    if (new Set(asins).size !== asins.length) {
+        fail('INVALID_INPUT', `${commandName} requires unique ASINs`);
+    }
+
+    return asins;
+};
+
 export const resolveHistoryMetrics = (values: CliOptionValues, fail: CliFail) => {
     const requested = (values.metrics ?? process.env.RR_HISTORY_METRICS ?? 'salesRank,price')
         .split(',')

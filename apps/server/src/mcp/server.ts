@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { readOnlyToolAnnotations, runReadOnlyTool } from './tool-result';
 import type {
+    ProductGetManyMcpInput,
     ProductGetMcpInput,
     ProductHistoryMcpInput,
     RankWranglerMcpDataSource,
@@ -26,8 +27,37 @@ const toolOutputSchema = z.object({
             retryAfterSeconds: z.number().int().positive().optional(),
         })
         .optional(),
-    operation: z.enum(['get', 'search', 'history']).optional(),
+    operation: z.enum(['get', 'getMany', 'search', 'history']).optional(),
 });
+
+const productIdentitySchema = z
+    .object({
+        asin: z
+            .string()
+            .trim()
+            .regex(/^[A-Z0-9]{10}$/i),
+        marketplaceId: z.string().trim().min(1),
+    })
+    .strict();
+
+const productBatchSchema = z
+    .array(productIdentitySchema)
+    .min(1)
+    .max(200)
+    .superRefine((products, context) => {
+        const identities = new Set<string>();
+        products.forEach((product, index) => {
+            const key = `${product.marketplaceId}:${product.asin.toUpperCase()}`;
+            if (identities.has(key)) {
+                context.addIssue({
+                    code: 'custom',
+                    message: 'Product pairs must be unique',
+                    path: [index],
+                });
+            }
+            identities.add(key);
+        });
+    });
 
 const productInputSchema = z.discriminatedUnion('operation', [
     z
@@ -35,6 +65,12 @@ const productInputSchema = z.discriminatedUnion('operation', [
             asin: z.string().trim().min(1).max(10).optional(),
             marketplaceId: z.string().trim().min(1).default('ATVPDKIKX0DER'),
             operation: z.literal('get'),
+        })
+        .strict(),
+    z
+        .object({
+            operation: z.literal('getMany'),
+            products: productBatchSchema,
         })
         .strict(),
     z
@@ -93,7 +129,7 @@ const keywordInputSchema = z.discriminatedUnion('operation', [
 const statusOutputSchema = z.object({
     capabilities: z.object({
         keyword: z.array(z.enum(['get', 'search', 'history'])),
-        product: z.array(z.enum(['get', 'search', 'history'])),
+        product: z.array(z.enum(['get', 'getMany', 'search', 'history'])),
     }),
     service: z.literal('rankwrangler'),
     status: z.literal('ready'),
@@ -120,7 +156,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler Product data through a synchronous get, search, or history operation. get returns one Product, search returns compact Product results, and history returns time series. Responses contain data or a standard error.',
+                'Read RankWrangler Product data through a synchronous get, getMany, search, or history operation. getMany returns basic title and thumbnail data for up to 200 Product identities. Responses contain data or a standard error.',
             inputSchema: productInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler Product',
@@ -130,6 +166,10 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 case 'get':
                     return runReadOnlyTool(async () =>
                         source.product.get(toProductGetInput(input))
+                    );
+                case 'getMany':
+                    return runReadOnlyTool(async () =>
+                        source.product.getMany(toProductGetManyInput(input))
                     );
                 case 'search':
                     return runReadOnlyTool(async () =>
@@ -195,11 +235,19 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
 
 type ProductInput = z.infer<typeof productInputSchema>;
 type ProductGetInput = Extract<ProductInput, { operation: 'get' }>;
+type ProductGetManyInput = Extract<ProductInput, { operation: 'getMany' }>;
 type ProductHistoryInput = Extract<ProductInput, { operation: 'history' }>;
 
 const toProductGetInput = (input: ProductGetInput): ProductGetMcpInput => ({
     asin: requireValue(input.asin, 'asin'),
     marketplaceId: input.marketplaceId,
+});
+
+const toProductGetManyInput = (input: ProductGetManyInput): ProductGetManyMcpInput => ({
+    products: input.products.map(product => ({
+        asin: product.asin.toUpperCase(),
+        marketplaceId: product.marketplaceId,
+    })),
 });
 
 const toProductHistoryInput = (input: ProductHistoryInput): ProductHistoryMcpInput => ({

@@ -171,21 +171,13 @@ describe('cli behavior', () => {
         );
     });
 
-    test('requires one ASIN for single-product API commands', () => {
+    test('requires one ASIN for Product history', () => {
         const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
         mkdirSync(tempHome, { recursive: true });
         mkdirSync(workspaceDir, { recursive: true });
         const env = { MERCHBASE_API_KEY: 'ak_test_value' };
-
-        const getFailure = runCliFailure(['product', 'get', 'B0DV53VS61', 'B0DV53VS62'], {
-            cwd: workspaceDir,
-            home: tempHome,
-            env,
-        });
-        expect(getFailure.error.code).toBe('INVALID_INPUT');
-        expect(getFailure.error.message).toBe('product get requires exactly one ASIN');
 
         const historyFailure = runCliFailure(['product', 'history', 'B0DV53VS61', 'B0DV53VS62'], {
             cwd: workspaceDir,

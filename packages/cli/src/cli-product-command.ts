@@ -3,6 +3,7 @@ import type { CliConfig } from './cli-config';
 import {
     type CliOptionValues,
     parseIntegerOption,
+    requireAsins,
     requireMarketplaceId,
     requireSingleAsin,
     resolveHistoryBucket,
@@ -46,11 +47,18 @@ const runProductGet = async (
     options: CliOptionValues,
     fail: CliFail
 ) => {
-    const asin = requireSingleAsin(args, fail, 'product get');
+    const marketplaceId = requireMarketplaceId(options, config);
+    const asins = requireAsins(args, fail);
 
-    return await client.product.get.mutate({
-        marketplaceId: requireMarketplaceId(options, config),
-        asin,
+    if (asins.length === 1) {
+        return await client.product.get.mutate({
+            marketplaceId,
+            asin: asins[0],
+        });
+    }
+
+    return await client.product.getMany.mutate({
+        products: asins.map(asin => ({ marketplaceId, asin })),
     });
 };
 

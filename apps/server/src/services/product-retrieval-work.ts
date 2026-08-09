@@ -20,6 +20,7 @@ export interface ProductDetailWorkResult {
 }
 
 const inFlightProductBatches = new Map<string, Promise<ProductDetailWorkResult>>();
+const SP_API_PRODUCT_BATCH_SIZE = 20;
 
 export const resolveProduct = async (
     identity: ProductIdentity,
@@ -27,8 +28,21 @@ export const resolveProduct = async (
     signal?: AbortSignal,
     timeoutMs?: number
 ) => {
-    await resolveProductDetails([identity], deps, signal, timeoutMs);
-    await deps.deleteSpApiSyncQueueItemsForIdentities?.([identity]);
+    await resolveProducts([identity], deps, signal, timeoutMs);
+};
+
+export const resolveProducts = async (
+    identities: ProductIdentity[],
+    deps: ProductRetrievalDeps,
+    signal?: AbortSignal,
+    timeoutMs?: number
+) => {
+    if (identities.length === 0) {
+        return;
+    }
+
+    await resolveProductDetails(identities, deps, signal, timeoutMs);
+    await deps.deleteSpApiSyncQueueItemsForIdentities?.(identities);
 };
 
 export const resolveProductDetails = async (
@@ -93,21 +107,27 @@ const startMissingProductBatches = (identities: ProductIdentity[], deps: Product
     }
 
     for (const marketplaceIdentities of missingByMarketplace.values()) {
-        const batchPromise = runProductBatch(marketplaceIdentities, deps);
-        for (const identity of marketplaceIdentities) {
-            inFlightProductBatches.set(productKey(identity), batchPromise);
+        for (const identities of chunkProducts(marketplaceIdentities)) {
+            startProductBatch(identities, deps);
         }
-
-        const clearBatch = () => {
-            for (const identity of marketplaceIdentities) {
-                const key = productKey(identity);
-                if (inFlightProductBatches.get(key) === batchPromise) {
-                    inFlightProductBatches.delete(key);
-                }
-            }
-        };
-        batchPromise.then(clearBatch, clearBatch);
     }
+};
+
+const startProductBatch = (identities: ProductIdentity[], deps: ProductDetailWorkDeps) => {
+    const batchPromise = runProductBatch(identities, deps);
+    for (const identity of identities) {
+        inFlightProductBatches.set(productKey(identity), batchPromise);
+    }
+
+    const clearBatch = () => {
+        for (const identity of identities) {
+            const key = productKey(identity);
+            if (inFlightProductBatches.get(key) === batchPromise) {
+                inFlightProductBatches.delete(key);
+            }
+        }
+    };
+    batchPromise.then(clearBatch, clearBatch);
 };
 
 const runProductBatch = async (
@@ -164,6 +184,14 @@ const uniqueProducts = (products: SpApiProduct[]) => {
         unique.set(productKey(product), product);
     }
     return Array.from(unique.values());
+};
+
+const chunkProducts = (identities: ProductIdentity[]) => {
+    const chunks: ProductIdentity[][] = [];
+    for (let index = 0; index < identities.length; index += SP_API_PRODUCT_BATCH_SIZE) {
+        chunks.push(identities.slice(index, index + SP_API_PRODUCT_BATCH_SIZE));
+    }
+    return chunks;
 };
 
 const retrievalKey = (identity: ProductIdentity) => `product:${productKey(identity)}`;
