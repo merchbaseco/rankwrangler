@@ -205,7 +205,9 @@ export const useProductHistoryPanelData = ({
 	const isKeepaSyncStale = getIsKeepaSyncStale({ keepaLastSyncAt });
 
 	useKeepaAutoSync({
-		enabled: Boolean(product.marketplaceId && product.asin),
+		enabled:
+			Boolean(product.marketplaceId && product.asin) &&
+			!resolvedProduct.isUnavailable,
 		isKeepaSyncStale,
 		isRankQueryError: rankQuery.isError,
 		isRankQueryLoading: rankQuery.isLoading,

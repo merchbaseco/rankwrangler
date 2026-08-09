@@ -42,6 +42,7 @@ describe("recent Product columns", () => {
 		expect(onSelectHistory).toHaveBeenCalledTimes(1);
 		expect(onSelectHistory.mock.calls[0]?.[0]).toMatchObject({
 			asin: product.asin,
+			isUnavailable: true,
 			rootCategoryBsr: product.rootCategoryBsr,
 		});
 	});

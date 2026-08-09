@@ -51,6 +51,7 @@ const RowBsrButton = ({
 			onSelect({
 				asin,
 				marketplaceId,
+				isUnavailable,
 				title,
 				thumbnail,
 				brand,

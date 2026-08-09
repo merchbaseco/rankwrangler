@@ -27,6 +27,7 @@ export type Product = {
 export type SelectedHistoryProduct = {
 	asin: string;
 	marketplaceId: string;
+	isUnavailable: boolean;
 	title: string | null;
 	thumbnail: ProductThumbnail;
 	brand: string | null;
