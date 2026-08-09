@@ -40,15 +40,16 @@ server freshness policy. A current cache hit returns immediately; missing or pol
 starts or joins durable work and waits. Caller deadline exhaustion does not cancel that work, and a
 retry coalesces with it.
 
-Product `get`/`history` and keyword inputs have no refresh control. Product Search retains its
-separate search input. Product `get`/`history` and keyword responses expose no stale or pending data,
-freshness, Operations, polling state, provider status or response `schemaVersion`.
+Product `get`/`getMany`/`history` and keyword inputs have no refresh control. Product Search retains
+its separate search input. Product `get`/`getMany`/`history` and keyword responses expose no stale
+or pending data, freshness, Operations, polling state, provider status or response `schemaVersion`.
 
 ## Procedures
 
 | Procedure | Transport | Result |
 | --- | --- | --- |
 | `api.public.product.get` | mutation | One current Product. |
+| `api.public.product.getMany` | mutation | Basic listing results for up to 200 Product identities. |
 | `api.public.product.search` | mutation | Keyword, search time, and compact Product results with placement. |
 | `api.public.product.history` | mutation | Product sales-rank and price series. |
 | `api.public.keyword.get` | query | Current Brand Analytics keyword evidence. |
@@ -102,6 +103,36 @@ measurements, `null` means valid data is unavailable. It never means zero, failu
 `isMerchListing` is RankWrangler classification from bullet evidence supplied through either source;
 `null` means the Product has not been classified from available evidence. A Sales-rank drop is an
 observed numeric BSR improvement, not a confirmed sale.
+
+## Basic Products
+
+`product.getMany` accepts one to 200 unique `{ marketplaceId, asin }` pairs. ASINs are normalized
+to uppercase. Results preserve request order and use a discriminated outcome so one ASIN absent
+from Amazon does not discard the other results:
+
+```ts
+type BasicProduct =
+    | {
+          marketplaceId: string;
+          asin: string;
+          status: 'available';
+          title: string | null;
+          thumbnail:
+              | { status: 'available'; url: string }
+              | { status: 'unavailable' };
+      }
+    | {
+          marketplaceId: string;
+          asin: string;
+          status: 'unavailable';
+      };
+```
+
+Cached listing data returns immediately. Cold identities are grouped by marketplace and fetched
+from SP-API in batches of 20. Every requested identity is persisted in the canonical catalog,
+including definitive unavailable results. Each pair consumes one Service Account usage unit.
+Keepa history is not part of the synchronous response; newly classified eligible Products enter
+the existing asynchronous history-refresh policy.
 
 ## Product Search
 

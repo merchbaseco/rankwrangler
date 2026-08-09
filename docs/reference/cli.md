@@ -34,7 +34,7 @@ then `MISSING_CONFIG`. Auth commands never print the secret.
 
 | Command | Result |
 | --- | --- |
-| `rw product get <ASIN>` | One current Product. |
+| `rw product get <ASIN...>` | One full Product, or basic results when given 2–200 ASINs. |
 | `rw product search <keyword>` | Keyword, search time, and compact Product results with placement. |
 | `rw product history <ASIN>` | Compact bucketed Product history. |
 | `rw keyword get <keyword>` | Current keyword evidence. |
@@ -49,16 +49,22 @@ Catalog, Operation, plural `products`, summary, and polling commands are not par
 
 ## Options
 
-Public freshness policy is server-owned for Product `get/history` and keyword reads; those commands
-accept no `--refresh`. Product Search retains its separate search contract. Common options are
-`--baseUrl`, `--marketplace`, and `--limit`.
+Public freshness policy is server-owned for Product `get/history` and keyword reads; those
+commands accept no `--refresh`. Product Search retains its separate search contract. Common options
+are `--baseUrl`, `--marketplace`, and `--limit`.
 
 Product history options:
 
 ```bash
 rw product get B0DV53VS61
+rw product get B0DV53VS61 B012345678
 rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 ```
+
+`product get` routes one ASIN to the full Product retrieval contract. With 2–200 unique ASINs it
+routes to the basic Product batch and returns an array in argument order, including per-item
+`available` or `unavailable` status. Every ASIN uses the marketplace resolved from `--marketplace`,
+saved configuration, or the normal US default.
 
 | Option | Values and default |
 | --- | --- |

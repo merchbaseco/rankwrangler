@@ -34,6 +34,13 @@ const product = await client.product.get.mutate({
     asin: 'B0DV53VS61',
 });
 
+const basicProducts = await client.product.getMany.mutate({
+    products: [
+        { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0DV53VS61' },
+        { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+    ],
+});
+
 const search = await client.product.search.mutate({
     term: 'retro gardening shirt',
 });
@@ -77,6 +84,7 @@ import type {
 } from '@rankwrangler/http-client';
 
 type ProductGetInput = PublicRouterInputs['product']['get'];
+type ProductGetManyOutput = PublicRouterOutputs['product']['getMany'];
 type ProductSearchOutput = PublicRouterOutputs['product']['search'];
 type ProductHistoryOutput = PublicRouterOutputs['product']['history'];
 type KeywordSearchOutput = PublicRouterOutputs['keyword']['search'];
@@ -105,9 +113,9 @@ daily reset.
 
 The client never polls. Every Product and keyword procedure returns policy-current final data or a
 standard error. Missing or policy-expired data may wait while durable work continues. Product
-`get`/`history` and keyword inputs expose no refresh control; Product Search retains its separate
-search input. Product `get`/`history` and keyword outputs expose no stale/pending data, freshness,
-Operations, provider status or schema version.
+`get`/`getMany`/`history` and keyword inputs expose no refresh control; Product Search retains its
+separate search input. Product `get`/`getMany`/`history` and keyword outputs expose no stale/pending
+data, freshness, Operations, provider status or schema version.
 Generated Product output preserves nullable `isMerchListing` knowledge; consumers must not coerce
 `null` to `false`.
 

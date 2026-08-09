@@ -21,6 +21,7 @@ kind of Product.
 | --- | --- |
 | Browser extension | Recognized Amazon search cards and detail pages request Product summaries and show BSR context. Missing or stale summaries are persisted. |
 | Product lookup | Dashboard, public API, and CLI ASIN reads use shared blocking Product retrieval. |
+| Basic Product batch | Public integrations synchronously resolve up to 200 identities while SP-API work is batched by marketplace. |
 | Dashboard Amazon results | Selecting a Top Search Term fetches current search rows and passes their ASINs through shared background Product retrieval. |
 | Keepa ingestion | Rich Product/history reads and scheduled refreshes normalize accepted Keepa Product data into the same Product and history records. |
 | Keepa Catalog search | One first-page response imports Keepa observations and histories, preserves Search-run membership, and leaves Product enrichment to shared background retrieval on run reads. |

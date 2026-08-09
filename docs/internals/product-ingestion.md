@@ -20,6 +20,7 @@ marketplace and ASIN; it does not own a separate copy of the Product.
 | --- | --- |
 | Extension | Product tiles request the public summary and cache the response locally for one hour. |
 | Public summary or rich Product read | Uses the shared blocking Product retrieval service. |
+| Public basic Product batch | Resolves up to 200 unique identities synchronously, using marketplace-specific SP-API batches of 20. |
 | Dashboard ASIN lookup | Uses the same shared blocking Product retrieval service. |
 | Dashboard Amazon keyword search | Returns live search rows and passes unique identities through shared background retrieval. |
 | Scheduled SP-API refresh | Selects stale Merch Products by BSR cadence and enqueues their ASINs. |
@@ -38,7 +39,8 @@ waits without exposing a public Operation or refresh control.
 The SP-API queue is unique by marketplace and ASIN. Inserting new work triggers an event-driven,
 singleton pg-boss wakeup; startup also kicks the queue so persisted rows survive a restart.
 
-The worker processes up to 20 ASINs at once, validates the provider response, and upserts each
+The worker and caller-synchronous batch retrieval process up to 20 same-marketplace ASINs per
+SP-API request, validate the provider response, and upsert each
 accepted Product. A queued ASIN missing from a successful provider response remains as a canonical
 identity, keeps its last-known listing data, gets a durable resolution timestamp, and is marked
 unavailable. A later response containing the ASIN clears that state. Provider failures do neither.

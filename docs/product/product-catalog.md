@@ -42,6 +42,11 @@ Agents use the public API, typed client, or CLI to read a Product by marketplace
 cached Product returns immediately. Missing or policy-expired Product data starts or joins durable
 work and waits; the public response is one current Product or a retryable error.
 
+Integrations that only need listing labels use the public basic Product batch. It accepts up to 200
+unique marketplace/ASIN pairs, preserves request order, and returns title and resolved thumbnail
+state for each available listing. Every requested identity joins the canonical catalog; eligible
+Products begin Keepa history collection asynchronously under the normal tracking policy.
+
 The dashboard Product drawer remains source-aware and may explain collection provenance and recent
 work. That observability is not part of the public Product contract.
 

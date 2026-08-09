@@ -26,6 +26,8 @@ observations, reconciles Products into the canonical catalog, and retains the Se
 creating an opaque recommendation engine.
 
 Canonical Product retrieval is shared across blocking ASIN reads and background bulk workflows.
+The public `product.getMany` procedure resolves up to 200 unique marketplace/ASIN pairs into compact
+title and thumbnail results, persists every identity, and batches cold SP-API work by marketplace.
 Catalog runs retain immutable search membership while their current Products resolve independently;
 cached and fresh runs use the same background path. Dashboard and internal Product records may retain
 `pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to
@@ -43,6 +45,7 @@ Install the CLI:
 npm install -g @rankwrangler/cli
 rw auth set
 rw product get B0XXXXXXXX
+rw product get B0XXXXXXXX B0YYYYYYYY
 rw product search "retro gardening shirt"
 rw product history B0XXXXXXXX --metrics salesRank,price --bucket auto
 rw keyword get "retro gardening shirt"
@@ -54,13 +57,13 @@ Each catalog search request renews the keyword's 30-day active window, including
 Active keywords receive automatic weekly refreshes; expired keywords become inactive without
 backfill. Search history labels Requested search versus Automatic refresh.
 
-Public Product get/history and keyword reads return final policy-current data without freshness
-envelopes or refresh controls. Product Search retains its separate search contract. When collection
-is needed, the shared server retrieval service waits transparently for policy-compliant data or
-returns a provider-neutral retryable error with a hint. Public callers never receive Operation
-identifiers or polling state. The dashboard retains its app-specific workflow and Clerk-authenticated
-completion subscriptions for internal Product history, Catalog search, and per-ASIN SP-API Product
-synchronization.
+Public Product get/getMany/history and keyword reads return final policy-current data without
+freshness envelopes or refresh controls. Product Search retains its separate search contract. When
+collection is needed, the shared server retrieval service waits transparently for policy-compliant
+data or returns a provider-neutral retryable error with a hint. Public callers never receive
+Operation identifiers or polling state. The dashboard retains its app-specific workflow and
+Clerk-authenticated completion subscriptions for internal Product history, Catalog search, and
+per-ASIN SP-API Product synchronization.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.
