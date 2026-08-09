@@ -30,8 +30,10 @@ Operation identifiers or provider-capacity details. The dashboard app keeps its 
 Operation-based refresh workflow.
 
 The hourly cadence scan enqueues stale eligible Products. The queue dispatcher runs every minute,
-sizes work from available Keepa capacity, and caps each batch. A queue row is unique by
-marketplace/ASIN. Failed work remains queued with bounded exponential backoff.
+checks for due work before refreshing provider capacity, and caps each batch. An idle dispatcher
+tick makes no Keepa request; work becoming due after the preflight waits at most one dispatcher
+interval. A queue row is unique by marketplace/ASIN. Failed work remains queued with bounded
+exponential backoff.
 
 ## Diagnose
 

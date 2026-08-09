@@ -5,12 +5,10 @@ import {
     type KeepaRefreshPolicyBucketStat,
     type SpApiRefreshPolicyBucketStat,
 } from '@/services/admin-refresh-policy-buckets.js';
-import {
-    createSpApiClient,
-    type SpApiOperationRateLimiterStat,
-} from '@/services/spapi/spapi-client.js';
 import { db } from '@/db/index.js';
 import { KEEPA_FETCH_SUCCESS_GUARD_LABEL } from '@/services/keepa-refresh-policy.js';
+import type { SpApiOperationRateLimiterStat } from '@/services/providers/sp-api/sp-api-limiter-manager';
+import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 
 type BucketRow = {
     bucket_start: string;
@@ -65,7 +63,7 @@ export const getAdminTimeSeries = async (): Promise<AdminStatsResponse> => {
         getSpApiRefreshPolicyBuckets(),
         getKeepaRefreshPolicyBuckets(),
         queryKeepaMerchCoverage(),
-        createSpApiClient().getOperationRateLimiterStats(),
+        createSpApiProvider().getOperationRateLimiterStats(),
     ]);
 
     const keepaTotal = sum(keepaBuckets.map((b) => b.total));

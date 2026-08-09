@@ -15,7 +15,7 @@ consume that contract.
 
 | Surface | Ownership |
 | --- | --- |
-| `apps/server` | Fastify/tRPC API, Drizzle persistence, source adapters, and pg-boss workers. |
+| `apps/server` | Fastify/tRPC API, Drizzle persistence, Provider bridges, and pg-boss workers. |
 | `apps/website` | Clerk-authenticated React dashboard for research and operations. |
 | `apps/extension` | Chrome and Safari augmentation of Amazon pages using the public API. |
 | `packages/http-client` | Published typed client derived from the public tRPC router. |
@@ -31,7 +31,8 @@ API; the server process owns migrations and optionally starts workers.
 - tRPC procedures authenticate, validate input, call services, and shape results.
 - Services own source policy, lifecycle, normalization, and orchestration.
 - Database modules own queries and transactional persistence.
-- Source adapters own SP-API, Keepa, Clerk, and Gemini protocols.
+- Provider bridges own SP-API and Keepa request mapping, authentication, rate limits, retries, and
+  short-lived attempt telemetry. Source-specific business normalization remains in services.
 - Jobs own deferred attempts; persistent tables own domain truth.
 
 The public typed client derives inputs and outputs from the server router. The CLI and extension do

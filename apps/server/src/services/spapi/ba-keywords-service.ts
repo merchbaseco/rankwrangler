@@ -1,17 +1,17 @@
 import { Readable } from 'node:stream';
 import { createGunzip } from 'node:zlib';
+import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
+import {
+    addBaKeywordRowToAccumulator,
+    type BaKeywordRow,
+    createBaKeywordAccumulator,
+    finalizeBaKeywordAccumulator,
+    type RawBaSearchTermsRow,
+} from '@/services/spapi/ba-keywords-aggregation.js';
 import {
     isSupportedSpApiMarketplaceId,
     SPAPI_US_MARKETPLACE_ID,
 } from '@/services/spapi/marketplaces.js';
-import { createSpApiClient } from '@/services/spapi/spapi-client.js';
-import {
-    addBaKeywordRowToAccumulator,
-    createBaKeywordAccumulator,
-    finalizeBaKeywordAccumulator,
-    type BaKeywordRow,
-    type RawBaSearchTermsRow,
-} from '@/services/spapi/ba-keywords-aggregation.js';
 
 export type BaReportPeriod = 'DAY' | 'WEEK';
 export type BaKeywordsParams = {
@@ -44,7 +44,7 @@ export type BaKeywordsSnapshotDebug = {
     parsedObjectRows: number;
     rejectedByReason: Record<string, number>;
 };
-const spApiClient = createSpApiClient();
+const spApiProvider = createSpApiProvider();
 const BA_REPORT_DOCUMENT_DOWNLOAD_TIMEOUT_MS = 120_000;
 type SpApiCreateReportResponse = {
     reportId?: string | null;
@@ -65,7 +65,7 @@ export const requestBaKeywordsReport = async (params: BaKeywordsParams) => {
 export const getBaKeywordsReportStatus = async (
     reportId: string
 ): Promise<BaKeywordsReportStatus> => {
-    const report = (await spApiClient.getReport(reportId)) as SpApiGetReportResponse;
+    const report = (await spApiProvider.getReport(reportId)) as SpApiGetReportResponse;
 
     return {
         processingStatus: String(report.processingStatus ?? 'UNKNOWN'),
@@ -83,11 +83,10 @@ export const downloadBaKeywordsSnapshot = async ({
     reportId: string;
 }): Promise<BaKeywordsSnapshot> => {
     assertSupportedMarketplaceId(params.marketplaceId);
-    const document = (await spApiClient.getReportDocument(
+    const document = (await spApiProvider.getReportDocument(
         reportDocumentId
     )) as SpApiReportDocumentResponse;
-    const response = await spApiClient.fetchWithTimeoutAndBackoff({
-        operation: `download BA report document (${reportDocumentId})`,
+    const response = await spApiProvider.downloadReportDocument({
         timeoutMs: BA_REPORT_DOCUMENT_DOWNLOAD_TIMEOUT_MS,
         url: document.url,
     });
@@ -98,7 +97,7 @@ export const downloadBaKeywordsSnapshot = async ({
 
     const parsed = await parseAndAggregateKeywords({
         compressionAlgorithm: document.compressionAlgorithm ?? null,
-        responseBody: responseBody,
+        responseBody,
     });
 
     return {
@@ -114,7 +113,7 @@ export const downloadBaKeywordsSnapshot = async ({
 };
 
 const createBaSearchTermsReport = async (params: BaKeywordsParams) => {
-    const report = (await spApiClient.createReport({
+    const report = (await spApiProvider.createReport({
         dataEndTime: `${params.dataEndDate}T23:59:59Z`,
         dataStartTime: `${params.dataStartDate}T00:00:00Z`,
         marketplaceIds: [params.marketplaceId],
@@ -140,9 +139,7 @@ const parseAndAggregateKeywords = async ({
 }) => {
     const source = Readable.fromWeb(responseBody);
     const stream =
-        compressionAlgorithm?.toUpperCase() === 'GZIP'
-            ? source.pipe(createGunzip())
-            : source;
+        compressionAlgorithm?.toUpperCase() === 'GZIP' ? source.pipe(createGunzip()) : source;
 
     const accumulator = createBaKeywordAccumulator();
     const debug: BaKeywordsSnapshotDebug = {

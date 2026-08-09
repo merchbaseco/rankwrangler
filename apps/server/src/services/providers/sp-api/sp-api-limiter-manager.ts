@@ -1,5 +1,6 @@
 import type Bottleneck from 'bottleneck';
-import { runWithSpApiBackoff } from '@/services/spapi/spapi-backoff.js';
+import { captureProviderAttempt } from '@/services/providers/provider-telemetry';
+import { runWithSpApiBackoff } from './sp-api-backoff';
 import {
     createLimiterState,
     extractRateLimitFromError,
@@ -8,12 +9,12 @@ import {
     getRateLimitTunedRps,
     getThrottlePenalizedRps,
     isThrottleError,
+    type SpApiLimiterOperationId,
+    type SpApiLimiterState,
     shouldApplyLimiterUpdate,
     shouldApplyThrottlePenalty,
     toLimiterSnapshot,
-    type SpApiLimiterOperationId,
-    type SpApiLimiterState,
-} from '@/services/spapi/spapi-rate-limiter.js';
+} from './sp-api-rate-limiter';
 
 export type SpApiOperationRateLimiterStat = {
     operationId: SpApiLimiterOperationId;
@@ -26,22 +27,22 @@ export type SpApiOperationRateLimiterStat = {
         currentReservoir: number | null;
     };
 
-type OperationLimiterConfig = {
+interface OperationLimiterConfig {
     burstCapacity: number;
     limiter: Bottleneck;
     maxConcurrent: number;
     operationId: SpApiLimiterOperationId;
     state: SpApiLimiterState;
-};
+}
 
-type ManagedLimiterConfig = {
+interface ManagedLimiterConfig {
     burstCapacity: number;
     configuredRps: number;
     label: string;
     limiter: Bottleneck;
     maxConcurrent: number;
     operationId: SpApiLimiterOperationId;
-};
+}
 
 export class SpApiLimiterManager {
     private readonly limiterConfigs: Record<SpApiLimiterOperationId, OperationLimiterConfig>;
@@ -84,7 +85,13 @@ export class SpApiLimiterManager {
                 return await config.limiter.schedule(async () => {
                     await ensureAccessTokenFreshness();
                     try {
-                        const result = await run();
+                        const result = await captureProviderAttempt(
+                            {
+                                provider: 'spapi',
+                                operation: mapTelemetryOperation(operationId),
+                            },
+                            run
+                        );
                         await this.trackOperationSuccess({
                             operationId,
                             response: result,
@@ -114,7 +121,7 @@ export class SpApiLimiterManager {
         );
     };
 
-    private trackOperationSuccess = async ({
+    private readonly trackOperationSuccess = async ({
         operationId,
         response,
     }: {
@@ -144,7 +151,7 @@ export class SpApiLimiterManager {
         });
     };
 
-    private trackOperationFailure = async ({
+    private readonly trackOperationFailure = async ({
         error,
         operationId,
     }: {
@@ -174,7 +181,7 @@ export class SpApiLimiterManager {
         }
     };
 
-    private applyLimiterRps = async ({
+    private readonly applyLimiterRps = async ({
         config,
         nextRps,
     }: {
@@ -203,3 +210,20 @@ export class SpApiLimiterManager {
         config.state.adaptations += 1;
     };
 }
+
+const mapTelemetryOperation = (operationId: SpApiLimiterOperationId) => {
+    switch (operationId) {
+        case 'catalog.searchCatalogItems':
+            return 'spapi.catalog.search' as const;
+        case 'reports.createReport':
+            return 'spapi.reports.create' as const;
+        case 'reports.getReport':
+            return 'spapi.reports.get' as const;
+        case 'reports.getReportDocument':
+            return 'spapi.reports.getDocument' as const;
+        default: {
+            const unexpectedOperation: never = operationId;
+            return unexpectedOperation;
+        }
+    }
+};

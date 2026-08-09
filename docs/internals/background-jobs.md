@@ -30,6 +30,7 @@ where a second attempt would be redundant.
 | Top Search Terms dataset sync | Every five minutes with a bounded due-window batch. |
 | Top Search Terms report fetch | Event-driven; one grouped fetch across server instances. |
 | Product facets | One-minute worker definition, currently disabled by policy. |
+| Provider-attempt retention | Daily bounded deletion of attempts older than seven days. |
 
 ## State Ownership
 

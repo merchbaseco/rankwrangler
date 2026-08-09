@@ -16,7 +16,7 @@ import {
     getBaKeywordsReportStatus,
     requestBaKeywordsReport,
 } from '@/services/spapi/ba-keywords-service.js';
-import { SpApiBackoffError } from '@/services/spapi/spapi-backoff.js';
+import { SpApiBackoffError } from '@/services/providers/sp-api/sp-api-backoff';
 import {
     getNextRefreshAtAfterSuccess,
     getRetryRefreshAt,

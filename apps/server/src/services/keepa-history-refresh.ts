@@ -6,10 +6,7 @@ import {
     productHistoryImports,
     products,
 } from '@/db/schema.js';
-import {
-    ensureFreshKeepaTokenState,
-    getKeepaRuntimeTokenState,
-} from '@/services/keepa.js';
+import { createKeepaProvider } from '@/services/providers/keepa/keepa-provider';
 import {
     getKeepaFailureRetryDelayMs,
     getKeepaRefreshDecision,
@@ -23,6 +20,7 @@ const KEEPA_DISPATCH_HOLD_MS = 5 * 60 * 1000;
 const KEEPA_MIN_TOKEN_BUFFER = 0;
 const KEEPA_TOKENS_PER_HISTORY_FETCH = 2;
 const KEEPA_PROCESS_MAX_BATCH_SIZE = 10;
+const keepaProvider = createKeepaProvider();
 
 export type KeepaHistoryRefreshQueueItem = {
     id: string;
@@ -99,7 +97,7 @@ export const enqueueKeepaHistoryRefreshForAsin = async ({
 };
 
 export const getKeepaHistoryRefreshQueueBatchSize = () => {
-    const tokenState = getKeepaRuntimeTokenState();
+    const tokenState = keepaProvider.getRuntimeTokenState();
     const tokensLeft = tokenState.tokensLeft;
 
     if (typeof tokensLeft !== 'number') {
@@ -115,8 +113,18 @@ export const getKeepaHistoryRefreshQueueBatchSize = () => {
 };
 
 export const getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens = async () => {
-    await ensureFreshKeepaTokenState();
+    await keepaProvider.ensureFreshTokenState();
     return getKeepaHistoryRefreshQueueBatchSize();
+};
+
+export const hasDueKeepaHistoryRefreshQueueItems = async () => {
+    const rows = await db
+        .select({ id: keepaHistoryRefreshQueue.id })
+        .from(keepaHistoryRefreshQueue)
+        .where(lte(keepaHistoryRefreshQueue.nextAttemptAt, new Date()))
+        .limit(1);
+
+    return rows.length > 0;
 };
 
 export const getDueKeepaHistoryRefreshQueueItems = async (
@@ -273,7 +281,7 @@ export const recordKeepaHistoryRefreshFailure = async ({
 };
 
 export const getKeepaHistoryRefreshQueueStats = async () => {
-    await ensureFreshKeepaTokenState();
+    await keepaProvider.ensureFreshTokenState();
 
     let totalQueued = 0;
     let dueNow = 0;
@@ -337,7 +345,7 @@ export const getKeepaHistoryRefreshQueueStats = async () => {
             oldestQueuedAt,
             processBatchSize: getKeepaHistoryRefreshQueueBatchSize(),
         },
-        tokens: getKeepaRuntimeTokenState(),
+        tokens: keepaProvider.getRuntimeTokenState(),
     };
 };
 

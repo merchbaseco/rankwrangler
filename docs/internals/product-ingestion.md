@@ -63,7 +63,9 @@ process.
 
 ## Boundaries
 
-- Source adapters validate and normalize upstream payloads.
+- Provider bridges invoke typed Keepa and SP-API operations and own authentication, rate limits,
+  retries, and Provider-attempt telemetry.
+- Source-specific services validate and normalize upstream payloads.
 - Product persistence owns merge rules and transaction boundaries.
 - Queues own backpressure and retries, not Product freshness.
 - The activity log records meaningful outcomes; job executions record worker attempts.

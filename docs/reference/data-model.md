@@ -7,10 +7,10 @@ read_when:
 
 # Data Model
 
-**Migration status:** The owning schema now stores the durable Product listing-resolution timestamp
-and nullable `products.is_merch_listing`; generated migration `0032_useful_skrulls.sql` drops the
-old default/`NOT NULL` constraint without rewriting existing `false` rows. Apply the Drizzle
-migration before deploying this code.
+**Migration status:** Generated migration `0032_useful_skrulls.sql` stores the durable Product
+listing-resolution timestamp and nullable `products.is_merch_listing`. Generated migration
+`0034_flowery_winter_soldier.sql` adds short-lived Provider attempts. Apply both migrations before
+deploying code that depends on them.
 
 ## Canonical identity
 
@@ -40,6 +40,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Search result | `(runId, productId)` | Immutable Search-run membership, Product ordinal, and observed metrics. |
 | Activity event | generated id | Searchable record of a product, history, job, or system action. |
 | Job execution | generated id | One completed background-job run with input, output, and error state. |
+| Provider attempt | generated id | One physical Keepa or SP-API request with typed operation, attempt time, status/error, and latency; retained for seven days. |
 | Access Projection | `(issuer, subject)` | Local Clerk identity projection, access state, stable Merchbase User, source watermark, and tombstone. |
 | Service Account | fixed `rankwrangler` service plus stable Merchbase User | One mapped principal with lifetime/daily usage, limit, and reset state. |
 
@@ -51,6 +52,8 @@ The active schema is split by responsibility:
   Analytics datasets, snapshots, and daily term rows.
 - [`ops-schema.ts`](../../apps/server/src/db/ops-schema.ts) owns Operations, activity events, and
   job execution records.
+- [`provider-telemetry-schema.ts`](../../apps/server/src/db/provider-telemetry-schema.ts) owns
+  short-lived raw Provider attempts.
 
 ## Operations
 

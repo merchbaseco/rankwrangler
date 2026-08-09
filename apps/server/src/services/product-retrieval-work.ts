@@ -1,5 +1,5 @@
 import type { ProductIdentity, StoredProductRead } from '@/db/product/get-products';
-import { SpApiBackoffError } from '@/services/spapi/spapi-backoff';
+import { SpApiBackoffError } from '@/services/providers/sp-api/sp-api-backoff';
 import type { SpApiProduct } from '@/types';
 import type { ProductRetrievalDeps } from './product-retrieval';
 import {

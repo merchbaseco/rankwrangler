@@ -17,6 +17,7 @@ import { operationGet } from './operation-get.js';
 import { productGet } from './product-get';
 import { productHistoryRefreshCompleted } from './product-history-refresh-completed';
 import { productSyncCompleted } from './product-sync-completed';
+import { providerTelemetryGet } from './provider-telemetry-get';
 import { recentProducts } from './recent-products.js';
 import { searchtermsRouter } from './searchterms-router.js';
 import { topSearchTermsStatus } from './top-search-terms-status.js';
@@ -42,6 +43,9 @@ export const appApiRouter = router({
     loadProductHistory,
     operation: router({
         get: operationGet,
+    }),
+    providerTelemetry: router({
+        get: providerTelemetryGet,
     }),
     product: router({
         get: productGet,

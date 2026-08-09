@@ -1,5 +1,5 @@
 import { classifyMerchListing } from '@/services/merch-listing-classification';
-import { createSpApiClient } from '@/services/spapi/spapi-client.js';
+import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import type { SpApiProduct } from '@/types/index.js';
 import {
@@ -9,7 +9,7 @@ import {
     VariantSchema,
 } from './search-catalog-items-schema.js';
 
-const spApiClient = createSpApiClient();
+const spApiProvider = createSpApiProvider();
 
 // Get product info using searchCatalogItems API (supports single or multiple ASINs)
 export const searchCatalogItemsByAsins = async (
@@ -24,7 +24,7 @@ export const searchCatalogItemsByAsins = async (
         throw new Error('ASINs are required');
     }
 
-    const rawResponse = await spApiClient.searchCatalogItemsByAsins({
+    const rawResponse = await spApiProvider.searchCatalogItemsByAsins({
         asins,
         marketplaceId,
     });

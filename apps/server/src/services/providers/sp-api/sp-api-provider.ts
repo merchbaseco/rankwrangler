@@ -1,15 +1,10 @@
 // @ts-expect-error - SDK doesn't export types properly in package.json
 import { CatalogitemsSpApi, ReportsSpApi } from '@amazon-sp-api-release/amazon-sp-api-sdk-js';
 import Bottleneck from 'bottleneck';
-import { ensureAccessTokenFreshness as ensureSpApiAccessTokenFreshness } from '@/services/spapi/spapi-access-token.js';
-import {
-    createSpApiHttpError,
-    runWithSpApiBackoff,
-} from '@/services/spapi/spapi-backoff.js';
-import {
-    SpApiLimiterManager,
-    type SpApiOperationRateLimiterStat,
-} from '@/services/spapi/spapi-limiter-manager.js';
+import { captureProviderAttempt } from '@/services/providers/provider-telemetry';
+import { ensureAccessTokenFreshness as ensureSpApiAccessTokenFreshness } from './sp-api-access-token';
+import { createSpApiHttpError, runWithSpApiBackoff } from './sp-api-backoff';
+import { SpApiLimiterManager, type SpApiOperationRateLimiterStat } from './sp-api-limiter-manager';
 
 // Reports API per-operation limits:
 // - createReport: 0.0167 RPS, burst 15
@@ -26,7 +21,7 @@ const REPORTS_GET_LIMIT = {
     maxConcurrent: 2,
     reservoir: 15,
     reservoirIncreaseAmount: 2,
-    reservoirIncreaseInterval: 1_000,
+    reservoirIncreaseInterval: 1000,
     reservoirIncreaseMaximum: 15,
 } as const;
 const REPORTS_GET_DOCUMENT_LIMIT = {
@@ -40,20 +35,28 @@ const CATALOG_SEARCH_LIMIT = {
     maxConcurrent: 2,
     reservoir: 2,
     reservoirIncreaseAmount: 2,
-    reservoirIncreaseInterval: 1_000,
+    reservoirIncreaseInterval: 1000,
     reservoirIncreaseMaximum: 2,
 } as const;
 
 type ReportsOperation = 'createReport' | 'getReport' | 'getReportDocument';
 
-type LimiterSettings = {
+interface LimiterSettings {
     reservoirIncreaseAmount: number;
     reservoirIncreaseInterval: number;
-};
+}
 
-export class SpApiClient {
-    readonly catalog: InstanceType<typeof CatalogitemsSpApi.ApiClient>;
-    readonly reports: InstanceType<typeof ReportsSpApi.ApiClient>;
+export interface SpApiCreateReportRequest {
+    dataEndTime: string;
+    dataStartTime: string;
+    marketplaceIds: string[];
+    reportOptions: { reportPeriod: 'DAY' | 'WEEK' };
+    reportType: 'GET_BRAND_ANALYTICS_SEARCH_TERMS_REPORT';
+}
+
+export class SpApiProvider {
+    private readonly catalog: InstanceType<typeof CatalogitemsSpApi.ApiClient>;
+    private readonly reports: InstanceType<typeof ReportsSpApi.ApiClient>;
     private readonly catalogApi: InstanceType<typeof CatalogitemsSpApi.CatalogApi>;
     private readonly reportsApi: InstanceType<typeof ReportsSpApi.ReportsApi>;
     private readonly catalogSearchLimiter: Bottleneck;
@@ -160,7 +163,7 @@ export class SpApiClient {
         });
     };
 
-    createReport = async (payload: unknown) => {
+    createReport = async (payload: SpApiCreateReportRequest) => {
         return await this.runReportOperation({
             operation: 'create BA search terms report',
             operationId: 'reports.createReport',
@@ -184,35 +187,32 @@ export class SpApiClient {
         });
     };
 
-    fetchWithTimeoutAndBackoff = async ({
-        operation,
-        timeoutMs,
-        url,
-    }: {
-        operation: string;
-        timeoutMs: number;
-        url: string;
-    }) => {
+    downloadReportDocument = async ({ timeoutMs, url }: { timeoutMs: number; url: string }) => {
+        const operation = 'download BA report document';
         return await runWithSpApiBackoff({
             operation,
-            run: async () => {
-                const response = await this.fetchWithTimeout(url, timeoutMs);
-                if (!response.ok) {
-                    throw createSpApiHttpError(
-                        `${operation} failed with status ${response.status}.`,
-                        response.status
-                    );
-                }
-                if (!response.body) {
-                    throw new Error(`${operation} returned an empty response body.`);
-                }
+            run: async () =>
+                await captureProviderAttempt(
+                    { provider: 'spapi', operation: 'spapi.reports.download' },
+                    async () => {
+                        const response = await this.fetchWithTimeout(url, timeoutMs);
+                        if (!response.ok) {
+                            throw createSpApiHttpError(
+                                `${operation} failed with status ${response.status}.`,
+                                response.status
+                            );
+                        }
+                        if (!response.body) {
+                            throw new Error(`${operation} returned an empty response body.`);
+                        }
 
-                return response;
-            },
+                        return response;
+                    }
+                ),
         });
     };
 
-    fetchWithTimeout = async (url: string, timeoutMs: number) => {
+    private readonly fetchWithTimeout = async (url: string, timeoutMs: number) => {
         const controller = new AbortController();
         const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -233,7 +233,7 @@ export class SpApiClient {
         return await this.limiterManager.getOperationRateLimiterStats();
     };
 
-    private runReportOperation = async <T>({
+    private readonly runReportOperation = async <T>({
         operation,
         operationId,
         run,
@@ -251,7 +251,7 @@ export class SpApiClient {
         });
     };
 
-    private ensureAccessTokenFreshness = async (
+    private readonly ensureAccessTokenFreshness = async (
         client:
             | InstanceType<typeof CatalogitemsSpApi.ApiClient>
             | InstanceType<typeof ReportsSpApi.ApiClient>
@@ -259,7 +259,7 @@ export class SpApiClient {
         await ensureSpApiAccessTokenFreshness(client);
     };
 
-    private isAbortError = (error: unknown) => {
+    private readonly isAbortError = (error: unknown) => {
         return (
             error instanceof Error &&
             (error.name === 'AbortError' || error.message.toLowerCase().includes('aborted'))
@@ -267,18 +267,16 @@ export class SpApiClient {
     };
 }
 
-export const createSpApiClient = () => {
-    if (!sharedSpApiClient) {
-        sharedSpApiClient = new SpApiClient();
+export const createSpApiProvider = () => {
+    if (!sharedSpApiProvider) {
+        sharedSpApiProvider = new SpApiProvider();
     }
 
-    return sharedSpApiClient;
+    return sharedSpApiProvider;
 };
 
-let sharedSpApiClient: SpApiClient | null = null;
+let sharedSpApiProvider: SpApiProvider | null = null;
 
 const getConfiguredRpsFromSettings = (settings: LimiterSettings) => {
-    return settings.reservoirIncreaseAmount / (settings.reservoirIncreaseInterval / 1_000);
+    return settings.reservoirIncreaseAmount / (settings.reservoirIncreaseInterval / 1000);
 };
-
-export type { SpApiOperationRateLimiterStat };

@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { getProductDetails, getRequiredProduct } from './product-retrieval';
 import { RetrievalRetryableError } from './retrieval-coordinator';
-import { SpApiBackoffError } from './spapi/spapi-backoff';
+import { SpApiBackoffError } from './providers/sp-api/sp-api-backoff';
 
 describe('Product detail retrieval', () => {
     it('returns stale available Product details immediately and schedules background work', async () => {

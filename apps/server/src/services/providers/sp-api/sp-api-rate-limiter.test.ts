@@ -7,7 +7,7 @@ import {
     getThrottlePenalizedRps,
     isThrottleError,
     shouldApplyThrottlePenalty,
-} from '@/services/spapi/spapi-rate-limiter.js';
+} from './sp-api-rate-limiter';
 
 describe('extractRateLimitFromResponse', () => {
     it('reads x-amzn-ratelimit-limit from root headers', () => {

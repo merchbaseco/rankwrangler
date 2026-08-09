@@ -15,6 +15,21 @@ Evidence supplied by an external data source before RankWrangler reconciles it i
 intelligence.
 _Avoid_: Product truth, public Product field
 
+**Provider telemetry**:
+Short-lived operational evidence about RankWrangler's outbound calls to external data providers.
+It supports incident diagnosis and usage inspection, not Product truth or billing.
+_Avoid_: Activity event, provider observation, audit log
+
+**Provider attempt**:
+One physical outbound request to a provider, including an individual retry. It is distinct from the
+larger job, Operation, or domain action that caused it.
+_Avoid_: Provider operation, job attempt
+
+**Provider operation**:
+A stable, low-cardinality name that groups Provider attempts by integration behavior, such as
+`keepa.product` or `spapi.catalog.search`.
+_Avoid_: Raw URL, request path, provider attempt
+
 **Opportunity assessment**:
 A consumer-specific interpretation of product intelligence used to decide whether to pursue a
 market idea. It is not itself product intelligence.

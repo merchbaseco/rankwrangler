@@ -1,42 +1,15 @@
 import { TRPCError } from '@trpc/server';
-import { env } from '@/config/env';
-import {
-    recordKeepaProviderUsage,
-    scheduleKeepaProviderRequest,
-} from './keepa';
-import type { KeepaProductPayload } from './keepa-product-normalizer';
+import { createKeepaProvider, type KeepaProvider } from '@/services/providers/keepa/keepa-provider';
 
 const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';
-const US_KEEPA_DOMAIN_ID = 1;
 const CATALOG_SEARCH_RESULT_LIMIT = 20;
 
-type KeepaCatalogSearchPayload = {
-    products?: KeepaProductPayload[];
-    tokensConsumed?: number;
-    tokensLeft?: number;
-    refillIn?: number;
-    refillRate?: number;
-    error?: {
-        code?: string;
-        message?: string;
-    };
-};
-
-type KeepaCatalogSearchDeps = {
-    apiKey: string | undefined;
-    fetchImpl: typeof fetch;
-    scheduleRequest: <T>(
-        priority: 'interactiveCatalog' | 'scheduledCatalog',
-        request: () => Promise<T>
-    ) => Promise<T>;
-    recordUsage: typeof recordKeepaProviderUsage;
-};
+interface KeepaCatalogSearchDeps {
+    provider: Pick<KeepaProvider, 'isConfigured' | 'searchCatalog'>;
+}
 
 const defaultDeps: KeepaCatalogSearchDeps = {
-    apiKey: env.KEEPA_API_KEY,
-    fetchImpl: fetch,
-    scheduleRequest: (priority, request) => scheduleKeepaProviderRequest(priority, request),
-    recordUsage: recordKeepaProviderUsage,
+    provider: createKeepaProvider(),
 };
 
 export const searchKeepaCatalog = async (
@@ -58,46 +31,41 @@ export const searchKeepaCatalog = async (
             message: 'Catalog search currently supports only the US marketplace.',
         });
     }
-    if (!deps.apiKey) {
+    if (!deps.provider.isConfigured()) {
         throw new TRPCError({
             code: 'PRECONDITION_FAILED',
             message: 'KEEPA_API_KEY is not configured',
         });
     }
 
-    const params = new URLSearchParams({
-        key: deps.apiKey,
-        domain: String(US_KEEPA_DOMAIN_ID),
-        type: 'product',
+    const payload = await fetchCatalogPayload(deps.provider, {
+        marketplaceId,
         term,
-        page: '0',
-        'asins-only': '0',
-        stats: '365',
-        update: '1',
-        history: '1',
+        priority: priority === 'interactive' ? 'interactiveCatalog' : 'scheduledCatalog',
     });
-    const response = await deps.scheduleRequest(
-        priority === 'interactive' ? 'interactiveCatalog' : 'scheduledCatalog',
-        () => deps.fetchImpl(`https://api.keepa.com/search?${params.toString()}`)
-    );
-    const payload = (await response.json()) as KeepaCatalogSearchPayload;
     const internalUsage = {
         tokensConsumed: payload.tokensConsumed ?? null,
         tokensLeft: payload.tokensLeft ?? null,
         refillInMs: payload.refillIn ?? null,
         refillRate: payload.refillRate ?? null,
     };
-    deps.recordUsage(internalUsage);
-
-    if (!response.ok || payload.error?.message) {
-        throw new TRPCError({
-            code: 'BAD_GATEWAY',
-            message: 'Keepa Catalog search failed.',
-        });
-    }
-
     return {
         products: (payload.products ?? []).slice(0, CATALOG_SEARCH_RESULT_LIMIT),
         internalUsage,
     };
+};
+
+const fetchCatalogPayload = async (
+    provider: KeepaCatalogSearchDeps['provider'],
+    input: Parameters<KeepaProvider['searchCatalog']>[0]
+) => {
+    try {
+        return await provider.searchCatalog(input);
+    } catch (cause) {
+        throw new TRPCError({
+            code: 'BAD_GATEWAY',
+            message: 'Keepa Catalog search failed.',
+            cause,
+        });
+    }
 };

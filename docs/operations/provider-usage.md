@@ -27,3 +27,9 @@ Product-drawer tooltips are app observability, not public Product fields. They m
 Keepa provenance, last attempt and success, source observation time, supplied data categories, and
 the latest error or retry. Public Product reads remain provider-neutral and never use this metadata
 as a caller-managed freshness protocol.
+
+For incident diagnosis, `api.app.providerTelemetry.get` returns a typed admin-only view of raw
+physical Keepa and SP-API attempts. It defaults to 24 hours, accepts at most seven days, and returns
+totals, provider/operation/outcome breakdowns, and at most 100 recent attempts. Provider and
+operation filters use fixed code-owned names; payloads, URLs, headers, error text, and business
+correlation are never stored. A daily bounded job deletes attempts older than seven days.

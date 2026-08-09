@@ -1,10 +1,11 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { searchKeepaCatalog } from './keepa-catalog-search';
-import { getKeepaProviderPriority } from './keepa';
+import { getKeepaProviderPriority } from './providers/keepa/keepa-marketplaces';
 
 const recording = await Bun.file(
     new URL('../../test/fixtures/keepa-catalog-search/retro-gardening-shirt.json', import.meta.url)
 ).json();
+const configuredProvider = { isConfigured: () => true } as const;
 
 describe('Keepa Catalog search adapter', () => {
     it('orders interactive Catalog, scheduled Catalog, then Product refresh work', () => {
@@ -20,7 +21,7 @@ describe('Keepa Catalog search adapter', () => {
     });
 
     it('replays Product Search through the production boundary in one bounded request', async () => {
-        const fetchImpl = mock(async () => Response.json(recording.response));
+        const searchCatalog = mock(async () => recording.response);
 
         const result = await searchKeepaCatalog(
             {
@@ -29,25 +30,19 @@ describe('Keepa Catalog search adapter', () => {
                 priority: 'interactive',
             },
             {
-                apiKey: 'recording-key',
-                fetchImpl,
-                scheduleRequest: async (_priority, request) => await request(),
-                recordUsage: () => {},
+                provider: { ...configuredProvider, searchCatalog },
             }
         );
 
-        expect(fetchImpl.mock.calls).toHaveLength(1);
-        const requestUrl = new URL(String(fetchImpl.mock.calls[0]?.[0]));
-        expect(requestUrl.pathname).toBe('/search');
-        expect(Object.fromEntries(requestUrl.searchParams)).toMatchObject({
-            domain: '1',
-            type: 'product',
-            term: recording.request.term,
-            page: '0',
-            'asins-only': '0',
-            stats: '365',
-            history: '1',
-        });
+        expect(searchCatalog.mock.calls).toEqual([
+            [
+                {
+                    marketplaceId: 'ATVPDKIKX0DER',
+                    term: recording.request.term,
+                    priority: 'interactiveCatalog',
+                },
+            ],
+        ]);
         expect(result.products).toHaveLength(2);
         expect(result.products[0]?.asin).toBe('B0MERCH001');
         expect(result.products[0]?.csv?.[3]).toEqual([5_000_900, 60_000, 5_001_000, 54_321]);
@@ -66,10 +61,10 @@ describe('Keepa Catalog search adapter', () => {
                 priority: 'interactive',
             },
             {
-                apiKey: 'recording-key',
-                fetchImpl: mock(async () => Response.json({ products })),
-                scheduleRequest: async (_priority, request) => await request(),
-                recordUsage: () => {},
+                provider: {
+                    ...configuredProvider,
+                    searchCatalog: async () => ({ products }),
+                },
             }
         );
 
@@ -77,10 +72,7 @@ describe('Keepa Catalog search adapter', () => {
     });
 
     it('preserves interactive and scheduled Catalog priority at the shared Keepa limiter', async () => {
-        const scheduleRequest = mock(
-            async (_priority: 'interactiveCatalog' | 'scheduledCatalog', request: () => Promise<Response>) =>
-                await request()
-        );
+        const searchCatalog = mock(async () => ({ products: [] }));
 
         await searchKeepaCatalog(
             {
@@ -89,13 +81,10 @@ describe('Keepa Catalog search adapter', () => {
                 priority: 'scheduled',
             },
             {
-                apiKey: 'recording-key',
-                fetchImpl: mock(async () => Response.json({ products: [] })),
-                scheduleRequest,
-                recordUsage: () => {},
+                provider: { ...configuredProvider, searchCatalog },
             }
         );
 
-        expect(scheduleRequest.mock.calls[0]?.[0]).toBe('scheduledCatalog');
+        expect(searchCatalog.mock.calls[0]?.[0].priority).toBe('scheduledCatalog');
     });
 });

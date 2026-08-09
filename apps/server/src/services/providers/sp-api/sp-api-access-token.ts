@@ -1,17 +1,15 @@
 import { env } from '@/config/env.js';
-import {
-    createSpApiHttpError,
-    runWithSpApiBackoff,
-} from '@/services/spapi/spapi-backoff.js';
+import { captureProviderAttempt } from '@/services/providers/provider-telemetry';
+import { createSpApiHttpError, runWithSpApiBackoff } from './sp-api-backoff';
 
-type SpApiClientWithAccessTokenSetter = {
+interface SpApiClientWithAccessTokenSetter {
     applyXAmzAccessTokenToRequest: (accessToken: string) => unknown;
-};
+}
 
-type SpApiAccessTokenPayload = {
+interface SpApiAccessTokenPayload {
     accessToken: string;
     expiresAtMs: number;
-};
+}
 
 const LWA_ACCESS_TOKEN_URL = 'https://api.amazon.com/auth/o2/token';
 const LWA_ACCESS_TOKEN_TIMEOUT_MS = 15_000;
@@ -19,9 +17,7 @@ const LWA_ACCESS_TOKEN_EXPIRY_BUFFER_MS = 60_000;
 
 let cachedSpApiAccessToken: SpApiAccessTokenPayload | null = null;
 
-export const ensureAccessTokenFreshness = async (
-    client: SpApiClientWithAccessTokenSetter
-) => {
+export const ensureAccessTokenFreshness = async (client: SpApiClientWithAccessTokenSetter) => {
     const accessToken = await getSpApiAccessToken();
     client.applyXAmzAccessTokenToRequest(accessToken);
 };
@@ -29,8 +25,7 @@ export const ensureAccessTokenFreshness = async (
 const getSpApiAccessToken = async () => {
     if (
         cachedSpApiAccessToken &&
-        cachedSpApiAccessToken.expiresAtMs - LWA_ACCESS_TOKEN_EXPIRY_BUFFER_MS >
-            Date.now()
+        cachedSpApiAccessToken.expiresAtMs - LWA_ACCESS_TOKEN_EXPIRY_BUFFER_MS > Date.now()
     ) {
         return cachedSpApiAccessToken.accessToken;
     }
@@ -48,30 +43,35 @@ const fetchLwaAccessToken = async (): Promise<SpApiAccessTokenPayload> => {
     const timeoutHandle = setTimeout(() => controller.abort(), LWA_ACCESS_TOKEN_TIMEOUT_MS);
 
     try {
-        const response = await fetch(LWA_ACCESS_TOKEN_URL, {
-            body: new URLSearchParams({
-                client_id: env.SPAPI_CLIENT_ID,
-                client_secret: env.SPAPI_APP_CLIENT_SECRET,
-                grant_type: 'refresh_token',
-                refresh_token: env.SPAPI_REFRESH_TOKEN,
-            }),
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-            },
-            method: 'POST',
-            signal: controller.signal,
-        });
+        const result = await captureProviderAttempt(
+            { provider: 'spapi', operation: 'spapi.lwa.token' },
+            async () => {
+                const response = await fetch(LWA_ACCESS_TOKEN_URL, {
+                    body: new URLSearchParams({
+                        client_id: env.SPAPI_CLIENT_ID,
+                        client_secret: env.SPAPI_APP_CLIENT_SECRET,
+                        grant_type: 'refresh_token',
+                        refresh_token: env.SPAPI_REFRESH_TOKEN,
+                    }),
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    },
+                    method: 'POST',
+                    signal: controller.signal,
+                });
 
-        if (!response.ok) {
-            throw createSpApiHttpError(
-                `LWA access token request failed with status ${response.status}.`,
-                response.status
-            );
-        }
+                if (!response.ok) {
+                    throw createSpApiHttpError(
+                        `LWA access token request failed with status ${response.status}.`,
+                        response.status
+                    );
+                }
 
-        const payload = await response.json();
-        const accessToken = getAccessTokenFromPayload(payload);
-        const expiresInSeconds = getExpiresInSecondsFromPayload(payload);
+                return { payload: await response.json(), status: response.status };
+            }
+        );
+        const accessToken = getAccessTokenFromPayload(result.payload);
+        const expiresInSeconds = getExpiresInSecondsFromPayload(result.payload);
 
         return {
             accessToken,
@@ -104,8 +104,7 @@ const getExpiresInSecondsFromPayload = (payload: unknown) => {
     }
 
     const expiresInRaw = payload.expires_in;
-    const expiresInSeconds =
-        typeof expiresInRaw === 'number' ? expiresInRaw : Number(expiresInRaw);
+    const expiresInSeconds = typeof expiresInRaw === 'number' ? expiresInRaw : Number(expiresInRaw);
 
     if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
         throw new Error('LWA access token response included invalid expires_in.');

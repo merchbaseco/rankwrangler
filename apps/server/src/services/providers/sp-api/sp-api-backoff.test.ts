@@ -5,7 +5,7 @@ import {
     isRetryableSpApiError,
     runWithSpApiBackoff,
     SpApiBackoffError,
-} from '@/services/spapi/spapi-backoff.js';
+} from './sp-api-backoff';
 
 describe('getExponentialBackoffDelayMs', () => {
     it('doubles delays and caps at max delay', () => {

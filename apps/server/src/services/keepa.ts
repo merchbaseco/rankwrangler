@@ -1,6 +1,5 @@
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
-import Bottleneck from 'bottleneck';
 import { env } from '@/config/env.js';
 import { db } from '@/db/index.js';
 import {
@@ -10,11 +9,14 @@ import {
     products,
 } from '@/db/schema.js';
 import { ingestKeepaProduct } from '@/services/keepa-product-ingestion';
-import type {
-    KeepaProductPayload,
-    NormalizedKeepaHistoryPoint,
-} from '@/services/keepa-product-normalizer';
+import type { NormalizedKeepaHistoryPoint } from '@/services/keepa-product-normalizer';
 import { KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS } from '@/services/keepa-refresh-policy.js';
+import { createKeepaProvider } from '@/services/providers/keepa/keepa-provider';
+import {
+    KeepaApiError,
+    type KeepaCategoryResponse,
+    type KeepaResponse,
+} from '@/services/providers/keepa/keepa-provider-types';
 
 export const keepaHistoryMetricKeys = [
     'bsrMain',
@@ -44,48 +46,6 @@ type GetProductHistoryPointsParams = {
     limit: number;
 };
 
-type KeepaResponse = {
-    products?: KeepaProductPayload[];
-    tokensConsumed?: number;
-    tokensLeft?: number;
-    refillIn?: number;
-    refillRate?: number;
-    error?: {
-        code?: string;
-        message?: string;
-    };
-};
-
-type KeepaCategoryResponse = {
-    categories?: Record<string, KeepaCategory>;
-    tokensConsumed?: number;
-    tokensLeft?: number;
-    refillIn?: number;
-    refillRate?: number;
-    error?: {
-        code?: string;
-        message?: string;
-    };
-};
-
-type KeepaCategory = {
-    catId?: number;
-    name?: string;
-    contextFreeName?: string;
-};
-
-type KeepaTokenResponse = {
-    tokensConsumed?: number;
-    tokensLeft?: number;
-    refillIn?: number;
-    refillRate?: number;
-    error?: {
-        code?: string;
-        type?: string;
-        message?: string;
-    };
-};
-
 type PointCountSummary = Record<string, number>;
 
 export type KeepaImportSummary = {
@@ -107,14 +67,6 @@ export type KeepaImportSummary = {
     responsePayload: Record<string, unknown> | null;
 };
 
-export type KeepaRuntimeTokenState = {
-    tokensConsumed: number | null;
-    tokensLeft: number | null;
-    refillInMs: number | null;
-    refillRate: number | null;
-    updatedAt: string | null;
-};
-
 type KeepaImportRow = {
     id: string;
     status: string;
@@ -132,56 +84,8 @@ type KeepaImportRow = {
 type CategoryNamesById = Record<string, string>;
 
 const KEEPA_SOURCE = 'keepa';
-const KEEPA_UPDATE_HOURS = 1;
 const KEEPA_CATEGORY_BATCH_SIZE = 50;
 const KEEPA_MIN_REFRESH_INTERVAL_MS = KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS;
-const KEEPA_TOKEN_STATE_STALE_MS = 60 * 1000;
-
-const keepaRateLimiter = new Bottleneck({
-    maxConcurrent: 1,
-    minTime: 3000,
-    reservoir: 20,
-    reservoirRefreshAmount: 20,
-    reservoirRefreshInterval: 60 * 1000,
-});
-
-export const scheduleKeepaProviderRequest = async <T>(
-    priority: 'interactiveCatalog' | 'scheduledCatalog',
-    request: () => Promise<T>
-) => {
-    return await keepaRateLimiter.schedule(
-        { priority: getKeepaProviderPriority(priority) },
-        request
-    );
-};
-
-export const getKeepaProviderPriority = (
-    priority:
-        | 'interactiveCatalog'
-        | 'scheduledCatalog'
-        | 'manualProduct'
-        | 'scheduledProduct'
-) => {
-    switch (priority) {
-        case 'interactiveCatalog':
-            return 0;
-        case 'scheduledCatalog':
-            return 1;
-        case 'manualProduct':
-            return 2;
-        case 'scheduledProduct':
-            return 5;
-    }
-};
-
-export const recordKeepaProviderUsage = (usage: {
-    tokensConsumed: number | null;
-    tokensLeft: number | null;
-    refillInMs: number | null;
-    refillRate: number | null;
-}) => {
-    updateKeepaTokenState(usage);
-};
 
 const historyMetricMap: Record<KeepaHistoryMetricKey, string> = {
     bsrMain: 'bsr_main',
@@ -191,65 +95,8 @@ const historyMetricMap: Record<KeepaHistoryMetricKey, string> = {
     priceNewFba: 'price_new_fba',
 };
 
-const keepaTokenState: {
-    tokensConsumed: number | null;
-    tokensLeft: number | null;
-    refillInMs: number | null;
-    refillRate: number | null;
-    updatedAt: Date | null;
-} = {
-    tokensConsumed: null,
-    tokensLeft: null,
-    refillInMs: null,
-    refillRate: null,
-    updatedAt: null,
-};
-
-let keepaTokenRefreshInFlight: Promise<KeepaRuntimeTokenState> | null = null;
 const keepaProductLoadsInFlight = new Map<string, Promise<KeepaImportSummary>>();
-
-export const getKeepaRuntimeTokenState = (): KeepaRuntimeTokenState => {
-    const estimatedTokensLeft = estimateTokensLeft({
-        tokensLeft: keepaTokenState.tokensLeft,
-        refillInMs: keepaTokenState.refillInMs,
-        refillRate: keepaTokenState.refillRate,
-        updatedAt: keepaTokenState.updatedAt,
-    });
-
-    return {
-        tokensConsumed: keepaTokenState.tokensConsumed,
-        tokensLeft: estimatedTokensLeft,
-        refillInMs: keepaTokenState.refillInMs,
-        refillRate: keepaTokenState.refillRate,
-        updatedAt: keepaTokenState.updatedAt ? keepaTokenState.updatedAt.toISOString() : null,
-    };
-};
-
-export const ensureFreshKeepaTokenState = async ({
-    maxAgeMs = KEEPA_TOKEN_STATE_STALE_MS,
-}: {
-    maxAgeMs?: number;
-} = {}): Promise<KeepaRuntimeTokenState> => {
-    if (!env.KEEPA_API_KEY) {
-        return getKeepaRuntimeTokenState();
-    }
-
-    if (keepaTokenRefreshInFlight) {
-        return keepaTokenRefreshInFlight;
-    }
-
-    if (!isKeepaTokenStateStale(maxAgeMs)) {
-        return getKeepaRuntimeTokenState();
-    }
-
-    keepaTokenRefreshInFlight = refreshKeepaTokenStateFromApi(env.KEEPA_API_KEY);
-
-    try {
-        return await keepaTokenRefreshInFlight;
-    } finally {
-        keepaTokenRefreshInFlight = null;
-    }
-};
+const keepaProvider = createKeepaProvider();
 
 export const loadKeepaProductHistory = async (params: LoadKeepaProductHistoryParams) => {
     const key = `${params.marketplaceId}:${params.asin}`;
@@ -277,14 +124,6 @@ const loadKeepaProductHistoryOnce = async ({
         throw new TRPCError({
             code: 'PRECONDITION_FAILED',
             message: 'KEEPA_API_KEY is not configured',
-        });
-    }
-
-    const keepaDomainId = getKeepaDomainId(marketplaceId);
-    if (!keepaDomainId) {
-        throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: `Marketplace ${marketplaceId} is not supported by Keepa integration`,
         });
     }
 
@@ -320,65 +159,48 @@ const loadKeepaProductHistoryOnce = async ({
     }
 
     const requestParams = {
-        domain: keepaDomainId,
+        marketplaceId,
         asin,
         history: 1,
-        update: KEEPA_UPDATE_HOURS,
+        update: 1,
         days,
         stats: 365,
     };
 
     let keepaResponse: KeepaResponse;
+    let cachedImportBeforeDispatch: KeepaImportRow | null = null;
 
     try {
-        const dispatchResult = await keepaRateLimiter.schedule(
-            { priority: getKeepaRateLimiterPriority(queuePriority) },
-            async () => {
+        const dispatchResult = await keepaProvider.getProduct({
+            marketplaceId,
+            asin,
+            days,
+            priority: queuePriority === 'manual' ? 'manualProduct' : 'scheduledProduct',
+            canDispatch: async () => {
                 const keepaFetchedAt = await getProductKeepaFetchedAt(productId);
-                const importBeforeDispatch = await getRecentSuccessfulKeepaImport(
+                cachedImportBeforeDispatch = await getRecentSuccessfulKeepaImport(
                     productId,
                     keepaFetchedAt
                 );
-                if (importBeforeDispatch) {
-                    return { kind: 'cached', importRow: importBeforeDispatch } as const;
-                }
-
-                return {
-                    kind: 'fetched',
-                    response: await fetchKeepaProduct({
-                        apiKey: keepaApiKey,
-                        domainId: keepaDomainId,
-                        asin,
-                        days,
-                    }),
-                } as const;
+                return !cachedImportBeforeDispatch;
+            },
+        });
+        if (dispatchResult.kind === 'skipped') {
+            if (!cachedImportBeforeDispatch) {
+                throw new Error('Keepa dispatch was skipped without a fresh import');
             }
-        );
-        if (dispatchResult.kind === 'cached') {
             return await buildKeepaImportSummaryFromCachedImport({
                 productId,
                 marketplaceId,
                 asin,
                 fallbackDays: days,
-                importRow: dispatchResult.importRow,
+                importRow: cachedImportBeforeDispatch,
             });
         }
 
-        keepaResponse = dispatchResult.response;
-        updateKeepaTokenState({
-            tokensConsumed: keepaResponse.tokensConsumed ?? null,
-            tokensLeft: keepaResponse.tokensLeft ?? null,
-            refillInMs: keepaResponse.refillIn ?? null,
-            refillRate: keepaResponse.refillRate ?? null,
-        });
+        keepaResponse = dispatchResult.payload;
     } catch (error) {
         const errorDetails = extractKeepaErrorDetails(error);
-        updateKeepaTokenState({
-            tokensConsumed: errorDetails.tokensConsumed,
-            tokensLeft: errorDetails.tokensLeft,
-            refillInMs: errorDetails.refillIn,
-            refillRate: errorDetails.refillRate,
-        });
 
         await db.insert(productHistoryImports).values({
             productId,
@@ -590,107 +412,8 @@ export const hasRecentSuccessfulKeepaImportForAsin = async ({
     }
 
     return Boolean(
-        await getRecentSuccessfulKeepaImport(
-            productRow[0].id,
-            productRow[0].keepaFetchedAt
-        )
+        await getRecentSuccessfulKeepaImport(productRow[0].id, productRow[0].keepaFetchedAt)
     );
-};
-
-const fetchKeepaProduct = async ({
-    apiKey,
-    domainId,
-    asin,
-    days,
-}: {
-    apiKey: string;
-    domainId: number;
-    asin: string;
-    days: number;
-}) => {
-    const params = new URLSearchParams({
-        key: apiKey,
-        domain: String(domainId),
-        asin,
-        history: '1',
-        update: String(KEEPA_UPDATE_HOURS),
-        days: String(days),
-        stats: '365',
-    });
-
-    const response = await fetch(`https://api.keepa.com/product?${params.toString()}`);
-    const payload = (await response.json()) as KeepaResponse;
-
-    if (!response.ok) {
-        throw new KeepaApiError(
-            payload.error?.code ?? String(response.status),
-            payload.error?.message ?? `HTTP ${response.status}`,
-            payload,
-            payload.tokensConsumed,
-            payload.tokensLeft,
-            payload.refillIn,
-            payload.refillRate
-        );
-    }
-
-    return payload;
-};
-
-const fetchKeepaTokenStatus = async ({ apiKey }: { apiKey: string }) => {
-    const params = new URLSearchParams({
-        key: apiKey,
-    });
-
-    const response = await fetch(`https://api.keepa.com/token?${params.toString()}`);
-    const rawPayload = (await response.json()) as KeepaTokenResponse | number;
-    const payload = normalizeKeepaTokenResponse(rawPayload);
-
-    if (!response.ok || payload.error?.message) {
-        throw new KeepaApiError(
-            payload.error?.code ?? payload.error?.type ?? String(response.status),
-            payload.error?.message ?? `HTTP ${response.status}`,
-            payload,
-            payload.tokensConsumed,
-            payload.tokensLeft,
-            payload.refillIn,
-            payload.refillRate
-        );
-    }
-
-    return payload;
-};
-
-const fetchKeepaCategories = async ({
-    apiKey,
-    domainId,
-    categoryIds,
-}: {
-    apiKey: string;
-    domainId: number;
-    categoryIds: number[];
-}) => {
-    const params = new URLSearchParams({
-        key: apiKey,
-        domain: String(domainId),
-        category: categoryIds.join(','),
-    });
-
-    const response = await fetch(`https://api.keepa.com/category?${params.toString()}`);
-    const payload = (await response.json()) as KeepaCategoryResponse;
-
-    if (!response.ok || payload.error?.message) {
-        throw new KeepaApiError(
-            payload.error?.code ?? String(response.status),
-            payload.error?.message ?? `HTTP ${response.status}`,
-            payload,
-            payload.tokensConsumed,
-            payload.tokensLeft,
-            payload.refillIn,
-            payload.refillRate
-        );
-    }
-
-    return payload;
 };
 
 const resolveCategoryNames = async ({
@@ -730,26 +453,15 @@ const resolveCategoryNames = async ({
         return categoryNames;
     }
 
-    const keepaApiKey = env.KEEPA_API_KEY;
-    const keepaDomainId = getKeepaDomainId(marketplaceId);
-    if (!keepaApiKey || !keepaDomainId) {
+    if (!env.KEEPA_API_KEY) {
         return categoryNames;
     }
 
     for (const categoryIdsChunk of chunkArray(missingCategoryIds, KEEPA_CATEGORY_BATCH_SIZE)) {
         try {
-            const keepaCategoryResponse = await keepaRateLimiter.schedule(() =>
-                fetchKeepaCategories({
-                    apiKey: keepaApiKey,
-                    domainId: keepaDomainId,
-                    categoryIds: categoryIdsChunk,
-                })
-            );
-            updateKeepaTokenState({
-                tokensConsumed: keepaCategoryResponse.tokensConsumed ?? null,
-                tokensLeft: keepaCategoryResponse.tokensLeft ?? null,
-                refillInMs: keepaCategoryResponse.refillIn ?? null,
-                refillRate: keepaCategoryResponse.refillRate ?? null,
+            const keepaCategoryResponse = await keepaProvider.getCategories({
+                marketplaceId,
+                categoryIds: categoryIdsChunk,
             });
 
             const resolvedCategoryNames = parseKeepaCategoryNames(keepaCategoryResponse);
@@ -777,36 +489,12 @@ const resolveCategoryNames = async ({
             for (const [categoryId, name] of Object.entries(resolvedCategoryNames)) {
                 categoryNames[categoryId] = name;
             }
-        } catch (error) {
-            const errorDetails = extractKeepaErrorDetails(error);
-            updateKeepaTokenState({
-                tokensConsumed: errorDetails.tokensConsumed,
-                tokensLeft: errorDetails.tokensLeft,
-                refillInMs: errorDetails.refillIn,
-                refillRate: errorDetails.refillRate,
-            });
+        } catch {
             continue;
         }
     }
 
     return categoryNames;
-};
-
-const getKeepaDomainId = (marketplaceId: string): number | null => {
-    const mapping: Record<string, number> = {
-        ATVPDKIKX0DER: 1,
-        A1F83G8C2ARO7P: 2,
-        A1PA6795UKMFR9: 3,
-        A13V1IB3VIYZZH: 4,
-        A1VC38T7YXB528: 5,
-        A2EUQ1WTGCTBG2: 8,
-        A1RKKUPIHCS9HS: 9,
-        A21TJRUUN4KGV: 10,
-        A1AM78C64UM0Y8: 11,
-        A2Q3Y263D00KWC: 12,
-    };
-
-    return mapping[marketplaceId] ?? null;
 };
 
 const getPointCountsByMetric = (points: NormalizedKeepaHistoryPoint[]) => {
@@ -839,15 +527,13 @@ const parseKeepaCategoryNames = (payload: KeepaCategoryResponse): CategoryNamesB
 
 const normalizeCategoryIds = (categoryIds: number[]) => {
     return Array.from(
-        new Set(
-            categoryIds.filter(categoryId => Number.isFinite(categoryId) && categoryId > 0)
-        )
+        new Set(categoryIds.filter(categoryId => Number.isFinite(categoryId) && categoryId > 0))
     )
         .map(categoryId => Math.trunc(categoryId))
         .sort((left, right) => left - right);
 };
 
-const chunkArray = <T,>(values: T[], chunkSize: number): T[][] => {
+const chunkArray = <T>(values: T[], chunkSize: number): T[][] => {
     const chunks: T[][] = [];
     for (let index = 0; index < values.length; index += chunkSize) {
         chunks.push(values.slice(index, index + chunkSize));
@@ -1040,147 +726,3 @@ const getDaysFromRequestParams = (requestParams: Record<string, unknown>, fallba
 
     return fallbackDays;
 };
-
-const updateKeepaTokenState = ({
-    tokensConsumed,
-    tokensLeft,
-    refillInMs,
-    refillRate,
-}: {
-    tokensConsumed: number | null;
-    tokensLeft: number | null;
-    refillInMs: number | null;
-    refillRate: number | null;
-}) => {
-    keepaTokenState.tokensConsumed = tokensConsumed;
-    keepaTokenState.tokensLeft = tokensLeft;
-    keepaTokenState.refillInMs = refillInMs;
-    keepaTokenState.refillRate = refillRate;
-    keepaTokenState.updatedAt = new Date();
-};
-
-const estimateTokensLeft = ({
-    tokensLeft,
-    refillInMs,
-    refillRate,
-    updatedAt,
-}: {
-    tokensLeft: number | null;
-    refillInMs: number | null;
-    refillRate: number | null;
-    updatedAt: Date | null;
-}) => {
-    if (
-        typeof tokensLeft !== 'number' ||
-        typeof refillRate !== 'number' ||
-        refillRate <= 0 ||
-        !updatedAt
-    ) {
-        return tokensLeft;
-    }
-
-    const elapsedMs = Date.now() - updatedAt.getTime();
-    if (elapsedMs <= 0) {
-        return tokensLeft;
-    }
-
-    const refillDelayMs =
-        typeof refillInMs === 'number' && refillInMs > 0 ? refillInMs : 0;
-    if (elapsedMs <= refillDelayMs) {
-        return tokensLeft;
-    }
-
-    const regeneratedWindows =
-        Math.floor((elapsedMs - refillDelayMs) / (60 * 1000)) + 1;
-    const regeneratedTokens = regeneratedWindows * refillRate;
-
-    return tokensLeft + regeneratedTokens;
-};
-
-const getKeepaRateLimiterPriority = (queuePriority: 'manual' | 'background') => {
-    return getKeepaProviderPriority(
-        queuePriority === 'manual' ? 'manualProduct' : 'scheduledProduct'
-    );
-};
-
-const refreshKeepaTokenStateFromApi = async (apiKey: string): Promise<KeepaRuntimeTokenState> => {
-    try {
-        const keepaTokenResponse = await keepaRateLimiter.schedule({ priority: 0 }, () =>
-            fetchKeepaTokenStatus({ apiKey })
-        );
-        updateKeepaTokenState({
-            tokensConsumed: keepaTokenResponse.tokensConsumed ?? null,
-            tokensLeft: keepaTokenResponse.tokensLeft ?? null,
-            refillInMs: keepaTokenResponse.refillIn ?? null,
-            refillRate: keepaTokenResponse.refillRate ?? null,
-        });
-    } catch (error) {
-        const errorDetails = extractKeepaErrorDetails(error);
-        if (hasKeepaTokenMetadata(errorDetails)) {
-            updateKeepaTokenState({
-                tokensConsumed: errorDetails.tokensConsumed,
-                tokensLeft: errorDetails.tokensLeft,
-                refillInMs: errorDetails.refillIn,
-                refillRate: errorDetails.refillRate,
-            });
-        }
-    }
-
-    return getKeepaRuntimeTokenState();
-};
-
-const normalizeKeepaTokenResponse = (payload: KeepaTokenResponse | number): KeepaTokenResponse => {
-    if (typeof payload === 'number') {
-        return {
-            tokensLeft: payload,
-        };
-    }
-
-    if (payload && typeof payload === 'object') {
-        return payload;
-    }
-
-    return {};
-};
-
-const isKeepaTokenStateStale = (maxAgeMs: number) => {
-    if (!keepaTokenState.updatedAt) {
-        return true;
-    }
-
-    return Date.now() - keepaTokenState.updatedAt.getTime() >= maxAgeMs;
-};
-
-const hasKeepaTokenMetadata = ({
-    tokensConsumed,
-    tokensLeft,
-    refillIn,
-    refillRate,
-}: {
-    tokensConsumed: number | null;
-    tokensLeft: number | null;
-    refillIn: number | null;
-    refillRate: number | null;
-}) => {
-    return (
-        typeof tokensConsumed === 'number' ||
-        typeof tokensLeft === 'number' ||
-        typeof refillIn === 'number' ||
-        typeof refillRate === 'number'
-    );
-};
-
-class KeepaApiError extends Error {
-    constructor(
-        public code: string,
-        message: string,
-        public payload: unknown,
-        public tokensConsumed?: number,
-        public tokensLeft?: number,
-        public refillIn?: number,
-        public refillRate?: number
-    ) {
-        super(message);
-        this.name = 'KeepaApiError';
-    }
-}

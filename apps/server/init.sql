@@ -52,7 +52,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
 -- product_history_points, keepa_categories, top_search_terms_datasets,
 -- top_search_terms_snapshots, top_search_terms_keyword_daily,
--- operations, event_logs, job_executions, job_execution_logs
+-- operations, event_logs, job_executions, job_execution_logs, provider_attempts
 -- catalog_queries (keyword activity leases), catalog_search_runs (trigger provenance),
 -- catalog_search_results
 

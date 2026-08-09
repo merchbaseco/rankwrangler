@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import { classifyMerchListing } from '@/services/merch-listing-classification';
-import { createSpApiClient } from '@/services/spapi/spapi-client.js';
+import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import type { ProductThumbnail } from '@/types/index.js';
 import {
@@ -46,7 +46,7 @@ type CachedKeywordSearchEntry = {
 };
 
 const keywordSearchCache = new Map<string, CachedKeywordSearchEntry>();
-const spApiClient = createSpApiClient();
+const spApiProvider = createSpApiProvider();
 
 export const searchCatalogItemsByKeyword = async ({
     marketplaceId,
@@ -81,7 +81,7 @@ export const searchCatalogItemsByKeyword = async ({
         };
     }
 
-    const rawResponse = await spApiClient.searchCatalogItemsByKeyword({
+    const rawResponse = await spApiProvider.searchCatalogItemsByKeyword({
         keyword: normalizedKeyword,
         marketplaceId,
         pageSize: clampedPageSize,

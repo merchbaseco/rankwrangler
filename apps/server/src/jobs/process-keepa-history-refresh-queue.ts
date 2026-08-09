@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/services/job-executions-utils.js';
 import {
     getDueKeepaHistoryRefreshQueueItems,
     getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens,
+    hasDueKeepaHistoryRefreshQueueItems,
     holdKeepaHistoryRefreshQueueItems,
 } from '@/services/keepa-history-refresh.js';
 
@@ -20,8 +21,35 @@ const processKeepaHistoryRefreshQueueJobDeps = {
     createEventLogSafe,
 };
 
-export async function processKeepaHistoryRefreshQueue(boss: PgBoss) {
-    const batchSize = await getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens();
+interface ProcessKeepaHistoryRefreshQueueDeps {
+    getDueKeepaHistoryRefreshQueueItems: typeof getDueKeepaHistoryRefreshQueueItems;
+    getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens: typeof getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens;
+    hasDueKeepaHistoryRefreshQueueItems: typeof hasDueKeepaHistoryRefreshQueueItems;
+    holdKeepaHistoryRefreshQueueItems: typeof holdKeepaHistoryRefreshQueueItems;
+}
+
+const defaultProcessKeepaHistoryRefreshQueueDeps: ProcessKeepaHistoryRefreshQueueDeps = {
+    getDueKeepaHistoryRefreshQueueItems,
+    getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens,
+    hasDueKeepaHistoryRefreshQueueItems,
+    holdKeepaHistoryRefreshQueueItems,
+};
+
+export async function processKeepaHistoryRefreshQueue(
+    boss: PgBoss,
+    deps: ProcessKeepaHistoryRefreshQueueDeps = defaultProcessKeepaHistoryRefreshQueueDeps
+) {
+    const hasDueWork = await deps.hasDueKeepaHistoryRefreshQueueItems();
+    if (!hasDueWork) {
+        return {
+            didWork: false,
+            batchSize: 0,
+            dispatchedCount: 0,
+            reason: 'no_due_items',
+        } satisfies ProcessKeepaHistoryRefreshQueueResult;
+    }
+
+    const batchSize = await deps.getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens();
 
     if (batchSize <= 0) {
         return {
@@ -32,7 +60,7 @@ export async function processKeepaHistoryRefreshQueue(boss: PgBoss) {
         } satisfies ProcessKeepaHistoryRefreshQueueResult;
     }
 
-    const queueItems = await getDueKeepaHistoryRefreshQueueItems(batchSize);
+    const queueItems = await deps.getDueKeepaHistoryRefreshQueueItems(batchSize);
     if (queueItems.length === 0) {
         return {
             didWork: false,
@@ -42,7 +70,7 @@ export async function processKeepaHistoryRefreshQueue(boss: PgBoss) {
         } satisfies ProcessKeepaHistoryRefreshQueueResult;
     }
 
-    await holdKeepaHistoryRefreshQueueItems(queueItems.map(item => item.id));
+    await deps.holdKeepaHistoryRefreshQueueItems(queueItems.map(item => item.id));
 
     for (const queueItem of queueItems) {
         await boss.send(

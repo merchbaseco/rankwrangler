@@ -16,7 +16,8 @@ magical "find opportunities" score.
   Amazon SP-API and Keepa.
 - Explore Amazon Brand Analytics Top Search Terms across daily, weekly, and custom windows.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
-- Inspect structured activity and provider health from the operator dashboard.
+- Inspect structured activity, provider health, and bounded raw Provider-attempt telemetry through
+  admin surfaces.
 - Access the public Merchbase-credential surface from `rw` or `@rankwrangler/http-client`.
 - Explore Keepa-backed Catalog searches in the dashboard and retain source-ordered evidence in
   durable Search runs.

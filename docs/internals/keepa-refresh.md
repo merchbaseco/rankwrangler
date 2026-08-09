@@ -44,10 +44,13 @@ already in `keepa_history_refresh_queue`. The queue is unique by marketplace and
 
 ## Dispatch And Retry
 
-The queue processor runs every minute. It refreshes the in-memory Keepa token snapshot when stale,
-derives a bounded batch size, holds selected rows, and dispatches one singleton fetch job per ASIN.
-Provider token counts and refill timing are internal capacity signals used by operational dashboard
-surfaces, never part of the public API or CLI contract.
+The queue processor runs every minute. It first checks the indexed queue for due work and does not
+contact Keepa from an idle dispatcher tick. When work is due, it refreshes the in-memory Keepa
+token snapshot when stale, derives a bounded batch size, performs an authoritative due-row
+selection, holds those rows, and dispatches one singleton fetch job per ASIN. Work becoming due
+immediately after an empty preflight waits until the next minute. Provider token counts and refill
+timing are internal capacity signals used by operational dashboard surfaces, never part of the
+public API or CLI contract.
 
 First successful collection requests up to 3,650 days. Later collections use a staleness-aware
 window with a 30-day minimum and overlap buffer. Failed queue work remains with exponential retry
