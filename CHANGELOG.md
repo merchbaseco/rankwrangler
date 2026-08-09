@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.8.0 - 2026-08-09
+
+### Added
+
+- Add synchronous basic Product lookup for up to 200 marketplace/ASIN pairs through the public
+  API and hosted MCP, with smart single- or multi-ASIN routing in `rw product get`.
+- Add complete Product Search, source provenance, and nullable merch-listing classification to the
+  public Product intelligence surface.
+
+### Changed
+
+- Resolve public Product reads to policy-current, source-attributed results while batching cold
+  SP-API catalog work by marketplace and persisting every requested Product identity.
+
+### Fixed
+
+- Preserve unavailable listing data, stop repeatedly polling unavailable listings, and keep those
+  Products accessible from the dashboard drawer.
+- Expose the hosted MCP ingress correctly in production.
+
 ## v0.7.0 - 2026-08-06
 
 ### Added
