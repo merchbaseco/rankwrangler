@@ -18,9 +18,10 @@ bun run cli:build
 bun run release:check-cli-pack
 ```
 
-Authentication comes from `NPM_TOKEN` or the macOS Keychain item
-`rankwrangler-npm-token` for account `$USER`. The repository helper resolves those sources without
-putting the token in command history.
+Authentication comes from an exported `NPM_TOKEN`, the repository-root `.env`, or the macOS
+Keychain item `rankwrangler-npm-token` for account `$USER`, in that order. The repository helper
+resolves those sources without putting the token in command history. It finds the root `.env` even
+when invoked from either package directory.
 
 ## Publish
 

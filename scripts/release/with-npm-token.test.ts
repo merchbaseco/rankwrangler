@@ -1,8 +1,40 @@
 import { describe, expect, it } from 'bun:test';
 import {
     DEFAULT_NPM_KEYCHAIN_SERVICE,
+    loadRepoNpmToken,
     resolveNpmToken,
 } from './with-npm-token.mjs';
+
+describe('loadRepoNpmToken', () => {
+    it('loads NPM_TOKEN from the repository env file', async () => {
+        const env: Record<string, string> = {};
+
+        const loaded = await loadRepoNpmToken({
+            env,
+            readFileImpl: async () => 'OTHER=value\nNPM_TOKEN="npm_repo_token"\n',
+        });
+
+        expect(loaded).toBe(true);
+        expect(env.NPM_TOKEN).toBe('npm_repo_token');
+    });
+
+    it('preserves an explicitly exported NPM_TOKEN', async () => {
+        const env = { NPM_TOKEN: 'npm_exported_token' };
+        let read = false;
+
+        const loaded = await loadRepoNpmToken({
+            env,
+            readFileImpl: async () => {
+                read = true;
+                return 'NPM_TOKEN=npm_repo_token\n';
+            },
+        });
+
+        expect(loaded).toBe(false);
+        expect(read).toBe(false);
+        expect(env.NPM_TOKEN).toBe('npm_exported_token');
+    });
+});
 
 describe('resolveNpmToken', () => {
     it('prefers NPM_TOKEN from the environment', async () => {

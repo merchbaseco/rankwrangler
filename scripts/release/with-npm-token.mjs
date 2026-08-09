@@ -1,12 +1,41 @@
 import { execFile, spawn } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { parseEnv } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 const execFileAsync = promisify(execFile);
 const scriptPath = fileURLToPath(import.meta.url);
+const repoEnvPath = path.resolve(path.dirname(scriptPath), '../..', '.env');
 
 export const DEFAULT_NPM_KEYCHAIN_SERVICE = 'rankwrangler-npm-token';
+
+export const loadRepoNpmToken = async ({
+    env = process.env,
+    envPath = repoEnvPath,
+    readFileImpl = readFile,
+} = {}) => {
+    if (env.NPM_TOKEN?.trim()) {
+        return false;
+    }
+
+    try {
+        const parsed = parseEnv(await readFileImpl(envPath, 'utf8'));
+        const token = parsed.NPM_TOKEN?.trim();
+        if (!token) {
+            return false;
+        }
+
+        env.NPM_TOKEN = token;
+        return true;
+    } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+            return false;
+        }
+        throw error;
+    }
+};
 
 export const resolveNpmToken = async ({
     env = process.env,
@@ -66,6 +95,7 @@ const main = async () => {
         process.exit(1);
     }
 
+    await loadRepoNpmToken();
     const resolved = await resolveNpmToken();
     const [command, ...commandArgs] = args;
 
