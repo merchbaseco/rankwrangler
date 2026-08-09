@@ -42,6 +42,10 @@ describe('RankWrangler MCP server', () => {
         });
         const productTool = result.tools.find(tool => tool.name === 'rankwrangler_product');
         expect(productTool?.description).toContain('getMany uses products');
+        expect(productTool?.description).toContain('isUnavailable=true');
+        expect(productTool?.description).toContain('effectively deleted');
+        expect(productTool?.description).toContain('available for customers to purchase');
+        expect(productTool?.description).toContain('last-known data');
         expect(productTool?.inputSchema).toMatchObject({
             properties: {
                 operation: { enum: ['get', 'getMany', 'search', 'history'] },

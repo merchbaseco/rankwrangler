@@ -51,14 +51,16 @@ describe('final public CLI contract', () => {
                                     {
                                         marketplaceId: 'ATVPDKIKX0DER',
                                         asin: 'B012345678',
-                                        status: 'available',
                                         title: 'Garden shirt',
                                         thumbnail: { status: 'unavailable' },
+                                        isUnavailable: false,
                                     },
                                     {
                                         marketplaceId: 'ATVPDKIKX0DER',
                                         asin: 'B087654321',
-                                        status: 'unavailable',
+                                        title: null,
+                                        thumbnail: { status: 'unavailable' },
+                                        isUnavailable: true,
                                     },
                                 ],
                             },
@@ -80,6 +82,7 @@ describe('final public CLI contract', () => {
                                         bulletPoints: [],
                                         thumbnail: { status: 'unavailable' },
                                         isMerchListing: null,
+                                        isUnavailable: false,
                                     },
                                     category: null,
                                     salesRank: {
@@ -164,8 +167,8 @@ describe('final public CLI contract', () => {
             expect(JSON.parse(getManyResult.stdout)).toMatchObject({
                 ok: true,
                 data: [
-                    { asin: 'B012345678', status: 'available', title: 'Garden shirt' },
-                    { asin: 'B087654321', status: 'unavailable' },
+                    { asin: 'B012345678', isUnavailable: false, title: 'Garden shirt' },
+                    { asin: 'B087654321', isUnavailable: true, title: null },
                 ],
             });
             expect(JSON.parse(searchResult.stdout)).toMatchObject({

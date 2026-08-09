@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from 'bun:test';
 import { getBasicProductReadModels } from './basic-product-read-model';
 
 describe('basic Product read model', () => {
-    it('returns compact available and unavailable outcomes in request order', async () => {
+    it('returns fixed-shape results and preserves known data for unavailable Products', async () => {
         const availableIdentity = {
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B000000001',
@@ -18,6 +18,7 @@ describe('basic Product read model', () => {
                     availability: 'available' as const,
                     product: {
                         title: 'Garden shirt',
+                        isUnavailable: false,
                         thumbnail: {
                             status: 'available' as const,
                             url: 'https://example.com/garden.jpg',
@@ -26,8 +27,15 @@ describe('basic Product read model', () => {
                 },
                 {
                     identity: unavailableIdentity,
-                    availability: 'unavailable' as const,
-                    product: null,
+                    availability: 'available' as const,
+                    product: {
+                        title: 'Archived shirt',
+                        isUnavailable: true,
+                        thumbnail: {
+                            status: 'available' as const,
+                            url: 'https://example.com/archived.jpg',
+                        },
+                    },
                 },
             ])
         );
@@ -40,19 +48,57 @@ describe('basic Product read model', () => {
         expect(result).toEqual([
             {
                 ...availableIdentity,
-                status: 'available',
                 title: 'Garden shirt',
+                isUnavailable: false,
                 thumbnail: {
                     status: 'available',
                     url: 'https://example.com/garden.jpg',
                 },
             },
-            { ...unavailableIdentity, status: 'unavailable' },
+            {
+                ...unavailableIdentity,
+                title: 'Archived shirt',
+                isUnavailable: true,
+                thumbnail: {
+                    status: 'available',
+                    url: 'https://example.com/archived.jpg',
+                },
+            },
         ]);
         expect(getProducts).toHaveBeenCalledWith({
             products: [availableIdentity, unavailableIdentity],
             fetchPolicy: 'blocking',
             signal: undefined,
         });
+    });
+
+    it('uses null and an unavailable thumbnail when Amazon never returned listing data', async () => {
+        const identity = {
+            marketplaceId: 'ATVPDKIKX0DER',
+            asin: 'B000000003',
+        };
+        const getProducts = mock(() =>
+            Promise.resolve([
+                {
+                    identity,
+                    availability: 'unavailable' as const,
+                    product: null,
+                },
+            ])
+        );
+
+        const result = await getBasicProductReadModels(
+            { products: [identity] },
+            { getProducts } as never
+        );
+
+        expect(result).toEqual([
+            {
+                ...identity,
+                title: null,
+                thumbnail: { status: 'unavailable' },
+                isUnavailable: true,
+            },
+        ]);
     });
 });
