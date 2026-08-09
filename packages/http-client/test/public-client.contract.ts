@@ -26,6 +26,30 @@ export type KeywordProcedureContract = Assert<
 export type ProductSearchOutputContract = Assert<
     Equal<Awaited<ReturnType<ProductSearchMutation['mutate']>>, ProductSearchOutput>
 >;
+export type ProductSearchOutputKeysContract = Assert<
+    Equal<keyof ProductSearchOutput, 'keyword' | 'searchedAt' | 'results'>
+>;
+export type ProductSearchResultKeysContract = Assert<
+    Equal<
+        keyof ProductSearchOutput['results'][number],
+        'organicSearchPlacement' | 'product'
+    >
+>;
+export type ProductSearchProductKeysContract = Assert<
+    Equal<
+        keyof ProductSearchOutput['results'][number]['product'],
+        | 'marketplaceId'
+        | 'asin'
+        | 'title'
+        | 'brand'
+        | 'thumbnail'
+        | 'isMerchListing'
+        | 'category'
+        | 'salesRank'
+        | 'price'
+        | 'boughtInPastMonth'
+    >
+>;
 export type ProductGetInputContract = Assert<
     Equal<keyof ProductGetInput, 'marketplaceId' | 'asin'>
 >;

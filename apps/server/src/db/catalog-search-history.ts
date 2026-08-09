@@ -1,15 +1,17 @@
 import { and, desc, eq, lt, or } from 'drizzle-orm';
 import { db } from '@/db/index';
-import {
-    catalogQueries,
-    catalogSearchResults,
-    catalogSearchRuns,
-    products,
-} from '@/db/schema';
-import { getProducts } from '@/services/product-retrieval';
+import { catalogQueries, catalogSearchResults, catalogSearchRuns, products } from '@/db/schema';
+import { getProducts, type ProductFetchPolicy } from '@/services/product-retrieval';
 import { mapCatalogRunMetadata } from './catalog-query-read-model';
 
 const CATALOG_SOURCE = 'keepa' as const;
+
+export interface CatalogSearchRunReadOptions {
+    fetchPolicy?: ProductFetchPolicy;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    retrieveProducts?: typeof getProducts;
+}
 
 export const listCatalogSearchRuns = async ({
     queryId,
@@ -77,8 +79,9 @@ export const listCatalogSearchRuns = async ({
 
 export const getCatalogSearchRun = async (
     runId: string,
-    retrieveProducts: typeof getProducts = getProducts
+    options: CatalogSearchRunReadOptions = {}
 ) => {
+    const retrieveProducts = options.retrieveProducts ?? getProducts;
     const rows = await db
         .select({
             run: catalogSearchRuns,
@@ -98,13 +101,13 @@ export const getCatalogSearchRun = async (
     }
 
     const identities = rows.flatMap(row =>
-        row.product
-            ? [{ marketplaceId: row.product.marketplaceId, asin: row.product.asin }]
-            : []
+        row.product ? [{ marketplaceId: row.product.marketplaceId, asin: row.product.asin }] : []
     );
     const productReads = await retrieveProducts({
         products: identities,
-        fetchPolicy: 'background',
+        fetchPolicy: options.fetchPolicy ?? 'background',
+        signal: options.signal,
+        timeoutMs: options.timeoutMs,
     });
     const productReadsByKey = new Map(
         productReads.map(read => [`${read.identity.marketplaceId}:${read.identity.asin}`, read])
@@ -134,14 +137,12 @@ export const getCatalogSearchRun = async (
                     },
                     observed: mapObservation(row.result),
                     currentProduct: row.product
-                        ? (productReadsByKey.get(
-                              `${row.product.marketplaceId}:${row.product.asin}`
-                          )?.product ?? null)
+                        ? (productReadsByKey.get(`${row.product.marketplaceId}:${row.product.asin}`)
+                              ?.product ?? null)
                         : null,
                     currentProductAvailability: row.product
-                        ? (productReadsByKey.get(
-                              `${row.product.marketplaceId}:${row.product.asin}`
-                          )?.availability ?? 'unavailable')
+                        ? (productReadsByKey.get(`${row.product.marketplaceId}:${row.product.asin}`)
+                              ?.availability ?? 'unavailable')
                         : 'unavailable',
                 },
             ];

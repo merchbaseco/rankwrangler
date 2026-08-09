@@ -273,59 +273,6 @@ export interface KeywordHistoryResponse {
 	points: KeywordHistoryPoint[];
 	deltas: SearchTermsTrendDeltas;
 }
-declare const catalogSearchTriggers: readonly [
-	"requested",
-	"automatic"
-];
-export type CatalogSearchTrigger = (typeof catalogSearchTriggers)[number];
-export type ProductThumbnail = {
-	status: "pending";
-} | {
-	status: "available";
-	url: string;
-} | {
-	status: "unavailable";
-};
-export interface ProductFreshness {
-	stale: boolean;
-	updatedAt: string | null;
-}
-export interface ProductInfo {
-	asin: string;
-	marketplaceId: string;
-	dateFirstAvailable: string | null;
-	title: string | null;
-	brand: string | null;
-	isMerchListing: boolean | null;
-	bullet1: string | null;
-	bullet2: string | null;
-	rootCategoryId: number | null;
-	rootCategoryBsr: number | null;
-	rootCategoryDisplayName: string | null;
-	thumbnail: ProductThumbnail;
-	keepa: {
-		fetchedAt: string;
-		sourceUpdatedAt: string | null;
-		firstTrackedAt: string | null;
-		rootCategoryId: number | null;
-		currentRootCategoryBsr: number | null;
-		currentNewPrice: {
-			amountMinor: number;
-			currencyCode: string;
-		} | null;
-		monthlySold: number | null;
-		averageRootCategoryBsr30: number | null;
-		averageRootCategoryBsr90: number | null;
-		salesRankDrops: {
-			days30: number | null;
-			days90: number | null;
-			days180: number | null;
-			days365: number | null;
-		};
-	} | null;
-	freshness: ProductFreshness;
-}
-export type ProductAvailability = "pending" | "available" | "unavailable";
 export interface Product {
 	marketplaceId: string;
 	asin: string;
@@ -366,6 +313,37 @@ export interface Product {
 			last365Days: number | null;
 		};
 	};
+}
+export interface ProductSearchProduct {
+	marketplaceId: string;
+	asin: string;
+	title: string | null;
+	brand: string | null;
+	thumbnail: {
+		status: "available";
+		url: string;
+	} | {
+		status: "unavailable";
+	};
+	isMerchListing: boolean | null;
+	category: {
+		id: number;
+		name: string | null;
+	} | null;
+	salesRank: number | null;
+	price: {
+		amountMinor: number;
+		currencyCode: string;
+	} | null;
+	boughtInPastMonth: number | null;
+}
+export interface ProductSearch {
+	keyword: string;
+	searchedAt: string;
+	results: Array<{
+		organicSearchPlacement: number;
+		product: ProductSearchProduct;
+	}>;
 }
 export interface ProductHistorySummary {
 	first: number | null;
@@ -594,54 +572,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						term: string;
 						refresh?: boolean | undefined;
 					};
-					output: {
-						status: "ready";
-						run: {
-							query: {
-								id: string;
-								source: "keepa";
-								marketplaceId: string;
-								normalizedTerm: string;
-								displayTerm: string;
-								page: number;
-							};
-							results: {
-								productId: string;
-								position: {
-									source: "keepa";
-									value: number;
-								};
-								observed: {
-									rootCategoryBsr: number | null;
-									newPriceAmountMinor: number | null;
-									currencyCode: "USD";
-									monthlySold: number | null;
-									averageRootCategoryBsr30: number | null;
-									averageRootCategoryBsr90: number | null;
-									salesRankDrops: {
-										days30: number | null;
-										days90: number | null;
-										days180: number | null;
-										days365: number | null;
-									};
-									sourceUpdatedAt: string | null;
-								};
-								currentProduct: ProductInfo | null;
-								currentProductAvailability: ProductAvailability;
-							}[];
-							id: string;
-							sourceStartedAt: string;
-							sourceCompletedAt: string;
-							trigger: CatalogSearchTrigger;
-							resultCount: number;
-							normalizerVersion: number;
-							createdAt: string;
-						};
-						freshness: {
-							stale: boolean;
-							updatedAt: string;
-						};
-					};
+					output: ProductSearch;
 					meta: object;
 				}>;
 			}>>;

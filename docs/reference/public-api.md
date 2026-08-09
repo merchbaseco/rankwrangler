@@ -105,7 +105,9 @@ observed numeric BSR improvement, not a confirmed sale.
 
 ## Product Search
 
-`product.search` accepts `{ term }` and returns:
+`product.search` accepts `{ term, refresh? }` and returns the compact contract below. `refresh`
+requests a replacement Search run under the server-owned Search policy; it does not expose Product
+freshness or provider state.
 
 ```ts
 type ProductSearch = {
@@ -134,8 +136,9 @@ type ProductSearch = {
 Every result is a compact current Search projection with resolved thumbnail availability. It omits
 bullets, rank averages and drop windows, full demand, history, provider metadata, and freshness.
 `organicSearchPlacement` is the source-supplied Product ordinal for this Search run. Invalid or
-duplicate results leave ordinal gaps. Membership and placement are immutable Search-run evidence;
-the projected Product fields remain independent current state.
+duplicate results leave ordinal gaps. It is useful source evidence, not a guaranteed Amazon organic
+rank. Membership and placement are immutable Search-run evidence; the projected Product fields
+remain independent current state.
 
 ## Product History
 

@@ -107,7 +107,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler readiness and final Product and keyword data capabilities. This tool does not expose provider status or start work.',
+                'Read RankWrangler readiness and supported Product and keyword capabilities. This tool does not expose provider status or start work.',
             inputSchema: z.object({}).strict(),
             outputSchema: statusOutputSchema,
             title: 'RankWrangler status',
@@ -120,7 +120,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read Product data using one final synchronous operation: get, search, or history. The response contains final data or a standard error.',
+                'Read RankWrangler Product data through a synchronous get, search, or history operation. get returns one Product, search returns compact Product results, and history returns time series. Responses contain data or a standard error.',
             inputSchema: productInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler Product',
@@ -153,7 +153,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read keyword data using one final synchronous operation: get, search, or history. The response contains final data or a standard error.',
+                'Read RankWrangler keyword data through a synchronous get, search, or history operation. Responses contain data or a standard error.',
             inputSchema: keywordInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler keyword',

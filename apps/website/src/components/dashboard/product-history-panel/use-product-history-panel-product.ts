@@ -29,6 +29,7 @@ export const useProductHistoryPanelProduct = ({
 			return {
 				...product,
 				facets: facetsQuery.data ?? product.facets,
+				provenance: productDetails.provenance ?? product.provenance ?? null,
 			};
 		}
 
@@ -45,8 +46,9 @@ export const useProductHistoryPanelProduct = ({
 			rootCategoryDisplayName: details.rootCategoryDisplayName,
 			isMerchListing: details.isMerchListing,
 			freshness: details.freshness,
+			provenance: productDetails.provenance,
 		};
-	}, [facetsQuery.data, product, productDetails.product]);
+	}, [facetsQuery.data, product, productDetails.product, productDetails.provenance]);
 
 	return {
 		product: resolvedProduct,

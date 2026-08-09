@@ -20,6 +20,7 @@ export const useCatalogProductQuery = ({
 			initialData: {
 				product: initialProduct,
 				availability: initialAvailability,
+				provenance: null,
 			},
 			refetchOnWindowFocus: false,
 			staleTime: Number.POSITIVE_INFINITY,

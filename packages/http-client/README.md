@@ -35,7 +35,7 @@ const keywords = await client.keyword.search.query({
 });
 ```
 
-The client is scoped to the final public surface (`api.public.*`). It exposes Product
+The client is scoped to the public surface (`api.public.*`). It exposes Product
 `get/search/history` and keyword `get/search/history`; it does not expose Catalog, Operation,
 polling procedures. Product `get` and `history`, plus keyword reads, expose no refresh controls;
 Product search retains its separate search contract. Product `get` returns the provider-neutral

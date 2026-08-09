@@ -61,6 +61,7 @@ export const useSeedCatalogProductQueries = (run: CatalogRun | null) => {
 				const productRead = {
 					product: seed.product,
 					availability: seed.availability,
+					provenance: null,
 				};
 				utils.api.app.product.get.setData(
 					{

@@ -1,5 +1,5 @@
 import { resolveCatalogSearchRequest } from '@/db/catalog-search';
-import { getCatalogSearchRun } from '@/db/catalog-search-history';
+import { type CatalogSearchRunReadOptions, getCatalogSearchRun } from '@/db/catalog-search-history';
 import { getOperationById } from '@/db/operations';
 import {
     CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS,
@@ -9,6 +9,11 @@ import {
     normalizeCatalogDisplayTerm,
 } from '@/services/catalog-search';
 import type { OperationRecord } from '@/services/operations';
+import {
+    mapProductToCompactProductSearch,
+    mapProductToPublicProduct,
+    type ProductSearch,
+} from '@/services/product-read-model';
 import {
     coordinateRetrieval,
     RETRIEVAL_DEFAULT_CALLER_TIMEOUT_MS,
@@ -30,7 +35,10 @@ export interface CatalogSearchRetrievalDeps {
     resolveRequest: (
         input: Parameters<typeof resolveCatalogSearchRequest>[0]
     ) => Promise<CatalogSearchResolution>;
-    getRun: (runId: string) => Promise<CatalogSearchRun | null>;
+    getRun: (
+        runId: string,
+        options?: CatalogSearchRunReadOptions
+    ) => Promise<CatalogSearchRun | null>;
     getOperationById: (operationId: string) => Promise<OperationRecord | null>;
     dispatchOperation: (operation: CatalogSearchOperation) => Promise<boolean>;
     sleep: (delayMs: number) => Promise<void>;
@@ -76,7 +84,7 @@ export const awaitCatalogSearchRetrieval = async (
                 normalizedTerm: displayTerm.toLowerCase(),
                 displayTerm,
                 page: 0,
-                maxAgeSeconds: CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS,
+                maxAgeSeconds: refresh ? 0 : CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS,
                 trigger: 'requested',
                 serviceAccountId,
                 ownerMerchbaseUserId,
@@ -95,7 +103,7 @@ export const awaitCatalogSearchRetrieval = async (
             }
             if (!(resolution.operation.dispatchedAt || resolution.operation.startedAt)) {
                 const dispatched = await deps.dispatchOperation(resolution.operation);
-                if (!dispatched && (refresh || !resolution.staleRunId)) {
+                if (!dispatched) {
                     throw new RetrievalRetryableError(
                         'Product search is temporarily unavailable. Retry shortly.',
                         {
@@ -110,15 +118,9 @@ export const awaitCatalogSearchRetrieval = async (
     });
 
     if (prepared.kind === 'ready') {
-        return await buildSearchResponse(prepared.runId, now, deps);
+        return await buildSearchResponse(prepared.runId, signal, timeoutMs, deps);
     }
     if (prepared.kind === 'cooldown') {
-        if (!refresh && prepared.staleRunId) {
-            const staleRun = await deps.getRun(prepared.staleRunId);
-            if (staleRun) {
-                return buildSearchResponseFromRun(staleRun, now);
-            }
-        }
         throw new RetrievalRetryableError(
             'Product search is temporarily unavailable. Retry shortly.',
             {
@@ -131,13 +133,6 @@ export const awaitCatalogSearchRetrieval = async (
         throw new Error('Catalog search resolution did not produce pending work.');
     }
 
-    if (!refresh && prepared.staleRunId) {
-        const staleRun = await deps.getRun(prepared.staleRunId);
-        if (staleRun) {
-            return buildSearchResponseFromRun(staleRun, now);
-        }
-    }
-
     const runId = await coordinateRetrieval({
         key: `${key}:completion`,
         signal,
@@ -146,29 +141,51 @@ export const awaitCatalogSearchRetrieval = async (
         retryMessage: 'Product search is temporarily unavailable. Retry shortly.',
         work: async () => await waitForCatalogSearchRun(prepared.operation.id, deps),
     });
-    return await buildSearchResponse(runId, now, deps);
+    return await buildSearchResponse(runId, signal, timeoutMs, deps);
 };
 
-const buildSearchResponse = async (runId: string, now: Date, deps: CatalogSearchRetrievalDeps) => {
-    const run = await deps.getRun(runId);
+const buildSearchResponse = async (
+    runId: string,
+    signal: AbortSignal | undefined,
+    timeoutMs: number,
+    deps: CatalogSearchRetrievalDeps
+): Promise<ProductSearch> => {
+    const run = await deps.getRun(runId, {
+        fetchPolicy: 'blocking',
+        signal,
+        timeoutMs,
+    });
     if (!run) {
         throw new RetrievalRetryableError(
             'Product search is temporarily unavailable. Retry shortly.',
             { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
         );
     }
-    return buildSearchResponseFromRun(run, now);
+    return mapCatalogSearchRun(run);
 };
 
-const buildSearchResponseFromRun = (run: CatalogSearchRun, now: Date) => ({
-    status: 'ready' as const,
-    run,
-    freshness: {
-        stale:
-            Date.parse(run.sourceCompletedAt) <
-            now.getTime() - CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS * 1000,
-        updatedAt: run.sourceCompletedAt,
-    },
+const mapCatalogSearchRun = (run: CatalogSearchRun): ProductSearch => ({
+    keyword: run.query.displayTerm,
+    searchedAt: run.sourceCompletedAt,
+    results: run.results.map(result => {
+        if (
+            !result.currentProduct ||
+            result.currentProductAvailability === 'pending' ||
+            result.currentProduct.thumbnail.status === 'pending'
+        ) {
+            throw new RetrievalRetryableError(
+                'Product search is temporarily unavailable. Retry shortly.',
+                { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
+            );
+        }
+
+        return {
+            organicSearchPlacement: result.position.value,
+            product: mapProductToCompactProductSearch(
+                mapProductToPublicProduct(result.currentProduct)
+            ),
+        };
+    }),
 });
 
 const waitForCatalogSearchRun = async (operationId: string, deps: CatalogSearchRetrievalDeps) => {

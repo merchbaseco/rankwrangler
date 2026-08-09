@@ -39,6 +39,10 @@ describe('RankWrangler MCP server', () => {
         ).toMatchObject({
             type: 'object',
         });
+        const productTool = result.tools.find(tool => tool.name === 'rankwrangler_product');
+        expect(productTool?.description).toContain('get, search, or history');
+        expect(productTool?.description).not.toContain('final');
+        expect(productTool?.description).not.toContain('Keepa');
         expect(JSON.stringify(result.tools)).not.toContain('operation.get');
         expect(JSON.stringify(result.tools)).not.toContain('poll');
 
@@ -46,7 +50,7 @@ describe('RankWrangler MCP server', () => {
         await server.close();
     });
 
-    it('dispatches each noun and verb through final data responses', async () => {
+    it('dispatches each noun and verb through synchronous data responses', async () => {
         const { client, server } = await connect(dataSource);
 
         const calls = await Promise.all([

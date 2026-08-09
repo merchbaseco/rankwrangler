@@ -83,12 +83,9 @@ describe('final public CLI contract', () => {
                         {
                             result: {
                                 data: {
-                                    status: 'ready',
-                                    run: { id: '22222222-2222-4222-8222-222222222222' },
-                                    freshness: {
-                                        stale: false,
-                                        updatedAt: '2026-08-06T12:00:00.000Z',
-                                    },
+                                    keyword: 'retro gardening shirt',
+                                    searchedAt: '2026-08-06T12:00:00.000Z',
+                                    results: [],
                                 },
                             },
                         },
@@ -135,7 +132,11 @@ describe('final public CLI contract', () => {
             expect(historyResult.status).toBe(0);
             expect(JSON.parse(searchResult.stdout)).toMatchObject({
                 ok: true,
-                data: { run: { id: '22222222-2222-4222-8222-222222222222' } },
+                data: {
+                    keyword: 'retro gardening shirt',
+                    searchedAt: '2026-08-06T12:00:00.000Z',
+                    results: [],
+                },
             });
             expect(requests).toEqual([
                 {

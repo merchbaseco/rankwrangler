@@ -1,19 +1,50 @@
 import { describe, expect, it, mock } from 'bun:test';
+import { awaitCatalogSearchRetrieval } from './catalog-search-retrieval';
 import {
-    awaitCatalogSearchRetrieval,
-    type CatalogSearchRetrievalDeps,
-} from './catalog-search-retrieval';
-import type { OperationRecord } from './operations';
+    createCompletedOperation,
+    createDeps,
+    createPendingOperation,
+    createProduct,
+    createRun,
+    createSearchResult,
+} from './catalog-search-retrieval-test-fixtures';
 
 describe('Product-search retrieval policy', () => {
-    it('returns a reusable Search run with fresh Search-run evidence', async () => {
-        const run = createRun('2026-08-06T12:00:00.000Z');
+    it('returns the exact compact projection from a reusable Search run', async () => {
+        const run = createRun('2026-08-06T12:00:00.000Z', [
+            createSearchResult({
+                asin: 'B012345678',
+                sourcePosition: 3,
+                product: createProduct({
+                    asin: 'B012345678',
+                    thumbnail: { status: 'available', url: 'https://example.com/image.jpg' },
+                }),
+            }),
+            createSearchResult({
+                asin: 'B087654321',
+                sourcePosition: 7,
+                product: createProduct({
+                    asin: 'B087654321',
+                    title: null,
+                    brand: null,
+                    thumbnail: { status: 'unavailable' },
+                    isMerchListing: null,
+                    category: null,
+                    keepa: null,
+                    rootCategoryBsr: null,
+                }),
+            }),
+        ]);
+        const getRun = mock((_runId: string, options?: { fetchPolicy?: string }) => {
+            expect(options?.fetchPolicy).toBe('blocking');
+            return Promise.resolve(run);
+        });
         const deps = createDeps({
             resolveRequest: async () => ({
                 kind: 'ready' as const,
                 runId: run.id,
             }),
-            getRun: async () => run,
+            getRun,
         });
 
         const result = await awaitCatalogSearchRetrieval(
@@ -27,58 +58,57 @@ describe('Product-search retrieval policy', () => {
             deps
         );
 
-        expect(result).toMatchObject({
-            status: 'ready',
-            run,
-            freshness: {
-                stale: false,
-                updatedAt: '2026-08-06T12:00:00.000Z',
-            },
+        expect(result).toEqual({
+            keyword: 'shirts',
+            searchedAt: '2026-08-06T12:00:00.000Z',
+            results: [
+                {
+                    organicSearchPlacement: 3,
+                    product: {
+                        marketplaceId: 'ATVPDKIKX0DER',
+                        asin: 'B012345678',
+                        title: 'Garden shirt',
+                        brand: 'Example brand',
+                        thumbnail: {
+                            status: 'available',
+                            url: 'https://example.com/image.jpg',
+                        },
+                        isMerchListing: true,
+                        category: { id: 12_345, name: 'Clothing' },
+                        salesRank: 12_345,
+                        price: { amountMinor: 1999, currencyCode: 'USD' },
+                        boughtInPastMonth: 200,
+                    },
+                },
+                {
+                    organicSearchPlacement: 7,
+                    product: {
+                        marketplaceId: 'ATVPDKIKX0DER',
+                        asin: 'B087654321',
+                        title: null,
+                        brand: null,
+                        thumbnail: { status: 'unavailable' },
+                        isMerchListing: null,
+                        category: null,
+                        salesRank: null,
+                        price: null,
+                        boughtInPastMonth: null,
+                    },
+                },
+            ],
         });
-        expect(deps.dispatchOperation.mock.calls).toHaveLength(0);
         expect(deps.resolveRequest.mock.calls[0]?.[0].maxAgeSeconds).toBe(86_400);
     });
 
-    it('returns stale evidence immediately while default search revalidates in the background', async () => {
-        const run = createRun('2026-08-05T11:00:00.000Z');
-        const operation = createPendingOperation();
-        const deps = createDeps({
-            resolveRequest: async () => ({
-                kind: 'pending' as const,
-                operation,
-                created: true,
-                staleRunId: run.id,
-            }),
-            getRun: async () => run,
-        });
-
-        const result = await awaitCatalogSearchRetrieval(
-            {
-                term: 'background shirts',
-                refresh: false,
-                ownerMerchbaseUserId: 'mbu_test',
-                serviceAccountId: 'account-1',
-                now: new Date('2026-08-06T12:00:00.000Z'),
-            },
-            deps
-        );
-
-        expect(result.freshness).toEqual({
-            stale: true,
-            updatedAt: '2026-08-05T11:00:00.000Z',
-        });
-        expect(deps.dispatchOperation.mock.calls).toHaveLength(1);
-        expect(deps.getOperationById.mock.calls).toHaveLength(0);
-    });
-
-    it('waits for fresh Search evidence when refresh is requested', async () => {
+    it('waits for a replacement run even when a stale run is available', async () => {
         const staleRun = createRun('2026-08-05T11:00:00.000Z');
-        const freshRun = createRun(
-            '2026-08-06T12:00:02.000Z',
-            '44444444-4444-4444-8444-444444444444'
-        );
+        const freshRun = createRun('2026-08-06T12:00:02.000Z');
         const operation = createPendingOperation();
         let operationReads = 0;
+        const getRun = mock((runId: string) => {
+            expect(runId).toBe(freshRun.id);
+            return Promise.resolve(freshRun);
+        });
         const deps = createDeps({
             resolveRequest: async () => ({
                 kind: 'pending' as const,
@@ -94,14 +124,14 @@ describe('Product-search retrieval policy', () => {
                         : createCompletedOperation(operation, freshRun.id)
                 );
             },
-            getRun: async runId => (runId === staleRun.id ? staleRun : freshRun),
+            getRun,
             sleep: async () => undefined,
         });
 
         const result = await awaitCatalogSearchRetrieval(
             {
-                term: 'fresh shirts',
-                refresh: true,
+                term: 'shirts',
+                refresh: false,
                 ownerMerchbaseUserId: 'mbu_test',
                 serviceAccountId: 'account-1',
                 now: new Date('2026-08-06T12:00:00.000Z'),
@@ -109,12 +139,13 @@ describe('Product-search retrieval policy', () => {
             deps
         );
 
-        expect(result.run).toBe(freshRun);
-        expect(result.freshness.stale).toBe(false);
-        expect(deps.getOperationById.mock.calls).toHaveLength(2);
+        expect(result.searchedAt).toBe(freshRun.sourceCompletedAt);
+        expect(operationReads).toBe(2);
+        expect(deps.dispatchOperation.mock.calls).toHaveLength(1);
+        expect(getRun.mock.calls).toHaveLength(1);
     });
 
-    it('waits for a missing Search run and returns the completed run', async () => {
+    it('waits for a missing Search run and maps the completed result', async () => {
         const operation = createPendingOperation();
         const run = createRun('2026-08-06T12:00:02.000Z');
         let operationReads = 0;
@@ -146,68 +177,20 @@ describe('Product-search retrieval policy', () => {
             deps
         );
 
-        expect(result.run).toBe(run);
-        expect(result.freshness.stale).toBe(false);
-        expect(deps.getOperationById.mock.calls).toHaveLength(2);
+        expect(result.keyword).toBe('shirts');
+        expect(result.results).toHaveLength(1);
+        expect(result).not.toHaveProperty('run');
+        expect(result).not.toHaveProperty('freshness');
+        expect(operationReads).toBe(2);
     });
 
-    it('coalesces equivalent refresh callers onto one Search-run wait', async () => {
-        const operation = createPendingOperation();
-        const run = createRun('2026-08-06T12:00:02.000Z');
-        let operationReads = 0;
-        const deps = createDeps({
-            resolveRequest: async () => ({
-                kind: 'pending' as const,
-                operation,
-                created: true,
-                staleRunId: null,
-            }),
-            getOperationById: () => {
-                operationReads += 1;
-                return Promise.resolve(
-                    operationReads === 1 ? operation : createCompletedOperation(operation, run.id)
-                );
-            },
-            getRun: async () => run,
-            sleep: async () => undefined,
-        });
-
-        const [first, second] = await Promise.all([
-            awaitCatalogSearchRetrieval(
-                {
-                    term: ' Coalesced   Gardening Shirt ',
-                    refresh: true,
-                    ownerMerchbaseUserId: 'mbu_test',
-                    serviceAccountId: 'account-1',
-                    now: new Date('2026-08-06T12:00:00.000Z'),
-                },
-                deps
-            ),
-            awaitCatalogSearchRetrieval(
-                {
-                    term: 'coalesced gardening shirt',
-                    refresh: true,
-                    ownerMerchbaseUserId: 'mbu_test',
-                    serviceAccountId: 'account-1',
-                    now: new Date('2026-08-06T12:00:00.000Z'),
-                },
-                deps
-            ),
-        ]);
-
-        expect(first.run).toBe(run);
-        expect(second.run).toBe(run);
-        expect(deps.resolveRequest.mock.calls).toHaveLength(1);
-        expect(deps.dispatchOperation.mock.calls).toHaveLength(1);
-        expect(deps.getOperationById.mock.calls).toHaveLength(2);
-    });
-
-    it('fails a refresh during the durable retry cooldown without dispatching work', async () => {
+    it('does not return stale evidence during a retry cooldown', async () => {
+        const staleRun = createRun('2026-08-05T11:00:00.000Z');
         const deps = createDeps({
             resolveRequest: async () => ({
                 kind: 'cooldown' as const,
                 retryAfterSeconds: 120,
-                staleRunId: null,
+                staleRunId: staleRun.id,
             }),
         });
 
@@ -215,7 +198,7 @@ describe('Product-search retrieval policy', () => {
             awaitCatalogSearchRetrieval(
                 {
                     term: 'cooldown shirts',
-                    refresh: true,
+                    refresh: false,
                     ownerMerchbaseUserId: 'mbu_test',
                     serviceAccountId: 'account-1',
                 },
@@ -225,76 +208,77 @@ describe('Product-search retrieval policy', () => {
             name: 'RetrievalRetryableError',
             retryAfterSeconds: 120,
         });
+        expect(deps.getRun.mock.calls).toHaveLength(0);
         expect(deps.dispatchOperation.mock.calls).toHaveLength(0);
     });
-});
-const createDeps = (
-    overrides: Partial<CatalogSearchRetrievalDeps> = {}
-): CatalogSearchRetrievalDeps => ({
-    resolveRequest: mock(
-        overrides.resolveRequest ??
-            (async () => ({
-                kind: 'ready' as const,
-                runId: '22222222-2222-4222-8222-222222222222',
-            }))
-    ),
-    getRun: mock(overrides.getRun ?? (async () => createRun('2026-08-06T12:00:00.000Z'))),
-    getOperationById: mock(overrides.getOperationById ?? (async () => null)),
-    dispatchOperation: mock(overrides.dispatchOperation ?? (async () => true)),
-    sleep: mock(overrides.sleep ?? (async () => undefined)),
-});
 
-const createRun = (sourceCompletedAt: string, id = '22222222-2222-4222-8222-222222222222') => ({
-    id,
-    sourceStartedAt: '2026-08-06T11:59:00.000Z',
-    sourceCompletedAt,
-    trigger: 'requested' as const,
-    resultCount: 1,
-    normalizerVersion: 1,
-    createdAt: sourceCompletedAt,
-    query: {
-        id: '33333333-3333-4333-8333-333333333333',
-        source: 'keepa' as const,
-        marketplaceId: 'ATVPDKIKX0DER',
-        normalizedTerm: 'shirts',
-        displayTerm: 'shirts',
-        page: 0,
-    },
-    results: [],
-});
+    it('maps a failed Search operation to a retryable error', async () => {
+        const operation = createPendingOperation();
+        const deps = createDeps({
+            resolveRequest: async () => ({
+                kind: 'pending' as const,
+                operation,
+                created: false,
+                staleRunId: null,
+            }),
+            getOperationById: async () => ({
+                ...operation,
+                status: 'completed' as const,
+                resource: null,
+                error: { code: 'PROVIDER_UNAVAILABLE', message: 'temporary failure' },
+                completedAt: new Date('2026-08-06T12:00:02.000Z'),
+            }),
+            sleep: async () => undefined,
+        });
 
-type CatalogSearchOperation = Extract<OperationRecord, { type: 'catalogSearch' }>;
-const createPendingOperation = (): CatalogSearchOperation => ({
-    id: '11111111-1111-4111-8111-111111111111',
-    type: 'catalogSearch',
-    status: 'pending',
-    targetKey: '33333333-3333-4333-8333-333333333333',
-    input: {
-        queryId: '33333333-3333-4333-8333-333333333333',
-        marketplaceId: 'ATVPDKIKX0DER',
-        term: 'shirts',
-        page: 0,
-        priority: 'interactive',
-        trigger: 'requested',
-        ownerMerchbaseUserId: 'mbu_test',
-    },
-    resource: null,
-    error: null,
-    dispatchedAt: null,
-    startedAt: null,
-    completedAt: null,
-    createdAt: new Date('2026-08-06T12:00:00.000Z'),
-    updatedAt: new Date('2026-08-06T12:00:00.000Z'),
-});
+        await expect(
+            awaitCatalogSearchRetrieval(
+                {
+                    term: 'failed shirts',
+                    ownerMerchbaseUserId: 'mbu_test',
+                    serviceAccountId: 'account-1',
+                },
+                deps
+            )
+        ).rejects.toMatchObject({
+            name: 'RetrievalRetryableError',
+            retryAfterSeconds: 300,
+        });
+    });
 
-const createCompletedOperation = (operation: CatalogSearchOperation, runId: string) => ({
-    ...operation,
-    status: 'completed' as const,
-    resource: {
-        type: 'catalogSearchRun' as const,
-        queryId: operation.input.queryId,
-        runId,
-    },
-    completedAt: new Date('2026-08-06T12:00:02.000Z'),
-    updatedAt: new Date('2026-08-06T12:00:02.000Z'),
+    it('maps a caller deadline while waiting for Search work to a retryable error', async () => {
+        const operation = createPendingOperation();
+        let clockReads = 0;
+        const deps = createDeps({
+            resolveRequest: async () => ({
+                kind: 'pending' as const,
+                operation,
+                created: true,
+                staleRunId: null,
+            }),
+            getOperationById: async () => operation,
+            now: () => {
+                clockReads += 1;
+                return new Date(
+                    clockReads === 1 ? '2026-08-06T12:00:00.000Z' : '2026-08-06T18:00:00.000Z'
+                );
+            },
+            sleep: async () => undefined,
+        });
+
+        await expect(
+            awaitCatalogSearchRetrieval(
+                {
+                    term: 'deadline shirts',
+                    ownerMerchbaseUserId: 'mbu_test',
+                    serviceAccountId: 'account-1',
+                    timeoutMs: 10_000,
+                },
+                deps
+            )
+        ).rejects.toMatchObject({
+            name: 'RetrievalRetryableError',
+            reason: 'deadline',
+        });
+    });
 });

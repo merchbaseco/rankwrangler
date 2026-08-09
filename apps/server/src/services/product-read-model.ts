@@ -36,6 +36,28 @@ export interface Product {
     };
 }
 
+export interface ProductSearchProduct {
+    marketplaceId: string;
+    asin: string;
+    title: string | null;
+    brand: string | null;
+    thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
+    isMerchListing: boolean | null;
+    category: { id: number; name: string | null } | null;
+    salesRank: number | null;
+    price: { amountMinor: number; currencyCode: string } | null;
+    boughtInPastMonth: number | null;
+}
+
+export interface ProductSearch {
+    keyword: string;
+    searchedAt: string;
+    results: Array<{
+        organicSearchPlacement: number;
+        product: ProductSearchProduct;
+    }>;
+}
+
 interface ProductReadInput {
     marketplaceId: string;
     asin: string;
@@ -127,4 +149,17 @@ export const mapProductToPublicProduct = (product: ProductInfo): Product => ({
             last365Days: product.keepa?.salesRankDrops.days365 ?? null,
         },
     },
+});
+
+export const mapProductToCompactProductSearch = (product: Product): ProductSearchProduct => ({
+    marketplaceId: product.marketplaceId,
+    asin: product.asin,
+    title: product.listing.title,
+    brand: product.listing.brand,
+    thumbnail: product.listing.thumbnail,
+    isMerchListing: product.listing.isMerchListing,
+    category: product.category,
+    salesRank: product.salesRank.current,
+    price: product.price,
+    boughtInPastMonth: product.demand.boughtInPastMonth,
 });

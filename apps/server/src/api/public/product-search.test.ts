@@ -6,14 +6,45 @@ import { RetrievalRetryableError } from '@/services/retrieval-coordinator';
 import { createProductSearchProcedure, type ProductSearchProcedureDeps } from './product-search';
 
 describe('public Product-search tRPC boundary', () => {
-    it('returns Search-run data and freshness without exposing an Operation', async () => {
+    it('returns the exact compact Product Search contract without retrieval metadata', async () => {
         const response = {
-            status: 'ready' as const,
-            run: { id: '22222222-2222-4222-8222-222222222222' },
-            freshness: {
-                stale: false,
-                updatedAt: '2026-08-06T12:00:00.000Z',
-            },
+            keyword: 'shirts',
+            searchedAt: '2026-08-06T12:00:00.000Z',
+            results: [
+                {
+                    organicSearchPlacement: 3,
+                    product: {
+                        marketplaceId: 'ATVPDKIKX0DER',
+                        asin: 'B012345678',
+                        title: 'Garden shirt',
+                        brand: 'Example brand',
+                        thumbnail: {
+                            status: 'available' as const,
+                            url: 'https://example.com/image.jpg',
+                        },
+                        isMerchListing: true,
+                        category: { id: 12_345, name: 'Clothing' },
+                        salesRank: 12_345,
+                        price: { amountMinor: 1999, currencyCode: 'USD' },
+                        boughtInPastMonth: 200,
+                    },
+                },
+                {
+                    organicSearchPlacement: 7,
+                    product: {
+                        marketplaceId: 'ATVPDKIKX0DER',
+                        asin: 'B087654321',
+                        title: null,
+                        brand: null,
+                        thumbnail: { status: 'unavailable' as const },
+                        isMerchListing: null,
+                        category: null,
+                        salesRank: null,
+                        price: null,
+                        boughtInPastMonth: null,
+                    },
+                },
+            ],
         };
         const retrieveProductSearch = mock(async () => response);
         const caller = createCaller({ retrieveProductSearch });
@@ -21,6 +52,23 @@ describe('public Product-search tRPC boundary', () => {
         const result = await caller.search({ term: 'shirts', refresh: true });
 
         expect(result).toEqual(response);
+        expect(Object.keys(result)).toEqual(['keyword', 'searchedAt', 'results']);
+        expect(Object.keys(result.results[0] ?? {})).toEqual(['organicSearchPlacement', 'product']);
+        expect(Object.keys(result.results[0]?.product ?? {})).toEqual([
+            'marketplaceId',
+            'asin',
+            'title',
+            'brand',
+            'thumbnail',
+            'isMerchListing',
+            'category',
+            'salesRank',
+            'price',
+            'boughtInPastMonth',
+        ]);
+        expect(result).not.toHaveProperty('status');
+        expect(result).not.toHaveProperty('run');
+        expect(result).not.toHaveProperty('freshness');
         expect(result).not.toHaveProperty('operation');
         expect(retrieveProductSearch.mock.calls[0]?.[0]).toMatchObject({
             term: 'shirts',
@@ -29,7 +77,7 @@ describe('public Product-search tRPC boundary', () => {
         });
     });
 
-    it('maps temporary Search-run retrieval failure to a provider-neutral retryable error', async () => {
+    it('preserves a retryable provider-neutral Search error', async () => {
         const caller = createCaller({
             retrieveProductSearch: mock(() => {
                 throw new RetrievalRetryableError(
@@ -55,12 +103,9 @@ const createCaller = (overrides: Partial<ProductSearchProcedureDeps> = {}) =>
             retrieveProductSearch: mock(
                 overrides.retrieveProductSearch ??
                     (async () => ({
-                        status: 'ready' as const,
-                        run: { id: '22222222-2222-4222-8222-222222222222' },
-                        freshness: {
-                            stale: false,
-                            updatedAt: '2026-08-06T12:00:00.000Z',
-                        },
+                        keyword: 'shirts',
+                        searchedAt: '2026-08-06T12:00:00.000Z',
+                        results: [],
                     }))
             ),
         }),

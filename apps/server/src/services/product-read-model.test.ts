@@ -2,6 +2,7 @@ import { describe, expect, it, mock } from 'bun:test';
 import type { ProductInfo } from '@/types';
 import {
     getProductReadModel,
+    mapProductToCompactProductSearch,
     mapProductToPublicProduct,
     type ProductReadModelDeps,
 } from './product-read-model';
@@ -125,6 +126,23 @@ describe('public Product read model', () => {
                     last365Days: null,
                 },
             },
+        });
+    });
+
+    it('maps a current Product to the compact Search projection', () => {
+        const product = mapProductToPublicProduct(createProductInfo());
+
+        expect(mapProductToCompactProductSearch(product)).toEqual({
+            marketplaceId: 'ATVPDKIKX0DER',
+            asin: 'B012345678',
+            title: 'Garden shirt',
+            brand: 'Example brand',
+            thumbnail: { status: 'unavailable' },
+            isMerchListing: null,
+            category: { id: 12_345, name: 'Clothing' },
+            salesRank: 12_345,
+            price: { amountMinor: 1999, currencyCode: 'USD' },
+            boughtInPastMonth: 200,
         });
     });
 });

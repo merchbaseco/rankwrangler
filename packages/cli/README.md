@@ -14,10 +14,11 @@ rw keyword search "retro gardening"
 rw keyword history "retro gardening shirt" --rangeDays 90
 ```
 
-The final public command surface is Product `get/search/history`, keyword `get/search/history`,
-auth, config, version, and changelog. Product `get/history` and keyword reads wait for
-policy-current final data and expose no refresh control; Product search retains its separate search
-contract. Output is a JSON `{ ok, data }` envelope; failures use `{ ok: false, error }` on stderr.
+The public command surface is Product `get/search/history`, keyword `get/search/history`, auth,
+config, version, and changelog. Product `get/history` and keyword reads wait for policy-current
+data and expose no refresh control; Product search retains its separate search contract. Search
+data contains `keyword`, `searchedAt`, and compact results with `organicSearchPlacement`. Output is
+a JSON `{ ok, data }` envelope; failures use `{ ok: false, error }` on stderr.
 The CLI does not expose Catalog, Operation, provider status, or polling commands.
 
 See the [CLI reference](../../docs/reference/cli.md) for options and release workflow.

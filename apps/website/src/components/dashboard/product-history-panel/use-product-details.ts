@@ -15,7 +15,7 @@ export const useProductDetails = ({
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [refreshError, setRefreshError] = useState<string | null>(null);
 	const queryInput = useMemo(
-		() => ({ marketplaceId, asin, refresh: false }),
+		() => ({ asin, includeProvenance: true, marketplaceId, refresh: false }),
 		[asin, marketplaceId],
 	);
 	const productQuery = api.api.app.product.get.useQuery(queryInput, {
@@ -69,6 +69,7 @@ export const useProductDetails = ({
 	return {
 		product: productQuery.data?.product ?? null,
 		availability: productQuery.data?.availability ?? "pending",
+		provenance: productQuery.data?.provenance ?? null,
 		isLoading: productQuery.isLoading,
 		isRefreshing,
 		refresh,

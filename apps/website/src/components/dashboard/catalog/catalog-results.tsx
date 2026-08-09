@@ -80,7 +80,6 @@ export const CatalogResults = ({
 							<TableHead className="text-right">Observed price</TableHead>
 							<TableHead className="text-right">Current price</TableHead>
 							<TableHead className="text-right">Observed sold</TableHead>
-							<TableHead>Source / freshness</TableHead>
 						</TableRow>
 					</TableHeader>
 				}
@@ -113,5 +112,4 @@ const CATALOG_TABLE_COLUMNS: DashboardTableColumn[] = [
 	{ key: "observed-price", width: 110 },
 	{ key: "current-price", width: 110 },
 	{ key: "observed-sold", width: 100 },
-	{ key: "source-freshness", width: 200 },
 ];

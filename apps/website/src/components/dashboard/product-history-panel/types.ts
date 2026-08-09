@@ -8,6 +8,7 @@ import {
 	type HistoryRangePresetKey,
 } from "@rankwrangler/history-chart/history-chart-types";
 import type { ProductThumbnail } from "@/components/dashboard/product-thumbnail";
+import type { ProductProvenance } from "./product-provenance";
 
 export type HistoryPoint = { timestamp: number; value: number };
 export type HistoryTimeDomain = { startAt: number; endAt: number };
@@ -32,6 +33,7 @@ export type ProductHistoryPanelProduct = {
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean | null;
 	freshness: ProductFreshness;
+	provenance?: ProductProvenance | null;
 };
 
 export type ProductHistoryPanelProps = {

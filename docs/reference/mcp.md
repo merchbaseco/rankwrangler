@@ -23,8 +23,8 @@ without `/mcp`. Other website paths are not MCP routes.
 | Tool | Input | Result |
 | --- | --- | --- |
 | `rankwrangler_status` | `{}` | Connection, authentication, and six supported noun/verb capabilities. |
-| `rankwrangler_product` | `operation: get \| search \| history` | Final Product data or a standard error. |
-| `rankwrangler_keyword` | `operation: get \| search \| history` | Final keyword data or a standard error. |
+| `rankwrangler_product` | `operation: get \| search \| history` | Product data or a standard error. |
+| `rankwrangler_keyword` | `operation: get \| search \| history` | Keyword data or a standard error. |
 
 `rankwrangler_product` uses `asin` and `marketplaceId` for `get`, adds only the documented
 Product-history range, metric, and bucket fields for `history`, and uses `term` for `search`.
@@ -43,9 +43,10 @@ valid empty series return `points: []` and `null` for `first`, `latest`, `min`, 
 history exposes minor-currency unit and currency code without a scale field.
 
 Every data tool call completes synchronously from the caller's perspective. It returns
-policy-current final data or a structured error. MCP does not expose refresh inputs, stale/pending
-Product data, freshness, Catalog, Operation, polling, provider status or timestamps, or
-provider-named frontend availability tools. Product data carries only nullable
+policy-current data or a structured error. MCP does not expose stale/pending Product data,
+freshness, Catalog, Operation, polling, provider status or timestamps, or provider-named frontend
+availability tools. Product `get`/`history` and keyword operations have no refresh input; Product
+Search retains its separate Search input. Product data carries only nullable
 `isMerchListing`; `null` remains unknown rather than being serialized as `false`.
 
 `rankwrangler_status` does not report data or provider health, freshness, timestamps, or work state.

@@ -69,6 +69,7 @@ rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 | `--startAt <ISO>` / `--endAt <ISO>` | Product history range bounds. |
 | `--limit <N>` | Product history max 10,000; keyword search max 100. |
 | `--cursor <N>` | Keyword search offset; default 0. |
+| `--refresh` | Product Search only; requests a replacement Search run. |
 | `-m, --marketplace <id>` | Marketplace override; Product defaults to US. |
 | `--baseUrl <origin>` | API-origin override; `/api` is normalized away. |
 

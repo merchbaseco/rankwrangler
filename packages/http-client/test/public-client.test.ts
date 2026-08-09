@@ -9,9 +9,32 @@ afterEach(() => {
 });
 
 describe('public client contract', () => {
-    test('calls a final public route with an OAuth bearer and composed API URL', async () => {
+    test('calls a public Product Search route with an OAuth bearer and composed API URL', async () => {
         let receivedRequest: Request | undefined;
-        const productSearchOutput = { status: 'ready' };
+        const productSearchOutput = {
+            keyword: 'retro gardening shirt',
+            searchedAt: '2026-08-06T12:00:00.000Z',
+            results: [
+                {
+                    organicSearchPlacement: 3,
+                    product: {
+                        marketplaceId: 'ATVPDKIKX0DER',
+                        asin: 'B012345678',
+                        title: 'Garden shirt',
+                        brand: 'Example brand',
+                        thumbnail: {
+                            status: 'available' as const,
+                            url: 'https://example.com/image.jpg',
+                        },
+                        isMerchListing: null,
+                        category: null,
+                        salesRank: null,
+                        price: null,
+                        boughtInPastMonth: null,
+                    },
+                },
+            ],
+        };
         globalThis.fetch = (request, init) => {
             receivedRequest = new Request(request, init);
             return Promise.resolve(Response.json({ result: { data: productSearchOutput } }));

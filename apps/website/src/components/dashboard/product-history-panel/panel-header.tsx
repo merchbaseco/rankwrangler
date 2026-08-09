@@ -18,6 +18,7 @@ import {
 	KeepaStatusButton,
 	ProductFreshnessButton,
 } from "@/components/dashboard/product-history-panel/product-status-badges";
+import { ProductProvenanceTooltip } from "@/components/dashboard/product-history-panel/product-provenance-tooltip";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, formatCalendarDate } from "@/lib/utils";
 
@@ -185,6 +186,7 @@ export const PanelHeader = ({
 					keepaLastSyncAt={keepaLastSyncAt}
 					onSync={onSync}
 				/>
+				<ProductProvenanceTooltip provenance={product.provenance} />
 				{canFetchFacets ? (
 					<>
 						<div className="mx-0.5 h-3 w-px bg-border" />

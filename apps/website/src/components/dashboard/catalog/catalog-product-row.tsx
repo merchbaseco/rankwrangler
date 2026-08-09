@@ -8,7 +8,7 @@ import type {
 	ProductRowMouseEnter,
 	ProductRowMouseMove,
 } from "@/components/dashboard/product-image-tooltip";
-import { formatNumber, formatRelativeTime } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import type { CatalogResult } from "./types";
 import { useCatalogProductQuery } from "./use-catalog-product-query";
 
@@ -120,10 +120,6 @@ const ResolvedCatalogProductRow = ({
 				currencyCode={current?.currentNewPrice?.currencyCode ?? "USD"}
 			/>
 			<MetricCell value={result.observed.monthlySold} />
-			<SourceFreshnessCell
-				currentFetchedAt={current?.fetchedAt ?? null}
-				observedAt={result.observed.sourceUpdatedAt}
-			/>
 		</TableRow>
 	);
 };
@@ -178,10 +174,6 @@ const UnavailableCatalogProductRow = ({
 		/>
 		<PriceCell amountMinor={null} currencyCode="USD" />
 		<MetricCell value={result.observed.monthlySold} />
-		<SourceFreshnessCell
-			currentFetchedAt={null}
-			observedAt={result.observed.sourceUpdatedAt}
-		/>
 	</TableRow>
 );
 
@@ -252,24 +244,6 @@ const PriceCell = ({
 }) => (
 	<TableCell className="text-right font-mono">
 		{formatPrice(amountMinor, currencyCode)}
-	</TableCell>
-);
-
-const SourceFreshnessCell = ({
-	currentFetchedAt,
-	observedAt,
-}: {
-	currentFetchedAt: string | null;
-	observedAt: string | null;
-}) => (
-	<TableCell className="whitespace-normal">
-		<div className="font-medium">Keepa observation</div>
-		<div className="mt-1 text-[11px] text-muted-foreground">
-			Observed {formatRelativeTime(observedAt)}
-			{currentFetchedAt
-				? ` · Product refreshed ${formatRelativeTime(currentFetchedAt)}`
-				: ""}
-		</div>
 	</TableCell>
 );
 
