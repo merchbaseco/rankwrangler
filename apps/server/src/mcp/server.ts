@@ -59,72 +59,58 @@ const productBatchSchema = z
         });
     });
 
-const productInputSchema = z.discriminatedUnion('operation', [
-    z
-        .object({
-            asin: z.string().trim().min(1).max(10).optional(),
-            marketplaceId: z.string().trim().min(1).default('ATVPDKIKX0DER'),
-            operation: z.literal('get'),
+const productInputSchema = z
+    .object({
+        asin: z.string().trim().min(1).max(10).optional(),
+        bucket: z.enum(['auto', 'day', 'week', 'month']).optional(),
+        days: z.number().int().min(30).max(3650).optional(),
+        endAt: z.string().datetime().optional(),
+        limit: z.number().int().min(1).max(10_000).optional(),
+        marketplaceId: z.string().trim().min(1).optional(),
+        metrics: z.array(z.enum(['salesRank', 'price'])).min(1).max(2).optional(),
+        operation: z.enum(['get', 'getMany', 'search', 'history']),
+        products: productBatchSchema.optional(),
+        refresh: z.boolean().optional(),
+        startAt: z.string().datetime().optional(),
+        term: z.string().trim().min(1).max(200).optional(),
+    })
+    .strict()
+    .superRefine((input, context) =>
+        rejectFieldsOutsideOperation(input, context, {
+            get: ['asin', 'marketplaceId'],
+            getMany: ['products'],
+            history: [
+                'asin',
+                'bucket',
+                'days',
+                'endAt',
+                'limit',
+                'marketplaceId',
+                'metrics',
+                'startAt',
+            ],
+            search: ['refresh', 'term'],
         })
-        .strict(),
-    z
-        .object({
-            operation: z.literal('getMany'),
-            products: productBatchSchema,
-        })
-        .strict(),
-    z
-        .object({
-            operation: z.literal('search'),
-            refresh: z.boolean().default(false),
-            term: z.string().trim().min(1).max(200),
-        })
-        .strict(),
-    z
-        .object({
-            asin: z.string().trim().min(1).max(10).optional(),
-            bucket: z.enum(['auto', 'day', 'week', 'month']).default('auto'),
-            days: z.number().int().min(30).max(3650).default(365),
-            endAt: z.string().datetime().optional(),
-            limit: z.number().int().min(1).max(10_000).default(5000),
-            marketplaceId: z.string().trim().min(1).default('ATVPDKIKX0DER'),
-            metrics: z
-                .array(z.enum(['salesRank', 'price']))
-                .min(1)
-                .max(2)
-                .default(['salesRank', 'price']),
-            operation: z.literal('history'),
-            startAt: z.string().datetime().optional(),
-        })
-        .strict(),
-]);
+    );
 
-const keywordInputSchema = z.discriminatedUnion('operation', [
-    z
-        .object({
-            keyword: z.string().trim().min(1).max(200).optional(),
-            marketplaceId: z.literal('ATVPDKIKX0DER').default('ATVPDKIKX0DER'),
-            operation: z.literal('get'),
+const keywordInputSchema = z
+    .object({
+        cursor: z.number().int().min(0).optional(),
+        keyword: z.string().trim().min(1).max(200).optional(),
+        limit: z.number().int().min(1).max(100).optional(),
+        marketplaceId: z.literal('ATVPDKIKX0DER').optional(),
+        operation: z.enum(['get', 'search', 'history']),
+        rangeDays: z.number().int().min(7).max(365).optional(),
+        text: z.string().trim().min(1).max(200).optional(),
+    })
+    .strict()
+    .superRefine((input, context) =>
+        rejectFieldsOutsideOperation(input, context, {
+            get: ['keyword', 'marketplaceId'],
+            history: ['keyword', 'marketplaceId', 'rangeDays'],
+            search: ['cursor', 'limit', 'marketplaceId', 'text'],
         })
-        .strict(),
-    z
-        .object({
-            cursor: z.number().int().min(0).default(0),
-            limit: z.number().int().min(1).max(100).default(25),
-            marketplaceId: z.literal('ATVPDKIKX0DER').default('ATVPDKIKX0DER'),
-            operation: z.literal('search'),
-            text: z.string().trim().min(1).max(200).optional(),
-        })
-        .strict(),
-    z
-        .object({
-            keyword: z.string().trim().min(1).max(200).optional(),
-            marketplaceId: z.literal('ATVPDKIKX0DER').default('ATVPDKIKX0DER'),
-            operation: z.literal('history'),
-            rangeDays: z.number().int().min(7).max(365).default(90),
-        })
-        .strict(),
-]);
+    );
 
 const statusOutputSchema = z.object({
     capabilities: z.object({
@@ -156,7 +142,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler Product data through a synchronous get, getMany, search, or history operation. getMany returns basic title and thumbnail data for up to 200 Product identities. Responses contain data or a standard error.',
+                'Read RankWrangler Product data synchronously. operation=get uses asin and marketplaceId; getMany uses products and returns basic title and thumbnail data for up to 200 identities; search uses term; history uses asin plus range options. Responses contain data or a standard error.',
             inputSchema: productInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler Product',
@@ -174,8 +160,8 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 case 'search':
                     return runReadOnlyTool(async () =>
                         source.product.search({
-                            refresh: input.refresh,
-                            term: input.term,
+                            refresh: input.refresh ?? false,
+                            term: requireValue(input.term, 'term'),
                         })
                     );
                 case 'history':
@@ -193,7 +179,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler keyword data through a synchronous get, search, or history operation. Responses contain data or a standard error.',
+                'Read RankWrangler keyword data synchronously. operation=get and history use keyword; search uses text. Responses contain data or a standard error.',
             inputSchema: keywordInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler keyword',
@@ -204,15 +190,15 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                     return runReadOnlyTool(async () =>
                         source.keyword.get({
                             keyword: requireValue(input.keyword, 'keyword'),
-                            marketplaceId: input.marketplaceId,
+                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
                         })
                     );
                 case 'search':
                     return runReadOnlyTool(async () =>
                         source.keyword.search({
-                            cursor: input.cursor,
-                            limit: input.limit,
-                            marketplaceId: input.marketplaceId,
+                            cursor: input.cursor ?? 0,
+                            limit: input.limit ?? 25,
+                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
                             text: requireValue(input.text, 'text'),
                         })
                     );
@@ -220,8 +206,8 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                     return runReadOnlyTool(async () =>
                         source.keyword.history({
                             keyword: requireValue(input.keyword, 'keyword'),
-                            marketplaceId: input.marketplaceId,
-                            rangeDays: input.rangeDays,
+                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
+                            rangeDays: input.rangeDays ?? 90,
                         })
                     );
                 default:
@@ -234,41 +220,55 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
 };
 
 type ProductInput = z.infer<typeof productInputSchema>;
-type ProductGetInput = Extract<ProductInput, { operation: 'get' }>;
-type ProductGetManyInput = Extract<ProductInput, { operation: 'getMany' }>;
-type ProductHistoryInput = Extract<ProductInput, { operation: 'history' }>;
 
-const toProductGetInput = (input: ProductGetInput): ProductGetMcpInput => ({
+const toProductGetInput = (input: ProductInput): ProductGetMcpInput => ({
     asin: requireValue(input.asin, 'asin'),
-    marketplaceId: input.marketplaceId,
+    marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
 });
 
-const toProductGetManyInput = (input: ProductGetManyInput): ProductGetManyMcpInput => ({
-    products: input.products.map(product => ({
+const toProductGetManyInput = (input: ProductInput): ProductGetManyMcpInput => ({
+    products: requireValue(input.products, 'products').map(product => ({
         asin: product.asin.toUpperCase(),
         marketplaceId: product.marketplaceId,
     })),
 });
 
-const toProductHistoryInput = (input: ProductHistoryInput): ProductHistoryMcpInput => ({
+const toProductHistoryInput = (input: ProductInput): ProductHistoryMcpInput => ({
     asin: requireValue(input.asin, 'asin'),
-    bucket: input.bucket,
-    days: input.days,
+    bucket: input.bucket ?? 'auto',
+    days: input.days ?? 365,
     endAt: input.endAt,
-    limit: input.limit,
-    marketplaceId: input.marketplaceId,
-    metrics: input.metrics,
+    limit: input.limit ?? 5000,
+    marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
+    metrics: input.metrics ?? ['salesRank', 'price'],
     startAt: input.startAt,
 });
 
-const requireValue = (value: string | undefined, name: string) => {
-    if (!value) {
+const requireValue = <Value>(value: Value | undefined, name: string): Value => {
+    if (value === undefined) {
         throw new TRPCError({
             code: 'BAD_REQUEST',
             message: `${name} is required.`,
         });
     }
     return value;
+};
+
+const rejectFieldsOutsideOperation = <Operation extends string>(
+    input: { operation: Operation } & Record<string, unknown>,
+    context: z.RefinementCtx,
+    fieldsByOperation: Record<Operation, string[]>
+) => {
+    const allowedFields = new Set(['operation', ...fieldsByOperation[input.operation]]);
+    for (const [field, value] of Object.entries(input)) {
+        if (value !== undefined && !allowedFields.has(field)) {
+            context.addIssue({
+                code: 'custom',
+                message: `${field} is not accepted for ${input.operation}`,
+                path: [field],
+            });
+        }
+    }
 };
 
 const assertNever = (value: never): never => {

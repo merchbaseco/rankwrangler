@@ -41,7 +41,15 @@ describe('RankWrangler MCP server', () => {
             type: 'object',
         });
         const productTool = result.tools.find(tool => tool.name === 'rankwrangler_product');
-        expect(productTool?.description).toContain('get, getMany, search, or history');
+        expect(productTool?.description).toContain('getMany uses products');
+        expect(productTool?.inputSchema).toMatchObject({
+            properties: {
+                operation: { enum: ['get', 'getMany', 'search', 'history'] },
+            },
+        });
+        expect(JSON.stringify(result.tools)).not.toContain('oneOf');
+        expect(JSON.stringify(result.tools)).not.toContain('anyOf');
+        expect(JSON.stringify(result.tools)).not.toContain('allOf');
         expect(productTool?.description).not.toContain('final');
         expect(productTool?.description).not.toContain('Keepa');
         expect(JSON.stringify(result.tools)).not.toContain('operation.get');
