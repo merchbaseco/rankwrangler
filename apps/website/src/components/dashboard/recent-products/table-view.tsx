@@ -84,6 +84,7 @@ export const RecentProductsTableView = ({
 									<TableCell
 										key={cell.id}
 										className={cn(
+											"min-w-0 overflow-hidden",
 											isRight && "text-right",
 											isWrap && "whitespace-normal",
 										)}

@@ -187,7 +187,7 @@ describe('Product retrieval', () => {
         });
     });
 
-    it('does not requeue a completed empty provider response', async () => {
+    it('does not requeue an unavailable Product when its resolution ages past freshness', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000005' };
         const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(0));
         const searchCatalogItemsByAsins = mock(() => Promise.resolve([]));
@@ -197,7 +197,7 @@ describe('Product retrieval', () => {
                     {
                         product: createStoredProduct(identity, {
                             isUnavailable: true,
-                            spApiResolvedAt: new Date(Date.now() - 60_000),
+                            spApiResolvedAt: new Date('2026-01-01T12:00:00.000Z'),
                         }),
                         queuePending: false,
                     },
@@ -220,6 +220,42 @@ describe('Product retrieval', () => {
             availability: 'unavailable',
             product: { thumbnail: { status: 'unavailable' } },
         });
+    });
+
+    it('rechecks an unavailable Product after a newer authoritative discovery', async () => {
+        const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000008' };
+        let readCount = 0;
+        const getStoredProducts = mock(() => {
+            readCount += 1;
+            return Promise.resolve([
+                {
+                    product: createStoredProduct(identity, {
+                        isUnavailable: true,
+                        spApiResolvedAt: new Date('2026-08-01T12:00:00.000Z'),
+                    }),
+                    queuePending: readCount > 1,
+                },
+            ]);
+        });
+        const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(1));
+        const deps = {
+            getStoredProducts,
+            ensureProductIdentities: mock(() => Promise.resolve(0)),
+            enqueueSpApiSyncQueueItems,
+            searchCatalogItemsByAsins: mock(() => Promise.resolve([])),
+            persistProductSyncResults: mock(() => Promise.resolve(undefined)),
+        } as never;
+
+        await getProducts(
+            {
+                products: [identity],
+                fetchPolicy: 'background',
+                rediscoveredAt: new Date('2026-08-09T12:00:00.000Z'),
+            },
+            deps
+        );
+
+        expect(enqueueSpApiSyncQueueItems).toHaveBeenCalledWith([identity]);
     });
 
     it('keeps last-known listing data visible when Amazon marks the Product unavailable', async () => {

@@ -45,7 +45,8 @@ unavailable. A later response containing the ASIN clears that state. Provider fa
 Queue rows are deleted only after reconciliation succeeds; failures remain retryable by a later
 wakeup and emit structured activity events. Each committed Product upsert also emits an
 identity-only completion event so active dashboard Product queries can invalidate precisely.
-Unavailable Products use a 30-day scheduled recheck instead of BSR-tier refresh urgency.
+Unavailable Products do not age back into automatic or scheduled SP-API work. A newer authoritative
+Catalog discovery or an explicit refresh can recheck them; a cached or older discovery cannot.
 
 ## Source Normalization
 

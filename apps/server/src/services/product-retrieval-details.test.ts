@@ -104,7 +104,7 @@ describe('Product detail retrieval', () => {
         expect(secondResult.product?.title).toBe('Refreshed title');
     });
 
-    it('forces a provider refresh when explicit refresh is requested for fresh data', async () => {
+    it('forces a provider refresh when explicitly requested for an unavailable Product', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000012' };
         const searchCatalogItemsByAsins = mock(() => Promise.resolve([]));
         let readCount = 0;
@@ -114,6 +114,7 @@ describe('Product detail retrieval', () => {
                 return Promise.resolve([
                     {
                         product: createStoredProduct(identity, {
+                            isUnavailable: true,
                             spApiFetchedAt: new Date(),
                             spApiResolvedAt: new Date(),
                         }),

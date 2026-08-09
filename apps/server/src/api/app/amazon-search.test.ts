@@ -5,6 +5,7 @@ describe('Amazon keyword Product retrieval', () => {
     it('sends keyword identities through the shared background Product service', async () => {
         const retrieve = mock(async (input: Parameters<typeof import('@/services/product-retrieval.js')['getProducts']>[0]) => {
             expect(input.fetchPolicy).toBe('background');
+            expect(input.rediscoveredAt).toEqual(new Date('2026-08-03T12:00:00.000Z'));
             return input.products.map(identity => ({
                 identity,
                 product: null,

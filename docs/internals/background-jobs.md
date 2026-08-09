@@ -21,7 +21,7 @@ where a second attempt would be redundant.
 | Workflow | Dispatch model |
 | --- | --- |
 | SP-API Product sync | Event-driven singleton wakeup, continuation wakeups, and startup kick. |
-| SP-API stale Product selection | Every 10 minutes using BSR-dependent freshness tiers. |
+| SP-API stale Product selection | Every 10 minutes for available Products using BSR-dependent freshness tiers. |
 | Keepa candidate selection | Hourly scan of eligible stale Products. |
 | Keepa queue dispatch | Every minute, capacity-bounded, then one singleton fetch per ASIN. |
 | Product-history Operation | Event-driven worker plus one-minute stale-pending recovery. |

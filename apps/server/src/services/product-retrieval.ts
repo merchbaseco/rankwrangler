@@ -82,12 +82,14 @@ export const getProducts = async (
         products: requestedProducts,
         fetchPolicy,
         maxAgeMs = PRODUCT_DEFAULT_MAX_AGE_MS,
+        rediscoveredAt,
         signal,
         timeoutMs,
     }: {
         products: ProductIdentity[];
         fetchPolicy: ProductFetchPolicy;
         maxAgeMs?: number;
+        rediscoveredAt?: Date;
         signal?: AbortSignal;
         timeoutMs?: number;
     },
@@ -102,7 +104,7 @@ export const getProducts = async (
     let stored = await deps.getStoredProducts(identities);
     const storedByKey = indexStoredProducts(stored);
     const needsResolution = identities.filter(identity =>
-        shouldResolve(storedByKey.get(productKey(identity)), cutoff)
+        shouldResolve(storedByKey.get(productKey(identity)), cutoff, rediscoveredAt)
     );
 
     if (fetchPolicy === 'blocking') {
@@ -212,9 +214,21 @@ const getAvailability = (stored: StoredProductRead | undefined): ProductAvailabi
     return 'pending';
 };
 
-const shouldResolve = (stored: StoredProductRead | undefined, cutoff: Date) => {
+const shouldResolve = (
+    stored: StoredProductRead | undefined,
+    cutoff: Date,
+    rediscoveredAt?: Date
+) => {
     if (!stored) {
         return true;
+    }
+
+    if (stored.product.isUnavailable) {
+        return Boolean(
+            rediscoveredAt &&
+                (!stored.product.spApiResolvedAt ||
+                    stored.product.spApiResolvedAt < rediscoveredAt)
+        );
     }
 
     const resolvedAt = getLatestSpApiTimestamp(stored.product);

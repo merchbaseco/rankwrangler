@@ -109,9 +109,6 @@ export const createColumns = ({
 					className="rounded-sm px-1 py-0 text-[10px] leading-tight"
 					value={row.original.isMerchListing}
 				/>
-				<ProductAvailabilityBadge
-					isUnavailable={row.original.isUnavailable}
-				/>
 			</div>
 		),
 		header: "ASIN",
@@ -157,6 +154,14 @@ export const createColumns = ({
 	{
 		accessorKey: "rootCategoryBsr",
 		cell: ({ row }) => {
+			if (row.original.isUnavailable) {
+				return (
+					<div className="flex items-center justify-end">
+						<ProductAvailabilityBadge isUnavailable={true} />
+					</div>
+				);
+			}
+
 			const bsr = row.getValue("rootCategoryBsr") as number | null;
 			if (bsr === null) {
 				return <span className="text-muted-foreground text-xs">--</span>;

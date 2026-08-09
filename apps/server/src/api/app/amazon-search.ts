@@ -40,5 +40,14 @@ export const retrieveAmazonSearchProducts = async (
             asin: item.asin,
         })),
         fetchPolicy: 'background',
+        rediscoveredAt: getLatestObservationTime(items),
     });
+};
+
+const getLatestObservationTime = (items: CatalogKeywordSearchItem[]) => {
+    const latest = items.reduce<Date | null>((current, item) => {
+        const observedAt = new Date(item.fetchedAt);
+        return !current || observedAt > current ? observedAt : current;
+    }, null);
+    return latest ?? undefined;
 };
