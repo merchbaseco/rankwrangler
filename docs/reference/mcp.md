@@ -28,12 +28,13 @@ without `/mcp`. Other website paths are not MCP routes.
 
 `rankwrangler_product` uses `asin` and `marketplaceId` for `get`; `getMany` accepts `products` with
 1–200 unique `{ asin, marketplaceId }` pairs and returns a fixed-shape basic Product array. Every
-result includes identity, nullable title, resolved thumbnail, and `isUnavailable`. A true
-`isUnavailable` means the Amazon listing is effectively deleted and unavailable for customers to
-purchase in that marketplace. RankWrangler confirms the state when a successful Amazon Catalog
-lookup does not return the ASIN; pending work and provider failures do not set it. Retained title
-and thumbnail values are last-known listing data. An unavailable thumbnail alone means no usable
-image, not an unavailable Product. The tool adds only the documented Product-history range, metric,
+result includes identity, nullable title, resolved thumbnail, and
+`amazonListingStatus: active | deleted`. Active means the Amazon detail-page listing exists; it does
+not promise that an offer is in stock or buyable. Deleted means Amazon has effectively removed the
+listing from that marketplace. RankWrangler confirms deletion when a successful Amazon Catalog
+lookup does not return the ASIN; pending work and provider failures do not produce it. Retained
+title and thumbnail values are last-known listing data. An unavailable thumbnail alone means no
+usable image, not a deleted listing. The tool adds only the documented Product-history range, metric,
 and bucket fields for `history`, and uses `term` for `search`.
 `rankwrangler_keyword` uses `keyword` for `get` and `history`, `text` for `search`, and accepts
 cursor/limit or range options. Product `get`/`getMany`/`history` and keyword inputs do not accept
@@ -55,7 +56,7 @@ freshness, Catalog, Operation, polling, provider status or timestamps, or provid
 availability tools. Product `get`/`getMany`/`history` and keyword operations have no refresh input;
 Product Search retains its separate Search input. Nullable `isMerchListing` remains unknown rather
 than being serialized as `false`; Product listing availability is exposed separately as
-`isUnavailable`.
+`amazonListingStatus`.
 
 `rankwrangler_status` does not report data or provider health, freshness, timestamps, or work state.
 

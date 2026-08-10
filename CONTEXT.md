@@ -40,6 +40,11 @@ The canonical current state of an Amazon marketplace listing, identified by mark
 regardless of how RankWrangler discovered it.
 _Avoid_: Search product, discovered product
 
+**Amazon listing status**:
+RankWrangler's marketplace-scoped knowledge that an Amazon detail-page listing is `active` or
+`deleted`. Active means the listing exists, not that an offer is in stock or buyable.
+_Avoid_: Availability, buyability, isUnavailable
+
 **Merch-listing classification**:
 Product-level classification of listing type from bullet evidence. It is separate from Top Search
 Terms' `isMerchRelevant` classification and from opportunity assessment.

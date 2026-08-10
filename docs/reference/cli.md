@@ -63,10 +63,11 @@ rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 
 `product get` routes one ASIN to the full Product retrieval contract. With 2–200 unique ASINs it
 routes to the basic Product batch and returns a fixed-shape array in argument order. Each result
-contains identity, nullable title, resolved thumbnail, and `isUnavailable`. A true value means the
-Amazon listing is effectively deleted and unavailable for customers to purchase in that
-marketplace. Retained title or thumbnail values are last-known data; an unavailable thumbnail alone
-means no usable image. Every ASIN uses the marketplace resolved from `--marketplace`, saved
+contains identity, nullable title, resolved thumbnail, and `amazonListingStatus: active | deleted`.
+Active means the detail-page listing exists, not that an offer is in stock or buyable. Deleted means
+Amazon has effectively removed the listing from that marketplace. Retained title or thumbnail
+values are last-known data; an unavailable thumbnail alone means no usable image. Every ASIN uses
+the marketplace resolved from `--marketplace`, saved
 configuration, or the normal US default.
 
 | Option | Values and default |

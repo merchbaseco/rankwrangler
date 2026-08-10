@@ -42,12 +42,13 @@ singleton pg-boss wakeup; startup also kicks the queue so persisted rows survive
 The worker and caller-synchronous batch retrieval process up to 20 same-marketplace ASINs per
 SP-API request, validate the provider response, and upsert each
 accepted Product. A queued ASIN missing from a successful provider response remains as a canonical
-identity, keeps its last-known listing data, gets a durable resolution timestamp, and is marked
-unavailable. A later response containing the ASIN clears that state. Provider failures do neither.
+identity, keeps its last-known listing data, gets a durable resolution timestamp, and receives
+`amazonListingStatus: deleted`. A later response containing the ASIN sets the status to `active`.
+Provider failures do neither.
 Queue rows are deleted only after reconciliation succeeds; failures remain retryable by a later
 wakeup and emit structured activity events. Each committed Product upsert also emits an
 identity-only completion event so active dashboard Product queries can invalidate precisely.
-Unavailable Products do not age back into automatic or scheduled SP-API work. A newer authoritative
+Deleted Amazon listings do not age back into automatic or scheduled SP-API work. A newer authoritative
 Catalog discovery or an explicit refresh can recheck them; a cached or older discovery cannot.
 
 ## Source Normalization

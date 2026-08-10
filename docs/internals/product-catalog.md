@@ -20,7 +20,7 @@ The persisted Product model combines normalized fields with explicit source boun
 
 - listing identity, title, brand, image, first-available date, seller-bullet array, and nullable
   Merch-listing knowledge;
-- explicit Amazon listing availability from successful SP-API Catalog responses;
+- explicit Amazon listing status from successful SP-API Catalog responses;
 - current root-category BSR;
 - semantic facets and their classification state;
 - internal provider freshness and resolution markers for listing enrichment;
@@ -44,11 +44,11 @@ Freshness is source-specific:
 `keepaFetchedAt` and `keepaSourceUpdatedAt` answer different questions. Provider import rows remain
 diagnostics and provenance; scheduling reads Product freshness directly.
 
-`isUnavailable` records the listing outcome separately from those call timestamps. A successful
-SP-API response that omits a requested ASIN sets it; a later response containing the ASIN clears
-it. Provider failures do not change it. The public meaning is that the Amazon listing is effectively
-deleted and unavailable for customers to purchase. Last-known listing fields remain readable while
-unavailable. Unavailable Products are terminal for automatic SP-API freshness work. Only an explicit
+`amazonListingStatus` records the listing outcome separately from those call timestamps. A
+successful SP-API response that omits a requested ASIN sets it to `deleted`; a later response
+containing the ASIN sets it to `active`. Provider failures do not change it. Active means the Amazon
+detail-page listing exists, not that an offer is in stock or buyable. Deleted Products retain
+last-known listing fields and are terminal for automatic SP-API freshness work. Only an explicit
 refresh or a newer authoritative Catalog discovery rechecks them.
 
 The following public projection is the accepted target; persisted source state and dashboard
@@ -90,5 +90,5 @@ not persist query identity, result placement, or run history; that belongs to th
   `true` is monotonic across provider writes.
 - The shared Product retrieval service owns blocking lookups, durable queueing, freshness checks,
   in-flight deduplication, and response availability. A completed empty provider response retains
-  the canonical identity and last-known listing data, marks the Product unavailable, and advances
+  the canonical identity and last-known listing data, marks the Amazon listing deleted, and advances
   `spApiResolvedAt`.

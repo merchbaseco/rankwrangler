@@ -76,7 +76,7 @@ type Product = {
             | { status: 'available'; url: string }
             | { status: 'unavailable' };
         isMerchListing: boolean | null;
-        isUnavailable: boolean;
+        amazonListingStatus: 'active' | 'deleted';
     };
     category: { id: number; name: string | null } | null;
     salesRank: {
@@ -118,17 +118,18 @@ type BasicProduct = {
     thumbnail:
         | { status: 'available'; url: string }
         | { status: 'unavailable' };
-    isUnavailable: boolean;
+    amazonListingStatus: 'active' | 'deleted';
 };
 ```
 
-`isUnavailable: true` means Amazon has no customer-purchasable listing for that marketplace/ASIN.
-For application purposes, the Product is deleted and unavailable to purchase. RankWrangler confirms
-this state when a successful Amazon Catalog lookup does not return the ASIN; pending work and
-provider failures do not set it. RankWrangler preserves last-known title and thumbnail data when
-available. A Product never returned by Amazon has `title: null` and an unavailable thumbnail.
-`thumbnail.status: 'unavailable'` only means there is no usable image and does not make the Product
-itself unavailable.
+`amazonListingStatus: 'active'` means the Amazon detail-page listing exists for that
+marketplace/ASIN. It does not promise an in-stock or buyable offer. `deleted` means Amazon has
+effectively removed the listing and customers can no longer reach a purchasable detail page.
+RankWrangler confirms deletion when a successful Amazon Catalog lookup does not return the ASIN;
+pending work and provider failures do not produce it. RankWrangler preserves last-known title and
+thumbnail data. A Product never returned by Amazon has `title: null` and an unavailable thumbnail.
+`thumbnail.status: 'unavailable'` only means there is no usable image and does not make the Amazon
+listing deleted.
 
 Cached listing data returns immediately. Cold identities are grouped by marketplace and fetched
 from SP-API in batches of 20. Every requested identity is persisted in the canonical catalog,
@@ -157,7 +158,7 @@ type ProductSearch = {
                 | { status: 'available'; url: string }
                 | { status: 'unavailable' };
             isMerchListing: boolean | null;
-            isUnavailable: boolean;
+            amazonListingStatus: 'active' | 'deleted';
             category: { id: number; name: string | null } | null;
             salesRank: number | null;
             price: { amountMinor: number; currencyCode: string } | null;

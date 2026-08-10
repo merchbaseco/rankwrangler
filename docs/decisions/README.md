@@ -17,6 +17,7 @@ These pages explain choices that should survive individual implementations.
 | [Durable catalog search](catalog-search.md) | Understand why queries, runs, results, and asynchronous Operations are persisted separately. |
 | [Caller-synchronous public retrieval](public-retrieval.md) | Understand why public reads wait for policy-current data and omit refresh/work/provider state. |
 | [Provider telemetry and bridges](provider-telemetry.md) | Understand why raw Provider attempts are short-lived and external calls live behind typed bridges. |
+| [Amazon listing status](amazon-listing-status.md) | Understand why listing existence is active/deleted and separate from offers, inventory, and thumbnails. |
 
 Shipped behavior belongs in [Product](../product/README.md). Exact executable contracts belong in
 [Reference](../reference/README.md).

@@ -27,10 +27,11 @@ converge on the same record.
 - Links to historical observations; history is not embedded into the current Product record.
 
 Public Product responses group this state into provider-neutral `listing`, `category`, `salesRank`,
-`price`, and `demand` concepts. `listing.isUnavailable` is separate from the thumbnail, which is
-resolved as either available with a URL or unavailable. `isUnavailable` means the Amazon listing is
-effectively deleted and unavailable for customers to purchase; thumbnail unavailability only means
-there is no usable image. An unavailable Product keeps its last-known listing fields and image.
+`price`, and `demand` concepts. `listing.amazonListingStatus` is `active` while the marketplace
+detail-page listing exists and `deleted` when Amazon has effectively removed it. Active does not
+promise an in-stock or buyable offer. The thumbnail separately resolves as available with a URL or
+unavailable; thumbnail unavailability only means there is no usable image. A deleted listing keeps
+its last-known Product fields and image.
 Public callers never receive a pending thumbnail. `null` means a valid measurement is unavailable,
 not zero or retrieval failure.
 
@@ -46,7 +47,7 @@ work and waits; the public response is one current Product or a retryable error.
 
 Integrations that only need listing labels use the public basic Product batch. It accepts up to 200
 unique marketplace/ASIN pairs, preserves request order, and returns fixed-shape identity, title,
-thumbnail, and availability fields. An unavailable Product retains last-known listing values. Every
+thumbnail, and Amazon listing status. A deleted listing retains last-known Product values. Every
 requested identity joins the canonical catalog; eligible Products begin Keepa history collection
 asynchronously under the normal tracking policy.
 

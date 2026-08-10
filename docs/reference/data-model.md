@@ -9,8 +9,9 @@ read_when:
 
 **Migration status:** Generated migration `0032_useful_skrulls.sql` stores the durable Product
 listing-resolution timestamp and nullable `products.is_merch_listing`. Generated migration
-`0034_flowery_winter_soldier.sql` adds short-lived Provider attempts. Apply both migrations before
-deploying code that depends on them.
+`0034_flowery_winter_soldier.sql` adds short-lived Provider attempts. Generated migration
+`0035_numerous_william_stryker.sql` replaces the Product availability boolean with canonical
+`active | deleted` Amazon listing status. Apply these migrations before deploying dependent code.
 
 ## Canonical identity
 
@@ -84,7 +85,7 @@ The target product row combines current values from distinct providers without e
 
 | Provider | Examples | Freshness fields |
 | --- | --- | --- |
-| Amazon listing enrichment | title, brand, bullets, thumbnail, first-available date, listing category, BSR, deterministic Merch evidence/classification, and `isUnavailable` | internal `spApiFetchedAt`, `spApiResolvedAt` |
+| Amazon listing enrichment | title, brand, bullets, thumbnail, first-available date, listing category, BSR, deterministic Merch evidence/classification, and `amazonListingStatus` | internal `spApiFetchedAt`, `spApiResolvedAt` |
 | Keepa | current BSR, new price, monthly sold, BSR averages, sales-rank drops | `keepaFetchedAt`, `keepaSourceUpdatedAt`, `keepaFirstTrackedAt` |
 | RankWrangler facet classification | Semantic facet assignments | `facetsState`, `facetsUpdatedAt` |
 
@@ -104,7 +105,7 @@ The public Product is one current provider-neutral projection:
 
 - marketplace and ASIN identity;
 - `listing`: title, brand, first-available date, a bullet-point array, resolved available/unavailable
-  thumbnail, nullable `isMerchListing`, and `isUnavailable`;
+  thumbnail, nullable `isMerchListing`, and `amazonListingStatus`;
 - `category`: current root-category identity and name;
 - `salesRank`: current rank plus `averages.last30Days` and `averages.last90Days`;
 - `price`: money in integer minor units with currency code; and
@@ -119,10 +120,11 @@ template match, and `null` when bullet evidence is unavailable or classification
 Public consumers receive only this nullable field; provider, freshness, and status metadata are
 not exposed for the property.
 
-`listing.isUnavailable` is set only when a successful SP-API Catalog response omits the requested
-ASIN. Provider failures preserve the prior value, and a later successful response containing the
-ASIN clears it. Publicly, the state means the Amazon listing is effectively deleted and unavailable
-for customers to purchase. It does not erase the last accepted listing payload.
+`listing.amazonListingStatus` is set to `deleted` only when a successful SP-API Catalog response
+omits the requested ASIN. Provider failures preserve the prior value, and a later successful
+response containing the ASIN sets it to `active`. Active means the marketplace detail-page listing
+exists, not that an offer is in stock or buyable. Deleted means Amazon has effectively removed that
+listing. Neither transition erases the last accepted listing payload.
 
 Price uses integer minor units: `amountMinor: 1999` with `currencyCode: "USD"` means USD 19.99.
 `listing.bulletPoints` is always an array; no bullets is `[]`. Any valid unavailable measurement is
