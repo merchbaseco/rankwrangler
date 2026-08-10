@@ -8,6 +8,8 @@ export interface ProductFreshness {
     updatedAt: string | null;
 }
 
+export type AmazonListingStatus = 'active' | 'deleted';
+
 export interface ProductInfo {
     asin: string;
     marketplaceId: string;
@@ -17,7 +19,7 @@ export interface ProductInfo {
     title: string | null;
     brand: string | null;
     isMerchListing: boolean | null;
-    isUnavailable: boolean;
+    amazonListingStatus: AmazonListingStatus;
     bullet1: string | null;
     bullet2: string | null;
 
@@ -54,7 +56,7 @@ export interface ProductInfo {
 
 export type SpApiProduct = Omit<
     ProductInfo,
-    'rootCategoryDisplayName' | 'thumbnail' | 'freshness' | 'isUnavailable'
+    'rootCategoryDisplayName' | 'thumbnail' | 'freshness' | 'amazonListingStatus'
 > & {
     fetchedAt: string;
     thumbnailUrl: string | null;

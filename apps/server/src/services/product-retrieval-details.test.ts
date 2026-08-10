@@ -1,10 +1,10 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { getProductDetails, getRequiredProduct } from './product-retrieval';
-import { RetrievalRetryableError } from './retrieval-coordinator';
 import { SpApiBackoffError } from './providers/sp-api/sp-api-backoff';
+import { RetrievalRetryableError } from './retrieval-coordinator';
 
 describe('Product detail retrieval', () => {
-    it('returns stale available Product details immediately and schedules background work', async () => {
+    it('returns stale active Product details immediately and schedules background work', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000008' };
         const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(1));
         const searchCatalogItemsByAsins = mock(() => Promise.resolve([]));
@@ -32,7 +32,7 @@ describe('Product detail retrieval', () => {
         expect(searchCatalogItemsByAsins).not.toHaveBeenCalled();
         expect(enqueueSpApiSyncQueueItems).toHaveBeenCalledWith([identity]);
         expect(result).toMatchObject({
-            availability: 'available',
+            amazonListingStatus: 'active',
             product: {
                 freshness: {
                     stale: true,
@@ -104,7 +104,7 @@ describe('Product detail retrieval', () => {
         expect(secondResult.product?.title).toBe('Refreshed title');
     });
 
-    it('forces a provider refresh when explicitly requested for an unavailable Product', async () => {
+    it('forces a provider refresh when explicitly requested for a deleted listing', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000012' };
         const searchCatalogItemsByAsins = mock(() => Promise.resolve([]));
         let readCount = 0;
@@ -114,7 +114,7 @@ describe('Product detail retrieval', () => {
                 return Promise.resolve([
                     {
                         product: createStoredProduct(identity, {
-                            isUnavailable: true,
+                            amazonListingStatus: 'deleted',
                             spApiFetchedAt: new Date(),
                             spApiResolvedAt: new Date(),
                         }),
@@ -134,7 +134,7 @@ describe('Product detail retrieval', () => {
         expect(searchCatalogItemsByAsins).toHaveBeenCalledWith(identity.marketplaceId, [
             identity.asin,
         ]);
-        expect(result.availability).toBe('available');
+        expect(result.amazonListingStatus).toBe('deleted');
     });
 
     it('waits for a missing Product and reports definitive absence as NOT_FOUND', async () => {

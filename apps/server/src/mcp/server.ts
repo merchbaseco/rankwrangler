@@ -67,7 +67,11 @@ const productInputSchema = z
         endAt: z.string().datetime().optional(),
         limit: z.number().int().min(1).max(10_000).optional(),
         marketplaceId: z.string().trim().min(1).optional(),
-        metrics: z.array(z.enum(['salesRank', 'price'])).min(1).max(2).optional(),
+        metrics: z
+            .array(z.enum(['salesRank', 'price']))
+            .min(1)
+            .max(2)
+            .optional(),
         operation: z.enum(['get', 'getMany', 'search', 'history']),
         products: productBatchSchema.optional(),
         refresh: z.boolean().optional(),
@@ -145,10 +149,11 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 'Read RankWrangler Product data synchronously. operation=get uses asin and ' +
                 'marketplaceId; getMany uses products and returns fixed-shape basic title and ' +
                 'thumbnail data for up to 200 identities. In getMany results, ' +
-                'isUnavailable=true means the Amazon listing is effectively deleted and no longer ' +
-                'available for customers to purchase; retained title or thumbnail values are ' +
-                'last-known data. An unavailable thumbnail alone does not mean the Product is ' +
-                'unavailable. ' +
+                'amazonListingStatus is active or deleted. active means the Amazon detail-page ' +
+                'listing exists, not that an offer is in stock or buyable. deleted means the ' +
+                'listing no longer exists for customers in that marketplace; retained title or ' +
+                'thumbnail values are last-known data. An unavailable thumbnail alone does not ' +
+                'mean the Product is deleted. ' +
                 'search uses term; history uses asin plus range options. Responses contain data or ' +
                 'a standard error.',
             inputSchema: productInputSchema,

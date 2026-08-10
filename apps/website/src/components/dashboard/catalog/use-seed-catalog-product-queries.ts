@@ -6,7 +6,7 @@ type CatalogProductSeed = {
 	marketplaceId: string;
 	asin: string;
 	product: NonNullable<CatalogRun["results"][number]["currentProduct"]>;
-	availability: "pending" | "available" | "unavailable";
+	amazonListingStatus: "pending" | "active" | "deleted";
 };
 type ProductRead = RouterOutputs["api"]["app"]["product"]["get"];
 
@@ -50,7 +50,7 @@ export const useSeedCatalogProductQueries = (run: CatalogRun | null) => {
 						marketplaceId: product.marketplaceId,
 						asin: product.asin,
 						product,
-						availability: result.currentProductAvailability,
+						amazonListingStatus: result.currentAmazonListingStatus,
 					},
 				];
 			}) ?? [];
@@ -60,7 +60,7 @@ export const useSeedCatalogProductQueries = (run: CatalogRun | null) => {
 			setProduct: (seed) => {
 				const productRead = {
 					product: seed.product,
-					availability: seed.availability,
+					amazonListingStatus: seed.amazonListingStatus,
 					provenance: null,
 				};
 				utils.api.app.product.get.setData(

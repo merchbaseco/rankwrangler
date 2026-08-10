@@ -15,7 +15,7 @@ const baseProduct = {
 	rootCategoryBsr: 123_456,
 	dateFirstAvailable: null,
 	isMerchListing: true,
-	isUnavailable: false,
+	amazonListingStatus: "active",
 	facets: [],
 };
 

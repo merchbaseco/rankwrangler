@@ -45,7 +45,7 @@ export const useProductHistoryPanelProduct = ({
 			rootCategoryBsr: details.rootCategoryBsr,
 			rootCategoryDisplayName: details.rootCategoryDisplayName,
 			isMerchListing: details.isMerchListing,
-			isUnavailable: details.isUnavailable,
+			amazonListingStatus: details.amazonListingStatus,
 			freshness: details.freshness,
 			provenance: productDetails.provenance,
 		};

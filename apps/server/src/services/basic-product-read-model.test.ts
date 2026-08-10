@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from 'bun:test';
 import { getBasicProductReadModels } from './basic-product-read-model';
 
 describe('basic Product read model', () => {
-    it('returns fixed-shape results and preserves known data for unavailable Products', async () => {
+    it('returns fixed-shape results and preserves known data for deleted listings', async () => {
         const availableIdentity = {
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B000000001',
@@ -15,10 +15,10 @@ describe('basic Product read model', () => {
             Promise.resolve([
                 {
                     identity: availableIdentity,
-                    availability: 'available' as const,
+                    amazonListingStatus: 'active' as const,
                     product: {
                         title: 'Garden shirt',
-                        isUnavailable: false,
+                        amazonListingStatus: 'active' as const,
                         thumbnail: {
                             status: 'available' as const,
                             url: 'https://example.com/garden.jpg',
@@ -27,10 +27,10 @@ describe('basic Product read model', () => {
                 },
                 {
                     identity: unavailableIdentity,
-                    availability: 'available' as const,
+                    amazonListingStatus: 'active' as const,
                     product: {
                         title: 'Archived shirt',
-                        isUnavailable: true,
+                        amazonListingStatus: 'deleted' as const,
                         thumbnail: {
                             status: 'available' as const,
                             url: 'https://example.com/archived.jpg',
@@ -49,7 +49,7 @@ describe('basic Product read model', () => {
             {
                 ...availableIdentity,
                 title: 'Garden shirt',
-                isUnavailable: false,
+                amazonListingStatus: 'active',
                 thumbnail: {
                     status: 'available',
                     url: 'https://example.com/garden.jpg',
@@ -58,7 +58,7 @@ describe('basic Product read model', () => {
             {
                 ...unavailableIdentity,
                 title: 'Archived shirt',
-                isUnavailable: true,
+                amazonListingStatus: 'deleted',
                 thumbnail: {
                     status: 'available',
                     url: 'https://example.com/archived.jpg',
@@ -81,23 +81,22 @@ describe('basic Product read model', () => {
             Promise.resolve([
                 {
                     identity,
-                    availability: 'unavailable' as const,
+                    amazonListingStatus: 'deleted' as const,
                     product: null,
                 },
             ])
         );
 
-        const result = await getBasicProductReadModels(
-            { products: [identity] },
-            { getProducts } as never
-        );
+        const result = await getBasicProductReadModels({ products: [identity] }, {
+            getProducts,
+        } as never);
 
         expect(result).toEqual([
             {
                 ...identity,
                 title: null,
                 thumbnail: { status: 'unavailable' },
-                isUnavailable: true,
+                amazonListingStatus: 'deleted',
             },
         ]);
     });

@@ -46,7 +46,7 @@ export const processSpApiSyncQueue = async (
             marketplaceId: null,
             queueCount: 0,
             upsertedCount: 0,
-            unavailableCount: 0,
+            deletedCount: 0,
             hasMore: false,
         } satisfies ProcessSpApiSyncQueueResult;
     }
@@ -95,10 +95,10 @@ export const processSpApiSyncQueue = async (
     }
 
     const fetchedAsins = new Set(fetchedProducts.map(product => product.asin));
-    const unavailableItems = queueItemsToProcess.filter(item => !fetchedAsins.has(item.asin));
+    const deletedItems = queueItemsToProcess.filter(item => !fetchedAsins.has(item.asin));
     await deps.createEventLogsSafe([
         ...fetchedProducts.map(product => buildProductSyncedLog(product)),
-        ...unavailableItems.map(item => buildProductUnavailableLog(item)),
+        ...deletedItems.map(item => buildProductDeletedLog(item)),
     ]);
 
     if (!hasMore) {
@@ -110,7 +110,7 @@ export const processSpApiSyncQueue = async (
         marketplaceId,
         queueCount: queueItemsToProcess.length,
         upsertedCount: fetchedProducts.length,
-        unavailableCount: unavailableItems.length,
+        deletedCount: deletedItems.length,
         hasMore,
     } satisfies ProcessSpApiSyncQueueResult;
 };
@@ -209,7 +209,7 @@ const buildProductSyncedLog = ({
     asin,
 });
 
-const buildProductUnavailableLog = ({
+const buildProductDeletedLog = ({
     marketplaceId,
     asin,
 }: {
@@ -221,7 +221,7 @@ const buildProductUnavailableLog = ({
     category: 'product',
     action: 'product.sync',
     primitiveType: 'product' as const,
-    message: `Resolved Product ${asin} as unavailable.`,
+    message: `Resolved Amazon listing ${asin} as deleted.`,
     detailsJson: {
         marketplaceId,
         asin,

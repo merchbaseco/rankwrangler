@@ -2,7 +2,7 @@
 export interface ProductInfo {
 	asin: string;
 	isMerchListing: boolean | null;
-	isUnavailable: boolean;
+	amazonListingStatus: "active" | "deleted";
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;

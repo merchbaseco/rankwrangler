@@ -11,6 +11,7 @@ import {
     uniqueIndex,
     uuid,
 } from 'drizzle-orm/pg-core';
+import type { AmazonListingStatus } from '@/types';
 
 export const products = pgTable(
     'products',
@@ -23,7 +24,10 @@ export const products = pgTable(
         title: text('title'),
         brand: text('brand'),
         isMerchListing: boolean('is_merch_listing'),
-        isUnavailable: boolean('is_unavailable').notNull().default(false),
+        amazonListingStatus: text('amazon_listing_status')
+            .$type<AmazonListingStatus>()
+            .notNull()
+            .default('active'),
         bullet1: text('bullet_1'),
         bullet2: text('bullet_2'),
         rootCategoryId: bigint('root_category_id', { mode: 'number' }),
@@ -55,6 +59,10 @@ export const products = pgTable(
         facetsStateCheck: check(
             'products_facets_state_check',
             sql`${table.facetsState} in ('pending', 'ready', 'error')`
+        ),
+        amazonListingStatusCheck: check(
+            'products_amazon_listing_status_check',
+            sql`${table.amazonListingStatus} in ('active', 'deleted')`
         ),
         keepaRefreshCandidateIdx: index('products_keepa_refresh_candidate_idx').on(
             table.isMerchListing,

@@ -2,7 +2,7 @@ import { TRPCError } from '@trpc/server';
 import {
     ensureProductIdentities,
     getStoredProducts,
-    markProductsUnavailable,
+    markProductsDeleted,
     type ProductIdentity,
     type StoredProductRead,
 } from '@/db/product/get-products';
@@ -20,12 +20,12 @@ import {
 import { enqueueSpApiSyncQueueItems } from './spapi-sync-queue';
 
 export type ProductFetchPolicy = 'blocking' | 'background';
-export type ProductAvailability = 'pending' | 'available' | 'unavailable';
+export type AmazonListingResolutionStatus = 'pending' | 'active' | 'deleted';
 
 export interface ProductRetrieval {
     identity: ProductIdentity;
     product: ProductInfo | null;
-    availability: ProductAvailability;
+    amazonListingStatus: AmazonListingResolutionStatus;
 }
 
 export interface PersistProductSyncResultsInput {
@@ -37,13 +37,13 @@ export interface PersistProductSyncResultsInput {
 interface PersistProductSyncResultsDeps {
     ensureProductIdentities: typeof ensureProductIdentities;
     upsertProductInfo: typeof upsertProductInfo;
-    markProductsUnavailable: typeof markProductsUnavailable;
+    markProductsDeleted: typeof markProductsDeleted;
 }
 
 const defaultPersistProductSyncResultsDeps: PersistProductSyncResultsDeps = {
     ensureProductIdentities,
     upsertProductInfo,
-    markProductsUnavailable,
+    markProductsDeleted,
 };
 
 export const persistProductSyncResults = async (
@@ -56,10 +56,10 @@ export const persistProductSyncResults = async (
         await deps.upsertProductInfo(product);
     }
 
-    const unavailableIdentities = identities.filter(
+    const deletedIdentities = identities.filter(
         identity => !fetchedIdentities.has(productKey(identity))
     );
-    await deps.markProductsUnavailable(unavailableIdentities, resolvedAt);
+    await deps.markProductsDeleted(deletedIdentities, resolvedAt);
 };
 
 export interface ProductRetrievalDeps {
@@ -149,7 +149,7 @@ export const getProductDetails = async (
         return result;
     }
 
-    if (result.availability === 'available' && !refresh) {
+    if (result.amazonListingStatus === 'active' && !refresh) {
         enqueueBackgroundProducts(
             [identity],
             indexStoredProducts(stored ? [stored] : []),
@@ -174,7 +174,7 @@ export const getRequiredProduct = async (
 ) => {
     const result = await getProductDetails(input, deps);
 
-    if (!result || result.availability !== 'available' || !result.product) {
+    if (!result || result.amazonListingStatus !== 'active' || !result.product) {
         throw new TRPCError({
             code: 'NOT_FOUND',
             message: 'Product info not available from Amazon catalog.',
@@ -195,22 +195,24 @@ const mapProductRetrieval = (
                   thumbnailPending: stored.queuePending && !stored.product.thumbnailUrl,
               })
             : null,
-        availability: getAvailability(stored),
+        amazonListingStatus: getAmazonListingStatus(stored),
     };
 };
 
-const getAvailability = (stored: StoredProductRead | undefined): ProductAvailability => {
+const getAmazonListingStatus = (
+    stored: StoredProductRead | undefined
+): AmazonListingResolutionStatus => {
     if (!stored) {
         return 'pending';
     }
+    if (stored.product.amazonListingStatus === 'deleted') {
+        return 'deleted';
+    }
     if (stored.product.spApiFetchedAt) {
-        return 'available';
+        return 'active';
     }
     if (stored.queuePending) {
         return 'pending';
-    }
-    if (stored.product.isUnavailable) {
-        return 'unavailable';
     }
     return 'pending';
 };
@@ -224,11 +226,10 @@ const shouldResolve = (
         return true;
     }
 
-    if (stored.product.isUnavailable) {
+    if (stored.product.amazonListingStatus === 'deleted') {
         return Boolean(
             rediscoveredAt &&
-                (!stored.product.spApiResolvedAt ||
-                    stored.product.spApiResolvedAt < rediscoveredAt)
+                (!stored.product.spApiResolvedAt || stored.product.spApiResolvedAt < rediscoveredAt)
         );
     }
 

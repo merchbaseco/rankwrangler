@@ -79,11 +79,13 @@ const capture = async (sql: postgres.Sql, options: Options): Promise<Preservatio
             'product_history_points',
             'to_jsonb(product_history_points)::text'
         ),
-        // Ignore the additive resolution marker so a nullable schema column is not treated as data loss.
+        // Normalize additive listing resolution state so schema evolution is not treated as data loss.
         products: await captureCollection(
             sql,
             'products',
-            "(to_jsonb(products) - 'sp_api_resolved_at')::text"
+            options.phase === 'before'
+                ? "((to_jsonb(products) - 'sp_api_resolved_at') || jsonb_build_object('amazon_listing_status', 'active'))::text"
+                : "(to_jsonb(products) - 'sp_api_resolved_at')::text"
         ),
     };
 

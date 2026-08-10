@@ -4,7 +4,7 @@ import type {
 	SelectedHistoryProduct,
 } from "@/components/dashboard/recent-products/types";
 import { MerchListingBadge } from "@/components/dashboard/merch-listing-badge";
-import { ProductAvailabilityBadge } from "@/components/dashboard/product-availability-badge";
+import { ProductListingStatusBadge } from "@/components/dashboard/product-listing-status-badge";
 import { MARKETPLACE_FLAGS } from "@/components/dashboard/recent-products/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ const RowBsrButton = ({
 	rootCategoryBsr,
 	rootCategoryDisplayName,
 	isMerchListing,
-	isUnavailable,
+	amazonListingStatus,
 	freshness,
 	isActive,
 	onSelect,
@@ -39,19 +39,23 @@ const RowBsrButton = ({
 	rootCategoryBsr: number | null;
 	rootCategoryDisplayName: string | null;
 	isMerchListing: boolean | null;
-	isUnavailable: boolean;
+	amazonListingStatus: "active" | "deleted";
 	freshness: SelectedHistoryProduct["freshness"];
 	isActive: boolean;
 	onSelect: (product: SelectedHistoryProduct) => void;
 }) => (
 	<Button
-		aria-label={isUnavailable ? "Open unavailable Product details" : "Open BSR history"}
+		aria-label={
+			amazonListingStatus === "deleted"
+				? "Open deleted Amazon Product details"
+				: "Open BSR history"
+		}
 		className="h-auto rounded-sm p-0 focus-visible:ring-1"
 		onClick={() => {
 			onSelect({
 				asin,
 				marketplaceId,
-				isUnavailable,
+				amazonListingStatus,
 				title,
 				thumbnail,
 				brand,
@@ -66,10 +70,10 @@ const RowBsrButton = ({
 		size="sm"
 		variant="ghost"
 	>
-		{isUnavailable ? (
-			<ProductAvailabilityBadge
+		{amazonListingStatus === "deleted" ? (
+			<ProductListingStatusBadge
 				className={cn(isActive && "bg-primary text-primary-foreground")}
-				isUnavailable={true}
+				amazonListingStatus="deleted"
 			/>
 		) : (
 			<Badge
@@ -165,7 +169,7 @@ export const createColumns = ({
 		accessorKey: "rootCategoryBsr",
 		cell: ({ row }) => {
 			const bsr = row.getValue("rootCategoryBsr") as number | null;
-			if (bsr === null && !row.original.isUnavailable) {
+			if (bsr === null && row.original.amazonListingStatus === "active") {
 				return <span className="text-muted-foreground text-xs">--</span>;
 			}
 			const rowKey = `${row.original.marketplaceId}:${row.original.asin}`;
@@ -183,7 +187,7 @@ export const createColumns = ({
 						rootCategoryBsr={row.original.rootCategoryBsr}
 						rootCategoryDisplayName={null}
 						isMerchListing={row.original.isMerchListing}
-						isUnavailable={row.original.isUnavailable}
+						amazonListingStatus={row.original.amazonListingStatus}
 						freshness={{ stale: false, updatedAt: row.original.updatedAt }}
 						isActive={selectedHistoryKey === rowKey}
 						onSelect={onSelectHistory}

@@ -42,9 +42,9 @@ describe('RankWrangler MCP server', () => {
         });
         const productTool = result.tools.find(tool => tool.name === 'rankwrangler_product');
         expect(productTool?.description).toContain('getMany uses products');
-        expect(productTool?.description).toContain('isUnavailable=true');
-        expect(productTool?.description).toContain('effectively deleted');
-        expect(productTool?.description).toContain('available for customers to purchase');
+        expect(productTool?.description).toContain('amazonListingStatus is active or deleted');
+        expect(productTool?.description).toContain('deleted means the listing no longer exists');
+        expect(productTool?.description).toContain('not that an offer is in stock or buyable');
         expect(productTool?.description).toContain('last-known data');
         expect(productTool?.inputSchema).toMatchObject({
             properties: {

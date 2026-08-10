@@ -5,10 +5,10 @@ type CatalogProduct = NonNullable<CatalogResult["currentProduct"]>;
 
 export const useCatalogProductQuery = ({
 	initialProduct,
-	initialAvailability,
+	initialAmazonListingStatus,
 }: {
 	initialProduct: CatalogProduct;
-	initialAvailability: "pending" | "available" | "unavailable";
+	initialAmazonListingStatus: "pending" | "active" | "deleted";
 }) => {
 	return api.api.app.product.get.useQuery(
 		{
@@ -19,7 +19,7 @@ export const useCatalogProductQuery = ({
 		{
 			initialData: {
 				product: initialProduct,
-				availability: initialAvailability,
+				amazonListingStatus: initialAmazonListingStatus,
 				provenance: null,
 			},
 			refetchOnWindowFocus: false,

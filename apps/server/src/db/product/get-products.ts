@@ -68,10 +68,7 @@ export const ensureProductIdentities = async (identities: ProductIdentity[]) => 
     return inserted.length;
 };
 
-export const markProductsUnavailable = async (
-    identities: ProductIdentity[],
-    resolvedAt: Date
-) => {
+export const markProductsDeleted = async (identities: ProductIdentity[], resolvedAt: Date) => {
     if (identities.length === 0) {
         return 0;
     }
@@ -90,7 +87,7 @@ export const markProductsUnavailable = async (
 
     const updated = await db
         .update(products)
-        .set({ isUnavailable: true, spApiResolvedAt: resolvedAt })
+        .set({ amazonListingStatus: 'deleted', spApiResolvedAt: resolvedAt })
         .where(identityCondition)
         .returning({ id: products.id });
 

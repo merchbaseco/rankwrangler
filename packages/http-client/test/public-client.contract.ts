@@ -44,7 +44,7 @@ export type ProductSearchProductKeysContract = Assert<
         | 'brand'
         | 'thumbnail'
         | 'isMerchListing'
-        | 'isUnavailable'
+        | 'amazonListingStatus'
         | 'category'
         | 'salesRank'
         | 'price'
@@ -61,7 +61,7 @@ export type ProductGetManyOutputContract = Assert<
 export type ProductGetManyOutputKeysContract = Assert<
     Equal<
         keyof ProductGetManyOutput[number],
-        'marketplaceId' | 'asin' | 'title' | 'thumbnail' | 'isUnavailable'
+        'marketplaceId' | 'asin' | 'title' | 'thumbnail' | 'amazonListingStatus'
     >
 >;
 export type ProductOutputContract = Assert<

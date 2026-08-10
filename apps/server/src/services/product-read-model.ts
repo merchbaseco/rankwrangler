@@ -1,6 +1,6 @@
 import type { ProductHistorySurfaceInput } from '@/services/product-history-surface.js';
 import { getProductHistorySurface } from '@/services/product-history-surface.js';
-import type { ProductInfo } from '@/types/index.js';
+import type { AmazonListingStatus, ProductInfo } from '@/types/index.js';
 import { getRequiredProduct } from './product-retrieval';
 
 const PRODUCT_READ_KEEP_A_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
@@ -15,7 +15,7 @@ export interface Product {
         bulletPoints: string[];
         thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
         isMerchListing: boolean | null;
-        isUnavailable: boolean;
+        amazonListingStatus: AmazonListingStatus;
     };
     category: { id: number; name: string | null } | null;
     salesRank: {
@@ -44,7 +44,7 @@ export interface ProductSearchProduct {
     brand: string | null;
     thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
     isMerchListing: boolean | null;
-    isUnavailable: boolean;
+    amazonListingStatus: AmazonListingStatus;
     category: { id: number; name: string | null } | null;
     salesRank: number | null;
     price: { amountMinor: number; currencyCode: string } | null;
@@ -126,7 +126,7 @@ export const mapProductToPublicProduct = (product: ProductInfo): Product => ({
                 ? product.thumbnail
                 : { status: 'unavailable' },
         isMerchListing: product.isMerchListing,
-        isUnavailable: product.isUnavailable,
+        amazonListingStatus: product.amazonListingStatus,
     },
     category:
         product.rootCategoryId === null
@@ -161,7 +161,7 @@ export const mapProductToCompactProductSearch = (product: Product): ProductSearc
     brand: product.listing.brand,
     thumbnail: product.listing.thumbnail,
     isMerchListing: product.listing.isMerchListing,
-    isUnavailable: product.listing.isUnavailable,
+    amazonListingStatus: product.listing.amazonListingStatus,
     category: product.category,
     salesRank: product.salesRank.current,
     price: product.price,

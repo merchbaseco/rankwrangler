@@ -65,7 +65,7 @@ export const createSearchResult = ({
         sourceUpdatedAt: null,
     },
     currentProduct: product,
-    currentProductAvailability: 'available' as const,
+    currentAmazonListingStatus: 'active' as const,
 });
 
 export const createProduct = ({
@@ -105,7 +105,7 @@ export const createProduct = ({
         title,
         brand,
         isMerchListing,
-        isUnavailable: false,
+        amazonListingStatus: 'active',
         bullet1: null,
         bullet2: null,
         rootCategoryId: category?.id ?? null,

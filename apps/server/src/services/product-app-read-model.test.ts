@@ -6,7 +6,7 @@ describe('app Product read model', () => {
         const getProductDetails = mock(async (input: { asin: string }) => ({
             identity: { marketplaceId: 'ATVPDKIKX0DER', asin: input.asin },
             product: null,
-            availability: 'unavailable' as const,
+            amazonListingStatus: 'deleted' as const,
         }));
         const getProductProvenance = mock(async () => ({
             spApi: createProviderProvenance(),

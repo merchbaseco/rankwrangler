@@ -68,7 +68,7 @@ export const useProductDetails = ({
 
 	return {
 		product: productQuery.data?.product ?? null,
-		availability: productQuery.data?.availability ?? "pending",
+		amazonListingStatus: productQuery.data?.amazonListingStatus ?? "pending",
 		provenance: productQuery.data?.provenance ?? null,
 		isLoading: productQuery.isLoading,
 		isRefreshing,

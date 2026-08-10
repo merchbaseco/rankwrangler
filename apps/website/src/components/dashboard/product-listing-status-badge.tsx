@@ -1,18 +1,18 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export const ProductAvailabilityBadge = ({
-	isUnavailable,
+export const ProductListingStatusBadge = ({
+	amazonListingStatus,
 	className,
 }: {
-	isUnavailable: boolean;
+	amazonListingStatus: "active" | "deleted";
 	className?: string;
 }) =>
-	isUnavailable ? (
+	amazonListingStatus === "deleted" ? (
 		<Badge
 			className={cn("rounded-sm font-mono text-xs", className)}
 			variant="error"
 		>
-			Unavailable
+			Deleted from Amazon
 		</Badge>
 	) : null;

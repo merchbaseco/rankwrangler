@@ -21,7 +21,7 @@ export const CatalogPage = () => {
 				const product = result.currentProduct;
 				if (
 					!product ||
-					result.currentProductAvailability !== "pending"
+					result.currentAmazonListingStatus !== "pending"
 				) {
 					return [];
 				}

@@ -24,7 +24,7 @@ export type ProductFreshness = {
 export type ProductHistoryPanelProduct = {
 	asin: string;
 	marketplaceId: string;
-	isUnavailable: boolean;
+	amazonListingStatus: "active" | "deleted";
 	title: string | null;
 	thumbnail: ProductThumbnail;
 	brand: string | null;

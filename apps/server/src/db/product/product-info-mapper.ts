@@ -1,6 +1,6 @@
 import { isProductFresh } from '@/services/product-freshness-policy';
 import { type AmazonRootCategoryId, getDisplayGroupName } from '@/types/amazon-root-categories';
-import type { ProductFreshness, ProductInfo } from '@/types/index';
+import type { AmazonListingStatus, ProductFreshness, ProductInfo } from '@/types/index';
 
 interface StoredProductInfo {
     marketplaceId: string;
@@ -10,7 +10,7 @@ interface StoredProductInfo {
     title: string | null;
     brand: string | null;
     isMerchListing: boolean | null;
-    isUnavailable: boolean;
+    amazonListingStatus: AmazonListingStatus;
     bullet1: string | null;
     bullet2: string | null;
     rootCategoryId: number | null;
@@ -46,7 +46,7 @@ export const mapStoredProductInfo = (
         title: product.title,
         brand: product.brand,
         isMerchListing: product.isMerchListing,
-        isUnavailable: product.isUnavailable,
+        amazonListingStatus: product.amazonListingStatus,
         bullet1: product.bullet1,
         bullet2: product.bullet2,
         thumbnail: getProductThumbnail(product, thumbnailPending),

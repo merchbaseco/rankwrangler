@@ -140,10 +140,10 @@ export const getCatalogSearchRun = async (
                         ? (productReadsByKey.get(`${row.product.marketplaceId}:${row.product.asin}`)
                               ?.product ?? null)
                         : null,
-                    currentProductAvailability: row.product
+                    currentAmazonListingStatus: row.product
                         ? (productReadsByKey.get(`${row.product.marketplaceId}:${row.product.asin}`)
-                              ?.availability ?? 'unavailable')
-                        : 'unavailable',
+                              ?.amazonListingStatus ?? 'deleted')
+                        : 'deleted',
                 },
             ];
         }),

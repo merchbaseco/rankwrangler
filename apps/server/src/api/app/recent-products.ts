@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, lt, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ilike, lt, or, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import { db } from '@/db/index.js';
@@ -6,15 +6,15 @@ import { productFacets, productFacetValues, products } from '@/db/schema.js';
 import { getProducts } from '@/services/product-retrieval';
 
 const recentProductsInput = z.object({
-	cursor: z
-		.object({
-			asin: z.string(),
-			marketplaceId: z.string(),
-			updatedAt: z.string().datetime(),
-		})
-		.nullish(),
-	limit: z.number().int().min(10).max(100).default(50),
-	search: z.string().trim().min(1).max(200).optional(),
+    cursor: z
+        .object({
+            asin: z.string(),
+            marketplaceId: z.string(),
+            updatedAt: z.string().datetime(),
+        })
+        .nullish(),
+    limit: z.number().int().min(10).max(100).default(50),
+    search: z.string().trim().min(1).max(200).optional(),
 });
 
 type AvailableFacetRow = {
@@ -26,28 +26,28 @@ type AvailableFacetRow = {
 export const recentProducts = appProcedure
     .input(recentProductsInput.optional())
     .query(async ({ input }) => {
-		const cursor = input?.cursor ?? null;
-		const limit = input?.limit ?? 50;
-		const cursorCondition = buildCursorCondition(cursor);
-		const searchCondition = buildSearchCondition(input?.search);
-		const whereCondition =
-			cursorCondition && searchCondition
-				? and(cursorCondition, searchCondition)
-				: cursorCondition ?? searchCondition;
+        const cursor = input?.cursor ?? null;
+        const limit = input?.limit ?? 50;
+        const cursorCondition = buildCursorCondition(cursor);
+        const searchCondition = buildSearchCondition(input?.search);
+        const whereCondition =
+            cursorCondition && searchCondition
+                ? and(cursorCondition, searchCondition)
+                : (cursorCondition ?? searchCondition);
 
         const rows = await db
-			.select({
-				asin: products.asin,
-				title: products.title,
-				brand: products.brand,
-				bullet1: products.bullet1,
-				bullet2: products.bullet2,
-				marketplaceId: products.marketplaceId,
-				rootCategoryBsr: products.rootCategoryBsr,
-				dateFirstAvailable: products.dateFirstAvailable,
-				isMerchListing: products.isMerchListing,
-				isUnavailable: products.isUnavailable,
-				facets: sql<string>`
+            .select({
+                asin: products.asin,
+                title: products.title,
+                brand: products.brand,
+                bullet1: products.bullet1,
+                bullet2: products.bullet2,
+                marketplaceId: products.marketplaceId,
+                rootCategoryBsr: products.rootCategoryBsr,
+                dateFirstAvailable: products.dateFirstAvailable,
+                isMerchListing: products.isMerchListing,
+                amazonListingStatus: products.amazonListingStatus,
+                facets: sql<string>`
                     COALESCE(
                         (
                             SELECT jsonb_agg(
@@ -64,18 +64,12 @@ export const recentProducts = appProcedure
                         ),
                         '[]'::jsonb
                     )::text
-                `.mapWith((value) =>
-					JSON.parse(value) as Array<{ facet: string; name: string }>
-				),
-				updatedAt: productUpdatedAt,
-			})
-			.from(products)
-			.where(whereCondition)
-            .orderBy(
-                desc(productUpdatedAt),
-                desc(products.marketplaceId),
-                desc(products.asin)
-            )
+                `.mapWith(value => JSON.parse(value) as Array<{ facet: string; name: string }>),
+                updatedAt: productUpdatedAt,
+            })
+            .from(products)
+            .where(whereCondition)
+            .orderBy(desc(productUpdatedAt), desc(products.marketplaceId), desc(products.asin))
             .limit(limit + 1);
 
         const items = rows.slice(0, limit);
@@ -87,18 +81,13 @@ export const recentProducts = appProcedure
             fetchPolicy: 'background',
         });
         const productReadsByKey = new Map(
-            productReads.map(read => [
-                `${read.identity.marketplaceId}:${read.identity.asin}`,
-                read,
-            ])
+            productReads.map(read => [`${read.identity.marketplaceId}:${read.identity.asin}`, read])
         );
         const productItems = items.map(item => {
-            const product = productReadsByKey.get(
-                `${item.marketplaceId}:${item.asin}`
-            )?.product;
+            const product = productReadsByKey.get(`${item.marketplaceId}:${item.asin}`)?.product;
             return {
                 ...item,
-                isUnavailable: product?.isUnavailable ?? item.isUnavailable,
+                amazonListingStatus: product?.amazonListingStatus ?? item.amazonListingStatus,
                 thumbnail: product?.thumbnail ?? { status: 'pending' as const },
             };
         });
@@ -111,7 +100,7 @@ export const recentProducts = appProcedure
                 queryAvailableFacetValues(),
             ]);
             trackedTotals = trackedTotalsResult;
-            availableFacets = availableFacetRows.map((row) => ({
+            availableFacets = availableFacetRows.map(row => ({
                 facet: row.facet,
                 name: row.name,
             }));
@@ -120,13 +109,13 @@ export const recentProducts = appProcedure
         const nextRow = rows.length > limit ? items[items.length - 1] : null;
         const nextCursor = nextRow
             ? {
-					asin: nextRow.asin,
-					marketplaceId: nextRow.marketplaceId,
-					updatedAt: nextRow.updatedAt.toISOString(),
-				}
-			: null;
+                  asin: nextRow.asin,
+                  marketplaceId: nextRow.marketplaceId,
+                  updatedAt: nextRow.updatedAt.toISOString(),
+              }
+            : null;
 
-		return {
+        return {
             items: productItems,
             nextCursor,
             trackedTotals,
@@ -135,27 +124,30 @@ export const recentProducts = appProcedure
     });
 
 const buildCursorCondition = (
-	cursor: {
-		asin: string;
-		marketplaceId: string;
-		updatedAt: string;
-	} | null,
+    cursor: {
+        asin: string;
+        marketplaceId: string;
+        updatedAt: string;
+    } | null
 ): SQL | undefined => {
-	if (!cursor) {
-		return undefined;
-	}
+    if (!cursor) {
+        return undefined;
+    }
 
-	const cursorUpdatedAt = new Date(cursor.updatedAt);
-	return or(
-		lt(productUpdatedAt, cursorUpdatedAt),
-		and(
-			eq(productUpdatedAt, cursorUpdatedAt),
-			or(
-				lt(products.marketplaceId, cursor.marketplaceId),
-				and(eq(products.marketplaceId, cursor.marketplaceId), lt(products.asin, cursor.asin)),
-			),
-		),
-	);
+    const cursorUpdatedAt = new Date(cursor.updatedAt);
+    return or(
+        lt(productUpdatedAt, cursorUpdatedAt),
+        and(
+            eq(productUpdatedAt, cursorUpdatedAt),
+            or(
+                lt(products.marketplaceId, cursor.marketplaceId),
+                and(
+                    eq(products.marketplaceId, cursor.marketplaceId),
+                    lt(products.asin, cursor.asin)
+                )
+            )
+        )
+    );
 };
 
 export const productUpdatedAt = sql<Date>`GREATEST(
@@ -166,40 +158,34 @@ export const productUpdatedAt = sql<Date>`GREATEST(
 )`.mapWith(products.createdAt);
 
 const buildSearchCondition = (search: string | undefined): SQL | undefined => {
-	const tokens = splitSearchTokens(search);
-	if (tokens.length === 0) {
-		return undefined;
-	}
+    const tokens = splitSearchTokens(search);
+    if (tokens.length === 0) {
+        return undefined;
+    }
 
-	const tokenConditions = tokens.map((token) => {
-		const pattern = `%${token}%`;
-		return or(
-			ilike(products.asin, pattern),
-			ilike(products.brand, pattern),
-			ilike(products.title, pattern),
-		);
-	});
+    const tokenConditions = tokens.map(token => {
+        const pattern = `%${token}%`;
+        return or(
+            ilike(products.asin, pattern),
+            ilike(products.brand, pattern),
+            ilike(products.title, pattern)
+        );
+    });
 
-	return tokenConditions.length === 1 ? tokenConditions[0] : and(...tokenConditions);
+    return tokenConditions.length === 1 ? tokenConditions[0] : and(...tokenConditions);
 };
 
 const splitSearchTokens = (search: string | undefined) =>
-	search
-		? search
-				.trim()
-				.split(/\s+/)
-				.filter(Boolean)
-				.slice(0, 8)
-			: [];
+    search ? search.trim().split(/\s+/).filter(Boolean).slice(0, 8) : [];
 
 const queryTrackedTotals = async () => {
-	const [totalProductsRows, totalMerchProductsRows] = await Promise.all([
-		db.select({ total: sql<number>`count(*)::int` }).from(products),
-		db
-			.select({ total: sql<number>`count(*)::int` })
-			.from(products)
-			.where(eq(products.isMerchListing, true)),
-	]);
+    const [totalProductsRows, totalMerchProductsRows] = await Promise.all([
+        db.select({ total: sql<number>`count(*)::int` }).from(products),
+        db
+            .select({ total: sql<number>`count(*)::int` })
+            .from(products)
+            .where(eq(products.isMerchListing, true)),
+    ]);
 
     return {
         totalMerchProducts: totalMerchProductsRows[0]?.total ?? 0,

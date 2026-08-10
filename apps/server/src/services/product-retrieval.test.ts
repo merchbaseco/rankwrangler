@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from 'bun:test';
 import { getProducts, persistProductSyncResults } from './product-retrieval';
 
 describe('Product sync persistence', () => {
-    it('records omitted ASINs as unavailable after a successful provider response', async () => {
+    it('records omitted ASINs as deleted after a successful provider response', async () => {
         const identities = [
             { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' },
             { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000002' },
@@ -12,13 +12,13 @@ describe('Product sync persistence', () => {
         const deps = {
             ensureProductIdentities: mock(() => Promise.resolve(0)),
             upsertProductInfo: mock(() => Promise.resolve(undefined)),
-            markProductsUnavailable: mock(() => Promise.resolve(1)),
+            markProductsDeleted: mock(() => Promise.resolve(1)),
         };
 
         await persistProductSyncResults({ identities, products, resolvedAt }, deps);
 
         expect(deps.upsertProductInfo).toHaveBeenCalledWith(products[0]);
-        expect(deps.markProductsUnavailable).toHaveBeenCalledWith([identities[1]], resolvedAt);
+        expect(deps.markProductsDeleted).toHaveBeenCalledWith([identities[1]], resolvedAt);
     });
 });
 
@@ -60,7 +60,7 @@ describe('Product retrieval', () => {
         expect(enqueueSpApiSyncQueueItems).toHaveBeenCalledWith(identities);
         expect(result).toHaveLength(identities.length);
         expect(result[0]).toMatchObject({
-            availability: 'pending',
+            amazonListingStatus: 'pending',
             product: {
                 thumbnail: { status: 'pending' },
             },
@@ -141,7 +141,7 @@ describe('Product retrieval', () => {
         ]);
         expect(enqueueSpApiSyncQueueItems).not.toHaveBeenCalled();
         expect(result[0]).toMatchObject({
-            availability: 'available',
+            amazonListingStatus: 'active',
             product: {
                 title: 'Fetched title',
                 thumbnail: { status: 'available', url: 'https://example.com/thumbnail.jpg' },
@@ -182,12 +182,12 @@ describe('Product retrieval', () => {
         expect(enqueueSpApiSyncQueueItems).toHaveBeenCalledWith([identity]);
         expect(searchCatalogItemsByAsins).not.toHaveBeenCalled();
         expect(result).toMatchObject({
-            availability: 'available',
+            amazonListingStatus: 'active',
             product: { thumbnail: { status: 'available', url: 'https://example.com/stale.jpg' } },
         });
     });
 
-    it('does not requeue an unavailable Product when its resolution ages past freshness', async () => {
+    it('does not requeue a deleted listing when its resolution ages past freshness', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000005' };
         const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(0));
         const searchCatalogItemsByAsins = mock(() => Promise.resolve([]));
@@ -196,7 +196,7 @@ describe('Product retrieval', () => {
                 Promise.resolve([
                     {
                         product: createStoredProduct(identity, {
-                            isUnavailable: true,
+                            amazonListingStatus: 'deleted',
                             spApiResolvedAt: new Date('2026-01-01T12:00:00.000Z'),
                         }),
                         queuePending: false,
@@ -217,12 +217,12 @@ describe('Product retrieval', () => {
         expect(enqueueSpApiSyncQueueItems).not.toHaveBeenCalled();
         expect(searchCatalogItemsByAsins).not.toHaveBeenCalled();
         expect(result).toMatchObject({
-            availability: 'unavailable',
+            amazonListingStatus: 'deleted',
             product: { thumbnail: { status: 'unavailable' } },
         });
     });
 
-    it('rechecks an unavailable Product after a newer authoritative discovery', async () => {
+    it('rechecks a deleted listing after a newer authoritative discovery', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000008' };
         let readCount = 0;
         const getStoredProducts = mock(() => {
@@ -230,7 +230,7 @@ describe('Product retrieval', () => {
             return Promise.resolve([
                 {
                     product: createStoredProduct(identity, {
-                        isUnavailable: true,
+                        amazonListingStatus: 'deleted',
                         spApiResolvedAt: new Date('2026-08-01T12:00:00.000Z'),
                     }),
                     queuePending: readCount > 1,
@@ -258,14 +258,14 @@ describe('Product retrieval', () => {
         expect(enqueueSpApiSyncQueueItems).toHaveBeenCalledWith([identity]);
     });
 
-    it('keeps last-known listing data visible when Amazon marks the Product unavailable', async () => {
+    it('keeps last-known listing data visible when Amazon marks the listing deleted', async () => {
         const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000006' };
         const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(0));
         const getStoredProducts = mock(() =>
             Promise.resolve([
                 {
                     product: createStoredProduct(identity, {
-                        isUnavailable: true,
+                        amazonListingStatus: 'deleted',
                         thumbnailUrl: 'https://example.com/old.jpg',
                         spApiFetchedAt: new Date('2026-07-01T12:00:00.000Z'),
                         spApiResolvedAt: new Date(Date.now() - 60_000),
@@ -289,9 +289,9 @@ describe('Product retrieval', () => {
 
         expect(enqueueSpApiSyncQueueItems).not.toHaveBeenCalled();
         expect(result).toMatchObject({
-            availability: 'available',
+            amazonListingStatus: 'deleted',
             product: {
-                isUnavailable: true,
+                amazonListingStatus: 'deleted',
                 thumbnail: { status: 'available', url: 'https://example.com/old.jpg' },
             },
         });
@@ -316,7 +316,7 @@ const createStoredProduct = (
         title: 'Keepa title',
         brand: null,
         isMerchListing: false,
-        isUnavailable: false,
+        amazonListingStatus: 'active',
         bullet1: null,
         bullet2: null,
         rootCategoryId: null,

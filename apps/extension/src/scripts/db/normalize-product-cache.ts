@@ -1,8 +1,11 @@
 import type { Product } from "../types/product";
 
-export type CachedProductRecord = Omit<Product, "freshness" | "isUnavailable"> & {
+export type CachedProductRecord = Omit<
+	Product,
+	"freshness" | "amazonListingStatus"
+> & {
 	freshness?: Product["freshness"];
-	isUnavailable?: boolean;
+	amazonListingStatus?: Product["amazonListingStatus"];
 };
 
 export const normalizeCachedProduct = (
@@ -10,7 +13,7 @@ export const normalizeCachedProduct = (
 ): Product => ({
 	...cached,
 	isMerchListing: cached.isMerchListing ?? null,
-	isUnavailable: cached.isUnavailable ?? false,
+	amazonListingStatus: cached.amazonListingStatus ?? "active",
 	freshness: cached.freshness ?? {
 		stale: true,
 		updatedAt: null,

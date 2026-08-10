@@ -246,6 +246,13 @@
       "when": 1786304973460,
       "tag": "0034_flowery_winter_soldier",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1786331983341,
+      "tag": "0035_numerous_william_stryker",
+      "breakpoints": true
     }
   ]
 }

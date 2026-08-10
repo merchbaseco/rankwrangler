@@ -28,7 +28,7 @@ export const CatalogProductRow = ({
 	const initialProduct = result.currentProduct;
 	if (!initialProduct) {
 		return (
-			<UnavailableCatalogProductRow
+			<DeletedCatalogProductRow
 				onRowMouseEnter={onRowMouseEnter}
 				onRowMouseLeave={onRowMouseLeave}
 				onRowMouseMove={onRowMouseMove}
@@ -67,12 +67,12 @@ const ResolvedCatalogProductRow = ({
 }) => {
 	const productQuery = useCatalogProductQuery({
 		initialProduct,
-		initialAvailability: result.currentProductAvailability,
+		initialAmazonListingStatus: result.currentAmazonListingStatus,
 	});
 	const product = productQuery.data?.product ?? initialProduct;
 	const current = product.keepa;
 	const isProductPending =
-		(productQuery.data?.availability ?? result.currentProductAvailability) ===
+		(productQuery.data?.amazonListingStatus ?? result.currentAmazonListingStatus) ===
 		"pending";
 
 	return (
@@ -124,7 +124,7 @@ const ResolvedCatalogProductRow = ({
 	);
 };
 
-const UnavailableCatalogProductRow = ({
+const DeletedCatalogProductRow = ({
 	onRowMouseEnter,
 	onRowMouseLeave,
 	onRowMouseMove,
@@ -161,7 +161,7 @@ const UnavailableCatalogProductRow = ({
 		<TableCell className="max-w-80 whitespace-normal">
 			<div>
 				<span className="text-muted-foreground">
-					Canonical Product unavailable
+					Amazon listing deleted
 				</span>
 				<div className="mt-1 font-mono text-[11px]">{result.productId}</div>
 			</div>

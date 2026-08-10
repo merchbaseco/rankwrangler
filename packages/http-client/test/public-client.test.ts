@@ -27,7 +27,7 @@ describe('public client contract', () => {
                             url: 'https://example.com/image.jpg',
                         },
                         isMerchListing: null,
-                        isUnavailable: false,
+                        amazonListingStatus: 'active',
                         category: null,
                         salesRank: null,
                         price: null,

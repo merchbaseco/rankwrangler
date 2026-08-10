@@ -79,7 +79,8 @@ export const getProduct = async (
 			asin,
 			marketplaceId,
 			isMerchListing: normalizeMerchListingValue(responseData.isMerchListing),
-			isUnavailable: Boolean(responseData.isUnavailable),
+			amazonListingStatus:
+				responseData.amazonListingStatus === "deleted" ? "deleted" : "active",
 			...(typeof responseData.dateFirstAvailable === "string" &&
 			responseData.dateFirstAvailable !== null &&
 			responseData.dateFirstAvailable !== ""

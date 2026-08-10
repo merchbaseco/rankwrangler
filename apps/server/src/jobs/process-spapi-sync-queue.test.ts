@@ -12,7 +12,7 @@ interface EventLogInput {
 }
 
 describe('processSpApiSyncQueue', () => {
-    it('persists fetched and unavailable identities, then completes every identity', async () => {
+    it('persists active and deleted identities, then completes every identity', async () => {
         const { processSpApiSyncQueue } = await loadSubject();
         const queueItems = [
             createQueueItem({ id: 'q1', asin: 'B000000001' }),
@@ -35,7 +35,7 @@ describe('processSpApiSyncQueue', () => {
             didWork: true,
             queueCount: 2,
             upsertedCount: 1,
-            unavailableCount: 1,
+            deletedCount: 1,
             hasMore: false,
         });
         expect(searchCatalogItemsByAsins.mock.calls).toEqual([
@@ -137,7 +137,7 @@ describe('processSpApiSyncQueue', () => {
         expect(explicitDelete).toHaveBeenCalledWith([identity]);
         expect(calls.deleteSpApiSyncQueueItems).toHaveBeenCalledWith(['q5']);
         expect(refreshed).toMatchObject({
-            availability: 'available',
+            amazonListingStatus: 'active',
             product: { title: 'Fetched title' },
         });
     });

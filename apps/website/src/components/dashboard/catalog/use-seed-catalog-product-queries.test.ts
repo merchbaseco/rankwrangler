@@ -12,13 +12,13 @@ describe("Catalog Product query seeding", () => {
 				marketplaceId: "ATVPDKIKX0DER",
 				asin: "B000000001",
 				product: { title: "First" },
-				availability: "pending",
+				amazonListingStatus: "pending",
 			},
 			{
 				marketplaceId: "ATVPDKIKX0DER",
 				asin: "B000000002",
 				product: { title: "Second" },
-				availability: "available",
+				amazonListingStatus: "active",
 			},
 		];
 
@@ -35,11 +35,11 @@ describe("Catalog Product query seeding", () => {
 	it("does not replace a completed Product read with an older pending seed", () => {
 		const current = createProductRead({
 			updatedAt: "2026-08-03T12:05:00.000Z",
-			availability: "available",
+			amazonListingStatus: "active",
 		});
 		const seed = createProductRead({
 			keepaFetchedAt: "2026-08-03T12:00:00.000Z",
-			availability: "pending",
+			amazonListingStatus: "pending",
 		});
 
 		expect(selectFreshestProductRead(current, seed)).toBe(current);
@@ -48,11 +48,11 @@ describe("Catalog Product query seeding", () => {
 	it("uses a newer Catalog-run snapshot to refresh cached Keepa state", () => {
 		const current = createProductRead({
 			keepaFetchedAt: "2026-08-03T12:00:00.000Z",
-			availability: "available",
+			amazonListingStatus: "active",
 		});
 		const seed = createProductRead({
 			keepaFetchedAt: "2026-08-03T12:05:00.000Z",
-			availability: "available",
+			amazonListingStatus: "active",
 		});
 
 		expect(selectFreshestProductRead(current, seed)).toBe(seed);
@@ -66,7 +66,7 @@ const createProductRead = ({
 }: {
 	keepaFetchedAt?: string | null;
 	updatedAt?: string | null;
-	availability: "pending" | "available" | "unavailable";
+	amazonListingStatus: "pending" | "active" | "deleted";
 }) =>
 	({
 	product: {

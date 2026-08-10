@@ -2,21 +2,21 @@ import { and, eq, gte, isNotNull, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
-import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue.js';
+import { defineJob } from '@/jobs/job-router.js';
 import { createEventLogSafe } from '@/services/event-logs.js';
 import { getErrorMessage } from '@/services/job-executions-utils.js';
 import {
     BSR_THRESHOLD_1M,
-    BSR_THRESHOLD_200K,
     BSR_THRESHOLD_3M,
+    BSR_THRESHOLD_200K,
     BSR_THRESHOLD_500K,
+    REFRESH_AFTER_3_DAYS_MS,
+    REFRESH_AFTER_7_DAYS_MS,
     REFRESH_AFTER_14_DAYS_MS,
     REFRESH_AFTER_24_HOURS_MS,
     REFRESH_AFTER_30_DAYS_MS,
-    REFRESH_AFTER_3_DAYS_MS,
-    REFRESH_AFTER_7_DAYS_MS,
 } from '@/services/spapi-refresh-policy.js';
-import { defineJob } from '@/jobs/job-router.js';
+import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue.js';
 
 export type ReprocessStaleProductsResult = {
     didWork: boolean;
@@ -37,13 +37,13 @@ export async function reprocessStaleProducts() {
     const threshold14Days = new Date(now.getTime() - REFRESH_AFTER_14_DAYS_MS);
     const threshold30Days = new Date(now.getTime() - REFRESH_AFTER_30_DAYS_MS);
 
-    // Find available stale Merch Products using BSR tiers:
+    // Find active stale Merch Products using BSR tiers:
     // - BSR < 200k: refresh if spApiFetchedAt > 24 hours ago
     // - BSR < 500k: refresh if spApiFetchedAt > 3 days ago
     // - BSR < 1M: refresh if spApiFetchedAt > 7 days ago
     // - BSR < 3M: refresh if spApiFetchedAt > 14 days ago
     // - BSR >= 3M: refresh if spApiFetchedAt > 30 days ago
-    // - Unavailable, non-Merch, or null-BSR Products: never by stale job
+    // - Deleted, non-Merch, or null-BSR Products: never by stale job
     const staleProducts = await db
         .select({
             marketplaceId: products.marketplaceId,
@@ -117,9 +117,7 @@ export async function reprocessStaleProducts() {
             staleProductCount: staleProducts.length,
             enqueuedCount: 0,
             errorMessage:
-                error instanceof Error
-                    ? error.message
-                    : 'Failed to enqueue stale products',
+                error instanceof Error ? error.message : 'Failed to enqueue stale products',
         } satisfies ReprocessStaleProductsResult;
     }
 }
@@ -189,7 +187,7 @@ export const reprocessStaleProductsJob = defineJob('reprocess-stale-products', {
 export const buildAvailableMerchRefreshCondition = (freshnessCondition: ReturnType<typeof or>) =>
     and(
         products.isMerchListing,
-        eq(products.isUnavailable, false),
+        eq(products.amazonListingStatus, 'active'),
         isNotNull(products.rootCategoryBsr),
         freshnessCondition
     );

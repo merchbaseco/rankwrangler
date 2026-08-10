@@ -207,7 +207,7 @@ export const useProductHistoryPanelData = ({
 	useKeepaAutoSync({
 		enabled:
 			Boolean(product.marketplaceId && product.asin) &&
-			!resolvedProduct.isUnavailable,
+			resolvedProduct.amazonListingStatus === "active",
 		isKeepaSyncStale,
 		isRankQueryError: rankQuery.isError,
 		isRankQueryLoading: rankQuery.isLoading,

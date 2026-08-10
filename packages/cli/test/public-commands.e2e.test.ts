@@ -53,14 +53,14 @@ describe('final public CLI contract', () => {
                                         asin: 'B012345678',
                                         title: 'Garden shirt',
                                         thumbnail: { status: 'unavailable' },
-                                        isUnavailable: false,
+                                        amazonListingStatus: 'active',
                                     },
                                     {
                                         marketplaceId: 'ATVPDKIKX0DER',
                                         asin: 'B087654321',
                                         title: null,
                                         thumbnail: { status: 'unavailable' },
-                                        isUnavailable: true,
+                                        amazonListingStatus: 'deleted',
                                     },
                                 ],
                             },
@@ -82,7 +82,7 @@ describe('final public CLI contract', () => {
                                         bulletPoints: [],
                                         thumbnail: { status: 'unavailable' },
                                         isMerchListing: null,
-                                        isUnavailable: false,
+                                        amazonListingStatus: 'active',
                                     },
                                     category: null,
                                     salesRank: {
@@ -167,8 +167,12 @@ describe('final public CLI contract', () => {
             expect(JSON.parse(getManyResult.stdout)).toMatchObject({
                 ok: true,
                 data: [
-                    { asin: 'B012345678', isUnavailable: false, title: 'Garden shirt' },
-                    { asin: 'B087654321', isUnavailable: true, title: null },
+                    {
+                        asin: 'B012345678',
+                        amazonListingStatus: 'active',
+                        title: 'Garden shirt',
+                    },
+                    { asin: 'B087654321', amazonListingStatus: 'deleted', title: null },
                 ],
             });
             expect(JSON.parse(searchResult.stdout)).toMatchObject({

@@ -6,27 +6,30 @@ import { createColumns } from "@/components/dashboard/recent-products/columns";
 import type { Product } from "@/components/dashboard/recent-products/types";
 
 describe("recent Product columns", () => {
-	it("replaces stale BSR with availability and keeps the ASIN cell compact", () => {
+	it("replaces stale BSR with deleted-listing status and keeps the ASIN cell compact", () => {
 		const columns = createColumns({
 			onSelectHistory: () => undefined,
 			selectedHistoryKey: null,
 		});
-		const product = createProduct({ isUnavailable: true, rootCategoryBsr: 2_952_273 });
+		const product = createProduct({
+			amazonListingStatus: "deleted",
+			rootCategoryBsr: 2_952_273,
+		});
 
 		const asinMarkup = renderColumn(columns, "asin", product);
 		const bsrMarkup = renderColumn(columns, "rootCategoryBsr", product);
 
-		expect(asinMarkup).not.toContain("Unavailable");
-		expect(bsrMarkup).toContain("Unavailable");
+		expect(asinMarkup).not.toContain("Deleted from Amazon");
+		expect(bsrMarkup).toContain("Deleted from Amazon");
 		expect(bsrMarkup).not.toContain("#2,952,273");
 		expect(bsrMarkup).toContain("font-mono text-xs");
 		expect(bsrMarkup).not.toContain("text-[10px]");
 	});
 
-	it("opens the Product drawer from an unavailable BSR cell", () => {
+	it("opens the Product drawer from a deleted-listing BSR cell", () => {
 		const onSelectHistory = mock(() => undefined);
 		const columns = createColumns({ onSelectHistory, selectedHistoryKey: null });
-		const product = createProduct({ isUnavailable: true });
+		const product = createProduct({ amazonListingStatus: "deleted" });
 		const cell = getColumnElement(columns, "rootCategoryBsr", product);
 		const child = cell.props.children as ReactElement;
 		if (typeof child.type !== "function") {
@@ -42,7 +45,7 @@ describe("recent Product columns", () => {
 		expect(onSelectHistory).toHaveBeenCalledTimes(1);
 		expect(onSelectHistory.mock.calls[0]?.[0]).toMatchObject({
 			asin: product.asin,
-			isUnavailable: true,
+			amazonListingStatus: "deleted",
 			rootCategoryBsr: product.rootCategoryBsr,
 		});
 	});
@@ -83,7 +86,7 @@ const createProduct = (overrides: Partial<Product> = {}): Product => ({
 	dateFirstAvailable: "2025-03-28",
 	rootCategoryBsr: 2_952_273,
 	isMerchListing: true,
-	isUnavailable: false,
+	amazonListingStatus: "active",
 	facets: [],
 	thumbnail: { status: "available", url: "https://example.com/product.jpg" },
 	updatedAt: "2026-08-09T12:00:00.000Z",

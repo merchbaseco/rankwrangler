@@ -143,7 +143,7 @@ describeCatalogDb('Catalog search history reads', () => {
         expect(empty).toMatchObject({ id: emptyRunId, resultCount: 0, results: [] });
     });
 
-    it('derives Product availability from the durable queue and resolution state', async () => {
+    it('derives Amazon listing status from the durable queue and resolution state', async () => {
         const queryId = await insertQuery('Pending Product');
         const runId = await insertRun(queryId, '2026-07-01T12:00:00.000Z', 1);
         const productId = await insertProduct();
@@ -151,7 +151,7 @@ describeCatalogDb('Catalog search history reads', () => {
         const caller = appRouter.createCaller(createContext('app'));
 
         expect((await caller.api.app.catalog.run.get({ id: runId })).results[0]).toMatchObject({
-            currentProductAvailability: 'pending',
+            currentAmazonListingStatus: 'pending',
             currentProduct: { thumbnail: { status: 'pending' } },
         });
         expect(await db.select().from(spApiSyncQueue)).toHaveLength(1);
@@ -159,10 +159,13 @@ describeCatalogDb('Catalog search history reads', () => {
         await db.delete(spApiSyncQueue);
         await db
             .update(products)
-            .set({ spApiResolvedAt: new Date(Date.now() + 60_000) })
+            .set({
+                amazonListingStatus: 'deleted',
+                spApiResolvedAt: new Date(Date.now() + 60_000),
+            })
             .where(eq(products.id, productId));
         expect((await caller.api.app.catalog.run.get({ id: runId })).results[0]).toMatchObject({
-            currentProductAvailability: 'unavailable',
+            currentAmazonListingStatus: 'deleted',
             currentProduct: { thumbnail: { status: 'unavailable' } },
         });
     });

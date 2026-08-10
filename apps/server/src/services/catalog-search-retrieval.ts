@@ -170,7 +170,7 @@ const mapCatalogSearchRun = (run: CatalogSearchRun): ProductSearch => ({
     results: run.results.map(result => {
         if (
             !result.currentProduct ||
-            result.currentProductAvailability === 'pending' ||
+            result.currentAmazonListingStatus === 'pending' ||
             result.currentProduct.thumbnail.status === 'pending'
         ) {
             throw new RetrievalRetryableError(

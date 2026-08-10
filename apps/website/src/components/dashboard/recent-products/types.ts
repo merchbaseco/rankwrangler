@@ -18,7 +18,7 @@ export type Product = {
 	rootCategoryBsr: number | null;
 	dateFirstAvailable: string | null;
 	isMerchListing: boolean | null;
-	isUnavailable: boolean;
+	amazonListingStatus: "active" | "deleted";
 	facets: Array<{ facet: string; name: string }>;
 	updatedAt: string;
 	updatedAtMs: number;
@@ -27,7 +27,7 @@ export type Product = {
 export type SelectedHistoryProduct = {
 	asin: string;
 	marketplaceId: string;
-	isUnavailable: boolean;
+	amazonListingStatus: "active" | "deleted";
 	title: string | null;
 	thumbnail: ProductThumbnail;
 	brand: string | null;
