@@ -15,11 +15,29 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # --- System dependency: PostgreSQL 16 (native; Docker is unavailable in the VM) ---
+# apt fetches occasionally return transient proxy errors (e.g. 400) in build
+# pods, so retry both the apt-level fetch and the whole step.
 if ! command -v psql >/dev/null 2>&1; then
     echo "[install] Installing PostgreSQL..."
-    $SUDO apt-get update -y
-    $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        postgresql postgresql-contrib
+    install_postgres() {
+        $SUDO apt-get update -y -o Acquire::Retries=5
+        $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            -o Acquire::Retries=5 --fix-missing \
+            postgresql postgresql-contrib
+    }
+    pg_installed=0
+    for attempt in 1 2 3; do
+        if install_postgres; then
+            pg_installed=1
+            break
+        fi
+        echo "[install] apt attempt ${attempt} failed; retrying in 5s..." >&2
+        sleep 5
+    done
+    if [ "$pg_installed" -ne 1 ]; then
+        echo "[install] ERROR: PostgreSQL installation failed after retries." >&2
+        exit 1
+    fi
 else
     echo "[install] PostgreSQL already present."
 fi
