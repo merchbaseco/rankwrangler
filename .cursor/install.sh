@@ -1,27 +1,52 @@
 #!/usr/bin/env bash
 # Idempotent repository bootstrap for RankWrangler Cloud Agents.
-# Runs after the source tree is checked out. Installs workspace dependencies
-# and materializes a local `.env` for host-run development.
+# Runs after the source tree is checked out. Installs the system toolchain
+# (PostgreSQL 16 + Bun) if missing, installs workspace dependencies, and
+# materializes a local `.env` for host-run development. Safe to re-run.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# Use sudo only when not already root (build pods may run as root).
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    SUDO="sudo"
+fi
+
+# --- System dependency: PostgreSQL 16 (native; Docker is unavailable in the VM) ---
+if ! command -v psql >/dev/null 2>&1; then
+    echo "[install] Installing PostgreSQL..."
+    $SUDO apt-get update -y
+    $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        postgresql postgresql-contrib
+else
+    echo "[install] PostgreSQL already present."
+fi
+
+# --- System dependency: Bun 1.3.5 (pinned by package.json packageManager) ---
 export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
 export PATH="$BUN_INSTALL/bin:$PATH"
+if ! command -v bun >/dev/null 2>&1; then
+    echo "[install] Installing Bun 1.3.5..."
+    curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.5"
+else
+    echo "[install] Bun already present ($(bun --version))."
+fi
 
-# Install Bun workspace dependencies. Requires MERCHBASE_GITHUB_NPM_TOKEN in the
-# environment so the private @merchbaseco scope resolves from GitHub Packages.
+# --- Workspace dependencies ---
+# Requires MERCHBASE_GITHUB_NPM_TOKEN in the environment so the private
+# @merchbaseco scope resolves from GitHub Packages (npm.pkg.github.com).
 if [ -z "${MERCHBASE_GITHUB_NPM_TOKEN:-}" ]; then
     echo "[install] WARNING: MERCHBASE_GITHUB_NPM_TOKEN is not set; the private" \
         "@merchbaseco/access package cannot be fetched from GitHub Packages." >&2
 fi
 bun install --frozen-lockfile
 
-# Materialize a local .env for host-run development if one is not present.
+# --- Local .env for host-run development ---
 # Real credentials supplied as Cursor secrets are injected as process env vars
-# and take precedence over these placeholder values, so the server still boots
-# with valid Clerk/SP-API credentials when they are provided.
+# and take precedence over these placeholders (dotenv does not override existing
+# env), so the server still boots with valid credentials when they are provided.
 if [ ! -f .env ]; then
     cp .env.example .env
     # Point the server at the native local PostgreSQL instance.
