@@ -51,5 +51,10 @@ SQL
 echo "[start] PostgreSQL ready on localhost:5432 (database: rankwrangler)."
 echo "[start] Launching development servers (server:8080, website:5173)..."
 
-# Launch the development servers attached so logs remain visible for the agent.
-exec bun run dev
+# Launch the dev servers attached so logs remain visible. We invoke concurrently
+# directly instead of `bun run dev` because the root dev script passes Bun's
+# --elide-lines=0, which aborts in non-terminal contexts (start scripts, CI,
+# tmux-managed panes). The per-workspace dev scripts do not use that flag.
+exec node_modules/.bin/concurrently -k -n server,website -c cyan,magenta \
+    "bun run --filter @rankwrangler/server dev" \
+    "bun run --filter @rankwrangler/website dev"

@@ -67,11 +67,16 @@ bun install --frozen-lockfile
 # env), so the server still boots with valid credentials when they are provided.
 if [ ! -f .env ]; then
     cp .env.example .env
-    # Point the server at the native local PostgreSQL instance.
+    # Point the server at the native local PostgreSQL instance, and keep the
+    # background job runner disabled for local dev (the documented default).
+    # Leaving DISABLE_SERVER_JOB_RUNNER=false with the pre-cutover migration
+    # target crashes the server at boot, because the enabled job runner queries
+    # columns that only exist in post-cutover migrations.
     sed -i \
         -e 's/^DATABASE_PASSWORD=.*/DATABASE_PASSWORD=SecurePass123/' \
         -e 's/^DATABASE_HOST=.*/DATABASE_HOST=localhost/' \
         -e 's/^DATABASE_PORT=.*/DATABASE_PORT=5432/' \
+        -e 's/^DISABLE_SERVER_JOB_RUNNER=.*/DISABLE_SERVER_JOB_RUNNER=true/' \
         .env
     echo "[install] Wrote local .env (placeholder auth + local Postgres on 5432)."
 else
