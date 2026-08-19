@@ -10,7 +10,7 @@ read_when:
 ## Setup
 
 ```bash
-export GITHUB_PACKAGES_TOKEN=<read token from the approved secret store>
+export MERCHBASE_GITHUB_NPM_TOKEN=<read token from the approved secret store>
 bun install --frozen-lockfile
 cp .env.example .env
 ```
@@ -55,7 +55,7 @@ loopback hosts on any port so checkout-specific website previews can use their a
 From the repository root:
 
 ```bash
-export GITHUB_PACKAGES_TOKEN=<read token from the approved secret store>
+export MERCHBASE_GITHUB_NPM_TOKEN=<read token from the approved secret store>
 docker compose --env-file .env -f apps/server/compose.yml up --build
 ```
 

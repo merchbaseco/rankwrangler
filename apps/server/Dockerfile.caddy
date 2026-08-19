@@ -21,7 +21,7 @@ COPY packages/cli/package.json packages/cli/package.json
 COPY apps ./apps
 
 RUN --mount=type=secret,id=github_packages_token,required=true \
-    GITHUB_PACKAGES_TOKEN="$(cat /run/secrets/github_packages_token)" \
+    MERCHBASE_GITHUB_NPM_TOKEN="$(cat /run/secrets/github_packages_token)" \
     bun install --frozen-lockfile --ignore-scripts
 COPY packages/history-chart ./packages/history-chart
 RUN bun run --filter @rankwrangler/website build

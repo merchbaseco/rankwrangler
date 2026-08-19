@@ -10,10 +10,10 @@ cd "$REPO_ROOT"
 export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-# Install Bun workspace dependencies. Requires GITHUB_PACKAGES_TOKEN in the
+# Install Bun workspace dependencies. Requires MERCHBASE_GITHUB_NPM_TOKEN in the
 # environment so the private @merchbaseco scope resolves from GitHub Packages.
-if [ -z "${GITHUB_PACKAGES_TOKEN:-}" ]; then
-    echo "[install] WARNING: GITHUB_PACKAGES_TOKEN is not set; the private" \
+if [ -z "${MERCHBASE_GITHUB_NPM_TOKEN:-}" ]; then
+    echo "[install] WARNING: MERCHBASE_GITHUB_NPM_TOKEN is not set; the private" \
         "@merchbaseco/access package cannot be fetched from GitHub Packages." >&2
 fi
 bun install --frozen-lockfile

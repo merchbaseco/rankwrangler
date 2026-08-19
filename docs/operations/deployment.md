@@ -21,7 +21,7 @@ paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-loc
 
 ## Manual Deployment
 
-`@merchbaseco/access` is a private GitHub Package. Export `GITHUB_PACKAGES_TOKEN` from the approved
+`@merchbaseco/access` is a private GitHub Package. Export `MERCHBASE_GITHUB_NPM_TOKEN` from the approved
 secret store before building. Compose mounts it into the Bun install step as a BuildKit secret; it
 is not a build argument, image environment variable, layer, or runtime-container value. Supplying
 the name in `--env-file` alone does not create the BuildKit secret.
@@ -29,7 +29,7 @@ the name in `--env-file` alone does not create the BuildKit secret.
 From the repository root:
 
 ```bash
-export GITHUB_PACKAGES_TOKEN=<read token from the approved secret store>
+export MERCHBASE_GITHUB_NPM_TOKEN=<read token from the approved secret store>
 docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml build
 ```
 
@@ -44,7 +44,7 @@ docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml up -d
 Pushes to `main` run the self-hosted deploy workflow. It synchronizes the long-lived deployment
 checkout at `/Users/zknicker/srv/rankwrangler` to the pushed commit and rebuilds the Compose images.
 The workflow grants `packages: read` and exposes its repository-scoped `github.token` to Compose as
-`GITHUB_PACKAGES_TOKEN`; explicit package access for `merchbaseco/rankwrangler` is required.
+`MERCHBASE_GITHUB_NPM_TOKEN`; explicit package access for `merchbaseco/rankwrangler` is required.
 
 ## Central-auth staged deployment
 

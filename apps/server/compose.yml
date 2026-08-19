@@ -104,7 +104,7 @@ volumes:
 
 secrets:
   github_packages_token:
-    environment: GITHUB_PACKAGES_TOKEN
+    environment: MERCHBASE_GITHUB_NPM_TOKEN
 
 networks:
   rankwrangler:
