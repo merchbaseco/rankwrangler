@@ -20,7 +20,7 @@ jobs:
         working-directory: /Users/zknicker/srv/rankwrangler
         env:
           DEPLOY_ROOT: /Users/zknicker/srv/rankwrangler
-          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
+          MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
         run: |
           # Sync the long-lived deploy checkout to the exact pushed commit.
           # This discards tracked-file edits on the host that would otherwise
@@ -37,7 +37,7 @@ jobs:
           # Without --env-file, Docker Compose will look for .env in apps/server/ and
           # substitute blanks (causing Postgres to fail).
           # Use -p rankwrangler so Compose targets the existing containers/networks (container_name is fixed).
-          # GITHUB_PACKAGES_TOKEN is exposed to BuildKit only as an ephemeral secret mount.
+          # MERCHBASE_GITHUB_NPM_TOKEN is exposed to BuildKit only as an ephemeral secret mount.
           docker compose -p rankwrangler --env-file "${DEPLOY_ROOT}/.env" -f apps/server/compose.yml build
 
           migration_target="$(

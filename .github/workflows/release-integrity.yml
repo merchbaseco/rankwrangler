@@ -27,7 +27,7 @@ jobs:
 
             - name: Install dependencies
               env:
-                  GITHUB_PACKAGES_TOKEN: ${{ github.token }}
+                  MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
               run: bun install --frozen-lockfile
 
             - name: Validate release metadata
