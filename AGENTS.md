@@ -130,3 +130,13 @@ Open these only when the task needs that specific workflow:
 
 - Put guidance in `AGENTS.md` if it should influence agent behavior on nearly every turn (coding standards, architecture constraints, safety invariants, and default engineering expectations).
 - Put guidance in `docs/*` if it is situational workflow/reference material used only for specific tasks (deploys, release steps, DB runbooks, one-off operational playbooks).
+
+## Cursor Cloud specific instructions
+
+The Cloud Agent environment is defined by `.cursor/environment.json` (`install` -> `.cursor/install.sh`, `start` -> `.cursor/start.sh`). Non-obvious caveats:
+
+- Docker is not available in the Cloud Agent VM, so the Compose `postgres` service is replaced by a native PostgreSQL 16 install. It listens on `localhost:5432` (not the `5433` from the Docker docs). `start.sh` starts the cluster and ensures the `rankwrangler` db/role/`uuid-ossp` extension.
+- Installing dependencies requires the `MERCHBASE_GITHUB_NPM_TOKEN` secret (GitHub Packages `read:packages`) for the private `@merchbaseco/access` package. Newly added secrets only reach freshly booted pods, not an already-running session.
+- Do not run `bun run dev` non-interactively: the root `dev` script passes Bun `--elide-lines=0`, which aborts outside a real terminal (start scripts, CI, tmux panes). `start.sh` runs `concurrently` with the per-workspace `dev` scripts instead (server on `:8080`, website on `:5173`, `/api/health` for liveness).
+- The generated local `.env` sets `DISABLE_SERVER_JOB_RUNNER=true` on purpose: leaving it `false` with `DATABASE_MIGRATION_TARGET=pre-cutover` crashes the server at boot because the job runner queries post-cutover columns.
+- The generated `.env` uses `.env.example` placeholder Clerk/SP-API values, which satisfy env validation so the server boots. Real Clerk/SP-API/Keepa/Merchbase credentials (injected as env vars, which override `.env`) are only needed to exercise live auth and provider integrations.
