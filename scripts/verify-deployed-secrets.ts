@@ -10,6 +10,9 @@ import { readFileSync } from "node:fs";
  * into this process (they are part of the inspect output) but are split off at
  * the first `=` and never printed, logged, or returned — only names leave.
  *
+ * The inspect output is read as JSON rather than line-split text, so a
+ * multi-line value cannot masquerade as stale variable names.
+ *
  * Fails when a delivered name is not a schema item (a stale name surviving a
  * rename), when a delivered sensitive name is not schema-sensitive, or when a
  * production-required sensitive item never reached the container.
@@ -61,12 +64,7 @@ for (const line of schema.split("\n")) {
 
 const inspected = spawnSync(
     "docker",
-    [
-        "inspect",
-        containerName,
-        "--format",
-        "{{range .Config.Env}}{{println .}}{{end}}",
-    ],
+    ["inspect", containerName, "--format", "{{json .Config.Env}}"],
     { encoding: "utf8", env: process.env }
 );
 
@@ -76,9 +74,19 @@ if (inspected.status !== 0) {
     process.exit(1);
 }
 
+// Parsed as JSON rather than line-split text: a delivered value may itself
+// contain newlines (a PEM key, for example), and splitting on them turns each
+// continuation line into a bogus "delivered name" that fails the guard.
+let entries: string[];
+try {
+    entries = JSON.parse(inspected.stdout ?? "[]");
+} catch {
+    console.error(`Could not parse the environment of ${containerName}.`);
+    process.exit(1);
+}
+
 // Split at the first `=` and discard the value immediately.
-const deliveredNames = (inspected.stdout ?? "")
-    .split("\n")
+const deliveredNames = entries
     .map((entry) => entry.slice(0, entry.indexOf("=")))
     .filter((name) => name.length > 0 && !imageProvidedNames.has(name));
 
