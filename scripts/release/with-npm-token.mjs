@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-export const NPM_TOKEN_ENV = 'RANKWRANGLER_NPM_PUBLISH_TOKEN';
+export const NPM_TOKEN_ENV = 'MERCHBASE_NPM_PUBLISH_TOKEN';
 
 // Publishing is the `release` resolution context: the token is an @internal
 // schema item, so `varlock run` deliberately does not export it and it has to
@@ -44,7 +44,7 @@ export const resolveNpmToken = async ({
     const token = stdout.trim();
     if (!token) {
         throw new Error(
-            `${NPM_TOKEN_ENV} resolved empty. Check op://Tooling/NPM Publish - RankWrangler.`
+            `${NPM_TOKEN_ENV} resolved empty. Check op://Tooling/NPM Publish - Merchbase.`
         );
     }
 
