@@ -19,7 +19,7 @@ COPY packages/history-chart/package.json packages/history-chart/package.json
 COPY packages/http-client/package.json packages/http-client/package.json
 
 RUN --mount=type=secret,id=github_packages_token,required=true \
-    GITHUB_PACKAGES_TOKEN="$(cat /run/secrets/github_packages_token)" \
+    MERCHBASE_GITHUB_NPM_TOKEN="$(cat /run/secrets/github_packages_token)" \
     bun install --frozen-lockfile --ignore-scripts
 
 FROM deps AS build

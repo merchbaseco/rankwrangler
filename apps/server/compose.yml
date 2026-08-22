@@ -6,9 +6,11 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     environment:
-      POSTGRES_DB: rankwrangler
-      POSTGRES_USER: rankwrangler
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      # Postgres' own literal names are required by the image. Values come
+      # from the schema so the database and the server cannot drift apart.
+      POSTGRES_DB: ${RANKWRANGLER_DATABASE_NAME}
+      POSTGRES_USER: ${RANKWRANGLER_DATABASE_USER}
+      POSTGRES_PASSWORD: ${RANKWRANGLER_DATABASE_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -33,25 +35,33 @@ services:
     # Prevent crash-looping forever if the app fails fast (e.g. missing env vars).
     # This will retry a few times and then stop.
     restart: "on-failure:5"
+    # Every value is interpolated from the process environment that
+    # `varlock run` supplies; the schema is the only owner of defaults.
     environment:
-      PORT: 8080
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: rankwrangler
-      DATABASE_USER: rankwrangler
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-      SPAPI_REFRESH_TOKEN: ${SPAPI_REFRESH_TOKEN}
-      SPAPI_CLIENT_ID: ${SPAPI_CLIENT_ID}
-      SPAPI_APP_CLIENT_SECRET: ${SPAPI_APP_CLIENT_SECRET}
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
-      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY}
-      CLERK_JWT_KEY: ${CLERK_JWT_KEY}
-      CLERK_ISSUER: ${CLERK_ISSUER}
-      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES}
-      CLERK_WEBHOOK_SIGNING_SECRET: ${CLERK_WEBHOOK_SIGNING_SECRET}
-      ADMIN_MERCHBASE_USER_ID: ${ADMIN_MERCHBASE_USER_ID}
-      KEEPA_API_KEY: ${KEEPA_API_KEY}
-      DATABASE_MIGRATION_TARGET: ${DATABASE_MIGRATION_TARGET:-pre-cutover}
+      RANKWRANGLER_PORT: ${RANKWRANGLER_PORT}
+      RANKWRANGLER_DATABASE_HOST: ${RANKWRANGLER_DATABASE_HOST}
+      RANKWRANGLER_DATABASE_PORT: ${RANKWRANGLER_DATABASE_PORT}
+      RANKWRANGLER_DATABASE_NAME: ${RANKWRANGLER_DATABASE_NAME}
+      RANKWRANGLER_DATABASE_USER: ${RANKWRANGLER_DATABASE_USER}
+      RANKWRANGLER_DATABASE_PASSWORD: ${RANKWRANGLER_DATABASE_PASSWORD}
+      RANKWRANGLER_SPAPI_REFRESH_TOKEN: ${RANKWRANGLER_SPAPI_REFRESH_TOKEN}
+      RANKWRANGLER_SPAPI_CLIENT_ID: ${RANKWRANGLER_SPAPI_CLIENT_ID}
+      RANKWRANGLER_SPAPI_APP_CLIENT_SECRET: ${RANKWRANGLER_SPAPI_APP_CLIENT_SECRET}
+      MERCHBASE_CLERK_SECRET_KEY: ${MERCHBASE_CLERK_SECRET_KEY}
+      MERCHBASE_CLERK_PUBLISHABLE_KEY: ${MERCHBASE_CLERK_PUBLISHABLE_KEY}
+      MERCHBASE_CLERK_JWT_KEY: ${MERCHBASE_CLERK_JWT_KEY}
+      MERCHBASE_CLERK_ISSUER: ${MERCHBASE_CLERK_ISSUER}
+      RANKWRANGLER_CLERK_AUTHORIZED_PARTIES: ${RANKWRANGLER_CLERK_AUTHORIZED_PARTIES}
+      RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET: ${RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET}
+      RANKWRANGLER_ADMIN_MERCHBASE_USER_ID: ${RANKWRANGLER_ADMIN_MERCHBASE_USER_ID}
+      RANKWRANGLER_KEEPA_API_KEY: ${RANKWRANGLER_KEEPA_API_KEY}
+      RANKWRANGLER_GEMINI_API_KEY: ${RANKWRANGLER_GEMINI_API_KEY}
+      # Development-only; resolves empty in production, which disables the
+      # local sign-in helper. Delivered explicitly so the contract check has
+      # no exemptions.
+      RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID: ${RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID}
+      RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER: ${RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER}
+      RANKWRANGLER_DATABASE_MIGRATION_TARGET: ${RANKWRANGLER_DATABASE_MIGRATION_TARGET}
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,12 +81,15 @@ services:
       dockerfile: apps/server/Dockerfile.caddy
       secrets:
         - github_packages_token
+      # Every VITE_ value the website bundle reads must be listed here AND
+      # declared as an ARG in Dockerfile.caddy — the image never sees the
+      # host's environment. `bun run env:contract` enforces both halves.
       args:
-        # Optional (defaults to same-origin /api)
-        VITE_API_URL: ${VITE_API_URL:-}
-        # Required for Clerk login UI to work (public key)
-        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:-}
-        VITE_CLERK_SYNC_HOST: ${VITE_CLERK_SYNC_HOST:-https://clerk.merchbase.co}
+        VITE_RANKWRANGLER_API_URL: ${VITE_RANKWRANGLER_API_URL}
+        VITE_RANKWRANGLER_APP_VERSION: ${VITE_RANKWRANGLER_APP_VERSION}
+        VITE_RANKWRANGLER_DEV_CLERK_AUTO_SIGN_IN: ${VITE_RANKWRANGLER_DEV_CLERK_AUTO_SIGN_IN}
+        VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY: ${VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY}
+        VITE_MERCHBASE_CLERK_SYNC_HOST: ${VITE_MERCHBASE_CLERK_SYNC_HOST}
     image: rankwrangler-caddy:local
     container_name: rankwrangler-caddy
     restart: unless-stopped
@@ -104,7 +117,7 @@ volumes:
 
 secrets:
   github_packages_token:
-    environment: GITHUB_PACKAGES_TOKEN
+    environment: MERCHBASE_GITHUB_NPM_TOKEN
 
 networks:
   rankwrangler:
