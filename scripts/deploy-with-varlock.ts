@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
 
 /**
@@ -11,10 +12,14 @@ import { delimiter, join } from "node:path";
  * `op run`, resolving the Mac Mini identity through 1Password desktop
  * authorization.
  *
- * Delivery is Docker Compose rather than a Worker upload: `varlock run`
- * resolves the schema into the process environment and Compose interpolates
- * `${VAR}` from there. No `--env-file` and no generated plaintext env file is
- * involved anywhere in this path.
+ * Delivery is Docker Compose rather than a Worker upload: the schema is
+ * resolved into the process environment and Compose interpolates `${VAR}` from
+ * there. No `--env-file` and no generated plaintext env file is involved
+ * anywhere in this path.
+ *
+ * Runtime steps run under `varlock run`. The image build cannot, because
+ * `varlock run` strips @internal items and the build needs the install token —
+ * so it gets an explicitly constructed environment instead.
  */
 const bootstrapName = "DEPLOY_AGENT_PRODUCTION_OP_TOKEN";
 const operatorIdentity =
@@ -68,13 +73,18 @@ const printenv = (name: string, extraEnv: NodeJS.ProcessEnv = {}) => {
 };
 
 // The Docker build installs private @merchbaseco/* packages through a BuildKit
-// secret mount, which Compose reads from the process environment. The install
-// token is an @internal schema item, so `varlock run` deliberately does not
-// export it and it has to be fetched explicitly under the install switch. On
-// the Actions runner the workflow already supplies the same name from
-// `github.token`, which wins and skips 1Password entirely.
+// secret mount, which Compose reads from the process environment. On the
+// Actions runner the workflow supplies the token from `github.token`, which is
+// the preferred path and needs no 1Password access at all.
+//
+// The operator fallback resolves it from the Development vault, NOT the
+// production lifecycle: install credentials belong to the development
+// lifecycle, and under VARLOCK_ENV=production the development 1Password client
+// has no usable authentication (its bootstrap is empty and `allowAppAuth` is
+// false), so an op(development, ...) reference cannot resolve there.
 if (!environment[installTokenName]) {
     const token = printenv(installTokenName, {
+        VARLOCK_ENV: "development",
         RANKWRANGLER_RESOLVE_INSTALL_TOKENS: "true",
     });
     if (token) {
@@ -88,6 +98,23 @@ if (!environment[installTokenName]) {
     process.exit(1);
 }
 
+// `varlock run` strips @internal items from the child environment, so the
+// image build cannot run under it: Compose would see an empty BuildKit secret
+// and the private-package install would fail. Build with an explicit
+// environment instead. Every website build argument is @public, and the ARG
+// list in Dockerfile.caddy is the single source for which ones exist — the
+// contract check keeps it in step with compose.
+const buildEnvironment: NodeJS.ProcessEnv = { ...environment };
+const caddyArgNames = [
+    ...readFileSync(join("apps", "server", "Dockerfile.caddy"), "utf8").matchAll(
+        /^ARG\s+([A-Z][A-Z0-9_]*)/gmu
+    ),
+].map((match) => match[1]);
+
+for (const name of caddyArgNames) {
+    buildEnvironment[name] = printenv(name);
+}
+
 const composeArgs = ["-p", projectName, "-f", composeFile];
 
 // Dry run stops here: rendering the Compose configuration forces every op()
@@ -98,7 +125,7 @@ if (dryRun) {
     const rendered = spawnSync(
         "bunx",
         ["varlock", "run", "--", "docker", "compose", ...composeArgs, "config"],
-        { env: environment, encoding: "utf8" }
+        { env: buildEnvironment, encoding: "utf8" }
     );
     if (rendered.status !== 0) {
         console.error("Dry run failed to render the Compose configuration.");
@@ -116,7 +143,11 @@ if (dryRun) {
     process.exit(0);
 }
 
-const build = varlockRun(["docker", "compose", ...composeArgs, "build"]);
+const build = spawnSync(
+    "docker",
+    ["compose", ...composeArgs, "build"],
+    { env: buildEnvironment, stdio: "inherit" }
+);
 if (build.status !== 0) {
     console.error("Image build failed; deploy not attempted.");
     process.exit(build.status ?? 1);
