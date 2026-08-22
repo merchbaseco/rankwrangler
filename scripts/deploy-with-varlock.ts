@@ -1,0 +1,191 @@
+import { spawnSync } from "node:child_process";
+import { delimiter, join } from "node:path";
+
+/**
+ * The production deploy runs under the deploy-agent role: every venue that
+ * deploys supplies its own 1Password identity under
+ * DEPLOY_AGENT_PRODUCTION_OP_TOKEN. The self-hosted GitHub Actions runner
+ * injects the GitHub deploy agent's token as a repository secret — the
+ * preferred path, identical to the Workers repos. When no identity is present
+ * this is a supervised operator run, so the script re-execs itself under
+ * `op run`, resolving the Mac Mini identity through 1Password desktop
+ * authorization.
+ *
+ * Delivery is Docker Compose rather than a Worker upload: `varlock run`
+ * resolves the schema into the process environment and Compose interpolates
+ * `${VAR}` from there. No `--env-file` and no generated plaintext env file is
+ * involved anywhere in this path.
+ */
+const bootstrapName = "DEPLOY_AGENT_PRODUCTION_OP_TOKEN";
+const operatorIdentity =
+    "op://Automation/Production Varlock - Mac Mini/credential";
+const installTokenName = "MERCHBASE_GITHUB_NPM_TOKEN";
+const composeFile = "apps/server/compose.yml";
+const projectName = "rankwrangler";
+
+const dryRun = process.argv.includes("--dry-run");
+
+const binDirectories = [
+    join(process.cwd(), "node_modules", ".bin"),
+    join(process.cwd(), "apps", "server", "node_modules", ".bin"),
+];
+
+const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    PATH: [...binDirectories, process.env.PATH ?? ""].join(delimiter),
+    // The schema's `@currentEnv=$VARLOCK_ENV` otherwise falls back to
+    // varlock's own inference, which resolves `development` anywhere outside
+    // CI. That would deliver Development-vault credentials to the production
+    // stack, so the production lifecycle is pinned here rather than left to
+    // the operator's shell.
+    VARLOCK_ENV: "production",
+};
+
+if (!process.env[bootstrapName]) {
+    const reexec = spawnSync(
+        "op",
+        ["run", "--", "bun", process.argv[1] ?? "", ...process.argv.slice(2)],
+        {
+            env: { ...environment, [bootstrapName]: operatorIdentity },
+            stdio: "inherit",
+        }
+    );
+    process.exit(reexec.status ?? 1);
+}
+
+const varlockRun = (args: string[], env = environment) =>
+    spawnSync("bunx", ["varlock", "run", "--", ...args], {
+        env,
+        stdio: "inherit",
+    });
+
+const printenv = (name: string, extraEnv: NodeJS.ProcessEnv = {}) => {
+    const fetched = spawnSync("bunx", ["varlock", "printenv", name], {
+        env: { ...environment, ...extraEnv },
+        encoding: "utf8",
+    });
+    return fetched.status === 0 ? (fetched.stdout ?? "").trim() : "";
+};
+
+// The Docker build installs private @merchbaseco/* packages through a BuildKit
+// secret mount, which Compose reads from the process environment. The install
+// token is an @internal schema item, so `varlock run` deliberately does not
+// export it and it has to be fetched explicitly under the install switch. On
+// the Actions runner the workflow already supplies the same name from
+// `github.token`, which wins and skips 1Password entirely.
+if (!environment[installTokenName]) {
+    const token = printenv(installTokenName, {
+        RANKWRANGLER_RESOLVE_INSTALL_TOKENS: "true",
+    });
+    if (token) {
+        environment[installTokenName] = token;
+    }
+}
+if (!environment[installTokenName]) {
+    console.error(
+        `${installTokenName} did not resolve; the image build cannot install private packages.`
+    );
+    process.exit(1);
+}
+
+const composeArgs = ["-p", projectName, "-f", composeFile];
+
+// Dry run stops here: rendering the Compose configuration forces every op()
+// reference in the schema to resolve and every `${VAR}` in compose.yml to
+// interpolate, so a missing 1Password item or an unset name fails before
+// anything is built or replaced.
+if (dryRun) {
+    const rendered = spawnSync(
+        "bunx",
+        ["varlock", "run", "--", "docker", "compose", ...composeArgs, "config"],
+        { env: environment, encoding: "utf8" }
+    );
+    if (rendered.status !== 0) {
+        console.error("Dry run failed to render the Compose configuration.");
+        console.error(rendered.stderr ?? "");
+        process.exit(rendered.status ?? 1);
+    }
+    // The rendered document contains resolved secrets, so only its shape is
+    // reported — never its contents.
+    const services = [
+        ...(rendered.stdout ?? "").matchAll(/^ {2}([a-z][a-z0-9-]*):$/gmu),
+    ].map((match) => match[1]);
+    console.log(
+        `Dry run OK: schema resolved and Compose rendered ${services.length} services (${services.join(", ")}).`
+    );
+    process.exit(0);
+}
+
+const build = varlockRun(["docker", "compose", ...composeArgs, "build"]);
+if (build.status !== 0) {
+    console.error("Image build failed; deploy not attempted.");
+    process.exit(build.status ?? 1);
+}
+
+const migrationTarget =
+    printenv("RANKWRANGLER_DATABASE_MIGRATION_TARGET") || "pre-cutover";
+
+if (migrationTarget === "pre-cutover") {
+    // Additive migrations only; the running containers are left in place.
+    const migrated = varlockRun([
+        "docker",
+        "compose",
+        ...composeArgs,
+        "run",
+        "--rm",
+        "--no-deps",
+        "server",
+        "node",
+        "dist/index.js",
+        "--migrate-only",
+    ]);
+    if (migrated.status !== 0) {
+        process.exit(migrated.status ?? 1);
+    }
+    console.log(
+        "Pre-cutover schema prepared; existing production containers remain unchanged."
+    );
+    process.exit(0);
+}
+
+if (migrationTarget !== "latest") {
+    console.error(
+        `Unsupported RANKWRANGLER_DATABASE_MIGRATION_TARGET: ${migrationTarget}`
+    );
+    process.exit(1);
+}
+
+const verifiedMigrations = varlockRun([
+    "docker",
+    "compose",
+    ...composeArgs,
+    "run",
+    "--rm",
+    "--no-deps",
+    "server",
+    "node",
+    "dist/index.js",
+    "--verify-migrations",
+]);
+if (verifiedMigrations.status !== 0) {
+    console.error("Migration verification failed; containers not replaced.");
+    process.exit(verifiedMigrations.status ?? 1);
+}
+
+const up = varlockRun(["docker", "compose", ...composeArgs, "up", "-d"]);
+if (up.status !== 0) {
+    process.exit(up.status ?? 1);
+}
+
+spawnSync("docker", ["compose", ...composeArgs, "ps"], {
+    env: environment,
+    stdio: "inherit",
+});
+
+// Deploy-time guard: name-diff what Docker actually baked into the container
+// against the schema's sensitivity split.
+const verified = spawnSync("bun", ["scripts/verify-deployed-secrets.ts"], {
+    env: environment,
+    stdio: "inherit",
+});
+process.exit(verified.status ?? 1);
