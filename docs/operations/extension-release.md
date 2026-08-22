@@ -21,9 +21,9 @@ absent or unsafe. A local `pk_test_` value is not a production configuration and
 
 | Variable | Production contract |
 | --- | --- |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Explicit Clerk production `pk_live_` publishable key. It is public client configuration, not a secret. |
-| `VITE_CLERK_SYNC_HOST` | Explicitly `https://clerk.merchbase.co`, the production Clerk Sync Host used for cookie/session synchronization. |
-| `VITE_CLERK_ACCOUNT_URL` | Explicit verified HTTPS `merchbase.co` sign-in/account route opened by the popup. This navigation URL is deliberately separate from the Sync Host; do not rely on an implicit host-root fallback for release builds. |
+| `VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY` | Explicit Clerk production `pk_live_` publishable key. It is public client configuration, not a secret. |
+| `VITE_MERCHBASE_CLERK_SYNC_HOST` | Explicitly `https://clerk.merchbase.co`, the production Clerk Sync Host used for cookie/session synchronization. |
+| `VITE_MERCHBASE_CLERK_ACCOUNT_URL` | Explicit verified HTTPS `merchbase.co` sign-in/account route opened by the popup. This navigation URL is deliberately separate from the Sync Host; do not rely on an implicit host-root fallback for release builds. |
 
 The public key is safe to commit and no private derivation material is retained in this repository.
 Never generate a replacement key for a routine build: a changed key creates a different Chrome
@@ -37,16 +37,16 @@ For a production build, export the live Clerk value and the verified account rou
 environment, then run:
 
 ```bash
-export VITE_CLERK_PUBLISHABLE_KEY=<pk_live_publishable_key>
-export VITE_CLERK_SYNC_HOST=https://clerk.merchbase.co
-export VITE_CLERK_ACCOUNT_URL=<verified_https_merchbase_account_route>
+export VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY=<pk_live_publishable_key>
+export VITE_MERCHBASE_CLERK_SYNC_HOST=https://clerk.merchbase.co
+export VITE_MERCHBASE_CLERK_ACCOUNT_URL=<verified_https_merchbase_account_route>
 
 bun run extension:test:auth
 bun run extension:build:chrome
 ```
 
-The artifact is `apps/extension/dist/`. The build does not read or embed `CLERK_SECRET_KEY`,
-`CLERK_JWT_KEY`, `CLERK_WEBHOOK_SIGNING_SECRET`, or `MERCHBASE_API_KEY`.
+The artifact is `apps/extension/dist/`. The build does not read or embed `MERCHBASE_CLERK_SECRET_KEY`,
+`MERCHBASE_CLERK_JWT_KEY`, `RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET`, or `MERCHBASE_API_KEY`.
 
 ## Stable origin and Clerk configuration
 
@@ -70,7 +70,7 @@ chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc
 Configure the same exact origin in the Clerk development instance only when testing a development
 build. This is an operator-controlled Clerk setting; the build and this task do not mutate it.
 
-The Clerk production Native API must also be enabled. The server's `CLERK_AUTHORIZED_PARTIES` must
+The Clerk production Native API must also be enabled. The server's `RANKWRANGLER_CLERK_AUTHORIZED_PARTIES` must
 contain all three production bearer-token parties, exactly as shown in the deployment environment
 example:
 
@@ -92,7 +92,7 @@ origin for CORS; Clerk still requires the exact origin above.
 Use a built and loaded extension; the mocked preview does not prove permissions or background auth.
 
 1. Confirm the generated manifest key and Chrome ID match the values above.
-2. From the popup, click **Sign in**. It opens `VITE_CLERK_ACCOUNT_URL`; complete interactive Clerk
+2. From the popup, click **Sign in**. It opens `VITE_MERCHBASE_CLERK_ACCOUNT_URL`; complete interactive Clerk
    authentication there and return to the extension.
 3. Confirm the popup changes from signed out to signed in. The background worker must obtain the
    current Clerk session token through the Chrome refresh path (`getToken({ skipCache: true })` when

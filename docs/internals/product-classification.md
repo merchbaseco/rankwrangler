@@ -56,7 +56,7 @@ Product facet state is:
 
 The shipped dashboard exposes an admin-only manual classification mutation. The periodic facet
 worker is registered but intentionally disabled, so `pending` does not imply automatic processing.
-Classification requires `GEMINI_API_KEY`; image download failure falls back to text-only input.
+Classification requires `RANKWRANGLER_GEMINI_API_KEY`; image download failure falls back to text-only input.
 
 ## Invariants
 

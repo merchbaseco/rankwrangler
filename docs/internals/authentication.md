@@ -39,14 +39,14 @@ procedure boundary; shared Product and history services do not branch on caller 
 
 ## Admin Boundary
 
-Admin status is derived from the verified stable Merchbase User id and `ADMIN_MERCHBASE_USER_ID`.
+Admin status is derived from the verified stable Merchbase User id and `RANKWRANGLER_ADMIN_MERCHBASE_USER_ID`.
 Admin procedures own job history, Keepa diagnostics, provider statistics, and manual Product facet
 classification. Hiding a dashboard route is not authorization.
 
 ## Local Automation
 
 `api.dev.createClerkSignInToken` exists only for localhost automation. It requires
-`DEV_CLERK_SIGN_IN_USER_ID`, is disabled in production, and returns a short-lived Clerk ticket. The
+`RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID`, is disabled in production, and returns a short-lived Clerk ticket. The
 website's optional dev auto-sign-in consumes that path.
 
 ## Invariants

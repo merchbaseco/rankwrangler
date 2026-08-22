@@ -89,7 +89,7 @@ bun install --frozen-lockfile
 cp .env.example .env
 # Fill in provider/auth credentials, then start PostgreSQL.
 docker compose --env-file .env -f apps/server/compose.yml up -d postgres
-DATABASE_HOST=localhost DATABASE_PORT=5433 bun run dev
+RANKWRANGLER_DATABASE_HOST=localhost RANKWRANGLER_DATABASE_PORT=5433 bun run dev
 ```
 
 Local app servers leave background workers disabled by default. Use `bun run dev:jobs` only when

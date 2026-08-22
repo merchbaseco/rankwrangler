@@ -12,7 +12,14 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
   `top-search-terms-schema.ts`.
 - SQL migrations: `apps/server/drizzle/`.
 - Fresh-stack bootstrap SQL: `apps/server/init.sql`.
-- Environment validation: `apps/server/src/config/env.ts`.
+- Environment contract: `.env.schema` (canonical names, sensitivity, per-lifecycle 1Password
+  references). The typed server surface is `apps/server/src/config/env.ts`; `bun run env:contract`
+  proves the two agree along with Compose delivery and the website build arguments.
+- There is no `.env` file and no manual environment step. `varlock run` supplies values to every
+  command that needs them; local resolution uses 1Password desktop authorization.
+- Cloud agents: Cursor worktrees carry the fleet-wide `Development`-vault identity, so `bun run
+  check` and `bun run dev` work unchanged. Codex worktrees have no 1Password access and run the
+  offline gates only (`bun run env:check`, `bun run env:contract`, `bun run test`).
 - Path alias: `@/` -> `apps/server/src/`.
 
 ## Always-On Rules
@@ -25,7 +32,8 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
 5. Update `README.md` and tests (`test-api.sh` and/or automated tests) when behavior changes.
 6. Keep shell scripts executable (`chmod +x`).
 7. Keep startup status summary in `apps/server/src/index.ts` current when adding jobs/services.
-8. Never commit secrets. If a secret is exposed in git, rotate/revoke before history cleanup.
+8. Never commit secrets. Secrets live in 1Password and reach processes through the schema; if one is
+   exposed in git, rotate/revoke before history cleanup.
 9. This is a work-in-progress codebase: optimize for the best aspirational end state, not legacy
    compatibility. Remove or rewrite outdated code as needed.
 10. Do not add legacy compatibility shims, deprecation bridges, or explicit rejection paths for

@@ -18,11 +18,11 @@ From the repository root:
 set -a
 source .env
 set +a
-export PGPASSWORD="$DATABASE_PASSWORD"
+export PGPASSWORD="$RANKWRANGLER_DATABASE_PASSWORD"
 export PGOPTIONS='-c default_transaction_read_only=on'
 
-psql -h "$DATABASE_HOST" -p "$DATABASE_PORT" \
-  -U "$DATABASE_USER" -d "$DATABASE_NAME" -c 'SELECT 1;'
+psql -h "$RANKWRANGLER_DATABASE_HOST" -p "$RANKWRANGLER_DATABASE_PORT" \
+  -U "$RANKWRANGLER_DATABASE_USER" -d "$RANKWRANGLER_DATABASE_NAME" -c 'SELECT 1;'
 ```
 
 Use tight filters, explicit time windows, and `LIMIT`. Do not expose credentials, complete API
@@ -46,7 +46,7 @@ On the production host:
 
 ```bash
 docker exec rankwrangler-postgres \
-  psql -U "$DATABASE_USER" -d "$DATABASE_NAME" -c '\dt'
+  psql -U "$RANKWRANGLER_DATABASE_USER" -d "$RANKWRANGLER_DATABASE_NAME" -c '\dt'
 ```
 
 ## Writes

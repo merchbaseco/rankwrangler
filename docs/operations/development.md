@@ -10,29 +10,41 @@ read_when:
 ## Setup
 
 ```bash
-export GITHUB_PACKAGES_TOKEN=<read token from the approved secret store>
 bun install --frozen-lockfile
-cp .env.example .env
 ```
 
-Populate the root `.env`; never commit it. New server variables belong in both
-`apps/server/src/config/env.ts` and `.env.example`. The GitHub Packages token is build/install-only;
-keep it in the invoking shell or CI secret store rather than a runtime container.
+There is no `.env` step. The committed `.env.schema` is the environment contract: it declares every
+variable's canonical name, type, and sensitivity, and resolves values per lifecycle from 1Password.
+Local development authorizes through the 1Password desktop app, so the first resolution of a session
+raises one approval prompt.
 
-The example environment uses the Compose hostname `postgres`. For host-run development, start the
-database container and override that connection:
+Adding a variable means adding it in four places, which `bun run env:contract` enforces: `.env.schema`,
+the typed surface in `apps/server/src/config/env.ts`, the Compose `environment:` block, and — for a
+`VITE_` value — both the Compose build argument and the matching `ARG` in `Dockerfile.caddy`.
 
 ```bash
-docker compose --env-file .env -f apps/server/compose.yml up -d postgres
-DATABASE_HOST=localhost DATABASE_PORT=5433 bun run dev
+bun run env:check      # validate the schema offline against the test lifecycle
+bun run env:contract   # name-only diff across all five delivery points
+bun run env:load       # resolved values, secrets masked
+```
+
+The schema points development at `127.0.0.1:5433`, which is where Compose publishes Postgres. Start
+just the database and run the stack on the host:
+
+```bash
+bun run --filter @rankwrangler/server exec docker compose -f compose.yml up -d postgres
+bun run dev
 ```
 
 ## Common Commands
 
+Every command that needs configuration runs under `varlock run`, which resolves the schema and
+passes values as process environment. No command reads a `.env` file.
+
 | Task | Command |
 | --- | --- |
-| Server and website | `DATABASE_HOST=localhost DATABASE_PORT=5433 bun run dev` |
-| Server only | `DATABASE_HOST=localhost DATABASE_PORT=5433 bun run server:dev` |
+| Server and website | `bun run dev` |
+| Server only | `bun run server:dev` |
 | Server and website with job workers | `bun run dev:jobs` |
 | Server only with job workers | `bun run server:dev:jobs` |
 | Server build | `bun run server:build` |
@@ -41,9 +53,11 @@ DATABASE_HOST=localhost DATABASE_PORT=5433 bun run dev
 | CLI build | `bun run cli:build` |
 | CLI end-to-end tests | `bun run cli:test:e2e` |
 | Documentation routes | `bun run docs:list` |
+| Full offline gate | `bun run check` |
 
-Local server scripts disable the job runner by default. Use a `*:jobs` command only when the task
-requires schedules or background execution; apply the same host database overrides.
+Local server scripts disable the job runner by default — the schema resolves
+`RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER` to `true` outside production. Use a `*:jobs` command only
+when the task requires schedules or background execution.
 
 The direct server listens on port `8080` by default. Vite serves the website on its configured dev
 port and proxies `/api` to the server. Use `dev-port` for new checkout-specific harnesses instead
@@ -55,13 +69,18 @@ loopback hosts on any port so checkout-specific website previews can use their a
 From the repository root:
 
 ```bash
-export GITHUB_PACKAGES_TOKEN=<read token from the approved secret store>
-docker compose --env-file .env -f apps/server/compose.yml up --build
+bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml up --build
 ```
 
-The Caddy entrypoint is `http://localhost:8090`; PostgreSQL binds to
-`127.0.0.1:5433`. When running Compose from `apps/server`, the root environment file is
-`../../.env`.
+`varlock run` supplies every `${VAR}` Compose interpolates. The private-package install token is an
+internal schema item, so `varlock run` does not export it; fetch it explicitly when building by hand:
+
+```bash
+export MERCHBASE_GITHUB_NPM_TOKEN=$(RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
+  bunx varlock printenv MERCHBASE_GITHUB_NPM_TOKEN)
+```
+
+The Caddy entrypoint is `http://localhost:8090`; PostgreSQL binds to `127.0.0.1:5433`.
 
 ## Focused Checks
 

@@ -18,10 +18,12 @@ bun run cli:build
 bun run release:check-cli-pack
 ```
 
-Authentication comes from an exported `NPM_TOKEN`, the repository-root `.env`, or the macOS
-Keychain item `rankwrangler-npm-token` for account `$USER`, in that order. The repository helper
-resolves those sources without putting the token in command history. It finds the root `.env` even
-when invoked from either package directory.
+Authentication comes from an exported `RANKWRANGLER_NPM_PUBLISH_TOKEN`, or — when that is absent —
+from `op://Tooling/NPM Publish - RankWrangler` resolved through `varlock printenv` under the
+`RANKWRANGLER_RESOLVE_RELEASE_TOKENS` switch. Publishing is its own resolution context, separate
+from install and deploy, and it is the only thing that reaches the `Tooling` vault. The repository
+helper resolves the token without putting it in command history; it never touches a `.env` file or
+the macOS Keychain.
 
 ## Publish
 

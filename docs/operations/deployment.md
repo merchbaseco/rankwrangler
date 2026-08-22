@@ -19,37 +19,59 @@ paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-loc
 | `caddy` | `rankwrangler-caddy` | Host `127.0.0.1:8090` to container `80` |
 | `postgres` | `rankwrangler-postgres` | Host `127.0.0.1:5433` to container `5432` |
 
-## Manual Deployment
+## Deployment
 
-`@merchbaseco/access` is a private GitHub Package. Export `GITHUB_PACKAGES_TOKEN` from the approved
-secret store before building. Compose mounts it into the Bun install step as a BuildKit secret; it
-is not a build argument, image environment variable, layer, or runtime-container value. Supplying
-the name in `--env-file` alone does not create the BuildKit secret.
+Deploys are **manual**. Pushing to `main` no longer deploys anything: run the `Deploy Stack`
+workflow from the Actions tab (`workflow_dispatch`). It runs on the Mac mini's self-hosted runner,
+synchronizes the long-lived deployment checkout at `/Users/zknicker/srv/rankwrangler` to the
+dispatched commit, and calls `bun run deploy`.
 
-From the repository root:
+### Source to runtime
+
+| Stage | Owner |
+| --- | --- |
+| Declaration | `.env.schema` — canonical names, types, sensitivity, per-lifecycle `op()` references |
+| Secret store | 1Password `Production` vault (`Development` for local, `Tooling` for publishing) |
+| Resolution | `scripts/deploy-with-varlock.ts`, pinned to `VARLOCK_ENV=production` |
+| Delivery | `varlock run -- docker compose …`; Compose interpolates `${VAR}` from process environment |
+| Runtime | The environment Docker bakes into each container at `up` time |
+
+No `.env` file is read or written anywhere on this path. `--env-file` is deliberately absent.
+
+Two identities fill the same role slot, `DEPLOY_AGENT_PRODUCTION_OP_TOKEN`:
+
+| Venue | Identity | How it arrives |
+| --- | --- | --- |
+| `Deploy Stack` workflow (preferred) | GitHub deploy agent | Repository secret `GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN` |
+| Operator at the mini | Mac Mini production Varlock | `scripts/deploy-with-varlock.ts` re-execs under `op run` |
+
+The private `@merchbaseco/*` install token reaches the image build as a BuildKit secret mount — never
+a build argument, image environment variable, or layer. In the workflow it is the repository-scoped
+`github.token`; for a hand-run build it comes from `varlock printenv` under the install switch.
+
+### Commands
 
 ```bash
-export GITHUB_PACKAGES_TOKEN=<read token from the approved secret store>
-docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml build
+bun run deploy:dry-run   # resolve every op() ref and render Compose; touches nothing
+bun run deploy           # build, migrate per target, replace containers, verify
+bun run deploy:verify    # name-diff the delivered container env against the schema
 ```
 
-Building does not replace running containers. Follow the central-auth staged deployment below;
-do not run `up` while the migration target is `pre-cutover`. After cutover, restart without
-rebuilding only when `DATABASE_MIGRATION_TARGET=latest`:
+`deploy:dry-run` is the first rung of the ladder: a missing 1Password item fails there, before
+anything is built or replaced.
 
-```bash
-docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml up -d
-```
+### Restart behavior
 
-Pushes to `main` run the self-hosted deploy workflow. It synchronizes the long-lived deployment
-checkout at `/Users/zknicker/srv/rankwrangler` to the pushed commit and rebuilds the Compose images.
-The workflow grants `packages: read` and exposes its repository-scoped `github.token` to Compose as
-`GITHUB_PACKAGES_TOKEN`; explicit package access for `merchbaseco/rankwrangler` is required.
+Compose restart policies reuse the environment Docker baked into the container spec at the last
+`up`. Restarting a container — or rebooting the mini — does **not** re-resolve from 1Password; it
+replays the values captured by the most recent deploy. That baked copy is the platform's delivered
+runtime copy, exactly like a Worker secret. Rotating a credential therefore requires a redeploy, not
+just a restart.
 
 ## Central-auth staged deployment
 
 Migration `0028` deletes legacy licenses and therefore is never an ordinary first-start migration.
-`DATABASE_MIGRATION_TARGET` has two states:
+`RANKWRANGLER_DATABASE_MIGRATION_TARGET` has two states:
 
 | Target | Deployment behavior |
 | --- | --- |
@@ -60,8 +82,9 @@ Configure Clerk's production `user.created`, `user.updated`, and `user.deleted` 
 `https://rankwrangler.merchbase.co/api/webhooks/clerk/access`. The shorter
 `/api/webhooks/clerk` path is not a route and returns `404`.
 
-Before the extension or centralized-auth stack is verified, enable the Clerk production Native API
-and set `CLERK_AUTHORIZED_PARTIES` in the production `.env` to the complete three-party list:
+Before the extension or centralized-auth stack is verified, enable the Clerk production Native API.
+`RANKWRANGLER_CLERK_AUTHORIZED_PARTIES` is declared in `.env.schema` as the complete three-party
+list:
 
 ```text
 https://rankwrangler.merchbase.co,chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc,https://clerk.merchbase.co
@@ -69,12 +92,12 @@ https://rankwrangler.merchbase.co,chrome-extension://hfoliiddbbblflnaakfggibiiph
 
 The website/API origin, permanent Chrome extension origin, and Clerk Sync Host are all required.
 Omitting the Sync Host can leave extension requests unauthorized even when the website and extension
-origins are present. Compose passes this value to the server; do not replace it with a manual SQL or
+origins are present. Change it in `.env.schema` and redeploy; do not replace it with a manual SQL or
 projection change.
 
 Use this sequence:
 
-1. Keep production `.env` at `DATABASE_MIGRATION_TARGET=pre-cutover`. The first workflow run builds
+1. Keep `RANKWRANGLER_DATABASE_MIGRATION_TARGET` at `pre-cutover` in `.env.schema`. The first workflow run builds
    the central-auth images and applies the additive schema without changing the running license-auth
    application.
 2. Populate the exact Access Projection directly from current Clerk metadata while the old
@@ -82,8 +105,8 @@ Use this sequence:
    requires explicit Clerk subject and Merchbase User identifiers, and emits only fingerprints:
 
    ```bash
-   docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml \
-     run --rm --no-deps -e DATABASE_MIGRATION_TARGET=pre-cutover \
+   bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml \
+     run --rm --no-deps -e RANKWRANGLER_DATABASE_MIGRATION_TARGET=pre-cutover \
      server node dist/index.js --bootstrap-access-projection \
      --clerk-subject=<user_...> --merchbase-user-id=<mbu_...>
    ```
@@ -91,12 +114,11 @@ Use this sequence:
    The command uses `@merchbaseco/access` to load Clerk public metadata and applies it through the
    normal projection store. It fails on missing, denied, expired, mismatched, or ambiguously stored
    identity state. It never derives a mapping from email or writes a manual SQL projection.
-   From an approved checked-out source tree with production environment variables already loaded,
-   the equivalent command is:
+   From an approved checked-out source tree, the equivalent command is:
 
    ```bash
-   DATABASE_MIGRATION_TARGET=pre-cutover \
-     bun run --cwd apps/server central-auth:bootstrap-projection -- \
+   RANKWRANGLER_DATABASE_MIGRATION_TARGET=pre-cutover \
+     bunx varlock run -- bun run --cwd apps/server central-auth:bootstrap-projection -- \
      --clerk-subject=<user_...> --merchbase-user-id=<mbu_...>
    ```
 
@@ -110,18 +132,18 @@ Use this sequence:
 5. With PostgreSQL still running and application traffic stopped, run the guarded migration:
 
    ```bash
-   docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml \
-     run --rm --no-deps -e DATABASE_MIGRATION_TARGET=latest \
+   bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml \
+     run --rm --no-deps -e RANKWRANGLER_DATABASE_MIGRATION_TARGET=latest \
      server node dist/index.js --migrate-only
    ```
 
-6. Set `DATABASE_MIGRATION_TARGET=latest`, verify the migration, and start the new stack:
+6. Set `RANKWRANGLER_DATABASE_MIGRATION_TARGET` to `latest` in `.env.schema`, verify the migration, and start the new stack:
 
    ```bash
-   docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml \
-     run --rm --no-deps -e DATABASE_MIGRATION_TARGET=latest \
+   bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml \
+     run --rm --no-deps -e RANKWRANGLER_DATABASE_MIGRATION_TARGET=latest \
      server node dist/index.js --verify-migrations
-   docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml up -d
+   bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml up -d
    ```
 
 7. Complete health, Clerk session, API-key/OAuth, projection, metering, job, Chrome, and Safari
@@ -139,7 +161,7 @@ curl --fail https://rankwrangler.merchbase.co/.well-known/oauth-protected-resour
 curl -i -X POST https://rankwrangler.merchbase.co/mcp \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
-docker compose -p rankwrangler --env-file .env -f apps/server/compose.yml ps
+docker compose -p rankwrangler -f apps/server/compose.yml ps
 docker logs rankwrangler-server --tail 50
 docker logs rankwrangler-caddy --tail 50
 ```

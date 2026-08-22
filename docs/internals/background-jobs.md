@@ -8,7 +8,7 @@ read_when:
 # Background Jobs
 
 RankWrangler runs pg-boss in the server process. Queue creation always occurs; workers, schedules,
-and startup wakeups run only when `DISABLE_SERVER_JOB_RUNNER` is false. Local development disables
+and startup wakeups run only when `RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER` is false. Local development disables
 the runner by default.
 
 ## Runtime Contract
