@@ -7,7 +7,12 @@ export const CLERK_ACCESS_WEBHOOK_PATH = '/api/webhooks/clerk/access';
 interface RegisterClerkAccessWebhookRouteOptions {
     issuer: string;
     onIdentityChanged?: (identity: ClerkIdentity) => Promise<void> | void;
-    signingSecret: string;
+    /**
+     * Absent outside production, where no Clerk webhook endpoint is configured
+     * and no signing secret exists to resolve. The route then fails closed
+     * rather than accepting unverifiable payloads.
+     */
+    signingSecret?: string;
     store: AccessProjectionStore;
 }
 
@@ -25,10 +30,27 @@ export const registerClerkAccessWebhookRoute = (
             }
         );
 
+        const { signingSecret } = options;
+
+        // Fail closed: without a signing secret no payload can be verified, so
+        // the route must refuse every request rather than process an unsigned
+        // one. Registering the refusal keeps the path's shape identical to
+        // production (same route, same content-type handling) instead of
+        // returning a 404 that looks like a deployment mistake.
+        if (!signingSecret) {
+            scope.post(CLERK_ACCESS_WEBHOOK_PATH, async (_request, reply) =>
+                reply.code(503).send({
+                    error: 'Clerk webhook is not configured.',
+                })
+            );
+            done();
+            return;
+        }
+
         const handleWebhook = createClerkAccessWebhookHandler({
             issuer: options.issuer,
             onIdentityChanged: options.onIdentityChanged,
-            signingSecret: options.signingSecret,
+            signingSecret,
             store: options.store,
         });
         scope.post(CLERK_ACCESS_WEBHOOK_PATH, async (request, reply) => {

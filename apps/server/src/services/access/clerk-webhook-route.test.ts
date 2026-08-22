@@ -42,6 +42,29 @@ describe('Clerk access webhook route', () => {
         await app.close();
     });
 
+    it('fails closed when no signing secret is configured', async () => {
+        const events: AccessProjectionEvent[] = [];
+        const app = Fastify({ logger: false });
+        await registerClerkAccessWebhookRoute(app, {
+            issuer,
+            signingSecret: undefined,
+            store: createStore(event => events.push(event)),
+        });
+
+        // A correctly signed payload must still be refused: without a secret
+        // the signature cannot be verified, so nothing may reach the store.
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/webhooks/clerk/access',
+            headers: signedHeaders(updatePayload),
+            payload: JSON.stringify(updatePayload),
+        });
+
+        expect(response.statusCode).toBe(503);
+        expect(events).toEqual([]);
+        await app.close();
+    });
+
     it('turns signed deletion events into terminal tombstones and rejects unsigned input', async () => {
         const events: AccessProjectionEvent[] = [];
         const app = Fastify({ logger: false });

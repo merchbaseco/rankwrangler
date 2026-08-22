@@ -1,6 +1,12 @@
 import { createEnv } from '@t3-oss/env-core';
 import { z } from 'zod';
 
+// Production must not boot without a webhook signing secret, but development
+// has no Clerk webhook endpoint and therefore no secret to resolve — the
+// schema leaves it undefined there. NODE_ENV is set by the runtime image, so
+// it is the lifecycle signal available inside the container.
+const isProduction = process.env.NODE_ENV === 'production';
+
 export const env = createEnv({
     server: {
         RANKWRANGLER_PORT: z.coerce.number().default(8080),
@@ -12,7 +18,9 @@ export const env = createEnv({
         MERCHBASE_CLERK_JWT_KEY: z.string().min(1, 'MERCHBASE_CLERK_JWT_KEY is required'),
         MERCHBASE_CLERK_ISSUER: z.string().url('MERCHBASE_CLERK_ISSUER must be a URL'),
         RANKWRANGLER_CLERK_AUTHORIZED_PARTIES: z.string().min(1, 'RANKWRANGLER_CLERK_AUTHORIZED_PARTIES is required'),
-        RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET: z.string().min(1, 'RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET is required'),
+        RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET: isProduction
+            ? z.string().min(1, 'RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET is required in production')
+            : z.string().min(1).optional(),
         RANKWRANGLER_ADMIN_MERCHBASE_USER_ID: z.string().startsWith('mbu_').optional(),
         RANKWRANGLER_KEEPA_API_KEY: z.string().optional(),
         RANKWRANGLER_GEMINI_API_KEY: z.string().optional(),
