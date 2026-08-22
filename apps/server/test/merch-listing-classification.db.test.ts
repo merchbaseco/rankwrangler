@@ -18,7 +18,7 @@ const TEST_ASINS = [
 ] as const;
 const isDedicatedCatalogTestDatabase =
     process.env.RUN_CATALOG_DB_TESTS === 'true' &&
-    process.env.DATABASE_NAME === 'rankwrangler_catalog_test';
+    process.env.RANKWRANGLER_DATABASE_NAME === 'rankwrangler_catalog_test';
 const describeCatalogDb = isDedicatedCatalogTestDatabase ? describe : describe.skip;
 
 describeCatalogDb('Merch-listing classification persistence', () => {

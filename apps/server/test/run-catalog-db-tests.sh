@@ -47,21 +47,21 @@ server_started=true
     "$database_name"
 
 cd "$server_dir"
-DATABASE_HOST=127.0.0.1 \
-DATABASE_PORT="$test_port" \
-DATABASE_NAME="$database_name" \
-DATABASE_USER=rankwrangler \
-DATABASE_PASSWORD=rankwrangler \
-SPAPI_REFRESH_TOKEN=test \
-SPAPI_CLIENT_ID=test \
-SPAPI_APP_CLIENT_SECRET=test \
-CLERK_SECRET_KEY=test \
-CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
-CLERK_JWT_KEY=test-jwt-key \
-CLERK_ISSUER=https://clerk.test \
-CLERK_AUTHORIZED_PARTIES=https://app.test \
-CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
-DISABLE_SERVER_JOB_RUNNER=true \
+RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
+RANKWRANGLER_DATABASE_PORT="$test_port" \
+RANKWRANGLER_DATABASE_NAME="$database_name" \
+RANKWRANGLER_DATABASE_USER=rankwrangler \
+RANKWRANGLER_DATABASE_PASSWORD=rankwrangler \
+RANKWRANGLER_SPAPI_REFRESH_TOKEN=test \
+RANKWRANGLER_SPAPI_CLIENT_ID=test \
+RANKWRANGLER_SPAPI_APP_CLIENT_SECRET=test \
+MERCHBASE_CLERK_SECRET_KEY=test \
+MERCHBASE_CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+MERCHBASE_CLERK_JWT_KEY=test-jwt-key \
+MERCHBASE_CLERK_ISSUER=https://clerk.test \
+RANKWRANGLER_CLERK_AUTHORIZED_PARTIES=https://app.test \
+RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
+RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
 MIGRATIONS_FOLDER="$server_dir/drizzle" \
 bun -e "import { runMigrations, verifyMigrationTarget } from './src/db/migrate.ts'; await runMigrations(); await verifyMigrationTarget();"
 
@@ -148,22 +148,22 @@ END
     -v ON_ERROR_STOP=1 \
     -c "update rankwrangler_cutover_gate set state = 'pending' where id = '$service_account_id';"
 
-if DATABASE_HOST=127.0.0.1 \
-    DATABASE_PORT="$test_port" \
-    DATABASE_NAME="$rollback_database_name" \
-    DATABASE_USER=rankwrangler \
-    DATABASE_PASSWORD=rankwrangler \
-    SPAPI_REFRESH_TOKEN=test \
-    SPAPI_CLIENT_ID=test \
-    SPAPI_APP_CLIENT_SECRET=test \
-    CLERK_SECRET_KEY=test \
-    CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
-    CLERK_JWT_KEY=test-jwt-key \
-    CLERK_ISSUER=https://clerk.test \
-    CLERK_AUTHORIZED_PARTIES=https://app.test \
-    CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
-    DISABLE_SERVER_JOB_RUNNER=true \
-    DATABASE_MIGRATION_TARGET=latest \
+if RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
+    RANKWRANGLER_DATABASE_PORT="$test_port" \
+    RANKWRANGLER_DATABASE_NAME="$rollback_database_name" \
+    RANKWRANGLER_DATABASE_USER=rankwrangler \
+    RANKWRANGLER_DATABASE_PASSWORD=rankwrangler \
+    RANKWRANGLER_SPAPI_REFRESH_TOKEN=test \
+    RANKWRANGLER_SPAPI_CLIENT_ID=test \
+    RANKWRANGLER_SPAPI_APP_CLIENT_SECRET=test \
+    MERCHBASE_CLERK_SECRET_KEY=test \
+    MERCHBASE_CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+    MERCHBASE_CLERK_JWT_KEY=test-jwt-key \
+    MERCHBASE_CLERK_ISSUER=https://clerk.test \
+    RANKWRANGLER_CLERK_AUTHORIZED_PARTIES=https://app.test \
+    RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
+    RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
+    RANKWRANGLER_DATABASE_MIGRATION_TARGET=latest \
     MIGRATIONS_FOLDER="$server_dir/drizzle" \
     bun -e "import { runMigrations } from './src/db/migrate.ts'; await runMigrations();"
 then
@@ -191,84 +191,84 @@ BEGIN
 END
 \$\$;"
 
-DATABASE_HOST=127.0.0.1 \
-DATABASE_PORT="$test_port" \
-DATABASE_NAME="$database_name" \
-DATABASE_USER=rankwrangler \
-DATABASE_PASSWORD=rankwrangler \
+RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
+RANKWRANGLER_DATABASE_PORT="$test_port" \
+RANKWRANGLER_DATABASE_NAME="$database_name" \
+RANKWRANGLER_DATABASE_USER=rankwrangler \
+RANKWRANGLER_DATABASE_PASSWORD=rankwrangler \
 bun src/scripts/central-auth-preservation-proof.ts \
     "--phase=before" \
     "--legacy-license-id=$legacy_license_id" \
     "--service-account-id=$service_account_id" \
     "--manifest=$preservation_manifest"
 
-DATABASE_HOST=127.0.0.1 \
-DATABASE_PORT="$test_port" \
-DATABASE_NAME="$backup_database_name" \
-DATABASE_USER=rankwrangler \
-DATABASE_PASSWORD=rankwrangler \
-SPAPI_REFRESH_TOKEN=test \
-SPAPI_CLIENT_ID=test \
-SPAPI_APP_CLIENT_SECRET=test \
-CLERK_SECRET_KEY=test \
-CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
-CLERK_JWT_KEY=test-jwt-key \
-CLERK_ISSUER=https://clerk.test \
-CLERK_AUTHORIZED_PARTIES=https://app.test \
-CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
-DISABLE_SERVER_JOB_RUNNER=true \
-DATABASE_MIGRATION_TARGET=latest \
+RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
+RANKWRANGLER_DATABASE_PORT="$test_port" \
+RANKWRANGLER_DATABASE_NAME="$backup_database_name" \
+RANKWRANGLER_DATABASE_USER=rankwrangler \
+RANKWRANGLER_DATABASE_PASSWORD=rankwrangler \
+RANKWRANGLER_SPAPI_REFRESH_TOKEN=test \
+RANKWRANGLER_SPAPI_CLIENT_ID=test \
+RANKWRANGLER_SPAPI_APP_CLIENT_SECRET=test \
+MERCHBASE_CLERK_SECRET_KEY=test \
+MERCHBASE_CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+MERCHBASE_CLERK_JWT_KEY=test-jwt-key \
+MERCHBASE_CLERK_ISSUER=https://clerk.test \
+RANKWRANGLER_CLERK_AUTHORIZED_PARTIES=https://app.test \
+RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
+RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
+RANKWRANGLER_DATABASE_MIGRATION_TARGET=latest \
 MIGRATIONS_FOLDER="$server_dir/drizzle" \
 bun -e "import { runMigrations, verifyMigrationTarget } from './src/db/migrate.ts'; await runMigrations(); await verifyMigrationTarget();"
 
-DATABASE_HOST=127.0.0.1 \
-DATABASE_PORT="$test_port" \
-DATABASE_NAME="$backup_database_name" \
-DATABASE_USER=rankwrangler \
-DATABASE_PASSWORD=rankwrangler \
+RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
+RANKWRANGLER_DATABASE_PORT="$test_port" \
+RANKWRANGLER_DATABASE_NAME="$backup_database_name" \
+RANKWRANGLER_DATABASE_USER=rankwrangler \
+RANKWRANGLER_DATABASE_PASSWORD=rankwrangler \
 bun src/scripts/central-auth-preservation-proof.ts \
     "--phase=after" \
     "--legacy-license-id=$legacy_license_id" \
     "--service-account-id=$service_account_id" \
     "--manifest=$preservation_manifest"
 
-DATABASE_HOST=127.0.0.1 \
-DATABASE_PORT="$test_port" \
-DATABASE_NAME="$database_name" \
-DATABASE_USER=rankwrangler \
-DATABASE_PASSWORD=rankwrangler \
-SPAPI_REFRESH_TOKEN=test \
-SPAPI_CLIENT_ID=test \
-SPAPI_APP_CLIENT_SECRET=test \
-CLERK_SECRET_KEY=test \
-CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
-CLERK_JWT_KEY=test-jwt-key \
-CLERK_ISSUER=https://clerk.test \
-CLERK_AUTHORIZED_PARTIES=https://app.test \
-CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
-DISABLE_SERVER_JOB_RUNNER=true \
-DATABASE_MIGRATION_TARGET=latest \
+RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
+RANKWRANGLER_DATABASE_PORT="$test_port" \
+RANKWRANGLER_DATABASE_NAME="$database_name" \
+RANKWRANGLER_DATABASE_USER=rankwrangler \
+RANKWRANGLER_DATABASE_PASSWORD=rankwrangler \
+RANKWRANGLER_SPAPI_REFRESH_TOKEN=test \
+RANKWRANGLER_SPAPI_CLIENT_ID=test \
+RANKWRANGLER_SPAPI_APP_CLIENT_SECRET=test \
+MERCHBASE_CLERK_SECRET_KEY=test \
+MERCHBASE_CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+MERCHBASE_CLERK_JWT_KEY=test-jwt-key \
+MERCHBASE_CLERK_ISSUER=https://clerk.test \
+RANKWRANGLER_CLERK_AUTHORIZED_PARTIES=https://app.test \
+RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
+RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
+RANKWRANGLER_DATABASE_MIGRATION_TARGET=latest \
 MIGRATIONS_FOLDER="$server_dir/drizzle" \
 bun -e "import { runMigrations, verifyMigrationTarget } from './src/db/migrate.ts'; await runMigrations(); await verifyMigrationTarget();"
 
 "$postgres_bin_dir/pg_restore" --list "$backup_path" >/dev/null
 
 cd "$repo_dir"
-DATABASE_HOST=127.0.0.1 \
-DATABASE_PORT="$test_port" \
-DATABASE_NAME="$database_name" \
-DATABASE_USER=rankwrangler \
-DATABASE_PASSWORD=rankwrangler \
-SPAPI_REFRESH_TOKEN=test \
-SPAPI_CLIENT_ID=test \
-SPAPI_APP_CLIENT_SECRET=test \
-CLERK_SECRET_KEY=test \
-CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
-CLERK_JWT_KEY=test-jwt-key \
-CLERK_ISSUER=https://clerk.test \
-CLERK_AUTHORIZED_PARTIES=https://app.test \
-CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
-DISABLE_SERVER_JOB_RUNNER=true \
+RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
+RANKWRANGLER_DATABASE_PORT="$test_port" \
+RANKWRANGLER_DATABASE_NAME="$database_name" \
+RANKWRANGLER_DATABASE_USER=rankwrangler \
+RANKWRANGLER_DATABASE_PASSWORD=rankwrangler \
+RANKWRANGLER_SPAPI_REFRESH_TOKEN=test \
+RANKWRANGLER_SPAPI_CLIENT_ID=test \
+RANKWRANGLER_SPAPI_APP_CLIENT_SECRET=test \
+MERCHBASE_CLERK_SECRET_KEY=test \
+MERCHBASE_CLERK_PUBLISHABLE_KEY=pk_test_rankwrangler \
+MERCHBASE_CLERK_JWT_KEY=test-jwt-key \
+MERCHBASE_CLERK_ISSUER=https://clerk.test \
+RANKWRANGLER_CLERK_AUTHORIZED_PARTIES=https://app.test \
+RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
+RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
 RUN_CATALOG_DB_TESTS=true \
 bun test \
     apps/server/test/central-auth.db.test.ts \

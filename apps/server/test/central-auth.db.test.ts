@@ -8,7 +8,7 @@ import { resolveRankWranglerServicePrincipal } from '@/services/access/rankwrang
 
 const isDedicatedCatalogTestDatabase =
     process.env.RUN_CATALOG_DB_TESTS === 'true' &&
-    process.env.DATABASE_NAME === 'rankwrangler_catalog_test';
+    process.env.RANKWRANGLER_DATABASE_NAME === 'rankwrangler_catalog_test';
 const describeCatalogDb = isDedicatedCatalogTestDatabase ? describe : describe.skip;
 const ISSUER = 'https://clerk.test';
 const SUBJECT = 'user_projection_test';

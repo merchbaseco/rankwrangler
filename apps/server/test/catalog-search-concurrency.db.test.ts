@@ -19,7 +19,7 @@ const SERVICE_ACCOUNT_ID = '33333333-3333-4333-8333-333333333333';
 const NOW = new Date('2026-07-24T12:00:00.000Z');
 const isDedicatedCatalogTestDatabase =
     process.env.RUN_CATALOG_DB_TESTS === 'true' &&
-    process.env.DATABASE_NAME === 'rankwrangler_catalog_test';
+    process.env.RANKWRANGLER_DATABASE_NAME === 'rankwrangler_catalog_test';
 const describeCatalogDb = isDedicatedCatalogTestDatabase ? describe : describe.skip;
 
 describeCatalogDb('Catalog search transaction boundaries', () => {
