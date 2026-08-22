@@ -32,3 +32,6 @@ yarn-error.log*
 
 # Docker artifacts
 stack.env
+
+# Varlock schema is the committed contract
+!.env.schema

@@ -7,17 +7,17 @@
     "main": "dist/index.js",
     "scripts": {
         "build": "vite build",
-        "dev": "dotenv -e ../../.env -- sh -c 'export DISABLE_SERVER_JOB_RUNNER=${DISABLE_SERVER_JOB_RUNNER:-true}; exec tsx src/index.ts'",
-        "dev:jobs": "dotenv -e ../../.env -- env DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
-        "start": "dotenv -e ../../.env node dist/index.js",
-        "cli": "tsx src/cli.ts",
-        "database:migrate": "tsx src/index.ts --migrate-only",
-        "database:verify": "tsx src/index.ts --verify-migrations",
         "central-auth:bootstrap-projection": "tsx src/index.ts --bootstrap-access-projection",
         "central-auth:cutover": "tsx src/scripts/central-auth-cutover-runner.ts",
         "central-auth:preservation-proof": "tsx src/scripts/central-auth-preservation-proof.ts",
+        "cli": "tsx src/cli.ts",
+        "database:migrate": "tsx src/index.ts --migrate-only",
+        "database:verify": "tsx src/index.ts --verify-migrations",
+        "dev": "tsx src/index.ts",
+        "dev:jobs": "RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
+        "start": "node dist/index.js",
         "test:catalog-db": "bash test/run-catalog-db-tests.sh",
-        "test:keepa-catalog-live": "dotenv -e ../../.env -- tsx src/scripts/keepa-catalog-search-live.ts"
+        "test:keepa-catalog-live": "varlock run -- tsx src/scripts/keepa-catalog-search-live.ts"
     },
     "dependencies": {
         "@merchbaseco/access": "0.3.0",
@@ -52,7 +52,6 @@
         "@types/node": "24.10.12",
         "@types/pg": "8.16.0",
         "@types/ws": "8.18.1",
-        "dotenv-cli": "10.0.0",
         "drizzle-kit": "0.31.10",
         "tsx": "4.21.0",
         "typescript": "5.9.3",
