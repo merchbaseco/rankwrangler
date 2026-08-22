@@ -10,9 +10,9 @@ import {
 } from "./chrome-extension-config";
 
 const productionEnvironment = {
-	VITE_CLERK_ACCOUNT_URL: "https://merchbase.co/account",
-	VITE_CLERK_PUBLISHABLE_KEY: "pk_live_ZXhhbXBsZS5jb20k",
-	VITE_CLERK_SYNC_HOST: CLERK_SYNC_HOST,
+	VITE_MERCHBASE_CLERK_ACCOUNT_URL: "https://merchbase.co/account",
+	VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY: "pk_live_ZXhhbXBsZS5jb20k",
+	VITE_MERCHBASE_CLERK_SYNC_HOST: CLERK_SYNC_HOST,
 };
 
 describe("Chrome extension identity and release configuration", () => {
@@ -37,7 +37,7 @@ describe("Chrome extension identity and release configuration", () => {
 			resolveChromeAuthBuildConfig({
 				env: {
 					...productionEnvironment,
-					VITE_CLERK_PUBLISHABLE_KEY: "pk_test_local",
+					VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY: "pk_test_local",
 				},
 				requireProduction: true,
 			})
@@ -49,7 +49,7 @@ describe("Chrome extension identity and release configuration", () => {
 			resolveChromeAuthBuildConfig({
 				env: {
 					...productionEnvironment,
-					VITE_CLERK_PUBLISHABLE_KEY: "pk_live_not-a-clerk-key",
+					VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY: "pk_live_not-a-clerk-key",
 				},
 				requireProduction: true,
 			})

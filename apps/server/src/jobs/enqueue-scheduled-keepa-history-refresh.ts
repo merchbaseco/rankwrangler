@@ -28,7 +28,7 @@ const enqueueScheduledKeepaHistoryRefreshJobDeps: EnqueueScheduledKeepaHistoryRe
     createEventLogSafe: createEventLogSafeService,
     getKeepaScheduledRefreshCandidates: getKeepaScheduledRefreshCandidatesService,
     enqueueKeepaScheduledRefreshCandidates: enqueueKeepaScheduledRefreshCandidatesService,
-    isKeepaConfigured: () => Boolean(env.KEEPA_API_KEY),
+    isKeepaConfigured: () => Boolean(env.RANKWRANGLER_KEEPA_API_KEY),
 };
 
 export const enqueueScheduledKeepaHistoryRefresh = async (

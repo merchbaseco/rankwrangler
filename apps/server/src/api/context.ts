@@ -161,4 +161,4 @@ const readJwtExpiry = (token: string) => {
     }
 };
 
-const isAdminUser = (merchbaseUserId: string) => merchbaseUserId === env.ADMIN_MERCHBASE_USER_ID;
+const isAdminUser = (merchbaseUserId: string) => merchbaseUserId === env.RANKWRANGLER_ADMIN_MERCHBASE_USER_ID;

@@ -48,10 +48,10 @@ const fetchLwaAccessToken = async (): Promise<SpApiAccessTokenPayload> => {
             async () => {
                 const response = await fetch(LWA_ACCESS_TOKEN_URL, {
                     body: new URLSearchParams({
-                        client_id: env.SPAPI_CLIENT_ID,
-                        client_secret: env.SPAPI_APP_CLIENT_SECRET,
+                        client_id: env.RANKWRANGLER_SPAPI_CLIENT_ID,
+                        client_secret: env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET,
                         grant_type: 'refresh_token',
-                        refresh_token: env.SPAPI_REFRESH_TOKEN,
+                        refresh_token: env.RANKWRANGLER_SPAPI_REFRESH_TOKEN,
                     }),
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',

@@ -5,11 +5,11 @@ import * as schema from './schema.js';
 
 // Create postgres connection
 const queryClient = postgres({
-    host: env.DATABASE_HOST || 'postgres',
-    port: env.DATABASE_PORT || 5432,
-    database: env.DATABASE_NAME || 'rankwrangler',
-    username: env.DATABASE_USER || 'rankwrangler',
-    password: env.DATABASE_PASSWORD || 'SecurePass123',
+    host: env.RANKWRANGLER_DATABASE_HOST || 'postgres',
+    port: env.RANKWRANGLER_DATABASE_PORT || 5432,
+    database: env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
+    username: env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
+    password: env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
     max: 5,
     idle_timeout: 10000,
     max_lifetime: 30000,

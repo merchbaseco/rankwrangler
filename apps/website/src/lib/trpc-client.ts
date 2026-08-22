@@ -61,7 +61,7 @@ export const createWebsiteTrpcRuntime = ({
 };
 
 export const resolveWebsiteApiBaseUrl = () => {
-	const configuredBaseUrl = (import.meta.env.VITE_API_URL ?? "").replace(
+	const configuredBaseUrl = (import.meta.env.VITE_RANKWRANGLER_API_URL ?? "").replace(
 		/\/+$/,
 		"",
 	);

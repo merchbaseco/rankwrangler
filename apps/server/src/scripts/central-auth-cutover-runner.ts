@@ -2,20 +2,20 @@ import postgres from 'postgres';
 import { applyRankWranglerCutoverPlan, loadRankWranglerCutoverPlan } from './central-auth-cutover';
 import { fingerprint, parseCutoverOptions, RANKWRANGLER_SERVICE } from './central-auth-cutover-lib';
 
-const issuer = process.env.CLERK_ISSUER?.trim();
+const issuer = process.env.MERCHBASE_CLERK_ISSUER?.trim();
 
 if (!issuer) {
-    console.error('Central auth cutover blocked: CLERK_ISSUER is required.');
+    console.error('Central auth cutover blocked: MERCHBASE_CLERK_ISSUER is required.');
     process.exit(1);
 }
 
 const createClient = () =>
     postgres({
-        host: process.env.DATABASE_HOST || 'postgres',
-        port: Number(process.env.DATABASE_PORT || 5432),
-        database: process.env.DATABASE_NAME || 'rankwrangler',
-        username: process.env.DATABASE_USER || 'rankwrangler',
-        password: process.env.DATABASE_PASSWORD || 'SecurePass123',
+        host: process.env.RANKWRANGLER_DATABASE_HOST || 'postgres',
+        port: Number(process.env.RANKWRANGLER_DATABASE_PORT || 5432),
+        database: process.env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
+        username: process.env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
+        password: process.env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
         max: 1,
     });
 

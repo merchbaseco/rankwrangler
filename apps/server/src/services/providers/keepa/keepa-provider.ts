@@ -41,7 +41,7 @@ export class KeepaProvider {
 
     constructor(overrides: Partial<KeepaProviderDeps> = {}) {
         this.deps = {
-            apiKey: process.env.KEEPA_API_KEY,
+            apiKey: process.env.RANKWRANGLER_KEEPA_API_KEY,
             capture: captureProviderAttempt,
             fetchImpl: fetch,
             ...overrides,
@@ -194,7 +194,7 @@ export class KeepaProvider {
     }) => {
         const apiKey = this.deps.apiKey;
         if (!apiKey) {
-            throw new Error('KEEPA_API_KEY is not configured');
+            throw new Error('RANKWRANGLER_KEEPA_API_KEY is not configured');
         }
         const query = new URLSearchParams({ key: apiKey, ...params });
         const result = await this.deps.capture({ provider: 'keepa', operation }, async () => {

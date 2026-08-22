@@ -3,28 +3,33 @@ import { browser } from "webextension-polyfill-ts";
 import { createClerkTokenProvider } from "./clerk-token-cache";
 
 const extensionAuthMode =
-	import.meta.env.VITE_EXTENSION_AUTH_MODE?.trim() ?? "chrome";
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim();
+	import.meta.env.VITE_RANKWRANGLER_EXTENSION_AUTH_MODE?.trim() ?? "chrome";
+const publishableKey =
+	import.meta.env.VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY?.trim();
 const syncHost =
-	import.meta.env.VITE_CLERK_SYNC_HOST?.trim() ?? "https://clerk.merchbase.co";
-const accountUrl = import.meta.env.VITE_CLERK_ACCOUNT_URL?.trim() || syncHost;
+	import.meta.env.VITE_MERCHBASE_CLERK_SYNC_HOST?.trim() ??
+	"https://clerk.merchbase.co";
+const accountUrl =
+	import.meta.env.VITE_MERCHBASE_CLERK_ACCOUNT_URL?.trim() || syncHost;
 const safariNativeApplicationId =
-	import.meta.env.VITE_SAFARI_NATIVE_APPLICATION_ID?.trim() ??
+	import.meta.env.VITE_RANKWRANGLER_SAFARI_NATIVE_APPLICATION_ID?.trim() ??
 	"merchbase.rankwrangler";
 
 const safariOAuthConfiguration = {
 	authorizationURL:
-		import.meta.env.VITE_CLERK_OAUTH_AUTHORIZATION_URL?.trim() ??
+		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_AUTHORIZATION_URL?.trim() ??
 		"https://clerk.merchbase.co/oauth/authorize",
 	tokenURL:
-		import.meta.env.VITE_CLERK_OAUTH_TOKEN_URL?.trim() ??
+		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_TOKEN_URL?.trim() ??
 		"https://clerk.merchbase.co/oauth/token",
-	clientId: import.meta.env.VITE_CLERK_OAUTH_CLIENT_ID?.trim() ?? "",
+	clientId:
+		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_CLIENT_ID?.trim() ?? "",
 	redirectURI:
-		import.meta.env.VITE_CLERK_OAUTH_REDIRECT_URI?.trim() ??
+		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_REDIRECT_URI?.trim() ??
 		"rankwrangler://oauth/callback",
 	scopes:
-		import.meta.env.VITE_CLERK_OAUTH_SCOPES?.trim() ?? "openid email profile",
+		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_SCOPES?.trim() ??
+		"openid email profile",
 };
 
 export type ExtensionAuthState =

@@ -1,7 +1,7 @@
 import { ExternalLink } from "lucide-react";
 
 const ACCOUNT_URL =
-	import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://clerk.merchbase.co";
+	import.meta.env.VITE_MERCHBASE_CLERK_SYNC_HOST ?? "https://clerk.merchbase.co";
 
 export const AccessCard = () => (
 	<div>

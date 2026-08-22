@@ -34,7 +34,7 @@ export const processProductFacetClassification = async () => {
         } satisfies ProcessProductFacetClassificationResult;
     }
 
-    if (!env.GEMINI_API_KEY) {
+    if (!env.RANKWRANGLER_GEMINI_API_KEY) {
         return {
             didWork: false,
             processedCount: 0,

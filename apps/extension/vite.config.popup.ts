@@ -1,18 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { createChromeManifestPlugin } from './scripts/chrome-manifest-plugin';
 
 const repoRoot = path.resolve(__dirname, '../..');
-const env = loadEnv('production', repoRoot, '');
-const authMode = process.env.VITE_EXTENSION_AUTH_MODE?.trim() ?? env.VITE_EXTENSION_AUTH_MODE?.trim();
+const authMode = process.env.VITE_RANKWRANGLER_EXTENSION_AUTH_MODE?.trim();
 const target = authMode === 'safari' ? 'safari' : 'chrome';
 
 export default defineConfig(async () => ({
     base: './',
-    envDir: repoRoot,
     resolve: {
         alias: [{ find: '@', replacement: path.resolve(__dirname, 'src') }],
     },

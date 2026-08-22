@@ -27,7 +27,7 @@ interface MigrationJournal {
 
 export const runMigrations = async (
     migrationsFolder = process.env.MIGRATIONS_FOLDER ?? './drizzle',
-    target: DatabaseMigrationTarget = env.DATABASE_MIGRATION_TARGET
+    target: DatabaseMigrationTarget = env.RANKWRANGLER_DATABASE_MIGRATION_TARGET
 ) => {
     console.log(`[Migration] Starting database migrations (target: ${target})...`);
 
@@ -59,7 +59,7 @@ export const runMigrations = async (
 
 export const verifyMigrationTarget = async (
     migrationsFolder = process.env.MIGRATIONS_FOLDER ?? './drizzle',
-    target: DatabaseMigrationTarget = env.DATABASE_MIGRATION_TARGET
+    target: DatabaseMigrationTarget = env.RANKWRANGLER_DATABASE_MIGRATION_TARGET
 ) => {
     const entries = selectMigrationEntries(readMigrationJournal(migrationsFolder).entries, target);
     const expected = entries.at(-1);
@@ -146,11 +146,11 @@ const readMigrationJournal = (migrationsFolder: string): MigrationJournal => {
 
 const createMigrationClient = () =>
     postgres({
-        host: env.DATABASE_HOST || 'postgres',
-        port: env.DATABASE_PORT || 5432,
-        database: env.DATABASE_NAME || 'rankwrangler',
-        username: env.DATABASE_USER || 'rankwrangler',
-        password: env.DATABASE_PASSWORD || 'SecurePass123',
+        host: env.RANKWRANGLER_DATABASE_HOST || 'postgres',
+        port: env.RANKWRANGLER_DATABASE_PORT || 5432,
+        database: env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
+        username: env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
+        password: env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
         max: 1,
         onnotice: process.env.NODE_ENV === 'development' ? console.log : undefined,
     });

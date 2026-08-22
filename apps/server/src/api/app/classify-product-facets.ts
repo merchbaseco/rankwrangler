@@ -19,10 +19,10 @@ const classifyProductFacetsInput = z.object({
 export const classifyProductFacets = adminProcedure
     .input(classifyProductFacetsInput)
     .mutation(async ({ input }) => {
-        if (!env.GEMINI_API_KEY) {
+        if (!env.RANKWRANGLER_GEMINI_API_KEY) {
             throw new TRPCError({
                 code: 'PRECONDITION_FAILED',
-                message: 'GEMINI_API_KEY is required for product facet classification.',
+                message: 'RANKWRANGLER_GEMINI_API_KEY is required for product facet classification.',
             });
         }
 

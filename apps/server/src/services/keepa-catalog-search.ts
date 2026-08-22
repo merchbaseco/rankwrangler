@@ -34,7 +34,7 @@ export const searchKeepaCatalog = async (
     if (!deps.provider.isConfigured()) {
         throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: 'KEEPA_API_KEY is not configured',
+            message: 'RANKWRANGLER_KEEPA_API_KEY is not configured',
         });
     }
 

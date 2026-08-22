@@ -37,8 +37,8 @@ export const classifyProductFacets = async ({
     thumbnailUrl: string | null;
     title: string | null;
 }): Promise<ProductFacetClassifierResult> => {
-    if (!env.GEMINI_API_KEY) {
-        throw new Error('GEMINI_API_KEY is required for product facet classification.');
+    if (!env.RANKWRANGLER_GEMINI_API_KEY) {
+        throw new Error('RANKWRANGLER_GEMINI_API_KEY is required for product facet classification.');
     }
 
     const userText = [
@@ -51,7 +51,7 @@ export const classifyProductFacets = async ({
     const imagePart = await buildImagePart(thumbnailUrl);
 
     const response = await fetch(
-        `${GEMINI_ENDPOINT}?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
+        `${GEMINI_ENDPOINT}?key=${encodeURIComponent(env.RANKWRANGLER_GEMINI_API_KEY)}`,
         {
             method: 'POST',
             headers: {

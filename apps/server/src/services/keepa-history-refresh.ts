@@ -38,7 +38,7 @@ export const enqueueKeepaHistoryRefreshForAsin = async ({
     marketplaceId: string;
     asin: string;
 }) => {
-    if (!env.KEEPA_API_KEY) {
+    if (!env.RANKWRANGLER_KEEPA_API_KEY) {
         return {
             enqueued: false,
             reason: 'keepa_not_configured',

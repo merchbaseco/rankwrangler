@@ -1,101 +1,65 @@
 import { execFile, spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import { promisify } from 'node:util';
-import { parseEnv } from 'node:util';
-import { fileURLToPath } from 'node:url';
 
 const execFileAsync = promisify(execFile);
-const scriptPath = fileURLToPath(import.meta.url);
-const repoEnvPath = path.resolve(path.dirname(scriptPath), '../..', '.env');
 
-export const DEFAULT_NPM_KEYCHAIN_SERVICE = 'rankwrangler-npm-token';
+export const NPM_TOKEN_ENV = 'RANKWRANGLER_NPM_PUBLISH_TOKEN';
 
-export const loadRepoNpmToken = async ({
-    env = process.env,
-    envPath = repoEnvPath,
-    readFileImpl = readFile,
-} = {}) => {
-    if (env.NPM_TOKEN?.trim()) {
-        return false;
-    }
-
-    try {
-        const parsed = parseEnv(await readFileImpl(envPath, 'utf8'));
-        const token = parsed.NPM_TOKEN?.trim();
-        if (!token) {
-            return false;
-        }
-
-        env.NPM_TOKEN = token;
-        return true;
-    } catch (error) {
-        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
-            return false;
-        }
-        throw error;
-    }
-};
-
+// Publishing is the `release` resolution context: the token is an @internal
+// schema item, so `varlock run` deliberately does not export it and it has to
+// be fetched explicitly with `varlock printenv`. Resolution reaches the
+// Tooling vault through 1Password desktop authorization, so an operator sees
+// one approval prompt per release session. CI supplies the same name from its
+// own secret store, which wins without touching 1Password at all.
 export const resolveNpmToken = async ({
     env = process.env,
-    platform = process.platform,
     execFileImpl = execFileAsync,
 } = {}) => {
-    const envToken = env.NPM_TOKEN?.trim();
-    if (envToken) {
-        return {
-            token: envToken,
-            source: 'env',
-        };
+    const exported = env[NPM_TOKEN_ENV]?.trim();
+    if (exported) {
+        return { token: exported, source: 'env' };
     }
 
-    if (platform !== 'darwin') {
-        throw new Error(
-            'NPM_TOKEN is required in the environment on non-macOS hosts. Use your CI secret store.'
-        );
-    }
-
-    const account = resolveKeychainAccount(env);
-    const service = env.RANKWRANGLER_NPM_KEYCHAIN_SERVICE?.trim() || DEFAULT_NPM_KEYCHAIN_SERVICE;
-
+    let stdout;
     try {
-        const { stdout } = await execFileImpl(
-            'security',
-            ['find-generic-password', '-a', account, '-s', service, '-w'],
+        ({ stdout } = await execFileImpl(
+            'bunx',
+            ['varlock', 'printenv', NPM_TOKEN_ENV],
             {
                 encoding: 'utf8',
                 maxBuffer: 1024 * 1024,
+                env: {
+                    ...env,
+                    RANKWRANGLER_RESOLVE_RELEASE_TOKENS: 'true',
+                },
             }
-        );
-
-        const token = stdout.trim();
-        if (!token) {
-            throw new Error('macOS Keychain returned an empty token');
-        }
-
-        return {
-            token,
-            source: 'keychain',
-            account,
-            service,
-        };
+        ));
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'unknown keychain error';
+        const message = error instanceof Error ? error.message : 'unknown error';
         throw new Error(
-            `Could not load NPM_TOKEN from macOS Keychain item ${service}/${account}: ${message}`
+            `Could not resolve ${NPM_TOKEN_ENV} from 1Password via varlock: ${message}`
         );
     }
+
+    const token = stdout.trim();
+    if (!token) {
+        throw new Error(
+            `${NPM_TOKEN_ENV} resolved empty. Check op://Tooling/NPM Publish - RankWrangler.`
+        );
+    }
+
+    return { token, source: 'varlock' };
 };
 
 const main = async () => {
     const args = process.argv.slice(2);
     if (args.length === 0) {
-        console.error('usage: node scripts/release/with-npm-token.mjs <command> [args...]');
+        console.error(
+            'usage: node scripts/release/with-npm-token.mjs <command> [args...]'
+        );
         process.exit(1);
     }
 
-    await loadRepoNpmToken();
     const resolved = await resolveNpmToken();
     const [command, ...commandArgs] = args;
 
@@ -103,12 +67,14 @@ const main = async () => {
         stdio: 'inherit',
         env: {
             ...process.env,
-            NPM_TOKEN: resolved.token,
+            [NPM_TOKEN_ENV]: resolved.token,
         },
     });
 
     child.on('error', error => {
-        console.error(error instanceof Error ? error.message : 'failed to launch command');
+        console.error(
+            error instanceof Error ? error.message : 'failed to launch command'
+        );
         process.exit(1);
     });
 
@@ -117,20 +83,7 @@ const main = async () => {
     });
 };
 
-const resolveKeychainAccount = env => {
-    const account =
-        env.RANKWRANGLER_NPM_KEYCHAIN_ACCOUNT?.trim() || env.USER?.trim() || env.LOGNAME?.trim();
-
-    if (!account) {
-        throw new Error(
-            'Could not resolve the macOS Keychain account. Set USER or RANKWRANGLER_NPM_KEYCHAIN_ACCOUNT.'
-        );
-    }
-
-    return account;
-};
-
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+if (process.argv[1]?.endsWith('with-npm-token.mjs')) {
     await main().catch(error => {
         console.error(error instanceof Error ? error.message : 'Unknown error');
         process.exit(1);

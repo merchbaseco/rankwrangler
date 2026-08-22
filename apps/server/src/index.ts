@@ -71,7 +71,7 @@ const shouldBootstrapAccessProjection = process.argv.includes('--bootstrap-acces
 
 await runMigrations(
     process.env.MIGRATIONS_FOLDER ?? './drizzle',
-    resolveMigrationTargetForCommand(process.argv, env.DATABASE_MIGRATION_TARGET)
+    resolveMigrationTargetForCommand(process.argv, env.RANKWRANGLER_DATABASE_MIGRATION_TARGET)
 );
 
 if (process.argv.includes('--migrate-only')) {
@@ -82,13 +82,13 @@ if (process.argv.includes('--migrate-only')) {
 await testConnection();
 
 const rankwranglerAccess = createRankWranglerAccess({
-    authorizedParties: env.CLERK_AUTHORIZED_PARTIES.split(',')
+    authorizedParties: env.RANKWRANGLER_CLERK_AUTHORIZED_PARTIES.split(',')
         .map(value => value.trim())
         .filter(Boolean),
-    issuer: env.CLERK_ISSUER,
-    jwtKey: env.CLERK_JWT_KEY,
-    publishableKey: env.CLERK_PUBLISHABLE_KEY,
-    secretKey: env.CLERK_SECRET_KEY,
+    issuer: env.MERCHBASE_CLERK_ISSUER,
+    jwtKey: env.MERCHBASE_CLERK_JWT_KEY,
+    publishableKey: env.MERCHBASE_CLERK_PUBLISHABLE_KEY,
+    secretKey: env.MERCHBASE_CLERK_SECRET_KEY,
 });
 configureRankWranglerAccess(rankwranglerAccess);
 
@@ -98,23 +98,23 @@ if (shouldBootstrapAccessProjection) {
     );
     const result = await bootstrapAccessProjection(options, {
         authenticator: rankwranglerAccess.authenticator,
-        issuer: env.CLERK_ISSUER,
+        issuer: env.MERCHBASE_CLERK_ISSUER,
         store: rankwranglerAccess.projections,
     });
     console.log(JSON.stringify({ mode: 'projection-bootstrap', ...result }, null, 2));
     process.exit(0);
 }
 
-const databaseUser = env.DATABASE_USER || 'rankwrangler';
-const databasePassword = env.DATABASE_PASSWORD || 'SecurePass123';
-const databaseHost = env.DATABASE_HOST || 'postgres';
-const databasePort = env.DATABASE_PORT || 5432;
-const databaseName = env.DATABASE_NAME || 'rankwrangler';
+const databaseUser = env.RANKWRANGLER_DATABASE_USER || 'rankwrangler';
+const databasePassword = env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123';
+const databaseHost = env.RANKWRANGLER_DATABASE_HOST || 'postgres';
+const databasePort = env.RANKWRANGLER_DATABASE_PORT || 5432;
+const databaseName = env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler';
 const databaseUrl =
     `postgresql://${databaseUser}:${databasePassword}` +
     `@${databaseHost}:${databasePort}/${databaseName}`;
 const serverRuntimeFlags = getServerRuntimeFlags({
-    disableServerJobRunner: env.DISABLE_SERVER_JOB_RUNNER,
+    disableServerJobRunner: env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER,
 });
 const boss = new PgBoss({ connectionString: databaseUrl });
 await boss.start();
@@ -123,7 +123,7 @@ registerSpApiSyncQueueWakeups(boss);
 registerTopSearchTermsJobWakeups(boss);
 registerProductHistoryOperationWakeups(boss);
 registerCatalogSearchWakeups(boss);
-console.log(`[Server] Runtime flags: DISABLE_SERVER_JOB_RUNNER=${env.DISABLE_SERVER_JOB_RUNNER}`);
+console.log(`[Server] Runtime flags: RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=${env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER}`);
 
 let recoveredTopSearchTermsDatasetsCount = 0;
 let recoveredProductHistoryOperationsCount = 0;
@@ -176,18 +176,18 @@ await fastify.register(cors, {
     credentials: true,
 });
 await registerClerkAccessWebhookRoute(fastify, {
-    issuer: env.CLERK_ISSUER,
+    issuer: env.MERCHBASE_CLERK_ISSUER,
     onIdentityChanged: identity => rankwranglerAccess.authenticator.invalidateApiKeys(identity),
-    signingSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
+    signingSecret: env.RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET,
     store: rankwranglerAccess.projections,
 });
 const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess);
 
 registerRankWranglerMcp({
     access: rankwranglerAccess,
-    adminMerchbaseUserId: env.ADMIN_MERCHBASE_USER_ID,
+    adminMerchbaseUserId: env.RANKWRANGLER_ADMIN_MERCHBASE_USER_ID,
     fastify,
-    publishableKey: env.CLERK_PUBLISHABLE_KEY,
+    publishableKey: env.MERCHBASE_CLERK_PUBLISHABLE_KEY,
 });
 
 fastify.get('/api/health', () => {
@@ -224,7 +224,7 @@ fastify.setErrorHandler((error, _request, reply) => {
     };
 });
 
-const port = env.PORT;
+const port = env.RANKWRANGLER_PORT;
 
 console.log(`Attempting to start server on port ${port}...`);
 
@@ -270,18 +270,18 @@ try {
             ? `Enabled (${recoveredCatalogSearchOperationsCount} recovered at startup)`
             : 'Disabled at runtime (job runner disabled)',
         databaseConnected: true,
-        disableServerJobRunner: env.DISABLE_SERVER_JOB_RUNNER,
+        disableServerJobRunner: env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER,
         jobRunnerStatus: serverRuntimeFlags.jobRunnerStatus,
         jobStartupSummary: jobsRuntime.startupSummary,
-        keepaConfigured: Boolean(env.KEEPA_API_KEY),
-        mcpStatus: env.CLERK_PUBLISHABLE_KEY
+        keepaConfigured: Boolean(env.RANKWRANGLER_KEEPA_API_KEY),
+        mcpStatus: env.MERCHBASE_CLERK_PUBLISHABLE_KEY
             ? 'Enabled (/mcp, OAuth bearer)'
-            : 'Disabled (CLERK_PUBLISHABLE_KEY not set)',
+            : 'Disabled (MERCHBASE_CLERK_PUBLISHABLE_KEY not set)',
         migrationsComplete: true,
         port,
-        productFacetSummary: env.GEMINI_API_KEY
+        productFacetSummary: env.RANKWRANGLER_GEMINI_API_KEY
             ? 'Enabled (Gemini 2.5 Flash Lite)'
-            : 'Disabled (GEMINI_API_KEY not set)',
+            : 'Disabled (RANKWRANGLER_GEMINI_API_KEY not set)',
         productHistoryOperations: getProductHistoryOperationsStatus(
             serverRuntimeFlags.shouldStartJobRunner,
             recoveredProductHistoryOperationsCount

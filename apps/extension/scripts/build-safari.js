@@ -33,7 +33,7 @@ execSync("bun run build", {
 	cwd: workspaceRoot,
 	env: {
 		...process.env,
-		VITE_EXTENSION_AUTH_MODE: "safari",
+		VITE_RANKWRANGLER_EXTENSION_AUTH_MODE: "safari",
 	},
 });
 

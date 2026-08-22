@@ -119,11 +119,11 @@ const loadKeepaProductHistoryOnce = async ({
     queuePriority = 'background',
     operationId,
 }: LoadKeepaProductHistoryParams): Promise<KeepaImportSummary> => {
-    const keepaApiKey = env.KEEPA_API_KEY;
+    const keepaApiKey = env.RANKWRANGLER_KEEPA_API_KEY;
     if (!keepaApiKey) {
         throw new TRPCError({
             code: 'PRECONDITION_FAILED',
-            message: 'KEEPA_API_KEY is not configured',
+            message: 'RANKWRANGLER_KEEPA_API_KEY is not configured',
         });
     }
 
@@ -453,7 +453,7 @@ const resolveCategoryNames = async ({
         return categoryNames;
     }
 
-    if (!env.KEEPA_API_KEY) {
+    if (!env.RANKWRANGLER_KEEPA_API_KEY) {
         return categoryNames;
     }
 

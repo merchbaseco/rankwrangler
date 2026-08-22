@@ -1,9 +1,9 @@
 import { useSignIn } from "@clerk/clerk-react";
 import { useEffect, useRef } from "react";
 
-const apiBaseUrl = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+const apiBaseUrl = (import.meta.env.VITE_RANKWRANGLER_API_URL ?? "").replace(/\/$/, "");
 const isDevAutoSignInEnabled =
-	import.meta.env.DEV && import.meta.env.VITE_DEV_CLERK_AUTO_SIGN_IN === "true";
+	import.meta.env.DEV && import.meta.env.VITE_RANKWRANGLER_DEV_CLERK_AUTO_SIGN_IN === "true";
 
 export const DevAutoSignIn = () => {
 	const hasAttemptedRef = useRef(false);

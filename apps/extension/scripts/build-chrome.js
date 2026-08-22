@@ -12,7 +12,7 @@ const buildEnvironment = {
 	...process.env,
 	CHROME_RELEASE_BUILD: "1",
 	NODE_ENV: "production",
-	VITE_EXTENSION_AUTH_MODE: "chrome",
+	VITE_RANKWRANGLER_EXTENSION_AUTH_MODE: "chrome",
 };
 
 console.log("🏗  Building RankWrangler for Chrome (production)...\n");

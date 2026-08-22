@@ -26,7 +26,7 @@ if (
 	document.documentElement.classList.add("dark");
 }
 
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const publishableKey = import.meta.env.VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY;
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -43,7 +43,7 @@ function MissingConfig() {
 					</h1>
 					<p className="mt-2 text-sm text-muted-foreground">
 						Missing{" "}
-						<code className="font-mono">VITE_CLERK_PUBLISHABLE_KEY</code>.
+						<code className="font-mono">VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY</code>.
 					</p>
 					<p className="mt-2 text-sm text-muted-foreground">
 						Fix: add it to{" "}

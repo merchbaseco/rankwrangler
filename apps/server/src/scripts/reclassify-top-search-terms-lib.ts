@@ -67,11 +67,11 @@ export type DryRunSummary = {
 
 export const createClient = () => {
     return postgres({
-        host: process.env.DATABASE_HOST || 'postgres',
-        port: Number(process.env.DATABASE_PORT || 5432),
-        database: process.env.DATABASE_NAME || 'rankwrangler',
-        username: process.env.DATABASE_USER || 'rankwrangler',
-        password: process.env.DATABASE_PASSWORD || 'SecurePass123',
+        host: process.env.RANKWRANGLER_DATABASE_HOST || 'postgres',
+        port: Number(process.env.RANKWRANGLER_DATABASE_PORT || 5432),
+        database: process.env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
+        username: process.env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
+        password: process.env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
         max: 1,
     });
 };

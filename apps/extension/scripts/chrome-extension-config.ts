@@ -35,9 +35,9 @@ export const resolveChromeAuthBuildConfig = ({
 	env: ChromeBuildEnvironment;
 	requireProduction: boolean;
 }): ChromeAuthBuildConfig => {
-	const publishableKey = readEnv(env, "VITE_CLERK_PUBLISHABLE_KEY");
-	const syncHostInput = readEnv(env, "VITE_CLERK_SYNC_HOST");
-	const accountUrlInput = readEnv(env, "VITE_CLERK_ACCOUNT_URL");
+	const publishableKey = readEnv(env, "VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY");
+	const syncHostInput = readEnv(env, "VITE_MERCHBASE_CLERK_SYNC_HOST");
+	const accountUrlInput = readEnv(env, "VITE_MERCHBASE_CLERK_ACCOUNT_URL");
 	const syncHost = normalizeUrl(syncHostInput ?? CLERK_SYNC_HOST);
 	const publicKey = CHROME_EXTENSION_PUBLIC_KEY;
 	const extensionId = CHROME_EXTENSION_ID;
@@ -184,11 +184,11 @@ const validateEndpoints = ({
 	const errors: string[] = [];
 	if (syncHost !== CLERK_SYNC_HOST) {
 		errors.push(
-			"VITE_CLERK_SYNC_HOST must be the production Merchbase Clerk Sync Host"
+			"VITE_MERCHBASE_CLERK_SYNC_HOST must be the production Merchbase Clerk Sync Host"
 		);
 	}
 	if (accountUrlInput && !isMerchbaseHttpsUrl(accountUrl)) {
-		errors.push("VITE_CLERK_ACCOUNT_URL must be an HTTPS Merchbase URL");
+		errors.push("VITE_MERCHBASE_CLERK_ACCOUNT_URL must be an HTTPS Merchbase URL");
 	}
 	return errors;
 };
@@ -205,23 +205,23 @@ const validateProductionInputs = ({
 	const errors: string[] = [];
 	if (!publishableKey) {
 		errors.push(
-			"VITE_CLERK_PUBLISHABLE_KEY is required for a production build"
+			"VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY is required for a production build"
 		);
 	} else if (!publishableKey.startsWith("pk_live_")) {
-		errors.push("VITE_CLERK_PUBLISHABLE_KEY must be a production pk_live_ key");
+		errors.push("VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY must be a production pk_live_ key");
 	} else if (!isValidClerkPublishableKey(publishableKey)) {
 		errors.push(
-		"VITE_CLERK_PUBLISHABLE_KEY must be a valid production Clerk publishable key"
+		"VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY must be a valid production Clerk publishable key"
 	);
 	}
 	if (!syncHostInput) {
 		errors.push(
-			"VITE_CLERK_SYNC_HOST must be explicitly supplied for a production build"
+			"VITE_MERCHBASE_CLERK_SYNC_HOST must be explicitly supplied for a production build"
 		);
 	}
 	if (!accountUrlInput) {
 		errors.push(
-			"VITE_CLERK_ACCOUNT_URL must be explicitly supplied for a production build"
+			"VITE_MERCHBASE_CLERK_ACCOUNT_URL must be explicitly supplied for a production build"
 		);
 	}
 	return errors;

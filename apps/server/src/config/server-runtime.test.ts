@@ -25,7 +25,7 @@ describe('getServerRuntimeFlags', () => {
         ).toEqual({
             jobRunnerDisabled: true,
             shouldStartJobRunner: false,
-            jobRunnerStatus: 'Disabled (DISABLE_SERVER_JOB_RUNNER=true)',
+            jobRunnerStatus: 'Disabled (RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true)',
         });
     });
 });

@@ -29,7 +29,7 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
     console.log('Status Summary:');
     console.log(`  • Database: ${input.databaseConnected ? 'Connected' : 'Unavailable'}`);
     console.log(`  • Migrations: ${input.migrationsComplete ? 'Complete' : 'Incomplete'}`);
-    console.log(`  • Startup Flag DISABLE_SERVER_JOB_RUNNER: ${input.disableServerJobRunner}`);
+    console.log(`  • Startup Flag RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER: ${input.disableServerJobRunner}`);
     console.log(`  • Job Runner: ${input.jobRunnerStatus}`);
     console.log('  • Job Queues: Connected (pg-boss)');
     if (input.shouldStartJobRunner) {
@@ -42,7 +42,7 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
     }
     console.log(
         `  • Keepa History Sync: ${
-            input.keepaConfigured ? 'Configured' : 'Disabled (KEEPA_API_KEY not set)'
+            input.keepaConfigured ? 'Configured' : 'Disabled (RANKWRANGLER_KEEPA_API_KEY not set)'
         }`
     );
     console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
