@@ -143,6 +143,15 @@ if (dryRun) {
     process.exit(0);
 }
 
+// Compose parses the whole file and will warn that the server's runtime
+// variables are "not set" during the build. That is expected and harmless:
+// the build only needs the website build arguments and the install token, and
+// the runtime values are supplied under `varlock run` at `up` time. Say so in
+// the log so the warnings are not misread as a blank deploy.
+console.log(
+    "Building images. Compose warnings about unset runtime variables are expected here — the build only consumes build arguments and the install token."
+);
+
 const build = spawnSync(
     "docker",
     ["compose", ...composeArgs, "build"],
@@ -208,10 +217,7 @@ if (up.status !== 0) {
     process.exit(up.status ?? 1);
 }
 
-spawnSync("docker", ["compose", ...composeArgs, "ps"], {
-    env: environment,
-    stdio: "inherit",
-});
+varlockRun(["docker", "compose", ...composeArgs, "ps"]);
 
 // Deploy-time guard: name-diff what Docker actually baked into the container
 // against the schema's sensitivity split.
