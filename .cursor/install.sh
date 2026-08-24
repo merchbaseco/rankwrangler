@@ -88,23 +88,35 @@ fi
 
 bun install --frozen-lockfile
 
-echo "[install] Done."
-
 # --- Shared agent skills (fleet dev environment parity) ---------------------
 # Cursor discovers Agent Skills from .agents/skills in the checkout. Locally
-# the operator's ~/.claude/skills symlinks already provide the fleet skill
-# library; in the cloud VM we link the same library from the agents repo,
-# which repositoryDependencies grants a read token for. Best-effort: a failed
-# clone must never fail the install — skills are an enhancement, not part of
-# the environment contract.
-AGENTS_CLONE="$HOME/merchbase-agents"
-if [ ! -d "$REPO_ROOT/.agents/skills" ]; then
-    if git clone --depth 1 https://github.com/zknicker/agents "$AGENTS_CLONE" 2>/dev/null \
-        || git -C "$AGENTS_CLONE" pull --ff-only 2>/dev/null; then
+# the operator's home-directory links already provide the fleet skill library;
+# in the cloud VM the library is seeded from the private agents repo, read
+# with a fine-grained PAT resolved from the Development vault under the same
+# install switch as the packages token. The tarball fetch leaves no credential
+# or git state on disk. Always refetched so snapshot reuse cannot pin a stale
+# copy. Best-effort: a failed fetch must never fail the install — skills are
+# an enhancement, not part of the environment contract.
+MERCHBASE_AGENTS_READ_TOKEN="$(
+    RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
+    bunx "varlock@${VARLOCK_VERSION}" printenv MERCHBASE_AGENTS_READ_TOKEN
+)" || MERCHBASE_AGENTS_READ_TOKEN=""
+if [ -n "$MERCHBASE_AGENTS_READ_TOKEN" ]; then
+    SKILLS_TMP="$(mktemp -d)"
+    if curl -fsSL -H "Authorization: Bearer $MERCHBASE_AGENTS_READ_TOKEN" \
+        https://api.github.com/repos/zknicker/agents/tarball/main \
+        | tar -xz -C "$SKILLS_TMP"; then
         mkdir -p "$REPO_ROOT/.agents"
-        ln -sfn "$AGENTS_CLONE/agents/skills" "$REPO_ROOT/.agents/skills"
-        echo "[install] Linked fleet agent skills into .agents/skills."
+        rm -rf "$REPO_ROOT/.agents/skills"
+        cp -R "$SKILLS_TMP"/*/agents/skills "$REPO_ROOT/.agents/skills"
+        echo "[install] Seeded fleet agent skills into .agents/skills."
     else
-        echo "[install] Skipping fleet agent skills (agents repo unavailable)."
+        echo "[install] Skipping fleet agent skills (tarball fetch failed)." >&2
     fi
+    rm -rf "$SKILLS_TMP"
+    unset MERCHBASE_AGENTS_READ_TOKEN
+else
+    echo "[install] Skipping fleet agent skills (no read token)." >&2
 fi
+
+echo "[install] Done."

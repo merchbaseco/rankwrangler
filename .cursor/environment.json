@@ -11,8 +11,5 @@
             "name": "website",
             "port": 5173
         }
-    ],
-    "repositoryDependencies": [
-        "zknicker/agents"
     ]
 }
