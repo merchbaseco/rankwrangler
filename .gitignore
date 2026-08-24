@@ -35,3 +35,6 @@ stack.env
 
 # Varlock schema is the committed contract
 !.env.schema
+
+# Cursor-discovered fleet skills, linked by .cursor/install.sh in cloud VMs
+.agents/

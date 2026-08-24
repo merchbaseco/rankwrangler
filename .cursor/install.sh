@@ -89,3 +89,22 @@ fi
 bun install --frozen-lockfile
 
 echo "[install] Done."
+
+# --- Shared agent skills (fleet dev environment parity) ---------------------
+# Cursor discovers Agent Skills from .agents/skills in the checkout. Locally
+# the operator's ~/.claude/skills symlinks already provide the fleet skill
+# library; in the cloud VM we link the same library from the agents repo,
+# which repositoryDependencies grants a read token for. Best-effort: a failed
+# clone must never fail the install — skills are an enhancement, not part of
+# the environment contract.
+AGENTS_CLONE="$HOME/merchbase-agents"
+if [ ! -d "$REPO_ROOT/.agents/skills" ]; then
+    if git clone --depth 1 https://github.com/zknicker/agents "$AGENTS_CLONE" 2>/dev/null \
+        || git -C "$AGENTS_CLONE" pull --ff-only 2>/dev/null; then
+        mkdir -p "$REPO_ROOT/.agents"
+        ln -sfn "$AGENTS_CLONE/agents/skills" "$REPO_ROOT/.agents/skills"
+        echo "[install] Linked fleet agent skills into .agents/skills."
+    else
+        echo "[install] Skipping fleet agent skills (agents repo unavailable)."
+    fi
+fi
