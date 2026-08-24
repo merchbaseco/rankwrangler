@@ -27,3 +27,10 @@ finding is still demonstrably false, use a narrow path- and regex-scoped allowli
 disable history scanning.
 
 Completion means a new run passes on the relevant commit and no real secret was introduced.
+
+## What Quality runs
+
+Quality runs `bun run check:fast` and nothing heavier, deliberately — the server
+build lives in full `bun run check`. If a Quality failure looks like a missing
+build step, that is the policy working, not a gap. See "Quality is the fast
+lane, on purpose" in `operations/development.md`.

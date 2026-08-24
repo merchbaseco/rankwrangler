@@ -3,6 +3,7 @@ summary: Defines local RankWrangler setup, environment ownership, development co
 read_when:
   - setting up RankWrangler locally or choosing a development command
   - debugging environment loading, local ports, disabled workers, or extension dependency order
+  - changing the Quality workflow, the `check` scripts, or which gates run on every commit
 ---
 
 # Development
@@ -54,6 +55,25 @@ passes values as process environment. No command reads a `.env` file.
 | CLI end-to-end tests | `bun run cli:test:e2e` |
 | Documentation routes | `bun run docs:list` |
 | Full offline gate | `bun run check` |
+| Fast offline gate — what CI runs | `bun run check:fast` |
+
+## Quality is the fast lane, on purpose
+
+`bun run check` is split, and the split is deliberate — preserve it.
+
+`bun run check:fast` is the polite lane: `env:check`, `env:contract`, and
+`test`. It is what the Quality workflow runs on every push and pull request.
+`bun run check` is `check:fast` plus `bun run server:build`. Total coverage is
+unchanged; the build simply stops running on every commit, because the Deploy
+workflow builds the image for real on the Mac mini and is the build's proof.
+
+This shape is fleet-wide, not a RankWrangler quirk: Quality answers one question
+per push — is the contract intact and does the fast stuff pass? — in under about
+sixty seconds, with installs capped at `timeout-minutes: 5` and a concurrency
+group that cancels in progress. Application builds, browser and GPU tests,
+golden corpora, database simulations, and licensed or heavyweight downloads
+belong to full `check` instead. Canonical standard:
+`~/Programming/agents/docs/quality-ci-standard.md` (agents repo).
 
 Local server scripts disable the job runner by default — the schema resolves
 `RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER` to `true` outside production. Use a `*:jobs` command only

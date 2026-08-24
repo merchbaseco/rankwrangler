@@ -128,7 +128,10 @@ Open these only when the task needs that specific workflow:
 - Extension UI preview and browser verification: `docs/operations/extension-preview.md`,
   `docs/operations/ui-verification.md`
 - CI and production database safety: `docs/operations/ci-troubleshooting.md`,
-  `docs/operations/database-queries.md`
+  `docs/operations/database-queries.md`. The Quality workflow runs
+  `bun run check:fast` and nothing heavier, deliberately; read "Quality is the
+  fast lane, on purpose" in `docs/operations/development.md` before changing
+  `.github/workflows/quality.yml` or the `check` / `check:fast` scripts.
 - Release and npm publishing: `docs/operations/releases.md`,
   `docs/operations/npm-packages.md`
 - Keepa refresh: `docs/internals/keepa-refresh.md`, `docs/operations/keepa-refresh.md`
