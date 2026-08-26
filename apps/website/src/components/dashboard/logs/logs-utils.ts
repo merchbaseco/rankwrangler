@@ -18,7 +18,6 @@ export const typeOptions: EventLogPrimitiveType[] = [
 	"product",
 	"history",
 	"job",
-	"system",
 ];
 
 export const levelBadgeVariantByLevel: Record<

@@ -9,7 +9,7 @@
 
 export const eventLogLevels = ['info', 'warn', 'error', 'debug'] as const;
 export const eventLogStatuses = ['success', 'failed', 'pending', 'retrying', 'partial'] as const;
-export const eventLogPrimitiveTypes = ['product', 'history', 'job', 'system'] as const;
+export const eventLogPrimitiveTypes = ['product', 'history', 'job'] as const;
 
 export type EventLogLevel = (typeof eventLogLevels)[number];
 export type EventLogStatus = (typeof eventLogStatuses)[number];

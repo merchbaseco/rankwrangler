@@ -16,8 +16,7 @@ import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-s
  * empty filter result means a bug rather than thin data. Primitive types are
  * not rotated the same way: each event template owns the one its action really
  * carries, because an event whose action is `product.sync` but whose primitive
- * type says `job` is not data the product can produce. That leaves `system`
- * unrepresented, which is correct — nothing in RankWrangler writes it.
+ * type says `job` is not data the product can produce.
  */
 
 const EVENT_TEMPLATES = [

@@ -384,16 +384,12 @@ describe('dev seed coverage contract: activity and observability', () => {
     });
 
     it('promises every primitive type the application emits appears, and no invented one', () => {
-        // `system` is deliberately absent: it is a declared filter value that
-        // nothing in RankWrangler writes, and seeding it would invent a state
-        // the product cannot produce. Every value used here must still be a
-        // legal one.
+        // The declared vocabulary and the seeded one are the same set, in both
+        // directions: a value nothing writes is a filter that always returns
+        // nothing, and a value nothing seeds is a filter the seed cannot prove.
         const emitted = distinct(plan.eventLogs, row => row.primitiveType).sort();
 
-        expect(emitted).toEqual(['history', 'job', 'product']);
-        for (const primitiveType of emitted) {
-            expect(eventLogPrimitiveTypes).toContain(primitiveType as never);
-        }
+        expect(emitted).toEqual([...eventLogPrimitiveTypes].sort());
     });
 
     it('promises the activity stream covers the generated week and stops at now', () => {
