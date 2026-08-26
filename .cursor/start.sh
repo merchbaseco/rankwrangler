@@ -55,6 +55,22 @@ SQL
 unset DB_PASSWORD
 
 echo "[start] PostgreSQL ready on localhost:5433 (database: ${DB_NAME})."
+
+# Fill the freshly provisioned database with a synthetic recent week so the
+# dashboard opens on a real catalog instead of an empty one. This is the cloud
+# boot path and only the cloud boot path — a local checkout points at whatever
+# database the developer chose, so seeding there stays an explicit
+# `bun run db:seed:dev`. The seed refuses any non-loopback host on its own, and
+# it is idempotent: every boot clears the previous synthetic week and rewrites
+# it anchored to the current time, so a resumed agent never opens on a stale
+# one. It also migrates to `latest` first, which a development database
+# otherwise does not reach. Best-effort: a failed seed must not stop the
+# development servers from starting.
+echo "[start] Seeding synthetic development data..."
+if ! bunx varlock run -- bun run --filter @rankwrangler/server database:seed:dev; then
+    echo "[start] WARNING: development seed failed; continuing with an unseeded database." >&2
+fi
+
 echo "[start] Launching development servers (server:8080, website:5173)..."
 
 # `concurrently` is invoked directly rather than through `bun run dev` because

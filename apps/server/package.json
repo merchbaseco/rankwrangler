@@ -12,6 +12,7 @@
         "central-auth:preservation-proof": "tsx src/scripts/central-auth-preservation-proof.ts",
         "cli": "tsx src/cli.ts",
         "database:migrate": "tsx src/index.ts --migrate-only",
+        "database:seed:dev": "tsx src/scripts/seed-dev-data.ts",
         "database:verify": "tsx src/index.ts --verify-migrations",
         "dev": "tsx src/index.ts",
         "dev:jobs": "RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
