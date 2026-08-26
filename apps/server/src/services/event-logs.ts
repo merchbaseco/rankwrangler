@@ -11,10 +11,11 @@ import {
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { eventLogs } from '@/db/schema.js';
-
-export const eventLogLevels = ['info', 'warn', 'error', 'debug'] as const;
-export const eventLogStatuses = ['success', 'failed', 'pending', 'retrying', 'partial'] as const;
-export const eventLogPrimitiveTypes = ['product', 'history', 'job', 'system'] as const;
+import {
+    eventLogLevels,
+    eventLogPrimitiveTypes,
+    eventLogStatuses,
+} from '@/services/event-log-enums.js';
 
 const eventLogLevelSchema = z.enum(eventLogLevels);
 const eventLogStatusSchema = z.enum(eventLogStatuses);

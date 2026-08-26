@@ -4,6 +4,16 @@ import {
 } from '@/services/merch-listing-classification';
 
 const KEEPA_MINUTE_EPOCH_OFFSET = 21_564_000;
+
+/**
+ * Keepa timestamps count minutes from its own epoch, and `product_history_points`
+ * stores that number rather than the instant. Anything that writes a history
+ * point without a Keepa payload — the development seed — needs the same
+ * conversion the normalizer applies on the way in.
+ */
+export const dateToKeepaMinute = (date: Date) =>
+    Math.round(date.getTime() / (60 * 1000)) - KEEPA_MINUTE_EPOCH_OFFSET;
+
 const KEEPA_CSV_INDEX = {
     amazonPrice: 0,
     newPrice: 1,

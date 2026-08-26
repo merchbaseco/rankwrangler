@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
-import { keepaHistoryMetricKeys } from '@/services/keepa.js';
+import { keepaHistoryMetricKeys } from '@/services/keepa-history-metrics.js';
 import {
     getProductHistoryOperationSurface,
     productHistoryRefreshModes,

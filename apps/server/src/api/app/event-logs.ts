@@ -4,8 +4,8 @@ import {
     eventLogLevels,
     eventLogPrimitiveTypes,
     eventLogStatuses,
-    listEventLogs,
-} from '@/services/event-logs.js';
+} from '@/services/event-log-enums.js';
+import { listEventLogs } from '@/services/event-logs.js';
 
 const eventLogsInput = z.object({
     limit: z.number().int().min(1).max(200).default(100),

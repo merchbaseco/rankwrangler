@@ -3,8 +3,8 @@ import { getLatestProductHistoryOperation, getOperationById } from '@/db/operati
 import {
     getProductHistoryPoints,
     hasRecentSuccessfulKeepaImportForAsin,
-    type KeepaHistoryMetricKey,
 } from '@/services/keepa.js';
+import type { KeepaHistoryMetricKey } from '@/services/keepa-history-metrics.js';
 import {
     type ProductHistoryBucket,
     resolveAgentHistoryWindow,

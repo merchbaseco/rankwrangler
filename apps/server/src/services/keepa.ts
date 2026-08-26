@@ -8,6 +8,10 @@ import {
     productHistoryPoints,
     products,
 } from '@/db/schema.js';
+import {
+    keepaHistoryMetricColumns,
+    type KeepaHistoryMetricKey,
+} from '@/services/keepa-history-metrics.js';
 import { ingestKeepaProduct } from '@/services/keepa-product-ingestion';
 import type { NormalizedKeepaHistoryPoint } from '@/services/keepa-product-normalizer';
 import { KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS } from '@/services/keepa-refresh-policy.js';
@@ -17,16 +21,6 @@ import {
     type KeepaCategoryResponse,
     type KeepaResponse,
 } from '@/services/providers/keepa/keepa-provider-types';
-
-export const keepaHistoryMetricKeys = [
-    'bsrMain',
-    'bsrCategory',
-    'priceAmazon',
-    'priceNew',
-    'priceNewFba',
-] as const;
-
-export type KeepaHistoryMetricKey = (typeof keepaHistoryMetricKeys)[number];
 
 type LoadKeepaProductHistoryParams = {
     marketplaceId: string;
@@ -86,14 +80,6 @@ type CategoryNamesById = Record<string, string>;
 const KEEPA_SOURCE = 'keepa';
 const KEEPA_CATEGORY_BATCH_SIZE = 50;
 const KEEPA_MIN_REFRESH_INTERVAL_MS = KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS;
-
-const historyMetricMap: Record<KeepaHistoryMetricKey, string> = {
-    bsrMain: 'bsr_main',
-    bsrCategory: 'bsr_category',
-    priceAmazon: 'price_amazon',
-    priceNew: 'price_new',
-    priceNewFba: 'price_new_fba',
-};
 
 const keepaProductLoadsInFlight = new Map<string, Promise<KeepaImportSummary>>();
 const keepaProvider = createKeepaProvider();
@@ -304,7 +290,7 @@ export const getProductHistoryPoints = async ({
     endAt,
     limit,
 }: GetProductHistoryPointsParams) => {
-    const dbMetric = historyMetricMap[metric];
+    const dbMetric = keepaHistoryMetricColumns[metric];
     const baseWhereConditions = [
         eq(productHistoryPoints.marketplaceId, marketplaceId),
         eq(productHistoryPoints.asin, asin),
