@@ -138,19 +138,41 @@ production host as `.env.schema` declares it. Both run in `bun run check:fast`.
 `bun run check` is split, and the split is deliberate — preserve it.
 
 `bun run check:fast` is the polite lane: `env:check`, `env:contract`, and
-`test` (which includes the dev-seed contract tests — pure CPU, under a tenth of
-a second). It is what the Quality workflow runs on every push and pull request.
-`bun run check` is `check:fast` plus `bun run server:build`. Total coverage is
-unchanged; the build simply stops running on every commit, because the Deploy
-workflow builds the image for real on the Mac mini and is the build's proof.
+`test` (the typed-client, extension-auth, server, and release suites — pure
+CPU, well under a second all together). It is what the Quality workflow's
+`Check` job runs on every push and pull request. `bun run check` is
+`check:fast` plus `bun run server:build`. Total coverage is unchanged; the
+build simply stops running on every commit, because the Deploy workflow builds
+the image for real on the Mac mini and is the build's proof.
+
+`bun run test:server` runs the server suite the way the gate does, under
+`varlock run` on the schema's `test` lifecycle. That matters: the suite loads
+`apps/server/src/config/env.ts`, which throws when Clerk and SP-API values are
+absent, and a single module that throws while loading poisons every later
+import of it in the same Bun process. Run the suite bare and you get a cascade
+of `Cannot access 'appRouter' before initialization` from files that are
+themselves fine. Redaction is off for this lane on purpose — the `test`
+lifecycle holds only placeholders, and redacting them rewrites the middle of
+every file path in the output.
+
+Database-backed tests are the exception, and they get their own parallel
+`Database` job rather than a place in the fast lane. `bun run --filter
+@rankwrangler/server test:catalog-db` builds a throwaway PostgreSQL cluster in
+a `mktemp -d` directory, proves the migration targets, the backup and rollback
+path, and the preservation manifest, then runs the `*.db.test.ts` files against
+it and tears the cluster down. Those tests skip themselves when that harness is
+absent, so they cost the fast lane nothing and never touch a shared or
+production database. CI runs the same script on the same private-cluster path a
+checkout does; it only has to put the runner image's PostgreSQL binaries on
+PATH first.
 
 This shape is fleet-wide, not a RankWrangler quirk: Quality answers one question
 per push — is the contract intact and does the fast stuff pass? — in under about
 sixty seconds, with installs capped at `timeout-minutes: 5` and a concurrency
 group that cancels in progress. Application builds, browser and GPU tests,
-golden corpora, database simulations, and licensed or heavyweight downloads
-belong to full `check` instead. Treat that division as the standard when editing
-the Quality workflow.
+golden corpora, and licensed or heavyweight downloads belong to full `check`
+instead. Treat that division as the standard when editing the Quality workflow:
+new weight goes to `check` or to a parallel job, never into `Check`.
 
 Local server scripts disable the job runner by default — the schema resolves
 `RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER` to `true` outside production. Use a `*:jobs` command only

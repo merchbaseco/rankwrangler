@@ -21,7 +21,7 @@ execution records.
 | `status` | `success`, `failed`, `pending`, `retrying`, or `partial`. |
 | `category` | Human-routing category such as `product`, `history`, or `job`. |
 | `action` | Stable dotted action name. |
-| `primitiveType` | `product`, `history`, `job`, or `system`. |
+| `primitiveType` | `product`, `history`, or `job`. |
 | `message` | Short human-readable outcome. |
 | `detailsJson` | Action-specific structured context. |
 | `primitiveId` | Optional noun identity; product and history events currently use the ASIN. |
