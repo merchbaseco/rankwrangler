@@ -38,3 +38,10 @@ stack.env
 
 # Cursor-discovered fleet skills, linked by .cursor/install.sh in cloud VMs
 .agents/
+
+# Claude Code keeps per-checkout state here (worktrees, local settings). The
+# shared slash commands are the one committed part, so name them back in
+# rather than ignoring the directory itself — git will not look inside an
+# ignored directory to find them.
+.claude/*
+!.claude/commands/
