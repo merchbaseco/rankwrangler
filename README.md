@@ -86,10 +86,11 @@ public API uses Merchbase API keys or OAuth credentials; dashboard procedures us
 
 ```bash
 bun install --frozen-lockfile
-cp .env.example .env
-# Fill in provider/auth credentials, then start PostgreSQL.
-docker compose --env-file .env -f apps/server/compose.yml up -d postgres
-RANKWRANGLER_DATABASE_HOST=localhost RANKWRANGLER_DATABASE_PORT=5433 bun run dev
+# No .env step: the committed .env.schema is the environment contract and
+# varlock resolves every value, authorizing through the 1Password desktop app.
+bun run --filter @rankwrangler/server exec docker compose -f compose.yml up -d postgres
+bun run db:seed:dev   # synthetic recent week, local databases only
+bun run dev
 ```
 
 Local app servers leave background workers disabled by default. Use `bun run dev:jobs` only when

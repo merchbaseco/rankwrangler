@@ -2,6 +2,7 @@
 summary: Defines local RankWrangler setup, environment ownership, development commands, worker defaults, and focused verification entrypoints.
 read_when:
   - setting up RankWrangler locally or choosing a development command
+  - filling a local or Cursor cloud database with synthetic Products, Search runs, keywords, and activity
   - debugging environment loading, local ports, disabled workers, or extension dependency order
   - changing the Quality workflow, the `check` scripts, or which gates run on every commit
 ---
@@ -34,6 +35,7 @@ just the database and run the stack on the host:
 
 ```bash
 bun run --filter @rankwrangler/server exec docker compose -f compose.yml up -d postgres
+bun run db:seed:dev
 bun run dev
 ```
 
@@ -44,6 +46,7 @@ passes values as process environment. No command reads a `.env` file.
 
 | Task | Command |
 | --- | --- |
+| Synthetic development data | `bun run db:seed:dev` |
 | Server and website | `bun run dev` |
 | Server only | `bun run server:dev` |
 | Server and website with job workers | `bun run dev:jobs` |
@@ -57,12 +60,56 @@ passes values as process environment. No command reads a `.env` file.
 | Full offline gate | `bun run check` |
 | Fast offline gate — what CI runs | `bun run check:fast` |
 
+## Synthetic Development Data
+
+`bun run db:seed:dev` fills a local database with a synthetic recent week: a Merch-style Product
+catalog with facets and Keepa history, Catalog queries with Search-run evidence, Brand Analytics
+Top Search Terms snapshots, and the activity, job, and Provider-telemetry rows behind the Logs
+page. It is about 3,400 rows and takes well under a second. Every timestamp is generated relative
+to the moment the command runs, so the dashboard opens on the current week rather than a frozen
+fixture. The generator is seeded, so the same seed always produces the same catalog.
+
+Two properties are load-bearing.
+
+**It only runs against loopback.** The seed clears and rewrites the tables it owns, so it refuses
+any `RANKWRANGLER_DATABASE_HOST` that is not `127.0.0.1`, `::1`, or `localhost`, and refuses
+`NODE_ENV=production` outright. There is no override flag, because several local workflows point
+deliberately at production and a flag is exactly what someone would reach for at the wrong moment.
+
+**It is idempotent.** Every row it writes is marked in its own primary key, and a run clears only
+rows carrying that marker before writing the new week. Re-running replaces the previous synthetic
+week and leaves alone anything you collected by hand against the same database, with one cascade
+worth knowing: a real search for a term the seed invented reuses the seeded Catalog query, so
+clearing that query also clears the real Search run hanging off it.
+
+The seed migrates to the `latest` target before writing. This matters: `.env.schema` resolves
+`RANKWRANGLER_DATABASE_MIGRATION_TARGET` to the guarded `pre-cutover` value outside production,
+which stops eight migrations short of the schema the application queries, so a freshly created
+development database cannot serve the catalog at all until something brings it current. The
+development server's own startup migration then finds nothing left to apply and logs a no-op
+`pre-cutover` line, which is expected.
+
+Cursor cloud agents seed automatically: `.cursor/start.sh` runs the command on every boot, after
+provisioning the local cluster and before launching the servers, so a cloud agent opens on a
+populated dashboard and a resumed one re-anchors to the current week. Local checkouts never seed
+implicitly — a local database may be pointed anywhere, so the command stays explicit.
+
+`apps/server/src/dev-seed/plan.test.ts` is a coverage contract rather than a unit test: it asserts
+what the seed promises the dashboard, and it asserts those promises through the shipped code that
+implements them. Every Catalog-query status badge appears because the real
+`deriveCatalogQueryStatus` derives it; keyword rows are merch-classified because the real
+`classifyMerchKeyword` classified them; no Product is stale because the real
+`PRODUCT_DEFAULT_MAX_AGE_MS` says so — which is also what keeps a seeded dashboard from calling
+Keepa or SP-API. `local-database-guard.test.ts` proves the refusals, including against the
+production host as `.env.schema` declares it. Both run in `bun run check:fast`.
+
 ## Quality is the fast lane, on purpose
 
 `bun run check` is split, and the split is deliberate — preserve it.
 
 `bun run check:fast` is the polite lane: `env:check`, `env:contract`, and
-`test`. It is what the Quality workflow runs on every push and pull request.
+`test` (which includes the dev-seed contract tests — pure CPU, under a tenth of
+a second). It is what the Quality workflow runs on every push and pull request.
 `bun run check` is `check:fast` plus `bun run server:build`. Total coverage is
 unchanged; the build simply stops running on every commit, because the Deploy
 workflow builds the image for real on the Mac mini and is the build's proof.

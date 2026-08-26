@@ -10,6 +10,7 @@ read_when:
 | Task | Runbook |
 | --- | --- |
 | Local setup, commands, environment, and ordinary checks | [Development](development.md) |
+| Filling a local database with synthetic development data | [Development](development.md#synthetic-development-data) |
 | Docker stack, production deployment, and health checks | [Deployment](deployment.md) |
 | Safe production inspection | [Database queries](database-queries.md) |
 | GitHub Actions failures | [CI troubleshooting](ci-troubleshooting.md) |

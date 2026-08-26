@@ -125,6 +125,8 @@ Open these only when the task needs that specific workflow:
 - Documentation index and routing policy: `docs/README.md`, `docs/docs-policy.md`
 - Local development and deployment: `docs/operations/development.md`,
   `docs/operations/deployment.md`
+- Synthetic development data (`bun run db:seed:dev`, loopback-only, idempotent):
+  "Synthetic Development Data" in `docs/operations/development.md`
 - Extension UI preview and browser verification: `docs/operations/extension-preview.md`,
   `docs/operations/ui-verification.md`
 - CI and production database safety: `docs/operations/ci-troubleshooting.md`,
