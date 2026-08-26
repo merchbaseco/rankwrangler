@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# PostgreSQL 16 refuses to start when the postmaster becomes multithreaded
+# during startup, which an unset or invalid locale provokes on macOS. The
+# cluster below is created with `--no-locale` anyway, so pinning `C` for this
+# script's children costs nothing and keeps the private cluster startable.
+export LC_ALL=C
+
 server_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 repo_dir="$(cd "$server_dir/../.." && pwd)"
 postgres_bin_dir="$(dirname "$(realpath "$(command -v postgres)")")"
 test_root="$(mktemp -d)"
-test_port="$(dev-port --group | awk 'NR == 3 { print; exit }')"
+# A checkout takes its port from the allocator so parallel worktrees do not
+# collide. CI has no allocator and no competing checkout, and the cluster is
+# private to this run either way, so a fixed port is enough there.
+if command -v dev-port >/dev/null 2>&1; then
+    test_port="$(dev-port --group | awk 'NR == 3 { print; exit }')"
+else
+    test_port=5599
+fi
 database_name="rankwrangler_catalog_test"
 backup_database_name="rankwrangler_catalog_backup_test"
 rollback_database_name="rankwrangler_catalog_rollback_test"
