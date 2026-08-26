@@ -2,6 +2,7 @@
 summary: Defines centralized Merchbase bearer-token resolution, Clerk projections, metering, and admin tRPC boundaries.
 read_when:
   - changing authentication middleware, centralized usage, Clerk sessions, admin gating, or local sign-in automation
+  - diagnosing UNAUTHORIZED api.app calls, a missing local Access Projection, or the Clerk issuer a lifecycle authenticates against
   - deciding which API surface should own a procedure
 ---
 
@@ -46,8 +47,45 @@ classification. Hiding a dashboard route is not authorization.
 ## Local Automation
 
 `api.dev.createClerkSignInToken` exists only for localhost automation. It requires
-`RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID`, is disabled in production, and returns a short-lived Clerk ticket. The
-website's optional dev auto-sign-in consumes that path.
+`RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID`, is disabled in production, and returns a short-lived Clerk
+ticket. The website's dev auto-sign-in consumes that path and is on outside production, so a fresh
+worktree or cloud VM opens on the dashboard rather than a sign-in form. See
+[UI verification](../operations/ui-verification.md) for the manual fallback.
+
+Two things have to line up for that session to be worth anything, and both used to be wrong.
+
+**The issuer is per-instance.** `createClerkAuthenticator` rejects any credential whose `iss` is not
+byte-equal to `MERCHBASE_CLERK_ISSUER`, and development authenticates against the Clerk development
+instance, not the production one. The schema resolves the development instance's own
+`*.clerk.accounts.dev` origin outside production. Pointing development at
+`https://clerk.merchbase.co` fails every `api.app.*` call with `UNAUTHORIZED` while the credentials
+themselves are perfectly valid — the symptom looks like a data problem and is not one.
+
+**The projection has to exist locally.** Authorization is decided against the Access Projection in
+this database, and a development database receives no Clerk webhooks, so a freshly migrated one
+grants nobody anything. `bun run db:seed:dev` calls `bootstrapDevAccessProjection` from
+`@merchbaseco/access/dev`, which writes the projection the webhook would have written through the
+same `AccessProjectionStore.apply` the webhook handler uses. There is no projection SQL in this
+repository outside that store, and no override: the bootstrap refuses production, a non-loopback
+database, and the production issuer. Its event claims the development Clerk User's creation instant
+as `sourceUpdatedAt`, which is older than any real Clerk `updated_at`, so a real webhook or cold
+load always wins and the bootstrap can never mask a revocation.
+
+If the bootstrap raises `DevAccessBootstrapError` saying a newer event already owns the subject, the
+local projection is ahead of the bootstrap. Delete this database's Access Projection rows and seed
+again:
+
+```sql
+DELETE FROM access_projection_event;
+DELETE FROM access_projection;
+```
+
+## Observability
+
+`api.app.*` credential rejections are logged as one `[Auth] <code> <path>` line, with the
+`ServiceAccessError` code when there is one. Fastify runs with `logger: false`, so without that line
+a rejected dashboard read left no server-side trace at all. Bearer credentials and request headers
+are never part of it.
 
 ## Invariants
 

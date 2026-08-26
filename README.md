@@ -93,6 +93,11 @@ bun run db:seed:dev   # synthetic recent week, local databases only
 bun run dev
 ```
 
+`http://localhost:5173` signs itself in outside production, as the shared Dev Sign-In user the seed
+grants access to. The seed is what makes that user readable at all: development gets no Clerk
+webhooks, so an unseeded database authorizes nobody and the dashboard reports every read as
+unauthorized.
+
 Local app servers leave background workers disabled by default. Use `bun run dev:jobs` only when
 the task requires schedules or queue execution.
 

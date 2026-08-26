@@ -3,7 +3,7 @@ summary: Defines local RankWrangler setup, environment ownership, development co
 read_when:
   - setting up RankWrangler locally or choosing a development command
   - filling a local or Cursor cloud database with synthetic Products, Search runs, keywords, and activity
-  - debugging environment loading, local ports, disabled workers, or extension dependency order
+  - debugging environment loading, local ports, dev server bind addresses, disabled workers, or extension dependency order
   - changing the Quality workflow, the `check` scripts, or which gates run on every commit
 ---
 
@@ -69,6 +69,32 @@ page. It is about 3,400 rows and takes well under a second. Every timestamp is g
 to the moment the command runs, so the dashboard opens on the current week rather than a frozen
 fixture. The generator is seeded, so the same seed always produces the same catalog.
 
+Before it writes a single Product it grants the shared Dev Sign-In user access to this database,
+because a seeded week nobody can read is worth nothing. Development receives no Clerk webhooks, so a
+freshly migrated database has no Access Projection and every `api.app.*` call fails before any of
+this data is reachable. `bootstrapDevAccessProjection` from `@merchbaseco/access/dev` writes the
+projection the webhook would have written, and the seed also mints the RankWrangler Service Account
+for that user so the usage surfaces open on a real account. Nothing here is per-tenant: the Product
+catalog belongs to the database, not to a seller, so the Service Account is the only row the seed has
+to attach to anybody. [Authentication](../internals/authentication.md) owns the details, including
+what to do about `DevAccessBootstrapError`.
+
+Every run ends with a receipt — database target, the Clerk subject and Merchbase User the session
+will authenticate as, the day the week runs through, and the row counts behind each page:
+
+```
+[Seed] ─── Development seed receipt ───────────────────────────
+[Seed]   Database        127.0.0.1:5433/rankwrangler
+[Seed]   Signed-in user  mbu_… (Clerk user_… @ https://tolerant-roughy-27.clerk.accounts.dev)
+[Seed]   Through day     2026-08-26 (7 days from 2026-08-20)
+[Seed]   Products        64
+[Seed]   Catalog queries 10
+[Seed]   History points  1829
+[Seed]   Search terms    710
+[Seed]   Log rows        245
+[Seed]   Total rows      3389
+```
+
 Two properties are load-bearing.
 
 **It only runs against loopback.** The seed clears and rewrites the tables it owns, so it refuses
@@ -80,7 +106,9 @@ deliberately at production and a flag is exactly what someone would reach for at
 rows carrying that marker before writing the new week. Re-running replaces the previous synthetic
 week and leaves alone anything you collected by hand against the same database, with one cascade
 worth knowing: a real search for a term the seed invented reuses the seeded Catalog query, so
-clearing that query also clears the real Search run hanging off it.
+clearing that query also clears the real Search run hanging off it. The access bootstrap is
+idempotent on the same terms — its event id is fixed per issuer, so repeated seeding applies exactly
+one projection event no matter how many times it runs.
 
 The seed migrates to the `latest` target before writing. This matters: `.env.schema` resolves
 `RANKWRANGLER_DATABASE_MIGRATION_TARGET` to the guarded `pre-cutover` value outside production,
@@ -91,8 +119,10 @@ development server's own startup migration then finds nothing left to apply and 
 
 Cursor cloud agents seed automatically: `.cursor/start.sh` runs the command on every boot, after
 provisioning the local cluster and before launching the servers, so a cloud agent opens on a
-populated dashboard and a resumed one re-anchors to the current week. Local checkouts never seed
-implicitly — a local database may be pointed anywhere, so the command stays explicit.
+populated dashboard, already signed in, and a resumed one re-anchors to the current week. The seed's
+whole output — receipt included — goes straight to the boot log; nothing is captured or discarded, so
+a boot that half-worked says so. Local checkouts never seed implicitly — a local database may be
+pointed anywhere, so the command stays explicit.
 
 `apps/server/src/dev-seed/plan.test.ts` is a coverage contract rather than a unit test: it asserts
 what the seed promises the dashboard, and it asserts those promises through the shipped code that
@@ -126,10 +156,21 @@ Local server scripts disable the job runner by default — the schema resolves
 `RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER` to `true` outside production. Use a `*:jobs` command only
 when the task requires schedules or background execution.
 
-The direct server listens on port `8080` by default. Vite serves the website on its configured dev
-port and proxies `/api` to the server. Use `dev-port` for new checkout-specific harnesses instead
-of adding fixed ports. In non-production environments, the server accepts HTTP CORS origins from
-loopback hosts on any port so checkout-specific website previews can use their assigned port.
+The direct server listens on port `8080` by default and binds every interface. Vite serves the
+website on its configured dev port and proxies `/api` to the server. Use `dev-port` for new
+checkout-specific harnesses instead of adding fixed ports. In non-production environments, the
+server accepts HTTP CORS origins from loopback hosts on any port so checkout-specific website
+previews can use their assigned port.
+
+`RANKWRANGLER_DEV_HOST` is the repository's contract for Vite's bind address, and
+`apps/website/vite.config.ts` is its only reader. It defaults to `127.0.0.1`, which is not the same
+as Vite's own default of `localhost`: on a host that resolves `localhost` to `::1` first, Vite binds
+IPv6 only, and an IPv4 client — or a port forwarder watching for listening sockets — never sees it.
+An environment reached through such a forwarder sets `0.0.0.0` for its own dev command;
+`.cursor/start.sh` exports exactly that before launching, which is where the knowledge that Cursor
+forwards ports this way belongs. App code stays vendor-neutral, and everywhere else the loopback
+default keeps the dev server — and the synthetic seed data behind it — off the network. Only the
+socket widens; the origin the app believes it serves is unchanged.
 
 ## Docker Development
 
