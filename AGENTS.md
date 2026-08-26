@@ -47,10 +47,10 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
     manual version edits; do not maintain a persistent `## Unreleased` changelog section. When the
     user says `do a version bump`, follow `docs/operations/releases.md` and complete
     the full release flow, including publish, unless the user explicitly scopes it down.
-14. Production deploys are automatic: a push to `origin/main` triggers the GitHub Actions workflow
-    in `.github/workflows/deploy.yml`. After landing on `main`, verify that workflow and report its
-    result; do not claim that no production deployment occurred merely because no manual deploy
-    command was run.
+14. Production deploys are manual. `.github/workflows/deploy.yml` runs on `workflow_dispatch` only,
+    because a deploy resolves production credentials from 1Password. Landing on `main` therefore
+    ships nothing by itself; after landing, report that the change is on `main` and undeployed, and
+    dispatch the workflow only when the user asks for a deploy.
 
 ## API + Code Design
 
