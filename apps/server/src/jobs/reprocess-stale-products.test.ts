@@ -15,6 +15,6 @@ describe('deleted Amazon listing refresh policy', () => {
         expect(query.sql).toContain('"products"."amazon_listing_status" = $1');
         expect(query.sql).toContain('"products"."sp_api_fetched_at" < $2');
         expect(query.sql).not.toContain('sp_api_resolved_at');
-        expect(query.params).toEqual([false, threshold.toISOString()]);
+        expect(query.params).toEqual(['active', threshold.toISOString()]);
     });
 });
