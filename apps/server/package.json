@@ -21,7 +21,7 @@
         "test:keepa-catalog-live": "varlock run -- tsx src/scripts/keepa-catalog-search-live.ts"
     },
     "dependencies": {
-        "@merchbaseco/access": "0.3.0",
+        "@merchbaseco/access": "0.4.0",
         "@rankwrangler/http-client": "workspace:*",
         "@amazon-sp-api-release/amazon-sp-api-sdk-js": "1.7.1",
         "@clerk/backend": "2.33.3",

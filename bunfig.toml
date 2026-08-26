@@ -4,4 +4,12 @@ frozenLockfile = true
 auto = "disable"
 ignoreScripts = true
 saveTextLockfile = true
+# Three days of quarantine on third-party releases, so a compromised upstream
+# publish is caught before it reaches a machine here.
 minimumReleaseAge = 259200
+# One first-party exemption. The quarantine exists to blunt a compromised
+# third-party publish; @merchbaseco/access is published from Merchbase's own
+# private scope, so the threat it guards against does not apply, and without the
+# exemption a coordinated bump across the suite cannot even be resolved into the
+# lockfile for three days after it ships.
+minimumReleaseAgeExcludes = ["@merchbaseco/access"]
