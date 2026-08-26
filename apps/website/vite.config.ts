@@ -15,6 +15,15 @@ const envDir = resolve(rootDir, '../..');
 export default defineConfig(() => {
     const apiProxyTarget =
         process.env.RANKWRANGLER_WEBSITE_API_PROXY_TARGET ?? 'http://localhost:8080';
+    // `RANKWRANGLER_DEV_HOST` is the repository's contract for this server's
+    // bind address, and it defaults to loopback. Vite's own default of
+    // `localhost` is not the same thing: on a host that resolves `localhost` to
+    // `::1` first, it binds IPv6 only, which is invisible both to an IPv4
+    // client and to a port forwarder watching for listening sockets. An
+    // environment reached through such a forwarder sets `0.0.0.0` for its own
+    // dev command; everywhere else the loopback default keeps the dev server —
+    // and the synthetic seed data behind it — off the network.
+    const devHost = process.env.RANKWRANGLER_DEV_HOST ?? '127.0.0.1';
     const appVersion =
         process.env.VITE_RANKWRANGLER_APP_VERSION || serverPackageJson.version;
 
@@ -24,6 +33,7 @@ export default defineConfig(() => {
         },
         plugins: [react(), tailwindcss(), tsconfigPaths()],
         server: {
+            host: devHost,
             port: 5173,
             strictPort: false,
             fs: {

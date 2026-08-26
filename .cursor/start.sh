@@ -64,12 +64,25 @@ echo "[start] PostgreSQL ready on localhost:5433 (database: ${DB_NAME})."
 # it is idempotent: every boot clears the previous synthetic week and rewrites
 # it anchored to the current time, so a resumed agent never opens on a stale
 # one. It also migrates to `latest` first, which a development database
-# otherwise does not reach. Best-effort: a failed seed must not stop the
-# development servers from starting.
+# otherwise does not reach, and grants the shared Dev Sign-In user access to
+# this database, without which every api.app call would 401 against a perfectly
+# seeded catalog. Its output — target, signed-in user, row counts, through-day —
+# goes straight to this log; nothing is captured or discarded. Best-effort: a
+# failed seed must not stop the development servers from starting.
 echo "[start] Seeding synthetic development data..."
 if ! bunx varlock run -- bun run --filter @rankwrangler/server database:seed:dev; then
     echo "[start] WARNING: development seed failed; continuing with an unseeded database." >&2
 fi
+
+# Cursor forwards a session's ports by watching the VM for listening sockets,
+# and a loopback-only bind is invisible to that watcher, so the agent's browser
+# could never reach Vite. RANKWRANGLER_DEV_HOST is the repository's neutral
+# contract for that bind address; exporting it here is what keeps the knowledge
+# that Cursor works this way under .cursor/ instead of in app code. varlock
+# resolves the declared item from process.env and validates it before handing it
+# to the child, so an exported value survives `varlock run`. The server already
+# binds 0.0.0.0 unconditionally and needs no equivalent.
+export RANKWRANGLER_DEV_HOST=0.0.0.0
 
 echo "[start] Launching development servers (server:8080, website:5173)..."
 
