@@ -93,12 +93,16 @@ export const getRankWranglerServiceAccountUsage = async (
 ) => {
     const utcDayStart = new Date();
     utcDayStart.setUTCHours(0, 0, 0, 0);
+    // Formatted and cast the same way the debit above does it. A raw `Date`
+    // interpolated into a `sql` fragment reaches the driver as a bare parameter
+    // it cannot serialize, and the whole usage read throws.
+    const utcDayStartSql = sql`cast(${formatSqlTimestamp(utcDayStart)} as timestamp)`;
     const [account] = await database
         .select({
             id: rankwranglerServiceAccounts.id,
             merchbaseUserId: rankwranglerServiceAccounts.merchbaseUserId,
             usageToday: sql<number>`case
-                when ${rankwranglerServiceAccounts.lastResetAt} < ${utcDayStart}
+                when ${rankwranglerServiceAccounts.lastResetAt} < ${utcDayStartSql}
                     then 0
                 else ${rankwranglerServiceAccounts.usageToday}
             end`,
