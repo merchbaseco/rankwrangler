@@ -52,7 +52,7 @@ export function RecentProducts({
 	}) => void;
 }) {
 	const deferredSearchValue = useDeferredValue(searchValue.trim());
-	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+	const { data, error, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
 		api.api.app.recentProducts.useInfiniteQuery(
 			{
 				limit: 50,
@@ -255,6 +255,7 @@ export function RecentProducts({
 		<>
 			<RecentProductsTableView
 				table={table}
+				errorMessage={error ? describeProductsError(error.data?.code) : null}
 				colgroupColumns={colgroupColumns}
 				columnsCount={columns.length}
 				selectedHistoryKey={selectedHistoryKey}
@@ -278,6 +279,26 @@ export function RecentProducts({
 			/>
 		</>
 	);
+}
+
+/**
+ * A failed read is not an empty catalog. Reporting "No products scanned yet"
+ * for a 401 sent people looking for missing data that was there all along, so
+ * the reason the server gave is what the table says. Called only when the query
+ * actually failed: a transport failure carries no `data`, and falling back to
+ * the empty state there would reintroduce exactly the lie this removes.
+ */
+function describeProductsError(code: string | undefined): string {
+	if (code === "UNAUTHORIZED") {
+		return "Not authorized to load products — the server rejected this session.";
+	}
+	if (code === "FORBIDDEN") {
+		return "RankWrangler access is not granted for this account.";
+	}
+	if (code === "SERVICE_UNAVAILABLE") {
+		return "Access checks are temporarily unavailable. Retry shortly.";
+	}
+	return "Failed to load products.";
 }
 
 export type { FilterState } from "@/components/dashboard/recent-products/types";

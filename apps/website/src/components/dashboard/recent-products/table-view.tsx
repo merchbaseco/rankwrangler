@@ -23,6 +23,7 @@ export const RecentProductsTableView = ({
 	isFetchingNextPage,
 	loadMoreRef,
 	emptyMessage = "No products scanned yet. Search an ASIN above.",
+	errorMessage = null,
 	onRowMouseEnter,
 	onRowMouseMove,
 	onRowMouseLeave,
@@ -35,6 +36,7 @@ export const RecentProductsTableView = ({
 	isFetchingNextPage: boolean;
 	loadMoreRef: React.RefObject<HTMLDivElement | null>;
 	emptyMessage?: string;
+	errorMessage?: string | null;
 	onRowMouseEnter: (args: ProductRowMouseEnter) => void;
 	onRowMouseMove: (args: ProductRowMouseMove) => void;
 	onRowMouseLeave: () => void;
@@ -49,6 +51,16 @@ export const RecentProductsTableView = ({
 		header={<SortableTableHeader table={table} />}
 	>
 		<TableBody>
+			{errorMessage ? (
+				<TableRow>
+					<TableCell
+						className="text-destructive h-24 text-center"
+						colSpan={columnsCount}
+					>
+						{errorMessage}
+					</TableCell>
+				</TableRow>
+			) : null}
 			{table.getRowModel().rows.length ? (
 				table.getRowModel().rows.map((row) => {
 					const rowKey = `${row.original.marketplaceId}:${row.original.asin}`;
@@ -99,7 +111,7 @@ export const RecentProductsTableView = ({
 						</TableRow>
 					);
 				})
-			) : (
+			) : errorMessage ? null : (
 				<TableRow>
 					<TableCell
 						className="text-muted-foreground h-24 text-center"

@@ -7,10 +7,12 @@ const t = initTRPC.context<Context>().create();
 export const router = t.router;
 export const publicProcedure = t.procedure;
 
-export const apiProcedure = t.procedure.use(({ ctx, next }) => {
+export const apiProcedure = t.procedure.use(({ ctx, next, path }) => {
     if (!ctx.user) {
+        const code = mapAccessErrorCode(ctx.accessError);
+        logAppAuthFailure(path, code, ctx.accessError);
         throw new TRPCError({
-            code: mapAccessErrorCode(ctx.accessError),
+            code,
             message: accessErrorMessage(ctx.accessError),
         });
     }
@@ -33,8 +35,9 @@ export const publicApiProcedure = t.procedure.use(({ ctx, next }) => {
     return next({ ctx });
 });
 
-export const appProcedure = apiProcedure.use(({ ctx, next }) => {
+export const appProcedure = apiProcedure.use(({ ctx, next, path }) => {
     if (ctx.authType !== 'access' || ctx.credentialKind !== 'session') {
+        logAppAuthFailure(path, 'UNAUTHORIZED', ctx.accessError);
         throw new TRPCError({
             code: 'UNAUTHORIZED',
             message: 'Clerk session authentication required',
@@ -54,6 +57,20 @@ export const adminProcedure = appProcedure.use(({ ctx, next }) => {
 
     return next({ ctx });
 });
+
+/**
+ * Fastify runs with `logger: false`, so an `api.app.*` request rejected at the
+ * boundary left no trace at all on the server and the browser only saw an empty
+ * table. One line, and only the two things that identify the failure: nothing
+ * from the credential, the headers, or the request body is reachable from here.
+ */
+const logAppAuthFailure = (
+    path: string,
+    code: 'FORBIDDEN' | 'SERVICE_UNAVAILABLE' | 'UNAUTHORIZED',
+    accessError: ServiceAccessErrorCode | null
+) => {
+    console.warn(`[Auth] ${code} ${path}${accessError ? ` (access: ${accessError})` : ''}`);
+};
 
 const accessErrorMessage = (error: ServiceAccessErrorCode | null) => {
     switch (error) {
