@@ -2,6 +2,7 @@ export interface StartupSummaryInput {
     authSummary: string;
     catalogSearchOperations: string;
     databaseConnected: boolean;
+    devClerkSignInStatus: string;
     disableServerJobRunner: boolean;
     jobRunnerStatus: string;
     jobStartupSummary: string[];
@@ -70,8 +71,32 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
     console.log(`  • Hosted MCP: ${input.mcpStatus}`);
     console.log(`  • Realtime: tRPC WebSocket (${input.realtimePath}, Clerk app)`);
     console.log(`  • Auth: ${input.authSummary}`);
-    const devClerkSignInStatus = 'Configured';
-    console.log(`  • Dev Clerk Sign-In Token: ${devClerkSignInStatus}`);
+    console.log(`  • Dev Clerk Sign-In Token: ${input.devClerkSignInStatus}`);
     console.log('═══════════════════════════════════════════════════════════════');
     console.log('');
+};
+
+/**
+ * What the dev sign-in flow will actually do, rather than what it is meant to.
+ *
+ * `api.dev.createClerkSignInToken` refuses in production and refuses without a
+ * configured user, so a line that always read "Configured" was wrong in exactly
+ * the two cases where the reader needed to know. The user id is an opaque
+ * development-instance identifier, not a credential, so it is printed; the
+ * ticket the procedure mints never is.
+ */
+export const describeDevClerkSignInStatus = ({
+    devSignInUserId,
+    isProduction,
+}: {
+    devSignInUserId: string | undefined;
+    isProduction: boolean;
+}) => {
+    if (isProduction) {
+        return 'Disabled (production)';
+    }
+    if (!devSignInUserId) {
+        return 'Disabled (RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID not set)';
+    }
+    return `Configured (${devSignInUserId})`;
 };

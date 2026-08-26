@@ -8,6 +8,7 @@ import { createContext } from '@/api/context.js';
 import { appRouter } from '@/api/router.js';
 import { registerTrpcWebsocketServer, TRPC_WEBSOCKET_PATH } from '@/api/trpc-websocket-server';
 import { createCorsOriginHandler } from '@/config/cors-origin';
+import { buildDatabaseUrl } from '@/config/database-url';
 import { env } from '@/config/env.js';
 import {
     getProductHistoryOperationsStatus,
@@ -45,7 +46,7 @@ import {
     registerSpApiSyncQueueWakeups,
     sendProcessSpApiSyncQueueJob,
 } from '@/services/spapi-sync-queue.js';
-import { printStartupSummary } from '@/services/startup-summary';
+import { describeDevClerkSignInStatus, printStartupSummary } from '@/services/startup-summary';
 import {
     getTopSearchTermsFetchStaleActiveJobCutoff,
     registerTopSearchTermsJobWakeups,
@@ -105,14 +106,7 @@ if (shouldBootstrapAccessProjection) {
     process.exit(0);
 }
 
-const databaseUser = env.RANKWRANGLER_DATABASE_USER || 'rankwrangler';
-const databasePassword = env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123';
-const databaseHost = env.RANKWRANGLER_DATABASE_HOST || 'postgres';
-const databasePort = env.RANKWRANGLER_DATABASE_PORT || 5432;
-const databaseName = env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler';
-const databaseUrl =
-    `postgresql://${databaseUser}:${databasePassword}` +
-    `@${databaseHost}:${databasePort}/${databaseName}`;
+const databaseUrl = buildDatabaseUrl();
 const serverRuntimeFlags = getServerRuntimeFlags({
     disableServerJobRunner: env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER,
 });
@@ -270,6 +264,10 @@ try {
             ? `Enabled (${recoveredCatalogSearchOperationsCount} recovered at startup)`
             : 'Disabled at runtime (job runner disabled)',
         databaseConnected: true,
+        devClerkSignInStatus: describeDevClerkSignInStatus({
+            devSignInUserId: env.RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID,
+            isProduction: process.env.NODE_ENV === 'production',
+        }),
         disableServerJobRunner: env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER,
         jobRunnerStatus: serverRuntimeFlags.jobRunnerStatus,
         jobStartupSummary: jobsRuntime.startupSummary,
