@@ -74,7 +74,7 @@ if ! bunx varlock run -- bun run --filter @rankwrangler/server database:seed:dev
     echo "[start] WARNING: development seed failed; continuing with an unseeded database." >&2
 fi
 
-# Fleet agents. $root is the product checkout; seed-cloud.sh links skills
+# Fleet agents. $root is the product checkout; setup.sh links skills
 # and global AGENTS.md/CLAUDE.md. Best-effort: failure must not stop servers.
 root="$REPO_ROOT"
 # Fleet agents. Fetch on every boot so a reused snapshot cannot pin a stale copy.
@@ -86,7 +86,7 @@ if [ -n "${CURSOR_CLOUD_AGENTS_GH_READ_TOKEN:-}" ]; then
       | tar -xz -C "$agents_tmp"; then
     agents_src=""
     for agents_candidate in "$agents_tmp"/*; do
-      if [ -f "$agents_candidate/cursor/seed-cloud.sh" ]; then
+      if [ -f "$agents_candidate/cursor/setup.sh" ]; then
         agents_src="$agents_candidate"
         break
       fi
@@ -95,13 +95,18 @@ if [ -n "${CURSOR_CLOUD_AGENTS_GH_READ_TOKEN:-}" ]; then
       rm -rf "$HOME/.agents/upstream"
       mkdir -p "$HOME/.agents"
       mv "$agents_src" "$HOME/.agents/upstream"
-      if bash "$HOME/.agents/upstream/cursor/seed-cloud.sh" --repo-root "$root"; then
+      if bash "$HOME/.agents/upstream/cursor/setup.sh" \
+        --skills "$HOME/.agents/skills" \
+        --rules "$HOME/.cursor/rules" \
+        --plugin-local "$HOME/.cursor/plugins/local" &&
+        bash "$HOME/.agents/upstream/cursor/setup.sh" \
+          --skills "$root/.agents/skills"; then
         echo "[start] Seeded fleet agents from zknicker/agents."
       else
-        echo "[start] Skipping fleet agents (seed-cloud.sh failed)." >&2
+        echo "[start] Skipping fleet agents (setup.sh failed)." >&2
       fi
     else
-      echo "[start] Skipping fleet agents (seed-cloud.sh missing)." >&2
+      echo "[start] Skipping fleet agents (setup.sh missing)." >&2
     fi
   else
     echo "[start] Skipping fleet agents (tarball fetch failed)." >&2
