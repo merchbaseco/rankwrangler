@@ -74,6 +74,48 @@ if ! bunx varlock run -- bun run --filter @rankwrangler/server database:seed:dev
     echo "[start] WARNING: development seed failed; continuing with an unseeded database." >&2
 fi
 
+# Fleet agents. $root is the product checkout; setup.sh links skills
+# and global AGENTS.md/CLAUDE.md. Best-effort: failure must not stop servers.
+root="$REPO_ROOT"
+# Fleet agents. Fetch on every boot so a reused snapshot cannot pin a stale copy.
+if [ -n "${CURSOR_CLOUD_AGENTS_GH_READ_TOKEN:-}" ]; then
+  agents_tmp="$(mktemp -d)" || agents_tmp=""
+  if [ -n "$agents_tmp" ] &&
+    curl -fsSL -H "Authorization: Bearer $CURSOR_CLOUD_AGENTS_GH_READ_TOKEN" \
+      https://api.github.com/repos/zknicker/agents/tarball/main \
+      | tar -xz -C "$agents_tmp"; then
+    agents_src=""
+    for agents_candidate in "$agents_tmp"/*; do
+      if [ -f "$agents_candidate/cursor/setup.sh" ]; then
+        agents_src="$agents_candidate"
+        break
+      fi
+    done
+    if [ -n "$agents_src" ]; then
+      rm -rf "$HOME/.agents/upstream"
+      mkdir -p "$HOME/.agents"
+      mv "$agents_src" "$HOME/.agents/upstream"
+      if bash "$HOME/.agents/upstream/cursor/setup.sh" \
+        --skills "$HOME/.agents/skills" \
+        --rules "$HOME/.cursor/rules" \
+        --plugin-local "$HOME/.cursor/plugins/local" &&
+        bash "$HOME/.agents/upstream/cursor/setup.sh" \
+          --skills "$root/.agents/skills"; then
+        echo "[start] Seeded fleet agents from zknicker/agents."
+      else
+        echo "[start] Skipping fleet agents (setup.sh failed)." >&2
+      fi
+    else
+      echo "[start] Skipping fleet agents (setup.sh missing)." >&2
+    fi
+  else
+    echo "[start] Skipping fleet agents (tarball fetch failed)." >&2
+  fi
+  rm -rf "$agents_tmp" || true
+else
+  echo "[start] Skipping fleet agents (no read token)." >&2
+fi
+
 # Cursor forwards a session's ports by watching the VM for listening sockets,
 # and a loopback-only bind is invisible to that watcher, so the agent's browser
 # could never reach Vite. RANKWRANGLER_DEV_HOST is the repository's neutral
