@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { resolveProductDetails, resolveProducts } from './product-retrieval-work';
+import { resolveProductDetails } from './product-retrieval-work';
 
 describe('Product detail work', () => {
     it('groups identities by marketplace and keeps SP-API batches at 20 products', async () => {
@@ -40,15 +40,14 @@ describe('Product detail work', () => {
         const ensureProductIdentities = mock(() => Promise.resolve(1));
         const persistProductSyncResults = mock(() => Promise.resolve(undefined));
         const deleteSpApiSyncQueueItemsForIdentities = mock(() => Promise.resolve(undefined));
+        const deps = {
+            ensureProductIdentities,
+            searchCatalogItemsByAsins: mock(() => Promise.reject(new Error('SP-API rejected'))),
+            persistProductSyncResults,
+            deleteSpApiSyncQueueItemsForIdentities,
+        };
 
-        await expect(
-            resolveProducts([identity], {
-                ensureProductIdentities,
-                searchCatalogItemsByAsins: mock(() => Promise.reject(new Error('SP-API rejected'))),
-                persistProductSyncResults,
-                deleteSpApiSyncQueueItemsForIdentities,
-            } as never)
-        ).rejects.toThrow('SP-API rejected');
+        await expect(resolveProductDetails([identity], deps)).rejects.toThrow('SP-API rejected');
 
         expect(ensureProductIdentities).not.toHaveBeenCalled();
         expect(persistProductSyncResults).not.toHaveBeenCalled();
