@@ -34,6 +34,25 @@ describe('Product detail work', () => {
         }
         expect(persistProductSyncResults.mock.calls).toHaveLength(4);
     });
+
+    it('leaves Product state and durable queue work untouched when SP-API rejects', async () => {
+        const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' };
+        const ensureProductIdentities = mock(() => Promise.resolve(1));
+        const persistProductSyncResults = mock(() => Promise.resolve(undefined));
+        const deleteSpApiSyncQueueItemsForIdentities = mock(() => Promise.resolve(undefined));
+        const deps = {
+            ensureProductIdentities,
+            searchCatalogItemsByAsins: mock(() => Promise.reject(new Error('SP-API rejected'))),
+            persistProductSyncResults,
+            deleteSpApiSyncQueueItemsForIdentities,
+        };
+
+        await expect(resolveProductDetails([identity], deps)).rejects.toThrow('SP-API rejected');
+
+        expect(ensureProductIdentities).not.toHaveBeenCalled();
+        expect(persistProductSyncResults).not.toHaveBeenCalled();
+        expect(deleteSpApiSyncQueueItemsForIdentities).not.toHaveBeenCalled();
+    });
 });
 
 const createAsin = (index: number) => `B${String(index).padStart(9, '0')}`;
