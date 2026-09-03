@@ -9,7 +9,6 @@ import {
 } from './retrieval-coordinator';
 
 export interface ProductDetailWorkDeps {
-    ensureProductIdentities?: ProductRetrievalDeps['ensureProductIdentities'];
     searchCatalogItemsByAsins: ProductRetrievalDeps['searchCatalogItemsByAsins'];
     persistProductSyncResults: ProductRetrievalDeps['persistProductSyncResults'];
     deleteSpApiSyncQueueItemsForIdentities?: ProductRetrievalDeps['deleteSpApiSyncQueueItemsForIdentities'];
@@ -135,7 +134,6 @@ const runProductBatch = async (
     deps: ProductDetailWorkDeps
 ): Promise<ProductDetailWorkResult> => {
     try {
-        await deps.ensureProductIdentities?.(identities);
         const products = await deps.searchCatalogItemsByAsins(
             identities[0]?.marketplaceId ?? '',
             identities.map(identity => identity.asin)
