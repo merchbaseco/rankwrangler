@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { resolveProductDetails } from './product-retrieval-work';
+import { resolveProductDetails, resolveProducts } from './product-retrieval-work';
 
 describe('Product detail work', () => {
     it('groups identities by marketplace and keeps SP-API batches at 20 products', async () => {
@@ -33,6 +33,26 @@ describe('Product detail work', () => {
             expect(marketplaceId).toBe(expectedMarketplace);
         }
         expect(persistProductSyncResults.mock.calls).toHaveLength(4);
+    });
+
+    it('leaves Product state and durable queue work untouched when SP-API rejects', async () => {
+        const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' };
+        const ensureProductIdentities = mock(() => Promise.resolve(1));
+        const persistProductSyncResults = mock(() => Promise.resolve(undefined));
+        const deleteSpApiSyncQueueItemsForIdentities = mock(() => Promise.resolve(undefined));
+
+        await expect(
+            resolveProducts([identity], {
+                ensureProductIdentities,
+                searchCatalogItemsByAsins: mock(() => Promise.reject(new Error('SP-API rejected'))),
+                persistProductSyncResults,
+                deleteSpApiSyncQueueItemsForIdentities,
+            } as never)
+        ).rejects.toThrow('SP-API rejected');
+
+        expect(ensureProductIdentities).not.toHaveBeenCalled();
+        expect(persistProductSyncResults).not.toHaveBeenCalled();
+        expect(deleteSpApiSyncQueueItemsForIdentities).not.toHaveBeenCalled();
     });
 });
 
