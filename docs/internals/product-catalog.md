@@ -64,10 +64,13 @@ Single public Product get defaults to `include: ['marketData']`, retaining its e
 freshness check and automatic background Keepa policy. Passing `include: []` skips that on-demand
 Keepa check. It does not alter the scheduled Keepa queue or 24-hour successful-fetch guard.
 The same get can opt into `listing.shortName`. For a known Merch listing with an
-available image, Gemini 3.1 Flash-Lite observes the printed design at low image resolution, then
-Jev selects one exact title span or abstains. The generation runs in the read request after listing
-resolution and overlaps the Keepa history wait when both are requested. A sparse Product short-name
-row stores the name or valid abstention, source fingerprint, and generation state only after opt-in.
+available image, Gemini 3.1 Flash-Lite observes the printed words and distinctive pictured motifs
+at low image resolution. Jev selects a word-for-word title span that identifies the design, or
+abstains; display capitalization may be normalized. Common occasion phrases include a pictured
+motif when that context distinguishes the design. The generation runs in the read request after
+listing resolution and overlaps the Keepa history wait when both are requested. A sparse Product
+short-name row stores the name or valid abstention, source fingerprint, and generation state only
+after opt-in.
 Cross-process claims prevent duplicate generation; an expired pending claim can be retried on the
 next request. The fingerprint includes title, image URL, and generator version, so unchanged names
 have no time-based refresh while changed inputs regenerate. Settings compares fingerprints with the

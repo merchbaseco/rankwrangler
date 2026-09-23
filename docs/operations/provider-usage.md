@@ -29,6 +29,11 @@ Keepa provenance, last attempt and success, source observation time, supplied da
 the latest error or retry. Public Product reads remain provider-neutral and never use this metadata
 as a caller-managed freshness protocol.
 
+After changing short-name prompts, run `bun run --filter @rankwrangler/server test:short-name-live`
+with Development Varlock credentials. It calls Gemini and Jev for the eight labeled designs in
+`apps/server/test/fixtures/product-short-name-examples.json` without writing Product or telemetry
+rows. The output compares each name with its expected chip label.
+
 For incident diagnosis, `api.app.providerTelemetry.get` returns a typed admin-only view of raw
 physical Keepa, SP-API, Gemini, and TypeSafe attempts. It defaults to 24 hours, accepts at most seven days, and returns
 totals, provider/operation/outcome breakdowns, and at most 100 recent attempts. Provider and

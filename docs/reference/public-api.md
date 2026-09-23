@@ -113,9 +113,10 @@ measurements as `null`; `product.history` remains the separate parameterized his
 The default preserves existing single-Product behavior. `listing.shortName` is `null` unless the
 caller includes `shortName` and the Product is a known Merch listing with an available image.
 Requested reads inspect the printed design with Gemini 3.1 Flash-Lite,
-then use Jev to select an exact span from the listing title. A design can still yield `null` when
-no title span is supported by the image. The full Product remains in the same response for detail
-views; `getMany`, search, and history do not perform this image analysis. A requested short name is
+then use Jev to select a word-for-word span from the listing title with display capitalization.
+The name includes pictured context when the printed words alone are generic. A design can still
+yield `null` when no title span is supported by the image. The full Product remains in the same
+response for detail views; `getMany`, search, and history do not perform this image analysis. A requested short name is
 stored per Product and reused while its title, image URL, and generator version are unchanged.
 
 ## Basic Products

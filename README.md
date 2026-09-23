@@ -71,7 +71,7 @@ per-ASIN SP-API Product synchronization.
 
 Single-Product `get` accepts `include: ['marketData', 'shortName']`. Its default includes
 `marketData`, preserving the existing Keepa-backed current Product read. Clients can omit it for a
-listing-only read or add `shortName` for a compact label alongside the full Product. Only requested
+listing-only read or add `shortName` for a design-specific label alongside the full Product. Only requested
 short names are stored; unchanged title and image inputs reuse the durable result. Batch reads and
 the extension do not trigger image analysis.
 
