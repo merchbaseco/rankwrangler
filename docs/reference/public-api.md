@@ -60,8 +60,9 @@ There is no public Catalog, Operation, polling, or provider-health namespace.
 
 ## Product
 
-`product.get` accepts only `marketplaceId` and a ten-character alphanumeric `asin`, normalized to
-uppercase. It returns one Product rather than a summary/history composite:
+`product.get` accepts `marketplaceId`, a ten-character alphanumeric `asin` normalized to uppercase,
+and optional `include: Array<'marketData' | 'shortName'>` (default `['marketData']`). It returns one Product rather than a
+summary/history composite:
 
 ```ts
 type Product = {
@@ -69,6 +70,7 @@ type Product = {
     asin: string;
     listing: {
         title: string | null;
+        shortName: string | null;
         brand: string | null;
         firstAvailableAt: string | null;
         bulletPoints: string[];
@@ -104,6 +106,17 @@ measurements, `null` means valid data is unavailable. It never means zero, failu
 `isMerchListing` is RankWrangler classification from bullet evidence supplied through either source;
 `null` means the Product has not been classified from available evidence. A Sales-rank drop is an
 observed numeric BSR improvement, not a confirmed sale.
+
+`marketData` checks current Keepa-backed rank, price, and demand data under the existing retrieval
+policy. Omitting it skips that Keepa history check and returns nullable rank, price, and demand
+measurements as `null`; `product.history` remains the separate parameterized history-series read.
+The default preserves existing single-Product behavior. `listing.shortName` is `null` unless the
+caller includes `shortName` and the Product is a known Merch listing with an available image.
+Requested reads inspect the printed design with Gemini 3.1 Flash-Lite,
+then use Jev to select an exact span from the listing title. A design can still yield `null` when
+no title span is supported by the image. The full Product remains in the same response for detail
+views; `getMany`, search, and history do not perform this image analysis. A requested short name is
+stored per Product and reused while its title, image URL, and generator version are unchanged.
 
 ## Basic Products
 

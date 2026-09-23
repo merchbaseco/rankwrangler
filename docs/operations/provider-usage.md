@@ -16,6 +16,7 @@ only to authorized admins in dashboard settings.
 | SP-API | Request/error health, refresh-policy coverage, and recent sync jobs. |
 | Top Search Terms | Dataset availability, pending/fetching/failed windows, and ingestion jobs. |
 | Facets | Classification throughput, cost/usage summaries, and assigned-value distribution. |
+| Short Names | Eligible/ready/needs-regeneration/pending/failed coverage, hourly generation outcomes, and Gemini/Jev request and error counts. |
 
 Loading, empty, and failed states belong to each panel. A missing metric does not by itself mean
 the provider is down; corroborate it with the activity log and job execution records.
@@ -29,7 +30,7 @@ the latest error or retry. Public Product reads remain provider-neutral and neve
 as a caller-managed freshness protocol.
 
 For incident diagnosis, `api.app.providerTelemetry.get` returns a typed admin-only view of raw
-physical Keepa and SP-API attempts. It defaults to 24 hours, accepts at most seven days, and returns
+physical Keepa, SP-API, Gemini, and TypeSafe attempts. It defaults to 24 hours, accepts at most seven days, and returns
 totals, provider/operation/outcome breakdowns, and at most 100 recent attempts. Provider and
 operation filters use fixed code-owned names; payloads, URLs, headers, error text, and business
 correlation are never stored. A daily bounded job deletes attempts older than seven days.

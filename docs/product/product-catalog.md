@@ -45,6 +45,12 @@ Agents use the public API, typed client, or CLI to read a Product by marketplace
 cached Product returns immediately. Missing or policy-expired Product data starts or joins durable
 work and waits; the public response is one current Product or a retryable error.
 
+Clients that display compact labels can request `include: ['marketData', 'shortName']` on a single public Product get.
+For known Merch listings with an available image, RankWrangler inspects the printed design and
+selects a supported span from the listing title. The nullable name travels beside the full Product,
+so clients can use it for a chip and show Product details on hover. The default single Product get
+still waits for current market data; the basic batch does not request market data or image analysis.
+
 Integrations that only need listing labels use the public basic Product batch. It accepts up to 200
 unique marketplace/ASIN pairs, preserves request order, and returns fixed-shape identity, title,
 thumbnail, and Amazon listing status. A deleted listing retains last-known Product values. Every

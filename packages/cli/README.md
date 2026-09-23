@@ -7,6 +7,7 @@ npm install -g @rankwrangler/cli
 
 rw auth set ak_...
 rw product get B0DV53VS61
+rw product get B0DV53VS61 --shortName
 rw product search "retro gardening shirt"
 rw product history B0DV53VS61 --bucket week
 rw keyword get "retro gardening shirt"
@@ -20,5 +21,7 @@ data and expose no refresh control; Product search retains its separate search c
 data contains `keyword`, `searchedAt`, and compact results with `organicSearchPlacement`. Output is
 a JSON `{ ok, data }` envelope; failures use `{ ok: false, error }` on stderr.
 The CLI does not expose Catalog, Operation, provider status, or polling commands.
+`--shortName` is available for a single Product get. It adds a nullable image-informed
+`listing.shortName` to the full Product response.
 
 See the [CLI reference](../../docs/reference/cli.md) for options and release workflow.

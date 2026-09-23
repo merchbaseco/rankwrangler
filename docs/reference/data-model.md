@@ -12,6 +12,7 @@ listing-resolution timestamp and nullable `products.is_merch_listing`. Generated
 `0034_flowery_winter_soldier.sql` adds short-lived Provider attempts. Generated migration
 `0035_numerous_william_stryker.sql` replaces the Product availability boolean with canonical
 `active | deleted` Amazon listing status. Apply these migrations before deploying dependent code.
+Generated migration `0036_melodic_jack_flag.sql` adds the sparse Product short-name table.
 
 ## Canonical identity
 
@@ -27,6 +28,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | State | Identity | Purpose |
 | --- | --- | --- |
 | Product | `(marketplaceId, asin)` | Current listing fields plus latest SP-API and Keepa observations. |
+| Product short name | `(marketplaceId, asin)` when requested | Nullable generated name, source fingerprint, and claim state; no row for never-requested Products. |
 | Product facet value | `(facet, name)` | Reusable normalized classification value. |
 | Product facet assignment | `(productId, facetValueId)` | Current product-to-facet membership. |
 | History import | generated id | One Keepa import attempt, request context, provider accounting, and outcome. |
@@ -41,7 +43,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Search result | `(runId, productId)` | Immutable Search-run membership, Product ordinal, and observed metrics. |
 | Activity event | generated id | Searchable record of a product, history, job, or system action. |
 | Job execution | generated id | One completed background-job run with input, output, and error state. |
-| Provider attempt | generated id | One physical Keepa or SP-API request with typed operation, attempt time, status/error, and latency; retained for seven days. |
+| Provider attempt | generated id | One physical Keepa, SP-API, Gemini, or TypeSafe request with typed operation, attempt time, status/error, and latency; retained for seven days. |
 | Access Projection | `(issuer, subject)` | Local Clerk identity projection, access state, stable Merchbase User, source watermark, and tombstone. |
 | Service Account | fixed `rankwrangler` service plus stable Merchbase User | One mapped principal with lifetime/daily usage, limit, and reset state. |
 
@@ -55,6 +57,8 @@ The active schema is split by responsibility:
   job execution records.
 - [`provider-telemetry-schema.ts`](../../apps/server/src/db/provider-telemetry-schema.ts) owns
   short-lived raw Provider attempts.
+- [`product-short-name-schema.ts`](../../apps/server/src/db/product-short-name-schema.ts) owns
+  sparse, requested short-name state.
 
 ## Operations
 

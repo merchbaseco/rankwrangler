@@ -26,9 +26,11 @@ without `/mcp`. Other website paths are not MCP routes.
 | `rankwrangler_product` | `operation: get \| getMany \| search \| history` | Product data or a standard error. |
 | `rankwrangler_keyword` | `operation: get \| search \| history` | Keyword data or a standard error. |
 
-`rankwrangler_product` uses `asin` and `marketplaceId` for `get`; `getMany` accepts `products` with
-1–200 unique `{ asin, marketplaceId }` pairs and returns a fixed-shape basic Product array. Every
-result includes identity, nullable title, resolved thumbnail, and
+`rankwrangler_product` uses `asin` and `marketplaceId` for `get`. It may also set
+`include: ['marketData', 'shortName']` to request a nullable image-informed `listing.shortName` in the full
+Product response. The default is `['marketData']`. `getMany` accepts `products` with 1–200 unique
+`{ asin, marketplaceId }` pairs and returns a fixed-shape basic Product array without short names.
+Every basic result includes identity, nullable title, resolved thumbnail, and
 `amazonListingStatus: active | deleted`. Active means the Amazon detail-page listing exists; it does
 not promise that an offer is in stock or buyable. Deleted means Amazon has effectively removed the
 listing from that marketplace. RankWrangler confirms deletion when a successful Amazon Catalog

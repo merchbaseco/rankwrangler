@@ -60,6 +60,24 @@ policy-expired required data waits through the shared coordinator without creati
 Operation. Public responses omit source timestamps, freshness, status, and pending availability;
 temporary provider failure or deadline exhaustion uses the shared retryable error.
 
+Single public Product get defaults to `include: ['marketData']`, retaining its existing Keepa
+freshness check and automatic background Keepa policy. Passing `include: []` skips that on-demand
+Keepa check. It does not alter the scheduled Keepa queue or 24-hour successful-fetch guard.
+The same get can opt into `listing.shortName`. For a known Merch listing with an
+available image, Gemini 3.1 Flash-Lite observes the printed design at low image resolution, then
+Jev selects one exact title span or abstains. The generation runs in the read request after listing
+resolution and overlaps the Keepa history wait when both are requested. A sparse Product short-name
+row stores the name or valid abstention, source fingerprint, and generation state only after opt-in.
+Cross-process claims prevent duplicate generation; an expired pending claim can be retried on the
+next request. The fingerprint includes title, image URL, and generator version, so unchanged names
+have no time-based refresh while changed inputs regenerate. Settings compares fingerprints with the
+current title and image to count Products needing regeneration. Generation events and physical Gemini
+and TypeSafe attempts feed the admin Settings metrics page. Other Product read paths do not invoke
+these providers.
+Opted-in reads require `RANKWRANGLER_GEMINI_API_KEY` and `RANKWRANGLER_TYPESAFE_API_KEY`.
+The TypeSafe key must be provisioned as a RankWrangler-owned credential in each active lifecycle
+before clients use the opt-in; missing credentials fail the opted-in request.
+
 `listing.bulletPoints` is always an array, with `[]` for no bullets. `salesRank` contains `current`
 and `averages.last30Days`/`averages.last90Days`; demand drop windows use `last30Days`, `last90Days`,
 `last180Days`, and `last365Days`.

@@ -57,6 +57,7 @@ Product history options:
 
 ```bash
 rw product get B0DV53VS61
+rw product get B0DV53VS61 --shortName
 rw product get B0DV53VS61 B012345678
 rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 ```
@@ -69,10 +70,13 @@ Amazon has effectively removed the listing from that marketplace. Retained title
 values are last-known data; an unavailable thumbnail alone means no usable image. Every ASIN uses
 the marketplace resolved from `--marketplace`, saved
 configuration, or the normal US default.
+For one ASIN, `--shortName` requests an image-informed `listing.shortName` while retaining the full
+Product response. It is nullable and applies only to known Merch listings with available images.
 
 | Option | Values and default |
 | --- | --- |
 | `--metrics <list>` | `salesRank,price`; default both; Product history only. |
+| `--shortName` | Include an image-informed short name; single Product get only. |
 | `--bucket <unit>` | `auto`, `day`, `week`, `month`; default `auto`. |
 | `--days <N>` | 30–3650; default 365. Cannot combine with explicit range bounds. |
 | `--rangeDays <N>` | Keyword history range, 7–365; default 90. |

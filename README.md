@@ -48,6 +48,7 @@ Install the CLI:
 npm install -g @rankwrangler/cli
 rw auth set
 rw product get B0XXXXXXXX
+rw product get B0XXXXXXXX --shortName
 rw product get B0XXXXXXXX B0YYYYYYYY
 rw product search "retro gardening shirt"
 rw product history B0XXXXXXXX --metrics salesRank,price --bucket auto
@@ -67,6 +68,12 @@ data or returns a provider-neutral retryable error with a hint. Public callers n
 Operation identifiers or polling state. The dashboard retains its app-specific workflow and
 Clerk-authenticated completion subscriptions for internal Product history, Catalog search, and
 per-ASIN SP-API Product synchronization.
+
+Single-Product `get` accepts `include: ['marketData', 'shortName']`. Its default includes
+`marketData`, preserving the existing Keepa-backed current Product read. Clients can omit it for a
+listing-only read or add `shortName` for a compact label alongside the full Product. Only requested
+short names are stored; unchanged title and image inputs reuse the durable result. Batch reads and
+the extension do not trigger image analysis.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.
