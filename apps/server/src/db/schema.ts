@@ -215,6 +215,7 @@ export {
     operations,
 } from './ops-schema';
 export { products } from './product-schema';
+export { productShortNames } from './product-short-name-schema';
 export { providerAttempts } from './provider-telemetry-schema';
 export { rankwranglerServiceAccounts } from './service-account-schema';
 export {

@@ -48,7 +48,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- (includes source-aware SP-API/Keepa freshness, Keepa metrics, and nullable
 -- products.is_merch_listing; NULL means classification knowledge is unavailable, and
 -- products.amazon_listing_status records whether the Amazon listing is active or deleted),
--- product_facet_values, product_facets,
+-- product_short_names, product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
 -- product_history_points, keepa_categories, top_search_terms_datasets,
 -- top_search_terms_snapshots, top_search_terms_keyword_daily,

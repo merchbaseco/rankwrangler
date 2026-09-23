@@ -56,6 +56,7 @@ services:
       RANKWRANGLER_ADMIN_MERCHBASE_USER_ID: ${RANKWRANGLER_ADMIN_MERCHBASE_USER_ID}
       RANKWRANGLER_KEEPA_API_KEY: ${RANKWRANGLER_KEEPA_API_KEY}
       RANKWRANGLER_GEMINI_API_KEY: ${RANKWRANGLER_GEMINI_API_KEY}
+      RANKWRANGLER_TYPESAFE_API_KEY: ${RANKWRANGLER_TYPESAFE_API_KEY}
       # Development-only; resolves empty in production, which disables the
       # local sign-in helper. Delivered explicitly so the contract check has
       # no exemptions.
