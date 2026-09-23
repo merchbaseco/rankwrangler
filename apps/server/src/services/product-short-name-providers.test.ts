@@ -84,6 +84,7 @@ describe('Product short-name providers', () => {
         const fetcher = mock((_input: string | URL | Request, init?: RequestInit) => {
             const request = JSON.parse(String(init?.body));
             expect(request.state.printedText).toBe(observation.visibleText);
+            expect(request.state.observedDesignName).toBe(observation.shortDesignName);
             expect(Object.keys(request.questions.shortName.criteria)).toContain(
                 'Just Here for the Rolls'
             );
@@ -101,5 +102,31 @@ describe('Product short-name providers', () => {
                 capture: async (_descriptor, run) => await run(),
             })
         ).toBe('Just Here for the Rolls');
+    });
+
+    it('uses display capitalization after Jev selects an exact title span', async () => {
+        const observation = {
+            visibleText: 'SOMETIMES I TALK TO MYSELF THEN WE BOTH LAUGH',
+            visualMotifs: ['hearts'],
+            shortDesignName: 'Sometimes I Talk To Myself',
+            confidence: 'high' as const,
+        };
+        const fetcher = mock(async () =>
+            Response.json({
+                answers: {
+                    shortName: { type: 'choice', choice: 'Sometimes I talk to Myself' },
+                },
+            })
+        );
+
+        expect(
+            await chooseProductShortName({
+                title: 'Sometimes I talk to Myself and then we Both Laugh and Laugh T-Shirt',
+                observation,
+                candidates: ['Sometimes I talk to Myself', 'we Both Laugh and Laugh'],
+                fetcher,
+                capture: async (_descriptor, run) => await run(),
+            })
+        ).toBe('Sometimes I Talk to Myself');
     });
 });

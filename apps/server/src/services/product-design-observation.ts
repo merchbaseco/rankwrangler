@@ -18,7 +18,7 @@ const imageObservationSchema = z.object({
 export type ProductDesignObservation = z.infer<typeof imageObservationSchema>;
 
 const prompt =
-    'Inspect only the artwork printed on this garment. Return a compact JSON object with visibleText (exact transcription or null if unreadable), visualMotifs (short array), shortDesignName (the natural 1–7 word name for the visible design, or null if unclear), and confidence (high, medium, or low). Do not name the shirt, color, recipient, or product category. Do not guess words you cannot see. No listing title is provided.';
+    'Inspect only the artwork printed on this garment. Return a compact JSON object with visibleText (exact transcription or null if unreadable), visualMotifs (short array of specific recognizable objects and their arrangement), shortDesignName (the natural 1–7 word name for the visible design, or null if unclear), and confidence (high, medium, or low). Describe decorative elements precisely enough to distinguish this design from others with the same printed words; identify linked charms or bracelet-like strands when visible rather than calling them generic garlands. Do not name the shirt, color, recipient, or product category. Do not guess words or objects you cannot see. No listing title is provided.';
 
 export const observeProductDesign = async (
     thumbnailUrl: string,

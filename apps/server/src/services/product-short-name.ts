@@ -19,7 +19,7 @@ import { coordinateRetrieval, RetrievalRetryableError } from './retrieval-coordi
 const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 const JEV_TIMEOUT_MS = 8000;
 const CALLER_TIMEOUT_MS = 24_000;
-export const SHORT_NAME_GENERATOR_VERSION = 'gemini-3.1-flash-lite-low+jev-1.13.0:v1';
+export const SHORT_NAME_GENERATOR_VERSION = 'gemini-3.1-flash-lite-low+jev-1.13.0:v2';
 const POLL_MS = 250;
 const choiceSchema = z.object({
     answers: z.object({
@@ -104,12 +104,13 @@ export const chooseProductShortName = async ({
                         listingTitle: title,
                         printedText: observation.visibleText,
                         visualMotifs: observation.visualMotifs,
+                        observedDesignName: observation.shortDesignName,
                     },
                     questions: {
                         shortName: {
                             type: 'choice',
                             instructions:
-                                'Choose the shortest candidate that accurately names the visible printed design. `printedText` and `visualMotifs` are observations from the image. The listing title may contain SEO phrases or alternate slogans that are not on the design. When readable text is printed, favor its distinctive words over title-only marketing terms. Include a pictured motif only if needed to recognize the design. Select NONE if no candidate fits the image evidence.',
+                                'Choose the shortest candidate that uniquely identifies this design. A coined term, pun, or self-contained joke phrase in the printed text is distinctive by itself; do not append pictured motifs or marketing adjectives to one. A common occasion label is not distinctive by itself: include a pictured motif named in the title when that motif sets this artwork apart. Match visual synonyms, such as bead-and-charm strands supporting a title phrase about bracelets. `printedText`, `visualMotifs`, and `observedDesignName` are image observations; the listing title may contain SEO phrases or alternate slogans. For a longer printed joke, favor its opening standalone phrase when it names the design; do not choose an ending fragment merely because it is shorter. Treat `observedDesignName` as a useful clue, not as ground truth. Include title words beyond the visible design only when the image supports them. Select NONE if no candidate fits the image evidence.',
                             criteria: Object.fromEntries([
                                 ['NONE', 'No candidate accurately names the visible design.'],
                                 ...candidates.map(candidate => [candidate, null]),
@@ -132,7 +133,7 @@ export const chooseProductShortName = async ({
     if (!candidates.includes(selected)) {
         throw new Error('TypeSafe selected a Product short name outside the candidate set.');
     }
-    return selected;
+    return formatShortName(selected);
 };
 
 interface ShortNameRequest {
@@ -229,3 +230,29 @@ const generateClaimedShortName = async (
 
 const shortNameUnavailable = () =>
     new RetrievalRetryableError('Product short name is temporarily unavailable.');
+
+const LOWERCASE_CONNECTORS = new Set([
+    'and',
+    'at',
+    'by',
+    'for',
+    'from',
+    'in',
+    'of',
+    'on',
+    'or',
+    'the',
+    'to',
+    'with',
+]);
+
+const formatShortName = (name: string) =>
+    name.replace(/\p{L}[\p{L}\p{N}'’]*/gu, (word, offset: number) => {
+        if (
+            word !== word.toLowerCase() ||
+            (offset > 0 && LOWERCASE_CONNECTORS.has(word.toLowerCase()))
+        ) {
+            return word;
+        }
+        return word[0].toUpperCase() + word.slice(1);
+    });

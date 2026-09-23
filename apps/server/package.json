@@ -18,6 +18,7 @@
         "dev:jobs": "RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
         "start": "node dist/index.js",
         "test:catalog-db": "bash test/run-catalog-db-tests.sh",
+        "test:short-name-live": "varlock run -p ../../.env.schema -- bun src/scripts/evaluate-product-short-names.ts",
         "test:keepa-catalog-live": "varlock run -- tsx src/scripts/keepa-catalog-search-live.ts"
     },
     "dependencies": {
