@@ -279,6 +279,7 @@ export interface Product {
 	asin: string;
 	listing: {
 		title: string | null;
+		shortName: string | null;
 		brand: string | null;
 		firstAvailableAt: string | null;
 		bulletPoints: string[];
@@ -564,6 +565,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
+						include?: ("shortName" | "marketData")[] | undefined;
 					};
 					output: Product;
 					meta: object;
@@ -586,7 +588,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						days?: unknown;
 						endAt?: unknown;
 						limit?: unknown;
-						metrics?: ("price" | "salesRank")[] | undefined;
+						metrics?: ("salesRank" | "price")[] | undefined;
 						startAt?: unknown;
 					};
 					output: PublicProductHistory;

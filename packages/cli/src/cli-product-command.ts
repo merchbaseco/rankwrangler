@@ -24,6 +24,9 @@ export const runProductCommand = async (
     if (command.verb !== 'search' && options.refresh) {
         fail('INVALID_INPUT', '--refresh is only supported for product search');
     }
+    if (command.verb !== 'get' && options.shortName) {
+        fail('INVALID_INPUT', '--shortName is only supported for product get');
+    }
 
     if (command.verb === 'get') {
         return await runProductGet(command.args, client, config, options, fail);
@@ -49,11 +52,15 @@ const runProductGet = async (
 ) => {
     const marketplaceId = requireMarketplaceId(options, config);
     const asins = requireAsins(args, fail);
+    if (asins.length > 1 && options.shortName) {
+        fail('INVALID_INPUT', '--shortName requires exactly one ASIN');
+    }
 
     if (asins.length === 1) {
         return await client.product.get.mutate({
             marketplaceId,
             asin: asins[0],
+            ...(options.shortName ? { include: ['marketData', 'shortName'] as const } : {}),
         });
     }
 

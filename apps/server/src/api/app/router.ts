@@ -10,6 +10,7 @@ import { getKeepaStatus } from './get-keepa-status.js';
 import { getProductFacetMetricsSummary } from './get-product-facet-metrics.js';
 import { getProductFacets } from './get-product-facets.js';
 import { getProductHistory } from './get-product-history.js';
+import { getProductShortNameMetricsSummary } from './get-product-short-name-metrics';
 import { jobExecutions } from './job-executions.js';
 import { keepaLog } from './keepa-log.js';
 import { loadProductHistory } from './load-product-history.js';
@@ -40,6 +41,7 @@ export const appApiRouter = router({
     jobExecutions,
     topSearchTermsStatus,
     getProductHistory,
+    getProductShortNameMetricsSummary,
     loadProductHistory,
     operation: router({
         get: operationGet,

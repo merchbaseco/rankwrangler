@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { productGetIncludes } from '@/api/public/product-input';
 import { readOnlyToolAnnotations, runReadOnlyTool } from './tool-result';
 import type {
     ProductGetManyMcpInput,
@@ -65,6 +66,7 @@ const productInputSchema = z
         bucket: z.enum(['auto', 'day', 'week', 'month']).optional(),
         days: z.number().int().min(30).max(3650).optional(),
         endAt: z.string().datetime().optional(),
+        include: z.array(z.enum(productGetIncludes)).max(productGetIncludes.length).optional(),
         limit: z.number().int().min(1).max(10_000).optional(),
         marketplaceId: z.string().trim().min(1).optional(),
         metrics: z
@@ -81,7 +83,7 @@ const productInputSchema = z
     .strict()
     .superRefine((input, context) =>
         rejectFieldsOutsideOperation(input, context, {
-            get: ['asin', 'marketplaceId'],
+            get: ['asin', 'include', 'marketplaceId'],
             getMany: ['products'],
             history: [
                 'asin',
@@ -147,7 +149,8 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
             annotations: readOnlyToolAnnotations,
             description:
                 'Read RankWrangler Product data synchronously. operation=get uses asin and ' +
-                'marketplaceId; getMany uses products and returns fixed-shape basic title and ' +
+                'marketplaceId and accepts include=[marketData,shortName]; ' +
+                'getMany uses products and returns fixed-shape basic title and ' +
                 'thumbnail data for up to 200 identities. In getMany results, ' +
                 'amazonListingStatus is active or deleted. active means the Amazon detail-page ' +
                 'listing exists, not that an offer is in stock or buyable. deleted means the ' +
@@ -237,6 +240,7 @@ type ProductInput = z.infer<typeof productInputSchema>;
 const toProductGetInput = (input: ProductInput): ProductGetMcpInput => ({
     asin: requireValue(input.asin, 'asin'),
     marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
+    ...(input.include ? { include: input.include } : {}),
 });
 
 const toProductGetManyInput = (input: ProductInput): ProductGetManyMcpInput => ({

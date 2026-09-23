@@ -13,6 +13,7 @@ describe('public Product read model', () => {
         const signal = new AbortController().signal;
         const getRequiredProduct = mock(async () => product);
         const getProductHistorySurface = mock(async () => ({}) as never);
+        const getProductShortName = mock(async () => 'Garden Shirt');
 
         const result = await getProductReadModel(
             {
@@ -24,6 +25,7 @@ describe('public Product read model', () => {
             {
                 getRequiredProduct,
                 getProductHistorySurface,
+                getProductShortName,
             } satisfies ProductReadModelDeps
         );
 
@@ -48,6 +50,96 @@ describe('public Product read model', () => {
             ownerMerchbaseUserId: 'mbu_test',
             signal,
         });
+        expect(getProductShortName).not.toHaveBeenCalled();
+    });
+
+    it('generates a short name only for an opted-in Merch Product with an image', async () => {
+        const product = {
+            ...createProductInfo(),
+            isMerchListing: true,
+            thumbnail: { status: 'available' as const, url: 'https://m.media-amazon.com/test.jpg' },
+        };
+        const getProductShortName = mock(async () => 'Garden Shirt');
+
+        const result = await getProductReadModel(
+            {
+                marketplaceId: product.marketplaceId,
+                asin: product.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: ['marketData', 'shortName'],
+            },
+            {
+                getRequiredProduct: mock(async () => product),
+                getProductHistorySurface: mock(async () => ({}) as never),
+                getProductShortName,
+            }
+        );
+
+        expect(result.listing.shortName).toBe('Garden Shirt');
+        expect(getProductShortName).toHaveBeenCalledWith({
+            marketplaceId: product.marketplaceId,
+            asin: product.asin,
+            title: product.title,
+            thumbnail: product.thumbnail,
+            signal: undefined,
+        });
+    });
+
+    it('regenerates against the latest title when market data updates the Product', async () => {
+        const initial = {
+            ...createProductInfo(),
+            isMerchListing: true,
+            thumbnail: { status: 'available' as const, url: 'https://m.media-amazon.com/a.jpg' },
+        };
+        const current = { ...initial, title: '100 Days Smarter Shirt' };
+        const getRequiredProduct = mock()
+            .mockResolvedValueOnce(initial)
+            .mockResolvedValueOnce(current);
+        const getProductShortName = mock()
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce('100 Days Smarter');
+
+        const result = await getProductReadModel(
+            {
+                marketplaceId: initial.marketplaceId,
+                asin: initial.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: ['marketData', 'shortName'],
+            },
+            {
+                getRequiredProduct,
+                getProductHistorySurface: mock(async () => ({}) as never),
+                getProductShortName,
+            }
+        );
+
+        expect(result.listing.title).toBe(current.title);
+        expect(result.listing.shortName).toBe('100 Days Smarter');
+        expect(getProductShortName.mock.calls).toHaveLength(2);
+        expect(getProductShortName.mock.calls[1]?.[0].title).toBe(current.title);
+    });
+
+    it('skips Keepa history when market data is not requested', async () => {
+        const product = createProductInfo();
+        const getProductHistorySurface = mock(async () => ({}) as never);
+        const result = await getProductReadModel(
+            {
+                marketplaceId: product.marketplaceId,
+                asin: product.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: [],
+            },
+            {
+                getRequiredProduct: mock(async () => product),
+                getProductHistorySurface,
+                getProductShortName: mock(async () => null),
+            }
+        );
+
+        expect(getProductHistorySurface).not.toHaveBeenCalled();
+        expect(result.salesRank.current).toBeNull();
+        expect(result.price).toBeNull();
+        expect(result.demand.boughtInPastMonth).toBeNull();
     });
 
     it('projects current source observations into the provider-neutral Product shape', () => {
@@ -58,6 +150,7 @@ describe('public Product read model', () => {
             asin: 'B012345678',
             listing: {
                 title: 'Garden shirt',
+                shortName: null,
                 brand: 'Example brand',
                 firstAvailableAt: '2026-01-01T00:00:00.000Z',
                 bulletPoints: ['Made for gardeners'],
@@ -107,6 +200,7 @@ describe('public Product read model', () => {
             asin: 'B012345678',
             listing: {
                 title: null,
+                shortName: null,
                 brand: null,
                 firstAvailableAt: null,
                 bulletPoints: [],

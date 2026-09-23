@@ -55,6 +55,7 @@ const { positionals, values } = parseArgs({
         bucket: { type: 'string' },
         cursor: { type: 'string' },
         refresh: { type: 'boolean' },
+        shortName: { type: 'boolean' },
         stdin: { type: 'boolean' },
     },
     allowPositionals: true,

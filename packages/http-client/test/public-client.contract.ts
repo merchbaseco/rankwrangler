@@ -52,7 +52,7 @@ export type ProductSearchProductKeysContract = Assert<
     >
 >;
 export type ProductGetInputContract = Assert<
-    Equal<keyof ProductGetInput, 'marketplaceId' | 'asin'>
+    Equal<keyof ProductGetInput, 'marketplaceId' | 'asin' | 'include'>
 >;
 export type ProductGetManyInputContract = Assert<Equal<keyof ProductGetManyInput, 'products'>>;
 export type ProductGetManyOutputContract = Assert<

@@ -13,6 +13,7 @@ describe('public Product tRPC boundary', () => {
             asin: 'B012345678',
             listing: {
                 title: 'Garden shirt',
+                shortName: null,
                 brand: 'Example brand',
                 firstAvailableAt: '2026-01-01T00:00:00.000Z',
                 bulletPoints: ['Made for gardeners'],
@@ -53,11 +54,27 @@ describe('public Product tRPC boundary', () => {
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B012345678',
             ownerMerchbaseUserId: 'mbu_test',
+            include: ['marketData'],
         });
         expect(getProductReadModel.mock.calls[0]?.[0]).not.toHaveProperty('refresh');
         expect(getProductReadModel.mock.calls[0]?.[0]).not.toHaveProperty('metrics');
         expect(getProductReadModel.mock.calls[0]?.[0]).not.toHaveProperty('days');
         expect(getProductReadModel.mock.calls[0]?.[0]).not.toHaveProperty('format');
+    });
+
+    it('forwards a short-name opt-in to the Product read model', async () => {
+        const getProductReadModel = mock(async () => createProduct());
+        const caller = createCaller({ getProductReadModel });
+
+        await caller.get({
+            marketplaceId: 'ATVPDKIKX0DER',
+            asin: 'B012345678',
+            include: ['marketData', 'shortName'],
+        });
+
+        expect(getProductReadModel.mock.calls[0]?.[0]).toMatchObject({
+            include: ['marketData', 'shortName'],
+        });
     });
 
     it('maps a retrieval deadline to a retryable public error', async () => {
@@ -96,6 +113,7 @@ const createProduct = (): Product => ({
     asin: 'B012345678',
     listing: {
         title: null,
+        shortName: null,
         brand: null,
         firstAvailableAt: null,
         bulletPoints: [],

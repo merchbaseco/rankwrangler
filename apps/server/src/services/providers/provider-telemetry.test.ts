@@ -32,6 +32,17 @@ describe('captureProviderAttempt', () => {
         ]);
     });
 
+    it('records a Gemini design-observation request as a physical attempt', async () => {
+        const attempts: ProviderAttemptRecord[] = [];
+        await captureProviderAttempt(
+            { provider: 'gemini', operation: 'gemini.productDesign.observe' },
+            async () => new Response('{}', { status: 429 }),
+            { record: attempt => { attempts.push(attempt); return Promise.resolve(); } }
+        );
+
+        expect(attempts[0]).toMatchObject({ provider: 'gemini', statusCode: 429, isError: true });
+    });
+
     it('records an error and preserves the original failure', async () => {
         const originalError = Object.assign(new Error('provider failed'), { status: 503 });
         const attempts: ProviderAttemptRecord[] = [];

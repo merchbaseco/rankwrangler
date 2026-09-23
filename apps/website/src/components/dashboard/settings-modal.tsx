@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import { KeepaMetricsPanel } from "@/components/dashboard/keepa-metrics-panel";
 import { KeywordAutomationPanel } from "@/components/dashboard/keyword-automation-panel";
 import { ProductFacetMetricsPanel } from "@/components/dashboard/product-facet-metrics-panel";
+import { ProductShortNameMetricsPanel } from "@/components/dashboard/product-short-name-metrics-panel";
 import {
 	AccountSettings,
 	ApiSettings,
@@ -40,7 +41,8 @@ type SettingsPage =
 	| "metrics-keepa"
 	| "metrics-spapi"
 	| "metrics-top-search-terms"
-	| "metrics-facets";
+	| "metrics-facets"
+	| "metrics-short-names";
 
 type NavItem = { key: SettingsPage; label: string; icon: typeof Key };
 
@@ -57,6 +59,7 @@ const METRICS_NAV: NavItem[] = [
 	{ key: "metrics-spapi", label: "SP-API", icon: Activity },
 	{ key: "metrics-top-search-terms", label: "Top Search Terms", icon: Activity },
 	{ key: "metrics-facets", label: "Facets", icon: Activity },
+	{ key: "metrics-short-names", label: "Short Names", icon: Activity },
 ];
 
 const isMetricsPage = (page: SettingsPage) => page.startsWith("metrics-");
@@ -136,6 +139,7 @@ export const SettingsModal = ({
 									<TopSearchTermsMetricsPanel />
 								) : null}
 								{page === "metrics-facets" ? <ProductFacetMetricsPanel /> : null}
+								{page === "metrics-short-names" ? <ProductShortNameMetricsPanel /> : null}
 							</div>
 						</div>
 					</DialogPopup>

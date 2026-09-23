@@ -2,8 +2,10 @@ import { z } from 'zod';
 import { adminProcedure } from '@/api/trpc';
 import {
     getProviderTelemetry,
+    geminiProviderOperations,
     keepaProviderOperations,
     spApiProviderOperations,
+    typeSafeProviderOperations,
 } from '@/services/providers/provider-telemetry';
 
 const commonInput = {
@@ -31,6 +33,20 @@ export const providerTelemetryGet = adminProcedure
                     ...commonInput,
                     provider: z.literal('spapi'),
                     operation: z.enum(spApiProviderOperations).optional(),
+                })
+                .strict(),
+            z
+                .object({
+                    ...commonInput,
+                    provider: z.literal('gemini'),
+                    operation: z.enum(geminiProviderOperations).optional(),
+                })
+                .strict(),
+            z
+                .object({
+                    ...commonInput,
+                    provider: z.literal('typesafe'),
+                    operation: z.enum(typeSafeProviderOperations).optional(),
                 })
                 .strict(),
         ]).optional()

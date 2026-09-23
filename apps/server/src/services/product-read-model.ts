@@ -1,7 +1,9 @@
+import type { ProductGetInclude } from '@/api/public/product-input';
 import type { ProductHistorySurfaceInput } from '@/services/product-history-surface.js';
 import { getProductHistorySurface } from '@/services/product-history-surface.js';
 import type { AmazonListingStatus, ProductInfo } from '@/types/index.js';
 import { getRequiredProduct } from './product-retrieval';
+import { getProductShortName } from './product-short-name';
 
 const PRODUCT_READ_KEEP_A_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 
@@ -10,6 +12,7 @@ export interface Product {
     asin: string;
     listing: {
         title: string | null;
+        shortName: string | null;
         brand: string | null;
         firstAvailableAt: string | null;
         bulletPoints: string[];
@@ -64,17 +67,20 @@ interface ProductReadInput {
     marketplaceId: string;
     asin: string;
     ownerMerchbaseUserId: string;
+    include?: ProductGetInclude[];
     signal?: AbortSignal;
 }
 
 export interface ProductReadModelDeps {
     getRequiredProduct: typeof getRequiredProduct;
     getProductHistorySurface: typeof getProductHistorySurface;
+    getProductShortName: typeof getProductShortName;
 }
 
 const defaultDeps: ProductReadModelDeps = {
     getRequiredProduct,
     getProductHistorySurface,
+    getProductShortName,
 };
 
 export const getProductReadModel = async (
@@ -86,36 +92,75 @@ export const getProductReadModel = async (
         asin: input.asin.trim().toUpperCase(),
     };
 
-    await deps.getRequiredProduct({
+    const initial = await deps.getRequiredProduct({
         ...identity,
         signal: input.signal,
     });
 
-    await deps.getProductHistorySurface({
-        ...identity,
-        metrics: ['bsr', 'price'],
-        limit: 1,
-        days: 30,
-        bucket: 'day',
-        format: 'agent',
-        refresh: true,
-        ownerMerchbaseUserId: input.ownerMerchbaseUserId,
-        signal: input.signal,
-    } satisfies ProductHistorySurfaceInput);
+    const includes = input.include ?? ['marketData'];
+    const shortNamePromise =
+        includes.includes('shortName') && initial.isMerchListing === true
+            ? deps.getProductShortName({
+                  ...identity,
+                  title: initial.title,
+                  thumbnail: initial.thumbnail,
+                  signal: input.signal,
+              })
+            : Promise.resolve(null);
+
+    const [, initialShortName] = await Promise.all([
+        includes.includes('marketData')
+            ? deps.getProductHistorySurface({
+                  ...identity,
+                  metrics: ['bsr', 'price'],
+                  limit: 1,
+                  days: 30,
+                  bucket: 'day',
+                  format: 'agent',
+                  refresh: true,
+                  ownerMerchbaseUserId: input.ownerMerchbaseUserId,
+                  signal: input.signal,
+              } satisfies ProductHistorySurfaceInput)
+            : Promise.resolve(null),
+        shortNamePromise,
+    ]);
 
     const current = await deps.getRequiredProduct({
         ...identity,
         maxAgeMs: PRODUCT_READ_KEEP_A_MAX_AGE_MS,
         signal: input.signal,
     });
-    return mapProductToPublicProduct(current);
+    const product = mapProductToPublicProduct(current, includes.includes('marketData'));
+    if (!includes.includes('shortName') || current.isMerchListing !== true) {
+        return product;
+    }
+
+    const shortName =
+        initial.isMerchListing === true &&
+        current.title === initial.title &&
+        current.thumbnail.status === initial.thumbnail.status &&
+        (current.thumbnail.status !== 'available' ||
+            (initial.thumbnail.status === 'available' &&
+                current.thumbnail.url === initial.thumbnail.url))
+            ? initialShortName
+            : await deps.getProductShortName({
+                  ...identity,
+                  title: current.title,
+                  thumbnail: current.thumbnail,
+                  signal: input.signal,
+              });
+    return { ...product, listing: { ...product.listing, shortName } };
 };
 
-export const mapProductToPublicProduct = (product: ProductInfo): Product => ({
+export const mapProductToPublicProduct = (
+    product: ProductInfo,
+    includeMarketData = true
+): Product => ({
     marketplaceId: product.marketplaceId,
     asin: product.asin,
     listing: {
         title: product.title,
+        shortName: null,
         brand: product.brand,
         firstAvailableAt: product.dateFirstAvailable,
         bulletPoints: [product.bullet1, product.bullet2].filter(
@@ -136,20 +181,26 @@ export const mapProductToPublicProduct = (product: ProductInfo): Product => ({
                   name: product.rootCategoryDisplayName,
               },
     salesRank: {
-        current: product.keepa?.currentRootCategoryBsr ?? product.rootCategoryBsr,
+        current: includeMarketData
+            ? (product.keepa?.currentRootCategoryBsr ?? product.rootCategoryBsr)
+            : null,
         averages: {
-            last30Days: product.keepa?.averageRootCategoryBsr30 ?? null,
-            last90Days: product.keepa?.averageRootCategoryBsr90 ?? null,
+            last30Days: includeMarketData
+                ? (product.keepa?.averageRootCategoryBsr30 ?? null)
+                : null,
+            last90Days: includeMarketData
+                ? (product.keepa?.averageRootCategoryBsr90 ?? null)
+                : null,
         },
     },
-    price: product.keepa?.currentNewPrice ?? null,
+    price: includeMarketData ? (product.keepa?.currentNewPrice ?? null) : null,
     demand: {
-        boughtInPastMonth: product.keepa?.monthlySold ?? null,
+        boughtInPastMonth: includeMarketData ? (product.keepa?.monthlySold ?? null) : null,
         salesRankDrops: {
-            last30Days: product.keepa?.salesRankDrops.days30 ?? null,
-            last90Days: product.keepa?.salesRankDrops.days90 ?? null,
-            last180Days: product.keepa?.salesRankDrops.days180 ?? null,
-            last365Days: product.keepa?.salesRankDrops.days365 ?? null,
+            last30Days: includeMarketData ? (product.keepa?.salesRankDrops.days30 ?? null) : null,
+            last90Days: includeMarketData ? (product.keepa?.salesRankDrops.days90 ?? null) : null,
+            last180Days: includeMarketData ? (product.keepa?.salesRankDrops.days180 ?? null) : null,
+            last365Days: includeMarketData ? (product.keepa?.salesRankDrops.days365 ?? null) : null,
         },
     },
 });

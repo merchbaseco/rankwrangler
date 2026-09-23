@@ -77,6 +77,7 @@ describe('final public CLI contract', () => {
                                     asin: 'B012345678',
                                     listing: {
                                         title: null,
+                                        shortName: null,
                                         brand: null,
                                         firstAvailableAt: null,
                                         bulletPoints: [],
@@ -144,6 +145,10 @@ describe('final public CLI contract', () => {
                 ...workspace,
                 env: { MERCHBASE_API_KEY: 'ak_test_value' },
             });
+            const shortNameResult = await spawnCliAsync(
+                ['product', 'get', 'B012345678', '--shortName', ...baseArgs],
+                { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
+            );
             const getManyResult = await spawnCliAsync(
                 ['product', 'get', 'b012345678', 'B087654321', ...baseArgs],
                 {
@@ -161,6 +166,7 @@ describe('final public CLI contract', () => {
             );
 
             expect(getResult.status).toBe(0);
+            expect(shortNameResult.status).toBe(0);
             expect(getManyResult.status).toBe(0);
             expect(searchResult.status).toBe(0);
             expect(historyResult.status).toBe(0);
@@ -189,6 +195,14 @@ describe('final public CLI contract', () => {
                     input: {
                         marketplaceId: 'ATVPDKIKX0DER',
                         asin: 'B012345678',
+                    },
+                },
+                {
+                    procedure: 'get',
+                    input: {
+                        marketplaceId: 'ATVPDKIKX0DER',
+                        asin: 'B012345678',
+                        include: ['marketData', 'shortName'],
                     },
                 },
                 {

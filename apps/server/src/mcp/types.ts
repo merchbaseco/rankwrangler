@@ -1,13 +1,16 @@
+import type { ProductGetInclude } from '@/api/public/product-input';
+
 export type ProductHistoryMetric = 'salesRank' | 'price';
 export type ProductHistoryBucket = 'auto' | 'day' | 'week' | 'month';
 
 export interface ProductGetMcpInput {
     marketplaceId: string;
     asin: string;
+    include?: ProductGetInclude[];
 }
 
 export interface ProductGetManyMcpInput {
-    products: ProductGetMcpInput[];
+    products: Array<Pick<ProductGetMcpInput, 'marketplaceId' | 'asin'>>;
 }
 
 export interface ProductSearchMcpInput {

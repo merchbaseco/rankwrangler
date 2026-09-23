@@ -42,6 +42,7 @@ export const printUsage = (paths: CliPaths) => {
         '  --baseUrl <origin>       Override API origin',
         `  -m, --marketplace <id>   Override marketplace (default: ${DEFAULT_MARKETPLACE_ID})`,
         '  --refresh                Product search refresh (separate Search contract)',
+        '  --shortName              Generate a design name for one Merch Product',
         '  --metrics <list>         Product history metrics: salesRank,price (default: salesRank,price)',
         '  --bucket <unit>          Product history buckets: auto,day,week,month (default: auto)',
         '  --days <N>               Product history lookback (30-3650, default: 365)',

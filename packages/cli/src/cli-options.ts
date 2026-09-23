@@ -20,6 +20,7 @@ export interface CliOptionValues {
     bucket?: string;
     cursor?: string;
     refresh?: boolean;
+    shortName?: boolean;
     help?: boolean;
     version?: boolean;
 }

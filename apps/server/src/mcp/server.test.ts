@@ -128,6 +128,23 @@ describe('RankWrangler MCP server', () => {
         await server.close();
     });
 
+    it('forwards the short-name opt-in only for Product get', async () => {
+        const { client, server } = await connect({
+            ...dataSource,
+            product: { ...dataSource.product, get: async input => ({ data: input }) },
+        });
+        const result = await client.callTool({
+            name: 'rankwrangler_product',
+            arguments: { operation: 'get', asin: 'B012345678', include: ['shortName'] },
+        });
+
+        expect(result.structuredContent).toMatchObject({
+            data: { asin: 'B012345678', include: ['shortName'] },
+        });
+        await client.close();
+        await server.close();
+    });
+
     it('returns structured invalid-input errors for missing discriminator fields', async () => {
         const { client, server } = await connect(dataSource);
 

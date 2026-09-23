@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { providerAttempts } from '@/db/provider-telemetry-schema';
 
-export const providerNames = ['keepa', 'spapi'] as const;
+export const providerNames = ['keepa', 'spapi', 'gemini', 'typesafe'] as const;
 export type ProviderName = (typeof providerNames)[number];
 
 export const keepaProviderOperations = [
@@ -22,12 +22,24 @@ export const spApiProviderOperations = [
 ] as const;
 export type SpApiProviderOperation = (typeof spApiProviderOperations)[number];
 
-export const providerOperations = [...keepaProviderOperations, ...spApiProviderOperations] as const;
+export const geminiProviderOperations = ['gemini.productDesign.observe'] as const;
+export const typeSafeProviderOperations = ['typesafe.productShortName.choose'] as const;
+export type GeminiProviderOperation = (typeof geminiProviderOperations)[number];
+export type TypeSafeProviderOperation = (typeof typeSafeProviderOperations)[number];
+
+export const providerOperations = [
+    ...keepaProviderOperations,
+    ...spApiProviderOperations,
+    ...geminiProviderOperations,
+    ...typeSafeProviderOperations,
+] as const;
 export type ProviderOperation = (typeof providerOperations)[number];
 
 export type ProviderAttemptDescriptor =
     | { provider: 'keepa'; operation: KeepaProviderOperation }
-    | { provider: 'spapi'; operation: SpApiProviderOperation };
+    | { provider: 'spapi'; operation: SpApiProviderOperation }
+    | { provider: 'gemini'; operation: GeminiProviderOperation }
+    | { provider: 'typesafe'; operation: TypeSafeProviderOperation };
 
 export type ProviderAttemptRecord = ProviderAttemptDescriptor & {
     attemptedAt: Date;
@@ -84,6 +96,8 @@ export type ProviderTelemetryQuery = { hours: number } & (
     | { provider?: undefined; operation?: never }
     | { provider: 'keepa'; operation?: KeepaProviderOperation }
     | { provider: 'spapi'; operation?: SpApiProviderOperation }
+    | { provider: 'gemini'; operation?: GeminiProviderOperation }
+    | { provider: 'typesafe'; operation?: TypeSafeProviderOperation }
 );
 
 export const getProviderTelemetry = async ({
