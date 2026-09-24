@@ -6,7 +6,7 @@ const IMAGE_MAX_BYTES = 512_000;
 const TRANSFORM_TIMEOUT_MS = 20_000;
 const AMAZON_IMAGE_HOST_RE = /^images-[a-z]+\.ssl-images-amazon\.com$/u;
 const TRANSFORM_OPTIONS =
-    'width=128,height=128,fit=contain,format=webp,quality=85,segment=foreground';
+    'width=128,height=128,fit=contain,format=webp,quality=85,segment=foreground,trim=border';
 
 export const isCutoutSourceSupported = (sourceUrl: string) => {
     try {
