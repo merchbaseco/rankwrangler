@@ -82,11 +82,11 @@ The TypeSafe key must be provisioned as a RankWrangler-owned credential in each 
 before clients use the opt-in; missing credentials fail the opted-in request.
 
 `cutoutThumbnail` is a separate Product-get include and is available to any active Product with a
-supported image URL, regardless of Merch classification. Cloudflare Images removes the background,
-trims the empty border, and resizes the photo to fit within 128 pixels. RankWrangler stores that
-transparent WebP in its own R2 bucket. A sparse claim row prevents duplicate work across processes.
-Source URL and generator version determine the asset key, so the next requested read regenerates
-after either changes. Generation failures keep the
+supported image URL, regardless of Merch classification. Cloudflare Images removes the background
+and returns an intermediate WebP. RankWrangler crops its visible alpha bounds, scales the subject as
+large as its aspect ratio allows, and centers it on a transparent 128×128 WebP canvas in R2. A sparse
+claim row prevents duplicate work across processes. Source URL and generator version determine the
+asset key, so the next requested read regenerates after either changes. Generation failures keep the
 original thumbnail available and retry after a short cooldown. Settings shows coverage, failures,
 transform attempts, and R2 uploads. Other Product reads do not start cutout work.
 

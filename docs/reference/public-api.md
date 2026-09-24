@@ -123,11 +123,11 @@ yield `null` when no title span is supported by the image. The full Product rema
 response for detail views; `getMany`, search, and history do not perform this image analysis. A requested short name is
 stored per Product and reused while its title, image URL, and generator version are unchanged.
 
-`cutoutThumbnail` independently requests a transparent WebP of the Product photo, trimmed to its
-content and sized to fit within 128 pixels. It is `null` when omitted, available with a CDN URL when
-generated, and unavailable when the source image cannot be processed or generation fails. The
-original `thumbnail` remains the listing photo. A
-requested cutout is stored in R2 and reused while the source URL and generator version are unchanged;
+`cutoutThumbnail` independently requests a transparent 128×128 WebP of the Product photo. The visible
+subject is cropped to its alpha bounds, scaled to fit, and centered. It is `null` when omitted,
+available with a CDN URL when generated, and unavailable when the source image cannot be processed
+or generation fails. The original `thumbnail` remains the listing photo. A requested cutout is
+stored in R2 and reused while the source URL and generator version are unchanged;
 generation failures do not prevent the Product or a requested short name from returning. A caller
 displaying chips can request `include: ['shortName', 'cutoutThumbnail']` without Keepa market data.
 `getMany`, search, and history do not generate cutouts.

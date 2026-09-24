@@ -72,7 +72,7 @@ per-ASIN SP-API Product synchronization.
 Single-Product `get` accepts `include: ['marketData', 'shortName', 'cutoutThumbnail']`. Its default includes
 `marketData`, preserving the existing Keepa-backed current Product read. Clients can omit it for a
 listing-only read or add `shortName` for a design-specific label and `cutoutThumbnail` for a
-trimmed transparent Product photo sized within 128 pixels. Only requested derivatives are stored;
+centered transparent Product photo on a 128×128 canvas. Only requested derivatives are stored;
 unchanged source inputs reuse durable results. Batch reads and the extension do not trigger image
 analysis.
 
