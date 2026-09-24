@@ -50,6 +50,10 @@ For known Merch listings with an available image, RankWrangler inspects the prin
 selects a supported span from the listing title. The nullable name travels beside the full Product,
 so clients can use it for a chip and show Product details on hover. The default single Product get
 still waits for current market data; the basic batch does not request market data or image analysis.
+The same get can independently include `cutoutThumbnail` to receive a transparent 128-pixel Product
+photo for a compact chip. RankWrangler generates it on the first request and reuses it until the
+listing image changes. A chip can request both optional fields without `marketData`; the original
+listing photo remains available for larger views and as a fallback when no cutout is available.
 
 Integrations that only need listing labels use the public basic Product batch. It accepts up to 200
 unique marketplace/ASIN pairs, preserves request order, and returns fixed-shape identity, title,

@@ -65,8 +65,10 @@ and price history has no scale field.
 The returned proxy is already scoped to `api.public`; call `client.product...` and
 `client.keyword...`, not `client.api.public...`.
 `include` defaults to `['marketData']`, preserving the Keepa-backed current Product read. Add
-`shortName` for an image-informed compact label, or pass `[]` to skip both optional hydrations.
-The name remains nullable. Batch Product reads do not accept this option.
+`shortName` for an image-informed compact label and `cutoutThumbnail` for a transparent 128-pixel
+Product photo. Pass `['shortName', 'cutoutThumbnail']` for chip data without Keepa market data, or
+`[]` to skip optional hydrations. The name and cutout remain nullable when omitted. Batch Product
+reads do not accept these options.
 
 ## Options
 

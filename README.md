@@ -69,10 +69,11 @@ Operation identifiers or polling state. The dashboard retains its app-specific w
 Clerk-authenticated completion subscriptions for internal Product history, Catalog search, and
 per-ASIN SP-API Product synchronization.
 
-Single-Product `get` accepts `include: ['marketData', 'shortName']`. Its default includes
+Single-Product `get` accepts `include: ['marketData', 'shortName', 'cutoutThumbnail']`. Its default includes
 `marketData`, preserving the existing Keepa-backed current Product read. Clients can omit it for a
-listing-only read or add `shortName` for a design-specific label alongside the full Product. Only requested
-short names are stored; unchanged title and image inputs reuse the durable result. Batch reads and
+listing-only read or add `shortName` for a design-specific label and `cutoutThumbnail` for a
+transparent 128-pixel Product photo. Only requested derivatives are stored; unchanged source inputs
+reuse durable results. Batch reads and
 the extension do not trigger image analysis.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The

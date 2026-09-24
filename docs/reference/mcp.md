@@ -27,8 +27,8 @@ without `/mcp`. Other website paths are not MCP routes.
 | `rankwrangler_keyword` | `operation: get \| search \| history` | Keyword data or a standard error. |
 
 `rankwrangler_product` uses `asin` and `marketplaceId` for `get`. It may also set
-`include: ['marketData', 'shortName']` to request a nullable image-informed `listing.shortName` in the full
-Product response. The default is `['marketData']`. `getMany` accepts `products` with 1–200 unique
+`include: ['shortName', 'cutoutThumbnail']` to request an image-informed label and a transparent
+Product cutout in the full Product response. The default is `['marketData']`. `getMany` accepts `products` with 1–200 unique
 `{ asin, marketplaceId }` pairs and returns a fixed-shape basic Product array without short names.
 Every basic result includes identity, nullable title, resolved thumbnail, and
 `amazonListingStatus: active | deleted`. Active means the Amazon detail-page listing exists; it does

@@ -81,6 +81,14 @@ Opted-in reads require `RANKWRANGLER_GEMINI_API_KEY` and `RANKWRANGLER_TYPESAFE_
 The TypeSafe key must be provisioned as a RankWrangler-owned credential in each active lifecycle
 before clients use the opt-in; missing credentials fail the opted-in request.
 
+`cutoutThumbnail` is a separate Product-get include and is available to any active Product with a
+supported image URL, regardless of Merch classification. Cloudflare Images segments and resizes the
+source photo once; RankWrangler stores the transparent 128-pixel WebP in its own R2 bucket. A sparse
+claim row prevents duplicate work across processes. Source URL and generator version determine the
+asset key, so the next requested read regenerates after either changes. Generation failures keep the
+original thumbnail available and retry after a short cooldown. Settings shows coverage, failures,
+transform attempts, and R2 uploads. Other Product reads do not start cutout work.
+
 `listing.bulletPoints` is always an array, with `[]` for no bullets. `salesRank` contains `current`
 and `averages.last30Days`/`averages.last90Days`; demand drop windows use `last30Days`, `last90Days`,
 `last180Days`, and `last365Days`.

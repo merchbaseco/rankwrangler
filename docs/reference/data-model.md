@@ -29,6 +29,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | --- | --- | --- |
 | Product | `(marketplaceId, asin)` | Current listing fields plus latest SP-API and Keepa observations. |
 | Product short name | `(marketplaceId, asin)` when requested | Nullable generated name, source fingerprint, and claim state; no row for never-requested Products. |
+| Product cutout thumbnail | `(marketplaceId, asin)` when requested | R2 object key, source fingerprint, and claim state; no row for never-requested Products. |
 | Product facet value | `(facet, name)` | Reusable normalized classification value. |
 | Product facet assignment | `(productId, facetValueId)` | Current product-to-facet membership. |
 | History import | generated id | One Keepa import attempt, request context, provider accounting, and outcome. |

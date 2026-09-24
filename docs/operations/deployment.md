@@ -60,6 +60,18 @@ bun run deploy:verify    # name-diff the delivered container env against the sch
 `deploy:dry-run` is the first rung of the ladder: a missing 1Password item fails there, before
 anything is built or replaced.
 
+### Product cutout storage
+
+The on-demand `cutoutThumbnail` include requires Cloudflare Images transformations on
+`rankwrangler.merchbase.co`, with remote image sources from `m.media-amazon.com` and
+`images-*.ssl-images-amazon.com` allowed. Create the R2 Standard bucket
+`rankwrangler-thumbnails` and serve it through the custom domain
+`images.rankwrangler.merchbase.co`. Public reads use that domain; uploads use a token scoped to
+this bucket. Store its access key ID as `username` and secret access key as `credential` in the
+Production vault item `Cloudflare R2 - RankWrangler`. The Atlas R2 token is scoped to Atlas's
+private bucket and does not grant RankWrangler access. Run `bun run deploy:dry-run` after the item
+exists, and verify a generated cutout URL returns a transparent WebP before deployment is complete.
+
 ### Restart behavior
 
 Compose restart policies reuse the environment Docker baked into the container spec at the last

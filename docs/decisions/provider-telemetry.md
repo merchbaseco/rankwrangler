@@ -14,7 +14,8 @@ maps RankWrangler inputs to the Provider request and owns integration housekeepi
 authentication, rate limiting, retries, and Provider telemetry. Business policy, normalization,
 persistence, queues, and domain events remain outside the bridge.
 
-Every physical Keepa, SP-API, Gemini design-observation, and TypeSafe name-selection request,
+Every physical Keepa, SP-API, Gemini design-observation, TypeSafe name-selection, Cloudflare image
+transformation, and R2 upload request,
 including each retry, creates one fail-open Provider-attempt row. Rows keep
 only a generated id, typed Provider and operation, attempt time, nullable status code, error flag,
 and latency. Raw URLs, payloads, headers, query strings, error text, and business correlation are

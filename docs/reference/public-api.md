@@ -61,7 +61,7 @@ There is no public Catalog, Operation, polling, or provider-health namespace.
 ## Product
 
 `product.get` accepts `marketplaceId`, a ten-character alphanumeric `asin` normalized to uppercase,
-and optional `include: Array<'marketData' | 'shortName'>` (default `['marketData']`). It returns one Product rather than a
+and optional `include: Array<'marketData' | 'shortName' | 'cutoutThumbnail'>` (default `['marketData']`). It returns one Product rather than a
 summary/history composite:
 
 ```ts
@@ -71,6 +71,10 @@ type Product = {
     listing: {
         title: string | null;
         shortName: string | null;
+        cutoutThumbnail:
+            | { status: 'available'; url: string }
+            | { status: 'unavailable' }
+            | null;
         brand: string | null;
         firstAvailableAt: string | null;
         bulletPoints: string[];
@@ -118,6 +122,14 @@ The name includes pictured context when the printed words alone are generic. A d
 yield `null` when no title span is supported by the image. The full Product remains in the same
 response for detail views; `getMany`, search, and history do not perform this image analysis. A requested short name is
 stored per Product and reused while its title, image URL, and generator version are unchanged.
+
+`cutoutThumbnail` independently requests a 128-pixel transparent WebP of the Product photo. It is
+`null` when omitted, available with a CDN URL when generated, and unavailable when the source image
+cannot be processed or generation fails. The original `thumbnail` remains the listing photo. A
+requested cutout is stored in R2 and reused while the source URL and generator version are unchanged;
+generation failures do not prevent the Product or a requested short name from returning. A caller
+displaying chips can request `include: ['shortName', 'cutoutThumbnail']` without Keepa market data.
+`getMany`, search, and history do not generate cutouts.
 
 ## Basic Products
 
