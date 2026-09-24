@@ -1,12 +1,13 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { env } from '@/config/env';
+import { normalizeCutoutThumbnail } from './product-cutout-thumbnail-normalize';
 import { captureProviderAttempt } from './providers/provider-telemetry';
 
 const IMAGE_MAX_BYTES = 512_000;
 const TRANSFORM_TIMEOUT_MS = 20_000;
 const AMAZON_IMAGE_HOST_RE = /^images-[a-z]+\.ssl-images-amazon\.com$/u;
 const TRANSFORM_OPTIONS =
-    'width=128,height=128,fit=contain,format=webp,quality=85,segment=foreground,trim=border';
+    'width=512,height=512,fit=contain,format=webp,quality=90,segment=foreground';
 
 export const isCutoutSourceSupported = (sourceUrl: string) => {
     try {
@@ -107,6 +108,11 @@ export const createCutoutObject = async ({
         throw new Error('Product cutout transformation returned invalid or oversized WebP.');
     }
 
+    const thumbnail = await normalizeCutoutThumbnail(bytes);
+    if (thumbnail.byteLength > IMAGE_MAX_BYTES) {
+        throw new Error('Product cutout normalized thumbnail exceeded the size limit.');
+    }
+
     const client = createClient();
     try {
         await captureProviderAttempt(
@@ -116,7 +122,7 @@ export const createCutoutObject = async ({
                     new PutObjectCommand({
                         Bucket: env.RANKWRANGLER_R2_BUCKET_NAME,
                         Key: objectKey,
-                        Body: bytes,
+                        Body: thumbnail,
                         ContentType: 'image/webp',
                         CacheControl: 'public, max-age=31536000, immutable',
                     })
@@ -125,7 +131,7 @@ export const createCutoutObject = async ({
     } finally {
         client.destroy();
     }
-    return bytes.byteLength;
+    return thumbnail.byteLength;
 };
 
 export const getCutoutPublicUrl = (objectKey: string) =>

@@ -19,7 +19,7 @@ import { coordinateRetrieval } from './retrieval-coordinator';
 
 const CALLER_TIMEOUT_MS = 24_000;
 const POLL_MS = 250;
-export const CUTOUT_GENERATOR_VERSION = 'foreground-trimmed-webp-128:v2';
+export const CUTOUT_GENERATOR_VERSION = 'foreground-alpha-normalized-128:v3';
 
 type CutoutRequest = CutoutIdentity & {
     sourceUrl: string;
