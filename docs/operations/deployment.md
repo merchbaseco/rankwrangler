@@ -88,7 +88,7 @@ Migration `0028` deletes legacy licenses and therefore is never an ordinary firs
 | Target | Deployment behavior |
 | --- | --- |
 | `pre-cutover` | Apply through additive migration `0027`; leave the existing production containers unchanged. |
-| `latest` | Require the guarded migration to be already applied, then start the new containers. |
+| `latest` | Require the guarded cutover to be already applied, apply later migrations, verify the latest schema, then start the new containers. |
 
 Configure Clerk's production `user.created`, `user.updated`, and `user.deleted` webhook endpoint as
 `https://rankwrangler.merchbase.co/api/webhooks/clerk/access`. The shorter
@@ -161,9 +161,9 @@ Use this sequence:
 7. Complete health, Clerk session, API-key/OAuth, projection, metering, job, Chrome, and Safari
    verification. Delete the temporary backup only after all end-to-end checks pass.
 
-Do not set `latest` before the explicit guarded migration succeeds. The deployment workflow uses a
-read-only migration verification in that state and refuses to replace the existing containers when
-`0028` is absent.
+Do not set `latest` before the explicit guarded migration succeeds. The deployment workflow checks
+that `0028` is already applied before running later migrations and refuses to replace the existing
+containers if either the check or a migration fails.
 
 ## Verification
 
