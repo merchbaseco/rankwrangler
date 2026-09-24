@@ -280,6 +280,12 @@ export interface Product {
 	listing: {
 		title: string | null;
 		shortName: string | null;
+		cutoutThumbnail: {
+			status: "available";
+			url: string;
+		} | {
+			status: "unavailable";
+		} | null;
 		brand: string | null;
 		firstAvailableAt: string | null;
 		bulletPoints: string[];
@@ -565,7 +571,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						include?: ("shortName" | "marketData")[] | undefined;
+						include?: ("shortName" | "marketData" | "cutoutThumbnail")[] | undefined;
 					};
 					output: Product;
 					meta: object;

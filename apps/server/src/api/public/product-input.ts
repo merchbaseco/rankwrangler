@@ -42,12 +42,15 @@ export const productSummaryInput = z.object({
     refresh: z.boolean().default(false),
 });
 
-export const productGetIncludes = ['marketData', 'shortName'] as const;
+export const productGetIncludes = ['marketData', 'shortName', 'cutoutThumbnail'] as const;
 export type ProductGetInclude = (typeof productGetIncludes)[number];
 
 export const productGetInput = productIdentityInput
     .extend({
-        include: z.array(z.enum(productGetIncludes)).max(productGetIncludes.length).default(['marketData']),
+        include: z
+            .array(z.enum(productGetIncludes))
+            .max(productGetIncludes.length)
+            .default(['marketData']),
     })
     .strict();
 

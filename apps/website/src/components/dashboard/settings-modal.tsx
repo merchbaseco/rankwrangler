@@ -11,6 +11,7 @@ import { KeepaMetricsPanel } from "@/components/dashboard/keepa-metrics-panel";
 import { KeywordAutomationPanel } from "@/components/dashboard/keyword-automation-panel";
 import { ProductFacetMetricsPanel } from "@/components/dashboard/product-facet-metrics-panel";
 import { ProductShortNameMetricsPanel } from "@/components/dashboard/product-short-name-metrics-panel";
+import { ProductCutoutThumbnailMetricsPanel } from "@/components/dashboard/product-cutout-thumbnail-metrics-panel";
 import {
 	AccountSettings,
 	ApiSettings,
@@ -42,7 +43,8 @@ type SettingsPage =
 	| "metrics-spapi"
 	| "metrics-top-search-terms"
 	| "metrics-facets"
-	| "metrics-short-names";
+	| "metrics-short-names"
+	| "metrics-cutouts";
 
 type NavItem = { key: SettingsPage; label: string; icon: typeof Key };
 
@@ -60,6 +62,7 @@ const METRICS_NAV: NavItem[] = [
 	{ key: "metrics-top-search-terms", label: "Top Search Terms", icon: Activity },
 	{ key: "metrics-facets", label: "Facets", icon: Activity },
 	{ key: "metrics-short-names", label: "Short Names", icon: Activity },
+	{ key: "metrics-cutouts", label: "Cutout Thumbnails", icon: Activity },
 ];
 
 const isMetricsPage = (page: SettingsPage) => page.startsWith("metrics-");
@@ -140,6 +143,7 @@ export const SettingsModal = ({
 								) : null}
 								{page === "metrics-facets" ? <ProductFacetMetricsPanel /> : null}
 								{page === "metrics-short-names" ? <ProductShortNameMetricsPanel /> : null}
+								{page === "metrics-cutouts" ? <ProductCutoutThumbnailMetricsPanel /> : null}
 							</div>
 						</div>
 					</DialogPopup>

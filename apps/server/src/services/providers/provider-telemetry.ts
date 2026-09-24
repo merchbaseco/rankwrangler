@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { providerAttempts } from '@/db/provider-telemetry-schema';
 
-export const providerNames = ['keepa', 'spapi', 'gemini', 'typesafe'] as const;
+export const providerNames = ['keepa', 'spapi', 'gemini', 'typesafe', 'cloudflare'] as const;
 export type ProviderName = (typeof providerNames)[number];
 
 export const keepaProviderOperations = [
@@ -24,14 +24,20 @@ export type SpApiProviderOperation = (typeof spApiProviderOperations)[number];
 
 export const geminiProviderOperations = ['gemini.productDesign.observe'] as const;
 export const typeSafeProviderOperations = ['typesafe.productShortName.choose'] as const;
+export const cloudflareProviderOperations = [
+    'cloudflare.cutout.transform',
+    'cloudflare.r2.put',
+] as const;
 export type GeminiProviderOperation = (typeof geminiProviderOperations)[number];
 export type TypeSafeProviderOperation = (typeof typeSafeProviderOperations)[number];
+export type CloudflareProviderOperation = (typeof cloudflareProviderOperations)[number];
 
 export const providerOperations = [
     ...keepaProviderOperations,
     ...spApiProviderOperations,
     ...geminiProviderOperations,
     ...typeSafeProviderOperations,
+    ...cloudflareProviderOperations,
 ] as const;
 export type ProviderOperation = (typeof providerOperations)[number];
 
@@ -39,7 +45,8 @@ export type ProviderAttemptDescriptor =
     | { provider: 'keepa'; operation: KeepaProviderOperation }
     | { provider: 'spapi'; operation: SpApiProviderOperation }
     | { provider: 'gemini'; operation: GeminiProviderOperation }
-    | { provider: 'typesafe'; operation: TypeSafeProviderOperation };
+    | { provider: 'typesafe'; operation: TypeSafeProviderOperation }
+    | { provider: 'cloudflare'; operation: CloudflareProviderOperation };
 
 export type ProviderAttemptRecord = ProviderAttemptDescriptor & {
     attemptedAt: Date;
@@ -98,6 +105,7 @@ export type ProviderTelemetryQuery = { hours: number } & (
     | { provider: 'spapi'; operation?: SpApiProviderOperation }
     | { provider: 'gemini'; operation?: GeminiProviderOperation }
     | { provider: 'typesafe'; operation?: TypeSafeProviderOperation }
+    | { provider: 'cloudflare'; operation?: CloudflareProviderOperation }
 );
 
 export const getProviderTelemetry = async ({

@@ -149,7 +149,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
             annotations: readOnlyToolAnnotations,
             description:
                 'Read RankWrangler Product data synchronously. operation=get uses asin and ' +
-                'marketplaceId and accepts include=[marketData,shortName]; ' +
+                'marketplaceId and accepts include=[marketData,shortName,cutoutThumbnail]; ' +
                 'getMany uses products and returns fixed-shape basic title and ' +
                 'thumbnail data for up to 200 identities. In getMany results, ' +
                 'amazonListingStatus is active or deleted. active means the Amazon detail-page ' +

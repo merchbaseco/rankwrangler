@@ -2,6 +2,7 @@ import type { ProductGetInclude } from '@/api/public/product-input';
 import type { ProductHistorySurfaceInput } from '@/services/product-history-surface.js';
 import { getProductHistorySurface } from '@/services/product-history-surface.js';
 import type { AmazonListingStatus, ProductInfo } from '@/types/index.js';
+import { getProductCutoutThumbnail } from './product-cutout-thumbnail';
 import { getRequiredProduct } from './product-retrieval';
 import { getProductShortName } from './product-short-name';
 
@@ -13,6 +14,7 @@ export interface Product {
     listing: {
         title: string | null;
         shortName: string | null;
+        cutoutThumbnail: { status: 'available'; url: string } | { status: 'unavailable' } | null;
         brand: string | null;
         firstAvailableAt: string | null;
         bulletPoints: string[];
@@ -75,12 +77,14 @@ export interface ProductReadModelDeps {
     getRequiredProduct: typeof getRequiredProduct;
     getProductHistorySurface: typeof getProductHistorySurface;
     getProductShortName: typeof getProductShortName;
+    getProductCutoutThumbnail: typeof getProductCutoutThumbnail;
 }
 
 const defaultDeps: ProductReadModelDeps = {
     getRequiredProduct,
     getProductHistorySurface,
     getProductShortName,
+    getProductCutoutThumbnail,
 };
 
 export const getProductReadModel = async (
@@ -107,8 +111,15 @@ export const getProductReadModel = async (
                   signal: input.signal,
               })
             : Promise.resolve(null);
+    const cutoutPromise = includes.includes('cutoutThumbnail')
+        ? deps.getProductCutoutThumbnail({
+              ...identity,
+              thumbnail: initial.thumbnail,
+              signal: input.signal,
+          })
+        : Promise.resolve(null);
 
-    const [, initialShortName] = await Promise.all([
+    const [, initialShortName, initialCutout] = await Promise.all([
         includes.includes('marketData')
             ? deps.getProductHistorySurface({
                   ...identity,
@@ -123,6 +134,7 @@ export const getProductReadModel = async (
               } satisfies ProductHistorySurfaceInput)
             : Promise.resolve(null),
         shortNamePromise,
+        cutoutPromise,
     ]);
 
     const current = await deps.getRequiredProduct({
@@ -131,25 +143,44 @@ export const getProductReadModel = async (
         signal: input.signal,
     });
     const product = mapProductToPublicProduct(current, includes.includes('marketData'));
-    if (!includes.includes('shortName') || current.isMerchListing !== true) {
-        return product;
-    }
-
-    const shortName =
-        initial.isMerchListing === true &&
-        current.title === initial.title &&
+    const sourceUnchanged =
         current.thumbnail.status === initial.thumbnail.status &&
         (current.thumbnail.status !== 'available' ||
             (initial.thumbnail.status === 'available' &&
-                current.thumbnail.url === initial.thumbnail.url))
-            ? initialShortName
-            : await deps.getProductShortName({
+                current.thumbnail.url === initial.thumbnail.url));
+    let shortName: string | null = null;
+    if (includes.includes('shortName') && current.isMerchListing === true) {
+        shortName =
+            initial.isMerchListing === true && current.title === initial.title && sourceUnchanged
+                ? initialShortName
+                : await deps.getProductShortName({
+                      ...identity,
+                      title: current.title,
+                      thumbnail: current.thumbnail,
+                      signal: input.signal,
+                  });
+    }
+    let cutoutThumbnail: Product['listing']['cutoutThumbnail'] = null;
+    if (includes.includes('cutoutThumbnail')) {
+        const cutoutUrl = sourceUnchanged
+            ? initialCutout
+            : await deps.getProductCutoutThumbnail({
                   ...identity,
-                  title: current.title,
                   thumbnail: current.thumbnail,
                   signal: input.signal,
               });
-    return { ...product, listing: { ...product.listing, shortName } };
+        cutoutThumbnail = cutoutUrl
+            ? { status: 'available', url: cutoutUrl }
+            : { status: 'unavailable' };
+    }
+    return {
+        ...product,
+        listing: {
+            ...product.listing,
+            shortName,
+            cutoutThumbnail,
+        },
+    };
 };
 
 export const mapProductToPublicProduct = (
@@ -161,6 +192,7 @@ export const mapProductToPublicProduct = (
     listing: {
         title: product.title,
         shortName: null,
+        cutoutThumbnail: null,
         brand: product.brand,
         firstAvailableAt: product.dateFirstAvailable,
         bulletPoints: [product.bullet1, product.bullet2].filter(

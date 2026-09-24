@@ -7,6 +7,7 @@ import { classifyProductFacets } from './classify-product-facets.js';
 import { eventLogsList } from './event-logs.js';
 import { getAdminStats } from './get-admin-stats.js';
 import { getKeepaStatus } from './get-keepa-status.js';
+import { getProductCutoutThumbnailMetricsSummary } from './get-product-cutout-thumbnail-metrics';
 import { getProductFacetMetricsSummary } from './get-product-facet-metrics.js';
 import { getProductFacets } from './get-product-facets.js';
 import { getProductHistory } from './get-product-history.js';
@@ -42,6 +43,7 @@ export const appApiRouter = router({
     topSearchTermsStatus,
     getProductHistory,
     getProductShortNameMetricsSummary,
+    getProductCutoutThumbnailMetricsSummary,
     loadProductHistory,
     operation: router({
         get: operationGet,
