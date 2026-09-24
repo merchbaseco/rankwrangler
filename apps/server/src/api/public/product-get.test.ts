@@ -14,6 +14,7 @@ describe('public Product tRPC boundary', () => {
             listing: {
                 title: 'Garden shirt',
                 shortName: null,
+                cutoutThumbnail: null,
                 brand: 'Example brand',
                 firstAvailableAt: '2026-01-01T00:00:00.000Z',
                 bulletPoints: ['Made for gardeners'],
@@ -77,6 +78,21 @@ describe('public Product tRPC boundary', () => {
         });
     });
 
+    it('forwards independent chip hydrations without market data', async () => {
+        const getProductReadModel = mock(async () => createProduct());
+        const caller = createCaller({ getProductReadModel });
+
+        await caller.get({
+            marketplaceId: 'ATVPDKIKX0DER',
+            asin: 'B012345678',
+            include: ['shortName', 'cutoutThumbnail'],
+        });
+
+        expect(getProductReadModel.mock.calls[0]?.[0]).toMatchObject({
+            include: ['shortName', 'cutoutThumbnail'],
+        });
+    });
+
     it('maps a retrieval deadline to a retryable public error', async () => {
         const caller = createCaller({
             getProductReadModel: mock(() => {
@@ -114,6 +130,7 @@ const createProduct = (): Product => ({
     listing: {
         title: null,
         shortName: null,
+        cutoutThumbnail: null,
         brand: null,
         firstAvailableAt: null,
         bulletPoints: [],

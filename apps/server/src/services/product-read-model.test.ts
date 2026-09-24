@@ -14,6 +14,7 @@ describe('public Product read model', () => {
         const getRequiredProduct = mock(async () => product);
         const getProductHistorySurface = mock(async () => ({}) as never);
         const getProductShortName = mock(async () => 'Garden Shirt');
+        const getProductCutoutThumbnail = mock(async () => null);
 
         const result = await getProductReadModel(
             {
@@ -26,6 +27,7 @@ describe('public Product read model', () => {
                 getRequiredProduct,
                 getProductHistorySurface,
                 getProductShortName,
+                getProductCutoutThumbnail,
             } satisfies ProductReadModelDeps
         );
 
@@ -51,6 +53,7 @@ describe('public Product read model', () => {
             signal,
         });
         expect(getProductShortName).not.toHaveBeenCalled();
+        expect(getProductCutoutThumbnail).not.toHaveBeenCalled();
     });
 
     it('generates a short name only for an opted-in Merch Product with an image', async () => {
@@ -72,6 +75,7 @@ describe('public Product read model', () => {
                 getRequiredProduct: mock(async () => product),
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName,
+                getProductCutoutThumbnail: mock(async () => null),
             }
         );
 
@@ -83,6 +87,79 @@ describe('public Product read model', () => {
             thumbnail: product.thumbnail,
             signal: undefined,
         });
+    });
+
+    it('hydrates a cutout independently of Merch classification and market data', async () => {
+        const product = {
+            ...createProductInfo(),
+            thumbnail: { status: 'available' as const, url: 'https://m.media-amazon.com/a.jpg' },
+        };
+        const getProductHistorySurface = mock(async () => ({}) as never);
+        const getProductShortName = mock(async () => null);
+        const getProductCutoutThumbnail = mock(
+            async () => 'https://images.rankwrangler.merchbase.co/a.webp'
+        );
+
+        const result = await getProductReadModel(
+            {
+                marketplaceId: product.marketplaceId,
+                asin: product.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: ['cutoutThumbnail'],
+            },
+            {
+                getRequiredProduct: mock(async () => product),
+                getProductHistorySurface,
+                getProductShortName,
+                getProductCutoutThumbnail,
+            }
+        );
+
+        expect(result.listing.cutoutThumbnail).toEqual({
+            status: 'available',
+            url: 'https://images.rankwrangler.merchbase.co/a.webp',
+        });
+        expect(getProductCutoutThumbnail).toHaveBeenCalledTimes(1);
+        expect(getProductHistorySurface).not.toHaveBeenCalled();
+        expect(getProductShortName).not.toHaveBeenCalled();
+    });
+
+    it('regenerates a cutout when the source image changes during hydration', async () => {
+        const initial = {
+            ...createProductInfo(),
+            thumbnail: { status: 'available' as const, url: 'https://m.media-amazon.com/a.jpg' },
+        };
+        const current = {
+            ...initial,
+            thumbnail: { status: 'available' as const, url: 'https://m.media-amazon.com/b.jpg' },
+        };
+        const getProductCutoutThumbnail = mock()
+            .mockResolvedValueOnce('https://images.rankwrangler.merchbase.co/a.webp')
+            .mockResolvedValueOnce('https://images.rankwrangler.merchbase.co/b.webp');
+
+        const result = await getProductReadModel(
+            {
+                marketplaceId: initial.marketplaceId,
+                asin: initial.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: ['cutoutThumbnail'],
+            },
+            {
+                getRequiredProduct: mock()
+                    .mockResolvedValueOnce(initial)
+                    .mockResolvedValueOnce(current),
+                getProductHistorySurface: mock(async () => ({}) as never),
+                getProductShortName: mock(async () => null),
+                getProductCutoutThumbnail,
+            }
+        );
+
+        expect(result.listing.cutoutThumbnail).toEqual({
+            status: 'available',
+            url: 'https://images.rankwrangler.merchbase.co/b.webp',
+        });
+        expect(getProductCutoutThumbnail.mock.calls).toHaveLength(2);
+        expect(getProductCutoutThumbnail.mock.calls[1]?.[0].thumbnail).toEqual(current.thumbnail);
     });
 
     it('regenerates against the latest title when market data updates the Product', async () => {
@@ -110,6 +187,7 @@ describe('public Product read model', () => {
                 getRequiredProduct,
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName,
+                getProductCutoutThumbnail: mock(async () => null),
             }
         );
 
@@ -133,6 +211,7 @@ describe('public Product read model', () => {
                 getRequiredProduct: mock(async () => product),
                 getProductHistorySurface,
                 getProductShortName: mock(async () => null),
+                getProductCutoutThumbnail: mock(async () => null),
             }
         );
 
@@ -151,6 +230,7 @@ describe('public Product read model', () => {
             listing: {
                 title: 'Garden shirt',
                 shortName: null,
+                cutoutThumbnail: null,
                 brand: 'Example brand',
                 firstAvailableAt: '2026-01-01T00:00:00.000Z',
                 bulletPoints: ['Made for gardeners'],
@@ -201,6 +281,7 @@ describe('public Product read model', () => {
             listing: {
                 title: null,
                 shortName: null,
+                cutoutThumbnail: null,
                 brand: null,
                 firstAvailableAt: null,
                 bulletPoints: [],
