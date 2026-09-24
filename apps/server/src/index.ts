@@ -18,6 +18,7 @@ import { testConnection } from '@/db/index.js';
 import {
     resolveMigrationTargetForCommand,
     runMigrations,
+    verifyCutoverMigration,
     verifyMigrationTarget,
 } from '@/db/migrate.js';
 import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
@@ -63,11 +64,12 @@ const createDisabledJobsRuntime = (): JobsRuntime => {
 
 console.log('Starting RankWrangler Server...');
 
-if (process.argv.includes('--verify-migrations')) {
-    await verifyMigrationTarget();
+if (process.argv.includes('--verify-migrations') || process.argv.includes('--verify-cutover')) {
+    await (process.argv.includes('--verify-cutover')
+        ? verifyCutoverMigration()
+        : verifyMigrationTarget());
     process.exit(0);
 }
-
 const shouldBootstrapAccessProjection = process.argv.includes('--bootstrap-access-projection');
 
 await runMigrations(

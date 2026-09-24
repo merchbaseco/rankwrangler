@@ -67,6 +67,23 @@ export const verifyMigrationTarget = async (
         throw new Error(`Migration target ${target} does not contain any migrations.`);
     }
 
+    await verifyAppliedMigration(expected, `target ${target}`);
+};
+
+export const verifyCutoverMigration = async (
+    migrationsFolder = process.env.MIGRATIONS_FOLDER ?? './drizzle'
+) => {
+    const expected = readMigrationJournal(migrationsFolder).entries.find(
+        entry => entry.tag === CENTRAL_AUTH_CUTOVER_MIGRATION
+    );
+    if (!expected) {
+        throw new Error(`Missing guarded migration ${CENTRAL_AUTH_CUTOVER_MIGRATION}.`);
+    }
+
+    await verifyAppliedMigration(expected, 'central-auth cutover');
+};
+
+const verifyAppliedMigration = async (expected: MigrationJournalEntry, label: string) => {
     const migrationClient = createMigrationClient();
     try {
         const rows = await migrationClient<{ createdAt: string }[]>`
@@ -77,11 +94,9 @@ export const verifyMigrationTarget = async (
         `;
         const actual = Number(rows[0]?.createdAt);
         if (!Number.isSafeInteger(actual) || actual < expected.when) {
-            throw new Error(
-                `Database migration target ${target} is not applied through ${expected.tag}.`
-            );
+            throw new Error(`Database ${label} is not applied through ${expected.tag}.`);
         }
-        console.log(`[Migration] Verified target ${target} through ${expected.tag}`);
+        console.log(`[Migration] Verified ${label} through ${expected.tag}`);
     } finally {
         await migrationClient.end();
     }

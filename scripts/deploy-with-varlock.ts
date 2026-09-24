@@ -211,6 +211,40 @@ if (migrationTarget !== "latest") {
     process.exit(1);
 }
 
+const verifiedCutover = varlockRun([
+    "docker",
+    "compose",
+    ...composeArgs,
+    "run",
+    "--rm",
+    "--no-deps",
+    "server",
+    "node",
+    "dist/index.js",
+    "--verify-cutover",
+]);
+if (verifiedCutover.status !== 0) {
+    console.error("Central-auth cutover is not applied; containers not replaced.");
+    process.exit(verifiedCutover.status ?? 1);
+}
+
+const migrated = varlockRun([
+    "docker",
+    "compose",
+    ...composeArgs,
+    "run",
+    "--rm",
+    "--no-deps",
+    "server",
+    "node",
+    "dist/index.js",
+    "--migrate-only",
+]);
+if (migrated.status !== 0) {
+    console.error("Database migration failed; containers not replaced.");
+    process.exit(migrated.status ?? 1);
+}
+
 const verifiedMigrations = varlockRun([
     "docker",
     "compose",
