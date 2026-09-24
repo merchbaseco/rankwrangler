@@ -72,9 +72,9 @@ per-ASIN SP-API Product synchronization.
 Single-Product `get` accepts `include: ['marketData', 'shortName', 'cutoutThumbnail']`. Its default includes
 `marketData`, preserving the existing Keepa-backed current Product read. Clients can omit it for a
 listing-only read or add `shortName` for a design-specific label and `cutoutThumbnail` for a
-transparent 128-pixel Product photo. Only requested derivatives are stored; unchanged source inputs
-reuse durable results. Batch reads and
-the extension do not trigger image analysis.
+trimmed transparent Product photo sized within 128 pixels. Only requested derivatives are stored;
+unchanged source inputs reuse durable results. Batch reads and the extension do not trigger image
+analysis.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.
