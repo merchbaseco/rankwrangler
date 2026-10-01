@@ -18,6 +18,10 @@ Caddy forwards `/mcp` and these exact OAuth discovery paths to Fastify: the prot
 metadata paths with and without `/mcp`, and the authorization-server metadata paths with and
 without `/mcp`. Other website paths are not MCP routes.
 
+The `initialize` server info advertises `websiteUrl` `https://rankwrangler.merchbase.co` and a
+128px PNG icon at `https://rankwrangler.merchbase.co/icon.png`. The website serves that icon and
+`/favicon.ico` from `apps/website/public/`, so clients can resolve either without authentication.
+
 ## Tools
 
 | Tool | Input | Result |
