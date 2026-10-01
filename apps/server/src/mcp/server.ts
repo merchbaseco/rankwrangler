@@ -12,11 +12,16 @@ import type {
 
 export type { RankWranglerMcpDataSource } from './types';
 
+const RANKWRANGLER_WEBSITE_URL = 'https://rankwrangler.merchbase.co';
+const RANKWRANGLER_ICON_URL = `${RANKWRANGLER_WEBSITE_URL}/icon.png`;
+
 export const RANKWRANGLER_MCP_SERVER_INFO = {
     name: 'rankwrangler',
     title: 'RankWrangler',
     version: '0.6.0',
-} as const;
+    websiteUrl: RANKWRANGLER_WEBSITE_URL,
+    icons: [{ src: RANKWRANGLER_ICON_URL, mimeType: 'image/png', sizes: ['128x128'] }],
+};
 
 const toolOutputSchema = z.object({
     data: z.unknown().optional(),

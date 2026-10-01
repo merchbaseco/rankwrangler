@@ -26,6 +26,25 @@ const dataSource: RankWranglerMcpDataSource = {
 };
 
 describe('RankWrangler MCP server', () => {
+    it('advertises the website and a resolvable icon in server info', async () => {
+        const { client, server } = await connect(dataSource);
+
+        expect(client.getServerVersion()).toMatchObject({
+            name: 'rankwrangler',
+            title: 'RankWrangler',
+            websiteUrl: 'https://rankwrangler.merchbase.co',
+            icons: [
+                {
+                    src: 'https://rankwrangler.merchbase.co/icon.png',
+                    mimeType: 'image/png',
+                    sizes: ['128x128'],
+                },
+            ],
+        });
+
+        await Promise.all([client.close(), server.close()]);
+    });
+
     it('exposes only status plus the two discriminated noun tools', async () => {
         const { client, server } = await connect(dataSource);
         const result = await client.listTools();
