@@ -8,16 +8,22 @@ API_BASE="http://localhost:8080"
 echo "🚀 Testing RankWrangler Server API"
 echo ""
 
-# Test health check
-echo "🔍 Testing health check..."
-health_response=$(curl -s "$API_BASE/api/health")
-if [ $? -eq 0 ]; then
-    echo "✅ Health check: $health_response"
-else
-    echo "❌ Health check failed - is the server running?"
+echo "🔍 Testing liveness..."
+if ! curl --fail --silent --show-error "$API_BASE/health/live"; then
+    echo ""
+    echo "❌ Liveness check failed - is the server running?"
     echo "   Start server with: bun run start"
     exit 1
 fi
+echo ""
+
+echo "🔍 Testing health report..."
+health_response=$(curl --silent --show-error "$API_BASE/api/health") || {
+    echo "❌ Health report request failed - is the server running?"
+    echo "   Start server with: bun run start"
+    exit 1
+}
+echo "✅ Health report: $health_response"
 
 echo ""
 

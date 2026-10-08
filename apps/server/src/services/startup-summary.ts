@@ -25,12 +25,14 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
     console.log(`[${new Date().toISOString()}] RankWrangler Server Ready`);
     console.log('═══════════════════════════════════════════════════════════════');
     console.log(`✓ Server running on port ${input.port}`);
-    console.log('✓ Health check endpoint: /api/health');
+    console.log('✓ Health endpoints: /api/health (freshness) and /health/live (liveness)');
     console.log('');
     console.log('Status Summary:');
     console.log(`  • Database: ${input.databaseConnected ? 'Connected' : 'Unavailable'}`);
     console.log(`  • Migrations: ${input.migrationsComplete ? 'Complete' : 'Incomplete'}`);
-    console.log(`  • Startup Flag RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER: ${input.disableServerJobRunner}`);
+    console.log(
+        `  • Startup Flag RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER: ${input.disableServerJobRunner}`
+    );
     console.log(`  • Job Runner: ${input.jobRunnerStatus}`);
     console.log('  • Job Queues: Connected (pg-boss)');
     if (input.shouldStartJobRunner) {

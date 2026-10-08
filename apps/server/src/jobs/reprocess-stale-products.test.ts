@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { lt } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { products } from '@/db/schema';
-import { buildAvailableMerchRefreshCondition } from './reprocess-stale-products';
+import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection';
 
 describe('deleted Amazon listing refresh policy', () => {
     it('excludes deleted listings from scheduled stale refreshes', () => {
