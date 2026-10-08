@@ -1,4 +1,4 @@
-import type { ProductGetInclude } from '@/api/public/product-input';
+import type { ProductGetInclude, ProductGetManyInclude } from '@/api/public/product-input';
 
 export type ProductHistoryMetric = 'salesRank' | 'price';
 export type ProductHistoryBucket = 'auto' | 'day' | 'week' | 'month';
@@ -10,7 +10,8 @@ export interface ProductGetMcpInput {
 }
 
 export interface ProductGetManyMcpInput {
-    products: Array<Pick<ProductGetMcpInput, 'marketplaceId' | 'asin'>>;
+    products: Pick<ProductGetMcpInput, 'marketplaceId' | 'asin'>[];
+    include?: ProductGetManyInclude[];
 }
 
 export interface ProductSearchMcpInput {

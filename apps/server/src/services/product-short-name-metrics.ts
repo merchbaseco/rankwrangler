@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db/index';
-import { SHORT_NAME_GENERATOR_VERSION } from './product-short-name';
+import { SHORT_NAME_GENERATOR_VERSION } from './product-short-name-request';
 
 interface CoverageRow extends Record<string, unknown> {
     eligible: number;

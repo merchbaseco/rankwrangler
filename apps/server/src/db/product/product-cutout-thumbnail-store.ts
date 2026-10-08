@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { productCutoutThumbnails } from '@/db/product-cutout-thumbnail-schema';
 import { products } from '@/db/product-schema';
@@ -21,6 +21,23 @@ export const getStoredCutout = async ({ marketplaceId, asin }: CutoutIdentity) =
             )
         );
     return row ?? null;
+};
+
+/** One query for a batch; keyed by `marketplaceId:asin`. */
+export const getStoredCutouts = async (identities: readonly CutoutIdentity[]) => {
+    const condition = or(
+        ...identities.map(identity =>
+            and(
+                eq(productCutoutThumbnails.marketplaceId, identity.marketplaceId),
+                eq(productCutoutThumbnails.asin, identity.asin)
+            )
+        )
+    );
+    if (!condition) {
+        return new Map<string, typeof productCutoutThumbnails.$inferSelect>();
+    }
+    const rows = await db.select().from(productCutoutThumbnails).where(condition);
+    return new Map(rows.map(row => [`${row.marketplaceId}:${row.asin}`, row]));
 };
 
 export const isCurrentCutoutSource = async ({

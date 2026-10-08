@@ -1,7 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { productGetIncludes } from '@/api/public/product-input';
+import { productGetIncludes, productGetManyIncludeInput } from '@/api/public/product-input';
+import { rejectFieldsOutsideOperation, rejectGetManyOnlyIncludes } from './input-refinements';
 import { readOnlyToolAnnotations, runReadOnlyTool } from './tool-result';
 import type {
     ProductGetManyMcpInput,
@@ -86,10 +87,11 @@ const productInputSchema = z
         term: z.string().trim().min(1).max(200).optional(),
     })
     .strict()
-    .superRefine((input, context) =>
+    .superRefine((input, context) => {
+        rejectGetManyOnlyIncludes(input, context);
         rejectFieldsOutsideOperation(input, context, {
             get: ['asin', 'include', 'marketplaceId'],
-            getMany: ['products'],
+            getMany: ['include', 'products'],
             history: [
                 'asin',
                 'bucket',
@@ -101,8 +103,8 @@ const productInputSchema = z
                 'startAt',
             ],
             search: ['refresh', 'term'],
-        })
-    );
+        });
+    });
 
 const keywordInputSchema = z
     .object({
@@ -156,7 +158,12 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 'Read RankWrangler Product data synchronously. operation=get uses asin and ' +
                 'marketplaceId and accepts include=[marketData,shortName,cutoutThumbnail]; ' +
                 'getMany uses products and returns fixed-shape basic title and ' +
-                'thumbnail data for up to 200 identities. get and getMany return a known ' +
+                'thumbnail data for up to 200 identities; it accepts ' +
+                'include=[shortName,cutoutThumbnail] (not marketData) and never waits on them. ' +
+                'Each getMany item then carries pending: the requested fields still being ' +
+                'generated, with shortName null and cutoutThumbnail {status:pending} until ready; ' +
+                'request those items again shortly. A requested field not in pending is settled. ' +
+                'get and getMany return a known ' +
                 "Product's last-known listing data at once and refresh it in the background; " +
                 'they wait only for Products RankWrangler has never resolved. In getMany results, ' +
                 'amazonListingStatus is active or deleted. active means the Amazon detail-page ' +
@@ -255,6 +262,7 @@ const toProductGetManyInput = (input: ProductInput): ProductGetManyMcpInput => (
         asin: product.asin.toUpperCase(),
         marketplaceId: product.marketplaceId,
     })),
+    ...(input.include ? { include: productGetManyIncludeInput.parse(input.include) } : {}),
 });
 
 const toProductHistoryInput = (input: ProductInput): ProductHistoryMcpInput => ({
@@ -276,23 +284,6 @@ const requireValue = <Value>(value: Value | undefined, name: string): Value => {
         });
     }
     return value;
-};
-
-const rejectFieldsOutsideOperation = <Operation extends string>(
-    input: { operation: Operation } & Record<string, unknown>,
-    context: z.RefinementCtx,
-    fieldsByOperation: Record<Operation, string[]>
-) => {
-    const allowedFields = new Set(['operation', ...fieldsByOperation[input.operation]]);
-    for (const [field, value] of Object.entries(input)) {
-        if (value !== undefined && !allowedFields.has(field)) {
-            context.addIssue({
-                code: 'custom',
-                message: `${field} is not accepted for ${input.operation}`,
-                path: [field],
-            });
-        }
-    }
 };
 
 const assertNever = (value: never): never => {

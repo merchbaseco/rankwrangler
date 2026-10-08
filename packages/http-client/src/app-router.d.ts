@@ -274,18 +274,24 @@ export interface KeywordHistoryResponse {
 	points: KeywordHistoryPoint[];
 	deltas: SearchTermsTrendDeltas;
 }
+declare const productGetManyIncludes: readonly [
+	"shortName",
+	"cutoutThumbnail"
+];
+export type ProductGetManyInclude = (typeof productGetManyIncludes)[number];
+export type PublicCutoutThumbnail = {
+	status: "available";
+	url: string;
+} | {
+	status: "unavailable";
+};
 export interface Product {
 	marketplaceId: string;
 	asin: string;
 	listing: {
 		title: string | null;
 		shortName: string | null;
-		cutoutThumbnail: {
-			status: "available";
-			url: string;
-		} | {
-			status: "unavailable";
-		} | null;
+		cutoutThumbnail: PublicCutoutThumbnail | null;
 		brand: string | null;
 		firstAvailableAt: string | null;
 		bulletPoints: string[];
@@ -355,6 +361,18 @@ export interface ProductSearch {
 		product: ProductSearchProduct;
 	}>;
 }
+export type BatchCutoutThumbnail = PublicCutoutThumbnail | {
+	status: "pending";
+};
+/**
+ * Batch listing enrichment. A requested field is final unless it is listed in `pending`;
+ * a pending `shortName` is `null` and a pending `cutoutThumbnail` is `{ status: 'pending' }`.
+ */
+export interface ProductListingEnrichment {
+	shortName?: string | null;
+	cutoutThumbnail?: BatchCutoutThumbnail;
+	pending: ProductGetManyInclude[];
+}
 export interface BasicProduct {
 	marketplaceId: string;
 	asin: string;
@@ -367,6 +385,8 @@ export interface BasicProduct {
 	};
 	amazonListingStatus: AmazonListingStatus;
 }
+/** Enrichment fields are present only when the caller passed `include`. */
+export type BatchProduct = BasicProduct & Partial<ProductListingEnrichment>;
 export interface ProductHistorySummary {
 	first: number | null;
 	latest: number | null;
@@ -571,7 +591,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						include?: ("shortName" | "marketData" | "cutoutThumbnail")[] | undefined;
+						include?: ("shortName" | "cutoutThumbnail" | "marketData")[] | undefined;
 					};
 					output: Product;
 					meta: object;
@@ -582,8 +602,9 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							marketplaceId: string;
 							asin: string;
 						}[];
+						include?: ("shortName" | "cutoutThumbnail")[] | undefined;
 					};
-					output: BasicProduct[];
+					output: BatchProduct[];
 					meta: object;
 				}>;
 				history: import("@trpc/server").TRPCMutationProcedure<{

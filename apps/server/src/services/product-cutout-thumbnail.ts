@@ -15,42 +15,92 @@ import {
     getCutoutPublicUrl,
     isCutoutSourceSupported,
 } from './product-cutout-thumbnail-media';
-import { coordinateRetrieval } from './retrieval-coordinator';
+import { coordinateRetrieval, startDetachedRetrieval } from './retrieval-coordinator';
 
 const CALLER_TIMEOUT_MS = 24_000;
 const POLL_MS = 250;
 export const CUTOUT_GENERATOR_VERSION = 'foreground-alpha-normalized-128:v3';
 
-type CutoutRequest = CutoutIdentity & {
+export type CutoutRequest = CutoutIdentity & {
     sourceUrl: string;
     inputFingerprint: string;
 };
+type CutoutSource = CutoutIdentity & { thumbnail: ProductThumbnail };
+type StoredCutout = NonNullable<Awaited<ReturnType<typeof getStoredCutout>>>;
+
+const cutoutRetrievalKey = ({ marketplaceId, asin, inputFingerprint }: CutoutRequest) =>
+    `product-cutout:${marketplaceId}:${asin}:${inputFingerprint}`;
 
 export const getProductCutoutThumbnail = async ({
-    marketplaceId,
-    asin,
-    thumbnail,
     signal,
-}: CutoutIdentity & { thumbnail: ProductThumbnail; signal?: AbortSignal }): Promise<
-    string | null
-> => {
-    if (thumbnail.status !== 'available' || !isCutoutSourceSupported(thumbnail.url)) {
+    ...source
+}: CutoutSource & { signal?: AbortSignal }): Promise<string | null> => {
+    const request = prepareCutoutRequest(source);
+    if (!request) {
         return null;
     }
-    const sourceUrl = thumbnail.url;
-    const inputFingerprint = getCutoutInputFingerprint(sourceUrl);
     try {
         return await coordinateRetrieval({
-            key: `product-cutout:${marketplaceId}:${asin}:${inputFingerprint}`,
+            key: cutoutRetrievalKey(request),
             signal,
             timeoutMs: CALLER_TIMEOUT_MS,
-            work: () => resolveCutout({ marketplaceId, asin, sourceUrl, inputFingerprint }),
+            work: () => resolveCutout(request),
         });
     } catch (error) {
         console.error('[Product Cutout] Could not resolve cutout thumbnail:', error);
         return null;
     }
 };
+
+/** Returns null when the Product has no cutout source; the cutout is then final unavailable. */
+export const prepareCutoutRequest = ({
+    marketplaceId,
+    asin,
+    thumbnail,
+}: CutoutSource): CutoutRequest | null => {
+    if (thumbnail.status !== 'available' || !isCutoutSourceSupported(thumbnail.url)) {
+        return null;
+    }
+    return {
+        marketplaceId,
+        asin,
+        sourceUrl: thumbnail.url,
+        inputFingerprint: getCutoutInputFingerprint(thumbnail.url),
+    };
+};
+
+/**
+ * Classifies a stored row for the current source. `ready` with a null URL means generation
+ * failed within the retry window; `missing` means generation has not finished for this source.
+ */
+export const readStoredCutout = (
+    stored: StoredCutout | null,
+    inputFingerprint: string
+): { state: 'ready'; url: string | null } | { state: 'missing' } => {
+    if (stored?.inputFingerprint !== inputFingerprint) {
+        return { state: 'missing' };
+    }
+    if (stored.state === 'ready' && stored.objectKey) {
+        return { state: 'ready', url: getCutoutPublicUrl(stored.objectKey) };
+    }
+    if (
+        stored.state === 'error' &&
+        Date.now() - stored.attemptedAt.getTime() < CUTOUT_ERROR_RETRY_MS
+    ) {
+        return { state: 'ready', url: null };
+    }
+    return { state: 'missing' };
+};
+
+/** Starts or joins generation without waiting; the same key `get` callers wait on. */
+export const startProductCutoutGeneration = (request: CutoutRequest) =>
+    startDetachedRetrieval({
+        key: cutoutRetrievalKey(request),
+        work: () => resolveCutout(request),
+        onError: error => {
+            console.error('[Product Cutout] Background generation failed:', error);
+        },
+    });
 
 export const getCutoutInputFingerprint = (sourceUrl: string) =>
     createHash('md5')
@@ -70,20 +120,9 @@ const resolveCutout = async (request: CutoutRequest): Promise<string | null> => 
         if (!(await isCurrentCutoutSource({ ...identity, sourceUrl: request.sourceUrl }))) {
             return null;
         }
-        const stored = await getStoredCutout(identity);
-        if (
-            stored?.inputFingerprint === request.inputFingerprint &&
-            stored.state === 'ready' &&
-            stored.objectKey
-        ) {
-            return getCutoutPublicUrl(stored.objectKey);
-        }
-        if (
-            stored?.inputFingerprint === request.inputFingerprint &&
-            stored.state === 'error' &&
-            Date.now() - stored.attemptedAt.getTime() < CUTOUT_ERROR_RETRY_MS
-        ) {
-            return null;
+        const stored = readStoredCutout(await getStoredCutout(identity), request.inputFingerprint);
+        if (stored.state === 'ready') {
+            return stored.url;
         }
         const claimId = randomUUID();
         if (

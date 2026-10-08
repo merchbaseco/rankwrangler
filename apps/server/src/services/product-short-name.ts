@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { env } from '@/config/env';
 import {
@@ -7,19 +7,26 @@ import {
     finishShortNameGeneration,
     getStoredShortName,
     isCurrentShortNameInput,
-    SHORT_NAME_ERROR_RETRY_MS,
 } from '@/db/product/product-short-name-store';
-import type { ProductThumbnail } from '@/types';
 import { createEventLogSafe } from './event-logs';
 import { observeProductDesign, type ProductDesignObservation } from './product-design-observation';
-import { buildShortNameCandidates } from './product-short-name-candidates';
+import {
+    prepareShortNameRequest,
+    readStoredShortName,
+    type ShortNameRequest,
+    type ShortNameSource,
+    shortNameRetrievalKey,
+} from './product-short-name-request';
 import { captureProviderAttempt } from './providers/provider-telemetry';
-import { coordinateRetrieval, RetrievalRetryableError } from './retrieval-coordinator';
+import {
+    coordinateRetrieval,
+    RetrievalRetryableError,
+    startDetachedRetrieval,
+} from './retrieval-coordinator';
 
 const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 const JEV_TIMEOUT_MS = 8000;
 const CALLER_TIMEOUT_MS = 24_000;
-export const SHORT_NAME_GENERATOR_VERSION = 'gemini-3.1-flash-lite-low+jev-1.13.0:v2';
 const POLL_MS = 250;
 const choiceSchema = z.object({
     answers: z.object({
@@ -28,49 +35,31 @@ const choiceSchema = z.object({
 });
 
 export const getProductShortName = async ({
-    marketplaceId,
-    asin,
-    title,
-    thumbnail,
     signal,
-}: {
-    marketplaceId: string;
-    asin: string;
-    title: string | null;
-    thumbnail: ProductThumbnail;
-    signal?: AbortSignal;
-}): Promise<string | null> => {
-    if (!title?.trim() || thumbnail.status !== 'available') {
+    ...source
+}: ShortNameSource & { signal?: AbortSignal }): Promise<string | null> => {
+    const request = prepareShortNameRequest(source);
+    if (!request) {
         return null;
     }
-    const candidates = buildShortNameCandidates(title);
-    if (candidates.length === 0) {
-        return null;
-    }
-    const inputFingerprint = getShortNameInputFingerprint(title, thumbnail.url);
     return await coordinateRetrieval({
-        key: `product-short-name:${marketplaceId}:${asin}:${inputFingerprint}`,
+        key: shortNameRetrievalKey(request),
         signal,
         timeoutMs: CALLER_TIMEOUT_MS,
         retryMessage: 'Product short name is temporarily unavailable. Retry shortly.',
-        work: () =>
-            resolveShortName({
-                marketplaceId,
-                asin,
-                title,
-                imageUrl: thumbnail.url,
-                candidates,
-                inputFingerprint,
-            }),
+        work: () => resolveShortName(request),
     });
 };
 
-export const getShortNameInputFingerprint = (title: string, imageUrl: string) =>
-    createHash('md5')
-        .update(
-            `${Buffer.byteLength(title, 'utf8')}:${title}${Buffer.byteLength(imageUrl, 'utf8')}:${imageUrl}${SHORT_NAME_GENERATOR_VERSION}`
-        )
-        .digest('hex');
+/** Starts or joins generation without waiting; the same key `get` callers wait on. */
+export const startProductShortNameGeneration = (request: ShortNameRequest) =>
+    startDetachedRetrieval({
+        key: shortNameRetrievalKey(request),
+        work: () => resolveShortName(request),
+        onError: error => {
+            console.error('[Product Short Name] Background generation failed:', error);
+        },
+    });
 
 export const chooseProductShortName = async ({
     title,
@@ -136,15 +125,6 @@ export const chooseProductShortName = async ({
     return formatShortName(selected);
 };
 
-interface ShortNameRequest {
-    marketplaceId: string;
-    asin: string;
-    title: string;
-    imageUrl: string;
-    candidates: string[];
-    inputFingerprint: string;
-}
-
 const resolveShortName = async (request: ShortNameRequest): Promise<string | null> => {
     const { marketplaceId, asin, title, imageUrl, inputFingerprint } = request;
     const identity = { marketplaceId, asin };
@@ -152,15 +132,11 @@ const resolveShortName = async (request: ShortNameRequest): Promise<string | nul
         if (!(await isCurrentShortNameInput({ ...identity, title, imageUrl }))) {
             return null;
         }
-        const stored = await getStoredShortName(identity);
-        if (stored?.inputFingerprint === inputFingerprint && stored.state === 'ready') {
+        const stored = readStoredShortName(await getStoredShortName(identity), inputFingerprint);
+        if (stored.state === 'ready') {
             return stored.shortName;
         }
-        if (
-            stored?.inputFingerprint === inputFingerprint &&
-            stored.state === 'error' &&
-            Date.now() - stored.attemptedAt.getTime() < SHORT_NAME_ERROR_RETRY_MS
-        ) {
+        if (stored.state === 'failed') {
             throw shortNameUnavailable();
         }
         if (!(env.RANKWRANGLER_GEMINI_API_KEY && env.RANKWRANGLER_TYPESAFE_API_KEY)) {

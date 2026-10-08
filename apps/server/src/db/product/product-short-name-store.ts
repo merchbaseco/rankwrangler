@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { products } from '@/db/product-schema';
 import { productShortNames } from '@/db/product-short-name-schema';
@@ -22,6 +22,23 @@ export const getStoredShortName = async (identity: ShortNameIdentity) => {
             )
         );
     return row ?? null;
+};
+
+/** One query for a batch; keyed by `marketplaceId:asin`. */
+export const getStoredShortNames = async (identities: readonly ShortNameIdentity[]) => {
+    const condition = or(
+        ...identities.map(identity =>
+            and(
+                eq(productShortNames.marketplaceId, identity.marketplaceId),
+                eq(productShortNames.asin, identity.asin)
+            )
+        )
+    );
+    if (!condition) {
+        return new Map<string, typeof productShortNames.$inferSelect>();
+    }
+    const rows = await db.select().from(productShortNames).where(condition);
+    return new Map(rows.map(row => [`${row.marketplaceId}:${row.asin}`, row]));
 };
 
 export const isCurrentShortNameInput = async ({

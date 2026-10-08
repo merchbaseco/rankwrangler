@@ -14,9 +14,21 @@ export const productIdentityInput = z.object({
     asin: asinInput,
 });
 
+export const productGetManyIncludes = ['shortName', 'cutoutThumbnail'] as const;
+export type ProductGetManyInclude = (typeof productGetManyIncludes)[number];
+
+export const productGetManyIncludeInput = z
+    .array(
+        z.enum(productGetManyIncludes, {
+            error: 'getMany include supports only shortName and cutoutThumbnail; request marketData with get.',
+        })
+    )
+    .max(productGetManyIncludes.length);
+
 export const productGetManyInput = z
     .object({
         products: z.array(productIdentityInput.strict()).min(1).max(200),
+        include: productGetManyIncludeInput.optional(),
     })
     .strict()
     .superRefine(({ products }, context) => {

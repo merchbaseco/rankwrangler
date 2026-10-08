@@ -8,13 +8,17 @@ import { getProductShortName } from './product-short-name';
 
 const PRODUCT_READ_KEEP_A_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 
+export type PublicCutoutThumbnail =
+    | { status: 'available'; url: string }
+    | { status: 'unavailable' };
+
 export interface Product {
     marketplaceId: string;
     asin: string;
     listing: {
         title: string | null;
         shortName: string | null;
-        cutoutThumbnail: { status: 'available'; url: string } | { status: 'unavailable' } | null;
+        cutoutThumbnail: PublicCutoutThumbnail | null;
         brand: string | null;
         firstAvailableAt: string | null;
         bulletPoints: string[];
@@ -169,9 +173,7 @@ export const getProductReadModel = async (
                   thumbnail: current.thumbnail,
                   signal: input.signal,
               });
-        cutoutThumbnail = cutoutUrl
-            ? { status: 'available', url: cutoutUrl }
-            : { status: 'unavailable' };
+        cutoutThumbnail = toPublicCutoutThumbnail(cutoutUrl);
     }
     return {
         ...product,
@@ -182,6 +184,9 @@ export const getProductReadModel = async (
         },
     };
 };
+
+export const toPublicCutoutThumbnail = (url: string | null): PublicCutoutThumbnail =>
+    url ? { status: 'available', url } : { status: 'unavailable' };
 
 export const mapProductToPublicProduct = (
     product: ProductInfo,
