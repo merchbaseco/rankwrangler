@@ -63,7 +63,8 @@ backfill. Search history labels Requested search versus Automatic refresh.
 
 Public Product get/getMany/history and keyword reads return final policy-current data without
 freshness envelopes or refresh controls. Product Search retains its separate search contract. When
-collection is needed, the shared server retrieval service waits transparently for policy-compliant
+collection is needed, Product get/getMany return a known Product's last-known listing while a
+background refresh runs; otherwise the shared server retrieval service waits transparently for policy-compliant
 data or returns a provider-neutral retryable error with a hint. Public callers never receive
 Operation identifiers or polling state. The dashboard retains its app-specific workflow and
 Clerk-authenticated completion subscriptions for internal Product history, Catalog search, and

@@ -40,9 +40,14 @@ server freshness policy. A current cache hit returns immediately; missing or pol
 starts or joins durable work and waits. Caller deadline exhaustion does not cancel that work, and a
 retry coalesces with it.
 
+Product `get` and `getMany` serve last-known listing data for any Product with a resolved listing:
+a policy-expired read returns the stored title, thumbnail, and `amazonListingStatus` immediately and
+queues a deduplicated background refresh. Only Products with no resolved listing wait, bounded by
+the caller deadline. See [Public Retrieval](../decisions/public-retrieval.md).
+
 Product `get`/`getMany`/`history` and keyword inputs have no refresh control. Product Search retains
-its separate search input. Product `get`/`getMany`/`history` and keyword responses expose no stale
-or pending data, freshness, Operations, polling state, provider status or response `schemaVersion`.
+its separate search input. Product `get`/`getMany`/`history` and keyword responses expose no
+pending data, freshness, Operations, polling state, provider status or response `schemaVersion`.
 
 ## Procedures
 
@@ -154,7 +159,9 @@ marketplace/ASIN. It does not promise an in-stock or buyable offer. `deleted` me
 effectively removed the listing and customers can no longer reach a purchasable detail page.
 RankWrangler confirms deletion when a successful Amazon Catalog lookup does not return the ASIN;
 pending work and provider failures do not produce it. RankWrangler preserves last-known title and
-thumbnail data. A Product never returned by Amazon has `title: null` and an unavailable thumbnail.
+thumbnail data and returns it immediately while a background refresh runs; `getMany` waits only for
+Products with no resolved listing. A Product never returned by Amazon has `title: null` and an
+unavailable thumbnail.
 `thumbnail.status: 'unavailable'` only means there is no usable image and does not make the Amazon
 listing deleted.
 

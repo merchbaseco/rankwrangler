@@ -96,7 +96,8 @@ empty series return `points: []` with `first`, `latest`, `min`, and `max` all `n
 has minor-currency unit and currency code, without a scale field.
 
 Each data command returns policy-current final data or fails. Missing or policy-expired data may
-wait while durable work runs. No command exposes stale/pending Product data, freshness, Operations,
+wait while durable work runs, except that `product get` returns a known Product's last-known listing
+immediately and refreshes it in the background. No command exposes pending Product data, freshness, Operations,
 provider metadata, or polling state. Product output preserves `isMerchListing: true | false | null`;
 missing classification is `null`, not `false`. Missing data is `NOT_FOUND`; retryable provider
 failure or deadline exhaustion is `TIMEOUT` with a retry hint.

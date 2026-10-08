@@ -30,9 +30,15 @@ marketplace and ASIN; it does not own a separate copy of the Product.
 The shared Product retrieval service treats listing data as fresh for two days by default, joins
 identical Product fetches through the retrieval coordinator, and centralizes background queueing,
 blocking waits, freshness, and availability. Durable SP-API work uses the same detail coordinator.
-The public behavior in the next sentence is the accepted target.
-Public reads return current cached detail immediately; policy-expired or missing required detail
-waits without exposing a public Operation or refresh control.
+Public reads return current cached detail immediately. Product `get` and `getMany` use the
+`last-known` fetch policy: a policy-expired Product with a resolved listing returns at once and
+queues a deduplicated background refresh, and only a Product with no resolved listing waits.
+Neither exposes a public Operation or refresh control.
+
+The SP-API sync queue job bounds each batch at five minutes, and the Catalog Search limiter fails a
+call that has not started within two minutes with a named `SpApiLimiterWaitError` (logged with the
+limiter's queue counts) instead of waiting forever. Reports limiters stay unbounded because their
+one-per-minute refills legitimately queue for many minutes.
 
 ## SP-API Queue
 

@@ -39,7 +39,9 @@ Every basic result includes identity, nullable title, resolved thumbnail, and
 not promise that an offer is in stock or buyable. Deleted means Amazon has effectively removed the
 listing from that marketplace. RankWrangler confirms deletion when a successful Amazon Catalog
 lookup does not return the ASIN; pending work and provider failures do not produce it. Retained
-title and thumbnail values are last-known listing data. An unavailable thumbnail alone means no
+title and thumbnail values are last-known listing data. `get` and `getMany` return a known
+Product's last-known listing immediately and refresh it in the background; they wait only for
+Products with no resolved listing. An unavailable thumbnail alone means no
 usable image, not a deleted listing. The tool adds only the documented Product-history range, metric,
 and bucket fields for `history`, and uses `term` for `search`.
 `rankwrangler_keyword` uses `keyword` for `get` and `history`, `text` for `search`, and accepts
@@ -57,7 +59,7 @@ valid empty series return `points: []` and `null` for `first`, `latest`, `min`, 
 history exposes minor-currency unit and currency code without a scale field.
 
 Every data tool call completes synchronously from the caller's perspective. It returns
-policy-current data or a structured error. MCP does not expose stale/pending Product data,
+policy-current data, last-known Product listing data, or a structured error. MCP does not expose pending Product data,
 freshness, Catalog, Operation, polling, provider status or timestamps, or provider-named frontend
 availability tools. Product `get`/`getMany`/`history` and keyword operations have no refresh input;
 Product Search retains its separate Search input. Nullable `isMerchListing` remains unknown rather
