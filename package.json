@@ -88,5 +88,8 @@
         "tar": "7.5.15",
         "vite": "7.3.3",
         "yaml": "2.8.3"
+    },
+    "patchedDependencies": {
+        "bottleneck@2.19.5": "patches/bottleneck@2.19.5.patch"
     }
 }

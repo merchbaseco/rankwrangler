@@ -1,0 +1,37 @@
+diff --git a/lib/LocalDatastore.js b/lib/LocalDatastore.js
+index 119849edaf4490c2971c4940b9c51f021128fb6a..e1cf6a56a42020e927defcfefe9fe6ceb2b5ceb5 100644
+--- a/lib/LocalDatastore.js
++++ b/lib/LocalDatastore.js
+@@ -24,9 +24,21 @@ LocalDatastore = class LocalDatastore {
+   }
+ 
+   _startHeartbeat() {
+-    var base;
++    var base, wantsHeartbeat;
++    wantsHeartbeat = this.storeOptions.reservoirRefreshInterval != null && this.storeOptions.reservoirRefreshAmount != null || this.storeOptions.reservoirIncreaseInterval != null && this.storeOptions.reservoirIncreaseAmount != null;
++
++    // Patched: updateSettings() used to clear a running heartbeat without restarting it,
++    // which stopped reservoir refresh/increase forever. Keep it running while still wanted.
++    if (this.heartbeat != null) {
++      if (!wantsHeartbeat) {
++        clearInterval(this.heartbeat);
++        this.heartbeat = null;
++      }
++
++      return;
++    }
+ 
+-    if (this.heartbeat == null && (this.storeOptions.reservoirRefreshInterval != null && this.storeOptions.reservoirRefreshAmount != null || this.storeOptions.reservoirIncreaseInterval != null && this.storeOptions.reservoirIncreaseAmount != null)) {
++    if (wantsHeartbeat) {
+       return typeof (base = this.heartbeat = setInterval(() => {
+         var amount, incr, maximum, now, reservoir;
+         now = Date.now();
+@@ -52,8 +64,6 @@ LocalDatastore = class LocalDatastore {
+           }
+         }
+       }, this.heartbeatInterval)).unref === "function" ? base.unref() : void 0;
+-    } else {
+-      return clearInterval(this.heartbeat);
+     }
+   }
+ 

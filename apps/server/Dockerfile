@@ -11,6 +11,7 @@ WORKDIR /app
 
 # Copy only the workspace manifests first for better layer caching.
 COPY package.json bun.lock .npmrc ./
+COPY patches ./patches
 COPY apps/extension/package.json apps/extension/package.json
 COPY apps/server/package.json apps/server/package.json
 COPY apps/website/package.json apps/website/package.json

@@ -48,6 +48,11 @@ Provider failures do neither.
 Queue rows are deleted only after reconciliation succeeds; failures remain retryable by a later
 wakeup and emit structured activity events. Each committed Product upsert also emits an
 identity-only completion event so active dashboard Product queries can invalidate precisely.
+
+All Catalog calls share one in-process Bottleneck limiter whose reservoir is retuned after throttles.
+`patches/bottleneck@2.19.5.patch` keeps the reservoir heartbeat alive across `updateSettings()`;
+without it one throttle retune drains the reservoir permanently and every Catalog call queues
+forever. Drop the patch only for a Bottleneck release that fixes `_startHeartbeat`.
 Deleted Amazon listings do not age back into automatic or scheduled SP-API work. A newer authoritative
 Catalog discovery or an explicit refresh can recheck them; a cached or older discovery cannot.
 

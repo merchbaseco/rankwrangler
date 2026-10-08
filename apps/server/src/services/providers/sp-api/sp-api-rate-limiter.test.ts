@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import Bottleneck from 'bottleneck';
 import {
     extractRateLimitFromError,
     extractRateLimitFromResponse,
@@ -95,5 +96,32 @@ describe('adaptive helpers', () => {
     it('applies throttle penalty cooldown', () => {
         expect(shouldApplyThrottlePenalty(null)).toBeTrue();
         expect(shouldApplyThrottlePenalty(new Date().toISOString())).toBeFalse();
+    });
+});
+
+describe('retuned SP-API limiter', () => {
+    // Regression: Bottleneck 2.19.5 cleared its reservoir heartbeat on updateSettings(), so
+    // after one throttle retune the catalog reservoir drained to zero and every later SP-API
+    // call queued forever (patches/bottleneck@2.19.5.patch).
+    it('keeps refilling the reservoir after a throttle retune', async () => {
+        const catalogLimit = { burstCapacity: 2, maxConcurrent: 2, rps: 2 };
+        const limiter = new Bottleneck(getLimiterSettingsFromRps(catalogLimit));
+        await limiter.updateSettings(
+            getLimiterSettingsFromRps({
+                ...catalogLimit,
+                rps: getThrottlePenalizedRps(catalogLimit.rps),
+            })
+        );
+
+        const calls = Array.from({ length: 4 }, (_, index) =>
+            limiter.schedule(async () => index)
+        );
+        const completed = await Promise.race([
+            Promise.all(calls),
+            new Promise<'wedged'>(resolve => setTimeout(() => resolve('wedged'), 4000)),
+        ]);
+
+        expect(completed).toEqual([0, 1, 2, 3]);
+        await limiter.stop({ dropWaitingJobs: true });
     });
 });
