@@ -22,6 +22,7 @@ import {
     verifyMigrationTarget,
 } from '@/db/migrate.js';
 import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
+import { registerHealthRoutes } from '@/health/health-routes';
 import { prepareJobQueues, startJobs } from '@/jobs/index.js';
 import { registerRankWranglerMcp } from '@/mcp/register';
 import {
@@ -119,7 +120,9 @@ registerSpApiSyncQueueWakeups(boss);
 registerTopSearchTermsJobWakeups(boss);
 registerProductHistoryOperationWakeups(boss);
 registerCatalogSearchWakeups(boss);
-console.log(`[Server] Runtime flags: RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=${env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER}`);
+console.log(
+    `[Server] Runtime flags: RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=${env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER}`
+);
 
 let recoveredTopSearchTermsDatasetsCount = 0;
 let recoveredProductHistoryOperationsCount = 0;
@@ -186,12 +189,8 @@ registerRankWranglerMcp({
     publishableKey: env.MERCHBASE_CLERK_PUBLISHABLE_KEY,
 });
 
-fastify.get('/api/health', () => {
-    return {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        service: 'rankwrangler-server',
-    };
+registerHealthRoutes(fastify, {
+    jobRunner: serverRuntimeFlags.shouldStartJobRunner ? 'enabled' : 'disabled',
 });
 
 await fastify.register(fastifyTRPCPlugin, {
