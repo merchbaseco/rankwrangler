@@ -20,7 +20,6 @@ import {
     shortNameRetrievalKey,
 } from './product-short-name-request';
 import { captureProviderAttempt } from './providers/provider-telemetry';
-import { startDetachedRetrieval } from './retrieval-coordinator';
 
 const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 const JEV_TIMEOUT_MS = 8000;
@@ -62,16 +61,6 @@ export const getProductShortName = async ({
         work: () => resolveShortName(request),
     });
 };
-
-/** Starts or joins generation without waiting; the same key `get` callers wait on. */
-export const startProductShortNameGeneration = (request: ShortNameRequest) =>
-    startDetachedRetrieval({
-        key: shortNameRetrievalKey(request),
-        work: () => resolveShortName(request),
-        onError: error => {
-            console.error('[Product Short Name] Background generation failed:', error);
-        },
-    });
 
 export const chooseProductShortName = async ({
     title,

@@ -72,26 +72,6 @@ export const coordinateRetrieval = async <T>({
     });
 };
 
-/**
- * Start or join the shared work for `key` without a caller waiting on it. Returns whether this
- * call started new work (false when it joined in-flight work).
- */
-export const startDetachedRetrieval = <T>({
-    key,
-    work,
-    onError,
-}: {
-    key: string;
-    work: () => Promise<T>;
-    onError: (error: unknown) => void;
-}) => {
-    if (inFlightRetrievals.has(key)) {
-        return false;
-    }
-    startSharedWork(key, work).catch(onError);
-    return true;
-};
-
 const startSharedWork = <T>(key: string, work: () => Promise<T>) => {
     const promise = Promise.resolve().then(work);
     const tracked = promise.finally(() => {

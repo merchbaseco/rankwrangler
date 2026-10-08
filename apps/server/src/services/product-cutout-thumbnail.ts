@@ -17,7 +17,6 @@ import {
     isCutoutSourceSupported,
 } from './product-cutout-thumbnail-media';
 import { waitForProductEnrichment } from './product-enrichment-wait';
-import { startDetachedRetrieval } from './retrieval-coordinator';
 
 const POLL_MS = 250;
 /**
@@ -31,7 +30,7 @@ export const CUTOUT_GENERATION_CONCURRENCY = 6;
 const generationSlots = createConcurrencyLimit(CUTOUT_GENERATION_CONCURRENCY);
 export const CUTOUT_GENERATOR_VERSION = 'foreground-alpha-normalized-128:v3';
 
-export type CutoutRequest = CutoutIdentity & {
+type CutoutRequest = CutoutIdentity & {
     sourceUrl: string;
     inputFingerprint: string;
 };
@@ -64,7 +63,7 @@ export const getProductCutoutThumbnail = async ({
 };
 
 /** Returns null when the Product has no cutout source; the cutout is then final unavailable. */
-export const prepareCutoutRequest = ({
+const prepareCutoutRequest = ({
     marketplaceId,
     asin,
     thumbnail,
@@ -84,7 +83,7 @@ export const prepareCutoutRequest = ({
  * Classifies a stored row for the current source. `ready` with a null URL means generation
  * failed within the retry window; `missing` means generation has not finished for this source.
  */
-export const readStoredCutout = (
+const readStoredCutout = (
     stored: StoredCutout | null,
     inputFingerprint: string
 ): { state: 'ready'; url: string | null } | { state: 'missing' } => {
@@ -102,16 +101,6 @@ export const readStoredCutout = (
     }
     return { state: 'missing' };
 };
-
-/** Starts or joins generation without waiting; the same key `get` callers wait on. */
-export const startProductCutoutGeneration = (request: CutoutRequest) =>
-    startDetachedRetrieval({
-        key: cutoutRetrievalKey(request),
-        work: () => resolveCutout(request),
-        onError: error => {
-            console.error('[Product Cutout] Background generation failed:', error);
-        },
-    });
 
 export const getCutoutInputFingerprint = (sourceUrl: string) =>
     createHash('md5')

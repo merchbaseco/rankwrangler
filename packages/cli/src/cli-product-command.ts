@@ -52,6 +52,9 @@ const runProductGet = async (
 ) => {
     const marketplaceId = requireMarketplaceId(options, config);
     const asins = requireAsins(args, fail);
+    if (asins.length > 1 && options.shortName) {
+        fail('INVALID_INPUT', '--shortName requires exactly one ASIN');
+    }
 
     if (asins.length === 1) {
         return await client.product.get.mutate({
@@ -63,7 +66,6 @@ const runProductGet = async (
 
     return await client.product.getMany.mutate({
         products: asins.map(asin => ({ marketplaceId, asin })),
-        ...(options.shortName ? { include: ['shortName'] as const } : {}),
     });
 };
 

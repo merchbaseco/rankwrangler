@@ -196,7 +196,7 @@ export const getProductReadModel = async (
     };
 };
 
-export const toPublicCutoutThumbnail = (url: string | null): PublicCutoutThumbnail =>
+const toPublicCutoutThumbnail = (url: string | null): PublicCutoutThumbnail =>
     url ? { status: 'available', url } : { status: 'unavailable' };
 
 export const mapProductToPublicProduct = (

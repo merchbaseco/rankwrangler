@@ -1,5 +1,4 @@
 import type { z } from 'zod';
-import { productGetManyIncludeInput } from '@/api/public/product-input';
 
 export const rejectFieldsOutsideOperation = <Operation extends string>(
     input: { operation: Operation } & Record<string, unknown>,
@@ -15,23 +14,5 @@ export const rejectFieldsOutsideOperation = <Operation extends string>(
                 path: [field],
             });
         }
-    }
-};
-
-/** getMany accepts only its own includes; marketData stays get-only. */
-export const rejectGetManyOnlyIncludes = (
-    input: { operation: string; include?: readonly string[] },
-    context: z.RefinementCtx
-) => {
-    if (input.operation !== 'getMany' || !input.include) {
-        return;
-    }
-    const parsed = productGetManyIncludeInput.safeParse(input.include);
-    for (const issue of parsed.error?.issues ?? []) {
-        context.addIssue({
-            code: 'custom',
-            message: issue.message,
-            path: ['include', ...issue.path],
-        });
     }
 };

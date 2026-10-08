@@ -21,7 +21,6 @@ export const createProductGetManyProcedure = (deps: ProductGetManyDeps = default
         try {
             return await deps.getBasicProductReadModels({
                 products: input.products,
-                include: input.include,
                 signal,
             });
         } catch (error) {

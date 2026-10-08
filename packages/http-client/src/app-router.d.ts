@@ -274,11 +274,6 @@ export interface KeywordHistoryResponse {
 	points: KeywordHistoryPoint[];
 	deltas: SearchTermsTrendDeltas;
 }
-declare const productGetManyIncludes: readonly [
-	"shortName",
-	"cutoutThumbnail"
-];
-export type ProductGetManyInclude = (typeof productGetManyIncludes)[number];
 export type PublicCutoutThumbnail = {
 	status: "available";
 	url: string;
@@ -361,18 +356,6 @@ export interface ProductSearch {
 		product: ProductSearchProduct;
 	}>;
 }
-export type BatchCutoutThumbnail = PublicCutoutThumbnail | {
-	status: "pending";
-};
-/**
- * Batch listing enrichment. A requested field is final unless it is listed in `pending`;
- * a pending `shortName` is `null` and a pending `cutoutThumbnail` is `{ status: 'pending' }`.
- */
-export interface ProductListingEnrichment {
-	shortName?: string | null;
-	cutoutThumbnail?: BatchCutoutThumbnail;
-	pending: ProductGetManyInclude[];
-}
 export interface BasicProduct {
 	marketplaceId: string;
 	asin: string;
@@ -385,8 +368,6 @@ export interface BasicProduct {
 	};
 	amazonListingStatus: AmazonListingStatus;
 }
-/** Enrichment fields are present only when the caller passed `include`. */
-export type BatchProduct = BasicProduct & Partial<ProductListingEnrichment>;
 export interface ProductHistorySummary {
 	first: number | null;
 	latest: number | null;
@@ -591,7 +572,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						include?: ("shortName" | "cutoutThumbnail" | "marketData")[] | undefined;
+						include?: ("shortName" | "marketData" | "cutoutThumbnail")[] | undefined;
 					};
 					output: Product;
 					meta: object;
@@ -602,9 +583,8 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							marketplaceId: string;
 							asin: string;
 						}[];
-						include?: ("shortName" | "cutoutThumbnail")[] | undefined;
 					};
-					output: BatchProduct[];
+					output: BasicProduct[];
 					meta: object;
 				}>;
 				history: import("@trpc/server").TRPCMutationProcedure<{

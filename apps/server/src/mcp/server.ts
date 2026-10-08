@@ -1,8 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { productGetIncludes, productGetManyIncludeInput } from '@/api/public/product-input';
-import { rejectFieldsOutsideOperation, rejectGetManyOnlyIncludes } from './input-refinements';
+import { productGetIncludes } from '@/api/public/product-input';
+import { rejectFieldsOutsideOperation } from './input-refinements';
 import { readOnlyToolAnnotations, runReadOnlyTool } from './tool-result';
 import type {
     ProductGetManyMcpInput,
@@ -87,11 +87,10 @@ const productInputSchema = z
         term: z.string().trim().min(1).max(200).optional(),
     })
     .strict()
-    .superRefine((input, context) => {
-        rejectGetManyOnlyIncludes(input, context);
+    .superRefine((input, context) =>
         rejectFieldsOutsideOperation(input, context, {
             get: ['asin', 'include', 'marketplaceId'],
-            getMany: ['include', 'products'],
+            getMany: ['products'],
             history: [
                 'asin',
                 'bucket',
@@ -103,8 +102,8 @@ const productInputSchema = z
                 'startAt',
             ],
             search: ['refresh', 'term'],
-        });
-    });
+        })
+    );
 
 const keywordInputSchema = z
     .object({
@@ -162,12 +161,8 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 'cutoutThumbnail {status:unavailable}) and a later get returns it, so never ' +
                 'retry get just for enrichment. ' +
                 'getMany uses products and returns fixed-shape basic title and ' +
-                'thumbnail data for up to 200 identities; it accepts ' +
-                'include=[shortName,cutoutThumbnail] (not marketData) and never waits on them. ' +
-                'Each getMany item then carries pending: the requested fields still being ' +
-                'generated, with shortName null and cutoutThumbnail {status:pending} until ready; ' +
-                'request those items again shortly. A requested field not in pending is settled. ' +
-                'get and getMany return a known ' +
+                'thumbnail data for up to 200 identities without include; request ' +
+                'shortName or cutoutThumbnail with get. get and getMany return a known ' +
                 "Product's last-known listing data at once and refresh it in the background; " +
                 'they wait only for Products RankWrangler has never resolved. In getMany results, ' +
                 'amazonListingStatus is active or deleted. active means the Amazon detail-page ' +
@@ -266,7 +261,6 @@ const toProductGetManyInput = (input: ProductInput): ProductGetManyMcpInput => (
         asin: product.asin.toUpperCase(),
         marketplaceId: product.marketplaceId,
     })),
-    ...(input.include ? { include: productGetManyIncludeInput.parse(input.include) } : {}),
 });
 
 const toProductHistoryInput = (input: ProductInput): ProductHistoryMcpInput => ({
