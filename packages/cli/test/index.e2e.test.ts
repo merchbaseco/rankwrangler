@@ -171,7 +171,7 @@ describe('cli behavior', () => {
         );
     });
 
-    test('requires one ASIN for Product history', () => {
+    test('requires one ASIN for Product history and --shortName', () => {
         const tempRoot = createTempDir('rankwrangler-cli-', TEMP_DIRS);
         const tempHome = path.join(tempRoot, 'home');
         const workspaceDir = path.join(tempRoot, 'workspace');
@@ -186,6 +186,13 @@ describe('cli behavior', () => {
         });
         expect(historyFailure.error.code).toBe('INVALID_INPUT');
         expect(historyFailure.error.message).toBe('product history requires exactly one ASIN');
+
+        const shortNameFailure = runCliFailure(
+            ['product', 'get', 'B0DV53VS61', 'B0DV53VS62', '--shortName'],
+            { cwd: workspaceDir, home: tempHome, env }
+        );
+        expect(shortNameFailure.error.code).toBe('INVALID_INPUT');
+        expect(shortNameFailure.error.message).toBe('--shortName requires exactly one ASIN');
     });
 
     test('lets RR_STORAGE_DIR override the saved storage dir', () => {

@@ -221,34 +221,20 @@ describe('RankWrangler MCP server', () => {
         await server.close();
     });
 
-    it('forwards getMany chip includes and rejects marketData for getMany', async () => {
-        const { client, server } = await connect({
-            ...dataSource,
-            product: { ...dataSource.product, getMany: async input => ({ data: input }) },
-        });
-        const products = [{ asin: 'B012345678', marketplaceId: 'ATVPDKIKX0DER' }];
-        const [included, rejected] = await Promise.all([
-            client.callTool({
-                name: 'rankwrangler_product',
-                arguments: {
-                    operation: 'getMany',
-                    products,
-                    include: ['shortName', 'cutoutThumbnail'],
-                },
-            }),
-            client.callTool({
-                name: 'rankwrangler_product',
-                arguments: { operation: 'getMany', products, include: ['marketData'] },
-            }),
-        ]);
+    it('rejects include for getMany', async () => {
+        const { client, server } = await connect(dataSource);
 
-        expect(included.structuredContent).toEqual({
-            data: { products, include: ['shortName', 'cutoutThumbnail'] },
+        const result = await client.callTool({
+            name: 'rankwrangler_product',
+            arguments: {
+                operation: 'getMany',
+                products: [{ asin: 'B012345678', marketplaceId: 'ATVPDKIKX0DER' }],
+                include: ['shortName'],
+            },
         });
-        expect(rejected.isError).toBe(true);
-        expect(JSON.stringify(rejected.content)).toContain(
-            'getMany include supports only shortName and cutoutThumbnail'
-        );
+
+        expect(result.isError).toBe(true);
+        expect(JSON.stringify(result.content)).toContain('include is not accepted for getMany');
 
         await client.close();
         await server.close();
