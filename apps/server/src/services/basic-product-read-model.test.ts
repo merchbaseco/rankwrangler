@@ -67,7 +67,7 @@ describe('basic Product read model', () => {
         ]);
         expect(getProducts).toHaveBeenCalledWith({
             products: [availableIdentity, unavailableIdentity],
-            fetchPolicy: 'blocking',
+            fetchPolicy: 'last-known',
             signal: undefined,
         });
     });
