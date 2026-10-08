@@ -30,7 +30,7 @@ export const getBasicProductReadModels = async (
 ): Promise<BasicProduct[]> => {
     const products = await deps.getProducts({
         products: input.products,
-        fetchPolicy: 'blocking',
+        fetchPolicy: 'last-known',
         signal: input.signal,
     });
 

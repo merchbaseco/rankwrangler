@@ -19,7 +19,13 @@ import {
 } from './product-retrieval-work';
 import { enqueueSpApiSyncQueueItems } from './spapi-sync-queue';
 
-export type ProductFetchPolicy = 'blocking' | 'background';
+/**
+ * blocking: wait for every stale or unknown Product.
+ * background: never wait; queue refreshes.
+ * last-known: serve any Product with a known listing at once and refresh it in the background;
+ * wait only for Products with no known listing.
+ */
+export type ProductFetchPolicy = 'blocking' | 'background' | 'last-known';
 export type AmazonListingResolutionStatus = 'pending' | 'active' | 'deleted';
 
 export interface ProductRetrieval {
@@ -113,6 +119,20 @@ export const getProducts = async (
     if (fetchPolicy === 'blocking') {
         await resolveProducts(needsResolution, deps, signal, timeoutMs);
         stored = needsResolution.length > 0 ? await deps.getStoredProducts(identities) : stored;
+    } else if (fetchPolicy === 'last-known') {
+        const known = needsResolution.filter(identity =>
+            hasKnownListing(storedByKey.get(productKey(identity)))
+        );
+        const unknown = needsResolution.filter(
+            identity => !hasKnownListing(storedByKey.get(productKey(identity)))
+        );
+        if (known.length > 0) {
+            enqueueBackgroundProducts(known, storedByKey, deps).catch(error => {
+                console.error('[Product Retrieval] Background refresh enqueue failed:', error);
+            });
+        }
+        await resolveProducts(unknown, deps, signal, timeoutMs);
+        stored = unknown.length > 0 ? await deps.getStoredProducts(identities) : stored;
     } else if (needsResolution.length > 0) {
         await enqueueBackgroundProducts(needsResolution, storedByKey, deps);
         stored = await deps.getStoredProducts(identities);
@@ -216,6 +236,9 @@ const getAmazonListingStatus = (
     }
     return 'pending';
 };
+
+const hasKnownListing = (stored: StoredProductRead | undefined) =>
+    getAmazonListingStatus(stored) !== 'pending';
 
 const shouldResolve = (
     stored: StoredProductRead | undefined,

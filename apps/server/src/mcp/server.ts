@@ -156,7 +156,9 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 'Read RankWrangler Product data synchronously. operation=get uses asin and ' +
                 'marketplaceId and accepts include=[marketData,shortName,cutoutThumbnail]; ' +
                 'getMany uses products and returns fixed-shape basic title and ' +
-                'thumbnail data for up to 200 identities. In getMany results, ' +
+                'thumbnail data for up to 200 identities. get and getMany return a known ' +
+                "Product's last-known listing data at once and refresh it in the background; " +
+                'they wait only for Products RankWrangler has never resolved. In getMany results, ' +
                 'amazonListingStatus is active or deleted. active means the Amazon detail-page ' +
                 'listing exists, not that an offer is in stock or buyable. deleted means the ' +
                 'listing no longer exists for customers in that marketplace; retained title or ' +
