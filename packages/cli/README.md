@@ -21,7 +21,9 @@ data and expose no refresh control; Product search retains its separate search c
 data contains `keyword`, `searchedAt`, and compact results with `organicSearchPlacement`. Output is
 a JSON `{ ok, data }` envelope; failures use `{ ok: false, error }` on stderr.
 The CLI does not expose Catalog, Operation, provider status, or polling commands.
-`--shortName` is available for a single Product get. It adds a nullable image-informed
-`listing.shortName` to the full Product response.
+`--shortName` adds a nullable image-informed `listing.shortName` to a single Product get. With
+several ASINs it requests `include: ['shortName']` from `getMany`, which never waits on generation:
+each item carries `shortName` and `pending`, and an item with `pending: ['shortName']` is worth
+requesting again shortly.
 
 See the [CLI reference](../../docs/reference/cli.md) for options and release workflow.

@@ -47,7 +47,9 @@ the caller deadline. See [Public Retrieval](../decisions/public-retrieval.md).
 
 Product `get`/`getMany`/`history` and keyword inputs have no refresh control. Product Search retains
 its separate search input. Product `get`/`getMany`/`history` and keyword responses expose no
-pending data, freshness, Operations, polling state, provider status or response `schemaVersion`.
+pending data, freshness, Operations, polling state, provider status or response `schemaVersion`,
+with one exception: `getMany` enrichment requested through `include` reports a per-item `pending`
+list (see [Batch enrichment](#batch-enrichment)).
 
 ## Procedures
 
@@ -125,7 +127,8 @@ Requested reads inspect the printed design with Gemini 3.1 Flash-Lite,
 then use Jev to select a word-for-word span from the listing title with display capitalization.
 The name includes pictured context when the printed words alone are generic. A design can still
 yield `null` when no title span is supported by the image. The full Product remains in the same
-response for detail views; `getMany`, search, and history do not perform this image analysis. A requested short name is
+response for detail views; search and history do not perform this image analysis, and `getMany`
+returns it only through [Batch enrichment](#batch-enrichment). A requested short name is
 stored per Product and reused while its title, image URL, and generator version are unchanged.
 
 `cutoutThumbnail` independently requests a transparent 128×128 WebP of the Product photo. The visible
@@ -135,7 +138,7 @@ or generation fails. The original `thumbnail` remains the listing photo. A reque
 stored in R2 and reused while the source URL and generator version are unchanged;
 generation failures do not prevent the Product or a requested short name from returning. A caller
 displaying chips can request `include: ['shortName', 'cutoutThumbnail']` without Keepa market data.
-`getMany`, search, and history do not generate cutouts.
+Search and history do not generate cutouts; `getMany` uses [Batch enrichment](#batch-enrichment).
 
 ## Basic Products
 
@@ -170,6 +173,73 @@ from SP-API in batches of 20. Every requested identity is persisted in the canon
 including identities Amazon does not return. Each pair consumes one Service Account usage unit.
 Keepa history is not part of the synchronous response; newly classified eligible Products enter
 the existing asynchronous history-refresh policy.
+
+## Batch Enrichment
+
+`product.getMany` accepts an optional `include: Array<'shortName' | 'cutoutThumbnail'>` so a chip
+renderer can load a batch in one call. `marketData` is `get`-only and fails validation with
+`BAD_REQUEST`. Without `include`, results are exactly the basic shape above. With it, each item
+appends the requested fields, in the same shape and from the same stored values `get` returns in
+`listing.shortName` and `listing.cutoutThumbnail`, plus `pending`:
+
+```ts
+type BatchProduct = BasicProduct & {
+    shortName?: string | null; // present when requested
+    cutoutThumbnail?: // present when requested
+        | { status: 'available'; url: string }
+        | { status: 'unavailable' }
+        | { status: 'pending' };
+    pending: Array<'shortName' | 'cutoutThumbnail'>; // present when include is passed
+};
+```
+
+`getMany` never waits on generation and never fails a batch over one item's enrichment. Stored
+short names and cutouts are read for the whole batch in one query each. A requested field listed
+in `pending` is still being generated: `shortName` is `null` and `cutoutThumbnail` is
+`{ status: 'pending' }`. Generation for it has started in the background, deduplicated with any
+other request for the same input, so request those items again shortly. A requested field not in
+`pending` is settled: `shortName: null` means there is no name (not a Merch listing, no image,
+deleted listing, abstention, or a generation failure in the last five minutes), and
+`{ status: 'unavailable' }` means there is no cutout. Settled failures are retried by a later
+request after five minutes.
+
+```json
+[
+    {
+        "marketplaceId": "ATVPDKIKX0DER",
+        "asin": "B0DV53VS61",
+        "title": "Zombiecorn Unicorn Halloween Shirt",
+        "thumbnail": { "status": "available", "url": "https://m.media-amazon.com/images/I/a.jpg" },
+        "amazonListingStatus": "active",
+        "shortName": "Zombiecorn",
+        "cutoutThumbnail": {
+            "status": "available",
+            "url": "https://images.rankwrangler.merchbase.co/cutouts/ATVPDKIKX0DER/B0DV53VS61/f.webp"
+        },
+        "pending": []
+    },
+    {
+        "marketplaceId": "ATVPDKIKX0DER",
+        "asin": "B0CXYZ1234",
+        "title": "Garden Gnome Lover Funny Shirt",
+        "thumbnail": { "status": "available", "url": "https://m.media-amazon.com/images/I/b.jpg" },
+        "amazonListingStatus": "active",
+        "shortName": null,
+        "cutoutThumbnail": { "status": "pending" },
+        "pending": ["shortName", "cutoutThumbnail"]
+    },
+    {
+        "marketplaceId": "ATVPDKIKX0DER",
+        "asin": "B0RETIRED1",
+        "title": "Retired Shirt",
+        "thumbnail": { "status": "unavailable" },
+        "amazonListingStatus": "deleted",
+        "shortName": null,
+        "cutoutThumbnail": { "status": "unavailable" },
+        "pending": []
+    }
+]
+```
 
 ## Product Search
 

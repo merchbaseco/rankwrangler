@@ -26,7 +26,10 @@ by the caller deadline. An upstream stall therefore cannot turn a Product we alr
 retryable error.
 
 Public callers never receive pending Product data, Operations, polling state, provider
-health or timestamps, freshness fields, or a refresh input. Product responses are provider-neutral,
+health or timestamps, freshness fields, or a refresh input. The one exception is `getMany`
+enrichment (`include: ['shortName', 'cutoutThumbnail']`): each item lists the requested fields still
+being generated in `pending` rather than waiting, because one cold item must not block or fail a
+batch rendered as chips. Product responses are provider-neutral,
 and response shapes do not carry a schema version. `rankwrangler_status` probes connection,
 authentication, and supported capabilities only; it is not a data-source health check.
 
@@ -52,6 +55,8 @@ Callers still never see a freshness protocol: a last-known listing is simply the
 
 - Public consumers handle final data or a retryable error, never a freshness protocol.
 - Product `get`/`getMany` listing data may lag Amazon by up to one background refresh.
+- A `getMany` caller that requests enrichment handles a typed per-item `pending` list and repeats
+  the request for those items; `get` still waits for the same generation and never reports it.
 - Server policy can evolve independently for Product, history, Search, and keyword intelligence.
 - Dashboard and operator surfaces may remain source-aware without coupling integrations to a
   provider.

@@ -74,8 +74,10 @@ Single-Product `get` accepts `include: ['marketData', 'shortName', 'cutoutThumbn
 `marketData`, preserving the existing Keepa-backed current Product read. Clients can omit it for a
 listing-only read or add `shortName` for a design-specific label and `cutoutThumbnail` for a
 centered transparent Product photo on a 128×128 canvas. Only requested derivatives are stored;
-unchanged source inputs reuse durable results. Batch reads and the extension do not trigger image
-analysis.
+unchanged source inputs reuse durable results. `getMany` accepts
+`include: ['shortName', 'cutoutThumbnail']` for chip batches: it never waits on generation, reports
+still-generating fields per item in `pending`, and starts that generation in the background. The
+extension does not trigger image analysis.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.

@@ -59,6 +59,7 @@ Product history options:
 rw product get B0DV53VS61
 rw product get B0DV53VS61 --shortName
 rw product get B0DV53VS61 B012345678
+rw product get B0DV53VS61 B012345678 --shortName
 rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 ```
 
@@ -72,11 +73,15 @@ the marketplace resolved from `--marketplace`, saved
 configuration, or the normal US default.
 For one ASIN, `--shortName` requests an image-informed `listing.shortName` while retaining the full
 Product response. It is nullable and applies only to known Merch listings with available images.
+With several ASINs, `--shortName` sends `include: ['shortName']` to the batch, which never waits on
+generation: each result adds `shortName` and `pending`, and a result with `pending: ['shortName']`
+is still generating and worth requesting again shortly. See
+[Batch enrichment](public-api.md#batch-enrichment).
 
 | Option | Values and default |
 | --- | --- |
 | `--metrics <list>` | `salesRank,price`; default both; Product history only. |
-| `--shortName` | Include an image-informed short name; single Product get only. |
+| `--shortName` | Include an image-informed short name; Product get with one or more ASINs. |
 | `--bucket <unit>` | `auto`, `day`, `week`, `month`; default `auto`. |
 | `--days <N>` | 30–3650; default 365. Cannot combine with explicit range bounds. |
 | `--rangeDays <N>` | Keyword history range, 7–365; default 90. |
