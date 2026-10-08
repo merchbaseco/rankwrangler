@@ -42,11 +42,6 @@ const basicProducts = await client.product.getMany.mutate({
     ],
 });
 
-const chips = await client.product.getMany.mutate({
-    products: [{ marketplaceId: 'ATVPDKIKX0DER', asin: 'B0DV53VS61' }],
-    include: ['shortName', 'cutoutThumbnail'],
-});
-
 const search = await client.product.search.mutate({
     term: 'retro gardening shirt',
 });
@@ -75,12 +70,8 @@ Product photo. Pass `['shortName', 'cutoutThumbnail']` for chip data without Kee
 `[]` to skip optional hydrations. The name and cutout remain nullable when omitted. `get` waits up
 to 20 seconds for requested enrichment and returns an unfinished or failed field as none
 (`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`) rather than a `TIMEOUT`; a later
-`get` returns the finished value. `getMany`
-accepts `include: ['shortName', 'cutoutThumbnail']` (not `marketData`) and never waits on
-generation: each item appends the requested fields in `get`'s shapes plus `pending`, the fields
-still generating (`shortName: null`, `cutoutThumbnail: { status: 'pending' }`). Request pending
-items again shortly; a requested field not in `pending` is settled. See
-[Batch enrichment](public-api.md#batch-enrichment).
+`get` returns the finished value. Batch Product reads do not accept these options; request
+enrichment with one `get` per Product.
 
 ## Options
 
@@ -135,8 +126,7 @@ standard error. Missing or policy-expired data may wait while durable work conti
 background. Product
 `get`/`getMany`/`history` and keyword inputs expose no refresh control; Product Search retains its
 separate search input. Product `get`/`getMany`/`history` and keyword outputs expose no pending
-data, freshness, Operations, provider status or schema version, except the per-item `pending` list
-of `getMany` enrichment requested through `include`.
+data, freshness, Operations, provider status or schema version.
 Generated Product output preserves nullable `isMerchListing` knowledge; consumers must not coerce
 `null` to `false`. Basic `getMany` results always contain identity, nullable title, resolved
 thumbnail, and `amazonListingStatus: active | deleted`. Active means the detail-page listing exists,

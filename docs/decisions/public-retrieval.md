@@ -26,10 +26,8 @@ by the caller deadline. An upstream stall therefore cannot turn a Product we alr
 retryable error.
 
 Public callers never receive pending Product data, Operations, polling state, provider
-health or timestamps, freshness fields, or a refresh input. The one exception is `getMany`
-enrichment (`include: ['shortName', 'cutoutThumbnail']`): each item lists the requested fields still
-being generated in `pending` rather than waiting, because one cold item must not block or fail a
-batch rendered as chips. Product `get` enrichment instead waits up to a bounded deadline (20
+health or timestamps, freshness fields, or a refresh input. `getMany` returns basic listing fields
+only and accepts no enrichment. Product `get` enrichment waits up to a bounded deadline (20
 seconds) and settles an unfinished or recently failed field as none (`shortName: null`,
 `cutoutThumbnail: { status: 'unavailable' }`) while generation continues for the next request:
 enrichment is optional decoration, so slowness must never become a retryable error or a polling
@@ -59,9 +57,8 @@ Callers still never see a freshness protocol: a last-known listing is simply the
 
 - Public consumers handle final data or a retryable error, never a freshness protocol.
 - Product `get`/`getMany` listing data may lag Amazon by up to one background refresh.
-- A `getMany` caller that requests enrichment handles a typed per-item `pending` list and repeats
-  the request for those items; `get` waits for the same generation up to its deadline and never
-  reports it as pending or retryable.
+- A caller that needs short names or cutouts calls `get` once per Product; `get` waits for
+  generation up to its deadline and never reports it as pending or retryable.
 - Server-wide generation concurrency limits bound AI provider load; time queued behind them counts
   against `get`'s enrichment deadline.
 - Server policy can evolve independently for Product, history, Search, and keyword intelligence.

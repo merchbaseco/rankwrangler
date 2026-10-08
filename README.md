@@ -76,10 +76,8 @@ listing-only read or add `shortName` for a design-specific label and `cutoutThum
 centered transparent Product photo on a 128×128 canvas. Only requested derivatives are stored;
 unchanged source inputs reuse durable results. `get` waits up to 20 seconds for requested
 enrichment and returns a field still generating (or recently failed) as none rather than an error,
-while generation continues for the next request. `getMany` accepts
-`include: ['shortName', 'cutoutThumbnail']` for chip batches: it never waits on generation, reports
-still-generating fields per item in `pending`, and starts that generation in the background. The
-extension does not trigger image analysis.
+while generation continues for the next request. `getMany` returns basic listing fields only and
+accepts no `include`. Batch reads and the extension do not trigger image analysis.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
 public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.
