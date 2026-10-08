@@ -73,6 +73,8 @@ the marketplace resolved from `--marketplace`, saved
 configuration, or the normal US default.
 For one ASIN, `--shortName` requests an image-informed `listing.shortName` while retaining the full
 Product response. It is nullable and applies only to known Merch listings with available images.
+The command waits up to 20 seconds for generation; a name still generating at that deadline, or
+whose generation just failed, prints as `null` instead of a `TIMEOUT`, and a later call returns it.
 With several ASINs, `--shortName` sends `include: ['shortName']` to the batch, which never waits on
 generation: each result adds `shortName` and `pending`, and a result with `pending: ['shortName']`
 is still generating and worth requesting again shortly. See

@@ -74,7 +74,9 @@ Single-Product `get` accepts `include: ['marketData', 'shortName', 'cutoutThumbn
 `marketData`, preserving the existing Keepa-backed current Product read. Clients can omit it for a
 listing-only read or add `shortName` for a design-specific label and `cutoutThumbnail` for a
 centered transparent Product photo on a 128×128 canvas. Only requested derivatives are stored;
-unchanged source inputs reuse durable results. `getMany` accepts
+unchanged source inputs reuse durable results. `get` waits up to 20 seconds for requested
+enrichment and returns a field still generating (or recently failed) as none rather than an error,
+while generation continues for the next request. `getMany` accepts
 `include: ['shortName', 'cutoutThumbnail']` for chip batches: it never waits on generation, reports
 still-generating fields per item in `pending`, and starts that generation in the background. The
 extension does not trigger image analysis.

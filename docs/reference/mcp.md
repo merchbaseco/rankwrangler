@@ -32,7 +32,10 @@ The `initialize` server info advertises `websiteUrl` `https://rankwrangler.merch
 
 `rankwrangler_product` uses `asin` and `marketplaceId` for `get`. It may also set
 `include: ['shortName', 'cutoutThumbnail']` to request an image-informed label and a transparent
-Product cutout in the full Product response. The default is `['marketData']`. `getMany` accepts `products` with 1–200 unique
+Product cutout in the full Product response. `get` waits up to 20 seconds for that generation and
+then returns any unfinished field as none (`shortName: null`, `cutoutThumbnail:
+{ status: 'unavailable' }`) while generation continues; it never returns
+`TEMPORARILY_UNAVAILABLE` just because enrichment is slow or failed. The default is `['marketData']`. `getMany` accepts `products` with 1–200 unique
 `{ asin, marketplaceId }` pairs and returns a fixed-shape basic Product array. `getMany` may set
 `include: ['shortName', 'cutoutThumbnail']` (`marketData` is rejected); each item then appends the
 requested fields plus `pending`, the fields still generating, with `shortName: null` and

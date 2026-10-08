@@ -72,7 +72,10 @@ The returned proxy is already scoped to `api.public`; call `client.product...` a
 `include` defaults to `['marketData']`, preserving the Keepa-backed current Product read. Add
 `shortName` for an image-informed compact label and `cutoutThumbnail` for a transparent 128-pixel
 Product photo. Pass `['shortName', 'cutoutThumbnail']` for chip data without Keepa market data, or
-`[]` to skip optional hydrations. The name and cutout remain nullable when omitted. `getMany`
+`[]` to skip optional hydrations. The name and cutout remain nullable when omitted. `get` waits up
+to 20 seconds for requested enrichment and returns an unfinished or failed field as none
+(`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`) rather than a `TIMEOUT`; a later
+`get` returns the finished value. `getMany`
 accepts `include: ['shortName', 'cutoutThumbnail']` (not `marketData`) and never waits on
 generation: each item appends the requested fields in `get`'s shapes plus `pending`, the fields
 still generating (`shortName: null`, `cutoutThumbnail: { status: 'pending' }`). Request pending

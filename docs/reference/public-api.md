@@ -140,6 +140,15 @@ generation failures do not prevent the Product or a requested short name from re
 displaying chips can request `include: ['shortName', 'cutoutThumbnail']` without Keepa market data.
 Search and history do not generate cutouts; `getMany` uses [Batch enrichment](#batch-enrichment).
 
+`get` answers enrichment in one call. With `shortName` or `cutoutThumbnail` included, it waits for
+that generation, up to a 20-second enrichment budget that starts once the listing is resolved and
+includes time queued behind the server's generation concurrency limits. A field still generating
+at the deadline, or whose generation failed within the last five minutes, returns as none for this
+response (`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`); generation keeps
+running, so a later `get` returns the finished value. Slow or failed enrichment never produces a
+`TIMEOUT` or asks the caller to retry. Concurrent requests for the same Product share one
+generation.
+
 ## Basic Products
 
 `product.getMany` accepts one to 200 unique `{ marketplaceId, asin }` pairs. ASINs are normalized
