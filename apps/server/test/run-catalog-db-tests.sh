@@ -288,6 +288,7 @@ bun test \
     apps/server/test/catalog-search-concurrency.db.test.ts \
     apps/server/test/catalog-search-history.db.test.ts \
     apps/server/test/catalog-query-refresh.db.test.ts \
+    apps/server/test/health-probe.db.test.ts \
     apps/server/test/merch-listing-classification.db.test.ts \
     apps/server/test/product-short-name.db.test.ts \
     apps/server/test/product-cutout-thumbnail.db.test.ts

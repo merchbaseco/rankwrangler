@@ -168,7 +168,8 @@ containers if either the check or a migration fails.
 ## Verification
 
 ```bash
-curl --fail https://rankwrangler.merchbase.co/api/health
+curl --fail https://rankwrangler.merchbase.co/api/health/live
+curl -i https://rankwrangler.merchbase.co/api/health
 curl --fail https://rankwrangler.merchbase.co/.well-known/oauth-protected-resource/mcp
 curl -i -X POST https://rankwrangler.merchbase.co/mcp \
   -H 'Content-Type: application/json' \
@@ -180,6 +181,19 @@ docker logs rankwrangler-caddy --tail 50
 
 Migration or startup failures appear in the server logs. If code is unexpectedly stale, verify
 the deployed commit before forcing a no-cache rebuild.
+
+The server has two health URLs. `/api/health/live` returns `200 {"status":"ok"}` whenever the
+process serves HTTP and never reads PostgreSQL. The image `HEALTHCHECK`, both Compose healthchecks,
+Caddy's `health_uri`, and the `Deploy Stack` verify step poll it, so a database outage cannot mark
+Caddy's only upstream down.
+
+`/api/health` is the URL for the external watcher. It queries PostgreSQL and checks each background
+ingestion against a freshness limit that the server owns. It returns `200` with a timestamp, or
+`503 {"status":"degraded","failing":[...]}` with the names of the failing checks and never their
+causes. The names are `database` plus the `name` of each `FRESHNESS_CHECKS` entry in
+`apps/server/src/health/health-probe.ts`. When `RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true`, only
+`database` counts. A `503` from `/api/health` does not fail a deploy, because a deploy may be the
+fix for a stale pipeline.
 
 The MCP POST smoke check should return `401` with a `WWW-Authenticate` bearer challenge when no
 OAuth token is supplied. The protected-resource check should return JSON metadata, not the website
