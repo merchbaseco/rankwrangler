@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import type { ProductInfo } from '@/types';
+import { PRODUCT_ENRICHMENT_DEADLINE_MS } from './product-enrichment-wait';
 import {
     getProductReadModel,
     mapProductToCompactProductSearch,
@@ -86,7 +87,11 @@ describe('public Product read model', () => {
             title: product.title,
             thumbnail: product.thumbnail,
             signal: undefined,
+            timeoutMs: expect.any(Number),
         });
+        const timeoutMs = getProductShortName.mock.calls[0]?.[0].timeoutMs;
+        expect(timeoutMs).toBeGreaterThan(0);
+        expect(timeoutMs).toBeLessThanOrEqual(PRODUCT_ENRICHMENT_DEADLINE_MS);
     });
 
     it('hydrates a cutout independently of Merch classification and market data', async () => {
@@ -195,6 +200,41 @@ describe('public Product read model', () => {
         expect(result.listing.shortName).toBe('100 Days Smarter');
         expect(getProductShortName.mock.calls).toHaveLength(2);
         expect(getProductShortName.mock.calls[1]?.[0].title).toBe(current.title);
+    });
+
+    it('spends one enrichment deadline across the first wait and a regeneration', async () => {
+        const initial = {
+            ...createProductInfo(),
+            isMerchListing: true,
+            thumbnail: { status: 'available' as const, url: 'https://m.media-amazon.com/a.jpg' },
+        };
+        const current = { ...initial, title: '100 Days Smarter Shirt' };
+        const getProductShortName = mock(async ({ timeoutMs }: { timeoutMs: number }) => {
+            await sleep(Math.min(timeoutMs, 40));
+            return null;
+        });
+
+        await getProductReadModel(
+            {
+                marketplaceId: initial.marketplaceId,
+                asin: initial.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: ['shortName'],
+                enrichmentDeadlineMs: 60,
+            },
+            {
+                getRequiredProduct: mock()
+                    .mockResolvedValueOnce(initial)
+                    .mockResolvedValueOnce(current),
+                getProductHistorySurface: mock(async () => ({}) as never),
+                getProductShortName: getProductShortName as never,
+                getProductCutoutThumbnail: mock(async () => null),
+            }
+        );
+
+        const [first, second] = getProductShortName.mock.calls.map(([call]) => call.timeoutMs);
+        expect(first).toBeLessThanOrEqual(60);
+        expect(second).toBeLessThanOrEqual(60 - 40 + 5);
     });
 
     it('skips Keepa history when market data is not requested', async () => {
@@ -359,3 +399,5 @@ const createProductInfo = (): ProductInfo => ({
     },
     freshness: { stale: false, updatedAt: '2026-08-06T12:00:00.000Z' },
 });
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
