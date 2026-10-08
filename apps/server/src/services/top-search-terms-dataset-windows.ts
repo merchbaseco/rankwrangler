@@ -1,6 +1,9 @@
-import type { TopSearchTermsDatasetRecord } from '@/db/top-search-terms/dataset-record.js';
-import type { TopSearchTermsWindow } from '@/db/top-search-terms/types.js';
 import { fromZonedTime } from 'date-fns-tz';
+import type { TopSearchTermsDatasetRecord } from '@/db/top-search-terms/dataset-record.js';
+import type {
+    TopSearchTermsReportPeriod,
+    TopSearchTermsWindow,
+} from '@/db/top-search-terms/types.js';
 
 export const TOP_SEARCH_TERMS_DAILY_RETENTION_DAYS = 90;
 export const TOP_SEARCH_TERMS_WEEKLY_BACKFILL_WEEKS = 52;
@@ -143,6 +146,53 @@ export const getInitialNextRefreshAtForWindow = ({
         dataEndDate: window.dataEndDate,
         now,
     });
+};
+
+export const getTopSearchTermsFreshnessDueAt = ({
+    reportPeriod,
+    newestFinalEndDate,
+    now,
+}: {
+    reportPeriod: TopSearchTermsReportPeriod;
+    newestFinalEndDate: string | null;
+    now: Date;
+}) => {
+    const dataEndDate =
+        newestFinalEndDate === null
+            ? getNewestDueWindowEndDate({ reportPeriod, now })
+            : shiftDateString(newestFinalEndDate, getWindowStepDays(reportPeriod));
+    return getSlaAlignedRefreshAt({ reportPeriod, dataEndDate });
+};
+
+const getNewestDueWindowEndDate = ({
+    reportPeriod,
+    now,
+}: {
+    reportPeriod: TopSearchTermsReportPeriod;
+    now: Date;
+}) => {
+    const today = formatDateString(now);
+    let dataEndDate =
+        reportPeriod === 'DAY' ? today : shiftDateString(getSundayStartOfWeek(today), 6);
+    while (getSlaAlignedRefreshAt({ reportPeriod, dataEndDate }).getTime() > now.getTime()) {
+        dataEndDate = shiftDateString(dataEndDate, -getWindowStepDays(reportPeriod));
+    }
+    return dataEndDate;
+};
+
+const getWindowStepDays = (reportPeriod: TopSearchTermsReportPeriod) => {
+    switch (reportPeriod) {
+        case 'DAY':
+            return 1;
+        case 'WEEK':
+            return 7;
+        default:
+            return assertNever(reportPeriod);
+    }
+};
+
+const assertNever = (value: never): never => {
+    throw new Error(`Unsupported Top Search Terms report period: ${value}`);
 };
 
 const getSundayStartOfWeek = (dateString: string) => {

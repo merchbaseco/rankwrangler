@@ -6,6 +6,7 @@ import {
     getInitialNextRefreshAtForWindow,
     getNextRefreshAtAfterSuccess,
     getRetryRefreshAt,
+    getTopSearchTermsFreshnessDueAt,
     TOP_SEARCH_TERMS_SCHEDULER_BATCH_SIZE,
 } from '@/services/top-search-terms-dataset-windows.js';
 
@@ -211,6 +212,26 @@ describe('getRetryRefreshAt', () => {
         });
 
         expect(nextRefreshAt.toISOString()).toBe('2026-03-29T18:50:25.511Z');
+    });
+});
+
+describe('getTopSearchTermsFreshnessDueAt', () => {
+    const now = new Date('2026-10-08T20:00:00.000Z');
+    const dueAt = (reportPeriod: 'DAY' | 'WEEK', newestFinalEndDate: string | null): string =>
+        getTopSearchTermsFreshnessDueAt({ reportPeriod, newestFinalEndDate, now }).toISOString();
+
+    it('owes the next daily window by its SLA, with the shorter Saturday delay', () => {
+        expect(dueAt('DAY', '2026-10-03')).toBe('2026-10-08T06:59:59.999Z');
+        expect(dueAt('DAY', '2026-10-02')).toBe('2026-10-06T06:59:59.999Z');
+    });
+
+    it('owes the following Sunday-to-Saturday week after the newest final week', () => {
+        expect(dueAt('WEEK', '2026-09-26')).toBe('2026-10-06T06:59:59.999Z');
+    });
+
+    it('owes the newest window already past its SLA when nothing is final yet', () => {
+        expect(dueAt('DAY', null)).toBe('2026-10-08T06:59:59.999Z');
+        expect(dueAt('WEEK', null)).toBe('2026-10-06T06:59:59.999Z');
     });
 });
 
