@@ -3,6 +3,7 @@ import type { ProductHistorySurfaceInput } from '@/services/product-history-surf
 import { getProductHistorySurface } from '@/services/product-history-surface.js';
 import type { AmazonListingStatus, ProductInfo } from '@/types/index.js';
 import { getProductCutoutThumbnail } from './product-cutout-thumbnail';
+import { PRODUCT_ENRICHMENT_DEADLINE_MS } from './product-enrichment-wait';
 import { getRequiredProduct } from './product-retrieval';
 import { getProductShortName } from './product-short-name';
 
@@ -75,6 +76,8 @@ interface ProductReadInput {
     ownerMerchbaseUserId: string;
     include?: ProductGetInclude[];
     signal?: AbortSignal;
+    /** Total wait for requested enrichment; unfinished fields settle as none. */
+    enrichmentDeadlineMs?: number;
 }
 
 export interface ProductReadModelDeps {
@@ -106,6 +109,10 @@ export const getProductReadModel = async (
     });
 
     const includes = input.include ?? ['marketData'];
+    // One budget covers both enrichment waits, including a regeneration after a source change.
+    const enrichmentDeadline =
+        Date.now() + (input.enrichmentDeadlineMs ?? PRODUCT_ENRICHMENT_DEADLINE_MS);
+    const enrichmentTimeoutMs = () => Math.max(0, enrichmentDeadline - Date.now());
     const shortNamePromise =
         includes.includes('shortName') && initial.isMerchListing === true
             ? deps.getProductShortName({
@@ -113,6 +120,7 @@ export const getProductReadModel = async (
                   title: initial.title,
                   thumbnail: initial.thumbnail,
                   signal: input.signal,
+                  timeoutMs: enrichmentTimeoutMs(),
               })
             : Promise.resolve(null);
     const cutoutPromise = includes.includes('cutoutThumbnail')
@@ -120,6 +128,7 @@ export const getProductReadModel = async (
               ...identity,
               thumbnail: initial.thumbnail,
               signal: input.signal,
+              timeoutMs: enrichmentTimeoutMs(),
           })
         : Promise.resolve(null);
 
@@ -162,6 +171,7 @@ export const getProductReadModel = async (
                       title: current.title,
                       thumbnail: current.thumbnail,
                       signal: input.signal,
+                      timeoutMs: enrichmentTimeoutMs(),
                   });
     }
     let cutoutThumbnail: Product['listing']['cutoutThumbnail'] = null;
@@ -172,6 +182,7 @@ export const getProductReadModel = async (
                   ...identity,
                   thumbnail: current.thumbnail,
                   signal: input.signal,
+                  timeoutMs: enrichmentTimeoutMs(),
               });
         cutoutThumbnail = toPublicCutoutThumbnail(cutoutUrl);
     }

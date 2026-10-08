@@ -8,8 +8,10 @@ import {
     getStoredShortName,
     isCurrentShortNameInput,
 } from '@/db/product/product-short-name-store';
+import { createConcurrencyLimit } from './concurrency-limit';
 import { createEventLogSafe } from './event-logs';
 import { observeProductDesign, type ProductDesignObservation } from './product-design-observation';
+import { waitForProductEnrichment } from './product-enrichment-wait';
 import {
     prepareShortNameRequest,
     readStoredShortName,
@@ -18,35 +20,45 @@ import {
     shortNameRetrievalKey,
 } from './product-short-name-request';
 import { captureProviderAttempt } from './providers/provider-telemetry';
-import {
-    coordinateRetrieval,
-    RetrievalRetryableError,
-    startDetachedRetrieval,
-} from './retrieval-coordinator';
+import { startDetachedRetrieval } from './retrieval-coordinator';
 
 const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 const JEV_TIMEOUT_MS = 8000;
-const CALLER_TIMEOUT_MS = 24_000;
 const POLL_MS = 250;
+/**
+ * Process-wide cap on short-name generations (one Gemini observation + one Jev choice each).
+ * Neither provider publishes a per-key concurrency limit that binds at this volume (Gemini Flash
+ * Lite paid tiers allow thousands of requests per minute), so the cap bounds this process: each
+ * job holds a source image of up to 2 MB in memory, and a job claims its row only once it holds a
+ * slot, so queueing never burns the 30s claim lease. Eight clears a typical 10-chip message in
+ * two ~2.5s waves.
+ */
+export const SHORT_NAME_GENERATION_CONCURRENCY = 8;
+const generationSlots = createConcurrencyLimit(SHORT_NAME_GENERATION_CONCURRENCY);
 const choiceSchema = z.object({
     answers: z.object({
         shortName: z.object({ type: z.literal('choice'), choice: z.string() }),
     }),
 });
 
+/**
+ * Waits up to `timeoutMs` for the short name. Slow or failed generation settles as `null` for
+ * this response; generation keeps running so a later request reads the finished value.
+ */
 export const getProductShortName = async ({
     signal,
+    timeoutMs,
     ...source
-}: ShortNameSource & { signal?: AbortSignal }): Promise<string | null> => {
+}: ShortNameSource & { signal?: AbortSignal; timeoutMs: number }): Promise<string | null> => {
     const request = prepareShortNameRequest(source);
     if (!request) {
         return null;
     }
-    return await coordinateRetrieval({
+    return await waitForProductEnrichment({
         key: shortNameRetrievalKey(request),
         signal,
-        timeoutMs: CALLER_TIMEOUT_MS,
-        retryMessage: 'Product short name is temporarily unavailable. Retry shortly.',
+        timeoutMs,
+        label: 'Product Short Name',
         work: () => resolveShortName(request),
     });
 };
@@ -137,19 +149,22 @@ const resolveShortName = async (request: ShortNameRequest): Promise<string | nul
             return stored.shortName;
         }
         if (stored.state === 'failed') {
-            throw shortNameUnavailable();
+            return null;
         }
         if (!(env.RANKWRANGLER_GEMINI_API_KEY && env.RANKWRANGLER_TYPESAFE_API_KEY)) {
             throw new Error('Product short-name providers are not configured.');
         }
 
-        const claimId = randomUUID();
-        if (await claimShortNameGeneration({ ...identity, inputFingerprint, claimId })) {
-            const result = await generateClaimedShortName(request, claimId);
-            if (result.kind === 'ready') {
-                return result.shortName;
-            }
-        } else {
+        const result = await generationSlots.run(async () => {
+            const claimId = randomUUID();
+            return (await claimShortNameGeneration({ ...identity, inputFingerprint, claimId }))
+                ? await generateClaimedShortName(request, claimId)
+                : ({ kind: 'claimed-elsewhere' } as const);
+        });
+        if (result.kind === 'ready') {
+            return result.shortName;
+        }
+        if (result.kind === 'claimed-elsewhere') {
             await new Promise(resolve => setTimeout(resolve, POLL_MS));
         }
     }
@@ -188,7 +203,7 @@ const generateClaimedShortName = async (
             detailsJson: { outcome: shortName ? 'named' : 'abstained' },
         });
         return { kind: 'ready', shortName };
-    } catch {
+    } catch (error) {
         await failShortNameGeneration({ ...identity, claimId });
         await createEventLogSafe({
             level: 'error',
@@ -200,12 +215,9 @@ const generateClaimedShortName = async (
             marketplaceId,
             asin,
         });
-        throw shortNameUnavailable();
+        throw new Error(`Product short-name generation failed for ${asin}.`, { cause: error });
     }
 };
-
-const shortNameUnavailable = () =>
-    new RetrievalRetryableError('Product short name is temporarily unavailable.');
 
 const LOWERCASE_CONNECTORS = new Set([
     'and',

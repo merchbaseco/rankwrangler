@@ -156,7 +156,11 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
             annotations: readOnlyToolAnnotations,
             description:
                 'Read RankWrangler Product data synchronously. operation=get uses asin and ' +
-                'marketplaceId and accepts include=[marketData,shortName,cutoutThumbnail]; ' +
+                'marketplaceId and accepts include=[marketData,shortName,cutoutThumbnail]. ' +
+                'get waits up to 20s for requested shortName/cutoutThumbnail generation; a field ' +
+                'still generating or failed at that deadline returns as none (shortName null, ' +
+                'cutoutThumbnail {status:unavailable}) and a later get returns it, so never ' +
+                'retry get just for enrichment. ' +
                 'getMany uses products and returns fixed-shape basic title and ' +
                 'thumbnail data for up to 200 identities; it accepts ' +
                 'include=[shortName,cutoutThumbnail] (not marketData) and never waits on them. ' +

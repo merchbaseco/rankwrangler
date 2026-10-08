@@ -9,16 +9,26 @@ import {
     isCurrentCutoutSource,
 } from '@/db/product/product-cutout-thumbnail-store';
 import type { ProductThumbnail } from '@/types';
+import { createConcurrencyLimit } from './concurrency-limit';
 import { createEventLogSafe } from './event-logs';
 import {
     createCutoutObject,
     getCutoutPublicUrl,
     isCutoutSourceSupported,
 } from './product-cutout-thumbnail-media';
-import { coordinateRetrieval, startDetachedRetrieval } from './retrieval-coordinator';
+import { waitForProductEnrichment } from './product-enrichment-wait';
+import { startDetachedRetrieval } from './retrieval-coordinator';
 
-const CALLER_TIMEOUT_MS = 24_000;
 const POLL_MS = 250;
+/**
+ * Process-wide cap on cutout generations (one Cloudflare foreground-segmentation transform + one
+ * R2 put each). Cloudflare publishes no per-zone transform concurrency limit, but segmentation is
+ * the slowest enrichment step (~3s), each job buffers and re-encodes an image, and a job claims
+ * its row only once it holds a slot, so queueing never burns the 45s claim lease. Six clears a
+ * typical 10-chip message in two ~3.5s waves.
+ */
+export const CUTOUT_GENERATION_CONCURRENCY = 6;
+const generationSlots = createConcurrencyLimit(CUTOUT_GENERATION_CONCURRENCY);
 export const CUTOUT_GENERATOR_VERSION = 'foreground-alpha-normalized-128:v3';
 
 export type CutoutRequest = CutoutIdentity & {
@@ -31,25 +41,26 @@ type StoredCutout = NonNullable<Awaited<ReturnType<typeof getStoredCutout>>>;
 const cutoutRetrievalKey = ({ marketplaceId, asin, inputFingerprint }: CutoutRequest) =>
     `product-cutout:${marketplaceId}:${asin}:${inputFingerprint}`;
 
+/**
+ * Waits up to `timeoutMs` for the cutout URL. Slow or failed generation settles as `null` for
+ * this response; generation keeps running so a later request reads the finished value.
+ */
 export const getProductCutoutThumbnail = async ({
     signal,
+    timeoutMs,
     ...source
-}: CutoutSource & { signal?: AbortSignal }): Promise<string | null> => {
+}: CutoutSource & { signal?: AbortSignal; timeoutMs: number }): Promise<string | null> => {
     const request = prepareCutoutRequest(source);
     if (!request) {
         return null;
     }
-    try {
-        return await coordinateRetrieval({
-            key: cutoutRetrievalKey(request),
-            signal,
-            timeoutMs: CALLER_TIMEOUT_MS,
-            work: () => resolveCutout(request),
-        });
-    } catch (error) {
-        console.error('[Product Cutout] Could not resolve cutout thumbnail:', error);
-        return null;
-    }
+    return await waitForProductEnrichment({
+        key: cutoutRetrievalKey(request),
+        signal,
+        timeoutMs,
+        label: 'Product Cutout',
+        work: () => resolveCutout(request),
+    });
 };
 
 /** Returns null when the Product has no cutout source; the cutout is then final unavailable. */
@@ -124,15 +135,19 @@ const resolveCutout = async (request: CutoutRequest): Promise<string | null> => 
         if (stored.state === 'ready') {
             return stored.url;
         }
-        const claimId = randomUUID();
-        if (
-            await claimCutoutGeneration({
+        const result = await generationSlots.run(async () => {
+            const claimId = randomUUID();
+            const claimed = await claimCutoutGeneration({
                 ...identity,
                 inputFingerprint: request.inputFingerprint,
                 claimId,
-            })
-        ) {
-            return await generateClaimedCutout(request, claimId);
+            });
+            return claimed
+                ? { claimed, url: await generateClaimedCutout(request, claimId) }
+                : { claimed, url: null };
+        });
+        if (result.claimed) {
+            return result.url;
         }
         await new Promise(resolve => setTimeout(resolve, POLL_MS));
     }
