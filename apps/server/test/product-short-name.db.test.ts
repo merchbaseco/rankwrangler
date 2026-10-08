@@ -9,8 +9,8 @@ import {
     isCurrentShortNameInput,
 } from '@/db/product/product-short-name-store';
 import { products } from '@/db/product-schema';
-import { getShortNameInputFingerprint } from '@/services/product-short-name';
 import { getProductShortNameMetrics } from '@/services/product-short-name-metrics';
+import { getShortNameInputFingerprint } from '@/services/product-short-name-request';
 
 const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0SHORTD01' };
 const imageUrl = 'https://m.media-amazon.com/test.jpg';

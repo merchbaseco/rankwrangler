@@ -24,6 +24,37 @@ describe('public Product getMany boundary', () => {
         expect(getBasicProductReadModels.mock.calls[0]?.[0].products).toEqual(products);
     });
 
+    it('passes include through and leaves it absent when the caller omits it', async () => {
+        const product = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' };
+        const getBasicProductReadModels = mock(() => Promise.resolve([]));
+        const caller = createCaller({ getBasicProductReadModels });
+
+        await caller.getMany({ products: [product] });
+        await caller.getMany({ products: [product], include: ['shortName', 'cutoutThumbnail'] });
+
+        expect(getBasicProductReadModels.mock.calls[0]?.[0].include).toBeUndefined();
+        expect(getBasicProductReadModels.mock.calls[1]?.[0].include).toEqual([
+            'shortName',
+            'cutoutThumbnail',
+        ]);
+    });
+
+    it('rejects marketData because it is a get-only include', async () => {
+        const caller = createCaller();
+
+        await expect(
+            caller.getMany({
+                products: [{ marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' }],
+                include: ['marketData' as 'shortName'],
+            })
+        ).rejects.toMatchObject({
+            code: 'BAD_REQUEST',
+            message: expect.stringContaining(
+                'getMany include supports only shortName and cutoutThumbnail; request marketData with get.'
+            ),
+        });
+    });
+
     it('rejects duplicate Product pairs and batches larger than 200', async () => {
         const caller = createCaller();
         const product = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' };

@@ -100,4 +100,79 @@ describe('basic Product read model', () => {
             },
         ]);
     });
+
+    it('serializes byte-identically without include and never reads enrichment', async () => {
+        const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000006' };
+        const getProducts = mock(() =>
+            Promise.resolve([
+                {
+                    identity,
+                    amazonListingStatus: 'active' as const,
+                    product: {
+                        title: 'Garden shirt',
+                        amazonListingStatus: 'active' as const,
+                        thumbnail: { status: 'available' as const, url: 'https://x.test/a.jpg' },
+                    },
+                },
+            ])
+        );
+        const getProductListingEnrichments = mock(() => Promise.resolve([]));
+
+        const result = await getBasicProductReadModels({ products: [identity] }, {
+            getProducts,
+            getProductListingEnrichments,
+        } as never);
+
+        expect(JSON.stringify(result)).toBe(
+            '[{"marketplaceId":"ATVPDKIKX0DER","asin":"B000000006","title":"Garden shirt",' +
+                '"thumbnail":{"status":"available","url":"https://x.test/a.jpg"},' +
+                '"amazonListingStatus":"active"}]'
+        );
+        expect(getProductListingEnrichments).not.toHaveBeenCalled();
+    });
+
+    it('appends requested enrichment after the basic fields and marks deleted listings', async () => {
+        const active = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000007' };
+        const deleted = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000008' };
+        const product = {
+            title: 'Garden shirt',
+            amazonListingStatus: 'active' as const,
+            thumbnail: { status: 'unavailable' as const },
+        };
+        const getProducts = mock(() =>
+            Promise.resolve([
+                { identity: active, amazonListingStatus: 'active' as const, product },
+                { identity: deleted, amazonListingStatus: 'deleted' as const, product },
+            ])
+        );
+        const getProductListingEnrichments = mock(() =>
+            Promise.resolve([
+                { shortName: 'Garden', pending: [] },
+                { shortName: null, pending: ['shortName'] },
+            ])
+        );
+
+        const result = await getBasicProductReadModels(
+            { products: [active, deleted], include: ['shortName'] },
+            { getProducts, getProductListingEnrichments } as never
+        );
+
+        expect(Object.keys(result[0] ?? {})).toEqual([
+            'marketplaceId',
+            'asin',
+            'title',
+            'thumbnail',
+            'amazonListingStatus',
+            'shortName',
+            'pending',
+        ]);
+        expect(result[1]).toMatchObject({ shortName: null, pending: ['shortName'] });
+        expect(getProductListingEnrichments).toHaveBeenCalledWith({
+            sources: [
+                { identity: active, product, listingActive: true },
+                { identity: deleted, product, listingActive: false },
+            ],
+            include: ['shortName'],
+        });
+    });
 });

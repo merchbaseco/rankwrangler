@@ -60,7 +60,12 @@ describe('Product retrieval with last-known policy', () => {
 
         const result = await getBasicProductReadModels(
             { products: [identity] },
-            { getProducts: input => getProducts(input, deps) }
+            {
+                getProducts: input => getProducts(input, deps),
+                getProductListingEnrichments: () => {
+                    throw new Error('Enrichment is not requested.');
+                },
+            }
         );
 
         expect(result).toEqual([

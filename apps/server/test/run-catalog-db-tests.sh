@@ -290,4 +290,5 @@ bun test \
     apps/server/test/catalog-query-refresh.db.test.ts \
     apps/server/test/merch-listing-classification.db.test.ts \
     apps/server/test/product-short-name.db.test.ts \
-    apps/server/test/product-cutout-thumbnail.db.test.ts
+    apps/server/test/product-cutout-thumbnail.db.test.ts \
+    apps/server/test/product-listing-enrichment.db.test.ts

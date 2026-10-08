@@ -156,6 +156,10 @@ describe('final public CLI contract', () => {
                     env: { MERCHBASE_API_KEY: 'ak_test_value' },
                 }
             );
+            const getManyShortNameResult = await spawnCliAsync(
+                ['product', 'get', 'B012345678', 'B087654321', '--shortName', ...baseArgs],
+                { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
+            );
             const searchResult = await spawnCliAsync(
                 ['product', 'search', 'retro', 'gardening', 'shirt', ...searchArgs],
                 { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
@@ -168,6 +172,7 @@ describe('final public CLI contract', () => {
             expect(getResult.status).toBe(0);
             expect(shortNameResult.status).toBe(0);
             expect(getManyResult.status).toBe(0);
+            expect(getManyShortNameResult.status).toBe(0);
             expect(searchResult.status).toBe(0);
             expect(historyResult.status).toBe(0);
             expect(JSON.parse(getManyResult.stdout)).toMatchObject({
@@ -212,6 +217,16 @@ describe('final public CLI contract', () => {
                             { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
                             { marketplaceId: 'ATVPDKIKX0DER', asin: 'B087654321' },
                         ],
+                    },
+                },
+                {
+                    procedure: 'getMany',
+                    input: {
+                        products: [
+                            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+                            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B087654321' },
+                        ],
+                        include: ['shortName'],
                     },
                 },
                 {

@@ -54,14 +54,39 @@ export type ProductSearchProductKeysContract = Assert<
 export type ProductGetInputContract = Assert<
     Equal<keyof ProductGetInput, 'marketplaceId' | 'asin' | 'include'>
 >;
-export type ProductGetManyInputContract = Assert<Equal<keyof ProductGetManyInput, 'products'>>;
+export type ProductGetManyInputContract = Assert<
+    Equal<keyof ProductGetManyInput, 'products' | 'include'>
+>;
+export type ProductGetManyIncludeContract = Assert<
+    Equal<NonNullable<ProductGetManyInput['include']>[number], 'shortName' | 'cutoutThumbnail'>
+>;
 export type ProductGetManyOutputContract = Assert<
     Equal<Awaited<ReturnType<ProductGetManyMutation['mutate']>>, ProductGetManyOutput>
 >;
 export type ProductGetManyOutputKeysContract = Assert<
     Equal<
         keyof ProductGetManyOutput[number],
-        'marketplaceId' | 'asin' | 'title' | 'thumbnail' | 'amazonListingStatus'
+        | 'marketplaceId'
+        | 'asin'
+        | 'title'
+        | 'thumbnail'
+        | 'amazonListingStatus'
+        | 'shortName'
+        | 'cutoutThumbnail'
+        | 'pending'
+    >
+>;
+export type ProductGetManyCutoutContract = Assert<
+    Equal<
+        NonNullable<ProductGetManyOutput[number]['cutoutThumbnail']>,
+        | NonNullable<ProductOutput['listing']['cutoutThumbnail']>
+        | { status: 'pending' }
+    >
+>;
+export type ProductGetManyShortNameContract = Assert<
+    Equal<
+        ProductGetManyOutput[number]['shortName'],
+        ProductOutput['listing']['shortName'] | undefined
     >
 >;
 export type ProductOutputContract = Assert<

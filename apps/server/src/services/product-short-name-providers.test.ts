@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { observeProductDesign } from './product-design-observation';
-import { chooseProductShortName, getShortNameInputFingerprint } from './product-short-name';
+import { chooseProductShortName } from './product-short-name';
+import { getShortNameInputFingerprint } from './product-short-name-request';
 
 describe('Product short-name providers', () => {
     it('invalidates a stored name when the title or image changes', () => {

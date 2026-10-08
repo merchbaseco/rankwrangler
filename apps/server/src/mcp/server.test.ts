@@ -221,6 +221,39 @@ describe('RankWrangler MCP server', () => {
         await server.close();
     });
 
+    it('forwards getMany chip includes and rejects marketData for getMany', async () => {
+        const { client, server } = await connect({
+            ...dataSource,
+            product: { ...dataSource.product, getMany: async input => ({ data: input }) },
+        });
+        const products = [{ asin: 'B012345678', marketplaceId: 'ATVPDKIKX0DER' }];
+        const [included, rejected] = await Promise.all([
+            client.callTool({
+                name: 'rankwrangler_product',
+                arguments: {
+                    operation: 'getMany',
+                    products,
+                    include: ['shortName', 'cutoutThumbnail'],
+                },
+            }),
+            client.callTool({
+                name: 'rankwrangler_product',
+                arguments: { operation: 'getMany', products, include: ['marketData'] },
+            }),
+        ]);
+
+        expect(included.structuredContent).toEqual({
+            data: { products, include: ['shortName', 'cutoutThumbnail'] },
+        });
+        expect(rejected.isError).toBe(true);
+        expect(JSON.stringify(rejected.content)).toContain(
+            'getMany include supports only shortName and cutoutThumbnail'
+        );
+
+        await client.close();
+        await server.close();
+    });
+
     it('rejects removed refresh controls at the noun-tool boundary', async () => {
         const { client, server } = await connect(dataSource);
 
