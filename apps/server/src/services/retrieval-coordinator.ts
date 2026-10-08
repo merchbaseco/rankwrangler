@@ -15,12 +15,14 @@ export class RetrievalRetryableError extends Error {
         {
             retryAfterSeconds = RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS,
             reason = 'deadline',
+            cause,
         }: {
             retryAfterSeconds?: number;
             reason?: RetrievalRetryReason;
+            cause?: unknown;
         } = {}
     ) {
-        super(message);
+        super(message, cause === undefined ? undefined : { cause });
         this.name = 'RetrievalRetryableError';
         this.retryAfterSeconds = retryAfterSeconds;
         this.reason = reason;

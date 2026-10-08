@@ -1,6 +1,7 @@
 import type Bottleneck from 'bottleneck';
 import { captureProviderAttempt } from '@/services/providers/provider-telemetry';
 import { runWithSpApiBackoff } from './sp-api-backoff';
+import { SpApiLimiterWaitError, scheduleWithQueueDeadline } from './sp-api-limiter-wait';
 import {
     createLimiterState,
     extractRateLimitFromError,
@@ -31,6 +32,7 @@ interface OperationLimiterConfig {
     burstCapacity: number;
     limiter: Bottleneck;
     maxConcurrent: number;
+    maxQueueWaitMs: number | null;
     operationId: SpApiLimiterOperationId;
     state: SpApiLimiterState;
 }
@@ -41,6 +43,8 @@ interface ManagedLimiterConfig {
     label: string;
     limiter: Bottleneck;
     maxConcurrent: number;
+    /** Longest a call may sit queued before failing as a wedged limiter; null waits forever. */
+    maxQueueWaitMs: number | null;
     operationId: SpApiLimiterOperationId;
 }
 
@@ -54,6 +58,7 @@ export class SpApiLimiterManager {
                     burstCapacity: config.burstCapacity,
                     limiter: config.limiter,
                     maxConcurrent: config.maxConcurrent,
+                    maxQueueWaitMs: config.maxQueueWaitMs,
                     operationId: config.operationId,
                     state: createLimiterState({
                         configuredRps: config.configuredRps,
@@ -82,28 +87,33 @@ export class SpApiLimiterManager {
         return await runWithSpApiBackoff({
             operation,
             run: async () => {
-                return await config.limiter.schedule(async () => {
-                    await ensureAccessTokenFreshness();
-                    try {
-                        const result = await captureProviderAttempt(
-                            {
-                                provider: 'spapi',
-                                operation: mapTelemetryOperation(operationId),
-                            },
-                            run
-                        );
-                        await this.trackOperationSuccess({
-                            operationId,
-                            response: result,
-                        });
-                        return result;
-                    } catch (error) {
-                        await this.trackOperationFailure({
-                            error,
-                            operationId,
-                        });
-                        throw error;
-                    }
+                return await scheduleWithQueueDeadline({
+                    limiter: config.limiter,
+                    maxQueueWaitMs: config.maxQueueWaitMs,
+                    onQueueDeadline: () => this.reportQueueDeadline(config),
+                    task: async () => {
+                        await ensureAccessTokenFreshness();
+                        try {
+                            const result = await captureProviderAttempt(
+                                {
+                                    provider: 'spapi',
+                                    operation: mapTelemetryOperation(operationId),
+                                },
+                                run
+                            );
+                            await this.trackOperationSuccess({
+                                operationId,
+                                response: result,
+                            });
+                            return result;
+                        } catch (error) {
+                            await this.trackOperationFailure({
+                                error,
+                                operationId,
+                            });
+                            throw error;
+                        }
+                    },
                 });
             },
         });
@@ -119,6 +129,24 @@ export class SpApiLimiterManager {
                 });
             })
         );
+    };
+
+    private readonly reportQueueDeadline = (config: OperationLimiterConfig) => {
+        const error = new SpApiLimiterWaitError({
+            operationId: config.operationId,
+            label: config.state.label,
+            maxQueueWaitMs: config.maxQueueWaitMs ?? 0,
+        });
+        const counts = config.limiter.counts();
+        console.error(error.message, {
+            operationId: config.operationId,
+            queued: counts.QUEUED ?? 0,
+            running: counts.RUNNING ?? 0,
+            executing: counts.EXECUTING ?? 0,
+            effectiveRps: config.state.effectiveRps,
+            lastSuccessAt: config.state.lastSuccessAt,
+        });
+        return error;
     };
 
     private readonly trackOperationSuccess = async ({

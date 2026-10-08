@@ -11,10 +11,16 @@ import {
 } from '@/services/product-retrieval';
 import { resolveProductDetails } from '@/services/product-retrieval-work';
 import { notifyProductSyncCompleted } from '@/services/product-sync-events';
+import { SpApiLimiterWaitError } from '@/services/providers/sp-api/sp-api-limiter-wait';
+import { RetrievalRetryableError } from '@/services/retrieval-coordinator';
 import { searchCatalogItemsByAsins } from '@/services/spapi/index.js';
 import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue.js';
 
 const SP_API_SYNC_BATCH_SIZE = 20;
+// One batch is one Catalog call: up to 5 backoff attempts of a 45s SDK timeout plus ~15s of
+// backoff sleeps is ~4 minutes worst case. Five minutes covers that and stays far below the
+// 900s pg-boss handler limit, so a stalled batch fails with a named error instead of expiring.
+export const SP_API_SYNC_BATCH_DEADLINE_MS = 5 * 60 * 1000;
 type ProcessSpApiSyncQueueFailureStage = 'fetch' | 'persist' | 'delete_queue';
 const processSpApiSyncQueueJobDeps = { createEventLogSafe };
 
@@ -25,6 +31,7 @@ interface ProcessSpApiSyncQueueDeps {
     deleteSpApiSyncQueueItems: typeof deleteSpApiSyncQueueItems;
     createEventLogsSafe: typeof createEventLogsSafe;
     notifyProductSyncCompleted: typeof notifyProductSyncCompleted;
+    batchDeadlineMs?: number;
 }
 
 const defaultProcessSpApiSyncQueueDeps: ProcessSpApiSyncQueueDeps = {
@@ -75,7 +82,7 @@ export const processSpApiSyncQueue = async (
                 },
             },
             undefined,
-            Number.POSITIVE_INFINITY
+            deps.batchDeadlineMs ?? SP_API_SYNC_BATCH_DEADLINE_MS
         );
         fetchedProducts = result.products;
 
@@ -84,7 +91,14 @@ export const processSpApiSyncQueue = async (
         for (const identity of identities) {
             deps.notifyProductSyncCompleted(identity);
         }
-    } catch (error) {
+    } catch (caught) {
+        const error = toSyncBatchError(
+            caught,
+            deps.batchDeadlineMs ?? SP_API_SYNC_BATCH_DEADLINE_MS
+        );
+        if (error !== caught && error instanceof Error) {
+            console.error(`[SP-API Sync Queue] ${error.message}`, { asins: identities.length });
+        }
         await logFailedQueueItems({
             queueItems: queueItemsToProcess,
             stage: failureStage,
@@ -156,6 +170,29 @@ export const processSpApiSyncQueueJob = defineJob('process-spapi-sync-queue', {
             log('Finished SP-API sync queue job run', { jobId: job.id, outcome });
         }
     });
+
+export class SpApiSyncBatchDeadlineError extends Error {
+    constructor(deadlineMs: number) {
+        super(
+            `SP-API sync queue batch did not finish within ${deadlineMs}ms; the Catalog Search path (catalog.searchCatalogItems limiter or provider) is stalled.`
+        );
+        this.name = 'SpApiSyncBatchDeadlineError';
+    }
+}
+
+// Unwraps public-retrieval retry errors into the specific stall so job logs name the limiter.
+const toSyncBatchError = (error: unknown, deadlineMs: number) => {
+    if (!(error instanceof RetrievalRetryableError)) {
+        return error;
+    }
+    if (error.cause instanceof SpApiLimiterWaitError) {
+        return error.cause;
+    }
+    if (error.reason === 'deadline') {
+        return new SpApiSyncBatchDeadlineError(deadlineMs);
+    }
+    return error;
+};
 
 const logFailedQueueItems = async ({
     queueItems,

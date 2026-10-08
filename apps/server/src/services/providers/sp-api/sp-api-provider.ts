@@ -5,6 +5,7 @@ import { captureProviderAttempt } from '@/services/providers/provider-telemetry'
 import { ensureAccessTokenFreshness as ensureSpApiAccessTokenFreshness } from './sp-api-access-token';
 import { createSpApiHttpError, runWithSpApiBackoff } from './sp-api-backoff';
 import { SpApiLimiterManager, type SpApiOperationRateLimiterStat } from './sp-api-limiter-manager';
+import { SP_API_CATALOG_QUEUE_WAIT_MS } from './sp-api-limiter-wait';
 
 // Reports API per-operation limits:
 // - createReport: 0.0167 RPS, burst 15
@@ -89,6 +90,7 @@ export class SpApiProvider {
                 label: 'Catalog Search',
                 limiter: this.catalogSearchLimiter,
                 maxConcurrent: CATALOG_SEARCH_LIMIT.maxConcurrent,
+                maxQueueWaitMs: SP_API_CATALOG_QUEUE_WAIT_MS,
                 operationId: 'catalog.searchCatalogItems',
             },
             {
@@ -97,6 +99,7 @@ export class SpApiProvider {
                 label: 'Reports: createReport',
                 limiter: this.reportsLimiters.createReport,
                 maxConcurrent: REPORTS_CREATE_LIMIT.maxConcurrent,
+                maxQueueWaitMs: null,
                 operationId: 'reports.createReport',
             },
             {
@@ -105,6 +108,7 @@ export class SpApiProvider {
                 label: 'Reports: getReport',
                 limiter: this.reportsLimiters.getReport,
                 maxConcurrent: REPORTS_GET_LIMIT.maxConcurrent,
+                maxQueueWaitMs: null,
                 operationId: 'reports.getReport',
             },
             {
@@ -113,6 +117,7 @@ export class SpApiProvider {
                 label: 'Reports: getReportDocument',
                 limiter: this.reportsLimiters.getReportDocument,
                 maxConcurrent: REPORTS_GET_DOCUMENT_LIMIT.maxConcurrent,
+                maxQueueWaitMs: null,
                 operationId: 'reports.getReportDocument',
             },
         ]);

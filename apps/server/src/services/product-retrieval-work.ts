@@ -1,5 +1,6 @@
 import type { ProductIdentity, StoredProductRead } from '@/db/product/get-products';
 import { SpApiBackoffError } from '@/services/providers/sp-api/sp-api-backoff';
+import { SpApiLimiterWaitError } from '@/services/providers/sp-api/sp-api-limiter-wait';
 import type { SpApiProduct } from '@/types';
 import type { ProductRetrievalDeps } from './product-retrieval';
 import {
@@ -146,10 +147,13 @@ const runProductBatch = async (
         await deps.deleteSpApiSyncQueueItemsForIdentities?.(identities);
         return { products };
     } catch (error) {
-        if (error instanceof SpApiBackoffError && error.retryable) {
+        if (
+            (error instanceof SpApiBackoffError && error.retryable) ||
+            error instanceof SpApiLimiterWaitError
+        ) {
             throw new RetrievalRetryableError(
                 'Product refresh is temporarily unavailable. Retry shortly.',
-                { reason: 'capacity' }
+                { reason: 'capacity', cause: error }
             );
         }
         throw error;

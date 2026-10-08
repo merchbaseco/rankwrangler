@@ -1,3 +1,5 @@
+import { SpApiLimiterWaitError } from './sp-api-limiter-wait';
+
 const SPAPI_RETRYABLE_STATUS_CODES = new Set<number>([408, 425, 429, 500, 502, 503, 504]);
 const SPAPI_RETRYABLE_CODES = new Set([
     'ECONNRESET',
@@ -18,7 +20,7 @@ const SPAPI_RETRYABLE_MESSAGE_PATTERNS = [
 
 const DEFAULT_MAX_ATTEMPTS = 5;
 const DEFAULT_INITIAL_DELAY_MS = 1000;
-const DEFAULT_MAX_DELAY_MS = 30000;
+const DEFAULT_MAX_DELAY_MS = 30_000;
 
 export const runWithSpApiBackoff = async <T>({
     operation,
@@ -39,6 +41,10 @@ export const runWithSpApiBackoff = async <T>({
         try {
             return await run();
         } catch (error) {
+            // A wedged limiter is not an upstream failure; retrying would only queue again.
+            if (error instanceof SpApiLimiterWaitError) {
+                throw error;
+            }
             const isRetryable = isRetryableSpApiError(error);
             const isLastAttempt = attempt >= maxAttempts - 1;
 
