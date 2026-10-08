@@ -25,6 +25,7 @@ import {
     CATALOG_QUERIES_SCHEDULER_LAG_MS,
     dueBefore,
     KEEPA_HISTORY_SCHEDULER_LAG_MS,
+    PRODUCT_HEALTH_OVERDUE_FLOOR,
     readLiveness,
     readServiceHealth,
     type ServiceHealthProbes,
@@ -44,18 +45,11 @@ export const probeSpapiCatalog = async (now: Date) => {
     if (!condition) {
         return false;
     }
-    const [row] = await db.select({ id: products.id }).from(products).where(condition).limit(1);
-    return row !== undefined;
+    return hasProductOverdueFloor(condition);
 };
 
-export const probeKeepaHistory = async (now: Date) => {
-    const [row] = await db
-        .select({ id: products.id })
-        .from(products)
-        .where(keepaHistoryOverdueCondition(now))
-        .limit(1);
-    return row !== undefined;
-};
+export const probeKeepaHistory = async (now: Date) =>
+    hasProductOverdueFloor(keepaHistoryOverdueCondition(now));
 
 export const probeTopSearchTerms = async (now: Date) => {
     const [row] = await db.execute<{ failing: boolean }>(topSearchTermsUnhealthyStatement(now));
@@ -197,6 +191,18 @@ const overdueUsDataset = (dueAt: Date) =>
             )
         )
     );
+
+const hasProductOverdueFloor = async (condition: ReturnType<typeof and>) => {
+    if (!condition) {
+        return false;
+    }
+    const rows = await db
+        .select({ id: products.id })
+        .from(products)
+        .where(condition)
+        .limit(PRODUCT_HEALTH_OVERDUE_FLOOR);
+    return rows.length >= PRODUCT_HEALTH_OVERDUE_FLOOR;
+};
 
 const keepaFetchedAtOrCreatedAtDue = (fetchedBefore: Date, createdBefore: Date) =>
     or(

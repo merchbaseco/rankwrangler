@@ -50,13 +50,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('service health que
             .where(eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID));
     });
 
-    it('fails an active low-BSR merch product fetched before the tier plus grace', async () => {
-        await insertProduct({
-            asin: 'B0HLTHSP01',
+    it('ignores one overdue SP-API product and fails on a second', async () => {
+        const overdue = {
             rootCategoryBsr: LOW_BSR,
             spApiFetchedAt: minutesBefore(spapiLowBsrDueAt()),
-        });
-
+        };
+        await insertProduct({ asin: 'B0HLTHSP01', ...overdue });
+        expect(await probeSpapiCatalog(NOW)).toBe(false);
+        await insertProduct({ asin: 'B0HLTHSP11', ...overdue });
         expect(await probeSpapiCatalog(NOW)).toBe(true);
     });
     it('passes a low-BSR fetch one minute inside the tier plus grace', async () => {
@@ -90,14 +91,15 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('service health que
     it('passes when no product is overdue for SP-API', async () => {
         expect(await probeSpapiCatalog(NOW)).toBe(false);
     });
-    it('fails an eligible never-fetched product with an old created_at', async () => {
-        await insertProduct({
-            asin: 'B0HLTHKP01',
+    it('ignores one never-fetched Keepa product and fails on a second', async () => {
+        const overdue = {
             createdAt: minutesBefore(keepaCreatedDueAt()),
             keepaFetchedAt: null,
             rootCategoryBsr: LOW_BSR,
-        });
-
+        };
+        await insertProduct({ asin: 'B0HLTHKP01', ...overdue });
+        expect(await probeKeepaHistory(NOW)).toBe(false);
+        await insertProduct({ asin: 'B0HLTHKP11', ...overdue });
         expect(await probeKeepaHistory(NOW)).toBe(true);
     });
     it('passes an eligible never-fetched product with a recent created_at', async () => {
@@ -120,13 +122,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('service health que
 
         expect(await probeKeepaHistory(NOW)).toBe(false);
     });
-    it('fails a daily-BSR product fetched before 24h plus grace', async () => {
-        await insertProduct({
-            asin: 'B0HLTHKP04',
+    it('ignores one stale Keepa fetch and fails on a second', async () => {
+        const overdue = {
             keepaFetchedAt: minutesBefore(keepaDailyFetchedDueAt()),
             rootCategoryBsr: LOW_BSR,
-        });
-
+        };
+        await insertProduct({ asin: 'B0HLTHKP04', ...overdue });
+        expect(await probeKeepaHistory(NOW)).toBe(false);
+        await insertProduct({ asin: 'B0HLTHKP14', ...overdue });
         expect(await probeKeepaHistory(NOW)).toBe(true);
     });
     it('fails an active catalog query whose success is older than the interval plus grace', async () => {
