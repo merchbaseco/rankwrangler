@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, lt, or } from 'drizzle-orm';
+import { and, gte, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { products } from '@/db/schema.js';
@@ -16,6 +16,7 @@ import {
     REFRESH_AFTER_24_HOURS_MS,
     REFRESH_AFTER_30_DAYS_MS,
 } from '@/services/spapi-refresh-policy.js';
+import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection.js';
 import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue.js';
 
 export type ReprocessStaleProductsResult = {
@@ -183,11 +184,3 @@ export const reprocessStaleProductsJob = defineJob('reprocess-stale-products', {
             });
         }
     });
-
-export const buildAvailableMerchRefreshCondition = (freshnessCondition: ReturnType<typeof or>) =>
-    and(
-        products.isMerchListing,
-        eq(products.amazonListingStatus, 'active'),
-        isNotNull(products.rootCategoryBsr),
-        freshnessCondition
-    );

@@ -1,5 +1,5 @@
 ---
-summary: Defines the RankWrangler Docker topology, production deployment path, service ports, and health checks.
+summary: Defines the RankWrangler Docker topology, production deployment path, service ports, the external freshness report, and container liveness checks.
 read_when:
   - deploying RankWrangler or checking production container health
   - debugging differences between the direct server, Caddy entrypoint, and PostgreSQL ports
@@ -8,8 +8,22 @@ read_when:
 # Deployment
 
 Production is served at `https://rankwrangler.merchbase.co`. Caddy serves the website and proxies
-`/api` plus the exact hosted MCP and OAuth discovery paths to the Fastify server. Other website
-paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-local health endpoints.
+`/api`, `/health/live`, and the exact hosted MCP and OAuth discovery paths to the Fastify server.
+Other website paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-local
+health endpoints.
+
+`GET /api/health` is the external freshness report. It returns 200 `{"status":"ok"}`, or 503
+`{"status":"degraded","failing":[...]}` with check names only. Container healthchecks, Caddy's
+upstream probe, and the deploy smoke use `GET /health/live`, which only checks that the process
+can run `SELECT 1`, so stale data cannot hold the stack down.
+
+| Check | Failing when |
+| --- | --- |
+| `postgres` | `SELECT 1` fails |
+| `spapi-catalog` | At least two active Merch products with a BSR have `sp_api_fetched_at` older than their tier (24 hours, 3 days, 7 days, 14 days, or 30 days) plus 1 hour. One overdue product does not fail the check. A null fetch time is not overdue. |
+| `keepa-history` | At least two Merch products with BSR under 1,000,000 have `keepa_fetched_at` older than 24 hours (BSR under 300,000) or 7 days, plus 3 hours. A never-fetched product counts once `created_at` is older than 3 hours. One overdue product does not fail the check. |
+| `top-search-terms` | The US dataset table is empty, `next_refresh_at` is older than 10 minutes, or a failed dataset's `last_failed_at` is older than 10 minutes. A closed window with a null `next_refresh_at` is not failing. |
+| `catalog-queries` | An active query's `latest_successful_run_at` is older than 7 days plus 15 minutes. A query with no successful run fails once `created_at` is older than 15 minutes. An empty table is not failing. |
 
 ## Topology
 
@@ -168,7 +182,7 @@ containers if either the check or a migration fails.
 ## Verification
 
 ```bash
-curl --fail https://rankwrangler.merchbase.co/api/health
+curl --fail https://rankwrangler.merchbase.co/health/live
 curl --fail https://rankwrangler.merchbase.co/.well-known/oauth-protected-resource/mcp
 curl -i -X POST https://rankwrangler.merchbase.co/mcp \
   -H 'Content-Type: application/json' \
@@ -183,9 +197,9 @@ the deployed commit before forcing a no-cache rebuild.
 
 The MCP POST smoke check should return `401` with a `WWW-Authenticate` bearer challenge when no
 OAuth token is supplied. The protected-resource check should return JSON metadata, not the website
-SPA. Caddy owns only `/mcp`, `/.well-known/oauth-protected-resource`,
+SPA. Caddy forwards `/mcp`, `/.well-known/oauth-protected-resource`,
 `/.well-known/oauth-protected-resource/mcp`, `/.well-known/oauth-authorization-server`, and
-`/.well-known/oauth-authorization-server/mcp` for this ingress.
+`/.well-known/oauth-authorization-server/mcp` to Fastify, separate from `/api` and `/health/live`.
 
 ## Schema Changes
 

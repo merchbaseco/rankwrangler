@@ -5,6 +5,7 @@ import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify from 'fastify';
 import { PgBoss } from 'pg-boss';
 import { createContext } from '@/api/context.js';
+import { registerHealthRoutes } from '@/api/health-routes.js';
 import { appRouter } from '@/api/router.js';
 import { registerTrpcWebsocketServer, TRPC_WEBSOCKET_PATH } from '@/api/trpc-websocket-server';
 import { createCorsOriginHandler } from '@/config/cors-origin';
@@ -42,6 +43,7 @@ import {
     recoverStaleProductHistoryOperations,
     registerProductHistoryOperationWakeups,
 } from '@/services/product-history-operations.js';
+import { createDatabaseHealthReaders } from '@/services/service-health-queries.js';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
 import {
     registerSpApiSyncQueueWakeups,
@@ -119,7 +121,9 @@ registerSpApiSyncQueueWakeups(boss);
 registerTopSearchTermsJobWakeups(boss);
 registerProductHistoryOperationWakeups(boss);
 registerCatalogSearchWakeups(boss);
-console.log(`[Server] Runtime flags: RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=${env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER}`);
+console.log(
+    `[Server] Runtime flags: RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=${env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER}`
+);
 
 let recoveredTopSearchTermsDatasetsCount = 0;
 let recoveredProductHistoryOperationsCount = 0;
@@ -186,13 +190,7 @@ registerRankWranglerMcp({
     publishableKey: env.MERCHBASE_CLERK_PUBLISHABLE_KEY,
 });
 
-fastify.get('/api/health', () => {
-    return {
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        service: 'rankwrangler-server',
-    };
-});
+registerHealthRoutes(fastify, createDatabaseHealthReaders());
 
 await fastify.register(fastifyTRPCPlugin, {
     prefix: '/api',
