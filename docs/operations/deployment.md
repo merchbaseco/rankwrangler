@@ -24,7 +24,7 @@ built outside that script report `dev`.
 | --- | --- |
 | `postgres` | `SELECT 1` fails |
 | `spapi-catalog` | At least two active Merch products with a BSR have `sp_api_fetched_at` older than their tier (24 hours, 3 days, 7 days, 14 days, or 30 days) plus 1 hour. One overdue product does not fail the check. A null fetch time is not overdue. |
-| `keepa-history` | At least two Merch products with BSR under 1,000,000 have `keepa_fetched_at` older than 24 hours (BSR under 300,000) or 7 days, plus 3 hours. A never-fetched product counts once `created_at` is older than 3 hours. One overdue product does not fail the check. |
+| `keepa-history` | At least two Merch products with BSR under 1,000,000 have `keepa_fetched_at` older than 24 hours (BSR under 300,000) or 7 days, plus 3 hours. `sp_api_fetched_at` is null or at least 3 hours old. A never-fetched product counts once `created_at` is older than 3 hours. One overdue product does not fail the check. |
 | `top-search-terms` | The US dataset table is empty, `next_refresh_at` is older than 10 minutes, or a failed dataset's `last_failed_at` is older than 10 minutes. A closed window with a null `next_refresh_at` is not failing. |
 | `catalog-queries` | An active query's `latest_successful_run_at` is older than 7 days plus 15 minutes. A query with no successful run fails once `created_at` is older than 15 minutes. An empty table is not failing. |
 

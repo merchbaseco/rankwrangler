@@ -1,53 +1,29 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { eq, like } from 'drizzle-orm';
+import { like } from 'drizzle-orm';
 import { db } from '@/db/index';
-import {
-    catalogQueries,
-    products,
-    topSearchTermsDatasets,
-    topSearchTermsKeywordDaily,
-    topSearchTermsSnapshots,
-} from '@/db/schema';
-import { CATALOG_QUERY_REFRESH_INTERVAL_MS } from '@/services/catalog-query-refresh-policy';
+import { products } from '@/db/schema';
 import {
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
 } from '@/services/keepa-refresh-policy';
 import {
-    CATALOG_QUERIES_SCHEDULER_LAG_MS,
     dueBefore,
     KEEPA_HISTORY_SCHEDULER_LAG_MS,
     SPAPI_CATALOG_SCHEDULER_LAG_MS,
-    TOP_SEARCH_TERMS_SCHEDULER_LAG_MS,
 } from '@/services/service-health';
-import {
-    probeCatalogQueries,
-    probeKeepaHistory,
-    probeSpapiCatalog,
-    probeTopSearchTerms,
-} from '@/services/service-health-queries';
+import { probeKeepaHistory, probeSpapiCatalog } from '@/services/service-health-queries';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
 import { REFRESH_AFTER_24_HOURS_MS } from '@/services/spapi-refresh-policy';
 
 const NOW = new Date('2026-08-15T12:00:00.000Z');
 const MINUTE_MS = 60 * 1000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
 const LOW_BSR = 50_000;
+const WEEKLY_BSR = 500_000;
 
-describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('service health query probes', () => {
+describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('service health product probes', () => {
     beforeEach(async () => {
         await db.delete(products).where(like(products.asin, 'B0HLTH%'));
-        await db
-            .delete(catalogQueries)
-            .where(like(catalogQueries.normalizedTerm, 'health-probe-%'));
-        await db
-            .delete(topSearchTermsKeywordDaily)
-            .where(eq(topSearchTermsKeywordDaily.marketplaceId, SPAPI_US_MARKETPLACE_ID));
-        await db
-            .delete(topSearchTermsSnapshots)
-            .where(eq(topSearchTermsSnapshots.marketplaceId, SPAPI_US_MARKETPLACE_ID));
-        await db
-            .delete(topSearchTermsDatasets)
-            .where(eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID));
     });
 
     it('ignores one overdue SP-API product and fails on a second', async () => {
@@ -132,76 +108,39 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('service health que
         await insertProduct({ asin: 'B0HLTHKP14', ...overdue });
         expect(await probeKeepaHistory(NOW)).toBe(true);
     });
-    it('fails an active catalog query whose success is older than the interval plus grace', async () => {
-        await insertCatalogQuery({
-            activeUntil: minutesAfter(NOW, 60),
-            latestSuccessfulRunAt: minutesBefore(catalogSuccessDueAt()),
-            nextRefreshAttemptAt: minutesAfter(NOW, 60),
-            term: 'health-probe-stale',
-        });
+    it('passes an old Keepa fetch just promoted into the daily tier', async () => {
+        const promoted = {
+            keepaFetchedAt: new Date(keepaDailyFetchedDueAt().getTime() - 2 * DAY_MS),
+            rootCategoryBsr: LOW_BSR,
+            spApiFetchedAt: new Date(NOW.getTime() - 10 * MINUTE_MS),
+        };
+        await insertProduct({ asin: 'B0HLTHKP05', ...promoted });
+        await insertProduct({ asin: 'B0HLTHKP15', ...promoted });
 
-        expect(await probeCatalogQueries(NOW)).toBe(true);
+        expect(await probeKeepaHistory(NOW)).toBe(false);
     });
-    it('passes an active catalog query created recently with no success yet', async () => {
-        await insertCatalogQuery({
-            activeUntil: minutesAfter(NOW, 60),
-            createdAt: new Date(NOW.getTime() - MINUTE_MS),
-            latestSuccessfulRunAt: null,
-            term: 'health-probe-new',
-        });
+    it('fails a daily promotion older than the scheduler lag and still not fetched', async () => {
+        const promoted = {
+            keepaFetchedAt: new Date(keepaDailyFetchedDueAt().getTime() - 2 * DAY_MS),
+            rootCategoryBsr: LOW_BSR,
+            spApiFetchedAt: minutesBefore(keepaCreatedDueAt()),
+        };
+        await insertProduct({ asin: 'B0HLTHKP06', ...promoted });
+        await insertProduct({ asin: 'B0HLTHKP16', ...promoted });
 
-        expect(await probeCatalogQueries(NOW)).toBe(false);
+        expect(await probeKeepaHistory(NOW)).toBe(true);
     });
-    it('passes an inactive catalog query', async () => {
-        await insertCatalogQuery({
-            activeUntil: minutesBefore(NOW),
-            latestSuccessfulRunAt: minutesBefore(catalogSuccessDueAt()),
-            term: 'health-probe-inactive',
-        });
+    it('passes an on-demand product just promoted into the weekly tier', async () => {
+        const promoted = {
+            createdAt: new Date(keepaCreatedDueAt().getTime() - DAY_MS),
+            keepaFetchedAt: null,
+            rootCategoryBsr: WEEKLY_BSR,
+            spApiFetchedAt: new Date(NOW.getTime() - 10 * MINUTE_MS),
+        };
+        await insertProduct({ asin: 'B0HLTHKP07', ...promoted });
+        await insertProduct({ asin: 'B0HLTHKP17', ...promoted });
 
-        expect(await probeCatalogQueries(NOW)).toBe(false);
-    });
-    it('passes when no catalog query is overdue', async () => {
-        expect(await probeCatalogQueries(NOW)).toBe(false);
-    });
-    it('fails when the US top search terms table is empty', async () => {
-        expect(await probeTopSearchTerms(NOW)).toBe(true);
-    });
-    it('passes a closed US top search terms window', async () => {
-        await insertDataset({
-            nextRefreshAt: null,
-            status: 'completed',
-        });
-
-        expect(await probeTopSearchTerms(NOW)).toBe(false);
-    });
-    it('fails a US top search terms row whose next_refresh_at is older than the grace', async () => {
-        await insertDataset({
-            nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
-            status: 'completed',
-        });
-
-        expect(await probeTopSearchTerms(NOW)).toBe(true);
-    });
-    it('fails a US top search terms row that has been failed longer than the grace', async () => {
-        await insertDataset({
-            lastCompletedAt: null,
-            lastFailedAt: minutesBefore(topSearchTermsDueAt()),
-            nextRefreshAt: minutesAfter(NOW, 30),
-            status: 'failed',
-        });
-
-        expect(await probeTopSearchTerms(NOW)).toBe(true);
-    });
-    it('passes a US top search terms failure newer than the grace', async () => {
-        await insertDataset({
-            lastCompletedAt: null,
-            lastFailedAt: new Date(NOW.getTime() - MINUTE_MS),
-            nextRefreshAt: minutesAfter(NOW, 30),
-            status: 'failed',
-        });
-
-        expect(await probeTopSearchTerms(NOW)).toBe(false);
+        expect(await probeKeepaHistory(NOW)).toBe(false);
     });
 });
 
@@ -216,11 +155,6 @@ const keepaCreatedDueAt = () => dueBefore(NOW, 0, KEEPA_HISTORY_SCHEDULER_LAG_MS
 
 const keepaDailyFetchedDueAt = () =>
     dueBefore(NOW, KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS, KEEPA_HISTORY_SCHEDULER_LAG_MS);
-
-const catalogSuccessDueAt = () =>
-    dueBefore(NOW, CATALOG_QUERY_REFRESH_INTERVAL_MS, CATALOG_QUERIES_SCHEDULER_LAG_MS);
-
-const topSearchTermsDueAt = () => dueBefore(NOW, 0, TOP_SEARCH_TERMS_SCHEDULER_LAG_MS);
 
 const insertProduct = async ({
     asin,
@@ -246,54 +180,5 @@ const insertProduct = async ({
         marketplaceId: SPAPI_US_MARKETPLACE_ID,
         rootCategoryBsr,
         spApiFetchedAt,
-    });
-};
-
-const insertCatalogQuery = async ({
-    term,
-    activeUntil,
-    createdAt = NOW,
-    latestSuccessfulRunAt,
-    nextRefreshAttemptAt = null,
-}: {
-    term: string;
-    activeUntil: Date | null;
-    createdAt?: Date;
-    latestSuccessfulRunAt: Date | null;
-    nextRefreshAttemptAt?: Date | null;
-}) => {
-    await db.insert(catalogQueries).values({
-        activeUntil,
-        createdAt,
-        displayTerm: term,
-        latestSuccessfulRunAt,
-        marketplaceId: SPAPI_US_MARKETPLACE_ID,
-        nextRefreshAttemptAt,
-        normalizedTerm: term,
-        page: 0,
-        source: 'keepa',
-    });
-};
-
-const insertDataset = async ({
-    lastCompletedAt = null,
-    lastFailedAt = null,
-    nextRefreshAt,
-    status,
-}: {
-    lastCompletedAt?: Date | null;
-    lastFailedAt?: Date | null;
-    nextRefreshAt: Date | null;
-    status: string;
-}) => {
-    await db.insert(topSearchTermsDatasets).values({
-        dataEndDate: '2026-08-01',
-        dataStartDate: '2026-08-01',
-        lastCompletedAt,
-        lastFailedAt,
-        marketplaceId: SPAPI_US_MARKETPLACE_ID,
-        nextRefreshAt,
-        reportPeriod: 'DAY',
-        status,
     });
 };
