@@ -27,6 +27,8 @@ FROM deps AS build
 WORKDIR /app
 COPY . .
 
+ARG BUILD_REVISION
+
 # Build only the server workspace.
 RUN bun run --filter @rankwrangler/server build
 
