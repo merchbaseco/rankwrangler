@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { delimiter, join } from "node:path";
+import { requireBakedRevision, requireDeployRevision } from "./deploy-revision";
 
 /**
  * The production deploy runs under the deploy-agent role: every venue that
@@ -159,6 +160,8 @@ if (dryRun) {
     process.exit(0);
 }
 
+const revision = requireDeployRevision();
+
 // Compose parses the whole file and will warn that the server's runtime
 // variables are "not set" during the build. That is expected and harmless:
 // the build only needs the website build arguments and the install token, and
@@ -170,13 +173,15 @@ console.log(
 
 const build = spawnSync(
     "docker",
-    ["compose", ...composeArgs, "build"],
+    ["compose", ...composeArgs, "build", "--build-arg", `BUILD_REVISION=${revision}`],
     { env: buildEnvironment, stdio: "inherit" }
 );
 if (build.status !== 0) {
     console.error("Image build failed; deploy not attempted.");
     process.exit(build.status ?? 1);
 }
+
+requireBakedRevision(composeArgs, revision, buildEnvironment);
 
 const migrationTarget =
     printenv("RANKWRANGLER_DATABASE_MIGRATION_TARGET") || "pre-cutover";
