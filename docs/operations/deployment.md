@@ -12,10 +12,13 @@ Production is served at `https://rankwrangler.merchbase.co`. Caddy serves the we
 Other website paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-local
 health endpoints.
 
-`GET /api/health` is the external freshness report. It returns 200 `{"status":"ok"}`, or 503
-`{"status":"degraded","failing":[...]}` with check names only. Container healthchecks, Caddy's
-upstream probe, and the deploy smoke use `GET /health/live`, which only checks that the process
-can run `SELECT 1`, so stale data cannot hold the stack down.
+`GET /api/health` is the external freshness report. Container healthchecks, Caddy's upstream
+probe, and the deploy smoke use `GET /health/live`, which only checks that the process can run
+`SELECT 1`, so stale data cannot hold the stack down. Both URLs return 200
+`{"status":"ok","revision":"<sha>"}`, or 503
+`{"status":"degraded","failing":[...],"revision":"<sha>"}` with check names only. `revision` is
+the full commit SHA that `bun run deploy` built the image from. Local runs, tests, and images
+built outside that script report `dev`.
 
 | Check | Failing when |
 | --- | --- |
@@ -193,7 +196,8 @@ docker logs rankwrangler-caddy --tail 50
 ```
 
 Migration or startup failures appear in the server logs. If code is unexpectedly stale, verify
-the deployed commit before forcing a no-cache rebuild.
+the deployed commit before forcing a no-cache rebuild. An operator compares `revision` from
+`curl -s https://rankwrangler.merchbase.co/health/live` with the dispatched commit.
 
 The MCP POST smoke check should return `401` with a `WWW-Authenticate` bearer challenge when no
 OAuth token is supplied. The protected-resource check should return JSON metadata, not the website

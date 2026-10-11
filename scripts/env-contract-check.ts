@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// Name-only contract check across the five places a RankWrangler variable
-// appears: `.env.schema` (the contract), the typed server surface in
+// Name-only contract check across the places a RankWrangler variable appears:
+// `.env.schema` (the contract), the typed server surface in
 // `apps/server/src/config/env.ts`, the Compose delivery for the server
-// container, the Compose build arguments for the website image, and the `ARG`
-// declarations in `Dockerfile.caddy`.
+// container, the Compose build arguments for the website image, the `ARG`
+// declarations in `Dockerfile.caddy`, and the `ARG` declarations in the server
+// `Dockerfile`, which only the deploy script's `--build-arg` may supply.
 //
-// This exists because nothing else can prove those five agree. `varlock audit`
+// This exists because nothing else can prove those places agree. `varlock audit`
 // only sees direct `process.env` reads, and Docker silently discards a build
 // argument the Dockerfile never declares — which is exactly how
 // VITE_CLERK_SYNC_HOST was passed but never applied. Nothing here resolves a
@@ -18,6 +19,7 @@ const schemaPath = join(repositoryRoot, ".env.schema");
 const serverEnvPath = join(repositoryRoot, "apps/server/src/config/env.ts");
 const composePath = join(repositoryRoot, "apps/server/compose.yml");
 const caddyDockerfilePath = join(repositoryRoot, "apps/server/Dockerfile.caddy");
+const serverDockerfilePath = join(repositoryRoot, "apps/server/Dockerfile");
 
 // Injected by varlock itself rather than delivered to any consumer.
 const varlockBuiltins = new Set(["VARLOCK_ENV"]);
@@ -138,10 +140,8 @@ const readComposeBlocks = (blockHeader: string, headerIndent: number) => {
     return names;
 };
 
-const readCaddyArgs = (): string[] => {
-    const contents = readFileSync(caddyDockerfilePath, "utf8");
-    return [...contents.matchAll(argPattern)].map((match) => match[1]);
-};
+const readDockerfileArgs = (path: string): string[] =>
+    [...readFileSync(path, "utf8").matchAll(argPattern)].map((match) => match[1]);
 
 const sorted = (names: Iterable<string>) => [...names].sort();
 
@@ -171,7 +171,8 @@ const runtimeNames = readNamedBlock(
 // build `args:` sit at 6.
 const composeServerEnvNames = new Set(readComposeBlocks("environment:", 4));
 const composeBuildArgNames = new Set(readComposeBlocks("args:", 6));
-const caddyArgNames = new Set(readCaddyArgs());
+const caddyArgNames = new Set(readDockerfileArgs(caddyDockerfilePath));
+const serverArgNames = new Set(readDockerfileArgs(serverDockerfilePath));
 
 const issues: string[] = [];
 
@@ -265,6 +266,16 @@ for (const name of sorted(caddyArgNames)) {
     }
 }
 
+// 7. A server image build argument holds a per-build value, such as the commit
+//    SHA, that no 1Password literal can carry.
+for (const name of sorted(serverArgNames)) {
+    if (schemaItems.some((item) => item.name === name) || composeBuildArgNames.has(name)) {
+        issues.push(
+            `${name} is a server image build argument in apps/server/Dockerfile; pass it with the deploy script's --build-arg, not .env.schema or compose \`args:\`.`
+        );
+    }
+}
+
 if (issues.length > 0) {
     console.error("Environment contract is out of sync:");
     for (const issue of issues) {
@@ -274,5 +285,5 @@ if (issues.length > 0) {
 }
 
 console.log(
-    `Environment contract is in sync (${deliverableNames.size} deliverable schema variables, ${declaredNames.length} read by the server, ${caddyArgNames.size} website build arguments).`
+    `Environment contract is in sync (${deliverableNames.size} deliverable schema variables, ${declaredNames.length} read by the server, ${caddyArgNames.size} website build arguments, ${serverArgNames.size} server build arguments outside the schema and compose).`
 );

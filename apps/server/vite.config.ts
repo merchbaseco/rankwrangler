@@ -3,8 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
+const buildRevision = process.env.BUILD_REVISION;
 
 export default defineConfig({
+    define: buildRevision ? { __BUILD_REVISION__: JSON.stringify(buildRevision) } : {},
     build: {
         target: 'node18',
         ssr: true,

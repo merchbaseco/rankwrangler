@@ -3,6 +3,24 @@ import Fastify from 'fastify';
 import type { ServiceHealthResult } from '@/services/service-health';
 import { type HealthRouteReaders, registerHealthRoutes } from './health-routes';
 
+type Reader = HealthRouteReaders[keyof HealthRouteReaders];
+
+const ROUTES = [
+    {
+        url: '/api/health',
+        reader: 'readServiceHealth',
+        failing: ['spapi-catalog', 'catalog-queries'],
+        degradedBody:
+            '{"status":"degraded","failing":["spapi-catalog","catalog-queries"],"revision":"dev"}',
+    },
+    {
+        url: '/health/live',
+        reader: 'readLiveness',
+        failing: ['postgres'],
+        degradedBody: '{"status":"degraded","failing":["postgres"],"revision":"dev"}',
+    },
+] as const;
+
 const originalConsoleError = console.error;
 
 describe('health routes', () => {
@@ -14,74 +32,46 @@ describe('health routes', () => {
         console.error = originalConsoleError;
     });
 
-    it('returns ok with only the status key', async () => {
-        const app = appWith({
-            readLiveness: () => Promise.resolve({ status: 'ok' }),
-            readServiceHealth: () => Promise.resolve({ status: 'ok' }),
+    for (const { url, reader, failing, degradedBody } of ROUTES) {
+        it(`${url} returns 200 with the revision when healthy`, async () => {
+            const response = await get(url, reader, () => Promise.resolve({ status: 'ok' }));
+
+            expect(response.statusCode).toBe(200);
+            expect(response.body).toBe('{"status":"ok","revision":"dev"}');
         });
-        const response = await app.inject({ method: 'GET', url: '/api/health' });
-        const body = response.json();
 
-        expect(response.statusCode).toBe(200);
-        expect(body).toEqual({ status: 'ok' });
-        expect(Object.keys(body)).toEqual(['status']);
-        await app.close();
-    });
+        it(`${url} returns 503 with failing checks and the revision`, async () => {
+            const response = await get(url, reader, () =>
+                Promise.resolve<ServiceHealthResult>({ status: 'degraded', failing })
+            );
 
-    it('returns 503 with the failing checks and no error key', async () => {
-        const app = appWith({
-            readLiveness: () => Promise.resolve({ status: 'ok' }),
-            readServiceHealth: () =>
-                Promise.resolve<ServiceHealthResult>({
-                    status: 'degraded',
-                    failing: ['spapi-catalog', 'catalog-queries'],
-                }),
+            expect(response.statusCode).toBe(503);
+            expect(response.body).toBe(degradedBody);
         });
-        const response = await app.inject({ method: 'GET', url: '/api/health' });
-        const body = response.json();
 
-        expect(response.statusCode).toBe(503);
-        expect(body).toEqual({
-            status: 'degraded',
-            failing: ['spapi-catalog', 'catalog-queries'],
-        });
-        expect(Object.keys(body)).toEqual(['status', 'failing']);
-        expect(body).not.toHaveProperty('error');
-        await app.close();
-    });
-
-    it('does not run the freshness reader for liveness', async () => {
-        const app = appWith({
-            readLiveness: () => Promise.resolve({ status: 'ok' as const }),
-            readServiceHealth: () => {
-                throw new Error('freshness reader must not run');
-            },
-        });
-        const response = await app.inject({ method: 'GET', url: '/health/live' });
-
-        expect(response.statusCode).toBe(200);
-        expect(response.json()).toEqual({ status: 'ok' });
-        expect(Object.keys(response.json())).toEqual(['status']);
-        await app.close();
-    });
-
-    it('turns a thrown reader into a postgres failure', async () => {
-        const app = appWith({
-            readLiveness: () => Promise.resolve({ status: 'ok' as const }),
-            readServiceHealth: () => {
+        it(`${url} turns a thrown reader into a postgres failure with the revision`, async () => {
+            const response = await get(url, reader, () => {
                 throw new Error('reader exploded');
-            },
-        });
-        const response = await app.inject({ method: 'GET', url: '/api/health' });
+            });
 
-        expect(response.statusCode).toBe(503);
-        expect(response.json()).toEqual({ status: 'degraded', failing: ['postgres'] });
-        await app.close();
-    });
+            expect(response.statusCode).toBe(503);
+            expect(response.body).toBe(
+                '{"status":"degraded","failing":["postgres"],"revision":"dev"}'
+            );
+        });
+    }
 });
 
-const appWith = (readers: HealthRouteReaders) => {
+const get = async (url: string, reader: keyof HealthRouteReaders, read: Reader) => {
     const app = Fastify({ logger: false });
-    registerHealthRoutes(app, readers);
-    return app;
+    registerHealthRoutes(app, {
+        readLiveness: otherRoute,
+        readServiceHealth: otherRoute,
+        [reader]: read,
+    });
+    const response = await app.inject({ method: 'GET', url });
+    await app.close();
+    return response;
 };
+
+const otherRoute: Reader = () => Promise.reject(new Error('read by the other route'));

@@ -210,7 +210,9 @@ export MERCHBASE_GITHUB_NPM_TOKEN=$(RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
   bunx varlock printenv MERCHBASE_GITHUB_NPM_TOKEN)
 ```
 
-The Caddy entrypoint is `http://localhost:8090`; PostgreSQL binds to `127.0.0.1:5433`.
+The Caddy entrypoint is `http://localhost:8090`; PostgreSQL binds to `127.0.0.1:5433`. Images
+built with `compose up --build` report `"revision":"dev"`. Only `bun run deploy` bakes a commit
+SHA.
 
 ## Focused Checks
 
