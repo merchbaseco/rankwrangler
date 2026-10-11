@@ -108,7 +108,7 @@ const spapiCatalogOverdueCondition = (now: Date) => {
 };
 
 const keepaHistoryOverdueCondition = (now: Date) => {
-    const createdBefore = dueBefore(now, 0, KEEPA_HISTORY_SCHEDULER_LAG_MS);
+    const eligibleBefore = dueBefore(now, 0, KEEPA_HISTORY_SCHEDULER_LAG_MS);
     const dailyFetchedBefore = dueBefore(
         now,
         KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
@@ -124,15 +124,16 @@ const keepaHistoryOverdueCondition = (now: Date) => {
         eq(products.isMerchListing, true),
         isNotNull(products.rootCategoryBsr),
         lt(products.rootCategoryBsr, KEEPA_WEEKLY_AUTO_BSR_THRESHOLD),
+        spApiWriteOlderThanSchedulerLag(eligibleBefore),
         or(
             and(
                 lt(products.rootCategoryBsr, KEEPA_DAILY_AUTO_BSR_THRESHOLD),
-                keepaFetchedAtOrCreatedAtDue(dailyFetchedBefore, createdBefore)
+                keepaFetchedAtOrCreatedAtDue(dailyFetchedBefore, eligibleBefore)
             ),
             and(
                 gte(products.rootCategoryBsr, KEEPA_DAILY_AUTO_BSR_THRESHOLD),
                 lt(products.rootCategoryBsr, KEEPA_WEEKLY_AUTO_BSR_THRESHOLD),
-                keepaFetchedAtOrCreatedAtDue(weeklyFetchedBefore, createdBefore)
+                keepaFetchedAtOrCreatedAtDue(weeklyFetchedBefore, eligibleBefore)
             )
         )
     );
@@ -203,6 +204,9 @@ const hasProductOverdueFloor = async (condition: ReturnType<typeof and>) => {
         .limit(PRODUCT_HEALTH_OVERDUE_FLOOR);
     return rows.length >= PRODUCT_HEALTH_OVERDUE_FLOOR;
 };
+
+const spApiWriteOlderThanSchedulerLag = (eligibleBefore: Date) =>
+    or(isNull(products.spApiFetchedAt), lte(products.spApiFetchedAt, eligibleBefore));
 
 const keepaFetchedAtOrCreatedAtDue = (fetchedBefore: Date, createdBefore: Date) =>
     or(
