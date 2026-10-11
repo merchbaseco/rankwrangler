@@ -291,4 +291,5 @@ bun test \
     apps/server/test/merch-listing-classification.db.test.ts \
     apps/server/test/product-short-name.db.test.ts \
     apps/server/test/product-cutout-thumbnail.db.test.ts \
-    apps/server/test/service-health.db.test.ts
+    apps/server/test/service-health.db.test.ts \
+    apps/server/test/service-health-schedules.db.test.ts
