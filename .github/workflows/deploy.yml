@@ -23,11 +23,9 @@ jobs:
 
     steps:
       - name: Check out repository
-        id: checkout
         uses: actions/checkout@v4
 
       - name: Sync the deployment checkout
-        id: sync
         working-directory: /Users/zknicker/srv/rankwrangler
         run: |
           # Move the long-lived deploy checkout to the exact dispatched commit.
@@ -38,14 +36,12 @@ jobs:
           git rev-parse HEAD
 
       - name: Install dependencies
-        id: install
         working-directory: /Users/zknicker/srv/rankwrangler
         env:
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
         run: bun install --frozen-lockfile
 
       - name: Deploy
-        id: deploy
         working-directory: /Users/zknicker/srv/rankwrangler
         env:
           # The deploy-agent role slot, filled here by the GitHub deploy
@@ -59,7 +55,6 @@ jobs:
         run: bun run deploy
 
       - name: Verify from the consumer
-        id: verify
         run: |
           curl --fail --show-error --silent --max-time 20 \
             https://rankwrangler.merchbase.co/health/live > /dev/null
@@ -73,75 +68,3 @@ jobs:
           discord-webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           job-status: ${{ job.status }}
-
-      - name: Notify Haus
-        if: failure() || cancelled()
-        continue-on-error: true
-        timeout-minutes: 1
-        env:
-          HAUS_DEPLOY_TRIGGER_URL: ${{ secrets.HAUS_DEPLOY_TRIGGER_URL }}
-          HAUS_DEPLOY_TRIGGER_TOKEN: ${{ secrets.HAUS_DEPLOY_TRIGGER_TOKEN }}
-          REPO: ${{ github.repository }}
-          WORKFLOW: ${{ github.workflow }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SHA: ${{ github.sha }}
-          REF: ${{ github.ref }}
-          CONCLUSION: ${{ job.status }}
-          CHECKOUT_OUTCOME: ${{ steps.checkout.outcome }}
-          SYNC_OUTCOME: ${{ steps.sync.outcome }}
-          INSTALL_OUTCOME: ${{ steps.install.outcome }}
-          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
-          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
-        run: |
-          if [[ -z "$HAUS_DEPLOY_TRIGGER_URL" || -z "$HAUS_DEPLOY_TRIGGER_TOKEN" ]]; then
-            echo '::notice::Haus deploy webhook is not configured. Skipping.'
-            exit 0
-          fi
-
-          if [[ "$CONCLUSION" != 'failure' && "$CONCLUSION" != 'cancelled' ]]; then
-            echo '::notice::Haus deploy notify skipped: job conclusion is not failure or cancelled.'
-            exit 0
-          fi
-
-          BODY="$(
-            bun -e '
-              const order = [
-                ["Check out repository", process.env.CHECKOUT_OUTCOME],
-                ["Sync the deployment checkout", process.env.SYNC_OUTCOME],
-                ["Install dependencies", process.env.INSTALL_OUTCOME],
-                ["Deploy", process.env.DEPLOY_OUTCOME],
-                ["Verify from the consumer", process.env.VERIFY_OUTCOME],
-              ];
-              let failed_step = "";
-              for (const [name, outcome] of order) {
-                if (outcome === "failure" || outcome === "cancelled") {
-                  failed_step = name;
-                  break;
-                }
-              }
-              const payload = {
-                repo: process.env.REPO ?? "",
-                workflow: process.env.WORKFLOW ?? "",
-                run_url: process.env.RUN_URL ?? "",
-                sha: process.env.SHA ?? "",
-                ref: process.env.REF ?? "",
-                conclusion: process.env.CONCLUSION,
-                failed_step,
-              };
-              process.stdout.write(JSON.stringify(payload));
-            '
-          )" || {
-            echo '::warning::Haus deploy webhook body build failed.'
-            exit 0
-          }
-
-          curl --fail --silent --max-time 10 \
-            --request POST \
-            --header "Authorization: Bearer ${HAUS_DEPLOY_TRIGGER_TOKEN}" \
-            --header "Content-Type: application/json" \
-            --header "User-Agent: RankWrangler-DeployNotify/1" \
-            --data "$BODY" \
-            "$HAUS_DEPLOY_TRIGGER_URL" || {
-            echo '::warning::Haus deploy webhook POST failed.'
-            exit 0
-          }
