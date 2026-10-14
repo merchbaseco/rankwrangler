@@ -103,6 +103,11 @@ if [ -z "${MERCHBASE_GITHUB_NPM_TOKEN:-}" ]; then
     exit 1
 fi
 
-bun install --frozen-lockfile
+# A hang (for example lost registry auth behind a proxy) fails loudly instead of
+# stalling the session.
+timeout 900 bun install --frozen-lockfile || {
+    echo "[install] ERROR: bun install failed or timed out" >&2
+    exit 1
+}
 
 echo "[install] Done."

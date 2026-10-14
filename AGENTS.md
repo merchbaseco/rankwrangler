@@ -173,12 +173,11 @@ automatic outside production (the page mints a dev Clerk ticket for the shared D
 so wait for the server's `Dev Clerk Sign-In Token: Configured` line, then capture:
 
 ```bash
-google-chrome --headless=new --no-sandbox --virtual-time-budget=15000 \
-  --screenshot=/tmp/rankwrangler.png --window-size=1440,900 http://localhost:5173
+capture-page http://localhost:5173 /tmp/rankwrangler.png --settle 8000
 ```
 
-`google-chrome` is the fleet's wrapper for `/opt/pw-browsers/chromium`; `--no-sandbox` is required
-as root. Use `localhost`, not `127.0.0.1`: the development authorized party is
+`capture-page` is the fleet's Playwright wrapper around the image's Chromium; it routes external
+hosts such as Clerk through the agent proxy and keeps loopback direct. Use `localhost`, not `127.0.0.1`: the development authorized party is
 `http://localhost:5173`. If the screenshot shows a sign-in form, follow "When auto sign-in does not
 fire" in `docs/operations/ui-verification.md`.
 
