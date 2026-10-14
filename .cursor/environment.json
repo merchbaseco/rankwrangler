@@ -1,7 +1,7 @@
 {
     "name": "Merchbase RankWrangler",
-    "install": "bash .cursor/install.sh",
-    "start": "bash .cursor/start.sh",
+    "install": "bash .agents/cloud/install.sh",
+    "start": "bash .agents/cloud/bootstrap.sh cursor",
     "ports": [
         {
             "name": "api",
@@ -10,6 +10,12 @@
         {
             "name": "website",
             "port": 5173
+        }
+    ],
+    "terminals": [
+        {
+            "name": "dev",
+            "command": "RANKWRANGLER_DEV_HOST=0.0.0.0 bunx varlock run -- node_modules/.bin/concurrently -k -n server,website -c cyan,magenta \"bun run --filter @rankwrangler/server dev\" \"bun run --filter @rankwrangler/website dev\""
         }
     ]
 }

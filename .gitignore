@@ -36,12 +36,14 @@ stack.env
 # Varlock schema is the committed contract
 !.env.schema
 
-# Cursor-discovered fleet skills, linked by .cursor/start.sh in cloud VMs
-.agents/
+# Cursor links fleet skills into .agents/skills; the cloud agent scripts stay tracked.
+.agents/*
+!.agents/cloud/
 
 # Claude Code keeps per-checkout state here (worktrees, local settings). The
-# shared slash commands are the one committed part, so name them back in
-# rather than ignoring the directory itself — git will not look inside an
-# ignored directory to find them.
+# shared slash commands and the cloud SessionStart hook are the committed
+# parts, so name them back in rather than ignoring the directory itself — git
+# will not look inside an ignored directory to find them.
 .claude/*
 !.claude/commands/
+!.claude/settings.json

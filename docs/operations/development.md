@@ -2,7 +2,7 @@
 summary: Defines local RankWrangler setup, environment ownership, development commands, worker defaults, and focused verification entrypoints.
 read_when:
   - setting up RankWrangler locally or choosing a development command
-  - filling a local or Cursor cloud database with synthetic Products, Search runs, keywords, and activity
+  - filling a local or cloud agent database with synthetic Products, Search runs, keywords, and activity
   - debugging environment loading, local ports, dev server bind addresses, disabled workers, or extension dependency order
   - changing the Quality workflow, the `check` scripts, or which gates run on every commit
 ---
@@ -117,8 +117,8 @@ development database cannot serve the catalog at all until something brings it c
 development server's own startup migration then finds nothing left to apply and logs a no-op
 `pre-cutover` line, which is expected.
 
-Cursor cloud agents seed automatically: `.cursor/start.sh` runs the command on every boot, after
-provisioning the local cluster and before launching the servers, so a cloud agent opens on a
+Cloud agents (Claude and Cursor) seed automatically: `.agents/cloud/start.sh` runs the command at
+every session start, after provisioning the local cluster, so a cloud agent opens on a
 populated dashboard, already signed in, and a resumed one re-anchors to the current week. The seed's
 whole output — receipt included — goes straight to the boot log; nothing is captured or discarded, so
 a boot that half-worked says so. Local checkouts never seed implicitly — a local database may be
@@ -189,8 +189,8 @@ previews can use their assigned port.
 as Vite's own default of `localhost`: on a host that resolves `localhost` to `::1` first, Vite binds
 IPv6 only, and an IPv4 client — or a port forwarder watching for listening sockets — never sees it.
 An environment reached through such a forwarder sets `0.0.0.0` for its own dev command;
-`.cursor/start.sh` exports exactly that before launching, which is where the knowledge that Cursor
-forwards ports this way belongs. App code stays vendor-neutral, and everywhere else the loopback
+Cursor's `dev` terminal in `.cursor/environment.json` sets exactly that before launching, which is
+where the knowledge that Cursor forwards ports this way belongs. App code stays vendor-neutral, and everywhere else the loopback
 default keeps the dev server — and the synthetic seed data behind it — off the network. Only the
 socket widens; the origin the app believes it serves is unchanged.
 
