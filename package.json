@@ -5,7 +5,7 @@
         "apps/*",
         "packages/*"
     ],
-    "packageManager": "bun@1.3.5",
+    "packageManager": "bun@1.4.2",
     "scripts": {
         "build:background": "varlock run -- bun run --filter rankwrangler-extension build:background",
         "build:chrome": "varlock run -- bun run --filter rankwrangler-extension build:chrome",

@@ -17,9 +17,10 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
   proves the two agree along with Compose delivery and the website build arguments.
 - There is no `.env` file and no manual environment step. `varlock run` supplies values to every
   command that needs them; local resolution uses 1Password desktop authorization.
-- Cloud agents: Cursor worktrees carry the fleet-wide `Development`-vault identity, so `bun run
-  check` and `bun run dev` work unchanged. Codex worktrees have no 1Password access and run the
-  offline gates only (`bun run env:check`, `bun run env:contract`, `bun run test`).
+- Cloud agents: Claude and Cursor cloud sessions carry the fleet-wide `Development`-vault identity
+  (`CLOUD_AGENTS_DEVELOPMENT_OP_TOKEN`), so `bun run check` and the dev servers work unchanged; see
+  "Cloud Agents" below. Codex worktrees have no 1Password access and run the offline gates only
+  (`bun run env:check`, `bun run env:contract`, `bun run test`).
 - Path alias: `@/` -> `apps/server/src/`.
 
 ## Always-On Rules
@@ -139,6 +140,46 @@ Open these only when the task needs that specific workflow:
   `docs/operations/npm-packages.md`
 - Keepa refresh: `docs/internals/keepa-refresh.md`, `docs/operations/keepa-refresh.md`
 - Public client and CLI: `docs/reference/http-client.md`, `docs/reference/cli.md`
+
+## Cloud Agents
+
+RankWrangler follows the fleet cloud agent contract; set up or repair it with the `zknicker/agents`
+`cloud-agent-setup` skill. `.agents/cloud/bootstrap.sh` is a fleet-owned copy, never edited here.
+The rest is RankWrangler's:
+
+- `.agents/cloud/install.sh` installs PostgreSQL (port `5433`, matching the schema), the Bun version
+  pinned by `packageManager` whenever the active one differs, resolves the GitHub Packages read
+  token from 1Password, and runs `bun install --frozen-lockfile`. Idempotent.
+- `.agents/cloud/start.sh` starts the loopback cluster as the `postgres` account (Claude runs as
+  root), provisions the role and database from the schema, and seeds synthetic development data.
+  It returns; it never runs the dev servers.
+- Claude runs `bootstrap.sh claude` from the `.claude/settings.json` SessionStart hook. Cursor runs
+  the **Merchbase RankWrangler** environment (`.cursor/environment.json`), whose `dev` terminal
+  launches the servers bound to `0.0.0.0` so Cursor can forward the ports.
+
+Everything resolves through `CLOUD_AGENTS_DEVELOPMENT_OP_TOKEN`; there is no per-repo cloud secret
+and no `.env` step.
+
+To start the app and capture a screenshot in a Claude cloud session, launch the servers in the
+background (not `bun run dev`, whose `--elide-lines=0` aborts outside a terminal):
+
+```bash
+bunx varlock run -- node_modules/.bin/concurrently -k -n server,website -c cyan,magenta \
+  "bun run --filter @rankwrangler/server dev" "bun run --filter @rankwrangler/website dev"
+```
+
+The API listens on `http://localhost:8080` and the website on `http://localhost:5173`. Sign-in is
+automatic outside production (the page mints a dev Clerk ticket for the shared Dev Sign-In user),
+so wait for the server's `Dev Clerk Sign-In Token: Configured` line, then capture:
+
+```bash
+capture-page http://localhost:5173 /tmp/rankwrangler.png --settle 8000
+```
+
+`capture-page` is the fleet's Playwright wrapper around the image's Chromium; it routes external
+hosts such as Clerk through the agent proxy and keeps loopback direct. Use `localhost`, not `127.0.0.1`: the development authorized party is
+`http://localhost:5173`. If the screenshot shows a sign-in form, follow "When auto sign-in does not
+fire" in `docs/operations/ui-verification.md`.
 
 ## Maintenance Boundary
 
