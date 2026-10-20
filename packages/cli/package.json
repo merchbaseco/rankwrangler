@@ -2,6 +2,11 @@
     "name": "@rankwrangler/cli",
     "version": "0.10.0",
     "description": "Official RankWrangler command line interface",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/merchbaseco/rankwrangler.git",
+        "directory": "packages/cli"
+    },
     "type": "module",
     "bin": {
         "rw": "dist/index.js",
