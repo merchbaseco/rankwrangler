@@ -7,12 +7,11 @@ read_when:
 
 # npm Packages
 
-Publish only after the synchronized release commit is on `origin/main`. Deploy Stack does this
-after a production deploy when the version is not on npm yet, using
-`MERCHBASE_NPM_PUBLISH_TOKEN` from `op://Tooling/NPM Publish - Merchbase/credential` and the
+Publish only after the synchronized release commit is on `origin/main`. Deploy Stack publishes
+`@rankwrangler/http-client` and `@rankwrangler/cli` after a production deploy when that version
+is not on npm yet. The token is `op://Tooling/NPM Publish - Merchbase/credential`, read with the
 production deploy-agent token. That identity's access to the Tooling item is not confirmed.
-Publish fails until the item is readable. The HTTP client must be available first because the
-CLI publish guard requires its matching version. The commands below remain the manual path.
+The HTTP client publishes first. The commands below remain the manual path.
 
 ## Preconditions
 

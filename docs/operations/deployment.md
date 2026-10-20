@@ -38,18 +38,12 @@ built outside that script report `dev`.
 
 ## Deployment
 
-A push to `main` deploys after Quality succeeds for that commit. Deploy Stack does not run
-Quality again. `workflow_dispatch` redeploys the selected tip. Set its `ref` input to a SHA on
-`main` to roll back. The self-hosted runner fast-forwards `/Users/zknicker/srv/rankwrangler` to
-the target and runs `bun run deploy`. It skips a commit that is not a descendant of the live
-checkout unless `ref` is set, and it fails if that checkout has diverged. It then polls
-`/api/health` and `/health/live` until both return `"status":"ok"` and a `"revision"` equal
-to the deployed SHA.
-
-The same run publishes `@rankwrangler/http-client` and `@rankwrangler/cli` when that version is
-not on npm yet, and pushes `vX.Y.Z` when that tag is missing. Release Integrity opens the GitHub
-Release from the tag. A later job fails when either package's source changed since its published
-version without a version bump. That failure does not fail the deploy job.
+- A push to `main` deploys after Quality succeeds for that commit. Deploy Stack does not run Quality again.
+- `workflow_dispatch` redeploys the selected tip. Set `ref` to a SHA on `main` to roll back.
+- The runner fast-forwards `/Users/zknicker/srv/rankwrangler` and runs `bun run deploy`. It skips a commit that is not a descendant of the live checkout unless `ref` is set.
+- It polls `/health/live` and `/api/health` until both return `"status":"ok"` and `"revision"` of the deployed SHA.
+- It publishes `@rankwrangler/http-client` and `@rankwrangler/cli` when that version is not on npm, then pushes `vX.Y.Z` if the tag is missing.
+- A later job fails when a published package changed since its tag without a version bump. That job does not fail the deploy.
 
 ### Source to runtime
 
@@ -204,9 +198,8 @@ docker logs rankwrangler-caddy --tail 50
 ```
 
 Migration or startup failures appear in the server logs. If code is unexpectedly stale, verify
-the deployed commit before forcing a no-cache rebuild. Deploy Stack fails unless `revision` from
-both health URLs equals the SHA it just deployed. An operator can compare the same field with
-`curl -s https://rankwrangler.merchbase.co/health/live`.
+the deployed commit before forcing a no-cache rebuild. Compare `revision` from
+`curl -s https://rankwrangler.merchbase.co/health/live` with the deployed SHA.
 
 The MCP POST smoke check should return `401` with a `WWW-Authenticate` bearer challenge when no
 OAuth token is supplied. The protected-resource check should return JSON metadata, not the website
