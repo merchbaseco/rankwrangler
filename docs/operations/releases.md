@@ -40,8 +40,8 @@ Commit only the intended version, dependency, lockfile, and changelog changes. T
 `vX.Y.Z` tag is the canonical release boundary. Pushing it runs release integrity checks and
 publishes the matching changelog entry as the GitHub release body.
 
-Public npm packages publish after the release commit reaches `origin/main`; follow
-[npm packages](npm-packages.md).
+Public npm packages publish after the release commit reaches `origin/main`. Deploy Stack
+publishes them after that deploy. Follow [npm packages](npm-packages.md) for a manual publish.
 
 ## Version Policy
 
