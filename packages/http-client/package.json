@@ -2,6 +2,11 @@
     "name": "@rankwrangler/http-client",
     "version": "0.10.0",
     "description": "Typed tRPC client for RankWrangler",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/merchbaseco/rankwrangler.git",
+        "directory": "packages/http-client"
+    },
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
