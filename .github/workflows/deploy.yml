@@ -175,6 +175,10 @@ jobs:
           bun run cli:build
           bun run release:check-cli-pack
           root=$PWD
+          MERCHBASE_NPM_PUBLISH_TOKEN="$(bunx varlock printenv MERCHBASE_NPM_PUBLISH_TOKEN)"
+          echo "::add-mask::$MERCHBASE_NPM_PUBLISH_TOKEN"
+          test -n "$MERCHBASE_NPM_PUBLISH_TOKEN"
+          export MERCHBASE_NPM_PUBLISH_TOKEN
           for dir in $pending; do
             (cd "$dir" && node "$root/scripts/release/with-npm-token.mjs" npm publish --access public --userconfig "$root/.npmrc")
           done
