@@ -1,70 +1,219 @@
 name: Deploy Stack
 
-# Manual only. Pushing to main no longer deploys: a deploy is an explicit act
-# now that it resolves production credentials from 1Password.
+env:
+  PRODUCTION_CHECKOUT: /Users/zknicker/srv/rankwrangler
+  DEPLOY_COMMAND: bun run deploy
+  HEALTH_LIVE_URL: https://rankwrangler.merchbase.co/health/live
+  HEALTH_API_URL: https://rankwrangler.merchbase.co/api/health
+  HEALTH_TIMEOUT_SECONDS: '180'
+  PUBLISHED_PACKAGES: packages/http-client:@rankwrangler/http-client,packages/cli:@rankwrangler/cli
+
 on:
+  workflow_run:
+    workflows: [Quality]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: SHA on main to deploy. Set this to roll back.
+        required: false
+        type: string
 
 permissions:
-  contents: read
+  contents: write
+  id-token: write
   packages: read
 
 concurrency:
-  group: deploy-stack
+  group: rankwrangler-production
   cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy Stack
-    # The stack is hosted on the Mac mini, so GitHub Actions stays the single
-    # deploy surface and the job runs on the mini's self-hosted runner.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: self-hosted
     timeout-minutes: 30
-
+    outputs:
+      deployed: ${{ steps.sync.outputs.deployed }}
+      sha: ${{ steps.sync.outputs.sha }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Resolve the target commit
+        id: target
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_REF: ${{ github.event.inputs.ref }}
+          DISPATCH_SHA: ${{ github.sha }}
+          QUALITY_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          sha="$QUALITY_SHA"
+          explicit_ref=false
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            sha="$DISPATCH_SHA"
+            if [ -n "$INPUT_REF" ]; then
+              sha="$INPUT_REF"
+              explicit_ref=true
+            fi
+          fi
+          if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "Target must be a 40-character lowercase SHA." >&2
+            exit 1
+          fi
+          printf 'sha=%s\nexplicit_ref=%s\n' "$sha" "$explicit_ref" >> "$GITHUB_OUTPUT"
 
       - name: Sync the deployment checkout
-        working-directory: /Users/zknicker/srv/rankwrangler
+        id: sync
+        working-directory: ${{ env.PRODUCTION_CHECKOUT }}
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+          EXPLICIT_REF: ${{ steps.target.outputs.explicit_ref }}
         run: |
-          # Move the long-lived deploy checkout to the exact dispatched commit.
-          # This discards tracked-file edits on the host that would otherwise
-          # make a fast-forward pull fail.
-          git fetch --depth=1 origin "${GITHUB_SHA}"
-          git reset --hard FETCH_HEAD
-          git rev-parse HEAD
+          set -euo pipefail
+          git fetch origin "$TARGET_SHA"
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then git fetch --unshallow origin; fi
+          if [ "$EXPLICIT_REF" != true ] && ! git merge-base --is-ancestor HEAD "$TARGET_SHA"; then
+            echo "Skipping $TARGET_SHA. It is not a descendant of production $(git rev-parse HEAD)."
+            printf 'decision=skip\ndeployed=false\nsha=%s\n' "$TARGET_SHA" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git merge-base --is-ancestor HEAD "$TARGET_SHA"; then
+            git merge --ff-only "$TARGET_SHA"
+          else
+            git reset --keep "$TARGET_SHA"
+          fi
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          printf 'decision=deploy\ndeployed=true\nsha=%s\n' "$TARGET_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
-        working-directory: /Users/zknicker/srv/rankwrangler
+        if: steps.sync.outputs.decision != 'skip'
+        working-directory: ${{ env.PRODUCTION_CHECKOUT }}
         env:
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
         run: bun install --frozen-lockfile
 
       - name: Deploy
-        working-directory: /Users/zknicker/srv/rankwrangler
+        if: steps.sync.outputs.decision != 'skip'
+        working-directory: ${{ env.PRODUCTION_CHECKOUT }}
         env:
-          # The deploy-agent role slot, filled here by the GitHub deploy
-          # agent's read-only Production identity. The deploy script pins
-          # VARLOCK_ENV=production and resolves every value through the schema;
-          # no .env file is read and none is written.
           DEPLOY_AGENT_PRODUCTION_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
-          # Private @merchbaseco/* packages install with the workflow's own
-          # repository-scoped token, so the image build never needs 1Password.
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-        run: bun run deploy
+        run: ${{ env.DEPLOY_COMMAND }}
 
-      - name: Verify from the consumer
+      - name: Verify health
+        if: steps.sync.outputs.decision != 'skip'
+        env:
+          HEALTH_REVISION: ${{ steps.sync.outputs.sha }}
         run: |
-          curl --fail --show-error --silent --max-time 20 \
-            https://rankwrangler.merchbase.co/health/live > /dev/null
-          echo "Liveness endpoint OK."
+          set -euo pipefail
+          deadline=$((SECONDS + HEALTH_TIMEOUT_SECONDS))
+          while true; do
+            ok=true
+            for url in "$HEALTH_LIVE_URL" "$HEALTH_API_URL"; do
+              body=$(curl --silent --show-error --max-time 20 "$url" || true)
+              printf '%s' "$body" | grep -q '"status":"ok"' || ok=false
+              printf '%s' "$body" | grep -Fq "\"revision\":\"${HEALTH_REVISION}\"" || ok=false
+            done
+            if [ "$ok" = true ]; then
+              echo "Health converged on ${HEALTH_REVISION}."
+              exit 0
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "Health did not converge on ${HEALTH_REVISION}." >&2
+              exit 1
+            fi
+            sleep 5
+          done
 
       - name: Notify Discord
-        if: always()
+        if: always() && steps.sync.outputs.decision != 'skip'
         continue-on-error: true
         uses: merchbaseco/captainhook/.github/actions/deploy-notify@v1
         with:
           discord-webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           job-status: ${{ job.status }}
+
+  publish:
+    name: Publish packages
+    needs: deploy
+    if: needs.deploy.result == 'success' && needs.deploy.outputs.deployed == 'true'
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: Publish packages that are not on npm
+        working-directory: ${{ env.PRODUCTION_CHECKOUT }}
+        env:
+          TARGET_SHA: ${{ needs.deploy.outputs.sha }}
+          DEPLOY_AGENT_PRODUCTION_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+          RANKWRANGLER_RESOLVE_RELEASE_TOKENS: 'true'
+          VARLOCK_ENV: production
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          pending=""
+          version=""
+          IFS=',' read -ra entries <<< "$PUBLISHED_PACKAGES"
+          for entry in "${entries[@]}"; do
+            dir="${entry%%:*}"
+            name="${entry#*:}"
+            ver=$(node -p "require('./${dir}/package.json').version")
+            version="$ver"
+            seen=$(npm view "${name}@${ver}" version 2>/dev/null || true)
+            if [ -z "$seen" ]; then
+              pending="$pending $dir"
+            fi
+          done
+          if [ -z "$pending" ]; then
+            echo "npm already has v${version}."
+            exit 0
+          fi
+          bun run release:check
+          bun run cli:build
+          bun run release:check-cli-pack
+          root=$PWD
+          for dir in $pending; do
+            (cd "$dir" && node "$root/scripts/release/with-npm-token.mjs" npm publish --access public --userconfig "$root/.npmrc")
+          done
+          tag="v${version}"
+          if git ls-remote --exit-code origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' -c tag.gpgsign=false tag -a "$tag" -m "$tag" HEAD
+          git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" push "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${tag}"
+
+  version-backstop:
+    name: Version bump backstop
+    needs: [deploy, publish]
+    if: always() && needs.deploy.result == 'success' && needs.deploy.outputs.deployed == 'true' && needs.publish.result != 'cancelled'
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a published package changed without a bump
+        working-directory: ${{ env.PRODUCTION_CHECKOUT }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra entries <<< "$PUBLISHED_PACKAGES"
+          for entry in "${entries[@]}"; do
+            dir="${entry%%:*}"
+            name="${entry#*:}"
+            ver=$(node -p "require('./${dir}/package.json').version")
+            published=$(npm view "$name" version 2>/dev/null || true)
+            if [ "$ver" != "$published" ]; then
+              continue
+            fi
+            if git fetch origin "refs/tags/v${ver}:refs/tags/v${ver}"; then
+              changed=$(git diff --name-only "v${ver}" HEAD -- "$dir")
+              if [ -n "$changed" ]; then
+                echo "${name}@${ver} changed since v${ver} without a version bump." >&2
+                exit 1
+              fi
+            else
+              echo "No origin tag v${ver} for ${name}. Skipping."
+              continue
+            fi
+          done
+          echo "Version bump backstop passed."

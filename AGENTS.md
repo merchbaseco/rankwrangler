@@ -48,10 +48,17 @@ Always-on guidance for coding agents in the RankWrangler monorepo.
     manual version edits; do not maintain a persistent `## Unreleased` changelog section. When the
     user says `do a version bump`, follow `docs/operations/releases.md` and complete
     the full release flow, including publish, unless the user explicitly scopes it down.
-14. Production deploys are manual. `.github/workflows/deploy.yml` runs on `workflow_dispatch` only,
-    because a deploy resolves production credentials from 1Password. Landing on `main` therefore
-    ships nothing by itself; after landing, report that the change is on `main` and undeployed, and
-    dispatch the workflow only when the user asks for a deploy.
+14. Production deploys follow Quality. `.github/workflows/deploy.yml` runs after Quality succeeds
+    on that commit of `main`, and on `workflow_dispatch` for a redeploy or rollback (`ref` is a SHA
+    on `main`). Do not dispatch it unless the user asks for a redeploy or rollback. See
+    `docs/operations/deployment.md`.
+
+## Published packages
+
+- `@rankwrangler/http-client` in `packages/http-client`
+- `@rankwrangler/cli` in `packages/cli`
+
+Changing a package means bumping its version in the same PR (patch, minor, or major by impact).
 
 ## API + Code Design
 

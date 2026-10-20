@@ -38,10 +38,12 @@ built outside that script report `dev`.
 
 ## Deployment
 
-Deploys are **manual**. Pushing to `main` no longer deploys anything: run the `Deploy Stack`
-workflow from the Actions tab (`workflow_dispatch`). It runs on the Mac mini's self-hosted runner,
-synchronizes the long-lived deployment checkout at `/Users/zknicker/srv/rankwrangler` to the
-dispatched commit, and calls `bun run deploy`.
+- A push to `main` deploys after Quality succeeds for that commit. Deploy Stack does not run Quality again.
+- `workflow_dispatch` redeploys the selected tip. Set `ref` to a SHA on `main` to roll back.
+- The runner fast-forwards `/Users/zknicker/srv/rankwrangler` and runs `bun run deploy`. It skips a commit that is not a descendant of the live checkout unless `ref` is set.
+- It polls `/health/live` and `/api/health` until both return `"status":"ok"` and `"revision"` of the deployed SHA.
+- It publishes `@rankwrangler/http-client` and `@rankwrangler/cli` when that version is not on npm, then pushes `vX.Y.Z` if the tag is missing.
+- A later job fails when a published package changed since its tag without a version bump. That job does not fail the deploy.
 
 ### Source to runtime
 
@@ -196,8 +198,8 @@ docker logs rankwrangler-caddy --tail 50
 ```
 
 Migration or startup failures appear in the server logs. If code is unexpectedly stale, verify
-the deployed commit before forcing a no-cache rebuild. An operator compares `revision` from
-`curl -s https://rankwrangler.merchbase.co/health/live` with the dispatched commit.
+the deployed commit before forcing a no-cache rebuild. Compare `revision` from
+`curl -s https://rankwrangler.merchbase.co/health/live` with the deployed SHA.
 
 The MCP POST smoke check should return `401` with a `WWW-Authenticate` bearer challenge when no
 OAuth token is supplied. The protected-resource check should return JSON metadata, not the website
