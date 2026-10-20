@@ -20,6 +20,7 @@ export interface TopSearchTermsDatasetRecord {
     lastFailedAt: string | null;
     lastError: string | null;
     reportId: string | null;
+    reportRequestedAt: string | null;
     refreshTrigger: TopSearchTermsRefreshTrigger;
     nextRefreshAt: string | null;
     createdAt: string;
@@ -43,6 +44,7 @@ export const mapDatasetRecord = (
     lastFailedAt: row.lastFailedAt?.toISOString() ?? null,
     lastError: row.lastError,
     reportId: row.reportId,
+    reportRequestedAt: row.reportRequestedAt?.toISOString() ?? null,
     refreshTrigger: normalizeRefreshTrigger(row.refreshTrigger),
     nextRefreshAt: row.nextRefreshAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

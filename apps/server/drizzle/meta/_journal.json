@@ -267,6 +267,13 @@
       "when": 1790262713215,
       "tag": "0037_grey_proudstar",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792506435262,
+      "tag": "0038_groovy_betty_ross",
+      "breakpoints": true
     }
   ]
 }

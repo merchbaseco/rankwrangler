@@ -15,6 +15,7 @@ import {
 } from '@/services/service-health';
 import { probeCatalogQueries, probeTopSearchTerms } from '@/services/service-health-queries';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
+import { TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS } from '@/services/top-search-terms-report-state-machine';
 
 const NOW = new Date('2026-08-15T12:00:00.000Z');
 const MINUTE_MS = 60 * 1000;
@@ -106,6 +107,31 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('service health sch
 
         expect(await probeTopSearchTerms(NOW)).toBe(false);
     });
+    it('keeps a requested Amazon report healthy until the pending ceiling', async () => {
+        await insertDataset({
+            nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
+            reportId: 'pending-report',
+            reportRequestedAt: new Date(topSearchTermsPendingCeiling().getTime() + 1),
+            status: 'in_progress',
+        });
+        expect(await probeTopSearchTerms(NOW)).toBe(false);
+
+        await replaceDataset({
+            nextRefreshAt: minutesAfter(NOW, 15),
+            reportId: 'expired-pending-report',
+            reportRequestedAt: topSearchTermsPendingCeiling(),
+            status: 'in_progress',
+        });
+        expect(await probeTopSearchTerms(NOW)).toBe(true);
+
+        await replaceDataset({
+            nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
+            reportId: null,
+            reportRequestedAt: null,
+            status: 'idle',
+        });
+        expect(await probeTopSearchTerms(NOW)).toBe(true);
+    });
 });
 
 const minutesBefore = (date: Date, minutes = 1) => new Date(date.getTime() - minutes * MINUTE_MS);
@@ -116,6 +142,9 @@ const catalogSuccessDueAt = () =>
     dueBefore(NOW, CATALOG_QUERY_REFRESH_INTERVAL_MS, CATALOG_QUERIES_SCHEDULER_LAG_MS);
 
 const topSearchTermsDueAt = () => dueBefore(NOW, 0, TOP_SEARCH_TERMS_SCHEDULER_LAG_MS);
+
+const topSearchTermsPendingCeiling = () =>
+    new Date(NOW.getTime() - TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS);
 
 const insertCatalogQuery = async ({
     term,
@@ -143,15 +172,26 @@ const insertCatalogQuery = async ({
     });
 };
 
+const replaceDataset = async (dataset: Parameters<typeof insertDataset>[0]) => {
+    await db
+        .delete(topSearchTermsDatasets)
+        .where(eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID));
+    await insertDataset(dataset);
+};
+
 const insertDataset = async ({
     lastCompletedAt = null,
     lastFailedAt = null,
     nextRefreshAt,
+    reportId = null,
+    reportRequestedAt = null,
     status,
 }: {
     lastCompletedAt?: Date | null;
     lastFailedAt?: Date | null;
     nextRefreshAt: Date | null;
+    reportId?: string | null;
+    reportRequestedAt?: Date | null;
     status: string;
 }) => {
     await db.insert(topSearchTermsDatasets).values({
@@ -161,6 +201,8 @@ const insertDataset = async ({
         lastFailedAt,
         marketplaceId: SPAPI_US_MARKETPLACE_ID,
         nextRefreshAt,
+        reportId,
+        reportRequestedAt,
         reportPeriod: 'DAY',
         status,
     });
