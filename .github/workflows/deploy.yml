@@ -211,6 +211,14 @@ jobs:
           export MERCHBASE_NPM_PUBLISH_TOKEN
           for dir in $PENDING_DIRS; do
             (cd "$dir" && node "$root/scripts/release/with-npm-token.mjs" npm publish --access public --userconfig "$root/.npmrc")
+            if [ "$dir" = packages/http-client ]; then
+              name=$(node -p "require('./${dir}/package.json').name")
+              deadline=$((SECONDS + 180))
+              until npm view "${name}@${PACKAGE_VERSION}" version >/dev/null 2>&1; do
+                [ "$SECONDS" -lt "$deadline" ] || { echo "npm did not show ${name}@${PACKAGE_VERSION} within 3 minutes." >&2; exit 1; }
+                sleep 10
+              done
+            fi
           done
           tag="v${PACKAGE_VERSION}"
           if git ls-remote --exit-code origin "refs/tags/${tag}" >/dev/null 2>&1; then
