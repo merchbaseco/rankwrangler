@@ -139,17 +139,19 @@ jobs:
     name: Publish packages
     needs: deploy
     if: needs.deploy.result == 'success' && needs.deploy.outputs.deployed == 'true'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Publish packages that are not on npm
-        working-directory: ${{ env.PRODUCTION_CHECKOUT }}
+      - name: Check out the deployed commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.deploy.outputs.sha }}
+          fetch-depth: 0
+
+      - name: See which packages are missing on npm
+        id: pending
         env:
           TARGET_SHA: ${{ needs.deploy.outputs.sha }}
-          RELEASE_AGENT_TOOLING_OP_TOKEN: ${{ secrets.GH_RELEASE_AGENT_TOOLING_OP_TOKEN }}
-          RANKWRANGLER_RESOLVE_RELEASE_TOKENS: 'true'
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
@@ -168,8 +170,37 @@ jobs:
           done
           if [ -z "$pending" ]; then
             echo "npm already has v${version}."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "dirs=${pending# }" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Bun
+        if: steps.pending.outputs.publish == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.2'
+
+      - name: Install dependencies
+        if: steps.pending.outputs.publish == 'true'
+        timeout-minutes: 5
+        env:
+          MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
+        run: bun install --frozen-lockfile
+
+      - name: Publish packages that are not on npm
+        if: steps.pending.outputs.publish == 'true'
+        env:
+          PACKAGE_VERSION: ${{ steps.pending.outputs.version }}
+          PENDING_DIRS: ${{ steps.pending.outputs.dirs }}
+          RELEASE_AGENT_TOOLING_OP_TOKEN: ${{ secrets.GH_RELEASE_AGENT_TOOLING_OP_TOKEN }}
+          RANKWRANGLER_RESOLVE_RELEASE_TOKENS: 'true'
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
           bun run release:check
           bun run cli:build
           bun run release:check-cli-pack
@@ -178,10 +209,10 @@ jobs:
           echo "::add-mask::$MERCHBASE_NPM_PUBLISH_TOKEN"
           test -n "$MERCHBASE_NPM_PUBLISH_TOKEN"
           export MERCHBASE_NPM_PUBLISH_TOKEN
-          for dir in $pending; do
+          for dir in $PENDING_DIRS; do
             (cd "$dir" && node "$root/scripts/release/with-npm-token.mjs" npm publish --access public --userconfig "$root/.npmrc")
           done
-          tag="v${version}"
+          tag="v${PACKAGE_VERSION}"
           if git ls-remote --exit-code origin "refs/tags/${tag}" >/dev/null 2>&1; then
             exit 0
           fi
