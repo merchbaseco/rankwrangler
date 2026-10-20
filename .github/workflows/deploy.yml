@@ -146,9 +146,8 @@ jobs:
         working-directory: ${{ env.PRODUCTION_CHECKOUT }}
         env:
           TARGET_SHA: ${{ needs.deploy.outputs.sha }}
-          DEPLOY_AGENT_PRODUCTION_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+          RELEASE_AGENT_TOOLING_OP_TOKEN: ${{ secrets.GH_RELEASE_AGENT_TOOLING_OP_TOKEN }}
           RANKWRANGLER_RESOLVE_RELEASE_TOKENS: 'true'
-          VARLOCK_ENV: production
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
