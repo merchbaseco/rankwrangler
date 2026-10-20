@@ -4,10 +4,12 @@ import {
     exists,
     gt,
     gte,
+    inArray,
     isNotNull,
     isNull,
     lt,
     lte,
+    not,
     notExists,
     or,
     sql,
@@ -35,6 +37,7 @@ import {
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
 import { SPAPI_REFRESH_POLICY_BUCKETS } from '@/services/spapi-refresh-policy.js';
 import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection.js';
+import { TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS } from '@/services/top-search-terms-report-state-machine.js';
 
 const probePostgres = async () => {
     await db.execute(sql`SELECT 1`);
@@ -160,6 +163,7 @@ const catalogQueriesOverdueCondition = (now: Date) => {
 
 const topSearchTermsUnhealthyStatement = (now: Date) => {
     const dueAt = dueBefore(now, 0, TOP_SEARCH_TERMS_SCHEDULER_LAG_MS);
+    const pendingRequestedAfter = new Date(now.getTime() - TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS);
     const usDatasets = db
         .select({ id: topSearchTermsDatasets.id })
         .from(topSearchTermsDatasets)
@@ -170,18 +174,19 @@ const topSearchTermsUnhealthyStatement = (now: Date) => {
         .where(
             and(
                 eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID),
-                overdueUsDataset(dueAt)
+                overdueUsDataset(dueAt, pendingRequestedAfter)
             )
         );
 
     return sql`SELECT (${notExists(usDatasets)} OR ${exists(overdueDatasets)}) AS failing`;
 };
 
-const overdueUsDataset = (dueAt: Date) =>
+const overdueUsDataset = (dueAt: Date, pendingRequestedAfter: Date) =>
     or(
         and(
             isNotNull(topSearchTermsDatasets.nextRefreshAt),
-            lte(topSearchTermsDatasets.nextRefreshAt, dueAt)
+            lte(topSearchTermsDatasets.nextRefreshAt, dueAt),
+            refreshIsNotWaitingOnAmazon(pendingRequestedAfter)
         ),
         and(
             eq(topSearchTermsDatasets.status, 'failed'),
@@ -190,8 +195,25 @@ const overdueUsDataset = (dueAt: Date) =>
                 isNull(topSearchTermsDatasets.lastCompletedAt),
                 lt(topSearchTermsDatasets.lastCompletedAt, topSearchTermsDatasets.lastFailedAt)
             )
+        ),
+        and(
+            isNotNull(topSearchTermsDatasets.reportId),
+            amazonReportInFlight(),
+            isNotNull(topSearchTermsDatasets.reportRequestedAt),
+            lte(topSearchTermsDatasets.reportRequestedAt, pendingRequestedAfter)
         )
     );
+
+const refreshIsNotWaitingOnAmazon = (pendingRequestedAfter: Date) =>
+    or(
+        isNull(topSearchTermsDatasets.reportId),
+        not(amazonReportInFlight()),
+        isNull(topSearchTermsDatasets.reportRequestedAt),
+        lte(topSearchTermsDatasets.reportRequestedAt, pendingRequestedAfter)
+    );
+
+const amazonReportInFlight = () =>
+    inArray(topSearchTermsDatasets.status, ['queued', 'in_progress']);
 
 const hasProductOverdueFloor = async (condition: ReturnType<typeof and>) => {
     if (!condition) {
