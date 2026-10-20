@@ -72,6 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin "$TARGET_SHA"
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then git fetch --unshallow origin; fi
           if [ "$EXPLICIT_REF" != true ] && ! git merge-base --is-ancestor HEAD "$TARGET_SHA"; then
             echo "Skipping $TARGET_SHA. It is not a descendant of production $(git rev-parse HEAD)."
             printf 'decision=skip\ndeployed=false\nsha=%s\n' "$TARGET_SHA" >> "$GITHUB_OUTPUT"
@@ -204,11 +205,15 @@ jobs:
             if [ "$ver" != "$published" ]; then
               continue
             fi
-            git fetch origin "refs/tags/v${ver}:refs/tags/v${ver}"
-            changed=$(git diff --name-only "v${ver}" HEAD -- "$dir")
-            if [ -n "$changed" ]; then
-              echo "${name}@${ver} changed since v${ver} without a version bump." >&2
-              exit 1
+            if git fetch origin "refs/tags/v${ver}:refs/tags/v${ver}"; then
+              changed=$(git diff --name-only "v${ver}" HEAD -- "$dir")
+              if [ -n "$changed" ]; then
+                echo "${name}@${ver} changed since v${ver} without a version bump." >&2
+                exit 1
+              fi
+            else
+              echo "No origin tag v${ver} for ${name}. Skipping."
+              continue
             fi
           done
           echo "Version bump backstop passed."
