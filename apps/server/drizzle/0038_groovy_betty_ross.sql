@@ -1,0 +1,1 @@
+ALTER TABLE "top_search_terms_datasets" ADD COLUMN "report_requested_at" timestamp;

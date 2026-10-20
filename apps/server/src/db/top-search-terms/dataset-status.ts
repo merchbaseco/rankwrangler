@@ -66,6 +66,7 @@ export const setTopSearchTermsDatasetCompleted = async ({
         nextRefreshAt,
         refreshing: false,
         reportId,
+        reportRequestedAt: null,
         refreshTrigger: 'automatic',
         status: 'completed',
         updatedAt: completedAt,
@@ -90,7 +91,7 @@ export const setTopSearchTermsDatasetFailed = async ({
         lastError: errorMessage,
         lastFailedAt: failedAt,
         nextRefreshAt,
-        ...(reportId === undefined ? {} : { reportId }),
+        ...clearedReport(reportId),
         refreshTrigger: 'automatic',
         refreshing: false,
         status: 'failed',
@@ -119,6 +120,7 @@ export const setTopSearchTermsDatasetReportRequested = async ({
         nextRefreshAt,
         refreshing: false,
         reportId,
+        reportRequestedAt: requestedAt,
         refreshTrigger: trigger,
         status: 'in_progress',
         updatedAt: requestedAt,
@@ -158,4 +160,14 @@ const updateTopSearchTermsDatasetStatus = async (
         .returning();
 
     return row ? mapDatasetRecord(row) : null;
+};
+
+const clearedReport = (reportId: string | null | undefined) => {
+    if (reportId === undefined) {
+        return {};
+    }
+    if (reportId === null) {
+        return { reportId: null, reportRequestedAt: null };
+    }
+    return { reportId };
 };

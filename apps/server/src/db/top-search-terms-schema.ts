@@ -28,6 +28,7 @@ export const topSearchTermsDatasets = pgTable(
         lastFailedAt: timestamp('last_failed_at', { mode: 'date' }),
         lastError: text('last_error'),
         reportId: text('report_id'),
+        reportRequestedAt: timestamp('report_requested_at', { mode: 'date' }),
         refreshTrigger: text('refresh_trigger').notNull().default('automatic'),
         nextRefreshAt: timestamp('next_refresh_at', { mode: 'date' }),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),

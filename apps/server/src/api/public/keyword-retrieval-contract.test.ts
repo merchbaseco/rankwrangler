@@ -196,6 +196,7 @@ const createDataset = (
     lastFailedAt: null,
     lastError: null,
     reportId: null,
+    reportRequestedAt: null,
     refreshTrigger: 'automatic',
     nextRefreshAt: null,
     createdAt: '2026-08-06T12:00:00.000Z',

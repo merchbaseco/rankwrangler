@@ -40,7 +40,7 @@ availability are calculated in `America/Los_Angeles`.
 
 BA report creation is asynchronous:
 
-1. The worker requests a report and persists its report ID.
+1. The worker requests a report and persists its report ID and `report_requested_at`. Later status checks do not move that timestamp.
 2. It releases the worker and schedules a status check 15 minutes later.
 3. A later job checks the same report rather than busy-waiting.
 4. A completed report is downloaded, normalized, persisted, and scheduled again if still open.
