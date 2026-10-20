@@ -21,7 +21,7 @@
         "@radix-ui/react-slot": "1.2.4",
         "@radix-ui/react-switch": "1.2.6",
         "@rankwrangler/history-chart": "workspace:*",
-        "@rankwrangler/http-client": "^0.9.0",
+        "@rankwrangler/http-client": "^0.10.0",
         "@tanstack/react-query": "5.90.20",
         "class-variance-authority": "0.7.1",
         "clsx": "2.1.1",
@@ -68,7 +68,7 @@
     },
     "apps/server": {
       "name": "@rankwrangler/server",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "dependencies": {
         "@amazon-sp-api-release/amazon-sp-api-sdk-js": "1.7.1",
         "@aws-sdk/client-s3": "3.1136.0",
@@ -148,14 +148,14 @@
     },
     "packages/cli": {
       "name": "@rankwrangler/cli",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "bin": {
         "rw": "dist/index.js",
         "rankwrangler": "dist/index.js",
       },
       "dependencies": {
         "@merchbaseco/access": "0.4.0",
-        "@rankwrangler/http-client": "^0.9.0",
+        "@rankwrangler/http-client": "^0.10.0",
         "keytar": "7.9.0",
       },
       "devDependencies": {
@@ -174,7 +174,7 @@
     },
     "packages/http-client": {
       "name": "@rankwrangler/http-client",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "dependencies": {
         "@trpc/client": "11.10.0",
         "@trpc/server": "11.10.0",

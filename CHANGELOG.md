@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.10.0 - 2026-10-20
+
+### Added
+
+- Add optional `include` on `product.get` for `marketData`, `shortName`, and `cutoutThumbnail`.
+  The default remains `marketData`.
+- Add image-informed design short names. A Product get that includes `shortName` waits up to 20
+  seconds. `rw product get <asin> --shortName` requests that include together with `marketData`.
+  The response carries `listing.shortName`, or `null` when no name is ready.
+- Add on-demand transparent 128×128 cutout thumbnails through `cutoutThumbnail` on that same
+  `include` list. RankWrangler centers the subject and reuses the cutout until the listing image
+  changes.
+- Advertise the website URL and a 128px icon in hosted MCP server info.
+- Name the stale ingestion check on `GET /api/health` when the service is degraded, and include
+  the deployed commit as `revision` on both health responses.
+
+### Changed
+
+- Breaking: replace `isUnavailable` with `amazonListingStatus` (`active` or `deleted`) on Product
+  listings, search results, and basic `getMany` results. A deleted listing keeps its last-known
+  title and thumbnail. `active` means the Amazon detail page exists. The dashboard marks deleted
+  listings.
+- Return last-known `getMany` listings immediately and refresh stale listings in the background.
+  Short names and cutouts stay on single Product get.
+
+### Fixed
+
+- Show the server error when the dashboard Products read fails, and reserve the empty catalog
+  state for a successful read with no rows.
+- Load the API usage card across the UTC day boundary.
+- Fail an Amazon Catalog read that does not start within 2 minutes with a retryable capacity
+  error.
+- Require a second overdue Product before Keepa or SP-API freshness degrades `GET /api/health`,
+  and wait out a top search terms report that is still pending.
+
 ## v0.9.0 - 2026-08-09
 
 ### Added
