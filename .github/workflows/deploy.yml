@@ -9,10 +9,6 @@ env:
   PUBLISHED_PACKAGES: packages/http-client:@rankwrangler/http-client,packages/cli:@rankwrangler/cli
 
 on:
-  workflow_run:
-    workflows: [Quality]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       ref:
@@ -32,7 +28,6 @@ concurrency:
 jobs:
   deploy:
     name: Deploy Stack
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: self-hosted
     timeout-minutes: 30
     outputs:
@@ -42,20 +37,15 @@ jobs:
       - name: Resolve the target commit
         id: target
         env:
-          EVENT_NAME: ${{ github.event_name }}
           INPUT_REF: ${{ github.event.inputs.ref }}
           DISPATCH_SHA: ${{ github.sha }}
-          QUALITY_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          sha="$QUALITY_SHA"
+          sha="$DISPATCH_SHA"
           explicit_ref=false
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            sha="$DISPATCH_SHA"
-            if [ -n "$INPUT_REF" ]; then
-              sha="$INPUT_REF"
-              explicit_ref=true
-            fi
+          if [ -n "$INPUT_REF" ]; then
+            sha="$INPUT_REF"
+            explicit_ref=true
           fi
           if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{40}$'; then
             echo "Target must be a 40-character lowercase SHA." >&2

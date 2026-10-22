@@ -38,8 +38,9 @@ built outside that script report `dev`.
 
 ## Deployment
 
-- A push to `main` deploys after Quality succeeds for that commit. Deploy Stack does not run Quality again.
+- Deploy Stack runs only through `workflow_dispatch` after the user requests deployment. Landing on `main` does not deploy.
 - `workflow_dispatch` redeploys the selected tip. Set `ref` to a SHA on `main` to roll back.
+- Production uses Cloudflare-billed PlanetScale through the remote Compose override. Local development uses PostgreSQL in Compose.
 - The runner fast-forwards `/Users/zknicker/srv/rankwrangler` and runs `bun run deploy`. It skips a commit that is not a descendant of the live checkout unless `ref` is set.
 - It polls `/health/live` and `/api/health` until both return `"status":"ok"` and `"revision"` of the deployed SHA.
 - It publishes `@rankwrangler/http-client` and `@rankwrangler/cli` from a GitHub-hosted runner when that version is not on npm, so provenance is allowed, then pushes `vX.Y.Z` if the tag is missing.

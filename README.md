@@ -128,4 +128,4 @@ deployment, releases, and recovery live under [operations](docs/operations/READM
 
 For the Cloudflare-billed PlanetScale migration, follow the
 [restore and preservation runbook](docs/operations/planetscale.md). The current local PostgreSQL
-deployment stays the default until the remote restore and application checks pass.
+development stays on local PostgreSQL; production deploys use the PlanetScale Compose override.

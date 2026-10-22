@@ -122,12 +122,12 @@ Production deployment remains manual and requires the user's deployment instruct
 4. Deploy with the remote-database Compose override:
 
 ```bash
-bun run deploy --remote-database
+bun run deploy
 ```
 
 The override removes the server's local PostgreSQL dependency. It keeps local PostgreSQL behind the
 `local-database` profile. It does not delete the existing container or volume. Use Docker Compose
-2.24.4 or newer for `!reset`. The ordinary deployment workflow does not select this override yet.
+2.24.4 or newer for `!reset`. Every production deploy selects this override, including dry runs and workflow dispatches.
 
 5. Verify liveness, authenticated reads, history, queue recovery, and provider freshness before
    enabling ordinary schedules. Monitor target size, connections, query performance, and billing.

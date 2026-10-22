@@ -132,9 +132,10 @@ for (const name of caddyArgNames) {
     buildEnvironment[name] = printenv(name);
 }
 
-const composeArgs = ["-p", projectName, "-f", composeFile,
-    ...(process.argv.includes("--remote-database")
-        ? ["-f", "apps/server/compose.planetscale.yml"] : []),
+const composeArgs = [
+    "-p", projectName,
+    "-f", composeFile,
+    "-f", "apps/server/compose.planetscale.yml",
 ];
 
 // Dry run stops here: rendering the Compose configuration forces every op()
