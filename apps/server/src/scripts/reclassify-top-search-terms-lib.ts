@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { createDatabaseConnectionOptions, databaseConfigurationSchema } from '../config/database-connection';
 
 export type ReportPeriod = 'ALL' | 'DAY' | 'WEEK';
 
@@ -67,11 +68,7 @@ export type DryRunSummary = {
 
 export const createClient = () => {
     return postgres({
-        host: process.env.RANKWRANGLER_DATABASE_HOST || 'postgres',
-        port: Number(process.env.RANKWRANGLER_DATABASE_PORT || 5432),
-        database: process.env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
-        username: process.env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
-        password: process.env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
+        ...createDatabaseConnectionOptions(databaseConfigurationSchema.parse(process.env), 'direct'),
         max: 1,
     });
 };

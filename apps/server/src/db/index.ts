@@ -1,15 +1,12 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { env } from '@/config/env.js';
-import * as schema from './schema.js';
+import { createDatabaseConnectionOptions } from '@/config/database-connection';
+import { env } from '@/config/env';
+import * as schema from './schema';
 
 // Create postgres connection
 const queryClient = postgres({
-    host: env.RANKWRANGLER_DATABASE_HOST || 'postgres',
-    port: env.RANKWRANGLER_DATABASE_PORT || 5432,
-    database: env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
-    username: env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
-    password: env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
+    ...createDatabaseConnectionOptions(env, 'application'),
     max: 5,
     idle_timeout: 10000,
     max_lifetime: 30000,
@@ -19,7 +16,7 @@ const queryClient = postgres({
 // Create Drizzle database instance
 export const db = drizzle(queryClient, {
     schema,
-    logger: process.env.NODE_ENV === 'development'
+    logger: process.env.NODE_ENV === 'development',
 });
 
 export type Database = typeof db;

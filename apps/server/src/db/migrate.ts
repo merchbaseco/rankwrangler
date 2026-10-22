@@ -4,7 +4,8 @@ import { join } from 'node:path';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
-import { env } from '@/config/env.js';
+import { createDatabaseConnectionOptions } from '@/config/database-connection';
+import { env } from '@/config/env';
 
 const CENTRAL_AUTH_CUTOVER_MIGRATION = '0028_groovy_black_tom';
 const MIGRATION_TAG_PATTERN = /^\d{4}_[a-z0-9_]+$/;
@@ -161,11 +162,7 @@ const readMigrationJournal = (migrationsFolder: string): MigrationJournal => {
 
 const createMigrationClient = () =>
     postgres({
-        host: env.RANKWRANGLER_DATABASE_HOST || 'postgres',
-        port: env.RANKWRANGLER_DATABASE_PORT || 5432,
-        database: env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
-        username: env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
-        password: env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
+        ...createDatabaseConnectionOptions(env, 'direct'),
         max: 1,
         onnotice: process.env.NODE_ENV === 'development' ? console.log : undefined,
     });

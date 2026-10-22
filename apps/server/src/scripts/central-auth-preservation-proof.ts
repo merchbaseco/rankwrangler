@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import postgres from 'postgres';
+import { createDatabaseConnectionOptions, databaseConfigurationSchema } from '../config/database-connection';
 import { fingerprint } from './central-auth-cutover-lib';
 import {
     assertPreservation,
@@ -42,11 +43,7 @@ const createClient = () => {
         return postgres(connectionString, { max: 1 });
     }
     return postgres({
-        host: process.env.RANKWRANGLER_DATABASE_HOST || 'postgres',
-        port: Number(process.env.RANKWRANGLER_DATABASE_PORT || 5432),
-        database: process.env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
-        username: process.env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
-        password: process.env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
+        ...createDatabaseConnectionOptions(databaseConfigurationSchema.parse(process.env), 'direct'),
         max: 1,
     });
 };

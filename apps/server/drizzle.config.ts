@@ -1,14 +1,24 @@
 import { defineConfig } from 'drizzle-kit';
+import {
+    createDatabaseConnectionOptions,
+    databaseConfigurationSchema,
+} from './src/config/database-connection';
+
+const connection = createDatabaseConnectionOptions(
+    databaseConfigurationSchema.parse(process.env),
+    'direct'
+);
 
 export default defineConfig({
     dialect: 'postgresql',
     schema: './src/db/schema.ts',
     out: './drizzle',
     dbCredentials: {
-        host: process.env.RANKWRANGLER_DATABASE_HOST || 'localhost',
-        port: Number(process.env.RANKWRANGLER_DATABASE_PORT) || 5432,
-        database: process.env.RANKWRANGLER_DATABASE_NAME || 'rankwrangler',
-        user: process.env.RANKWRANGLER_DATABASE_USER || 'rankwrangler',
-        password: process.env.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
+        host: connection.host,
+        port: connection.port,
+        database: connection.database,
+        user: connection.username,
+        password: connection.password,
+        ssl: connection.ssl,
     },
 });

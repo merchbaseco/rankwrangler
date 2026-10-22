@@ -1,5 +1,6 @@
 import { createEnv } from '@t3-oss/env-core';
 import { z } from 'zod';
+import { databaseConfigurationSchema } from './database-connection';
 
 // Production must not boot without a webhook signing secret, but development
 // has no Clerk webhook endpoint and therefore no secret to resolve — the
@@ -42,11 +43,16 @@ export const env = createEnv({
         RANKWRANGLER_DATABASE_MIGRATION_TARGET: z
             .enum(['pre-cutover', 'latest'])
             .default('pre-cutover'),
-        RANKWRANGLER_DATABASE_HOST: z.string().optional(),
-        RANKWRANGLER_DATABASE_PORT: z.coerce.number().optional(),
-        RANKWRANGLER_DATABASE_NAME: z.string().optional(),
-        RANKWRANGLER_DATABASE_USER: z.string().optional(),
-        RANKWRANGLER_DATABASE_PASSWORD: z.string().optional(),
+        RANKWRANGLER_DATABASE_HOST: databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_HOST,
+        RANKWRANGLER_DATABASE_PORT: databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_PORT,
+        RANKWRANGLER_DATABASE_DIRECT_PORT:
+            databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_DIRECT_PORT,
+        RANKWRANGLER_DATABASE_SSL_MODE:
+            databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_SSL_MODE,
+        RANKWRANGLER_DATABASE_NAME: databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_NAME,
+        RANKWRANGLER_DATABASE_USER: databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_USER,
+        RANKWRANGLER_DATABASE_PASSWORD:
+            databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_PASSWORD,
     },
     runtimeEnv: {
         RANKWRANGLER_PORT: process.env.RANKWRANGLER_PORT,
@@ -75,6 +81,9 @@ export const env = createEnv({
         RANKWRANGLER_DATABASE_MIGRATION_TARGET: process.env.RANKWRANGLER_DATABASE_MIGRATION_TARGET,
         RANKWRANGLER_DATABASE_HOST: process.env.RANKWRANGLER_DATABASE_HOST,
         RANKWRANGLER_DATABASE_PORT: process.env.RANKWRANGLER_DATABASE_PORT,
+        RANKWRANGLER_DATABASE_DIRECT_PORT:
+            process.env.RANKWRANGLER_DATABASE_DIRECT_PORT || undefined,
+        RANKWRANGLER_DATABASE_SSL_MODE: process.env.RANKWRANGLER_DATABASE_SSL_MODE,
         RANKWRANGLER_DATABASE_NAME: process.env.RANKWRANGLER_DATABASE_NAME,
         RANKWRANGLER_DATABASE_USER: process.env.RANKWRANGLER_DATABASE_USER,
         RANKWRANGLER_DATABASE_PASSWORD: process.env.RANKWRANGLER_DATABASE_PASSWORD,

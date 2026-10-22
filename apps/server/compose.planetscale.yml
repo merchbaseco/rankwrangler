@@ -1,0 +1,5 @@
+services:
+  postgres:
+    profiles: [local-database]
+  server:
+    depends_on: !reset {}

@@ -125,3 +125,7 @@ bun run docs:list
 Start with the [documentation index](docs/README.md). The [domain glossary](CONTEXT.md) defines
 Product, observation, history, catalog query, search run, and search result. Operational setup,
 deployment, releases, and recovery live under [operations](docs/operations/README.md).
+
+For the Cloudflare-billed PlanetScale migration, follow the
+[restore and preservation runbook](docs/operations/planetscale.md). The current local PostgreSQL
+deployment stays the default until the remote restore and application checks pass.
