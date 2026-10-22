@@ -127,5 +127,4 @@ Product, observation, history, catalog query, search run, and search result. Ope
 deployment, releases, and recovery live under [operations](docs/operations/README.md).
 
 For the Cloudflare-billed PlanetScale migration, follow the
-[restore and preservation runbook](docs/operations/planetscale.md). The current local PostgreSQL
-development stays on local PostgreSQL; production deploys use the PlanetScale Compose override.
+[restore and preservation runbook](docs/operations/planetscale.md). Local development uses PostgreSQL in Compose; production deploys use the PlanetScale Compose override.
