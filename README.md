@@ -60,6 +60,9 @@ rw keyword history "retro gardening shirt"
 Explicit `keyword.results` requests renew a 30-day research lease, including cached reuse.
 General catalog searches record interest. Background checks adapt to demand and observed change;
 bounded SP-API exploration grows listing coverage without buying history for every discovery.
+Capacity-limited keyword checks retain a retry time without recording a provider failure or a
+successful observation. Freshness health allows that retry and its scheduler grace; actual provider
+failures and abandoned retries still report unhealthy collection.
 
 Public Product get/getMany/history and keyword reads return final policy-current data without
 freshness envelopes or refresh controls. Product Search retains its separate search contract. When
