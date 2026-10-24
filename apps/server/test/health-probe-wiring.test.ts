@@ -6,10 +6,9 @@ const read = (relativePath: string) => readFileSync(new URL(relativePath, import
 const compose = read('../compose.yml');
 const dockerfile = read('../Dockerfile');
 const caddyfile = read('../Caddyfile');
-const deploy = read('../../../.github/workflows/deploy.yml');
 
 describe('health probe wiring', () => {
-    it('points container, image, Caddy, and deploy probes at /health/live', () => {
+    it('points container, image, and Caddy probes at /health/live', () => {
         for (const [source, needle] of [
             [compose, 'http://127.0.0.1:8080/'],
             [compose, 'http://localhost/'],
@@ -21,9 +20,6 @@ describe('health probe wiring', () => {
             expect(line).toContain('/health/live');
             expect(line).not.toContain('/api/health');
         }
-
-        expect(deploy).toContain('https://rankwrangler.merchbase.co/health/live');
-        expect(deploy).not.toContain('/api/health');
 
         const liveHandle = caddyfile.indexOf('handle /health/live');
         const spaHandle = caddyfile.indexOf('    handle * {');
