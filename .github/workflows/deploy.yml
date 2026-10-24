@@ -5,7 +5,7 @@ env:
   DEPLOY_COMMAND: bun run deploy
   HEALTH_LIVE_URL: https://rankwrangler.merchbase.co/health/live
   HEALTH_API_URL: https://rankwrangler.merchbase.co/api/health
-  HEALTH_TIMEOUT_SECONDS: '180'
+  HEALTH_TIMEOUT_SECONDS: '600'
   PUBLISHED_PACKAGES: packages/http-client:@rankwrangler/http-client,packages/cli:@rankwrangler/cli
 
 on:

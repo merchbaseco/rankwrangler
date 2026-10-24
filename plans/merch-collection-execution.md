@@ -130,3 +130,10 @@ Health honors that nonfailure deferral plus scheduler grace; real provider failu
 and an abandoned retry becomes unhealthy after its own grace expires. The database regression
 verifies stale-owner fencing, unchanged freshness/failures, and eventual expiry. Rehearsal now
 passes eighty database/build tests. The v0.11.0 client and CLI publication completed successfully.
+
+Final application revision `e45734e9ffeff9915ec439937a93940a511772a4` passes both public health
+endpoints and the signed-in dashboard reload. One interrupted claim from before the new container's
+start was fenced, released and redispatched after confirming the prior process was gone. Other
+capacity waits now persist retry times without paid dispatches. Deployment verification allows ten
+minutes, covering the existing five-minute abandoned-operation recovery window plus dispatch time;
+it still returns immediately when health converges. The current paid plans remain unchanged.
