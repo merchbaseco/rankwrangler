@@ -90,3 +90,9 @@ Inline dynamic imports in the single-entry SSR build. An emitted-module reproduc
 split chunks and starts successfully with inline imports (exit 0, STARTUP_READY true). Independent
 review confirmed the newly eager modules only define tables/functions/constants. Redeploy this
 packaging fix before considering rollout complete.
+
+Inlining alone exposed a second initialization-order failure: Rollup's lazy namespace constants
+were still below the entry's top-level await. The final correction removes top-level await from
+the entry by running startup inside an async function with a fatal-error handler, preserving
+normal split-module evaluation. A permanent database-lane test checks the actual entry has no
+top-level await and executes a cyclic lazy-import fixture built with the real Vite configuration.

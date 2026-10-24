@@ -288,7 +288,9 @@ RANKWRANGLER_CLERK_AUTHORIZED_PARTIES=https://app.test \
 RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
 RUN_CATALOG_DB_TESTS=true \
+CATALOG_SSR_FIXTURE_ROOT="$test_root/ssr-startup" \
 bun test \
+    apps/server/test/ssr-startup-build.test.ts \
     apps/server/test/central-auth.db.test.ts \
     apps/server/test/catalog-search-concurrency.db.test.ts \
     apps/server/test/catalog-search-history.db.test.ts \
