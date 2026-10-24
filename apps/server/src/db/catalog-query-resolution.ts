@@ -38,7 +38,6 @@ export const resolveAndLockCatalogQuery = async (
             marketplaceId: input.marketplaceId,
             normalizedTerm: input.normalizedTerm,
             displayTerm: input.displayTerm,
-            page: input.page,
         })
         .onConflictDoNothing()
         .returning({ id: catalogQueries.id });
@@ -88,8 +87,7 @@ const findCatalogQuery = async (transaction: Transaction, input: ResolveCatalogS
             and(
                 eq(catalogQueries.source, input.source),
                 eq(catalogQueries.marketplaceId, input.marketplaceId),
-                eq(catalogQueries.normalizedTerm, input.normalizedTerm),
-                eq(catalogQueries.page, input.page)
+                eq(catalogQueries.normalizedTerm, input.normalizedTerm)
             )
         )
         .limit(1);

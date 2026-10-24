@@ -1,10 +1,6 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { catalogQueries, catalogSearchRuns, operations } from '@/db/schema';
-import {
-    CATALOG_QUERY_REFRESH_INTERVAL_MS,
-    CATALOG_QUERY_REFRESH_RETRY_INTERVAL_MS,
-} from '@/services/catalog-query-refresh-policy';
 import type { CatalogSearchOperationInput } from '@/services/operations';
 import type { ResolveCatalogSearchInput } from './catalog-query-resolution';
 import {
@@ -48,6 +44,23 @@ export const resolveCatalogSearchRequest = async (
         const pending = await getPendingCatalogSearchOperation(transaction, query.id);
 
         if (pending) {
+            if (
+                pending.type === 'catalogSearch' &&
+                pending.input.priority !== 'interactive' &&
+                !pending.startedAt
+            ) {
+                const upgraded = {
+                    ...pending.input,
+                    priority: 'interactive' as const,
+                    workClass: 'interactive' as const,
+                    ownerMerchbaseUserId: input.ownerMerchbaseUserId,
+                };
+                await transaction
+                    .update(operations)
+                    .set({ input: upgraded })
+                    .where(eq(operations.id, pending.id));
+                pending.input = upgraded;
+            }
             await renewCatalogQueryInterest(transaction, query.id, now);
             return {
                 kind: 'pending',
@@ -85,6 +98,7 @@ export const resolveCatalogSearchRequest = async (
             marketplaceId: input.marketplaceId,
             term: input.displayTerm,
             page: input.page,
+            workClass: 'interactive',
             priority: input.priority,
             trigger: input.trigger,
             ownerMerchbaseUserId: input.ownerMerchbaseUserId,
@@ -111,97 +125,11 @@ export const resolveCatalogSearchRequest = async (
     });
 };
 
-export const resolveDueCatalogSearchRequest = async ({
-    queryId,
-    now = new Date(),
-}: {
-    queryId: string;
-    now?: Date;
-}) => {
-    return await db.transaction(async transaction => {
-        await lockCatalogQueryForReconciliation(transaction, queryId);
-        const [query] = await transaction
-            .select()
-            .from(catalogQueries)
-            .where(eq(catalogQueries.id, queryId))
-            .limit(1);
-        const latestRunAgeMs = query?.latestSuccessfulRunAt
-            ? now.getTime() - query.latestSuccessfulRunAt.getTime()
-            : null;
-        if (
-            !query?.activeUntil ||
-            query.activeUntil <= now ||
-            (latestRunAgeMs !== null && latestRunAgeMs < CATALOG_QUERY_REFRESH_INTERVAL_MS)
-        ) {
-            return { kind: 'notDue' } as const;
-        }
-
-        const [pending] = await transaction
-            .select()
-            .from(operations)
-            .where(
-                and(
-                    eq(operations.type, 'catalogSearch'),
-                    eq(operations.targetKey, query.id),
-                    eq(operations.status, 'pending')
-                )
-            )
-            .limit(1);
-        if (pending) {
-            return {
-                kind: 'pending',
-                operation: mapOperationRecord(pending),
-                created: false,
-            } as const;
-        }
-        if (query.nextRefreshAttemptAt && query.nextRefreshAttemptAt > now) {
-            return { kind: 'notDue' } as const;
-        }
-
-        const operationInput: CatalogSearchOperationInput = {
-            queryId: query.id,
-            marketplaceId: 'ATVPDKIKX0DER',
-            term: query.displayTerm,
-            page: 0,
-            priority: 'scheduled',
-            trigger: 'automatic',
-            ownerMerchbaseUserId: undefined,
-        };
-        const [created] = await transaction
-            .insert(operations)
-            .values({
-                type: 'catalogSearch',
-                targetKey: query.id,
-                input: operationInput,
-            })
-            .returning();
-        if (!created) {
-            throw new Error(`Failed to create scheduled Catalog-search Operation for ${query.id}`);
-        }
-        await transaction
-            .update(catalogQueries)
-            .set({
-                nextRefreshAttemptAt: new Date(
-                    now.getTime() + CATALOG_QUERY_REFRESH_RETRY_INTERVAL_MS
-                ),
-                lastRefreshAttemptAt: now,
-                updatedAt: now,
-            })
-            .where(eq(catalogQueries.id, query.id));
-
-        return {
-            kind: 'pending',
-            operation: mapOperationRecord(created),
-            created: true,
-        } as const;
-    });
-};
-
 const getLatestRunId = async (transaction: Transaction, queryId: string) => {
     const [latestRun] = await transaction
         .select({ id: catalogSearchRuns.id })
         .from(catalogSearchRuns)
-        .where(eq(catalogSearchRuns.queryId, queryId))
+        .where(and(eq(catalogSearchRuns.queryId, queryId), eq(catalogSearchRuns.page, 0)))
         .orderBy(desc(catalogSearchRuns.sourceCompletedAt), desc(catalogSearchRuns.id))
         .limit(1);
     return latestRun?.id ?? null;
@@ -237,7 +165,7 @@ const getReusableCatalogSearchRunId = async (
         .from(catalogSearchRuns)
         .where(
             and(
-                eq(catalogSearchRuns.queryId, queryId),
+                and(eq(catalogSearchRuns.queryId, queryId), eq(catalogSearchRuns.page, 0)),
                 gte(catalogSearchRuns.sourceCompletedAt, threshold)
             )
         )

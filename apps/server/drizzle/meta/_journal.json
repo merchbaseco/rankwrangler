@@ -274,6 +274,20 @@
       "when": 1792506435262,
       "tag": "0038_groovy_betty_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792785121092,
+      "tag": "0039_unified_product_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792786078045,
+      "tag": "0040_bounded_merch_collection",
+      "breakpoints": true
     }
   ]
 }

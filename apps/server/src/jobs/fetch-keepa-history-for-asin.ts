@@ -1,17 +1,20 @@
 import { TRPCError } from '@trpc/server';
 import type { Job } from 'pg-boss';
 import { z } from 'zod';
-import { defineJob } from '@/jobs/job-router.js';
-import { createEventLogSafe as createEventLogSafeService } from '@/services/event-logs.js';
-import { loadKeepaProductHistory as loadKeepaProductHistoryService } from '@/services/keepa.js';
+import { defineJob } from '@/jobs/job-router';
+import { deferKeepaHistory } from '@/services/defer-keepa-history';
+import { createEventLogSafe as createEventLogSafeService } from '@/services/event-logs';
+import { getErrorMessage } from '@/services/job-executions-utils';
+import { loadKeepaProductHistory as loadKeepaProductHistoryService } from '@/services/keepa';
+import { KeepaDispatchDeferredError } from '@/services/keepa-dispatch-deferred';
 import {
     getKeepaHistoryDaysForAsin as getKeepaHistoryDaysForAsinService,
     getKeepaHistoryRefreshQueueItem as getKeepaHistoryRefreshQueueItemService,
     recordKeepaHistoryRefreshFailure as recordKeepaHistoryRefreshFailureService,
     removeKeepaHistoryRefreshQueueItem as removeKeepaHistoryRefreshQueueItemService,
-    shouldKeepaHistoryRefreshAsin as shouldKeepaHistoryRefreshAsinService,
-} from '@/services/keepa-history-refresh.js';
-import { getErrorMessage } from '@/services/job-executions-utils.js';
+} from '@/services/keepa-history-refresh';
+import { shouldKeepaHistoryRefreshAsin as shouldKeepaHistoryRefreshAsinService } from '@/services/product-history-eligibility';
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 
 type FetchKeepaHistoryForAsinParams = {
     marketplaceId: string;
@@ -19,6 +22,7 @@ type FetchKeepaHistoryForAsinParams = {
 };
 
 type FetchKeepaHistoryForAsinDeps = {
+    deferKeepaHistory: typeof deferKeepaHistory;
     createEventLogSafe: typeof createEventLogSafeService;
     loadKeepaProductHistory: typeof loadKeepaProductHistoryService;
     getKeepaHistoryDaysForAsin: typeof getKeepaHistoryDaysForAsinService;
@@ -29,6 +33,7 @@ type FetchKeepaHistoryForAsinDeps = {
 };
 
 const defaultFetchKeepaHistoryForAsinDeps: FetchKeepaHistoryForAsinDeps = {
+    deferKeepaHistory,
     createEventLogSafe: createEventLogSafeService,
     loadKeepaProductHistory: loadKeepaProductHistoryService,
     getKeepaHistoryDaysForAsin: getKeepaHistoryDaysForAsinService,
@@ -38,13 +43,10 @@ const defaultFetchKeepaHistoryForAsinDeps: FetchKeepaHistoryForAsinDeps = {
     shouldKeepaHistoryRefreshAsin: shouldKeepaHistoryRefreshAsinService,
 };
 
-export const fetchKeepaHistoryForAsinJob = defineJob(
-    'fetch-keepa-history-for-asin',
-    {
-        startupSummary: 'triggered by queue processor',
-        persistSuccess: 'didWork',
-    }
-)
+export const fetchKeepaHistoryForAsinJob = defineJob('fetch-keepa-history-for-asin', {
+    startupSummary: 'triggered by queue processor',
+    persistSuccess: 'didWork',
+})
     .input(z.unknown())
     .work(async (job, signal, log) => {
         void signal;
@@ -143,6 +145,8 @@ export const fetchKeepaHistoryForAsin = async (
             asin,
             days: historyDays,
             queuePriority: 'background',
+            canDispatch: async () =>
+                (await deps.shouldKeepaHistoryRefreshAsin({ marketplaceId, asin })).shouldRefresh,
         });
 
         if (summary.status === 'success') {
@@ -172,10 +176,17 @@ export const fetchKeepaHistoryForAsin = async (
         throw new TRPCError({
             code: 'BAD_GATEWAY',
             message:
-                summary.errorMessage ??
-                'Keepa history refresh completed with a non-success status',
+                summary.errorMessage ?? 'Keepa history refresh completed with a non-success status',
         });
     } catch (error) {
+        if (error instanceof KeepaCapacityDeferredError) {
+            await deps.deferKeepaHistory({ marketplaceId, asin, retryAt: error.retryAt });
+            return;
+        }
+        if (error instanceof KeepaDispatchDeferredError) {
+            await deps.removeKeepaHistoryRefreshQueueItem({ marketplaceId, asin });
+            return;
+        }
         const errorMessage = getErrorMessage(error);
         await deps.recordKeepaHistoryRefreshFailure({
             marketplaceId,

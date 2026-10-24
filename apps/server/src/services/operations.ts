@@ -25,7 +25,8 @@ export interface CatalogSearchOperationInput {
     queryId: string;
     marketplaceId: 'ATVPDKIKX0DER';
     term: string;
-    page: 0;
+    page: number;
+    workClass?: 'interactive' | 'head' | 'discovery';
     priority: 'interactive' | 'scheduled';
     trigger: CatalogSearchTrigger;
     ownerMerchbaseUserId?: string;

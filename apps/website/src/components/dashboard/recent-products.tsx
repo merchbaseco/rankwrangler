@@ -1,12 +1,10 @@
 import {
 	getCoreRowModel,
-	getSortedRowModel,
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table";
 import {
 	useCallback,
-	useDeferredValue,
 	useEffect,
 	useMemo,
 	useRef,
@@ -21,18 +19,14 @@ import {
 	useProductImageTooltip,
 } from "@/components/dashboard/product-image-tooltip";
 import { createColumns } from "@/components/dashboard/recent-products/columns";
-import {
-	filterProducts,
-	hydrateProducts,
-	toFacetKey,
-} from "@/components/dashboard/recent-products/filter-utils";
+import { toFacetKey } from "@/components/dashboard/recent-products/filter-utils";
 import { ProductHistorySheet } from "@/components/dashboard/recent-products/history-sheet";
 import { RecentProductsTableView } from "@/components/dashboard/recent-products/table-view";
 import type {
 	FilterState,
 	SelectedHistoryProduct,
 } from "@/components/dashboard/recent-products/types";
-import { api } from "@/lib/trpc";
+import { useProductSearch } from "@/components/dashboard/recent-products/use-product-search";
 
 export function RecentProducts({
 	activeFacetKeys,
@@ -51,27 +45,17 @@ export function RecentProducts({
 		totalMerchProducts: number | null;
 	}) => void;
 }) {
-	const deferredSearchValue = useDeferredValue(searchValue.trim());
-	const { data, error, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-		api.api.app.recentProducts.useInfiniteQuery(
-			{
-				limit: 50,
-				search:
-					deferredSearchValue.length > 0 ? deferredSearchValue : undefined,
-			},
-			{
-				getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-			},
-		);
-
 	const [sorting, setSorting] = useState<SortingState>([
-		{ desc: false, id: "updatedAt" },
+		{ desc: true, id: "updatedAt" },
 	]);
+	const {
+		products, metadata, error, fetchNextPage, hasNextPage,
+		isFetchingNextPage, isLoading,
+	} = useProductSearch({ activeFacetKeys, filters, searchValue, sorting });
 	const [selectedHistoryProduct, setSelectedHistoryProduct] =
 		useState<SelectedHistoryProduct | null>(null);
 	const [isHistorySheetOpen, setIsHistorySheetOpen] = useState(false);
 	const loadMoreRef = useRef<HTMLDivElement>(null);
-	const deferredFilters = useDeferredValue(filters);
 
 	const {
 		onRowMouseEnter,
@@ -81,27 +65,7 @@ export function RecentProducts({
 		tooltipRef,
 	} = useProductImageTooltip();
 
-	const products = useMemo(
-		() => hydrateProducts(data?.pages.flatMap((page) => page.items) ?? []),
-		[data],
-	);
-
-	const filteredProducts = useMemo(
-		() =>
-			filterProducts({
-				activeFacetKeys,
-				filters: deferredFilters,
-				products,
-			}),
-		[activeFacetKeys, deferredFilters, products],
-	);
-
-	const availableFacetValues = useMemo(
-		() =>
-			data?.pages.find((page) => page.availableFacets !== null)
-				?.availableFacets ?? null,
-		[data],
-	);
+	const availableFacetValues = metadata?.availableFacets ?? null;
 
 	const availableFacets = useMemo(() => {
 		if (availableFacetValues) {
@@ -147,24 +111,19 @@ export function RecentProducts({
 		);
 	}, [availableFacetValues, products]);
 
-	const trackedTotals = useMemo(
-		() =>
-			data?.pages.find((page) => page.trackedTotals !== null)?.trackedTotals ??
-			null,
-		[data],
-	);
+	const trackedTotals = metadata?.trackedTotals ?? null;
 
 	useEffect(() => {
 		onStatusChange?.({
 			availableFacets,
-			count: filteredProducts.length,
+			count: products.length,
 			hasMore: hasNextPage ?? false,
 			totalMerchProducts: trackedTotals?.totalMerchProducts ?? null,
 			totalProducts: trackedTotals?.totalProducts ?? null,
 		});
 	}, [
 		availableFacets,
-		filteredProducts.length,
+		products.length,
 		hasNextPage,
 		onStatusChange,
 		trackedTotals,
@@ -228,10 +187,11 @@ export function RecentProducts({
 
 	const table = useReactTable({
 		columns,
-		data: filteredProducts,
+		data: products,
 		enableSortingRemoval: false,
 		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
+		manualSorting: true,
+		enableMultiSort: false,
 		onSortingChange: setSorting,
 		state: { sorting },
 	});
@@ -255,6 +215,7 @@ export function RecentProducts({
 		<>
 			<RecentProductsTableView
 				table={table}
+				emptyMessage="No products match this search."
 				errorMessage={error ? describeProductsError(error.data?.code) : null}
 				colgroupColumns={colgroupColumns}
 				columnsCount={columns.length}

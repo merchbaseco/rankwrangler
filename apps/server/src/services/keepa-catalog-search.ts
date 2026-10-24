@@ -1,3 +1,4 @@
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 import { TRPCError } from '@trpc/server';
 import { createKeepaProvider, type KeepaProvider } from '@/services/providers/keepa/keepa-provider';
 
@@ -17,10 +18,16 @@ export const searchKeepaCatalog = async (
         marketplaceId,
         term,
         priority,
+        workClass,
+        keywordId,
+        workId,
     }: {
         marketplaceId: string;
         term: string;
         priority: 'interactive' | 'scheduled';
+        workClass?: 'interactive' | 'head' | 'discovery';
+        keywordId?: string;
+        workId?: string;
     },
     overrides: Partial<KeepaCatalogSearchDeps> = {}
 ) => {
@@ -41,6 +48,9 @@ export const searchKeepaCatalog = async (
     const payload = await fetchCatalogPayload(deps.provider, {
         marketplaceId,
         term,
+        ...(workClass ? { workClass } : {}),
+        ...(keywordId ? { keywordId } : {}),
+        ...(workId ? { workId } : {}),
         priority: priority === 'interactive' ? 'interactiveCatalog' : 'scheduledCatalog',
     });
     const internalUsage = {
@@ -62,6 +72,7 @@ const fetchCatalogPayload = async (
     try {
         return await provider.searchCatalog(input);
     } catch (cause) {
+        if (cause instanceof KeepaCapacityDeferredError) throw cause;
         throw new TRPCError({
             code: 'BAD_GATEWAY',
             message: 'Keepa Catalog search failed.',

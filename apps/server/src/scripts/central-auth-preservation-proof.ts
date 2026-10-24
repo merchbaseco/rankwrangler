@@ -1,6 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import postgres from 'postgres';
-import { createDatabaseConnectionOptions, databaseConfigurationSchema } from '../config/database-connection';
+import {
+    createDatabaseConnectionOptions,
+    databaseConfigurationSchema,
+} from '../config/database-connection';
 import { fingerprint } from './central-auth-cutover-lib';
 import {
     assertPreservation,
@@ -43,7 +46,10 @@ const createClient = () => {
         return postgres(connectionString, { max: 1 });
     }
     return postgres({
-        ...createDatabaseConnectionOptions(databaseConfigurationSchema.parse(process.env), 'direct'),
+        ...createDatabaseConnectionOptions(
+            databaseConfigurationSchema.parse(process.env),
+            'direct'
+        ),
         max: 1,
     });
 };
@@ -53,7 +59,7 @@ const capture = async (sql: postgres.Sql, options: Options): Promise<Preservatio
         catalogQueries: await captureCollection(
             sql,
             'catalog_queries',
-            'to_jsonb(catalog_queries)::text'
+            "(to_jsonb(catalog_queries) - ARRAY['page', 'tier', 'admission_reason', 'admitted_at', 'probation_until', 'next_due_at', 'interval_days', 'consecutive_empty', 'failure_count', 'demand_percentile', 'demand_observed_at', 'demotion_observed_at', 'demotion_count', 'merch_observed_at'])::text"
         ),
         catalogSearchResults: await captureCollection(
             sql,
@@ -63,7 +69,7 @@ const capture = async (sql: postgres.Sql, options: Options): Promise<Preservatio
         catalogSearchRuns: await captureCollection(
             sql,
             'catalog_search_runs',
-            'to_jsonb(catalog_search_runs)::text'
+            "(to_jsonb(catalog_search_runs) - 'page')::text"
         ),
         operations: await captureCollection(sql, 'operations', 'to_jsonb(operations)::text'),
         productHistoryImports: await captureCollection(
@@ -81,8 +87,8 @@ const capture = async (sql: postgres.Sql, options: Options): Promise<Preservatio
             sql,
             'products',
             options.phase === 'before'
-                ? "((to_jsonb(products) - 'sp_api_resolved_at') || jsonb_build_object('amazon_listing_status', 'active'))::text"
-                : "(to_jsonb(products) - 'sp_api_resolved_at')::text"
+                ? "((to_jsonb(products) - ARRAY['sp_api_resolved_at', 'history_admission_state', 'history_admission_reason', 'history_admitted_at']) || jsonb_build_object('amazon_listing_status', 'active'))::text"
+                : "(to_jsonb(products) - ARRAY['sp_api_resolved_at', 'history_admission_state', 'history_admission_reason', 'history_admitted_at'])::text"
         ),
     };
 

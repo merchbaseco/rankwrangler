@@ -4,6 +4,7 @@ import { adminStatus } from './admin-status.js';
 import { amazonRouter } from './amazon-router.js';
 import { catalogRouter } from './catalog-router';
 import { classifyProductFacets } from './classify-product-facets.js';
+import { collectionStatus } from './collection-status';
 import { eventLogsList } from './event-logs.js';
 import { getAdminStats } from './get-admin-stats.js';
 import { getKeepaStatus } from './get-keepa-status.js';
@@ -18,9 +19,10 @@ import { loadProductHistory } from './load-product-history.js';
 import { operationGet } from './operation-get.js';
 import { productGet } from './product-get';
 import { productHistoryRefreshCompleted } from './product-history-refresh-completed';
+import { productSearch } from './product-search';
+import { productSearchMetadata } from './product-search-metadata';
 import { productSyncCompleted } from './product-sync-completed';
 import { providerTelemetryGet } from './provider-telemetry-get';
-import { recentProducts } from './recent-products.js';
 import { searchtermsRouter } from './searchterms-router.js';
 import { topSearchTermsStatus } from './top-search-terms-status.js';
 
@@ -29,6 +31,7 @@ export const appApiRouter = router({
         usage: accessUsage,
     }),
     adminStatus,
+    collectionStatus,
     amazon: amazonRouter,
     classifyProductFacets,
     catalog: catalogRouter,
@@ -53,6 +56,8 @@ export const appApiRouter = router({
     }),
     product: router({
         get: productGet,
+        search: productSearch,
+        searchMetadata: productSearchMetadata,
         sync: router({
             completed: productSyncCompleted,
         }),
@@ -62,5 +67,4 @@ export const appApiRouter = router({
             }),
         }),
     }),
-    recentProducts,
 });

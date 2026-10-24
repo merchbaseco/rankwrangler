@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
 import { getCatalogQuery, listCatalogQueries } from '@/db/catalog-query-read-model';
-import { listDueActiveCatalogQueries } from '@/db/catalog-query-refresh';
-import { resolveCatalogSearchRequest, resolveDueCatalogSearchRequest } from '@/db/catalog-search';
+import { listScheduledKeywordHeads, resolveScheduledKeywordHead } from '@/db/keyword-scheduling';
+import { resolveCatalogSearchRequest } from '@/db/catalog-search';
 import { getCatalogSearchRun } from '@/db/catalog-search-history';
 import { db } from '@/db/index';
-import { completeOperationWithError } from '@/db/operations';
+import { completeCatalogSearchOperationWithError } from '@/db/catalog-search-operations';
 import { persistCatalogSearchSuccess } from '@/db/persist-catalog-search';
 import {
     catalogQueries,
@@ -105,14 +105,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 lastRequestedAt: null,
                 activeUntil: null,
             });
-            expect(
-                (
-                    await listDueActiveCatalogQueries({
-                        dueAtOrBefore: NOW,
-                        now: NOW,
-                    })
-                ).map(query => query.id)
-            ).not.toContain(rejectedQuery?.id);
+            expect((await listScheduledKeywordHeads(NOW)).map(query => query.id)).not.toContain(
+                rejectedQuery?.id
+            );
         });
 
         it('selects active due keywords and excludes fresh, deferred, and expired keywords', async () => {
@@ -147,13 +142,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 nextRefreshAttemptAt: new Date(NOW.getTime() + 1),
             });
 
-            const due = await listDueActiveCatalogQueries({
-                dueAtOrBefore: new Date(NOW.getTime() - CATALOG_QUERY_REFRESH_INTERVAL_MS),
-                now: NOW,
-            });
-            expect(due.map(query => query.id)).toEqual([neverSuccessfulId, dueId]);
+            const due = await listScheduledKeywordHeads(NOW);
+            expect(due.map(query => query.id).sort()).toEqual([neverSuccessfulId, dueId].sort());
 
-            const scheduled = await resolveDueCatalogSearchRequest({ queryId: dueId, now: NOW });
+            const scheduled = await resolveScheduledKeywordHead({ queryId: dueId, now: NOW });
             expect(scheduled).toMatchObject({ kind: 'pending', created: true });
             if (scheduled.kind !== 'pending') {
                 throw new Error('Expected an automatic Catalog operation.');
@@ -167,9 +159,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 .from(catalogQueries)
                 .where(eq(catalogQueries.id, dueId));
             expect(updated?.lastRefreshAttemptAt).toEqual(NOW);
-            expect(updated?.nextRefreshAttemptAt).toEqual(
-                new Date(NOW.getTime() + CATALOG_QUERY_REFRESH_RETRY_INTERVAL_MS)
-            );
+            expect(updated?.nextRefreshAttemptAt).toBeNull();
             const listed = await listCatalogQueries({ limit: 1, now: NOW });
             expect(listed.items).toMatchObject([
                 {
@@ -186,11 +176,11 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 activeUntil: new Date(NOW.getTime() + CATALOG_QUERY_ACTIVE_WINDOW_MS),
                 latestSuccessfulRunAt: new Date(NOW.getTime() - CATALOG_QUERY_REFRESH_INTERVAL_MS),
             });
-            const first = await resolveDueCatalogSearchRequest({ queryId, now: NOW });
+            const first = await resolveScheduledKeywordHead({ queryId, now: NOW });
             if (first.kind !== 'pending') {
                 throw new Error('Expected the first automatic operation.');
             }
-            await completeOperationWithError({
+            await completeCatalogSearchOperationWithError({
                 operationId: first.operation.id,
                 error: { code: 'PROVIDER_UNAVAILABLE', message: 'Catalog search failed.' },
                 completedAt: NOW,
@@ -199,15 +189,15 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 'failed'
             );
             expect(
-                await resolveDueCatalogSearchRequest({
+                await resolveScheduledKeywordHead({
                     queryId,
-                    now: new Date(NOW.getTime() + CATALOG_QUERY_REFRESH_RETRY_INTERVAL_MS - 1),
+                    now: new Date(NOW.getTime() + 300_000 - 1),
                 })
             ).toEqual({ kind: 'notDue' });
 
-            const second = await resolveDueCatalogSearchRequest({
+            const second = await resolveScheduledKeywordHead({
                 queryId,
-                now: new Date(NOW.getTime() + CATALOG_QUERY_REFRESH_RETRY_INTERVAL_MS),
+                now: new Date(NOW.getTime() + 300_000),
             });
             expect(second).toMatchObject({ kind: 'pending', created: true });
 
@@ -243,7 +233,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 term: 'concurrent keyword',
                 activeUntil: new Date(NOW.getTime() + CATALOG_QUERY_ACTIVE_WINDOW_MS),
             });
-            const resolve = () => resolveDueCatalogSearchRequest({ queryId, now: NOW });
+            const resolve = () => resolveScheduledKeywordHead({ queryId, now: NOW });
 
             const first = await Promise.all([resolve(), resolve()]);
             const afterRestart = await resolve();
@@ -317,8 +307,11 @@ const insertQuery = async ({
             marketplaceId: 'ATVPDKIKX0DER',
             normalizedTerm: term,
             displayTerm: term.replace(/\b\w/g, value => value.toUpperCase()),
-            page: 0,
             lastRequestedAt,
+            tier: activeUntil && activeUntil > NOW ? 'warm' : 'stored',
+            nextDueAt: latestSuccessfulRunAt
+                ? new Date(latestSuccessfulRunAt.getTime() + CATALOG_QUERY_REFRESH_INTERVAL_MS)
+                : NOW,
             activeUntil,
             latestSuccessfulRunAt,
             nextRefreshAttemptAt,
@@ -373,7 +366,10 @@ const insertRun = async (
         .where(eq(operations.id, operation.id));
     await db
         .update(catalogQueries)
-        .set({ latestSuccessfulRunAt: completedAt })
+        .set({
+            latestSuccessfulRunAt: completedAt,
+            nextDueAt: new Date(completedAt.getTime() + CATALOG_QUERY_REFRESH_INTERVAL_MS),
+        })
         .where(eq(catalogQueries.id, queryId));
     return run.id;
 };

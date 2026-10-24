@@ -324,7 +324,7 @@ export interface Product {
 		};
 	};
 }
-export interface ProductSearchProduct {
+export interface KeywordResultsProduct {
 	marketplaceId: string;
 	asin: string;
 	title: string | null;
@@ -348,12 +348,12 @@ export interface ProductSearchProduct {
 	} | null;
 	boughtInPastMonth: number | null;
 }
-export interface ProductSearch {
+export interface KeywordResults {
 	keyword: string;
 	searchedAt: string;
 	results: Array<{
 		organicSearchPlacement: number;
-		product: ProductSearchProduct;
+		product: KeywordResultsProduct;
 	}>;
 }
 export interface BasicProduct {
@@ -517,6 +517,14 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					};
 					meta: object;
 				}>;
+				results: import("@trpc/server").TRPCMutationProcedure<{
+					input: {
+						term: string;
+						refresh?: boolean | undefined;
+					};
+					output: KeywordResults;
+					meta: object;
+				}>;
 				history: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						keyword: string;
@@ -601,12 +609,106 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					output: PublicProductHistory;
 					meta: object;
 				}>;
-				search: import("@trpc/server").TRPCMutationProcedure<{
+				search: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
-						term: string;
-						refresh?: boolean | undefined;
+						term?: string | undefined;
+						textFields?: "title" | "all" | undefined;
+						excludeWords?: string[] | undefined;
+						marketplaceIds?: string[] | undefined;
+						isMerchListing?: boolean | "unknown" | "all" | undefined;
+						amazonListingStatus?: "active" | "deleted" | "all" | undefined;
+						brands?: string[] | undefined;
+						excludeBrands?: string[] | undefined;
+						includeOfficialBrands?: boolean | undefined;
+						categoryIds?: number[] | undefined;
+						salesRank?: {
+							min?: number | undefined;
+							max?: number | undefined;
+						} | undefined;
+						price?: {
+							min?: number | undefined;
+							max?: number | undefined;
+						} | undefined;
+						monthlySold?: {
+							min?: number | undefined;
+							max?: number | undefined;
+						} | undefined;
+						firstAvailableAt?: {
+							after?: string | undefined;
+							before?: string | undefined;
+						} | undefined;
+						discoveredAt?: {
+							after?: string | undefined;
+							before?: string | undefined;
+						} | undefined;
+						updatedAt?: {
+							after?: string | undefined;
+							before?: string | undefined;
+						} | undefined;
+						facets?: {
+							facet: string;
+							name: string;
+						}[] | undefined;
+						sort?: "relevance" | "salesRankAsc" | "salesRankDesc" | "firstAvailableAtDesc" | "firstAvailableAtAsc" | "updatedAtAsc" | "updatedAtDesc" | "discoveredAtDesc" | "priceAsc" | "priceDesc" | "monthlySoldDesc" | undefined;
+						cursor?: string | null | undefined;
+						limit?: number | undefined;
 					};
-					output: ProductSearch;
+					output: {
+						coverage: {
+							keyword: string;
+							headCheckedAt: string | null;
+							exploration: {
+								source: "spapi";
+								pages: number;
+								observedAt: string | null;
+								budgetLimited: boolean;
+							} | null;
+						} | null;
+						items: {
+							marketplaceId: string;
+							asin: string;
+							title: string | null;
+							brand: string | null;
+							bullet1: string | null;
+							bullet2: string | null;
+							thumbnail: {
+								status: "available";
+								url: string;
+							} | {
+								status: "unavailable";
+								url?: undefined;
+							};
+							isMerchListing: boolean | null;
+							amazonListingStatus: AmazonListingStatus;
+							categoryId: number | null;
+							salesRank: number | null;
+							price: {
+								amountMinor: number;
+								currencyCode: string;
+							} | null;
+							firstAvailableAt: string | null;
+							discoveredAt: string;
+							updatedAt: string;
+							averages: {
+								last30Days: number | null;
+								last90Days: number | null;
+							};
+							demand: {
+								boughtInPastMonth: number | null;
+								salesRankDrops: {
+									last30Days: number | null;
+									last90Days: number | null;
+									last180Days: number | null;
+									last365Days: number | null;
+								};
+							};
+							facets: {
+								facet: string;
+								name: string;
+							}[];
+						}[];
+						nextCursor: string | null;
+					};
 					meta: object;
 				}>;
 			}>>;

@@ -10,6 +10,7 @@ import {
 	formatDateTime,
 	formatDuration,
 } from "@/components/dashboard/job-executions-panel/formatters";
+import { CollectionStatusPanel } from "@/components/dashboard/collection-status-panel";
 import { KeepaRefreshPolicyPanel } from "@/components/dashboard/keepa-refresh-policy-panel";
 import { withTimeDomainLabel } from "@/components/dashboard/metrics-time-domain-label";
 import { Button } from "@/components/ui/button";
@@ -141,6 +142,7 @@ export const KeepaMetricsPanel = () => {
 
 	return (
 		<div className="flex h-full flex-col">
+			<CollectionStatusPanel />
 			{/* Stat tiles — single row of 3 */}
 			<div className="grid grid-cols-3">
 				{stats.map((stat, i) => {

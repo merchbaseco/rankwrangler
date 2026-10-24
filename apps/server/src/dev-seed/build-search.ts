@@ -170,7 +170,6 @@ export const buildSearch = (
             marketplaceId,
             normalizedTerm: term,
             displayTerm: term,
-            page: 0,
             lastRequestedAt: shape.lastRequestedAt,
             activeUntil: shape.activeUntil,
             nextRefreshAttemptAt: shape.nextRefreshAttemptAt,

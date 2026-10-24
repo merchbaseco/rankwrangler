@@ -26,9 +26,9 @@ The `initialize` server info advertises `websiteUrl` `https://rankwrangler.merch
 
 | Tool | Input | Result |
 | --- | --- | --- |
-| `rankwrangler_status` | `{}` | Connection, authentication, and seven supported noun/verb capabilities. |
+| `rankwrangler_status` | `{}` | Connection, authentication, and eight supported noun/verb capabilities. |
 | `rankwrangler_product` | `operation: get \| getMany \| search \| history` | Product data or a standard error. |
-| `rankwrangler_keyword` | `operation: get \| search \| history` | Keyword data or a standard error. |
+| `rankwrangler_keyword` | `operation: get \| search \| history \| results` | Keyword data or a standard error. |
 
 `rankwrangler_product` uses `asin` and `marketplaceId` for `get`. It may also set
 `include: ['shortName', 'cutoutThumbnail']` to request an image-informed label and a transparent
@@ -47,13 +47,35 @@ title and thumbnail values are last-known listing data. `get` and `getMany` retu
 Product's last-known listing immediately and refresh it in the background; they wait only for
 Products with no resolved listing. An unavailable thumbnail alone means no
 usable image, not a deleted listing. The tool adds only the documented Product-history range, metric,
-and bucket fields for `history`, and uses `term` for `search`.
+and bucket fields for `history`. Product `search` accepts an optional `term` and catalog filters.
 `rankwrangler_keyword` uses `keyword` for `get` and `history`, `text` for `search`, and accepts
-cursor/limit or range options. Product `get`/`getMany`/`history` and keyword inputs do not accept
-`refresh`. The separate Product Search contract retains its existing search input.
+cursor/limit or range options. Keyword `results` uses `term` and optional `refresh` (default false).
+Product operations and keyword `get`, `search`, and `history` do not accept `refresh`.
 The keyword marketplace is the US marketplace (`ATVPDKIKX0DER`).
 
-Product `search` returns `keyword`, `searchedAt`, and compact `results`. Each result nests
+Product `search` immediately reads the collected catalog and returns `items`, `nextCursor`, and
+`coverage`. It never waits for collection. Empty results do not prove a niche is empty.
+Search accepts these filters:
+
+- `term`, `textFields: all | title`, and `excludeWords`.
+- `marketplaceIds` (defaults to US; an empty array selects all marketplaces).
+- `isMerchListing: true | false | unknown | all` (defaults to true).
+- `amazonListingStatus: active | deleted | all` (defaults to active).
+- `brands`, `excludeBrands`, `includeOfficialBrands` (defaults to false), and `categoryIds`.
+- `salesRank`, `price`, and `monthlySold` with optional integer `min` and `max`. Prices use minor
+  currency units. Unknown values do not match numeric bounds.
+- `firstAvailableAt`, `discoveredAt`, and `updatedAt` with optional ISO `after` and `before` dates.
+- `facets`, an array of `{ facet, name }` selections.
+
+`sort` accepts `relevance` (default), `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`,
+`firstAvailableAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `discoveredAtDesc`, `priceAsc`, `priceDesc`,
+and `monthlySoldDesc`. `limit` is 1–100 (default 50); pass `nextCursor` as `cursor` for the next
+page with the same filters and sort. Pages reflect current data and can move as listings change.
+Search items include compact screening metrics. Coverage reports dated keyword observations; it
+does not promise a complete catalog.
+
+Keyword `results` returns `keyword`, `searchedAt`, and compact `results`. It reuses search evidence
+for 24 hours unless `refresh` is true, and can wait for collection. Each result nests
 `organicSearchPlacement` and a compact Product projection with identity, title, brand, resolved
 thumbnail, classification, category, current sales rank, price, and bought-in-the-past-month
 evidence. It is not a full Product response.
@@ -64,9 +86,9 @@ history exposes minor-currency unit and currency code without a scale field.
 
 Every data tool call completes synchronously from the caller's perspective. It returns
 policy-current data, last-known Product listing data, or a structured error. MCP does not expose pending Product data,
-freshness, Catalog, Operation, polling, provider status or timestamps, or provider-named frontend
-availability tools. Product `get`/`getMany`/`history` and keyword operations have no refresh input;
-Product Search retains its separate Search input. Nullable `isMerchListing` remains unknown rather
+provider freshness, Catalog, Operation, polling, provider status, or provider-named frontend
+availability tools. Product search coverage and keyword results expose dated research evidence.
+Only keyword `results` accepts `refresh`. Nullable `isMerchListing` remains unknown rather
 than being serialized as `false`; Product listing availability is exposed separately as
 `amazonListingStatus`.
 

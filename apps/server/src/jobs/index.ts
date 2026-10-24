@@ -1,4 +1,6 @@
 import type { PgBoss } from 'pg-boss';
+import { exploreKeywordsJob } from '@/jobs/explore-keywords';
+import { reconcileHistoryAdmissionJob } from '@/jobs/reconcile-history-admission';
 import { catalogSearchJob } from '@/jobs/catalog-search';
 import { collectDueCatalogQueriesJob } from '@/jobs/collect-due-catalog-queries';
 import { enqueueScheduledKeepaHistoryRefreshJob } from '@/jobs/enqueue-scheduled-keepa-history-refresh.js';
@@ -18,6 +20,8 @@ import { syncTopSearchTermsDatasetsJob } from '@/jobs/sync-top-search-terms-data
 
 const registeredJobs = [
     catalogSearchJob,
+    exploreKeywordsJob,
+    reconcileHistoryAdmissionJob,
     collectDueCatalogQueriesJob,
     enqueueScheduledKeepaHistoryRefreshJob,
     fetchKeepaHistoryForAsinJob,

@@ -1,3 +1,4 @@
+import type { ProductSearchInput } from '@/api/product-search-input';
 import type { ProductGetInclude } from '@/api/public/product-input';
 
 export type ProductHistoryMetric = 'salesRank' | 'price';
@@ -13,7 +14,9 @@ export interface ProductGetManyMcpInput {
     products: Pick<ProductGetMcpInput, 'marketplaceId' | 'asin'>[];
 }
 
-export interface ProductSearchMcpInput {
+export type ProductSearchMcpInput = ProductSearchInput;
+
+export interface KeywordResultsMcpInput {
     term: string;
     refresh: boolean;
 }
@@ -53,7 +56,7 @@ export interface RankWranglerMcpStatus {
     status: 'ready';
     capabilities: {
         product: ['get', 'getMany', 'search', 'history'];
-        keyword: ['get', 'search', 'history'];
+        keyword: ['get', 'search', 'history', 'results'];
     };
 }
 
@@ -66,6 +69,7 @@ export interface RankWranglerMcpDataSource {
         history(input: ProductHistoryMcpInput): Promise<Record<string, unknown>>;
     };
     keyword: {
+        results(input: KeywordResultsMcpInput): Promise<Record<string, unknown>>;
         get(input: KeywordGetMcpInput): Promise<Record<string, unknown>>;
         search(input: KeywordSearchMcpInput): Promise<Record<string, unknown>>;
         history(input: KeywordHistoryMcpInput): Promise<Record<string, unknown>>;
@@ -77,6 +81,6 @@ export const RANKWRANGLER_MCP_STATUS: RankWranglerMcpStatus = {
     status: 'ready',
     capabilities: {
         product: ['get', 'getMany', 'search', 'history'],
-        keyword: ['get', 'search', 'history'],
+        keyword: ['get', 'search', 'history', 'results'],
     },
 };

@@ -57,9 +57,9 @@ rw keyword search "retro gardening"
 rw keyword history "retro gardening shirt"
 ```
 
-Each catalog search request renews the keyword's 30-day active window, including cached reuse.
-Active keywords receive automatic weekly refreshes; expired keywords become inactive without
-backfill. Search history labels Requested search versus Automatic refresh.
+Explicit `keyword.results` requests renew a 30-day research lease, including cached reuse.
+General catalog searches record interest. Background checks adapt to demand and observed change;
+bounded SP-API exploration grows listing coverage without buying history for every discovery.
 
 Public Product get/getMany/history and keyword reads return final policy-current data without
 freshness envelopes or refresh controls. Product Search retains its separate search contract. When
@@ -128,3 +128,14 @@ deployment, releases, and recovery live under [operations](docs/operations/READM
 
 For the Cloudflare-billed PlanetScale migration, follow the
 [restore and preservation runbook](docs/operations/planetscale.md). Local development uses PostgreSQL in Compose; production deploys use the PlanetScale Compose override.
+
+## Merch database work
+
+The [research plan](plans/merch-research.md) separates immediate catalog search from scheduled
+keyword collection. The shared database query, dashboard, public API, CLI and MCP changes are
+implemented and await schema migration and deployment. `keyword.results` preserves dated external
+search evidence. Search records keyword candidates without renewing standing collection.
+Adaptive collection tiers, durable token reservations, bounded SP-API exploration and explicit
+history admission are implemented in the same migration unit. Operator settings expose collection
+backlogs and capacity. The [execution record](plans/merch-collection-execution.md) tracks verification.
+The [capacity baseline](plans/merch-capacity-baseline.md) records the initial pilot envelope.

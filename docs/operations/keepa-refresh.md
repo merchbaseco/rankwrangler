@@ -10,7 +10,7 @@ read_when:
 **Status:** These source-separated freshness controls are implemented. Apply the generated
 Product-schema migration before deployment.
 
-Keepa refresh is Product-driven. `products.keepa_fetched_at` is the successful-fetch watermark;
+Keepa refresh is Product-driven and requires standing history admission for scheduled work. `products.keepa_fetched_at` is the successful-fetch watermark;
 import rows provide provenance and diagnostics but do not schedule refreshes.
 
 ## Cadence
@@ -47,7 +47,7 @@ The admin Keepa metrics surface reports:
 
 Check these in order:
 
-1. Confirm the Product is known Merch and has a numeric root-category BSR; `null` classification is
+1. Confirm the Product is active, admitted, known Merch and has a numeric root-category BSR; `null` classification is
    not known non-Merch.
 2. Compare `keepa_fetched_at` with its policy window and the global 24-hour guard.
 3. Check whether a deduplicated queue row already exists and when it is next due.
@@ -61,8 +61,10 @@ and does not create another Product-history request.
 Do not expose Keepa token accounting through public RankWrangler APIs. It is an internal provider
 budget.
 
-Shared Keepa capacity orders interactive Catalog search before scheduled Catalog search, and
-scheduled Catalog search before Product refresh work.
+The admin-only collection status reports rolling allocations, unknown reserved spend, measured
+costs, the interactive floor, history-admission pauses and keyword/exploration backlogs. A budget
+deferral is not a provider failure and does not mark data fresh. See the protected-capacity policy
+in the internals reference before raising pilot caps.
 
 See [Keepa refresh internals](../internals/keepa-refresh.md) for data semantics and ownership.
 

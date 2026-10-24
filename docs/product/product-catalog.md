@@ -7,8 +7,8 @@ read_when:
 
 # Product Catalog
 
-**Public retrieval status:** The provider-neutral Product projection below is the accepted target.
-Dashboard catalog behavior is current.
+**Implementation status:** Unified catalog search is prepared in source. Its migration and
+production deployment are pending.
 
 The catalog stores one canonical current Product for each Amazon marketplace and ASIN. A Product
 outlives the path that discovered it: extension browsing, an API lookup, and a dashboard search all
@@ -37,13 +37,29 @@ not zero or retrieval failure.
 
 ## Using the catalog
 
-The dashboard lists stored Products and supports text search across ASIN, brand, and title. Readers
-can narrow the visible set by marketplace, BSR, freshness, and assigned facets, then open a Product
-to inspect details and history.
+The dashboard and public `product.search` share a database query over collected Products. Text,
+BSR, dates, price, demand, marketplace, brands, and facets narrow the whole catalog before paging.
+Sorting also runs against the whole matching catalog. Default research results show active known
+Merch listings in the US and hide brands explicitly recorded as official. The initial registry is
+empty, so no brands are hidden until verified entries are added. Unknown brands remain visible.
 
-Agents use the public API, typed client, or CLI to read a Product by marketplace and ASIN. A current
-cached Product returns immediately. Missing or policy-expired Product data starts or joins durable
-work and waits; the public response is one current Product or a retryable error.
+Text matches words across title, brand, and bullets, or title alone when requested. All entered
+words must match. Matching does not stem words or expand concepts. With all text fields enabled,
+a Product previously observed for that exact normalized keyword can also match. Explicit word
+and brand exclusions narrow the result further.
+
+Search returns immediately from stored data with compact market metrics. Current BSR uses the
+canonical root-category value consistently for filtering, ordering, and output. Search never waits
+for Amazon or Keepa. A dated keyword observation can explain collection coverage, but a small or
+empty result does not prove that Amazon has few matching Products. Initial gaps are accepted.
+Text searches register keyword candidates without granting a standing collection subscription.
+Background admission and adaptive checks grow coverage under measured provider budgets; the search
+request stays immediate.
+
+Agents also read individual Products by marketplace and ASIN. Known listing data returns
+immediately and can refresh in the background. Only unresolved listings wait for retrieval.
+The extension continues to resolve the ASINs visible on the user's Amazon page through Product
+lookups and history reads.
 
 Clients that display compact labels can request `include: ['marketData', 'shortName']` on a single public Product get.
 For known Merch listings with an available image, RankWrangler inspects the printed design and
@@ -58,8 +74,8 @@ listing photo remains available for larger views and as a fallback when no cutou
 Integrations that only need listing labels use the public basic Product batch. It accepts up to 200
 unique marketplace/ASIN pairs, preserves request order, and returns fixed-shape identity, title,
 thumbnail, and Amazon listing status. A deleted listing retains last-known Product values. Every
-requested identity joins the canonical catalog; eligible Products begin Keepa history collection
-asynchronously under the normal tracking policy.
+requested identity joins the canonical catalog. Active Merch Products can enter recurring Keepa
+history only after capacity admission; explicit history reads remain available independently.
 
 The dashboard Product drawer remains source-aware and may explain collection provenance and recent
 work. That observability is not part of the public Product contract.

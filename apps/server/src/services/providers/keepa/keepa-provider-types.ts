@@ -1,4 +1,6 @@
 import type { KeepaProductPayload } from '@/services/keepa-product-normalizer';
+import type { captureProviderAttempt } from '@/services/providers/provider-telemetry';
+import type { KeepaCapacity } from './keepa-capacity-types';
 
 export interface KeepaUsage {
     tokensConsumed: number | null;
@@ -85,3 +87,10 @@ const asNumber = (value: unknown) => (typeof value === 'number' ? value : undefi
 const isRecord = (value: unknown): value is Record<string, unknown> => {
     return typeof value === 'object' && value !== null;
 };
+
+export interface KeepaProviderDeps {
+    apiKey: string | undefined;
+    capture: typeof captureProviderAttempt;
+    fetchImpl: typeof fetch;
+    capacity: KeepaCapacity;
+}

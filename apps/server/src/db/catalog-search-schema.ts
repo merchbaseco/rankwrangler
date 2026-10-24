@@ -20,7 +20,19 @@ export const catalogQueries = pgTable(
         marketplaceId: text('marketplace_id').notNull(),
         normalizedTerm: text('normalized_term').notNull(),
         displayTerm: text('display_term').notNull(),
-        page: integer('page').notNull(),
+        tier: text('tier').notNull().default('stored'),
+        admissionReason: text('admission_reason'),
+        admittedAt: timestamp('admitted_at', { mode: 'date' }),
+        probationUntil: timestamp('probation_until', { mode: 'date' }),
+        nextDueAt: timestamp('next_due_at', { mode: 'date' }),
+        intervalDays: integer('interval_days').notNull().default(7),
+        consecutiveEmpty: integer('consecutive_empty').notNull().default(0),
+        failureCount: integer('failure_count').notNull().default(0),
+        demandPercentile: integer('demand_percentile'),
+        demandObservedAt: timestamp('demand_observed_at', { mode: 'date' }),
+        demotionObservedAt: timestamp('demotion_observed_at', { mode: 'date' }),
+        demotionCount: integer('demotion_count').notNull().default(0),
+        merchObservedAt: timestamp('merch_observed_at', { mode: 'date' }),
         lastRequestedAt: timestamp('last_requested_at', { mode: 'date' }),
         activeUntil: timestamp('active_until', { mode: 'date' }),
         nextRefreshAttemptAt: timestamp('next_refresh_attempt_at', { mode: 'date' }),
@@ -33,8 +45,7 @@ export const catalogQueries = pgTable(
         identityIdx: uniqueIndex('catalog_queries_identity_idx').on(
             table.source,
             table.marketplaceId,
-            table.normalizedTerm,
-            table.page
+            table.normalizedTerm
         ),
         activeRefreshDueIdx: index('catalog_queries_active_refresh_due_idx').on(
             table.activeUntil,
@@ -43,7 +54,7 @@ export const catalogQueries = pgTable(
         ),
         v1IdentityCheck: check(
             'catalog_queries_v1_identity_check',
-            sql`${table.source} = 'keepa' AND ${table.marketplaceId} = 'ATVPDKIKX0DER' AND ${table.page} = 0`
+            sql`${table.source} = 'keepa' AND ${table.marketplaceId} = 'ATVPDKIKX0DER'`
         ),
     })
 );
@@ -55,6 +66,7 @@ export const catalogSearchRuns = pgTable(
         queryId: uuid('query_id')
             .references(() => catalogQueries.id, { onDelete: 'cascade' })
             .notNull(),
+        page: integer('page').notNull().default(0),
         operationId: uuid('operation_id')
             .references(() => operations.id)
             .notNull(),

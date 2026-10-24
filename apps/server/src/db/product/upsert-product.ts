@@ -1,16 +1,21 @@
 import { sql } from 'drizzle-orm';
-import { db } from '@/db/index.js';
-import { products } from '@/db/schema.js';
-import type { SpApiProduct } from '@/types/index.js';
+import { db } from '@/db/index';
+import { products } from '@/db/schema';
+import type { SpApiProduct } from '@/types';
 import { reconcileMerchListing, reconcileSellerBullet } from './reconcile-merch-listing';
 
-export const upsertProductInfo = async (productInfo: SpApiProduct): Promise<void> => {
+type ProductWriteDatabase = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export const upsertProductInfo = async (
+    productInfo: SpApiProduct,
+    database: ProductWriteDatabase = db
+): Promise<void> => {
     const dateFirstAvailable = productInfo.dateFirstAvailable
         ? new Date(productInfo.dateFirstAvailable)
         : null;
     const fetchedAt = new Date(productInfo.fetchedAt);
 
-    await db
+    await database
         .insert(products)
         .values({
             marketplaceId: productInfo.marketplaceId,

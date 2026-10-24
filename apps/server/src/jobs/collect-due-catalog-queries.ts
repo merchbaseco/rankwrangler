@@ -4,7 +4,7 @@ import { defineJob } from './job-router';
 
 export const collectDueCatalogQueriesJob = defineJob('collect-due-catalog-queries', {
     persistSuccess: 'didWork',
-    startupSummary: 'minute scan for active weekly Catalog keyword refreshes',
+    startupSummary: 'minute scan for admitted keyword heads and bounded discovery',
 })
     .input(z.object({}))
     .options({

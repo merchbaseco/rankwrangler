@@ -4,6 +4,8 @@ import { catalogQueries, catalogSearchResults, catalogSearchRuns, operations } f
 import type { NormalizedKeepaProduct } from '@/services/keepa-product-normalizer';
 import type { CatalogSearchOperationInput } from '@/services/operations';
 import { lockCatalogQueryForReconciliation } from './catalog-query-resolution';
+import { lockKeywordScheduling } from './keyword-scheduling-lock';
+import { acceptKeywordObservation } from './keyword-observation';
 import { buildCatalogSearchResource } from './catalog-search-operations';
 import { persistNormalizedKeepaProduct } from './product/persist-normalized-keepa-product';
 
@@ -22,8 +24,12 @@ export const persistCatalogSearchSuccess = async ({
     trigger,
     results,
     internalUsage,
+    page = 0,
+    startedAt,
 }: {
     operationId: string;
+    page?: number;
+    startedAt?: Date;
     queryId: string;
     sourceStartedAt: Date;
     sourceCompletedAt: Date;
@@ -37,12 +43,27 @@ export const persistCatalogSearchSuccess = async ({
     };
 }) => {
     return await db.transaction(async transaction => {
+        await lockKeywordScheduling(transaction);
         await lockCatalogQueryForReconciliation(transaction, queryId);
+        const [owned] = await transaction
+            .select({ id: operations.id })
+            .from(operations)
+            .where(
+                and(
+                    eq(operations.id, operationId),
+                    eq(operations.status, 'pending'),
+                    ...(startedAt ? [eq(operations.startedAt, startedAt)] : [])
+                )
+            )
+            .for('update');
+        if (!owned) throw new Error('Catalog execution ownership expired.');
+        const productIds: string[] = [];
 
         const [run] = await transaction
             .insert(catalogSearchRuns)
             .values({
                 queryId,
+                page,
                 operationId,
                 sourceStartedAt,
                 sourceCompletedAt,
@@ -55,7 +76,10 @@ export const persistCatalogSearchSuccess = async ({
             throw new Error(`Failed to create Catalog Search run for ${queryId}`);
         }
 
-        for (const [index, result] of results.entries()) {
+        const orderedResults = [...results].sort((left, right) =>
+            left.normalized.product.asin.localeCompare(right.normalized.product.asin)
+        );
+        for (const [index, result] of orderedResults.entries()) {
             const persisted = await persistNormalizedKeepaProduct(transaction, result.normalized, {
                 requestParams: {
                     kind: 'catalogSearch',
@@ -68,6 +92,7 @@ export const persistCatalogSearchSuccess = async ({
                 refillInMs: index === 0 ? internalUsage.refillInMs : null,
                 refillRate: index === 0 ? internalUsage.refillRate : null,
             });
+            productIds.push(persisted.productId);
             const observed = result.normalized.product;
             await transaction.insert(catalogSearchResults).values({
                 runId: run.id,
@@ -86,18 +111,14 @@ export const persistCatalogSearchSuccess = async ({
             });
         }
 
-        const [updatedQuery] = await transaction
-            .update(catalogQueries)
-            .set({
-                latestSuccessfulRunAt: sourceCompletedAt,
-                nextRefreshAttemptAt: null,
-                updatedAt: sourceCompletedAt,
-            })
-            .where(eq(catalogQueries.id, queryId))
-            .returning({ id: catalogQueries.id });
-        if (!updatedQuery) {
-            throw new Error(`Catalog query ${queryId} was not found.`);
-        }
+        await acceptKeywordObservation(transaction, {
+            queryId,
+            runId: run.id,
+            page,
+            completedAt: sourceCompletedAt,
+            resultCount: results.length,
+            productIds,
+        });
 
         const [completedOperation] = await transaction
             .update(operations)

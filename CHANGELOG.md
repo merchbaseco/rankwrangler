@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.11.0 - 2026-10-23
+
+### Changed
+
+- Breaking: `product.search` is now a query over the collected catalog, with optional text,
+  structured filters, screening metrics, sorting and cursor pagination. It returns
+  `items`, `nextCursor` and dated keyword coverage without waiting for external collection.
+- Preserve the previous external search capability as `keyword.results`, a mutation accepting
+  `term` and optional `refresh`, with dated Product placements in the existing response shape.
+- Use the same catalog filtering and sorting in the dashboard, CLI and MCP. Dashboard filters
+  apply to the full stored catalog rather than only loaded pages.
+
+### Added
+
+- Prepare native text-search indexes and a verified official-brand registry. Research search hides
+  known registry matches by default while retaining unknown brands. The registry starts empty.
+
+- Add adaptive keyword checks, bounded SP-API pagination and dated collection coverage. General
+  searches record interest and return immediately; collection runs independently in the background.
+- Protect Keepa capacity with durable request reservations, measured costs and separate work budgets.
+  Admit new recurring history selectively while preserving every existing Product's eligibility.
+- Add operator collection status and active/admitted refresh counts.
+
 ## v0.10.0 - 2026-10-20
 
 ### Added

@@ -20,119 +20,122 @@ import { TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS } from '@/services/top-search-te
 const NOW = new Date('2026-08-15T12:00:00.000Z');
 const MINUTE_MS = 60 * 1000;
 
-describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('service health schedule probes', () => {
-    beforeEach(async () => {
-        await db
-            .delete(catalogQueries)
-            .where(like(catalogQueries.normalizedTerm, 'health-probe-%'));
-        await db
-            .delete(topSearchTermsKeywordDaily)
-            .where(eq(topSearchTermsKeywordDaily.marketplaceId, SPAPI_US_MARKETPLACE_ID));
-        await db
-            .delete(topSearchTermsSnapshots)
-            .where(eq(topSearchTermsSnapshots.marketplaceId, SPAPI_US_MARKETPLACE_ID));
-        await db
-            .delete(topSearchTermsDatasets)
-            .where(eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID));
-    });
-
-    it('fails an active catalog query whose success is older than the interval plus grace', async () => {
-        await insertCatalogQuery({
-            activeUntil: minutesAfter(NOW, 60),
-            latestSuccessfulRunAt: minutesBefore(catalogSuccessDueAt()),
-            nextRefreshAttemptAt: minutesAfter(NOW, 60),
-            term: 'health-probe-stale',
+describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
+    'service health schedule probes',
+    () => {
+        beforeEach(async () => {
+            await db
+                .delete(catalogQueries)
+                .where(like(catalogQueries.normalizedTerm, 'health-probe-%'));
+            await db
+                .delete(topSearchTermsKeywordDaily)
+                .where(eq(topSearchTermsKeywordDaily.marketplaceId, SPAPI_US_MARKETPLACE_ID));
+            await db
+                .delete(topSearchTermsSnapshots)
+                .where(eq(topSearchTermsSnapshots.marketplaceId, SPAPI_US_MARKETPLACE_ID));
+            await db
+                .delete(topSearchTermsDatasets)
+                .where(eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID));
         });
 
-        expect(await probeCatalogQueries(NOW)).toBe(true);
-    });
-    it('passes an active catalog query created recently with no success yet', async () => {
-        await insertCatalogQuery({
-            activeUntil: minutesAfter(NOW, 60),
-            createdAt: new Date(NOW.getTime() - MINUTE_MS),
-            latestSuccessfulRunAt: null,
-            term: 'health-probe-new',
-        });
+        it('fails an active catalog query whose success is older than the interval plus grace', async () => {
+            await insertCatalogQuery({
+                activeUntil: minutesAfter(NOW, 60),
+                latestSuccessfulRunAt: minutesBefore(catalogSuccessDueAt()),
+                nextRefreshAttemptAt: minutesAfter(NOW, 60),
+                term: 'health-probe-stale',
+            });
 
-        expect(await probeCatalogQueries(NOW)).toBe(false);
-    });
-    it('passes an inactive catalog query', async () => {
-        await insertCatalogQuery({
-            activeUntil: minutesBefore(NOW),
-            latestSuccessfulRunAt: minutesBefore(catalogSuccessDueAt()),
-            term: 'health-probe-inactive',
+            expect(await probeCatalogQueries(NOW)).toBe(true);
         });
+        it('passes an active catalog query created recently with no success yet', async () => {
+            await insertCatalogQuery({
+                activeUntil: minutesAfter(NOW, 60),
+                createdAt: new Date(NOW.getTime() - MINUTE_MS),
+                latestSuccessfulRunAt: null,
+                term: 'health-probe-new',
+            });
 
-        expect(await probeCatalogQueries(NOW)).toBe(false);
-    });
-    it('passes when no catalog query is overdue', async () => {
-        expect(await probeCatalogQueries(NOW)).toBe(false);
-    });
-    it('fails when the US top search terms table is empty', async () => {
-        expect(await probeTopSearchTerms(NOW)).toBe(true);
-    });
-    it('passes a closed US top search terms window', async () => {
-        await insertDataset({
-            nextRefreshAt: null,
-            status: 'completed',
+            expect(await probeCatalogQueries(NOW)).toBe(false);
         });
+        it('passes an inactive catalog query', async () => {
+            await insertCatalogQuery({
+                activeUntil: minutesBefore(NOW),
+                latestSuccessfulRunAt: minutesBefore(catalogSuccessDueAt()),
+                term: 'health-probe-inactive',
+            });
 
-        expect(await probeTopSearchTerms(NOW)).toBe(false);
-    });
-    it('fails a US top search terms row whose next_refresh_at is older than the grace', async () => {
-        await insertDataset({
-            nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
-            status: 'completed',
+            expect(await probeCatalogQueries(NOW)).toBe(false);
         });
+        it('passes when no catalog query is overdue', async () => {
+            expect(await probeCatalogQueries(NOW)).toBe(false);
+        });
+        it('fails when the US top search terms table is empty', async () => {
+            expect(await probeTopSearchTerms(NOW)).toBe(true);
+        });
+        it('passes a closed US top search terms window', async () => {
+            await insertDataset({
+                nextRefreshAt: null,
+                status: 'completed',
+            });
 
-        expect(await probeTopSearchTerms(NOW)).toBe(true);
-    });
-    it('fails a US top search terms row that has been failed longer than the grace', async () => {
-        await insertDataset({
-            lastCompletedAt: null,
-            lastFailedAt: minutesBefore(topSearchTermsDueAt()),
-            nextRefreshAt: minutesAfter(NOW, 30),
-            status: 'failed',
+            expect(await probeTopSearchTerms(NOW)).toBe(false);
         });
+        it('fails a US top search terms row whose next_refresh_at is older than the grace', async () => {
+            await insertDataset({
+                nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
+                status: 'completed',
+            });
 
-        expect(await probeTopSearchTerms(NOW)).toBe(true);
-    });
-    it('passes a US top search terms failure newer than the grace', async () => {
-        await insertDataset({
-            lastCompletedAt: null,
-            lastFailedAt: new Date(NOW.getTime() - MINUTE_MS),
-            nextRefreshAt: minutesAfter(NOW, 30),
-            status: 'failed',
+            expect(await probeTopSearchTerms(NOW)).toBe(true);
         });
+        it('fails a US top search terms row that has been failed longer than the grace', async () => {
+            await insertDataset({
+                lastCompletedAt: null,
+                lastFailedAt: minutesBefore(topSearchTermsDueAt()),
+                nextRefreshAt: minutesAfter(NOW, 30),
+                status: 'failed',
+            });
 
-        expect(await probeTopSearchTerms(NOW)).toBe(false);
-    });
-    it('keeps a requested Amazon report healthy until the pending ceiling', async () => {
-        await insertDataset({
-            nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
-            reportId: 'pending-report',
-            reportRequestedAt: new Date(topSearchTermsPendingCeiling().getTime() + 1),
-            status: 'in_progress',
+            expect(await probeTopSearchTerms(NOW)).toBe(true);
         });
-        expect(await probeTopSearchTerms(NOW)).toBe(false);
+        it('passes a US top search terms failure newer than the grace', async () => {
+            await insertDataset({
+                lastCompletedAt: null,
+                lastFailedAt: new Date(NOW.getTime() - MINUTE_MS),
+                nextRefreshAt: minutesAfter(NOW, 30),
+                status: 'failed',
+            });
 
-        await replaceDataset({
-            nextRefreshAt: minutesAfter(NOW, 15),
-            reportId: 'expired-pending-report',
-            reportRequestedAt: topSearchTermsPendingCeiling(),
-            status: 'in_progress',
+            expect(await probeTopSearchTerms(NOW)).toBe(false);
         });
-        expect(await probeTopSearchTerms(NOW)).toBe(true);
+        it('keeps a requested Amazon report healthy until the pending ceiling', async () => {
+            await insertDataset({
+                nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
+                reportId: 'pending-report',
+                reportRequestedAt: new Date(topSearchTermsPendingCeiling().getTime() + 1),
+                status: 'in_progress',
+            });
+            expect(await probeTopSearchTerms(NOW)).toBe(false);
 
-        await replaceDataset({
-            nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
-            reportId: null,
-            reportRequestedAt: null,
-            status: 'idle',
+            await replaceDataset({
+                nextRefreshAt: minutesAfter(NOW, 15),
+                reportId: 'expired-pending-report',
+                reportRequestedAt: topSearchTermsPendingCeiling(),
+                status: 'in_progress',
+            });
+            expect(await probeTopSearchTerms(NOW)).toBe(true);
+
+            await replaceDataset({
+                nextRefreshAt: minutesBefore(topSearchTermsDueAt()),
+                reportId: null,
+                reportRequestedAt: null,
+                status: 'idle',
+            });
+            expect(await probeTopSearchTerms(NOW)).toBe(true);
         });
-        expect(await probeTopSearchTerms(NOW)).toBe(true);
-    });
-});
+    }
+);
 
 const minutesBefore = (date: Date, minutes = 1) => new Date(date.getTime() - minutes * MINUTE_MS);
 
@@ -161,13 +164,16 @@ const insertCatalogQuery = async ({
 }) => {
     await db.insert(catalogQueries).values({
         activeUntil,
+        tier: activeUntil && activeUntil > NOW ? 'warm' : 'stored',
+        nextDueAt: latestSuccessfulRunAt
+            ? new Date(latestSuccessfulRunAt.getTime() + CATALOG_QUERY_REFRESH_INTERVAL_MS)
+            : createdAt,
         createdAt,
         displayTerm: term,
         latestSuccessfulRunAt,
         marketplaceId: SPAPI_US_MARKETPLACE_ID,
         nextRefreshAttemptAt,
         normalizedTerm: term,
-        page: 0,
         source: 'keepa',
     });
 };

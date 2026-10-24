@@ -2,6 +2,9 @@
 
 Typed tRPC client for the RankWrangler public agent API.
 
+Unified search and `keyword.results` below describe prepared source changes. Database migration,
+package release, and production deployment are pending.
+
 ```bash
 npm install @rankwrangler/http-client
 ```
@@ -19,7 +22,11 @@ const product = await client.product.get.mutate({
     asin: 'B0DV53VS61',
 });
 
-const search = await client.product.search.mutate({
+const search = await client.product.search.query({
+    term: 'retro gardening shirt',
+});
+
+const observedResults = await client.keyword.results.mutate({
     term: 'retro gardening shirt',
 });
 
@@ -35,12 +42,14 @@ const keywords = await client.keyword.search.query({
 });
 ```
 
-The client is scoped to the public surface (`api.public.*`). It exposes Product
-`get/search/history` and keyword `get/search/history`; it does not expose Catalog, Operation,
-polling procedures. Product `get` and `history`, plus keyword reads, expose no refresh controls;
-Product search retains its separate search contract. Product `get` returns the provider-neutral
-current Product shape; Product `history` returns compact rank/price series. `NOT_FOUND` and retryable
-`TIMEOUT` errors are preserved from tRPC, with retry hints on temporary unavailability.
+The client is scoped to `api.public.*`. Product `search` reads the stored catalog and returns
+`{ items, nextCursor, coverage }` without provider calls. Its optional term, filters, and sorting
+screen compact Products with market metrics. `keyword.results` preserves dated external search
+evidence and can wait for collection under the existing 24-hour reuse policy.
+
+Product `get` returns the current Product. `getMany` returns basic listing data, and `history`
+returns compact rank and price series. Brand Analytics keyword `get`, `search`, and `history`
+remain separate from observed search results. Retryable `TIMEOUT` errors preserve retry hints.
 
 ## Types
 

@@ -162,7 +162,8 @@ export const useProductHistoryPanelData = ({
 			}
 
 			await Promise.all([
-				utils.api.app.recentProducts.invalidate(),
+				utils.api.app.product.search.invalidate(),
+				utils.api.app.product.searchMetadata.invalidate(),
 				utils.api.app.getProductFacets.invalidate({
 					marketplaceId: product.marketplaceId,
 					asin: product.asin,

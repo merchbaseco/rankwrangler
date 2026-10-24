@@ -1,40 +1,21 @@
-import { TRPCError } from '@trpc/server';
-import { publicCatalogSearchInput } from '@/api/catalog-input';
+import { productSearchInput } from '@/api/product-search-input';
 import { publicApiProcedure } from '@/api/trpc';
-import { CatalogSearchBillingError } from '@/services/catalog-search';
-import { awaitCatalogSearchRetrieval } from '@/services/catalog-search-retrieval';
-import { mapRetrievalError } from '@/services/retrieval-coordinator';
+import { searchProducts } from '@/services/product-search';
+import { consumeServiceAccountUsageForRequest } from './consume-service-account-usage';
 
 export interface ProductSearchProcedureDeps {
-    retrieveProductSearch: typeof awaitCatalogSearchRetrieval;
+    searchProducts: typeof searchProducts;
+    consumeServiceAccountUsageForRequest: typeof consumeServiceAccountUsageForRequest;
 }
-
 const defaultDeps: ProductSearchProcedureDeps = {
-    retrieveProductSearch: awaitCatalogSearchRetrieval,
+    searchProducts,
+    consumeServiceAccountUsageForRequest,
 };
 
 export const createProductSearchProcedure = (deps: ProductSearchProcedureDeps = defaultDeps) =>
-    publicApiProcedure.input(publicCatalogSearchInput).mutation(async ({ input, ctx, signal }) => {
-        try {
-            return await deps.retrieveProductSearch({
-                ...input,
-                serviceAccountId: ctx.accessPrincipal.id,
-                ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
-                signal,
-            });
-        } catch (error) {
-            if (error instanceof CatalogSearchBillingError) {
-                throw new TRPCError({
-                    code:
-                        error.reason === 'usageLimitExceeded'
-                            ? 'TOO_MANY_REQUESTS'
-                            : 'SERVICE_UNAVAILABLE',
-                    message: error.message,
-                    cause: error,
-                });
-            }
-            throw mapRetrievalError(error);
-        }
+    publicApiProcedure.input(productSearchInput).query(async ({ input, ctx }) => {
+        await deps.consumeServiceAccountUsageForRequest(ctx, 1);
+        return await deps.searchProducts(input);
     });
 
 export const productSearch = createProductSearchProcedure();

@@ -35,8 +35,9 @@ then `MISSING_CONFIG`. Auth commands never print the secret.
 | Command | Result |
 | --- | --- |
 | `rw product get <ASIN...>` | One full Product, or basic results when given 2–200 ASINs. |
-| `rw product search <keyword>` | Keyword, search time, and compact Product results with placement. |
+| `rw product search [text]` | Filtered, paginated Products from the collected database. |
 | `rw product history <ASIN>` | Compact bucketed Product history. |
+| `rw keyword results <keyword>` | Dated Amazon search results with placement. |
 | `rw keyword get <keyword>` | Current keyword evidence. |
 | `rw keyword search <text>` | Filtered keyword evidence. |
 | `rw keyword history <keyword>` | Keyword evidence over time. |
@@ -50,7 +51,7 @@ Catalog, Operation, plural `products`, summary, and polling commands are not par
 ## Options
 
 Public freshness policy is server-owned for Product `get/history` and keyword reads; those
-commands accept no `--refresh`. Product Search retains its separate search contract. Common options
+commands accept no `--refresh`. Only `keyword results` accepts `--refresh`. Common options
 are `--baseUrl`, `--marketplace`, and `--limit`.
 
 Product history options:
@@ -84,21 +85,52 @@ With several ASINs, `--shortName` fails with `INVALID_INPUT`; request each ASIN 
 | `--days <N>` | 30–3650; default 365. Cannot combine with explicit range bounds. |
 | `--rangeDays <N>` | Keyword history range, 7–365; default 90. |
 | `--startAt <ISO>` / `--endAt <ISO>` | Product history range bounds. |
-| `--limit <N>` | Product history max 10,000; keyword search max 100. |
-| `--cursor <N>` | Keyword search offset; default 0. |
-| `--refresh` | Product Search only; requests a replacement Search run. |
+| `--limit <N>` | Product search 1–100, default 50; Product history max 10,000; keyword search max 100. |
+| `--cursor <value>` | Product search opaque cursor from `nextCursor`; keyword search numeric offset, default 0. |
+| `--refresh` | Keyword results only; requests a replacement Search run. |
 | `-m, --marketplace <id>` | Marketplace override; Product defaults to US. |
 | `--baseUrl <origin>` | API-origin override; `/api` is normalized away. |
 
-Product Search returns the public compact projection: placement plus identity, title, brand,
-resolved thumbnail, classification, category, current sales rank, price, and
-bought-in-the-past-month evidence. It does not return full Products.
+Product search reads the collected database immediately, including when no text is supplied.
+It returns compact Product metrics and `nextCursor`, without waiting for Amazon or Keepa.
+Defaults are US marketplace, known Merch listings, active listings, and hidden known official brands.
+Unknown official-brand status remains visible. Text searches match all terms across searchable fields.
+
+```bash
+rw product search fishing --maxBsr 300000 --availableAfter 2026-09-01 --sort firstAvailableAtDesc
+rw product search --sort salesRankAsc --limit 50
+rw keyword results "fishing shirt" --refresh
+```
+
+Product search options:
+
+| Option | Values and default |
+| --- | --- |
+| `--textFields <scope>` | `all` or `title`; default `all`. |
+| `--excludeWord <word>` | Exclude a word; repeat for several words. |
+| `--brand <name>` / `--excludeBrand <name>` | Exact brand filters; repeat for several brands. |
+| `--includeOfficialBrands` | Include brands in the official-brand registry. |
+| `--merch <value>` | `true`, `false`, `unknown`, or `all`; default `true`. |
+| `--listingStatus <value>` | `active`, `deleted`, or `all`; default `active`. |
+| `--categoryId <N>` | Category ID; repeat for several categories. |
+| `--facet <facet=name>` | Facet filter; repeat for several facets. |
+| `--minBsr <N>` / `--maxBsr <N>` | Inclusive current sales-rank bounds. |
+| `--minPrice <N>` / `--maxPrice <N>` | Inclusive price bounds in minor currency units. |
+| `--minMonthlySold <N>` / `--maxMonthlySold <N>` | Inclusive bought-in-the-past-month bounds. |
+| `--availableAfter <ISO>` / `--availableBefore <ISO>` | First-available date bounds. |
+| `--discoveredAfter <ISO>` / `--discoveredBefore <ISO>` | Discovery date bounds. |
+| `--updatedAfter <ISO>` / `--updatedBefore <ISO>` | Product update date bounds. |
+| `--sort <order>` | `relevance`, `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`, `firstAvailableAtDesc`, `discoveredAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `priceAsc`, `priceDesc`, or `monthlySoldDesc`; default `relevance`. |
+
+`keyword results` preserves the separate observed-search contract. It returns the keyword, search
+time, and compact Products with placement. It reuses a recent Search run or waits for collection;
+`--refresh` requests a replacement run. This is distinct from keyword Brand Analytics evidence.
 
 Product history reports its resolved range `interval`. Requested series always contain a summary;
 empty series return `points: []` with `first`, `latest`, `min`, and `max` all `null`. Price history
 has minor-currency unit and currency code, without a scale field.
 
-Each data command returns policy-current final data or fails. Missing or policy-expired data may
+Product search returns the current database view. Other data commands return policy-current final data or fail. Missing or policy-expired data may
 wait while durable work runs, except that `product get` returns a known Product's last-known listing
 immediately and refreshes it in the background. No command exposes pending Product data, freshness, Operations,
 provider metadata, or polling state. Product output preserves `isMerchListing: true | false | null`;

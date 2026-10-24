@@ -179,7 +179,6 @@ const insertQuery = async (displayTerm: string) => {
             marketplaceId: 'ATVPDKIKX0DER',
             normalizedTerm: displayTerm.toLowerCase(),
             displayTerm,
-            page: 0,
         })
         .returning({ id: catalogQueries.id });
     if (!query) {

@@ -21,7 +21,10 @@ afterEach(() => {
 
 describe('final public CLI contract', () => {
     test('routes one or many Product get ASINs to the matching public contract', async () => {
-        const requests: Array<{ procedure: string; input: Record<string, unknown> }> = [];
+        const requests: Array<{
+            procedure: string;
+            input: Record<string, unknown>;
+        }> = [];
         const server = serve({
             port: CLI_TEST_SERVER_PORT,
             async fetch(request) {
@@ -105,7 +108,7 @@ describe('final public CLI contract', () => {
                         },
                     ]);
                 }
-                if (procedure === 'search') {
+                if (procedure === 'results') {
                     return Response.json([
                         {
                             result: {
@@ -157,7 +160,7 @@ describe('final public CLI contract', () => {
                 }
             );
             const searchResult = await spawnCliAsync(
-                ['product', 'search', 'retro', 'gardening', 'shirt', ...searchArgs],
+                ['keyword', 'results', 'retro', 'gardening', 'shirt', ...searchArgs],
                 { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
             );
             const historyResult = await spawnCliAsync(
@@ -215,7 +218,7 @@ describe('final public CLI contract', () => {
                     },
                 },
                 {
-                    procedure: 'search',
+                    procedure: 'results',
                     input: { term: 'retro gardening shirt', refresh: true },
                 },
                 {
@@ -293,6 +296,7 @@ describe('final public CLI contract', () => {
             ['product', 'get', 'B012345678', '--refresh'],
             ['product', 'get', 'B012345678', 'B087654321', '--refresh'],
             ['product', 'history', 'B012345678', '--refresh'],
+            ['product', 'search', 'shirt', '--refresh'],
             ['keyword', 'get', 'garden shirt', '--refresh'],
         ];
 

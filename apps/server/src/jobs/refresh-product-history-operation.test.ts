@@ -1,7 +1,8 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { TRPCError } from '@trpc/server';
-import type { OperationRecord } from '@/services/operations.js';
-import { runProductHistoryOperation } from './refresh-product-history-operation.js';
+import type { OperationRecord } from '@/services/operations';
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
+import { runProductHistoryOperation } from './refresh-product-history-operation';
 
 describe('Product-history Operation worker', () => {
     it('persists history and successful completion through one atomic load call', async () => {
@@ -56,16 +57,36 @@ describe('Product-history Operation worker', () => {
         expect(deps.notifyCompleted.mock.calls).toHaveLength(0);
     });
 
+    it('keeps a capacity-deferred manual receipt pending for durable recovery without recording a failure', async () => {
+        const operation = createPendingOperation();
+        const deps = createDeps({
+            claimOperationWork: () => Promise.resolve(operation),
+            loadHistory: () =>
+                Promise.reject(
+                    new KeepaCapacityDeferredError('rolling-share', new Date(Date.now() + 60_000))
+                ),
+        });
+        expect(await runProductHistoryOperation(operation.id, deps)).toEqual({
+            didWork: false,
+            status: 'deferred_capacity',
+        });
+        expect(deps.releaseOperationWork.mock.calls).toEqual([[operation.id]]);
+        expect(deps.completeWithError).not.toHaveBeenCalled();
+        expect(deps.createEventLogSafe).not.toHaveBeenCalled();
+        expect(deps.notifyCompleted).not.toHaveBeenCalled();
+    });
+
     it('completes exhausted provider failure with a sanitized error', async () => {
         const operation = createPendingOperation();
         const deps = createDeps({
             claimOperationWork: async () => operation,
-            loadHistory: async () => {
-                throw new TRPCError({
-                    code: 'BAD_GATEWAY',
-                    message: 'Keepa payload included secret diagnostics',
-                });
-            },
+            loadHistory: () =>
+                Promise.reject(
+                    new TRPCError({
+                        code: 'BAD_GATEWAY',
+                        message: 'Keepa payload included secret diagnostics',
+                    })
+                ),
         });
 
         const result = await runProductHistoryOperation(operation.id, deps);

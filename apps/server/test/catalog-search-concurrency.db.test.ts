@@ -79,7 +79,6 @@ describeCatalogDb('Catalog search transaction boundaries', () => {
                 marketplaceId: 'ATVPDKIKX0DER',
                 normalizedTerm: 'shirts',
                 displayTerm: 'shirts',
-                page: 0,
             })
             .returning({ id: catalogQueries.id });
         if (!query) {

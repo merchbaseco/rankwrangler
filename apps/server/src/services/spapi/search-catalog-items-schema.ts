@@ -70,6 +70,9 @@ export const ItemSchema = z.object({
 
 export const ItemSearchResultsSchema = z.object({
     items: z.array(ItemSchema),
+    pagination: z
+        .object({ nextToken: z.string().optional(), previousToken: z.string().optional() })
+        .optional(),
 });
 
 export const getMarketplaceBulletEvidence = (

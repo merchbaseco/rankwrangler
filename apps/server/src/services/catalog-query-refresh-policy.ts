@@ -49,7 +49,11 @@ export const deriveCatalogQueryStatus = ({
     hasPendingOperation,
     hasFailedOperation,
     now,
+    tier,
+    nextDueAt,
 }: {
+    tier?: string;
+    nextDueAt?: Date | null;
     activeUntil: Date | null;
     latestSuccessfulRunAt: Date | null;
     nextRefreshAttemptAt: Date | null;
@@ -57,7 +61,7 @@ export const deriveCatalogQueryStatus = ({
     hasFailedOperation: boolean;
     now: Date;
 }): CatalogQueryStatus => {
-    if (!isCatalogQueryActive({ activeUntil, now })) {
+    if (tier === 'stored' || (!tier && !isCatalogQueryActive({ activeUntil, now }))) {
         return 'inactive';
     }
     if (hasPendingOperation) {
@@ -69,11 +73,16 @@ export const deriveCatalogQueryStatus = ({
     if (nextRefreshAttemptAt && nextRefreshAttemptAt > now) {
         return 'deferred';
     }
-    if (isCatalogQueryDue({ activeUntil, latestSuccessfulRunAt, now })) {
+    if (
+        tier
+            ? !nextDueAt || nextDueAt <= now
+            : isCatalogQueryDue({ activeUntil, latestSuccessfulRunAt, now })
+    ) {
         return 'due';
     }
     if (
         activeUntil &&
+        activeUntil > now &&
         activeUntil.getTime() - now.getTime() <= CATALOG_QUERY_EXPIRING_SOON_WINDOW_MS
     ) {
         return 'expiringSoon';

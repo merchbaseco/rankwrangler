@@ -29,7 +29,7 @@ Product is stale.
 
 ## Automatic Eligibility
 
-Automatic Keepa collection applies only to Products classified as Merch with a numeric BSR:
+Automatic Keepa collection requires an admitted, active Product classified as Merch with a numeric BSR:
 
 | Current root-category BSR | Schedule |
 | --- | --- |
@@ -67,3 +67,33 @@ dashboard retains its existing source-aware and Operation-shaped contracts. The 
 worker calls the shared Keepa ingestion path rather than writing the scheduled queue. It can load
 Products outside automatic BSR eligibility but still respects the 24-hour guard. Retryable provider
 failures are exhausted in the worker, outside the initiating HTTP request.
+
+## History admission
+
+Migration 0040 locks Product writes, records a baseline receipt and admits every existing identity,
+including unknown and non-Merch Products. Eligibility still applies at dispatch. New identities
+start `notAdmitted`; receiving incidental history does not create a recurring subscription.
+
+The minute admission job uses measured Product cost and observed refill rate. Forecast daily and
+weekly obligations must stay below 90% of the protected history allocation. Capacity pauses new
+admissions without revoking existing admissions. Existing eligible history seven days overdue also
+pauses new admissions; this conservative observation is not proof of a continuous seven-day deficit.
+Explicit history reads remain available outside standing admission.
+
+## Protected capacity
+
+Every physical Keepa request reserves capacity durably just before dispatch. Errors, empty results
+and ingestion failures retain their provider cost; missing accounting retains the reservation for
+its rolling window. Provider attempts are independent of Product import success.
+
+Rolling hourly refill shares are interactive 20%, history 50%, keyword heads 20%, discovery 10%.
+The interactive floor is measured head cost plus ten measured Product costs. Background work
+cannot cross it. Head/history lending requires the other queue to have no due work; borrowing unused
+interactive allocation also requires no waiting interactive request and twice the floor remaining.
+Discovery never borrows. Initial caps are fifty head requests and twenty discovery requests per day,
+with at most ten discovery requests per keyword per day. SP-API exploration has separate caps.
+Unknown costs permit only bounded interactive measurements; background work waits for measurements.
+
+Listing breadth comes from SP-API without enrolling every discovered Product in Keepa. Active Merch
+Products without BSR and unknown classifications receive bounded SP-API probation and later cold
+rechecks; known non-Merch and deleted Products do not enter an automatic blindspot sweep.

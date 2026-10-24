@@ -85,6 +85,26 @@ confirmed sale.
 _Avoid_: Sale, unit sold
 
 **Keyword interest**:
-A decaying indication that callers still value Search runs for a Catalog query. It enables bounded
-automatic collection without creating a permanent rank-tracking subscription.
+A decaying indication that a researcher values a keyword. It is distinct from buyer demand for
+that keyword and from how thoroughly its results have been observed.
 _Avoid_: Subscription, tracked keyword
+
+**Keyword popularity**:
+Evidence of relative buyer interest in a keyword. Search-frequency rank is a popularity signal,
+not an absolute search-volume measurement.
+_Avoid_: API usage, research interest, search volume
+
+**Collection coverage**:
+The dated scope of keyword results actually observed, including the source and observed depth.
+It does not establish exhaustive marketplace coverage.
+_Avoid_: Catalog match count, market completeness
+
+**Keyword head check**:
+An observation of the first page of results for a keyword. It is distinct from exploration of
+deeper results and from checking individual Products.
+_Avoid_: Full niche scan, Product refresh
+
+**History admission**:
+A Product's standing eligibility for recurring history collection. Possessing history or requesting
+it once does not by itself establish admission.
+_Avoid_: History availability, history freshness

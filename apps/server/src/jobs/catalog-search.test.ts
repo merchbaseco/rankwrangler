@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { TRPCError } from '@trpc/server';
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 import type { OperationRecord } from '@/services/operations';
 
 describe('Catalog search worker', () => {
@@ -93,6 +94,22 @@ describe('Catalog search worker', () => {
                 },
             ],
         ]);
+    });
+
+    it('defers budget-limited work without recording a provider failure or fresh observation', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
+        const deps = createDeps({
+            searchProvider: async () => {
+                throw new KeepaCapacityDeferredError('discovery share', new Date());
+            },
+        });
+        expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
+            didWork: false,
+            status: 'deferred_capacity',
+        });
+        expect(deps.persistSuccess.mock.calls).toHaveLength(0);
+        expect(deps.completeWithError.mock.calls).toHaveLength(0);
+        expect(deps.releaseOperationWork.mock.calls).toHaveLength(1);
     });
 
     it('persists a visible zero-result run', async () => {
@@ -256,11 +273,15 @@ const loadSubject = async () => {
 };
 
 const seedRequiredEnvForTests = () => {
-    process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN = process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN ?? 'test-refresh';
-    process.env.RANKWRANGLER_SPAPI_CLIENT_ID = process.env.RANKWRANGLER_SPAPI_CLIENT_ID ?? 'test-client';
-    process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET = process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
+    process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN =
+        process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN ?? 'test-refresh';
+    process.env.RANKWRANGLER_SPAPI_CLIENT_ID =
+        process.env.RANKWRANGLER_SPAPI_CLIENT_ID ?? 'test-client';
+    process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET =
+        process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
     process.env.MERCHBASE_CLERK_SECRET_KEY = process.env.MERCHBASE_CLERK_SECRET_KEY ?? 'test-clerk';
-    process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY = process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
+    process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY =
+        process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
     process.env.MERCHBASE_CLERK_JWT_KEY = process.env.MERCHBASE_CLERK_JWT_KEY ?? 'test-jwt-key';
     process.env.MERCHBASE_CLERK_ISSUER = process.env.MERCHBASE_CLERK_ISSUER ?? 'https://clerk.test';
     process.env.RANKWRANGLER_CLERK_AUTHORIZED_PARTIES =

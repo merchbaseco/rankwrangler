@@ -11,10 +11,16 @@ export const runKeywordCommand = async (
     options: CliOptionValues,
     fail: CliFail
 ): Promise<unknown> => {
-    if (options.refresh) {
-        fail('INVALID_INPUT', '--refresh is not supported for keyword reads');
+    if (command.verb !== 'results' && options.refresh) {
+        fail('INVALID_INPUT', '--refresh is only supported for keyword results');
     }
 
+    if (command.verb === 'results') {
+        return await client.keyword.results.mutate({
+            term: requireKeyword(command.args, fail, 'keyword results'),
+            refresh: Boolean(options.refresh),
+        });
+    }
     if (command.verb === 'get') {
         return await runKeywordGet(command.args, client, fail);
     }

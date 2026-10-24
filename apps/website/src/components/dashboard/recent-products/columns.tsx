@@ -114,6 +114,7 @@ export const createColumns = ({
 	},
 	{
 		accessorKey: "asin",
+		enableSorting: false,
 		cell: ({ row }) => (
 			<div className="flex items-center gap-1.5">
 				<span className="text-foreground font-mono text-xs">
@@ -130,6 +131,7 @@ export const createColumns = ({
 	},
 	{
 		accessorKey: "title",
+		enableSorting: false,
 		cell: ({ row }) => (
 			<div className="min-w-0">
 				<span className="line-clamp-1 text-xs font-medium text-foreground">
@@ -145,6 +147,7 @@ export const createColumns = ({
 	},
 	{
 		accessorKey: "bullet1",
+		enableSorting: false,
 		cell: ({ row }) => (
 			<span className="text-muted-foreground line-clamp-2 text-xs">
 				{row.getValue("bullet1") ?? "--"}
@@ -156,6 +159,7 @@ export const createColumns = ({
 	},
 	{
 		accessorKey: "bullet2",
+		enableSorting: false,
 		cell: ({ row }) => (
 			<span className="text-muted-foreground line-clamp-2 text-xs">
 				{row.getValue("bullet2") ?? "--"}
@@ -214,6 +218,7 @@ export const createColumns = ({
 	},
 	{
 		accessorKey: "marketplaceId",
+		enableSorting: false,
 		cell: ({ row }) => {
 			const marketplaceId = row.getValue("marketplaceId") as string;
 			return (
@@ -234,7 +239,6 @@ export const createColumns = ({
 			</span>
 		),
 		header: "Updated",
-		invertSorting: true,
 		meta: { align: "right" },
 		size: 110,
 	},

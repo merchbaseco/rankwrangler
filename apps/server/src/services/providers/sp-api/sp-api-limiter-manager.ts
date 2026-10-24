@@ -51,7 +51,10 @@ interface ManagedLimiterConfig {
 export class SpApiLimiterManager {
     private readonly limiterConfigs: Record<SpApiLimiterOperationId, OperationLimiterConfig>;
 
-    constructor(configs: ManagedLimiterConfig[]) {
+    constructor(
+        configs: ManagedLimiterConfig[],
+        private readonly captureAttempt: typeof captureProviderAttempt = captureProviderAttempt
+    ) {
         this.limiterConfigs = configs.reduce(
             (acc, config) => {
                 acc[config.operationId] = {
@@ -76,16 +79,19 @@ export class SpApiLimiterManager {
         operation,
         operationId,
         run,
+        maxAttempts,
     }: {
         ensureAccessTokenFreshness: () => Promise<void>;
         operation: string;
         operationId: SpApiLimiterOperationId;
         run: () => Promise<T>;
+        maxAttempts?: number;
     }) => {
         const config = this.limiterConfigs[operationId];
 
         return await runWithSpApiBackoff({
             operation,
+            maxAttempts,
             run: async () => {
                 return await scheduleWithQueueDeadline({
                     limiter: config.limiter,
@@ -94,7 +100,7 @@ export class SpApiLimiterManager {
                     task: async () => {
                         await ensureAccessTokenFreshness();
                         try {
-                            const result = await captureProviderAttempt(
+                            const result = await this.captureAttempt(
                                 {
                                     provider: 'spapi',
                                     operation: mapTelemetryOperation(operationId),

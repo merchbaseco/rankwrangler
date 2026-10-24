@@ -57,6 +57,11 @@ if [ -n "$MERCHBASE_API_KEY" ]; then
     echo "🧾 Merch fields (public):"
     echo "$public_product_info_response" | jq '.result.data.json.summary | {isMerchListing, bullet1, bullet2}'
     echo ""
+    echo "🔍 Testing api.public.product.search..."
+    curl -s -G "$API_BASE/api/api.public.product.search" \
+      -H "Authorization: Bearer $MERCHBASE_API_KEY" \
+      --data-urlencode 'input={"term":"fishing","salesRank":{"max":300000},"limit":5}' | jq '.'
+    echo ""
     echo "📈 Testing api.public.product.history..."
     curl -s -X POST "$API_BASE/api/api.public.product.history" \
       -H "Content-Type: application/json" \
@@ -78,14 +83,12 @@ fi
 if [ -n "$RR_CLERK_TOKEN" ]; then
     echo "🔐 Testing Clerk-authenticated app API..."
     echo ""
-    echo "📦 Testing api.app.amazon.product.search..."
-    app_product_info_response=$(curl -s -X POST "$API_BASE/api/api.app.amazon.product.search" \
-      -H "Content-Type: application/json" \
+    echo "📦 Testing api.app.product.search..."
+    app_product_info_response=$(curl -s -G "$API_BASE/api/api.app.product.search" \
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
-      -d '{"input": {"marketplaceId": "ATVPDKIKX0DER", "asin": "B0DV53VS61"}}')
+      --data-urlencode 'input={"term":"fishing","limit":5}')
     echo "$app_product_info_response" | jq '.'
-    echo "🧾 Merch fields (app):"
-    echo "$app_product_info_response" | jq '.result.data.json | {isMerchListing, bullet1, bullet2}'
+
     echo ""
     echo "📈 Testing api.app.loadProductHistory..."
     curl -s -X POST "$API_BASE/api/api.app.loadProductHistory" \

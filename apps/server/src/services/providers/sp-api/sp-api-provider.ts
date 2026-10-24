@@ -149,21 +149,27 @@ export class SpApiProvider {
         keyword,
         marketplaceId,
         pageSize,
+        pageToken,
+        maxAttempts,
     }: {
         keyword: string;
         marketplaceId: string;
         pageSize: number;
+        pageToken?: string;
+        maxAttempts?: number;
     }) => {
         return await this.limiterManager.runOperation({
             ensureAccessTokenFreshness: async () =>
                 await this.ensureAccessTokenFreshness(this.catalog),
             operation: `search catalog by keyword (${marketplaceId}, ${keyword})`,
+            maxAttempts,
             operationId: 'catalog.searchCatalogItems',
             run: async () =>
                 await this.catalogApi.searchCatalogItems([marketplaceId], {
                     keywords: [keyword],
                     includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
                     pageSize,
+                    pageToken,
                 }),
         });
     };

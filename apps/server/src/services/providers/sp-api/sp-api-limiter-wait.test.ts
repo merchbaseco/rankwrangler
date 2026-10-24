@@ -37,6 +37,41 @@ describe('scheduleWithQueueDeadline', () => {
 });
 
 describe('SpApiLimiterManager queue deadline', () => {
+    it('limits durable discovery to one physical attempt while allowing the caller to retry later', async () => {
+        const limiter = new Bottleneck({ maxConcurrent: 1 });
+        const manager = new SpApiLimiterManager(
+            [
+                {
+                    burstCapacity: 2,
+                    configuredRps: 2,
+                    label: 'Catalog Search',
+                    limiter,
+                    maxConcurrent: 1,
+                    maxQueueWaitMs: 1000,
+                    operationId: 'catalog.searchCatalogItems',
+                },
+            ],
+            async (_descriptor, task) => await task()
+        );
+        const run = mock(async () => {
+            throw Object.assign(new Error('upstream unavailable'), { status: 503 });
+        });
+        try {
+            await expect(
+                manager.runOperation({
+                    ensureAccessTokenFreshness: async () => undefined,
+                    operation: 'discovery',
+                    operationId: 'catalog.searchCatalogItems',
+                    maxAttempts: 1,
+                    run,
+                })
+            ).rejects.toThrow('after 1 attempt');
+            expect(run).toHaveBeenCalledTimes(1);
+        } finally {
+            await limiter.stop({ dropWaitingJobs: true });
+        }
+    });
+
     it('fails a wedged Catalog limiter with the named error instead of retrying', async () => {
         const limiter = new Bottleneck({ maxConcurrent: 2, reservoir: 0 });
         const manager = new SpApiLimiterManager([

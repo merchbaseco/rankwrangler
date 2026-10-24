@@ -1,8 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-	filterProducts,
-	hydrateProducts,
-} from "@/components/dashboard/recent-products/filter-utils";
+import { hydrateProducts } from "@/components/dashboard/recent-products/filter-utils";
 
 const baseProduct = {
 	asin: "B0MERCH001",
@@ -27,29 +24,5 @@ describe("hydrateProducts", () => {
 
 		expect(product.updatedAt).toBe(updatedAt);
 		expect(product.updatedAtMs).toBe(Date.parse(updatedAt));
-	});
-});
-
-describe("filterProducts", () => {
-	it("filters on the composite Product update time shown in the table", () => {
-		const now = Date.now();
-		const [product] = hydrateProducts([
-			{
-				...baseProduct,
-				updatedAt: new Date(now - 60 * 60 * 1000).toISOString(),
-			},
-		]);
-
-		const result = filterProducts({
-			activeFacetKeys: [],
-			filters: {
-				bsrRange: null,
-				marketplaceIds: [],
-				lastUpdated: "24h",
-			},
-			products: [product],
-		});
-
-		expect(result).toEqual([product]);
 	});
 });

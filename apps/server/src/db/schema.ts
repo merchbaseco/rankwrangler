@@ -208,15 +208,16 @@ export {
     catalogSearchRuns,
 } from './catalog-search-schema';
 export { rankwranglerCutoverGate } from './cutover-gate-schema';
+export { officialBrands } from './official-brand-schema';
 export {
     eventLogs,
     jobExecutionLogs,
     jobExecutions,
     operations,
 } from './ops-schema';
+export { productCutoutThumbnails } from './product-cutout-thumbnail-schema';
 export { products } from './product-schema';
 export { productShortNames } from './product-short-name-schema';
-export { productCutoutThumbnails } from './product-cutout-thumbnail-schema';
 export { providerAttempts } from './provider-telemetry-schema';
 export { rankwranglerServiceAccounts } from './service-account-schema';
 export {
@@ -224,3 +225,7 @@ export {
     topSearchTermsKeywordDaily,
     topSearchTermsSnapshots,
 } from './top-search-terms-schema';
+
+export { historyAdmissionRollouts } from './history-admission-rollout-schema';
+export { keepaCapacityState, keepaCapacityAttempts } from './keepa-capacity-schema';
+export { keywordExplorationPasses, keywordProducts, keywordDiscoveryAttempts } from './keyword-collection-schema';

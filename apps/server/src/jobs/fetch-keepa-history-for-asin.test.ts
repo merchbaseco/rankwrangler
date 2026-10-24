@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { TRPCError } from '@trpc/server';
+import { KeepaDispatchDeferredError } from '@/services/keepa-dispatch-deferred';
 
 type KeepaImportSummary = {
     importId: string;
@@ -19,45 +20,7 @@ type KeepaImportSummary = {
     errorMessage: string | null;
     responsePayload: Record<string, unknown> | null;
 };
-
-type FetchKeepaHistoryForAsinDeps = {
-    createEventLogSafe: (input: unknown) => Promise<void>;
-    loadKeepaProductHistory: (params: {
-        marketplaceId: string;
-        asin: string;
-        days: number;
-        queuePriority?: 'manual' | 'background';
-    }) => Promise<KeepaImportSummary>;
-    getKeepaHistoryDaysForAsin: (params: {
-        marketplaceId: string;
-        asin: string;
-    }) => Promise<number>;
-    getKeepaHistoryRefreshQueueItem: (params: { marketplaceId: string; asin: string }) => Promise<{
-        id: string;
-        marketplaceId: string;
-        asin: string;
-    } | null>;
-    removeKeepaHistoryRefreshQueueItem: (params: {
-        marketplaceId: string;
-        asin: string;
-    }) => Promise<void>;
-    recordKeepaHistoryRefreshFailure: (params: {
-        marketplaceId: string;
-        asin: string;
-        errorMessage: string;
-    }) => Promise<{ failureCount: number; retryDelayMs: number } | null>;
-    shouldKeepaHistoryRefreshAsin: (params: { marketplaceId: string; asin: string }) => Promise<
-        | {
-              shouldRefresh: true;
-              reason: 'never_fetched' | 'stale_product';
-          }
-        | {
-              shouldRefresh: false;
-              reason: 'fresh_product' | 'product_missing' | 'not_eligible';
-          }
-    >;
-};
-
+type FetchKeepaHistoryForAsinDeps = NonNullable<Parameters<typeof import('./fetch-keepa-history-for-asin').fetchKeepaHistoryForAsin>[1]>;
 type EventLogInput = {
     level: 'info' | 'error';
     status: 'success' | 'failed';
@@ -70,21 +33,17 @@ type EventLogInput = {
     marketplaceId: string;
     asin: string;
 };
-
 const params = {
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B012345678',
 };
-
 describe('fetchKeepaHistoryForAsin', () => {
     it('removes queue item when Keepa import succeeds', async () => {
         const { fetchKeepaHistoryForAsin } = await loadSubject();
         const { deps, calls } = createDeps({
             loadKeepaProductHistory: async () => createSummary({ status: 'success' }),
         });
-
         await fetchKeepaHistoryForAsin(params, deps);
-
         expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
         const eventLog = getSingleEventLogCall(calls.createEventLogSafe.mock.calls);
         expect(eventLog.level).toBe('info');
@@ -108,7 +67,6 @@ describe('fetchKeepaHistoryForAsin', () => {
                 });
             },
         });
-
         await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
             'Keepa returned no product history for this ASIN'
         );
@@ -132,7 +90,6 @@ describe('fetchKeepaHistoryForAsin', () => {
                 });
             },
         });
-
         await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow(
             'Keepa request failed'
         );
@@ -151,7 +108,6 @@ describe('fetchKeepaHistoryForAsin', () => {
         const { deps, calls } = createDeps({
             loadKeepaProductHistory: async () => createSummary({ status: 'error' }),
         });
-
         await expect(fetchKeepaHistoryForAsin(params, deps)).rejects.toThrow('Keepa import failed');
         expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(0);
         expect(calls.recordKeepaHistoryRefreshFailure.mock.calls).toHaveLength(1);
@@ -163,6 +119,26 @@ describe('fetchKeepaHistoryForAsin', () => {
         expect(eventLog.detailsJson.source).toBe('keepa_background_job');
     });
 
+    it('rechecks standing eligibility at provider dispatch and does not retry a withdrawal', async () => {
+        const { fetchKeepaHistoryForAsin } = await loadSubject();
+        let checks = 0;
+        const { deps, calls } = createDeps({
+            shouldKeepaHistoryRefreshAsin: async () =>
+                ++checks === 1
+                    ? { shouldRefresh: true, reason: 'stale_product' }
+                    : { shouldRefresh: false, reason: 'not_admitted' },
+            loadKeepaProductHistory: async ({ canDispatch }) => {
+                expect(await canDispatch?.()).toBe(false);
+                throw new KeepaDispatchDeferredError();
+            },
+        });
+        await fetchKeepaHistoryForAsin(params, deps);
+        expect(checks).toBe(2);
+        expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
+        expect(calls.recordKeepaHistoryRefreshFailure.mock.calls).toHaveLength(0);
+        expect(calls.createEventLogSafe.mock.calls).toHaveLength(0);
+    });
+
     it('removes queue item when ASIN is no longer eligible', async () => {
         const { fetchKeepaHistoryForAsin } = await loadSubject();
         const { deps, calls } = createDeps({
@@ -171,9 +147,7 @@ describe('fetchKeepaHistoryForAsin', () => {
                 reason: 'not_eligible',
             }),
         });
-
         await fetchKeepaHistoryForAsin(params, deps);
-
         expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
         expect(calls.loadKeepaProductHistory.mock.calls).toHaveLength(0);
         expect(calls.createEventLogSafe.mock.calls).toHaveLength(0);
@@ -187,7 +161,6 @@ describe('fetchKeepaHistoryForAsin', () => {
                 reason: 'fresh_product',
             }),
         });
-
         await fetchKeepaHistoryForAsin(params, deps);
 
         expect(calls.removeKeepaHistoryRefreshQueueItem.mock.calls).toHaveLength(1);
@@ -203,11 +176,15 @@ const getSingleEventLogCall = (calls: unknown[][]) => {
 
 const createDeps = (overrides: Partial<FetchKeepaHistoryForAsinDeps> = {}) => {
     const calls = {
+        deferKeepaHistory: mock(async () => {}),
         createEventLogSafe: mock(async () => {}),
         loadKeepaProductHistory: mock(async () => createSummary({ status: 'success' })),
         getKeepaHistoryDaysForAsin: mock(async () => 365),
         getKeepaHistoryRefreshQueueItem: mock(async () => ({
             id: 'queue-1',
+            nextAttemptAt: new Date(),
+            createdAt: new Date(),
+            attemptCount: 0,
             marketplaceId: params.marketplaceId,
             asin: params.asin,
         })),
@@ -266,11 +243,15 @@ const loadSubject = async () => {
 };
 
 const seedRequiredEnvForTests = () => {
-    process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN = process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN ?? 'test-refresh';
-    process.env.RANKWRANGLER_SPAPI_CLIENT_ID = process.env.RANKWRANGLER_SPAPI_CLIENT_ID ?? 'test-client';
-    process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET = process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
+    process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN =
+        process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN ?? 'test-refresh';
+    process.env.RANKWRANGLER_SPAPI_CLIENT_ID =
+        process.env.RANKWRANGLER_SPAPI_CLIENT_ID ?? 'test-client';
+    process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET =
+        process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
     process.env.MERCHBASE_CLERK_SECRET_KEY = process.env.MERCHBASE_CLERK_SECRET_KEY ?? 'test-clerk';
-    process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY = process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
+    process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY =
+        process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
     process.env.MERCHBASE_CLERK_JWT_KEY = process.env.MERCHBASE_CLERK_JWT_KEY ?? 'test-jwt-key';
     process.env.MERCHBASE_CLERK_ISSUER = process.env.MERCHBASE_CLERK_ISSUER ?? 'https://clerk.test';
     process.env.RANKWRANGLER_CLERK_AUTHORIZED_PARTIES =

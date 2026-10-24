@@ -39,7 +39,12 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Top Search Terms snapshot | `(datasetId, observedDate)` | One fetched daily observation of a dataset. |
 | Search-term row | `(snapshotId, searchTerm)` | Rank and top-three click/conversion shares for one term in one snapshot. |
 | Operation | generated id; unique pending `(type, targetKey)` | Durable coordination record and terminal resource or safe error. |
-| Catalog query | `(source, marketplaceId, normalizedTerm, page)` | Shared external-search identity, 30-day activity lease, refresh-attempt timestamps, and latest successful-run watermark. |
+| Catalog query | `(source, marketplaceId, normalizedTerm)` | Term interest, bounded admission, tier, demand evidence, research lease and next check. |
+| Keyword membership | `(queryId, productId)` | First and latest observed membership across sources. |
+| Exploration pass | generated id, at most one active per query | SP-API continuation, claimed execution, dated depth and stop reason. |
+| Discovery attempt | generated id | Durable physical-attempt reservation for SP-API exploration caps. |
+| Keepa capacity attempt | generated id | Work class, reserved and actual token cost independent of ingestion success. |
+| History admission receipt | rollout key | Atomic baseline time and count of grandfathered Product identities. |
 | Search run | generated id | One immutable successful provider execution, including zero-result runs, with `trigger: requested | automatic`. |
 | Search result | `(runId, productId)` | Immutable Search-run membership, Product ordinal, and observed metrics. |
 | Activity event | generated id | Searchable record of a product, history, job, or system action. |
@@ -75,12 +80,12 @@ one pending `catalogSearch` Operation exists per Catalog query. Product
 history, its successful import audit, Product freshness, and successful Operation completion commit
 atomically. A schema migration for the Operations table must be generated before deployment.
 Catalog-search success similarly commits Products, histories, the Search run/results, query
-watermark, and `catalogSearchRun` Operation resource atomically. A product-search request renews
-the query activity lease even when a cached run is reused; automatic refresh only considers active
-queries and never backfills expired interest.
+watermark, and `catalogSearchRun` Operation resource atomically. An explicit `keyword.results`
+request renews the research lease even when reusing a run. General `product.search` records interest
+without extending that lease. Background scheduling uses admitted tiers and persisted due dates.
 
 Catalog run reads never reconstruct observations from Product. Retained membership and placement
-remain independent from current canonical Product state. Public Product search waits for every
+remain independent from current canonical Product state. Public keyword-results retrieval waits for every
 result's compact current Search projection; dashboard run-history reads may expose unresolved
 current state separately.
 

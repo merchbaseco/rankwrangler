@@ -17,8 +17,7 @@ export const getCatalogQuery = async (normalizedTerm: string, now = new Date()) 
             and(
                 eq(catalogQueries.source, CATALOG_SOURCE),
                 eq(catalogQueries.marketplaceId, 'ATVPDKIKX0DER'),
-                eq(catalogQueries.normalizedTerm, normalizedTerm),
-                eq(catalogQueries.page, 0)
+                eq(catalogQueries.normalizedTerm, normalizedTerm)
             )
         )
         .limit(1);
@@ -29,7 +28,7 @@ export const getCatalogQuery = async (normalizedTerm: string, now = new Date()) 
     const [latestRun] = await db
         .select()
         .from(catalogSearchRuns)
-        .where(eq(catalogSearchRuns.queryId, query.id))
+        .where(and(eq(catalogSearchRuns.queryId, query.id), eq(catalogSearchRuns.page, 0)))
         .orderBy(desc(catalogSearchRuns.sourceCompletedAt), desc(catalogSearchRuns.id))
         .limit(1);
     const [latestOperation] = await db
@@ -41,7 +40,7 @@ export const getCatalogQuery = async (normalizedTerm: string, now = new Date()) 
     const [observationCount] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(catalogSearchRuns)
-        .where(eq(catalogSearchRuns.queryId, query.id));
+        .where(and(eq(catalogSearchRuns.queryId, query.id), eq(catalogSearchRuns.page, 0)));
 
     return mapCatalogQuery({
         query,
@@ -73,10 +72,7 @@ export const listCatalogQueries = async ({
             },
         })
         .from(catalogQueries)
-        .leftJoin(
-            latestOperations,
-            sql`${latestOperations.targetKey} = ${catalogQueries.id}::text`
-        )
+        .leftJoin(latestOperations, sql`${latestOperations.targetKey} = ${catalogQueries.id}::text`)
         .where(search ? buildCatalogQuerySearch(search) : undefined)
         .orderBy(
             buildCatalogQueryStatusOrderSql(status),
@@ -101,16 +97,15 @@ export const listCatalogQueries = async ({
         loadCatalogQuerySummary({ search, now }),
     ]);
     const counts = new Map(runCounts.map(row => [row.queryId, row.count]));
-    const items = queryRows
-        .map(row =>
-            mapCatalogQuery({
-                query: row.query,
-                latestOperation: row.latestOperation,
-                latestRun: null,
-                observationCount: counts.get(row.query.id) ?? 0,
-                now,
-            })
-        );
+    const items = queryRows.map(row =>
+        mapCatalogQuery({
+            query: row.query,
+            latestOperation: row.latestOperation,
+            latestRun: null,
+            observationCount: counts.get(row.query.id) ?? 0,
+            now,
+        })
+    );
 
     return { items, summary };
 };
@@ -153,7 +148,11 @@ const mapCatalogQuery = ({
         marketplaceId: query.marketplaceId,
         normalizedTerm: query.normalizedTerm,
         displayTerm: query.displayTerm,
-        page: query.page,
+        page: 0,
+        tier: query.tier,
+        admissionReason: query.admissionReason,
+        demandPercentile: query.demandPercentile,
+        demandObservedAt: query.demandObservedAt?.toISOString() ?? null,
         lastRequestedAt: query.lastRequestedAt?.toISOString() ?? null,
         activeUntil: query.activeUntil?.toISOString() ?? null,
         latestSuccessfulRunAt: query.latestSuccessfulRunAt?.toISOString() ?? null,
@@ -161,6 +160,8 @@ const mapCatalogQuery = ({
         lastRefreshAttemptAt: query.lastRefreshAttemptAt?.toISOString() ?? null,
         nextRefreshAt: getNextCatalogRefreshAt(query, now)?.toISOString() ?? null,
         status: deriveCatalogQueryStatus({
+            tier: query.tier,
+            nextDueAt: query.nextDueAt,
             activeUntil: query.activeUntil,
             latestSuccessfulRunAt: query.latestSuccessfulRunAt,
             nextRefreshAttemptAt: query.nextRefreshAttemptAt,
@@ -182,21 +183,14 @@ const buildCatalogQuerySearch = (search: string) => {
 };
 
 const getNextCatalogRefreshAt = (query: typeof catalogQueries.$inferSelect, now: Date) => {
-    if (!query.activeUntil || query.activeUntil <= now) {
-        return null;
-    }
-    if (query.nextRefreshAttemptAt && query.nextRefreshAttemptAt > now) {
-        return query.nextRefreshAttemptAt;
-    }
-    if (query.latestSuccessfulRunAt) {
-        return new Date(
-            Math.max(
-                now.getTime(),
-                query.latestSuccessfulRunAt.getTime() + CATALOG_QUERY_REFRESH_INTERVAL_MS
-            )
-        );
-    }
-    return now;
+    if (query.tier === 'stored') return null;
+    return new Date(
+        Math.max(
+            now.getTime(),
+            query.nextDueAt?.getTime() ?? now.getTime(),
+            query.nextRefreshAttemptAt?.getTime() ?? 0
+        )
+    );
 };
 
 const escapeLikePattern = (value: string) => value.replace(/[\\%_]/g, '\\$&');
@@ -218,14 +212,11 @@ const buildCatalogQueryStatusSql = (
     latestOperation: ReturnType<typeof buildLatestCatalogOperations>,
     now: Date
 ) => {
-    const dueAtOrBefore = new Date(now.getTime() - CATALOG_QUERY_REFRESH_INTERVAL_MS);
     const expiringAtOrBefore = new Date(now.getTime() + CATALOG_QUERY_REFRESH_INTERVAL_MS);
     const nowParam = sql.param(now, catalogQueries.activeUntil);
-    const dueParam = sql.param(dueAtOrBefore, catalogQueries.latestSuccessfulRunAt);
     const expiringParam = sql.param(expiringAtOrBefore, catalogQueries.activeUntil);
     return sql<CatalogQueryView['status']>`case
-        when ${catalogQueries.activeUntil} is null or ${catalogQueries.activeUntil} <= ${nowParam}
-            then 'inactive'
+        when ${catalogQueries.tier} = 'stored' then 'inactive'
         when ${latestOperation.status} = 'pending' then 'pending'
         when ${latestOperation.status} = 'completed'
             and ${latestOperation.error} is not null
@@ -234,10 +225,10 @@ const buildCatalogQueryStatusSql = (
                 or ${latestOperation.completedAt} > ${catalogQueries.latestSuccessfulRunAt})
             then 'failed'
         when ${catalogQueries.nextRefreshAttemptAt} > ${nowParam} then 'deferred'
-        when ${catalogQueries.latestSuccessfulRunAt} is null
-            or ${catalogQueries.latestSuccessfulRunAt} <= ${dueParam}
+        when ${catalogQueries.nextDueAt} is null
+            or ${catalogQueries.nextDueAt} <= ${nowParam}
             then 'due'
-        when ${catalogQueries.activeUntil} <= ${expiringParam} then 'expiringSoon'
+        when ${catalogQueries.activeUntil} > ${nowParam} and ${catalogQueries.activeUntil} <= ${expiringParam} then 'expiringSoon'
         else 'waiting'
     end`;
 };
@@ -253,13 +244,7 @@ const buildCatalogQueryStatusOrderSql = (status: ReturnType<typeof buildCatalogQ
         else 6
     end`;
 
-const loadCatalogQuerySummary = async ({
-    search,
-    now,
-}: {
-    search?: string;
-    now: Date;
-}) => {
+const loadCatalogQuerySummary = async ({ search, now }: { search?: string; now: Date }) => {
     const latestOperations = buildLatestCatalogOperations();
     const status = buildCatalogQueryStatusSql(latestOperations, now);
     const recentAfter = new Date(now.getTime() - CATALOG_QUERY_REFRESH_INTERVAL_MS);
@@ -268,7 +253,7 @@ const loadCatalogQuerySummary = async ({
     const [summary] = await db
         .select({
             active: sql<number>`count(*) filter (
-                where ${catalogQueries.activeUntil} > ${nowParam}
+                where ${catalogQueries.tier} <> 'stored'
             )::int`,
             due: sql<number>`count(*) filter (where ${status} = 'due')::int`,
             refreshedRecently: sql<number>`count(*) filter (
@@ -281,10 +266,7 @@ const loadCatalogQuerySummary = async ({
             expiringSoon: sql<number>`count(*) filter (where ${status} = 'expiringSoon')::int`,
         })
         .from(catalogQueries)
-        .leftJoin(
-            latestOperations,
-            sql`${latestOperations.targetKey} = ${catalogQueries.id}::text`
-        )
+        .leftJoin(latestOperations, sql`${latestOperations.targetKey} = ${catalogQueries.id}::text`)
         .where(search ? buildCatalogQuerySearch(search) : undefined);
 
     return {

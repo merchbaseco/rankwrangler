@@ -29,6 +29,7 @@ const SUPPORTED_COMMANDS = new Set([
     'keyword:get',
     'keyword:search',
     'keyword:history',
+    'keyword:results',
     'auth:status',
     'auth:set',
     'auth:clear',
@@ -56,6 +57,28 @@ const { positionals, values } = parseArgs({
         cursor: { type: 'string' },
         refresh: { type: 'boolean' },
         shortName: { type: 'boolean' },
+        textFields: { type: 'string' },
+        excludeWord: { type: 'string', multiple: true },
+        brand: { type: 'string', multiple: true },
+        excludeBrand: { type: 'string', multiple: true },
+        categoryId: { type: 'string', multiple: true },
+        facet: { type: 'string', multiple: true },
+        includeOfficialBrands: { type: 'boolean' },
+        merch: { type: 'string' },
+        listingStatus: { type: 'string' },
+        sort: { type: 'string' },
+        minBsr: { type: 'string' },
+        maxBsr: { type: 'string' },
+        minPrice: { type: 'string' },
+        maxPrice: { type: 'string' },
+        minMonthlySold: { type: 'string' },
+        maxMonthlySold: { type: 'string' },
+        updatedAfter: { type: 'string' },
+        updatedBefore: { type: 'string' },
+        availableAfter: { type: 'string' },
+        availableBefore: { type: 'string' },
+        discoveredAfter: { type: 'string' },
+        discoveredBefore: { type: 'string' },
         stdin: { type: 'boolean' },
     },
     allowPositionals: true,
@@ -163,7 +186,9 @@ const resolveCommandOrFail = (inputPositionals: string[]): CliCommand => {
         return command;
     }
 
-    fail('UNKNOWN_COMMAND', 'Unknown command', { command: inputPositionals.join(' ') });
+    fail('UNKNOWN_COMMAND', 'Unknown command', {
+        command: inputPositionals.join(' '),
+    });
     throw new Error('unreachable');
 };
 

@@ -14,15 +14,14 @@ import {
     or,
     sql,
 } from 'drizzle-orm';
-import { db } from '@/db/index.js';
-import { catalogQueries, products, topSearchTermsDatasets } from '@/db/schema.js';
-import { CATALOG_QUERY_REFRESH_INTERVAL_MS } from '@/services/catalog-query-refresh-policy.js';
+import { db } from '@/db/index';
+import { catalogQueries, products, topSearchTermsDatasets } from '@/db/schema';
 import {
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
     KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
-} from '@/services/keepa-refresh-policy.js';
+} from '@/services/keepa-refresh-policy';
 import {
     CATALOG_QUERIES_SCHEDULER_LAG_MS,
     dueBefore,
@@ -33,11 +32,12 @@ import {
     type ServiceHealthProbes,
     SPAPI_CATALOG_SCHEDULER_LAG_MS,
     TOP_SEARCH_TERMS_SCHEDULER_LAG_MS,
-} from '@/services/service-health.js';
-import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
-import { SPAPI_REFRESH_POLICY_BUCKETS } from '@/services/spapi-refresh-policy.js';
-import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection.js';
-import { TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS } from '@/services/top-search-terms-report-state-machine.js';
+} from '@/services/service-health';
+import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
+import { SPAPI_REFRESH_POLICY_BUCKETS } from '@/services/spapi-refresh-policy';
+import { buildSpApiBlindspotRefreshCondition } from '@/services/spapi-blindspot-selection';
+import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection';
+import { TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS } from '@/services/top-search-terms-report-state-machine';
 
 const probePostgres = async () => {
     await db.execute(sql`SELECT 1`);
@@ -107,7 +107,23 @@ const spapiCatalogOverdueCondition = (now: Date) => {
     if (!freshness) {
         return undefined;
     }
-    return buildAvailableMerchRefreshCondition(freshness);
+    return or(
+        buildAvailableMerchRefreshCondition(
+            or(
+                freshness,
+                and(
+                    isNull(products.spApiFetchedAt),
+                    lte(products.createdAt, dueBefore(now, 0, SPAPI_CATALOG_SCHEDULER_LAG_MS))
+                )
+            )
+        ),
+        and(
+            buildSpApiBlindspotRefreshCondition(
+                new Date(now.getTime() - SPAPI_CATALOG_SCHEDULER_LAG_MS)
+            ),
+            lte(products.createdAt, dueBefore(now, 0, SPAPI_CATALOG_SCHEDULER_LAG_MS))
+        )
+    );
 };
 
 const keepaHistoryOverdueCondition = (now: Date) => {
@@ -125,6 +141,8 @@ const keepaHistoryOverdueCondition = (now: Date) => {
 
     return and(
         eq(products.isMerchListing, true),
+        eq(products.amazonListingStatus, 'active'),
+        eq(products.historyAdmissionState, 'admitted'),
         isNotNull(products.rootCategoryBsr),
         lt(products.rootCategoryBsr, KEEPA_WEEKLY_AUTO_BSR_THRESHOLD),
         spApiWriteOlderThanSchedulerLag(eligibleBefore),
@@ -142,24 +160,11 @@ const keepaHistoryOverdueCondition = (now: Date) => {
     );
 };
 
-const catalogQueriesOverdueCondition = (now: Date) => {
-    const successBefore = dueBefore(
-        now,
-        CATALOG_QUERY_REFRESH_INTERVAL_MS,
-        CATALOG_QUERIES_SCHEDULER_LAG_MS
+const catalogQueriesOverdueCondition = (now: Date) =>
+    and(
+        sql`${catalogQueries.tier} <> 'stored'`,
+        lte(catalogQueries.nextDueAt, dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS))
     );
-    const createdBefore = dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS);
-    return and(
-        gt(catalogQueries.activeUntil, now),
-        or(
-            lte(catalogQueries.latestSuccessfulRunAt, successBefore),
-            and(
-                isNull(catalogQueries.latestSuccessfulRunAt),
-                lte(catalogQueries.createdAt, createdBefore)
-            )
-        )
-    );
-};
 
 const topSearchTermsUnhealthyStatement = (now: Date) => {
     const dueAt = dueBefore(now, 0, TOP_SEARCH_TERMS_SCHEDULER_LAG_MS);

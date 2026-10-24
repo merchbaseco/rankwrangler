@@ -7,8 +7,8 @@ read_when:
 
 # Public API
 
-**Status:** Authentication and transport are shipped. The retrieval behavior and data shapes below
-are the accepted public target.
+**Status:** Unified Product search and `keyword.results` describe prepared source changes.
+Their database migration and production deployment are pending.
 
 RankWrangler's external API is tRPC over HTTP, not REST. Prefer the
 [typed HTTP client](http-client.md) or [CLI](cli.md); use raw HTTP when integrating another runtime.
@@ -35,9 +35,9 @@ and retry hint. Dashboard `api.app.*` procedures are separate Clerk-authenticate
 
 ## Retrieval Contract
 
-Every public operation returns final policy-current data or an error. Each capability owns its
-server freshness policy. A current cache hit returns immediately; missing or policy-expired data
-starts or joins durable work and waits. Caller deadline exhaustion does not cancel that work, and a
+Product search reads the stored catalog without contacting or waiting for providers. Other
+retrieval capabilities own their freshness policies. Missing or policy-expired data can start or
+join durable work and wait. Caller deadline exhaustion does not cancel that work, and a
 retry coalesces with it.
 
 Product `get` and `getMany` serve last-known listing data for any Product with a resolved listing:
@@ -45,8 +45,8 @@ a policy-expired read returns the stored title, thumbnail, and `amazonListingSta
 queues a deduplicated background refresh. Only Products with no resolved listing wait, bounded by
 the caller deadline. See [Public Retrieval](../decisions/public-retrieval.md).
 
-Product `get`/`getMany`/`history` and keyword inputs have no refresh control. Product Search retains
-its separate search input. Product `get`/`getMany`/`history` and keyword responses expose no
+Product `get`/`getMany`/`history`, Product search, and Brand Analytics keyword inputs have no
+refresh control. `keyword.results` separately accepts `refresh`. Product `get`/`getMany`/`history` and keyword responses expose no
 pending data, freshness, Operations, polling state, provider status or response `schemaVersion`.
 
 ## Procedures
@@ -55,11 +55,12 @@ pending data, freshness, Operations, polling state, provider status or response 
 | --- | --- | --- |
 | `api.public.product.get` | mutation | One current Product. |
 | `api.public.product.getMany` | mutation | Basic listing results for up to 200 Product identities. |
-| `api.public.product.search` | mutation | Keyword, search time, and compact Product results with placement. |
+| `api.public.product.search` | query | Paginated stored Products and keyword coverage. |
 | `api.public.product.history` | mutation | Product sales-rank and price series. |
 | `api.public.keyword.get` | query | Current Brand Analytics keyword evidence. |
 | `api.public.keyword.search` | query | Current filtered keyword evidence. |
 | `api.public.keyword.history` | query | Current keyword evidence over time. |
+| `api.public.keyword.results` | mutation | Dated external search results with retained placement. |
 
 There is no public Catalog, Operation, polling, or provider-health namespace.
 
@@ -181,14 +182,58 @@ including identities Amazon does not return. Each pair consumes one Service Acco
 Keepa history is not part of the synchronous response; newly classified eligible Products enter
 the existing asynchronous history-refresh policy.
 
-## Product Search
+## Product search
 
-`product.search` accepts `{ term, refresh? }` and returns the compact contract below. `refresh`
-requests a replacement Search run under the server-owned Search policy; it does not expose Product
-freshness or provider state.
+`product.search` is a database query. It returns `{ items, nextCursor, coverage }` immediately
+without provider retrieval, Product enrichment, or history collection. An empty result is a valid
+answer and does not establish that Amazon has no matching Products.
+
+| Input | Meaning and default |
+| --- | --- |
+| `term` | Optional text. Omit to browse. Maximum 200 characters. |
+| `textFields` | `all` by default, or `title`. Text uses case-insensitive word AND matching with PostgreSQL's `simple` dictionary, without stemming or semantic expansion. Exact ASINs also match. With `all`, retained membership in an observation of the normalized keyword also matches. |
+| `excludeWords` | Up to 20 excluded text expressions, tested against the selected text fields. |
+| `marketplaceIds` | US by default. An empty array includes all stored marketplaces. |
+| `isMerchListing` | `true` by default, or `false`, `unknown`, or `all`. |
+| `amazonListingStatus` | `active` by default, or `deleted` or `all`. |
+| `brands`, `excludeBrands` | Exact brand names after case and whitespace normalization. |
+| `includeOfficialBrands` | `false` excludes exact matches in the maintained marketplace-specific registry. The initial registry has no verified entries. Unknown brands remain visible. |
+| `categoryIds` | Root-category IDs. |
+| `salesRank`, `price`, `monthlySold` | Inclusive integer `{ min?, max? }` ranges. Price uses minor currency units, with no currency conversion across marketplaces. |
+| `firstAvailableAt`, `discoveredAt`, `updatedAt` | Inclusive `{ after?, before? }` ranges using ISO dates or datetimes. A date means midnight, not the end of that day. |
+| `facets` | Matching `{ facet, name }` assignments. Any supplied assignment can match. |
+| `sort` | `relevance` by default. Also `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`, `firstAvailableAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `discoveredAtDesc`, `priceAsc`, `priceDesc`, or `monthlySoldDesc`. Without text, relevance falls back to newest discovered. |
+| `limit`, `cursor` | 1–100 items, default 50. Opaque keyset cursor scoped to the filters and sort. |
+
+All filters combine with AND. Unknown numeric values fail bounded numeric filters. All sort orders
+put nulls last and use Product identity as a tie breaker. Invalid or mismatched cursors produce
+`BAD_REQUEST`. Pagination reads live data, so changing Products can move between pages.
+
+Each item contains identity, title, brand, bullets, resolved thumbnail availability, classification,
+listing status, root category ID, current `salesRank`, price, first-available, discovered, and updated
+timestamps, facets, rank `averages`, and `demand` with monthly evidence and drop windows. Null
+measurements remain unknown. The current canonical root BSR drives the filter, ordering, and
+returned `salesRank`; an older Keepa current-BSR copy does not override it.
+
+On a first page with text and a scope that includes the US, `coverage` contains `{ keyword,
+headCheckedAt, exploration }`. The head timestamp is the latest retained successful Keepa keyword
+observation or null. Exploration is null or `{ source: 'spapi', pages, observedAt, budgetLimited }`:
+contiguous observed pages, oldest page time and whether the pass stopped for budget. It does not
+claim Amazon organic ordering or exhaustive results. Other reads return `coverage: null`.
+
+The read records normalized keyword interest without renewing an explicit research lease. Background
+admission, checks and exploration run independently. An empty result can reflect an early coverage
+gap; the request does not wait for discovery. Source timestamps remain separate from Product counts.
+
+## Keyword results
+
+`keyword.results` preserves the former external Product-search behavior. It accepts `{ term,
+refresh? }`, reuses a successful run for 24 hours, and waits for collection and Product enrichment
+when a new run is needed. `refresh: true` requests a replacement run. Equivalent requests share
+work. Provider failure and deadline errors retain the existing retryable error contract.
 
 ```ts
-type ProductSearch = {
+type KeywordResults = {
     keyword: string;
     searchedAt: string;
     results: Array<{
@@ -212,12 +257,11 @@ type ProductSearch = {
 };
 ```
 
-Every result is a compact current Search projection with resolved thumbnail availability. It omits
-bullets, rank averages and drop windows, full demand, history, provider metadata, and freshness.
-`organicSearchPlacement` is the source-supplied Product ordinal for this Search run. Invalid or
-duplicate results leave ordinal gaps. It is useful source evidence, not a guaranteed Amazon organic
-rank. Membership and placement are immutable Search-run evidence; the projected Product fields
-remain independent current state.
+Results contain up to 20 Products from a US first-page observation. `organicSearchPlacement` is the
+source-supplied ordinal. Invalid or duplicate rows leave gaps. Membership and placement remain
+immutable, while the nested compact Product projection reflects current state. Placement is useful
+source evidence rather than a guaranteed Amazon organic rank. This capability is separate from
+Brand Analytics keyword reports.
 
 ## Product History
 
@@ -264,7 +308,7 @@ omit count and point dates already represented by the series.
 
 ## Keyword Intelligence
 
-The keyword family is read-only: `get`, `search`, and `history`. Inputs accept keyword/text, US
+The Brand Analytics keyword family contains `get`, `search`, and `history`. Inputs accept keyword/text, US
 marketplace and report-period defaults, and optional date, range, cursor, and limit fields. They do
 not accept refresh. Stored snapshots retain `requested` or `automatic` collection provenance where
 the keyword contract exposes history.

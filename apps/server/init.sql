@@ -53,8 +53,11 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- product_history_points, keepa_categories, top_search_terms_datasets,
 -- top_search_terms_snapshots, top_search_terms_keyword_daily,
 -- operations, event_logs, job_executions, job_execution_logs, provider_attempts
--- catalog_queries (keyword activity leases), catalog_search_runs (trigger provenance),
--- catalog_search_results
+-- catalog_queries (keyword admission, tiers, demand, due dates and research leases),
+-- keyword_products, keyword_exploration_passes, keyword_discovery_attempts,
+-- keepa_capacity_state, keepa_capacity_attempts, history_admission_rollouts,
+-- catalog_search_runs (page and trigger provenance),
+-- catalog_search_results, official_brands (verified marketplace-specific brand exclusions)
 
 -- Log successful initialization
 \echo 'PostgreSQL initialization completed successfully'

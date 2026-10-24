@@ -7,8 +7,8 @@ read_when:
 
 # HTTP Client
 
-**Status:** Client construction and generated types are shipped. Retrieval inputs and outputs below
-are the accepted public target.
+**Status:** Unified search and `keyword.results` describe prepared source changes. Database
+migration, package release, and production deployment are pending.
 
 `@rankwrangler/http-client` is the typed TypeScript/JavaScript client for the public tRPC surface.
 It owns transport wiring and generated declarations; retrieval behavior remains on the server.
@@ -42,7 +42,13 @@ const basicProducts = await client.product.getMany.mutate({
     ],
 });
 
-const search = await client.product.search.mutate({
+const search = await client.product.search.query({
+    term: 'retro gardening shirt',
+    salesRank: { max: 300_000 },
+    sort: 'firstAvailableAtDesc',
+});
+
+const observedResults = await client.keyword.results.mutate({
     term: 'retro gardening shirt',
 });
 
@@ -57,8 +63,10 @@ const keyword = await client.keyword.get.query({
 });
 ```
 
-`search` contains `keyword`, `searchedAt`, and compact `results`; each result nests its
-`organicSearchPlacement` and compact `product`. It is not an array of full Product responses.
+`search` contains compact `items`, an opaque `nextCursor`, and nullable keyword `coverage`. It reads
+stored Products without waiting for providers. `observedResults` contains `keyword`, `searchedAt`,
+and source-ordered `results` with `organicSearchPlacement` and compact current `product` values.
+See [Public API](public-api.md#product-search) for filters, text matching, paging, and coverage.
 History output uses `range.interval`; every requested series has an always-present nullable summary,
 and price history has no scale field.
 
@@ -120,12 +128,13 @@ missing data. `TIMEOUT` identifies provider-neutral temporary unavailability and
 `SERVICE_UNAVAILABLE`, or `TOO_MANY_REQUESTS`; allowance errors include a retry hint for the next
 daily reset.
 
-The client never polls. Every Product and keyword procedure returns policy-current final data or a
-standard error. Missing or policy-expired data may wait while durable work continues; Product
+The client never polls. Product search returns stored data or a standard error. Other Product and keyword procedures
+apply their retrieval policies. Missing or policy-expired data may wait while durable work continues; Product
 `get`/`getMany` instead return a known Product's last-known listing and refresh it in the
 background. Product
-`get`/`getMany`/`history` and keyword inputs expose no refresh control; Product Search retains its
-separate search input. Product `get`/`getMany`/`history` and keyword outputs expose no pending
+`get`/`getMany`/`history`, Product search, and Brand Analytics keyword inputs expose no refresh
+control. `keyword.results` accepts `refresh` and retains the existing 24-hour run reuse and wait
+behavior. Product `get`/`getMany`/`history` and keyword outputs expose no pending
 data, freshness, Operations, provider status or schema version.
 Generated Product output preserves nullable `isMerchListing` knowledge; consumers must not coerce
 `null` to `false`. Basic `getMany` results always contain identity, nullable title, resolved
