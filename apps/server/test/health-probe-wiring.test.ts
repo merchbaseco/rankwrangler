@@ -23,7 +23,7 @@ describe('health probe wiring', () => {
         }
 
         expect(deploy).toContain('https://rankwrangler.merchbase.co/health/live');
-        expect(deploy).toContain('https://rankwrangler.merchbase.co/api/health');
+        expect(deploy).not.toContain('/api/health');
 
         const liveHandle = caddyfile.indexOf('handle /health/live');
         const spaHandle = caddyfile.indexOf('    handle * {');

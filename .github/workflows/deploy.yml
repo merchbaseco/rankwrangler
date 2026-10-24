@@ -58,7 +58,7 @@ jobs:
       explicit_ref: ${{ needs.resolve.outputs.explicit_ref == 'true' }}
       production_checkout: /Users/zknicker/srv/rankwrangler
       deploy_command: bun run deploy
-      health_urls: https://rankwrangler.merchbase.co/health/live https://rankwrangler.merchbase.co/api/health
+      health_urls: https://rankwrangler.merchbase.co/health/live
       runner: self-hosted
       published_packages: packages/http-client:@rankwrangler/http-client,packages/cli:@rankwrangler/cli
       publish_provenance: true
