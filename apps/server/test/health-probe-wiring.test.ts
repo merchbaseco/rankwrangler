@@ -15,13 +15,15 @@ describe('health probe wiring', () => {
             [compose, 'http://localhost/'],
             [dockerfile, 'http://127.0.0.1:8080/'],
             [caddyfile, 'health_uri'],
-            [deploy, 'https://rankwrangler.merchbase.co/'],
         ] as const) {
             const line = source.split('\n').find(candidate => candidate.includes(needle));
             expect(line).toBeDefined();
             expect(line).toContain('/health/live');
             expect(line).not.toContain('/api/health');
         }
+
+        expect(deploy).toContain('https://rankwrangler.merchbase.co/health/live');
+        expect(deploy).toContain('https://rankwrangler.merchbase.co/api/health');
 
         const liveHandle = caddyfile.indexOf('handle /health/live');
         const spaHandle = caddyfile.indexOf('    handle * {');

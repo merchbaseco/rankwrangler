@@ -38,8 +38,8 @@ built outside that script report `dev`.
 
 ## Deployment
 
-- Deploy Stack runs only through `workflow_dispatch` after the user requests deployment. Landing on `main` does not deploy.
-- `workflow_dispatch` redeploys the selected tip. Set `ref` to a SHA on `main` to roll back.
+- A push to `main` deploys after the Quality workflow succeeds for that commit. Deploy Stack calls `merchbaseco/workflows/.github/workflows/deploy-service.yml` at `@main`.
+- `workflow_dispatch` redeploys the current tip of `main`. Set `ref` to a SHA on `main` to roll back or redeploy that commit.
 - Production uses Cloudflare-billed PlanetScale through the remote Compose override. Local development uses PostgreSQL in Compose.
 - The runner fast-forwards `/Users/zknicker/srv/rankwrangler` and runs `bun run deploy`. It skips a commit that is not a descendant of the live checkout unless `ref` is set.
 - After images build and the existing cutover gate is verified, it stops the old server before

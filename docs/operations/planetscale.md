@@ -112,7 +112,7 @@ or storage size alone. Synthetic writes must never run against the live source o
 
 ## Cut over in a maintenance window
 
-Production deployment remains manual and requires the user's deployment instruction.
+Start this cutover only when the user asks for the maintenance window.
 
 1. Stop the old application and all database writers. Preserve its database and volume for rollback.
 2. Take the final consistent dump. Repeat restore and preservation checks against frozen copies.
