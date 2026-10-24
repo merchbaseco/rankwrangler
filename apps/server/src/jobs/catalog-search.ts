@@ -1,4 +1,3 @@
-import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 import { z } from 'zod';
 import {
     completeCatalogSearchOperationWithError,
@@ -15,6 +14,7 @@ import { notifyCatalogSearchCompleted } from '@/services/catalog-search-events';
 import { searchKeepaCatalog } from '@/services/keepa-catalog-search';
 import { normalizeKeepaProduct } from '@/services/keepa-product-normalizer';
 import { type CatalogSearchOperationInput, sanitizeOperationError } from '@/services/operations';
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 import { defineJob } from './job-router';
 
 const catalogSearchJobInput = z.object({
@@ -126,9 +126,11 @@ export const runCatalogSearchOperation = async (
         } as const;
     } catch (error) {
         if (error instanceof KeepaCapacityDeferredError) {
-            await (operation.startedAt
-                ? deps.releaseOperationWork?.(operationId, operation.startedAt)
-                : deps.releaseOperationWork?.(operationId));
+            await deps.releaseOperationWork?.(
+                operationId,
+                operation.startedAt ?? undefined,
+                error.retryAt
+            );
             return { didWork: false, status: 'deferred_capacity' } as const;
         }
         const operationError = sanitizeOperationError(error, 'catalogSearch');

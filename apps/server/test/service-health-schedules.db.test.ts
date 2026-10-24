@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq, like } from 'drizzle-orm';
 import { db } from '@/db/index';
+import { operations } from '@/db/ops-schema';
+import { releaseCatalogSearchWork } from '@/db/catalog-search-operations';
 import {
     catalogQueries,
     topSearchTermsDatasets,
@@ -44,9 +46,49 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 latestSuccessfulRunAt: minutesBefore(catalogSuccessDueAt()),
                 nextRefreshAttemptAt: minutesAfter(NOW, 60),
                 term: 'health-probe-stale',
+                failureCount: 1,
             });
 
             expect(await probeCatalogQueries(NOW)).toBe(true);
+        });
+        it('passes a budget deferral without treating it as a successful observation', async () => {
+            await insertCatalogQuery({
+                activeUntil: minutesAfter(NOW, 60),
+                latestSuccessfulRunAt: minutesBefore(catalogSuccessDueAt()),
+                term: 'health-probe-budget',
+            });
+            const [query] = await db
+                .select()
+                .from(catalogQueries)
+                .where(eq(catalogQueries.normalizedTerm, 'health-probe-budget'));
+            const [operation] = await db
+                .insert(operations)
+                .values({
+                    type: 'catalogSearch',
+                    targetKey: query.id,
+                    input: { queryId: query.id },
+                    startedAt: NOW,
+                })
+                .returning();
+            try {
+                await releaseCatalogSearchWork(
+                    operation.id,
+                    minutesBefore(NOW),
+                    minutesAfter(NOW, 1)
+                );
+                expect(await probeCatalogQueries(NOW)).toBe(true);
+                await releaseCatalogSearchWork(operation.id, NOW, minutesAfter(NOW, 1));
+                expect(await probeCatalogQueries(NOW)).toBe(false);
+                expect(await probeCatalogQueries(minutesAfter(NOW, 17))).toBe(true);
+                const [deferred] = await db
+                    .select()
+                    .from(catalogQueries)
+                    .where(eq(catalogQueries.id, query.id));
+                expect(deferred.failureCount).toBe(0);
+                expect(deferred.latestSuccessfulRunAt).toEqual(query.latestSuccessfulRunAt);
+            } finally {
+                await db.delete(operations).where(eq(operations.id, operation.id));
+            }
         });
         it('passes an active catalog query created recently with no success yet', async () => {
             await insertCatalogQuery({
@@ -155,15 +197,18 @@ const insertCatalogQuery = async ({
     createdAt = NOW,
     latestSuccessfulRunAt,
     nextRefreshAttemptAt = null,
+    failureCount = 0,
 }: {
     term: string;
     activeUntil: Date | null;
     createdAt?: Date;
     latestSuccessfulRunAt: Date | null;
     nextRefreshAttemptAt?: Date | null;
+    failureCount?: number;
 }) => {
     await db.insert(catalogQueries).values({
         activeUntil,
+        failureCount,
         tier: activeUntil && activeUntil > NOW ? 'warm' : 'stored',
         nextDueAt: latestSuccessfulRunAt
             ? new Date(latestSuccessfulRunAt.getTime() + CATALOG_QUERY_REFRESH_INTERVAL_MS)

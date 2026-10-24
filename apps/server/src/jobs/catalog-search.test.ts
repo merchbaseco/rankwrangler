@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { TRPCError } from '@trpc/server';
-import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 import type { OperationRecord } from '@/services/operations';
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 
 describe('Catalog search worker', () => {
     it('normalizes one provider response and reconciles accepted Products atomically', async () => {
@@ -100,7 +100,10 @@ describe('Catalog search worker', () => {
         const { runCatalogSearchOperation } = await loadSubject();
         const deps = createDeps({
             searchProvider: async () => {
-                throw new KeepaCapacityDeferredError('discovery share', new Date());
+                throw new KeepaCapacityDeferredError(
+                    'discovery share',
+                    new Date('2026-10-24T20:00:00Z')
+                );
             },
         });
         expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
@@ -109,7 +112,9 @@ describe('Catalog search worker', () => {
         });
         expect(deps.persistSuccess.mock.calls).toHaveLength(0);
         expect(deps.completeWithError.mock.calls).toHaveLength(0);
-        expect(deps.releaseOperationWork.mock.calls).toHaveLength(1);
+        expect(deps.releaseOperationWork.mock.calls[0]?.[2]).toEqual(
+            new Date('2026-10-24T20:00:00Z')
+        );
     });
 
     it('persists a visible zero-result run', async () => {
@@ -232,7 +237,9 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
     ),
     completeWithError: mock(async () => createOperation()),
     evaluateAccess: mock(async () => ({ kind: 'allowed' as const })),
-    releaseOperationWork: mock(async () => undefined),
+    releaseOperationWork: mock(
+        async (_id: string, _startedAt?: Date, _retryAt?: Date) => undefined
+    ),
     notifyCompleted: mock(() => {
         // Completion delivery is asserted through mock calls.
     }),

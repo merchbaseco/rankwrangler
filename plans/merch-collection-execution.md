@@ -122,3 +122,11 @@ Full local rehearsal now passes 79 database/build tests across seventeen files, 
 packaged startup regression, and Quality CI passes. The startup incident interrupted the public
 site during rollout; recovery is complete. Initial catalog gaps and deliberate budget deferrals
 remain expected behavior.
+
+The longer production observation exposed a health-only mismatch: budget-deferred initial heads
+were flagged as failed collection after fifteen minutes. Persist the provider's retry time when
+releasing fenced keyword work, without changing failure count or last successful observation.
+Health honors that nonfailure deferral plus scheduler grace; real provider failures remain unhealthy,
+and an abandoned retry becomes unhealthy after its own grace expires. The database regression
+verifies stale-owner fencing, unchanged freshness/failures, and eventual expiry. Rehearsal now
+passes eighty database/build tests. The v0.11.0 client and CLI publication completed successfully.

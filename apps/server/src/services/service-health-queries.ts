@@ -34,8 +34,8 @@ import {
     TOP_SEARCH_TERMS_SCHEDULER_LAG_MS,
 } from '@/services/service-health';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
-import { SPAPI_REFRESH_POLICY_BUCKETS } from '@/services/spapi-refresh-policy';
 import { buildSpApiBlindspotRefreshCondition } from '@/services/spapi-blindspot-selection';
+import { SPAPI_REFRESH_POLICY_BUCKETS } from '@/services/spapi-refresh-policy';
 import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection';
 import { TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS } from '@/services/top-search-terms-report-state-machine';
 
@@ -163,7 +163,15 @@ const keepaHistoryOverdueCondition = (now: Date) => {
 const catalogQueriesOverdueCondition = (now: Date) =>
     and(
         sql`${catalogQueries.tier} <> 'stored'`,
-        lte(catalogQueries.nextDueAt, dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS))
+        lte(catalogQueries.nextDueAt, dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS)),
+        or(
+            gt(catalogQueries.failureCount, 0),
+            isNull(catalogQueries.nextRefreshAttemptAt),
+            lte(
+                catalogQueries.nextRefreshAttemptAt,
+                dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS)
+            )
+        )
     );
 
 const topSearchTermsUnhealthyStatement = (now: Date) => {

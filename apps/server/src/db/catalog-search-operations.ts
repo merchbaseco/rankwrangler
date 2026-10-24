@@ -1,9 +1,9 @@
-import { keywordRetryAt } from '@/services/keyword-collection-policy';
 import { and, eq, isNull, lte, or } from 'drizzle-orm';
 import { catalogQueries } from '@/db/catalog-search-schema';
 import { db } from '@/db/index';
 import { mapOperationRecord } from '@/db/operations';
 import { operations } from '@/db/ops-schema';
+import { keywordRetryAt } from '@/services/keyword-collection-policy';
 import type {
     CatalogSearchOperationInput,
     CatalogSearchResource,
@@ -130,16 +130,37 @@ const updateCatalogSearchRetryAt = async (
         .where(eq(catalogQueries.id, queryId));
 };
 
-export const releaseCatalogSearchWork = async (operationId: string, startedAt?: Date) => {
-    await db
-        .update(operations)
-        .set({ startedAt: null, updatedAt: new Date() })
-        .where(
-            and(
-                eq(operations.id, operationId),
-                eq(operations.type, 'catalogSearch'),
-                eq(operations.status, 'pending'),
-                ...(startedAt ? [eq(operations.startedAt, startedAt)] : [])
+export const releaseCatalogSearchWork = async (
+    operationId: string,
+    startedAt?: Date,
+    retryAt?: Date
+) => {
+    await db.transaction(async tx => {
+        const [operation] = await tx
+            .select({ queryId: operations.targetKey })
+            .from(operations)
+            .where(eq(operations.id, operationId));
+        if (!operation) {
+            return;
+        }
+        await lockCatalogQueryForReconciliation(tx, operation.queryId);
+        const released = await tx
+            .update(operations)
+            .set({ startedAt: null, updatedAt: new Date() })
+            .where(
+                and(
+                    eq(operations.id, operationId),
+                    eq(operations.type, 'catalogSearch'),
+                    eq(operations.status, 'pending'),
+                    ...(startedAt ? [eq(operations.startedAt, startedAt)] : [])
+                )
             )
-        );
+            .returning({ id: operations.id });
+        if (retryAt && released.length > 0) {
+            await tx
+                .update(catalogQueries)
+                .set({ nextRefreshAttemptAt: retryAt })
+                .where(eq(catalogQueries.id, operation.queryId));
+        }
+    });
 };
