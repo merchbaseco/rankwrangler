@@ -32,6 +32,7 @@ export default defineConfig({
             output: {
                 format: 'es',
                 entryFileNames: 'index.js',
+                inlineDynamicImports: true,
             },
         },
         outDir: 'dist',

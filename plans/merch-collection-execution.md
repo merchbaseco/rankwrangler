@@ -83,3 +83,10 @@ server uses. Deployment now stops the old server after image build and gate veri
 migrations. A failed migration leaves it stopped until the schema is inspected. Preserve the old
 images and a consistent database backup before rollout. The existing production browser session
 is signed in; validate the new UI immediately after deployment on the same origin.
+
+Production startup found a bundled ESM/top-level-await cycle: capacity chunks imported the unfinished
+server entry while startup awaited capacity-backed collection. No migration failure or data loss.
+Inline dynamic imports in the single-entry SSR build. An emitted-module reproduction exits 13 with
+split chunks and starts successfully with inline imports (exit 0, STARTUP_READY true). Independent
+review confirmed the newly eager modules only define tables/functions/constants. Redeploy this
+packaging fix before considering rollout complete.
