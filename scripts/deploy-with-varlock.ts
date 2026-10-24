@@ -237,6 +237,14 @@ if (verifiedCutover.status !== 0) {
     process.exit(verifiedCutover.status ?? 1);
 }
 
+// Schema removals must never race an old process that still reads or writes them.
+// Images are ready, so only the migration and container swap need downtime.
+const stopped = varlockRun(["docker", "compose", ...composeArgs, "stop", "server"]);
+if (stopped.status !== 0) {
+    console.error("Could not stop the old server; migration not attempted.");
+    process.exit(stopped.status ?? 1);
+}
+
 const migrated = varlockRun([
     "docker",
     "compose",
@@ -250,7 +258,7 @@ const migrated = varlockRun([
     "--migrate-only",
 ]);
 if (migrated.status !== 0) {
-    console.error("Database migration failed; containers not replaced.");
+    console.error("Database migration failed; server remains stopped. Verify schema before recovery.");
     process.exit(migrated.status ?? 1);
 }
 
@@ -267,7 +275,7 @@ const verifiedMigrations = varlockRun([
     "--verify-migrations",
 ]);
 if (verifiedMigrations.status !== 0) {
-    console.error("Migration verification failed; containers not replaced.");
+    console.error("Migration verification failed; server remains stopped. Verify schema before recovery.");
     process.exit(verifiedMigrations.status ?? 1);
 }
 
