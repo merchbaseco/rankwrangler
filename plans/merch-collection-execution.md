@@ -58,9 +58,9 @@ preserved research lease. The backup/restore preservation harness also runs befo
 
 Server and website production builds, CLI end-to-end behavior, packed CLI and release metadata
 checks pass. The repository-wide TypeScript command still reports existing Bun test declaration and
-unrelated job/report errors; the generated public client and CLI compile. Authenticated browser
-verification is outstanding because this worktree uses placeholder test Clerk configuration and
-has no 1Password access. Production data and deployed code have not changed.
+unrelated job/report errors; the generated public client and CLI compile. At the end of local verification, authenticated browser testing remained outstanding because
+this worktree uses placeholder test Clerk configuration and has no 1Password access. The October 24
+rollout below records subsequent production deployment and signed-in verification.
 
 Review fixed timezone-dependent capacity windows, missing timestamp decoding, exploration starvation,
 physical retry counting, concurrent keyword cadence changes, and budget deferrals being misreported
@@ -71,9 +71,8 @@ are intentionally skipped in that lane and run in the separate rehearsal. CLI en
 seventeen passing tests. Generated public declarations and CLI compile; server and website builds,
 release metadata, packed CLI and whitespace checks pass. No new source file exceeds 300 lines.
 
-Implementation and local verification are complete. Remaining release work is authenticated browser
-verification with real development Clerk configuration, review/commit when requested, and explicit
-production deployment approval. No paid plan increase or production write was performed.
+Implementation and local verification completed before the user authorized the October 24 rollout.
+No paid plan increase was required.
 
 ## October 24 rollout
 
@@ -96,3 +95,30 @@ were still below the entry's top-level await. The final correction removes top-l
 the entry by running startup inside an async function with a fatal-error handler, preserving
 normal split-module evaluation. A permanent database-lane test checks the actual entry has no
 top-level await and executes a cyclic lazy-import fixture built with the real Vite configuration.
+
+## Production verification
+
+Deployed revision `34ef33995d7fdc2c7ff50f94b98aa71e9b2cb149` on October 24. Both public health
+endpoints report `ok` with that exact revision after the existing SP-API queue drained the newly
+eligible baseline blindspots: 622 old listings, then 553 listings in the new probation cadence.
+This was a one-time rollout catch-up using normal batches and the existing provider limiter;
+ongoing scheduled blindspot selection remains capped at twenty per scan. No Keepa history was
+purchased for that SP-API catch-up.
+
+The consistent pre-migration archive on the Mini is retained at
+`/Users/zknicker/srv/rankwrangler-rollout-backups/2026-10-24-merch-database/before-0040.dump`
+(1,022,741,773 bytes; archive listing verified). All 13,900 baseline Products remain admitted as
+legacy identities. Every history metric count exceeds its pre-rollout count; keyword membership
+backfill contains 734 relationships at the first post-rollout observation. The catalog grew to
+14,224 Products, including 324 new identities. Twenty accepted SP-API discovery page requests reached
+the pilot's daily cap; continuation passes persist with a budget stop rather than extra requests.
+These are observed rollout counts, not ongoing throughput guarantees.
+
+Signed-in production browser verification passed keyword search (32 fishing matches), exact-ASIN
+search, BSR filtering and ordering, an empty-result search, clearing filters, infinite pagination
+from fifty to one hundred loaded Products, the Product history dialog, and the new Collection status
+panel. No tRPC/browser errors were observed; existing chart-size warnings appeared on chart mount.
+Full local rehearsal now passes 79 database/build tests across seventeen files, including the
+packaged startup regression, and Quality CI passes. The startup incident interrupted the public
+site during rollout; recovery is complete. Initial catalog gaps and deliberate budget deferrals
+remain expected behavior.
