@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RankWrangler Product</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;family=Bebas+Neue&amp;family=Shrikhand&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+.rw{--bg:#efeee9;--surface:#fcfcfa;--well:#f1f0eb;--frame:#e9e8e3;--border:#dadad5;--hair:#e7e7e3;--ink:#1f1f1d;--muted:#6b6a65;--faint:#8a8984;--accent:#3a6df0;--accent-soft:rgba(58,109,240,.10);
+--elite-fg:#6a45dc;--elite-bg:#f0eaff;--elite-bd:#cfc0f0;--hot-fg:#cf4f25;--hot-bg:#fce5e1;--hot-bd:#efc1bd;--strong-fg:#9a6512;--strong-bg:#fff2d8;--strong-bd:#e6cfa3;--steady-fg:#2a7f69;--steady-bg:#ddf5ef;--steady-bd:#a6dccd;--slow-fg:#75746e;--slow-bg:#efefeb;--slow-bd:#dadad5}
+.tier-elite{--tc:var(--elite-fg);--tb:var(--elite-bg);--tbd:var(--elite-bd)}
+.tier-hot{--tc:var(--hot-fg);--tb:var(--hot-bg);--tbd:var(--hot-bd)}
+.tier-strong{--tc:var(--strong-fg);--tb:var(--strong-bg);--tbd:var(--strong-bd)}
+.tier-steady{--tc:var(--steady-fg);--tb:var(--steady-bg);--tbd:var(--steady-bd)}
+.tier-slow{--tc:var(--slow-fg);--tb:var(--slow-bg);--tbd:var(--slow-bd)}
+.mono{font-family:'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.frame{background:var(--frame);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:6px;box-shadow:inset 0 0 0 1px rgba(20,20,18,.04)}
+.card{background:var(--surface);border-radius:8px;box-shadow:0 0 0 1px var(--border),inset 0 1px 0 #fff}
+.fhead{display:flex;align-items:center;gap:8px;height:24px;padding:0 6px;font-size:12px;font-weight:600;color:var(--ink)}
+.fhead .sub{font-weight:400;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 7px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid;white-space:nowrap}
+.b-blue{background:#dff5ff;border-color:#a9daf3;color:#2b6c8c}
+.b-violet{background:#f0eaff;border-color:#cfc0f0;color:#7357b0}
+.b-amber{background:#fff2d8;border-color:#e6cfa3;color:#85602c}
+.b-green{background:#e4f8da;border-color:#a8db91;color:#3d7531}
+.b-neutral{background:#efefeb;border-color:#dadad5;color:#4f4e4a}
+.tab{all:unset;box-sizing:border-box;height:26px;padding:0 10px;display:inline-flex;align-items:center;border-radius:6px;font:500 12.5px Onest,system-ui,sans-serif;color:var(--muted);cursor:pointer}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--border)}
+.seg{all:unset;box-sizing:border-box;height:22px;padding:0 8px;display:inline-flex;align-items:center;border-radius:5px;font:500 11.5px 'Geist Mono',monospace;color:var(--muted);cursor:pointer}
+.seg.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--border)}
+.btn{all:unset;box-sizing:border-box;height:28px;padding:0 10px;display:inline-flex;align-items:center;gap:6px;border-radius:7px;font:500 12.5px Onest,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.btn.primary{background:var(--accent);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 1px 2px rgba(0,0,0,.2)}
+.btn.ghost{background:var(--bg);color:var(--ink);box-shadow:0 0 0 1px rgba(20,20,18,.1),0 1px 1px rgba(0,0,0,.05)}
+.prop{display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px;align-items:center;min-height:28px;font-size:12.5px}
+.prop .k{color:var(--muted)}
+.stat{padding:8px 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.stat .k{font-size:11px;color:var(--muted);white-space:nowrap}
+.stat .v{font-family:'Geist Mono',monospace;font-variant-numeric:tabular-nums;font-size:18px;font-weight:600;letter-spacing:-0.04em;line-height:1.1}
+.stat .d{font-size:11px;color:var(--muted);white-space:nowrap}
+.kt td{height:30px;border-top:1px solid var(--hair);padding:0 8px;white-space:nowrap}
+.kt th{height:26px;padding:0 8px;text-align:left;font-weight:500;color:var(--muted);font-size:11.5px}
+</style>
+</helmet>
+<div class="rw" style="min-height: 900px; background: var(--bg); color: var(--ink); font-family: Onest, system-ui, sans-serif; font-size: 13px; box-sizing: border-box">
+
+<header style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px; border-bottom: 1px solid var(--border); background: rgba(252,252,250,.6)">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 7px" aria-label="RankWrangler home">
+<img src="/_blob/1daf19a94a4abc96e32cc60898d6aa7d" alt="" style="width: 24px; height: 24px; display: block">
+<span style="font-size: 13.5px; font-weight: 700; letter-spacing: -0.02em">RankWrangler</span>
+</a>
+<nav aria-label="Views" style="display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--well); box-shadow: inset 0 0 0 1px rgba(20,20,18,.06); margin-left: 6px">
+<a class="tab on" href="Main.dc.html">Explore</a>
+<a class="tab" href="Keywords.dc.html">Keywords</a>
+<a class="tab" href="Keywords.dc.html">Niches</a>
+<a class="tab" href="Keywords.dc.html">Movers</a>
+</nav>
+<span style="width: 1px; height: 18px; background: var(--border); margin: 0 4px"></span>
+<nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); min-width: 0"><a href="Main.dc.html">Explore</a><span>/</span><span>Fishing</span><span>/</span><span style="color: var(--ink); font-weight: 500; white-space: nowrap">Reel Cool Grandpa</span></nav>
+<div style="flex: 1"></div>
+<button type="button" class="btn ghost"><svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>Save</button>
+<button type="button" class="btn primary">Amazon<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 10px; padding: 10px; max-width: 1440px; margin: 0 auto; box-sizing: border-box">
+
+<aside style="flex: 1 1 280px; max-width: 300px; display: flex; flex-direction: column; gap: 10px">
+<div class="frame">
+<div class="card" style="padding: 5px">
+<div style="position: relative; aspect-ratio: 1 / 1; border-radius: 5px; background: var(--well); box-shadow: inset 0 0 0 1px var(--hair); display: flex; align-items: center; justify-content: center">
+<svg viewBox="0 0 240 250" style="width: 84%; height: auto" role="img" aria-label="Navy tee, retro sunset design reading Reel Cool Grandpa">
+<defs><linearGradient id="pShade" x1="0" y1="0" x2="1" y2="0.3"><stop offset="0" stop-color="#ffffff" stop-opacity="0.14"></stop><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.16"></stop></linearGradient><path id="pArc" d="M66 116 A54 54 0 0 1 174 116"></path></defs>
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="#263354"></path>
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="url(#pShade)"></path>
+<path d="M100 8 Q120 28 140 8" fill="none" stroke="#000" stroke-opacity="0.22" stroke-width="3"></path>
+<circle cx="120" cy="124" r="32" fill="#f08a3c"></circle>
+<rect x="84" y="128" width="72" height="3" fill="#263354"></rect><rect x="84" y="136" width="72" height="4" fill="#263354"></rect><rect x="84" y="145" width="72" height="5" fill="#263354"></rect>
+<text font-family="Shrikhand" font-size="17" fill="#f6eedd" text-anchor="middle"><textPath href="#pArc" startOffset="50%">REEL COOL</textPath></text>
+<text x="120" y="182" font-family="Bebas Neue" font-size="24" letter-spacing="2" fill="#f6eedd" text-anchor="middle">GRANDPA</text>
+</svg>
+</div>
+<div style="display: flex; align-items: center; gap: 5px; padding: 6px 2px 2px">
+<span style="width: 16px; height: 16px; border-radius: 4px; background: #263354; box-shadow: 0 0 0 1.5px var(--surface), 0 0 0 3px var(--accent)"></span>
+<span style="width: 16px; height: 16px; border-radius: 4px; background: #1e1e20"></span>
+<span style="width: 16px; height: 16px; border-radius: 4px; background: #48525c"></span>
+<span style="width: 16px; height: 16px; border-radius: 4px; background: #2f4a3a"></span>
+<span style="width: 16px; height: 16px; border-radius: 4px; background: #c9c7c1; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1)"></span>
+<span style="flex: 1"></span>
+<span style="font-size: 11px; color: var(--muted)">5 colours</span>
+</div>
+</div>
+</div>
+<div class="frame">
+<div class="fhead">Listing</div>
+<div class="card" style="padding: 4px 10px">
+<div class="prop"><span class="k">ASIN</span><span class="mono" style="font-size: 12px">B0DXR7L2QK</span></div>
+<div class="prop"><span class="k">Brand</span><span>Lakeside Tackle Co <span style="color: var(--muted)">· 14 designs</span></span></div>
+<div class="prop"><span class="k">Type</span><span>Standard T-shirt</span></div>
+<div class="prop"><span class="k">Published</span><span class="mono" style="font-size: 12px">Sep 9, 2025 <span style="color: var(--muted)">· 412d</span></span></div>
+<div class="prop"><span class="k">Price</span><span class="mono" style="font-size: 12px">$19.99 <span style="color: var(--muted)">· flat 90d</span></span></div>
+<div class="prop"><span class="k">Trademark</span><span><span class="badge b-green"><svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path></svg>Clear</span></span></div>
+</div>
+</div>
+</aside>
+
+<main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding: 2px 4px 0">
+<div style="min-width: 0; flex: 1">
+<h1 style="margin: 0; font-size: 20px; line-height: 1.2; font-weight: 650; letter-spacing: -0.025em">Reel Cool Grandpa</h1>
+<div style="font-size: 12.5px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Reel Cool Grandpa Retro Sunset Fishing Shirt for Men</div>
+</div>
+<div style="display: flex; gap: 4px; flex-wrap: wrap">
+<span class="badge b-blue"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-5 9-6 14-2l4-3v10l-4-3c-5 4-11 3-14-2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"></path></svg>Fishing</span>
+<span class="badge b-violet"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="2.2"></path></svg>Grandpa</span>
+<span class="badge b-amber"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v10H4z M3 7h18v3H3z M12 7v13" fill="none" stroke="currentColor" stroke-width="2.2"></path></svg>Father's Day</span>
+<span class="badge b-neutral">Retro sunset</span>
+</div>
+</div>
+
+<div class="frame">
+<div class="card" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr))">
+<div class="stat tier-elite" style="background: var(--tb); border-radius: 8px 0 0 8px; box-shadow: inset -1px 0 0 var(--tbd)"><span class="k" style="color: var(--tc)">BSR now · Elite</span><span class="v" style="color: var(--tc); font-size: 22px">#1,840</span><span class="d" style="color: var(--tc)">▲ 38% vs 30d</span></div>
+<div class="stat" style="box-shadow: inset -1px 0 0 var(--hair)"><span class="k">30d average</span><span class="v">#2,970</span><span class="d">90d #3,412</span></div>
+<div class="stat" style="box-shadow: inset -1px 0 0 var(--hair)"><span class="k">Best ever</span><span class="v">#612</span><span class="d">Jun 18 · Father's Day</span></div>
+<div class="stat" style="box-shadow: inset -1px 0 0 var(--hair)"><span class="k">Est. sold / mo</span><span class="v">540</span><span class="d">≈ $1,450 royalty</span></div>
+<div class="stat" style="box-shadow: inset -1px 0 0 var(--hair)"><span class="k">Rank drops</span><span class="v">48</span><span class="d">30d · 402 in 1y</span></div>
+<div class="stat"><span class="k">Keywords</span><span class="v">23</span><span class="d">6 on page one</span></div>
+</div>
+<div class="fhead" style="margin-top: 2px">Rank history<span class="sub">Clothing, Shoes &amp; Jewelry · log scale</span><span style="flex: 1"></span>
+<span style="display: flex; gap: 1px; padding: 2px; border-radius: 7px; background: var(--well); box-shadow: inset 0 0 0 1px var(--hair)"><button type="button" class="seg">30D</button><button type="button" class="seg">90D</button><button type="button" class="seg">1Y</button><button type="button" class="seg on">ALL</button></span></div>
+<div class="card" style="padding: 8px 8px 4px">
+<svg viewBox="0 0 1000 236" style="width: 100%; height: auto; display: block" role="img" aria-label="BSR over 13 months: launch near 300K, a Christmas climb into the hot tier, a Father's Day peak at 612, now 1,840">
+<defs><linearGradient id="hLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a7f69"></stop><stop offset="0.45" stop-color="#cf4f25"></stop><stop offset="1" stop-color="#6a45dc"></stop></linearGradient>
+<linearGradient id="hFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a45dc" stop-opacity="0.16"></stop><stop offset="1" stop-color="#6a45dc" stop-opacity="0"></stop></linearGradient></defs>
+<sc-for list="{{bands}}" as="b" hint-placeholder-count="5">
+<rect x="40" y="{{b.y}}" width="960" height="{{b.h}}" fill="{{b.fill}}"></rect>
+<text x="994" y="{{b.ty}}" text-anchor="end" font-family="Geist Mono" font-size="9.5" font-weight="600" fill="{{b.fg}}">{{b.label}}</text>
+</sc-for>
+<sc-for list="{{yTicks}}" as="t" hint-placeholder-count="3">
+<text x="34" y="{{t.y}}" text-anchor="end" font-family="Geist Mono" font-size="9.5" fill="#8a8984">{{t.label}}</text>
+</sc-for>
+<path d="{{area}}" fill="url(#hFill)"></path>
+<path d="{{line}}" fill="none" stroke="url(#hLine)" stroke-width="1.8" stroke-linejoin="round"></path>
+<sc-for list="{{events}}" as="e" hint-placeholder-count="2">
+<line x1="{{e.x}}" x2="{{e.x}}" y1="22" y2="216" stroke="#1f1f1d" stroke-opacity="0.2" stroke-dasharray="2 3"></line>
+<rect x="{{e.bx}}" y="4" width="{{e.bw}}" height="17" rx="4" fill="#1f1f1d"></rect>
+<text x="{{e.x}}" y="15.5" text-anchor="middle" font-family="Onest" font-size="10" font-weight="600" fill="#fcfcfa">{{e.label}}</text>
+</sc-for>
+<circle cx="{{nowX}}" cy="{{nowY}}" r="3.5" fill="#6a45dc" stroke="#fcfcfa" stroke-width="2"></circle>
+<sc-for list="{{months}}" as="m" hint-placeholder-count="12">
+<text x="{{m.x}}" y="232" text-anchor="middle" font-family="Geist Mono" font-size="9.5" fill="#8a8984">{{m.label}}</text>
+</sc-for>
+</svg>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<div class="frame" style="flex: 999 1 460px; min-width: 0">
+<div class="fhead">Keywords<span class="sub">23 found on mined search pages</span></div>
+<div class="card" style="overflow-x: auto">
+<table class="kt" style="width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 440px">
+<thead><tr><th>Keyword</th><th>Position</th><th>Search rank</th><th style="text-align: right">Seen</th></tr></thead>
+<tbody>
+<sc-for list="{{kws}}" as="k" hint-placeholder-count="6">
+<tr><td style="font-weight: 500">{{k.kw}}</td><td><span class="mono" style="display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 11.5px">#{{k.pos}}</span> <span style="color: var(--muted); font-size: 11.5px">p{{k.page}}</span></td><td class="mono" style="font-size: 12px">{{k.sfr}}</td><td class="mono" style="text-align: right; color: var(--muted); font-size: 11.5px">{{k.seen}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</div>
+<div class="frame" style="flex: 1 1 300px">
+<div class="fhead">Nearby in Fishing<span class="sub">by rank</span></div>
+<div class="card" style="padding: 2px 0">
+<sc-for list="{{similar}}" as="s" hint-placeholder-count="5">
+<div class="tier-{{s.tier}}" style="{{s.row}}">
+<div style="width: 32px; height: 32px; border-radius: 6px; background: var(--well); box-shadow: inset 0 0 0 1px var(--hair); display: flex; align-items: center; justify-content: center; flex-shrink: 0"><svg viewBox="0 0 240 250" width="26" height="27" aria-hidden="true"><path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="{{s.shirt}}"></path><circle cx="120" cy="120" r="30" fill="{{s.accent}}"></circle></svg></div>
+<div style="flex: 1; min-width: 0"><div style="font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.name}}</div><div style="font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.brand}}</div></div>
+<span class="mono" style="font-size: 13px; font-weight: 600; letter-spacing: -0.03em; color: var(--tc)">{{s.bsr}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const W = 960, X0 = 40, Y0 = 22, H = 194;
+    const lmin = Math.log10(400), lmax = Math.log10(500000);
+    const y = (b) => Y0 + ((Math.log10(b) - lmin) / (lmax - lmin)) * H;
+    const N = 412;
+    let seed = 11;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    const pts = [];
+    let noise = 0;
+    for (let d = 0; d < N; d++) {
+      const launch = 5.5 - 1.5 * (1 - Math.exp(-d / 30));
+      const xmas = -0.75 * Math.exp(-Math.pow((d - 104) / 16, 2));
+      const fd = -1.25 * Math.exp(-Math.pow((d - 282) / 13, 2));
+      const growth = -0.75 * (1 / (1 + Math.exp(-(d - 230) / 30)));
+      noise = noise * 0.8 + (rnd() - 0.5) * 0.12;
+      let l = launch + xmas + fd + growth + noise;
+      if (d === N - 1) l = Math.log10(1840);
+      pts.push([X0 + (d * W) / (N - 1), y(Math.pow(10, l))]);
+    }
+    const line = 'M' + pts.map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
+    const tiers = [[400, 2500, 'ELITE', '#f3eeff', '#6a45dc'], [2500, 15000, 'HOT', '#fdebe7', '#cf4f25'], [15000, 60000, 'STRONG', '#fff5e2', '#9a6512'], [60000, 250000, 'STEADY', '#e5f7f2', '#2a7f69'], [250000, 500000, 'SLOW', '#f2f2ee', '#75746e']];
+    const bands = tiers.map((t) => ({ y: y(t[0]).toFixed(1), h: (y(t[1]) - y(t[0])).toFixed(1), ty: (y(t[0]) + 12).toFixed(1), label: t[2], fill: t[3], fg: t[4] }));
+    const yTicks = [1000, 10000, 100000].map((v) => ({ y: (y(v) + 3).toFixed(1), label: v / 1000 + 'K' }));
+    const mNames = ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
+    const months = mNames.map((m, k) => ({ x: (X0 + ((22 + k * 30.4) * W) / (N - 1)).toFixed(0), label: m }));
+    const ev = (d, label) => { const x = X0 + (d * W) / (N - 1); const bw = label.length * 5.6 + 14; return { x: x.toFixed(1), bx: (x - bw / 2).toFixed(1), bw: bw.toFixed(0), label }; };
+    const row = (last) => 'display:flex;align-items:center;gap:9px;padding:6px 10px;' + (last ? '' : 'border-bottom:1px solid #e7e7e3');
+    const sim = [
+      { name: 'Papa Bear Fishing Club', brand: 'Northwoods Supply', bsr: '#2,310', tier: 'elite', shirt: '#2f4a3a', accent: '#e8a24a' },
+      { name: 'Bass Whisperer', brand: 'Lakeside Tackle Co', bsr: '#5,600', tier: 'hot', shirt: '#c9c7c1', accent: '#2f6f8f' },
+      { name: 'Weekend Forecast: Fishing', brand: 'Lure & Lore', bsr: '#8,920', tier: 'hot', shirt: '#1e1e20', accent: '#4fb3a5' },
+      { name: 'O-Fish-Ally Retired', brand: 'Pun Intended Co', bsr: '#24,700', tier: 'strong', shirt: '#48525c', accent: '#f2c14e' },
+      { name: 'Grandpa Fishing Buddy', brand: 'Lure & Lore', bsr: '#71,300', tier: 'steady', shirt: '#5a2331', accent: '#f08a3c' },
+      { name: 'Hooked On Summer', brand: 'Lakeside Tackle Co', bsr: '#350K', tier: 'slow', shirt: '#2c4fa3', accent: '#f2c14e' }
+    ];
+    return {
+      line, area: line + ' L' + (X0 + W) + ' 216 L' + X0 + ' 216 Z', bands, yTicks, months,
+      events: [ev(104, 'Christmas · #4.1K'), ev(282, "Father's Day · #612")],
+      nowX: pts[N - 1][0].toFixed(1), nowY: pts[N - 1][1].toFixed(1),
+      kws: [
+        { kw: 'reel cool grandpa', pos: 1, page: 1, sfr: '212,904', seen: '2h' },
+        { kw: 'fishing grandpa', pos: 2, page: 1, sfr: '48,210', seen: '2h' },
+        { kw: 'grandpa fishing shirt', pos: 4, page: 1, sfr: '96,377', seen: '6h' },
+        { kw: 'retro fishing shirt', pos: 9, page: 1, sfr: '138,442', seen: '1d' },
+        { kw: 'fathers day fishing', pos: 11, page: 1, sfr: '31,055', seen: '1d' },
+        { kw: 'bass fishing gifts', pos: 27, page: 1, sfr: '64,810', seen: '1d' },
+        { kw: 'fishing shirts for men', pos: 52, page: 2, sfr: '5,290', seen: '3d' }
+      ],
+      similar: sim.map((s, i) => Object.assign({}, s, { row: row(i === sim.length - 1) }))
+    };
+  }
+}
+</script>
+</body>
+</html>
