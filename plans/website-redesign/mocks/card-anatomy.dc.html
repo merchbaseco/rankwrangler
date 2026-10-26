@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Card anatomy and tiers</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;family=Bebas+Neue&amp;family=Shrikhand&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+.mono{font-family:'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.tier-elite{--tc:#6a45dc;--tb:#f0eaff;--tbd:#cfc0f0;--sw:#7b57ef}
+.tier-hot{--tc:#cf4f25;--tb:#fce5e1;--tbd:#efc1bd;--sw:#ee6a3c}
+.tier-strong{--tc:#9a6512;--tb:#fff2d8;--tbd:#e6cfa3;--sw:#f0b13d}
+.tier-steady{--tc:#2a7f69;--tb:#ddf5ef;--tbd:#a6dccd;--sw:#53b99b}
+.tier-slow{--tc:#75746e;--tb:#efefeb;--tbd:#dadad5;--sw:#d3d2cc}
+.callout{position:absolute;display:flex;align-items:center;gap:8px;font-size:13px;color:#1f1f1d;white-space:nowrap}
+.callout .ln{height:1px;background:#1f1f1d;opacity:.35}
+.callout .n{width:20px;height:20px;border-radius:50%;background:#1f1f1d;color:#fcfcfa;font:600 11px 'Geist Mono',monospace;display:inline-flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div style="width: 1440px; height: 820px; box-sizing: border-box; padding: 56px 64px; background: #efeee9; background-image: radial-gradient(#d6d4cc 1.2px, transparent 1.3px); background-size: 28px 28px; color: #1f1f1d; font-family: Onest, system-ui, sans-serif; display: flex; gap: 64px">
+
+<div style="position: relative; width: 640px; flex-shrink: 0">
+<div class="mono" style="font-size: 11px; letter-spacing: .1em; color: #6b6a65">THE PRIMITIVE</div>
+<h2 style="margin: 8px 0 0; font-size: 34px; font-weight: 700; letter-spacing: -0.035em">One card, one product.</h2>
+<p style="margin: 8px 0 0; font-size: 14px; color: #6b6a65; max-width: 460px; line-height: 1.5">The art is the hero. Everything else fits under it in three reads: what it is, who made it, how hard it sells.</p>
+
+<div class="tier-elite" style="position: absolute; left: 150px; top: 190px; width: 268px; transform: rotate(-4deg); background: #fcfcfa; border-radius: 16px; outline: 1px solid #dadad5; box-shadow: inset 0 1px 0 #fff, 0 30px 50px -24px rgba(30,28,24,.45)">
+<div style="position: relative; margin: 10px 10px 0; height: 250px; border-radius: 10px; background: #f1f0eb; box-shadow: inset 0 0 0 1px #e7e7e3">
+<svg viewBox="0 0 240 250" style="position: absolute; left: 16px; top: 8px; width: 216px; height: 226px" aria-hidden="true">
+<defs><linearGradient id="aShade" x1="0" y1="0" x2="1" y2="0.3"><stop offset="0" stop-color="#ffffff" stop-opacity="0.14"></stop><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.16"></stop></linearGradient><path id="aArc" d="M66 116 A54 54 0 0 1 174 116"></path></defs>
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="#263354"></path>
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="url(#aShade)"></path>
+<path d="M100 8 Q120 28 140 8" fill="none" stroke="#000" stroke-opacity="0.22" stroke-width="3"></path>
+<circle cx="120" cy="124" r="32" fill="#f08a3c"></circle>
+<rect x="84" y="128" width="72" height="3" fill="#263354"></rect><rect x="84" y="136" width="72" height="4" fill="#263354"></rect><rect x="84" y="145" width="72" height="5" fill="#263354"></rect>
+<text font-family="Shrikhand" font-size="17" fill="#f6eedd" text-anchor="middle"><textPath href="#aArc" startOffset="50%">REEL COOL</textPath></text>
+<text x="120" y="182" font-family="Bebas Neue" font-size="24" letter-spacing="2" fill="#f6eedd" text-anchor="middle">GRANDPA</text>
+</svg>
+<div style="position: absolute; left: 9px; top: 9px; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px 0 7px; border-radius: 7px; background: rgba(252,252,250,.85); border: 1px solid rgba(20,20,18,.08); font-size: 12.5px; font-weight: 500"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c3-5 9-6 14-2l4-3v10l-4-3c-5 4-11 3-14-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"></path></svg>Fishing</div>
+</div>
+<div style="padding: 12px 16px 0"><div style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em">Reel Cool Grandpa</div><div style="font-size: 13px; color: #6b6a65; margin-top: 2px">Lakeside Tackle Co · $19.99</div></div>
+<div style="display: flex; align-items: flex-end; justify-content: space-between; padding: 10px 16px 16px">
+<div><div style="display: flex; align-items: center; gap: 6px"><span class="mono" style="font-size: 11px; letter-spacing: .08em; color: #6b6a65">BSR</span><span style="height: 19px; padding: 0 7px; display: inline-flex; align-items: center; border-radius: 5px; background: var(--tb); border: 1px solid var(--tbd); color: var(--tc); font-size: 11.5px; font-weight: 600">Elite</span></div><div class="mono" style="font-size: 33px; line-height: 1; font-weight: 600; letter-spacing: -0.045em; color: var(--tc); margin-top: 4px">#1,840</div></div>
+<svg width="84" height="40" viewBox="0 0 72 34" aria-hidden="true"><polyline points="2,26 8,28 14,24 20,25 26,20 32,22 38,16 44,17 50,12 56,13 62,8 70,6" fill="none" stroke="var(--tc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="70" cy="6" r="2.6" fill="var(--tc)"></circle></svg>
+</div>
+</div>
+
+<div class="callout" style="left: 0; top: 214px"><span class="n">1</span><span>Niche, from facets</span><span class="ln" style="width: 92px"></span></div>
+<div class="callout" style="left: 440px; top: 300px"><span class="ln" style="width: 40px"></span><span class="n">2</span><span>Design on its shirt colour</span></div>
+<div class="callout" style="left: 440px; top: 504px"><span class="ln" style="width: 30px"></span><span class="n">3</span><span>Short name · brand · price</span></div>
+<div class="callout" style="left: 0; top: 590px"><span class="n">4</span><span>BSR, coloured by tier</span><span class="ln" style="width: 64px"></span></div>
+<div class="callout" style="left: 440px; top: 590px"><span class="ln" style="width: 24px"></span><span class="n">5</span><span>30-day rank trend</span></div>
+<div style="position: absolute; left: 0; bottom: 0; font-size: 12.5px; color: #6b6a65; max-width: 600px; line-height: 1.5">Cards land tilted up to ±6° like a dealt hand. Hover straightens and lifts one; a click opens the preview without leaving the table.</div>
+</div>
+
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 28px">
+<div>
+<div class="mono" style="font-size: 11px; letter-spacing: .1em; color: #6b6a65">BSR TIERS</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 12px">
+<div class="tier-elite" style="padding: 14px; border-radius: 12px; background: var(--tb); box-shadow: inset 0 0 0 1px var(--tbd)"><div style="height: 6px; border-radius: 3px; background: var(--sw)"></div><div style="font-weight: 650; margin-top: 12px; color: var(--tc)">Elite</div><div class="mono" style="font-size: 12px; color: var(--tc); opacity: .8">≤ 2,500</div><div class="mono" style="font-size: 26px; font-weight: 600; letter-spacing: -0.05em; color: var(--tc); margin-top: 10px">#980</div></div>
+<div class="tier-hot" style="padding: 14px; border-radius: 12px; background: var(--tb); box-shadow: inset 0 0 0 1px var(--tbd)"><div style="height: 6px; border-radius: 3px; background: var(--sw)"></div><div style="font-weight: 650; margin-top: 12px; color: var(--tc)">Hot</div><div class="mono" style="font-size: 12px; color: var(--tc); opacity: .8">≤ 15,000</div><div class="mono" style="font-size: 26px; font-weight: 600; letter-spacing: -0.05em; color: var(--tc); margin-top: 10px">#6,210</div></div>
+<div class="tier-strong" style="padding: 14px; border-radius: 12px; background: var(--tb); box-shadow: inset 0 0 0 1px var(--tbd)"><div style="height: 6px; border-radius: 3px; background: var(--sw)"></div><div style="font-weight: 650; margin-top: 12px; color: var(--tc)">Strong</div><div class="mono" style="font-size: 12px; color: var(--tc); opacity: .8">≤ 60,000</div><div class="mono" style="font-size: 26px; font-weight: 600; letter-spacing: -0.05em; color: var(--tc); margin-top: 10px">#31,800</div></div>
+<div class="tier-steady" style="padding: 14px; border-radius: 12px; background: var(--tb); box-shadow: inset 0 0 0 1px var(--tbd)"><div style="height: 6px; border-radius: 3px; background: var(--sw)"></div><div style="font-weight: 650; margin-top: 12px; color: var(--tc)">Steady</div><div class="mono" style="font-size: 12px; color: var(--tc); opacity: .8">≤ 250,000</div><div class="mono" style="font-size: 26px; font-weight: 600; letter-spacing: -0.05em; color: var(--tc); margin-top: 10px">#88,000</div></div>
+<div class="tier-slow" style="padding: 14px; border-radius: 12px; background: var(--tb); box-shadow: inset 0 0 0 1px var(--tbd)"><div style="height: 6px; border-radius: 3px; background: var(--sw)"></div><div style="font-weight: 650; margin-top: 12px; color: var(--tc)">Slow</div><div class="mono" style="font-size: 12px; color: var(--tc); opacity: .8">250,000+</div><div class="mono" style="font-size: 26px; font-weight: 600; letter-spacing: -0.05em; color: var(--tc); margin-top: 10px">#450K</div></div>
+</div>
+<p style="margin: 10px 0 0; font-size: 12.5px; color: #6b6a65">Violet to grey, also dark to light, so the order reads without colour vision. Thresholds are a starting guess to tune against real sell-through.</p>
+</div>
+
+<div>
+<div class="mono" style="font-size: 11px; letter-spacing: .1em; color: #6b6a65">NICHE FACETS</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px">
+<sc-for list="{{facets}}" as="f" hint-placeholder-count="11"><span style="display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px 0 10px; border-radius: 8px; background: {{f.bg}}; border: 1px solid {{f.bd}}; color: {{f.fg}}; font-size: 13.5px; font-weight: 500"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{f.icon}}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{f.label}}</span></sc-for>
+</div>
+</div>
+
+<div style="display: flex; gap: 28px">
+<div style="flex: 1">
+<div class="mono" style="font-size: 11px; letter-spacing: .1em; color: #6b6a65">TYPE</div>
+<div style="margin-top: 12px; font-size: 30px; font-weight: 700; letter-spacing: -0.035em">Onest</div>
+<div style="font-size: 13px; color: #6b6a65">Titles, labels, body</div>
+<div class="mono" style="margin-top: 14px; font-size: 30px; font-weight: 600; letter-spacing: -0.05em">#12,480</div>
+<div style="font-size: 13px; color: #6b6a65">Geist Mono for every figure</div>
+</div>
+<div style="flex: 1">
+<div class="mono" style="font-size: 11px; letter-spacing: .1em; color: #6b6a65">SURFACES</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px">
+<div><div style="height: 56px; border-radius: 10px; background: #efeee9; box-shadow: inset 0 0 0 1px #dadad5"></div><div style="font-size: 12px; margin-top: 6px">Table</div></div>
+<div><div style="height: 56px; border-radius: 10px; background: #fcfcfa; box-shadow: inset 0 0 0 1px #dadad5"></div><div style="font-size: 12px; margin-top: 6px">Card</div></div>
+<div><div style="height: 56px; border-radius: 10px; background: #3a6df0"></div><div style="font-size: 12px; margin-top: 6px">Azure action</div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const H = { blue: ['#dff5ff', '#a9daf3', '#2b6c8c'], green: ['#e4f8da', '#a8db91', '#3d7531'], amber: ['#fff2d8', '#e6cfa3', '#85602c'], coral: ['#fce5e1', '#efc1bd', '#96463b'], violet: ['#f0eaff', '#cfc0f0', '#7357b0'], teal: ['#ddf5ef', '#a6dccd', '#2f7263'], neutral: ['#efefeb', '#dadad5', '#4f4e4a'] };
+    const F = [
+      ['Hobby', 'blue', 'M3 12c3-5 9-6 14-2l4-3v10l-4-3c-5 4-11 3-14-2z'],
+      ['Profession', 'coral', 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z'],
+      ['Animal', 'amber', 'M12 14c-3 0-5 2.5-5 4.5S9 21 12 21s5-.5 5-2.5S15 14 12 14z M4.5 10a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M16.3 10a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M8 5.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M12.8 5.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0'],
+      ['Holiday', 'violet', 'M4 10h16v10H4z M3 7h18v3H3z M12 7v13 M12 7c-2-4-6-3-5 0 M12 7c2-4 6-3 5 0'],
+      ['Occasion', 'violet', 'M4 21h16v-8H4z M4 16c2 1.5 4 1.5 6 0s4-1.5 6 0 2 1 4 0 M12 13V9'],
+      ['Identity', 'teal', 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0'],
+      ['Food', 'amber', 'M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z M17 10h2a2 2 0 0 1 0 4h-2'],
+      ['Place', 'green', 'M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z'],
+      ['Cause', 'coral', 'M12 3a4 4 0 0 0-4 4c0 3 4 7 4 7s4-4 4-7a4 4 0 0 0-4-4z M10 13l-4 8 3-1 1 3 2-6 M14 13l4 8-3-1-1 3-2-6'],
+      ['Culture', 'blue', 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 2v2 M12 20v2 M2 12h2 M20 12h2'],
+      ['Subject', 'neutral', 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 21V5']
+    ];
+    return { facets: F.map((f) => ({ label: f[0], bg: H[f[1]][0], bd: H[f[1]][1], fg: H[f[1]][2], icon: f[2] })) };
+  }
+}
+</script>
+</body>
+</html>

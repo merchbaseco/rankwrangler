@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RankWrangler Explore</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;family=Bebas+Neue&amp;family=Shrikhand&amp;family=Archivo+Black&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+.rw{--bg:#efeee9;--dot:#d6d4cc;--surface:#fcfcfa;--well:#f1f0eb;--border:#dadad5;--hair:#e7e7e3;--ink:#1f1f1d;--muted:#6b6a65;--accent:#3a6df0;--accent-soft:rgba(58,109,240,.10);--glass:rgba(252,252,250,.78);--glass-border:rgba(20,20,18,.08);--shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px rgba(30,28,24,.06),0 18px 34px -18px rgba(30,28,24,.38);
+--elite-fg:#6a45dc;--elite-bg:#f0eaff;--elite-bd:#cfc0f0;--hot-fg:#cf4f25;--hot-bg:#fce5e1;--hot-bd:#efc1bd;--strong-fg:#9a6512;--strong-bg:#fff2d8;--strong-bd:#e6cfa3;--steady-fg:#2a7f69;--steady-bg:#ddf5ef;--steady-bd:#a6dccd;--slow-fg:#75746e;--slow-bg:#efefeb;--slow-bd:#dadad5}
+.rw.dark{--bg:#161615;--dot:#2a2a28;--surface:#232322;--well:#1b1b1a;--border:rgba(255,255,255,.08);--hair:rgba(255,255,255,.06);--ink:#efeee9;--muted:#a09f99;--accent:#6f93ff;--accent-soft:rgba(111,147,255,.16);--glass:rgba(35,35,34,.78);--glass-border:rgba(255,255,255,.08);--shadow:0 1px 0 rgba(255,255,255,.06) inset,0 22px 40px -18px rgba(0,0,0,.8);
+--elite-fg:#b9a2ff;--elite-bg:#2c2545;--elite-bd:#4a3d78;--hot-fg:#ff9a73;--hot-bg:#3b231b;--hot-bd:#6b3a2a;--strong-fg:#f0c675;--strong-bg:#3a2f1b;--strong-bd:#65522c;--steady-fg:#7fd9be;--steady-bg:#183229;--steady-bd:#2c5a4b;--slow-fg:#9a9993;--slow-bg:#262624;--slow-bd:#3a3a37}
+.tier-elite{--tc:var(--elite-fg);--tb:var(--elite-bg);--tbd:var(--elite-bd)}
+.tier-hot{--tc:var(--hot-fg);--tb:var(--hot-bg);--tbd:var(--hot-bd)}
+.tier-strong{--tc:var(--strong-fg);--tb:var(--strong-bg);--tbd:var(--strong-bd)}
+.tier-steady{--tc:var(--steady-fg);--tb:var(--steady-bg);--tbd:var(--steady-bd)}
+.tier-slow{--tc:var(--slow-fg);--tb:var(--slow-bg);--tbd:var(--slow-bd)}
+.slot{position:absolute;width:188px;transition:left .5s cubic-bezier(.2,.8,.2,1),top .5s cubic-bezier(.2,.8,.2,1),transform .5s cubic-bezier(.2,.8,.2,1)}
+.card{all:unset;box-sizing:border-box;display:flex;flex-direction:column;width:188px;background:var(--surface);border-radius:10px;box-shadow:var(--shadow);outline:1px solid var(--border);cursor:pointer;transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s;font-family:Onest,system-ui,sans-serif;color:var(--ink)}
+.card:hover{transform:translateY(-6px) scale(1.045);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 30px 50px -22px rgba(30,28,24,.5)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.card.is-selected{outline:2px solid var(--accent);transform:translateY(-14px) scale(1.06)}
+.chip{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:7px;font:500 12px Onest,system-ui,sans-serif;color:var(--ink);background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(14px);cursor:pointer;white-space:nowrap}
+.chip:hover{background:var(--surface)}
+.chip.on{background:var(--tb);border-color:var(--tbd);color:var(--tc)}
+.chip .dot{width:8px;height:8px;border-radius:3px;background:var(--tc)}
+.ibtn{all:unset;box-sizing:border-box;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;color:var(--ink);cursor:pointer}
+.ibtn:hover{background:var(--accent-soft)}
+.tab{all:unset;box-sizing:border-box;height:26px;padding:0 10px;display:inline-flex;align-items:center;border-radius:6px;font:500 12.5px Onest,system-ui,sans-serif;color:var(--muted);cursor:pointer;text-decoration:none}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--border)}
+.search{all:unset;box-sizing:border-box;flex:1;min-width:0;height:32px;font:500 13px Onest,system-ui,sans-serif;color:var(--ink)}
+.search::placeholder{color:var(--muted)}
+.mono{font-family:'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.peek{transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s}
+.cta{all:unset;box-sizing:border-box;height:30px;padding:0 11px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:7px;font:500 12.5px Onest,system-ui,sans-serif;cursor:pointer;text-decoration:none}
+.cta.primary{background:var(--accent);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 1px 2px rgba(0,0,0,.2)}
+.cta.ghost{background:var(--glass);color:var(--ink);border:1px solid var(--glass-border)}
+</style>
+</helmet>
+<div class="rw {{themeClass}}" style="position: relative; height: 100vh; min-height: 680px; overflow: hidden; background: var(--bg); color: var(--ink); font-family: Onest, system-ui, sans-serif; cursor: {{cursor}}; touch-action: none; user-select: none" onPointerDown="{{onDown}}" onPointerMove="{{onMove}}" onPointerUp="{{onUp}}" onPointerLeave="{{onUp}}" onWheel="{{onWheel}}">
+
+<div ref="{{bgRef}}" aria-hidden="true" style="{{bgStyle}}"></div>
+
+<div ref="{{worldRef}}" style="{{worldStyle}}">
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+<defs>
+<linearGradient id="teeShade" x1="0" y1="0" x2="1" y2="0.3"><stop offset="0" stop-color="#ffffff" stop-opacity="0.14"></stop><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.16"></stop></linearGradient>
+<path id="teeArc" d="M66 116 A54 54 0 0 1 174 116"></path>
+</defs>
+</svg>
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="12">
+<div class="slot" style="{{c.slotStyle}}">
+<button type="button" class="card tier-{{c.tier}} {{c.selClass}}" onClick="{{c.pick}}" aria-label="{{c.name}}, BSR {{c.bsrLabel}}">
+<div style="position: relative; margin: 5px 5px 0; height: 168px; border-radius: 6px; background: var(--well); overflow: hidden; box-shadow: inset 0 0 0 1px var(--hair)">
+<svg viewBox="0 0 240 250" style="position: absolute; left: 14px; top: 6px; width: 150px; height: 156px" aria-hidden="true">
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="{{c.shirt}}"></path>
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="url(#teeShade)"></path>
+<path d="M100 8 Q120 28 140 8" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="3"></path>
+<path d="M66 86 L66 112 M174 86 L174 112" fill="none" stroke="#000000" stroke-opacity="0.08" stroke-width="1.5"></path>
+<sc-if value="{{c.isSunset}}" hint-placeholder-val="{{true}}">
+<circle cx="120" cy="124" r="32" fill="{{c.accent}}"></circle>
+<rect x="84" y="128" width="72" height="3" fill="{{c.shirt}}"></rect>
+<rect x="84" y="136" width="72" height="4" fill="{{c.shirt}}"></rect>
+<rect x="84" y="145" width="72" height="5" fill="{{c.shirt}}"></rect>
+<text font-family="Shrikhand" font-size="17" fill="{{c.ink}}" text-anchor="middle"><textPath href="#teeArc" startOffset="50%">{{c.l1}}</textPath></text>
+<text x="120" y="182" font-family="Bebas Neue" font-size="24" letter-spacing="2" fill="{{c.ink}}" text-anchor="middle">{{c.l2}}</text>
+</sc-if>
+<sc-if value="{{c.isStack}}" hint-placeholder-val="{{false}}">
+<text x="120" y="104" font-family="Bebas Neue" font-size="22" letter-spacing="3" fill="{{c.ink}}" text-anchor="middle">{{c.l1}}</text>
+<text x="120" y="140" font-family="Shrikhand" font-size="27" fill="{{c.accent}}" text-anchor="middle">{{c.l2}}</text>
+<text x="120" y="166" font-family="Bebas Neue" font-size="17" letter-spacing="4" fill="{{c.ink}}" text-anchor="middle">{{c.l3}}</text>
+</sc-if>
+<sc-if value="{{c.isIcon}}" hint-placeholder-val="{{false}}">
+<g transform="translate(93 64) scale(2.25)"><path d="{{c.icon}}" fill="none" stroke="{{c.accent}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></g>
+<text x="120" y="152" font-family="Archivo Black" font-size="18" fill="{{c.ink}}" text-anchor="middle">{{c.l1}}</text>
+<text x="120" y="174" font-family="Bebas Neue" font-size="16" letter-spacing="3" fill="{{c.accent}}" text-anchor="middle">{{c.l2}}</text>
+</sc-if>
+</svg>
+<div style="position: absolute; left: 5px; top: 5px; display: inline-flex; align-items: center; gap: 4px; height: 19px; padding: 0 6px 0 5px; border-radius: 5px; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--glass-border); font-size: 11px; font-weight: 500; color: var(--ink)">
+<svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="{{c.icon}}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span>{{c.facet}}</span>
+</div>
+<sc-if value="{{c.isNew}}" hint-placeholder-val="{{false}}">
+<div class="mono" style="position: absolute; right: 5px; top: 5px; height: 17px; padding: 0 5px; display: inline-flex; align-items: center; border-radius: 4px; background: var(--accent); color: #fff; font-size: 9.5px; font-weight: 600; letter-spacing: .02em">NEW · {{c.days}}D</div>
+</sc-if>
+</div>
+<div style="padding: 7px 9px 0; display: flex; flex-direction: column; gap: 0">
+<div style="font-size: 12.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.name}}</div>
+<div style="font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.brand}} · ${{c.price}}</div>
+</div>
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 6px; margin: 7px 5px 5px; padding: 6px 6px 6px 7px; border-radius: 6px; background: var(--tb); box-shadow: inset 0 0 0 1px var(--tbd)">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span style="font-size: 10px; font-weight: 600; color: var(--tc); letter-spacing: .01em">{{c.tierLabel}} · {{c.sold}}/mo</span>
+<div class="mono" style="font-size: 19px; line-height: 1; font-weight: 600; letter-spacing: -0.05em; color: var(--tc)">{{c.bsrLabel}}</div>
+</div>
+<svg width="54" height="26" viewBox="0 0 72 34" aria-hidden="true" style="flex-shrink: 0"><polyline points="{{c.spark}}" fill="none" stroke="var(--tc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline><circle cx="70" cy="{{c.sparkEnd}}" r="2.6" fill="var(--tc)"></circle></svg>
+</div>
+</button>
+</div>
+</sc-for>
+</div>
+
+<div style="position: absolute; left: 10px; right: 10px; top: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; pointer-events: none">
+<div style="pointer-events: auto; display: flex; align-items: center; gap: 7px; height: 40px; padding: 0 12px 0 9px; border-radius: 10px; background: var(--glass); backdrop-filter: blur(18px); border: 1px solid var(--glass-border)">
+<img src="/_blob/1daf19a94a4abc96e32cc60898d6aa7d" alt="" style="width: 24px; height: 24px; display: block">
+<span style="font-size: 13.5px; font-weight: 700; letter-spacing: -0.02em">RankWrangler</span>
+</div>
+<div style="pointer-events: auto; flex: 1 1 360px; max-width: 520px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 11px; border-radius: 10px; background: var(--glass); backdrop-filter: blur(18px); border: 1px solid var(--glass-border)">
+<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="var(--muted)" stroke-width="2"></circle><path d="M20 20l-3.5-3.5" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"></path></svg>
+<label for="rw-q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search keywords, niches, brands</label>
+<input id="rw-q" class="search" type="search" placeholder="Search a keyword — fishing, nurse, pickleball…" value="{{q}}" onInput="{{onSearch}}" onPointerDown="{{stop}}">
+<span class="mono" style="font-size: 11px; color: var(--muted); padding: 0 6px">{{resultLabel}}</span>
+</div>
+<nav aria-label="Views" style="pointer-events: auto; display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--well); border: 1px solid var(--glass-border)">
+<a class="tab on" href="Main.dc.html">Explore</a>
+<a class="tab" href="Keywords.dc.html">Keywords</a>
+<a class="tab" href="Keywords.dc.html">Niches</a>
+<a class="tab" href="Keywords.dc.html">Movers</a>
+</nav>
+<div style="flex: 1 1 0"></div>
+<div style="pointer-events: auto; display: flex; align-items: center; gap: 2px; height: 40px; padding: 0 6px; border-radius: 10px; background: var(--glass); backdrop-filter: blur(18px); border: 1px solid var(--glass-border)">
+<button type="button" class="ibtn" aria-label="Saved boards" onPointerDown="{{stop}}"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg></button>
+<button type="button" class="ibtn" aria-label="Toggle theme" onClick="{{toggleTheme}}" onPointerDown="{{stop}}"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg></button>
+<div style="width: 24px; height: 24px; margin-left: 2px; border-radius: 50%; background: #cf4f25; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700">ZK</div>
+</div>
+</div>
+
+<div style="position: absolute; left: 10px; top: 56px; display: flex; gap: 4px; flex-wrap: wrap; max-width: calc(100% - 32px)" onPointerDown="{{stop}}">
+<sc-for list="{{tierChips}}" as="t" hint-placeholder-count="5">
+<button type="button" class="chip tier-{{t.key}} {{t.onClass}}" onClick="{{t.toggle}}" aria-pressed="{{t.pressed}}"><span class="dot"></span>{{t.label}} <span class="mono" style="font-size: 11px; opacity: .7">{{t.range}}</span></button>
+</sc-for>
+<span style="width: 1px; height: 22px; background: var(--border); align-self: center; margin: 0 4px"></span>
+<button type="button" class="chip">Niche · Any<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"></path></svg></button>
+<button type="button" class="chip">Published · Last year<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"></path></svg></button>
+<button type="button" class="chip">Sort · Best BSR<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"></path></svg></button>
+</div>
+
+<div style="position: absolute; left: 10px; bottom: 10px; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border-radius: 8px; background: var(--glass); backdrop-filter: blur(18px); border: 1px solid var(--glass-border); font-size: 11.5px; color: var(--muted)">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: var(--steady-fg); box-shadow: 0 0 0 4px var(--steady-bg)"></span>
+<span><span class="mono" style="color: var(--ink); font-weight: 600">[N]</span> products · <span class="mono" style="color: var(--ink); font-weight: 600">[N]</span> keywords mined</span>
+<span style="opacity: .6">·</span>
+<span>Drag to pan · ⌘ + scroll to zoom</span>
+</div>
+
+<div style="position: absolute; right: 10px; bottom: 10px; display: flex; align-items: flex-end; gap: 6px" onPointerDown="{{stop}}">
+<div style="display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 11px; background: var(--glass); backdrop-filter: blur(18px); border: 1px solid var(--glass-border)">
+<button type="button" class="ibtn" aria-label="Zoom in" onClick="{{zoomIn}}"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button>
+<span class="mono" style="font-size: 11px; text-align: center; color: var(--muted)">{{zoomLabel}}</span>
+<button type="button" class="ibtn" aria-label="Zoom out" onClick="{{zoomOut}}"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button>
+</div>
+<div style="position: relative; width: 168px; height: 112px; border-radius: 12px; background: var(--glass); backdrop-filter: blur(18px); border: 1px solid var(--glass-border); overflow: hidden" aria-label="Minimap">
+<sc-for list="{{miniDots}}" as="m" hint-placeholder-count="20">
+<div class="tier-{{m.tier}}" style="{{m.style}}"></div>
+</sc-for>
+<div ref="{{miniRef}}" style="{{miniView}}"></div>
+</div>
+</div>
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{false}}">
+<aside class="peek tier-{{sel.tier}}" aria-label="Product preview" onPointerDown="{{stop}}" onWheel="{{stop}}" style="position: absolute; right: 10px; top: 92px; bottom: 140px; width: 320px; max-width: calc(100% - 20px); overflow-y: auto; border-radius: 12px; background: var(--glass); backdrop-filter: blur(24px); border: 1px solid var(--glass-border); box-shadow: 0 24px 48px -28px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 8px; padding: 8px; font-size: 12.5px; box-sizing: border-box; user-select: text">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--muted)"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{sel.icon}}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{sel.facet}} <span class="mono">· {{sel.asin}}</span></div>
+<button type="button" class="ibtn" aria-label="Close preview" onClick="{{closeSel}}"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button>
+</div>
+<div>
+<div style="padding: 0 4px"><div style="font-size: 16px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.2">{{sel.name}}</div>
+<div style="font-size: 11.5px; color: var(--muted); margin-top: 1px">by {{sel.brand}} · published {{sel.days}} days ago</div></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px">
+<div style="padding: 7px 9px; border-radius: 8px; background: var(--tb); border: 1px solid var(--tbd)"><div class="mono" style="font-size: 10px; letter-spacing: .08em; color: var(--tc)">BSR · {{sel.tierLabel}}</div><div class="mono" style="font-size: 20px; font-weight: 600; letter-spacing: -0.05em; color: var(--tc); margin-top: 4px">{{sel.bsrLabel}}</div></div>
+<div style="padding: 7px 9px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border)"><div class="mono" style="font-size: 10px; letter-spacing: .08em; color: var(--muted)">EST. SOLD / MO</div><div class="mono" style="font-size: 20px; font-weight: 600; letter-spacing: -0.05em; margin-top: 4px">{{sel.sold}}</div></div>
+<div style="padding: 7px 9px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border)"><div class="mono" style="font-size: 10px; letter-spacing: .08em; color: var(--muted)">30D AVG</div><div class="mono" style="font-size: 14px; font-weight: 600; margin-top: 2px">{{sel.avg30}}</div></div>
+<div style="padding: 7px 9px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border)"><div class="mono" style="font-size: 10px; letter-spacing: .08em; color: var(--muted)">RANK DROPS 30D</div><div class="mono" style="font-size: 14px; font-weight: 600; margin-top: 2px">{{sel.drops}}</div></div>
+</div>
+<div style="padding: 7px 9px 4px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border)">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 12px; font-weight: 600">BSR · 90 days</span><span class="mono" style="font-size: 11px; color: var(--muted)">Keepa</span></div>
+<svg viewBox="0 0 330 110" style="width: 100%; height: auto; margin-top: 8px" aria-hidden="true">
+<defs><linearGradient id="peekFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--tc)" stop-opacity="0.28"></stop><stop offset="1" stop-color="var(--tc)" stop-opacity="0"></stop></linearGradient></defs>
+<path d="M0 27.5 H330 M0 55 H330 M0 82.5 H330" stroke="var(--hair)" stroke-width="1"></path>
+<path d="{{sel.area}}" fill="url(#peekFill)"></path>
+<path d="{{sel.line}}" fill="none" stroke="var(--tc)" stroke-width="2" stroke-linejoin="round"></path>
+</svg>
+</div>
+<div style="display: flex; flex-direction: column; gap: 5px; padding: 2px 4px">
+<span style="font-size: 12px; font-weight: 600">Ranks for</span>
+<div style="display: flex; flex-wrap: wrap; gap: 4px">
+<sc-for list="{{sel.kw}}" as="k" hint-placeholder-count="3"><span style="height: 21px; padding: 0 7px; display: inline-flex; align-items: center; border-radius: 5px; background: var(--well); border: 1px solid var(--border); font-size: 11.5px">{{k}}</span></sc-for>
+</div>
+</div>
+<div style="display: flex; gap: 4px; margin-top: auto">
+<a class="cta primary" href="Product.dc.html" style="flex: 1">Open rank history</a>
+<button type="button" class="cta ghost">Save</button>
+</div>
+</aside>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["paper","graphite"],"default":"paper"},"tilt":{"editor":"range","min":0,"max":12,"step":1,"default":6},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { pan: null, zoom: 0.9, q: '', tiers: {}, sel: null, dark: null };
+    this.drag = null;
+  }
+  data() {
+    if (this._data) return this._data;
+    const SH = { navy: '#263354', black: '#1e1e20', royal: '#2c4fa3', pink: '#f3bccb', forest: '#2f4a3a', lemon: '#f2e08a', purple: '#4a3a78', olive: '#5f6138', brown: '#5a3f30', asphalt: '#3a3c40', heather: '#c9c7c1', white: '#f7f5f1', kelly: '#2e8a4c', maroon: '#5a2331', orange: '#e27b3c', slate: '#48525c' };
+    const C = '#f6eedd', D = '#1f1f22';
+    const IC = {
+      fish: 'M3 12c3-5 9-6 14-2l4-3v10l-4-3c-5 4-11 3-14-2z M15.5 11.2v.1',
+      cup: 'M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z M17 10h2a2 2 0 0 1 0 4h-2 M8 2.5v3 M12 2.5v3',
+      paw: 'M12 14c-3 0-5 2.5-5 4.5S9 21 12 21s5-.5 5-2.5S15 14 12 14z M4.5 10a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M16.3 10a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M8 5.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M12.8 5.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0',
+      tent: 'M3 20L12 4l9 16z M9 20l3-6 3 6',
+      pulse: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z M7 11h3l1-2 2 4 1-2h3',
+      book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 21V5 M8 7h7',
+      ghost: 'M6 20V10a6 6 0 0 1 12 0v10l-2-2-2 2-2-2-2 2-2-2z M10 10v.1 M14 10v.1',
+      gift: 'M4 10h16v10H4z M3 7h18v3H3z M12 7v13 M12 7c-2-4-6-3-5 0 M12 7c2-4 6-3 5 0',
+      cake: 'M4 21h16v-8H4z M4 16c2 1.5 4 1.5 6 0s4-1.5 6 0 2 1 4 0 M12 13V9 M12 5.5v.1',
+      sprout: 'M12 21v-9 M12 12c0-4-3-6-7-6 0 4 3 6 7 6z M12 14c0-3 2.5-5 6-5 0 3-2.5 5-6 5z',
+      pad: 'M6 8h12a4 4 0 0 1 4 4v1a3 3 0 0 1-5.4 1.8L15 13H9l-1.6 1.8A3 3 0 0 1 2 13v-1a4 4 0 0 1 4-4z M7 10.5v3 M5.5 12h3 M16 11v.1 M18 13v.1',
+      sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4',
+      pin: 'M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+      ribbon: 'M12 3a4 4 0 0 0-4 4c0 3 4 7 4 7s4-4 4-7a4 4 0 0 0-4-4z M10 13l-4 8 3-1 1 3 2-6 M14 13l4 8-3-1-1 3-2-6',
+      user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
+      wrench: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z',
+      flag: 'M8 21V3l9 4-9 4 M5 21h8',
+      mountain: 'M3 20l6-10 4 6 2-3 6 7z',
+      paddle: 'M14 3a6 6 0 0 1 0 12h-1l-6 6-3-3 6-6v-1a6 6 0 0 1 4-8z'
+    };
+    const P = [
+      ['Reel Cool Grandpa', 'Lakeside Tackle Co', 'sunset', ['REEL COOL', 'GRANDPA'], 'navy', C, '#f08a3c', 'Fishing', 'fish', 1840, '19.99', 412, 1, ['fishing grandpa', 'reel cool grandpa', 'bass fishing gifts']],
+      ['First Coffee Then Chaos', 'Brewed Awake', 'stack', ['FIRST', 'COFFEE', 'THEN CHAOS'], 'black', C, '#e8a24a', 'Coffee', 'cup', 6210, '18.99', 96, 0, ['coffee lover', 'funny coffee shirt']],
+      ['Night Shift Nurse Club', 'Scrubs & Grit', 'icon', ['NIGHT SHIFT', 'NURSE CLUB'], 'royal', C, '#ef7aa0', 'Nursing', 'pulse', 3120, '19.99', 58, 1, ['night shift nurse', 'nurse gifts', 'icu nurse']],
+      ['In My Cat Mom Era', 'Purrfect Press', 'stack', ['IN MY', 'CAT MOM', 'ERA'], 'pink', D, '#b2365f', 'Cats', 'paw', 9800, '17.99', 33, 1, ['cat mom', 'in my era', 'cat lover gifts']],
+      ['Happy Camper Retro', 'Trailhead Goods', 'sunset', ['HAPPY', 'CAMPER'], 'forest', C, '#f08a3c', 'Camping', 'tent', 22400, '19.99', 610, 0, ['happy camper', 'camping shirt']],
+      ['Teacher Off Duty', 'Recess Club', 'stack', ['TEACHER', 'OFF DUTY', 'SUMMER MODE'], 'lemon', D, '#2a4fa8', 'Teachers', 'book', 14900, '18.99', 140, 1, ['teacher summer', 'last day of school']],
+      ['Spooky Season Ghost', 'Haunt House Tees', 'icon', ['SPOOKY', 'SEASON'], 'black', C, '#f08a3c', 'Halloween', 'ghost', 980, '19.99', 21, 1, ['spooky season', 'halloween ghost', 'cute ghost']],
+      ['Birthday Squad', 'Party Animal Co', 'sunset', ['BIRTHDAY', 'SQUAD'], 'purple', C, '#f2c14e', 'Birthday', 'cake', 41200, '17.99', 220, -1, ['birthday squad', 'birthday party shirt']],
+      ['Plant Lady', 'Root & Bloom', 'icon', ['PLANT', 'LADY'], 'olive', C, '#b5dc84', 'Gardening', 'sprout', 18800, '18.99', 310, 0, ['plant lady', 'plant mom']],
+      ['Level Up Dad', 'Pixel Pop', 'icon', ['LEVEL UP', 'DAD MODE'], 'asphalt', C, '#4fb3a5', 'Gaming', 'pad', 7400, '19.99', 180, 1, ['gamer dad', 'level up', 'fathers day gamer']],
+      ['Stay Groovy', 'Sunny Days Supply', 'sunset', ['STAY', 'GROOVY'], 'brown', C, '#f2c14e', 'Retro 70s', 'sun', 31800, '18.99', 900, 0, ['stay groovy', '70s retro']],
+      ['Texas Born & Raised', 'Lone Star Thread', 'icon', ['TEXAS', 'BORN & RAISED'], 'heather', D, '#b23a2e', 'Texas', 'pin', 56200, '19.99', 520, -1, ['texas shirt', 'texas pride']],
+      ['Accept Understand Love', 'Spectrum Kind', 'icon', ['ACCEPT', 'UNDERSTAND · LOVE'], 'white', D, '#3a6df0', 'Autism', 'ribbon', 12100, '18.99', 400, 1, ['autism acceptance', 'autism awareness']],
+      ['Dad Joke Loading', 'Pun Intended Co', 'stack', ['DAD JOKE', 'LOADING', 'PLEASE WAIT'], 'heather', D, '#e85d4a', 'Dad', 'user', 4300, '19.99', 760, 0, ['dad joke', 'funny dad shirt']],
+      ['Fore! Golf Club', 'Back Nine', 'icon', ['FORE!', 'GOLF CLUB'], 'kelly', C, '#f6eedd', 'Golf', 'flag', 88000, '19.99', 270, -1, ['golf shirt', 'golf dad']],
+      ['In My Pickleball Era', 'Dink Squad', 'stack', ['IN MY', 'PICKLEBALL', 'ERA'], 'white', D, '#e2793a', 'Pickleball', 'paddle', 2650, '19.99', 64, 1, ['pickleball', 'pickleball era', 'dink responsibly']],
+      ['One More Chapter', 'Spine Crackers', 'icon', ['ONE MORE', 'CHAPTER'], 'maroon', C, '#f2c14e', 'Books', 'book', 16800, '18.99', 330, 0, ['book lover', 'reading shirt']],
+      ['Axolotl Vibes', 'Lil Critters', 'sunset', ['AXOLOTL', 'VIBES'], 'lemon', D, '#ef7aa0', 'Axolotls', 'paw', 27500, '17.99', 190, 1, ['axolotl', 'cute axolotl']],
+      ['Taco Tuesday', 'Salsa Verde Co', 'sunset', ['TACO', 'TUESDAY'], 'orange', D, '#f6eedd', 'Tacos', 'cup', 47800, '17.99', 450, 0, ['taco tuesday', 'taco lover']],
+      ['Grease Monkey', 'Shop Rag Supply', 'icon', ['GREASE', 'MONKEY'], 'slate', C, '#f08a3c', 'Mechanic', 'wrench', 39000, '19.99', 480, 0, ['mechanic shirt', 'grease monkey']],
+      ['Mama Bear', 'North & Nest', 'stack', ['MAMA', 'BEAR', 'EST. 2026'], 'forest', C, '#e8a24a', 'Mom', 'user', 1320, '19.99', 980, 0, ['mama bear', 'mom shirt', 'mothers day']],
+      ['Lucky Squad', 'Shamrock Shop', 'icon', ['LUCKY', 'SQUAD'], 'kelly', C, '#f2c14e', "St. Patrick's", 'sprout', 142000, '17.99', 230, 1, ['st patricks day', 'lucky shirt']],
+      ['Take A Hike', 'Summit Supply', 'sunset', ['TAKE A', 'HIKE'], 'slate', C, '#f08a3c', 'Hiking', 'mountain', 9100, '19.99', 360, 1, ['hiking shirt', 'take a hike']],
+      ['Bass Whisperer', 'Lakeside Tackle Co', 'icon', ['BASS', 'WHISPERER'], 'heather', D, '#2f6f8f', 'Fishing', 'fish', 5600, '19.99', 240, 0, ['bass fishing', 'fishing dad']],
+      ['Espresso Yourself', 'Brewed Awake', 'sunset', ['ESPRESSO', 'YOURSELF'], 'maroon', C, '#e8a24a', 'Coffee', 'cup', 61000, '18.99', 700, -1, ['espresso', 'coffee pun']],
+      ['Dog Dad Club', 'Good Boy Goods', 'stack', ['DOG DAD', 'CLUB', 'EST. WOOF'], 'navy', C, '#f2c14e', 'Dogs', 'paw', 2180, '19.99', 150, 1, ['dog dad', 'dog lover gifts']],
+      ['Merry & Bright', 'North Pole Press', 'sunset', ['MERRY', '& BRIGHT'], 'forest', C, '#e85d4a', 'Christmas', 'gift', 11400, '19.99', 12, 1, ['christmas shirt', 'merry and bright']],
+      ['Powered By Coffee', 'Scrubs & Grit', 'stack', ['POWERED BY', 'COFFEE', '& NURSING'], 'white', D, '#e85d4a', 'Nursing', 'pulse', 3900, '18.99', 88, 1, ['nurse coffee', 'nurse life']],
+      ['Gamer Grandma', 'Pixel Pop', 'icon', ['GAMER', 'GRANDMA'], 'purple', C, '#ef7aa0', 'Gaming', 'pad', 74000, '19.99', 250, 0, ['gamer grandma', 'grandma gifts']],
+      ['Dirt Therapy', 'Root & Bloom', 'stack', ['DIRT', 'THERAPY', 'GROW SLOW'], 'brown', C, '#b5dc84', 'Gardening', 'sprout', 21000, '18.99', 120, 1, ['gardening shirt', 'garden lover']],
+      ['Hooked On Summer', 'Lakeside Tackle Co', 'sunset', ['HOOKED ON', 'SUMMER'], 'royal', C, '#f2c14e', 'Fishing', 'fish', 350000, '17.99', 14, 0, ['fishing kids', 'summer fishing']],
+      ['Caffeinated & Catty', 'Purrfect Press', 'icon', ['CAFFEINATED', '& CATTY'], 'heather', D, '#b2365f', 'Cats', 'paw', 450000, '17.99', 40, -1, ['cat coffee', 'sassy cat']]
+    ];
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    this._data = P.map((p, i) => {
+      const bsr = p[9];
+      const tier = bsr <= 2500 ? 'elite' : bsr <= 15000 ? 'hot' : bsr <= 60000 ? 'strong' : bsr <= 250000 ? 'steady' : 'slow';
+      const series = [];
+      let v = Math.log(bsr) + p[12] * 0.5;
+      for (let k = 0; k < 90; k++) { v += -p[12] * 0.0055 + (rnd() - 0.5) * 0.16; series.push(v); }
+      const shift = Math.log(bsr) - series[89];
+      const s = series.map((x) => x + shift);
+      const last30 = s.slice(60);
+      const lo = Math.min.apply(null, last30), hi = Math.max.apply(null, last30) + 0.0001;
+      const sparkPts = last30.map((x, k) => [2 + (k * 68) / 29, 4 + ((x - lo) / (hi - lo)) * 26]);
+      return {
+        i, name: p[0], brand: p[1], style: p[2], l1: p[3][0], l2: p[3][1], l3: p[3][2] || '',
+        shirt: SH[p[4]], ink: p[5], accent: p[6], facet: p[7], icon: IC[p[8]], bsr, price: p[10], days: p[11], trend: p[12], kw: p[13],
+        tier, tierLabel: { elite: 'Elite', hot: 'Hot', strong: 'Strong', steady: 'Steady', slow: 'Slow' }[tier],
+        bsrLabel: '#' + bsr.toLocaleString('en-US'),
+        sold: Math.max(1, Math.round(260000 / Math.pow(bsr, 0.82))).toLocaleString('en-US'),
+        avg30: '#' + Math.round(Math.exp(last30.reduce((a, b) => a + b, 0) / 30)).toLocaleString('en-US'),
+        drops: Math.max(1, Math.round(2400 / Math.pow(bsr, 0.45))),
+        asin: 'B0' + (Math.floor(rnd() * 1e8)).toString(36).toUpperCase().padStart(8, 'X').slice(0, 8),
+        spark: sparkPts.map((q) => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' '),
+        sparkEnd: sparkPts[29][1].toFixed(1),
+        series: s,
+        jx: (rnd() - 0.5) * 18, jy: (rnd() - 0.5) * 18, rr: rnd() * 2 - 1
+      };
+    });
+    return this._data;
+  }
+  layout(items) {
+    const cols = items.length > 40 ? 12 : Math.max(3, Math.ceil(Math.sqrt(items.length * 1.8)));
+    const cw = 206, ch = 292;
+    return { cols, rows: Math.ceil(items.length / cols), cw, ch, w: cols * cw, h: Math.ceil(items.length / cols) * ch };
+  }
+  viewport() {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1440;
+    const h = typeof window !== 'undefined' ? window.innerHeight : 900;
+    return { w: Math.max(w, 600), h: Math.max(h, 600) };
+  }
+  apply(pan, zoom) {
+    if (this.worldEl) this.worldEl.style.transform = 'translate(' + pan.x + 'px,' + pan.y + 'px) scale(' + zoom + ')';
+    if (this.bgEl) { this.bgEl.style.backgroundPosition = pan.x + 'px ' + pan.y + 'px'; this.bgEl.style.backgroundSize = (28 * zoom) + 'px ' + (28 * zoom) + 'px'; }
+    if (this.miniEl && this._mini) this.miniEl.setAttribute('style', this.miniStyle(pan, zoom, this._mini));
+  }
+  miniStyle(pan, zoom, m) {
+    const vp = this.viewport();
+    const s = m.s;
+    const x = (-pan.x / zoom) * s + m.ox, y = (-pan.y / zoom) * s + m.oy;
+    return 'position:absolute;left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px;width:' + ((vp.w / zoom) * s).toFixed(1) + 'px;height:' + ((vp.h / zoom) * s).toFixed(1) + 'px;border:1.5px solid var(--accent);border-radius:4px;background:var(--accent-soft)';
+  }
+  renderVals() {
+    const dark = this.state.dark == null ? this.props.theme === 'graphite' : this.state.dark;
+    const tilt = this.props.tilt ?? 6;
+    const all = this.data();
+    const q = this.state.q.trim().toLowerCase();
+    const tiers = this.state.tiers;
+    const anyTier = Object.keys(tiers).some((k) => tiers[k]);
+    let items = all.filter((p) => (!anyTier || tiers[p.tier]) && (!q || (p.name + ' ' + p.brand + ' ' + p.facet + ' ' + p.kw.join(' ')).toLowerCase().indexOf(q) >= 0));
+    items = items.slice().sort((a, b) => a.bsr - b.bsr);
+    let deck = items;
+    if (!q && !anyTier) { deck = []; for (let r = 0; r < 3; r++) items.forEach((p) => deck.push({ p, r })); deck = deck.map((d, k) => ({ p: d.p, r: d.r, k })); for (let k = deck.length - 1; k > 0; k--) { const j = (k * 7919 + 13) % (k + 1); if (k >= 12) { const t = deck[k]; deck[k] = deck[j]; deck[j] = t; } } }
+    else deck = items.map((p, k) => ({ p, r: 0, k }));
+    const L = this.layout(deck);
+    const vp = this.viewport();
+    const zoom = this.state.zoom;
+    const pan = this.state.pan || { x: (vp.w - L.w * zoom) / 2, y: Math.min(140, (vp.h - L.h * zoom) / 2) };
+    this._pan = pan;
+    const selKey = this.state.sel;
+    const cards = deck.map((d, k) => {
+      const p = d.p, col = k % L.cols, row = Math.floor(k / L.cols);
+      const jitter = (d.r * 13 + p.i * 7) % 11 - 5;
+      const rot = ((p.rr + jitter / 9) * tilt * 0.75).toFixed(2);
+      const x = col * L.cw + p.jx + (row % 2 ? 16 : 0) + 24, y = row * L.ch + p.jy + 24;
+      const key = p.i + '-' + d.r;
+      const sel = selKey === key;
+      return Object.assign({}, p, {
+        isSunset: p.style === 'sunset', isStack: p.style === 'stack', isIcon: p.style === 'icon',
+        isNew: p.days <= 60,
+        slotStyle: 'left:' + x.toFixed(0) + 'px;top:' + y.toFixed(0) + 'px;transform:rotate(' + (sel ? 0 : rot) + 'deg);z-index:' + (sel ? 500 : 1),
+        selClass: sel ? 'is-selected' : '',
+        pick: () => { if (this.dragMoved) return; this.setState({ sel: sel ? null : key }); }
+      });
+    });
+    const ms = Math.min(150 / (L.w + 48), 94 / (L.h + 48));
+    const mini = { s: ms, ox: (168 - (L.w + 48) * ms) / 2, oy: (112 - (L.h + 48) * ms) / 2 };
+    this._mini = mini;
+    const miniDots = cards.map((c) => { const m = /left:(-?\d+)px;top:(-?\d+)px/.exec(c.slotStyle); return { tier: c.tier, style: 'position:absolute;left:' + (+m[1] * ms + mini.ox).toFixed(1) + 'px;top:' + (+m[2] * ms + mini.oy).toFixed(1) + 'px;width:' + Math.max(3, 188 * ms).toFixed(1) + 'px;height:' + Math.max(4, 266 * ms).toFixed(1) + 'px;border-radius:1.5px;background:var(--tc);opacity:.75' }; });
+    const selP = selKey ? all[+selKey.split('-')[0]] : null;
+    let sel = null;
+    if (selP) {
+      const s = selP.series, lo = Math.min.apply(null, s), hi = Math.max.apply(null, s) + 0.0001;
+      const pts = s.map((x, k) => [(k * 330) / 89, 8 + ((x - lo) / (hi - lo)) * 94]);
+      const line = 'M' + pts.map((q2) => q2[0].toFixed(1) + ' ' + q2[1].toFixed(1)).join(' L');
+      sel = Object.assign({}, selP, { line, area: line + ' L330 110 L0 110 Z' });
+    }
+    const T = [['elite', 'Elite', '≤2.5K'], ['hot', 'Hot', '≤15K'], ['strong', 'Strong', '≤60K'], ['steady', 'Steady', '≤250K'], ['slow', 'Slow', '250K+']];
+    return {
+      themeClass: dark ? 'dark' : '',
+      cursor: this.drag ? 'grabbing' : 'grab',
+      cards, miniDots, sel, hasSel: !!sel,
+      q: this.state.q,
+      resultLabel: items.length + ' designs',
+      zoomLabel: Math.round(zoom * 100) + '%',
+      worldStyle: 'position:absolute;left:0;top:0;width:' + (L.w + 48) + 'px;height:' + (L.h + 48) + 'px;transform-origin:0 0;transform:translate(' + pan.x + 'px,' + pan.y + 'px) scale(' + zoom + ')',
+      bgStyle: 'position:absolute;inset:0;background-image:radial-gradient(var(--dot) 1.2px, transparent 1.3px);background-size:' + (28 * zoom) + 'px ' + (28 * zoom) + 'px;background-position:' + pan.x + 'px ' + pan.y + 'px',
+      miniView: this.miniStyle(pan, zoom, mini),
+      tierChips: T.map((t) => ({ key: t[0], label: t[1], range: t[2], onClass: tiers[t[0]] ? 'on' : '', pressed: tiers[t[0]] ? 'true' : 'false', toggle: () => this.setState({ tiers: Object.assign({}, tiers, { [t[0]]: !tiers[t[0]] }), pan: null, sel: null }) })),
+      worldRef: (el) => { this.worldEl = el; },
+      bgRef: (el) => { this.bgEl = el; },
+      miniRef: (el) => { this.miniEl = el; },
+      stop: (e) => { e.stopPropagation(); },
+      onSearch: (e) => this.setState({ q: e.target.value, pan: null, sel: null }),
+      toggleTheme: () => this.setState({ dark: !dark }),
+      closeSel: () => this.setState({ sel: null }),
+      zoomIn: () => this.zoomBy(1.15),
+      zoomOut: () => this.zoomBy(1 / 1.15),
+      onDown: (e) => { this.drag = { x: e.clientX, y: e.clientY, px: this._pan.x, py: this._pan.y }; this.dragMoved = false; },
+      onMove: (e) => {
+        if (!this.drag) return;
+        const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
+        if (Math.abs(dx) + Math.abs(dy) > 4) this.dragMoved = true;
+        if (!this.dragMoved) return;
+        this._pan = { x: this.drag.px + dx, y: this.drag.py + dy };
+        this.apply(this._pan, this.state.zoom);
+      },
+      onUp: () => { if (!this.drag) return; this.drag = null; if (this.dragMoved) { this.setState({ pan: this._pan }); setTimeout(() => { this.dragMoved = false; }, 0); } },
+      onWheel: (e) => {
+        if (e.ctrlKey || e.metaKey) { this.zoomBy(e.deltaY < 0 ? 1.08 : 1 / 1.08, e.clientX, e.clientY); return; }
+        this._pan = { x: this._pan.x - e.deltaX, y: this._pan.y - e.deltaY };
+        this.apply(this._pan, this.state.zoom);
+        clearTimeout(this._wt); this._wt = setTimeout(() => this.setState({ pan: this._pan }), 140);
+      }
+    };
+  }
+  zoomBy(f, cx, cy) {
+    const vp = this.viewport();
+    const z0 = this.state.zoom, z1 = Math.min(1.6, Math.max(0.35, z0 * f));
+    const ox = cx ?? vp.w / 2, oy = cy ?? vp.h / 2;
+    const p = this._pan;
+    this._pan = { x: ox - ((ox - p.x) * z1) / z0, y: oy - ((oy - p.y) * z1) / z0 };
+    this.setState({ zoom: z1, pan: this._pan });
+  }
+}
+</script>
+</body>
+</html>
