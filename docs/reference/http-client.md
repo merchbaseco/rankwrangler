@@ -132,7 +132,7 @@ The client never polls. Product search returns stored data or a standard error. 
 apply their retrieval policies. Missing or policy-expired data may wait while durable work continues; Product
 `get`/`getMany` instead return a known Product's last-known listing and refresh it in the
 background. Product
-`get`/`getMany`/`history`, Product search, and Brand Analytics keyword inputs expose no refresh
+`get`/`getMany`/`history`, Product search, and keyword directory inputs expose no refresh
 control. `keyword.results` accepts `refresh` and retains the existing 24-hour run reuse and wait
 behavior. Product `get`/`getMany`/`history` and keyword outputs expose no pending
 data, freshness, Operations, provider status or schema version.

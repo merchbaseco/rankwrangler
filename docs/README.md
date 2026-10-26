@@ -2,7 +2,7 @@
 summary: Routes RankWrangler product contracts, system internals, exact references, maintainer workflows, and durable architecture decisions.
 read_when:
   - starting work in RankWrangler and deciding which documentation surface owns the task
-  - locating the contract for Products, history, Top Search Terms, catalog search, APIs, jobs, or provider operations
+  - locating the contract for Products, history, keyword collection, catalog search, APIs, jobs, or provider operations
 ---
 
 # RankWrangler Docs

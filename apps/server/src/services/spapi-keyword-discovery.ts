@@ -1,3 +1,4 @@
+import type { DiscoveryScope } from './discovery-types';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { db } from '@/db/index';
 import { upsertProductInfo } from '@/db/product/upsert-product';
@@ -15,20 +16,22 @@ const asinPattern = /^[A-Z0-9]{10}$/i;
 
 export const discoverSpApiKeyword = async (
     input: {
-        term: string;
+        scope: DiscoveryScope;
         pageToken?: string;
         marketplaceId: string;
         workId?: string;
-        queryId?: string;
     },
     provider: Pick<SpApiProvider, 'searchCatalogItemsByKeyword'> = createSpApiProvider()
 ) => {
     const response = ItemSearchResultsSchema.parse(
         await provider.searchCatalogItemsByKeyword({
-            keyword: input.term,
+            keyword: input.scope.term,
+            ...(input.scope.kind === 'brand' ? { brandNames: [input.scope.brandName] } : {}),
+            attemptId: input.workId,
             marketplaceId: input.marketplaceId,
             pageSize: 20,
             maxAttempts: 1,
+            priority: 'background',
             pageToken: input.pageToken,
         })
     );
@@ -52,11 +55,22 @@ export const persistDiscoveredSpApiProducts = async (
     transaction: Transaction,
     products: SpApiProduct[]
 ) => {
-    for (const product of [...products].sort((left, right) => left.asin.localeCompare(right.asin))) {
-        await upsertProductInfo(product, transaction);
+    const newProductIds: string[] = [];
+    for (const product of [...products].sort((left, right) =>
+        left.asin.localeCompare(right.asin)
+    )) {
+        const identity = await upsertProductInfo(product, transaction);
+        if (identity.inserted) newProductIds.push(identity.id);
     }
     if (!products.length) {
-        return { productIds: [], merchProductIds: [] };
+        return {
+            productIds: [],
+            merchProductIds: [],
+            newProductIds: [],
+            newMerchProductIds: [],
+            unknownCount: 0,
+            nonMerchCount: 0,
+        };
     }
     const identities = and(
         eq(productTable.marketplaceId, products[0].marketplaceId),
@@ -70,6 +84,12 @@ export const persistDiscoveredSpApiProducts = async (
         .from(productTable)
         .where(identities);
     return {
+        newProductIds,
+        newMerchProductIds: rows
+            .filter(row => row.isMerchListing === true && newProductIds.includes(row.id))
+            .map(row => row.id),
+        unknownCount: rows.filter(row => row.isMerchListing === null).length,
+        nonMerchCount: rows.filter(row => row.isMerchListing === false).length,
         productIds: rows.map(row => row.id),
         merchProductIds: rows.filter(row => row.isMerchListing === true).map(row => row.id),
     };

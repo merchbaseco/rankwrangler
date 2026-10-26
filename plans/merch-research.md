@@ -3,6 +3,20 @@
 Revised October 23, 2026 after the original review and a follow-up scheduling review with Claude. This is the implementation plan,
 not a statement that the proposed capabilities have shipped.
 
+## Current checkpoint, October 25
+
+The October 24 deployment delivered unified stored search, keyword evidence, adaptive Keepa heads,
+selective history admission and a constrained SP-API acquisition pilot. It did not complete broad,
+sustained collection. The day-one check found 578 new identities, including 92 confirmed Merch;
+listing growth stopped at the pilot's twenty-request daily ceiling. Existing data was preserved.
+
+[Growth completion](merch-growth-completion.md) implements the remaining autonomous acquisition:
+independent scoped SP-API targets, catalog-derived roots/pairs/brands, narrower BA acquisition,
+durable measured-rate capacity and operator yield reporting. Local migration, database, MCP and
+package checks are recorded there. These new changes are not deployed yet. Historical checkpoints
+below describe their dated state, not today's production status. Sustained yield/freshness still
+requires observation after deployment.
+
 ## Product goal
 
 RankWrangler is one growing Amazon Merch database for efficient agent research. A caller asks

@@ -9,13 +9,13 @@ type ProductWriteDatabase = typeof db | Parameters<Parameters<typeof db.transact
 export const upsertProductInfo = async (
     productInfo: SpApiProduct,
     database: ProductWriteDatabase = db
-): Promise<void> => {
+) => {
     const dateFirstAvailable = productInfo.dateFirstAvailable
         ? new Date(productInfo.dateFirstAvailable)
         : null;
     const fetchedAt = new Date(productInfo.fetchedAt);
 
-    await database
+    const [identity] = await database
         .insert(products)
         .values({
             marketplaceId: productInfo.marketplaceId,
@@ -49,7 +49,9 @@ export const upsertProductInfo = async (
                 spApiFetchedAt: fetchedAt,
                 spApiResolvedAt: fetchedAt,
             },
-        });
+        })
+        .returning({ id: products.id, inserted: sql<boolean>`(xmax = 0)` });
+    return identity;
 };
 
 const preserveExistingOnNull = (column: { name: string }) => {

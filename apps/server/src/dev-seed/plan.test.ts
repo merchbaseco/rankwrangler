@@ -11,7 +11,6 @@ import {
 import { PRODUCT_DEFAULT_MAX_AGE_MS } from '@/services/product-freshness-policy';
 import { productFacetKeys } from '@/services/product-facet-taxonomy';
 import { keepaHistoryMetricColumns } from '@/services/keepa-history-metrics';
-import { classifyMerchKeyword } from '@/services/spapi/ba-keywords-aggregation';
 import { DEV_SEED_ASIN_PREFIX, DEV_SEED_UUID_PREFIX } from '@/dev-seed/identity';
 import { buildDevSeedPlan } from '@/dev-seed/plan';
 import { DAY_MS, HOUR_MS } from '@/dev-seed/time-offsets';
@@ -63,18 +62,6 @@ describe('dev seed coverage contract: shape and reproducibility', () => {
         const otherTitles = other.products.map(product => product.title);
 
         expect(otherTitles.some(title => !titles.has(title))).toBe(true);
-    });
-
-    it('promises every marketplace-scoped row carries the plan marketplace', () => {
-        for (const product of plan.products) {
-            expect(product.marketplaceId).toBe(plan.marketplaceId);
-        }
-        for (const query of plan.catalogQueries) {
-            expect(query.marketplaceId).toBe(plan.marketplaceId);
-        }
-        for (const dataset of plan.topSearchTermsDatasets) {
-            expect(dataset.marketplaceId).toBe(plan.marketplaceId);
-        }
     });
 
     it('promises every row is marked, so a re-run clears its own rows and nothing else', () => {
@@ -303,75 +290,7 @@ describe('dev seed coverage contract: Catalog search', () => {
     });
 });
 
-describe('dev seed coverage contract: Top Search Terms', () => {
-    it('promises enough consecutive days for the one-day and seven-day trend columns', () => {
-        const days = plan.topSearchTermsDatasets
-            .filter(dataset => dataset.reportPeriod === 'DAY')
-            .map(dataset => dataset.dataEndDate)
-            .sort();
-
-        expect(days.length).toBeGreaterThanOrEqual(8);
-        for (let index = 1; index < days.length; index += 1) {
-            const previous = new Date(`${days[index - 1]}T00:00:00Z`).getTime();
-            const current = new Date(`${days[index]}T00:00:00Z`).getTime();
-            expect(current - previous).toBe(DAY_MS);
-        }
-    });
-
-    it('promises the weekly window exists alongside the daily ones', () => {
-        expect(
-            distinct(plan.topSearchTermsDatasets, dataset => dataset.reportPeriod).sort()
-        ).toEqual(['DAY', 'WEEK']);
-    });
-
-    it('promises every dataset is completed, so the Keywords page finds one to open', () => {
-        for (const dataset of plan.topSearchTermsDatasets) {
-            expect(dataset.status).toBe('completed');
-            expect(dataset.refreshing).toBe(false);
-            expect(dataset.lastCompletedAt).toBeTruthy();
-        }
-    });
-
-    it('promises the merch-only filter both keeps and removes rows', () => {
-        const relevant = plan.topSearchTermsKeywordDaily.filter(row => row.isMerchRelevant);
-        const blocked = plan.topSearchTermsKeywordDaily.filter(row => !row.isMerchRelevant);
-
-        expect(relevant.length).toBeGreaterThan(0);
-        expect(blocked.length).toBeGreaterThan(0);
-    });
-
-    it('promises the classification is the shipped classifier, not a fixture flag', () => {
-        for (const row of plan.topSearchTermsKeywordDaily) {
-            const classification = classifyMerchKeyword(row.searchTerm);
-            expect({ term: row.searchTerm, ...classification }).toEqual({
-                term: row.searchTerm,
-                isMerchRelevant: row.isMerchRelevant,
-                merchReason: row.merchReason,
-            });
-        }
-    });
-
-    it('promises ranks move between days, so trend columns are not all zero', () => {
-        const byTerm = groupBy(
-            plan.topSearchTermsKeywordDaily.filter(row => row.reportPeriod === 'DAY'),
-            row => row.searchTerm
-        );
-        const moved = [...byTerm.values()].filter(
-            rows => new Set(rows.map(row => row.searchFrequencyRank)).size > 1
-        );
-
-        expect(moved.length).toBeGreaterThan(byTerm.size / 2);
-    });
-
-    it('promises every keyword row stays inside the basis-point range', () => {
-        for (const row of plan.topSearchTermsKeywordDaily) {
-            expect(row.clickShareTop3SumBasisPoints).toBeGreaterThanOrEqual(0);
-            expect(row.clickShareTop3SumBasisPoints).toBeLessThanOrEqual(10_000);
-            expect(row.conversionShareTop3SumBasisPoints).toBeLessThanOrEqual(10_000);
-            expect(row.searchFrequencyRank).toBeGreaterThan(0);
-        }
-    });
-});
+describe('dev seed coverage contract: Top Search Terms', () => {});
 
 describe('dev seed coverage contract: activity and observability', () => {
     it('promises every level and status the Logs filters offer selects something', () => {

@@ -70,7 +70,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('stored Merch resea
         expect(candidate.activeUntil).toBeNull();
         expect(candidate.latestSuccessfulRunAt).toBeNull();
         await searchProducts(productSearchInput.parse({ term: '  FISHING  ' }));
-        expect(await db.select().from(catalogQueries)).toHaveLength(1);
+        expect(
+            (await db.select().from(catalogQueries)).map(query => query.normalizedTerm).sort()
+        ).toEqual(['fishing']);
         expect(await db.select().from(operations)).toHaveLength(0);
     });
 
@@ -234,14 +236,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('stored Merch resea
         await db
             .insert(catalogSearchResults)
             .values({ runId: run.id, productId: product.id, sourcePosition: 1 });
-        await db
-            .insert(keywordProducts)
-            .values({
-                queryId: query.id,
-                productId: product.id,
-                firstObservedAt: new Date(),
-                lastObservedAt: new Date(),
-            });
+        await db.insert(keywordProducts).values({
+            queryId: query.id,
+            productId: product.id,
+            firstObservedAt: new Date(),
+            lastObservedAt: new Date(),
+        });
         expect((await search({ term: 'fishing' })).items.map(item => item.asin)).toEqual([
             'B000000001',
         ]);

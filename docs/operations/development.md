@@ -63,9 +63,8 @@ passes values as process environment. No command reads a `.env` file.
 ## Synthetic Development Data
 
 `bun run db:seed:dev` fills a local database with a synthetic recent week: a Merch-style Product
-catalog with facets and Keepa history, Catalog queries with Search-run evidence, Brand Analytics
-Top Search Terms snapshots, and the activity, job, and Provider-telemetry rows behind the Logs
-page. It is about 3,400 rows and takes well under a second. Every timestamp is generated relative
+catalog with facets and Keepa history, Catalog queries with Search-run evidence, and the activity,
+job, and Provider-telemetry rows behind the Logs page. It writes a bounded fixture in one transaction. Every timestamp is generated relative
 to the moment the command runs, so the dashboard opens on the current week rather than a frozen
 fixture. The generator is seeded, so the same seed always produces the same catalog.
 

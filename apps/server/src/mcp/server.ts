@@ -1,3 +1,4 @@
+import { keywordDirectoryInput } from '@/api/keyword-directory-input';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
@@ -40,29 +41,29 @@ const toolOutputSchema = z.object({
 
 const keywordInputSchema = z
     .object({
-        cursor: z.number().int().min(0).optional(),
+        cursor: keywordDirectoryInput.shape.cursor,
+        sort: keywordDirectoryInput.shape.sort.removeDefault().optional(),
         keyword: z.string().trim().min(1).max(200).optional(),
         limit: z.number().int().min(1).max(100).optional(),
-        marketplaceId: z.literal('ATVPDKIKX0DER').optional(),
-        operation: z.enum(['get', 'search', 'history', 'results']),
+        operation: z.enum(['get', 'search', 'results']),
+        state: z.enum(['all', 'queued', 'scanning', 'upToDate', 'untracked']).optional(),
+        heat: z.enum(['all', 'hot', 'warm', 'cold', 'unrated']).optional(),
         term: z.string().trim().min(1).max(200).optional(),
         refresh: z.boolean().optional(),
-        rangeDays: z.number().int().min(7).max(365).optional(),
         text: z.string().trim().min(1).max(200).optional(),
     })
     .strict()
     .superRefine((input, context) =>
         rejectFieldsOutsideOperation(input, context, {
-            get: ['keyword', 'marketplaceId'],
+            get: ['keyword'],
             results: ['term', 'refresh'],
-            history: ['keyword', 'marketplaceId', 'rangeDays'],
-            search: ['cursor', 'limit', 'marketplaceId', 'text'],
+            search: ['cursor', 'limit', 'text', 'state', 'heat', 'sort'],
         })
     );
 
 const statusOutputSchema = z.object({
     capabilities: z.object({
-        keyword: z.array(z.enum(['get', 'search', 'history', 'results'])),
+        keyword: z.array(z.enum(['get', 'search', 'results'])),
         product: z.array(z.enum(['get', 'getMany', 'search', 'history'])),
     }),
     service: z.literal('rankwrangler'),
@@ -147,7 +148,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler keyword data synchronously. operation=get and history use keyword; search uses text. results uses term and optional refresh to fetch or reuse dated Amazon search evidence, returning keyword, searchedAt and results with placements. It may wait for collection and normally reuses evidence for 24 hours. Responses contain data or a standard error.',
+                'Read RankWrangler keyword data synchronously. operation=get reads a keyword directory entry; search filters our stored keyword directory using text, state, heat, limit and an opaque nextCursor. These reads show queued/scanning/upToDate status, untracked reasons, popularity and refresh cadence. results uses term and optional refresh to fetch or reuse dated Amazon search evidence, returning keyword, searchedAt and results with placements. It may wait for collection and normally reuses evidence for 24 hours. Responses contain data or a standard error.',
             inputSchema: keywordInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler keyword',
@@ -165,24 +166,17 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                     return runReadOnlyTool(async () =>
                         source.keyword.get({
                             keyword: requireValue(input.keyword, 'keyword'),
-                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
                         })
                     );
                 case 'search':
                     return runReadOnlyTool(async () =>
                         source.keyword.search({
-                            cursor: input.cursor ?? 0,
+                            cursor: input.cursor,
+                            sort: input.sort,
+                            state: input.state,
+                            heat: input.heat,
                             limit: input.limit ?? 25,
-                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
                             text: requireValue(input.text, 'text'),
-                        })
-                    );
-                case 'history':
-                    return runReadOnlyTool(async () =>
-                        source.keyword.history({
-                            keyword: requireValue(input.keyword, 'keyword'),
-                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
-                            rangeDays: input.rangeDays ?? 90,
                         })
                     );
                 default:

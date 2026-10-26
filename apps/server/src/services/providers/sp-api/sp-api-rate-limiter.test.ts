@@ -74,14 +74,20 @@ describe('getLimiterSettingsFromRps', () => {
 });
 
 describe('adaptive helpers', () => {
-    it('applies smoothing and safety margin to observed limit', () => {
+    it('immediately honors a lower observed limit with its safety margin', () => {
         const tuned = getRateLimitTunedRps({
             currentRps: 2,
             observedRateLimitRps: 1,
         });
 
-        expect(tuned).toBeGreaterThan(1.3);
-        expect(tuned).toBeLessThan(1.5);
+        expect(tuned).toBe(0.8);
+    });
+
+    it('does not repeatedly discount an already protected rate', () => {
+        let rps = 2;
+        for (let sample = 0; sample < 100; sample += 1)
+            rps = getRateLimitTunedRps({ currentRps: rps, observedRateLimitRps: 2 });
+        expect(rps).toBeCloseTo(1.6, 10);
     });
 
     it('penalizes rps after throttles', () => {
@@ -113,9 +119,7 @@ describe('retuned SP-API limiter', () => {
             })
         );
 
-        const calls = Array.from({ length: 4 }, (_, index) =>
-            limiter.schedule(async () => index)
-        );
+        const calls = Array.from({ length: 4 }, (_, index) => limiter.schedule(async () => index));
         const completed = await Promise.race([
             Promise.all(calls),
             new Promise<'wedged'>(resolve => setTimeout(() => resolve('wedged'), 4000)),

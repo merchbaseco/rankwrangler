@@ -1,3 +1,4 @@
+import { readAmazonSearchKeyword } from "./utils/search-keyword";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { browser } from "webextension-polyfill-ts";
@@ -99,6 +100,11 @@ const App = () => {
 
 	useEffect(() => {
 		log.info("Content script App component mounted");
+		const term = readAmazonSearchKeyword(window.location.href);
+		if (term && term.length <= 200)
+			browser.runtime
+				.sendMessage({ type: "recordKeywordSearch", term })
+				.catch(() => log.warn("Could not record Amazon keyword search"));
 
 		// Load initial debug mode state
 		browser.storage.local

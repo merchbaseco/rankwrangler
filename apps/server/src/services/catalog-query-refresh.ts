@@ -1,4 +1,4 @@
-import { refreshKeywordDemand } from '@/db/keyword-demand';
+import { refreshKeywordStandings } from '@/db/refresh-keyword-standings';
 import {
     admitKeywordCandidates,
     listScheduledKeywordHeads,
@@ -9,15 +9,15 @@ import { type CatalogSearchOperation, dispatchCatalogSearchOperation } from './c
 
 type DueResolution = Awaited<ReturnType<typeof resolveScheduledKeywordHead>>;
 export interface CatalogQueryCollectionDeps {
+    refreshStandings?: typeof refreshKeywordStandings;
     admitCandidates?: typeof admitKeywordCandidates;
-    refreshDemand?: typeof refreshKeywordDemand;
     retireAdmissions?: typeof retireKeywordAdmissions;
     listDueQueries: (input: { dueAtOrBefore: Date; now: Date }) => Promise<Array<{ id: string }>>;
     resolveDueRequest: (input: { queryId: string; now?: Date }) => Promise<DueResolution>;
     dispatchOperation: (operation: CatalogSearchOperation) => Promise<boolean>;
 }
 const defaultCollectionDeps: CatalogQueryCollectionDeps = {
-    refreshDemand: refreshKeywordDemand,
+    refreshStandings: refreshKeywordStandings,
     admitCandidates: admitKeywordCandidates,
     retireAdmissions: retireKeywordAdmissions,
     listDueQueries: async ({ now }) => await listScheduledKeywordHeads(now),
@@ -29,7 +29,7 @@ export const collectDueCatalogQueries = async (
     now = new Date(),
     deps: CatalogQueryCollectionDeps = defaultCollectionDeps
 ) => {
-    await deps.refreshDemand?.(now);
+    await deps.refreshStandings?.(now);
     await deps.retireAdmissions?.(now);
     await deps.admitCandidates?.(now);
     const queries = await deps.listDueQueries({ dueAtOrBefore: now, now });
@@ -45,5 +45,10 @@ export const collectDueCatalogQueries = async (
         if (resolution.created) startedCount += 1;
         else joinedCount += 1;
     }
-    return { didWork: startedCount > 0, dueCount: queries.length, startedCount, joinedCount };
+    return {
+        didWork: startedCount > 0,
+        dueCount: queries.length,
+        startedCount,
+        joinedCount,
+    };
 };

@@ -15,9 +15,6 @@ import {
     productHistoryPoints,
     products,
     providerAttempts,
-    topSearchTermsDatasets,
-    topSearchTermsKeywordDaily,
-    topSearchTermsSnapshots,
 } from '@/db/schema';
 import { DEV_SEED_UUID_LIKE } from '@/dev-seed/identity';
 import { DEV_SEED_TABLE_KEYS, type DevSeedPlan, type DevSeedTableKey } from '@/dev-seed/types';
@@ -48,9 +45,6 @@ const CLEAR_STEPS = [
     { column: 'id', table: catalogSearchRuns },
     { column: 'id', table: catalogQueries },
     { column: 'id', table: operations },
-    { column: 'id', table: topSearchTermsKeywordDaily },
-    { column: 'id', table: topSearchTermsSnapshots },
-    { column: 'id', table: topSearchTermsDatasets },
     { column: 'id', table: productHistoryPoints },
     { column: 'id', table: productHistoryImports },
     { column: 'product_id', table: productFacets },
@@ -78,9 +72,6 @@ const INSERT_TABLES: Record<DevSeedTableKey, Parameters<typeof db.insert>[0]> = 
     productHistoryPoints,
     products,
     providerAttempts,
-    topSearchTermsDatasets,
-    topSearchTermsKeywordDaily,
-    topSearchTermsSnapshots,
 };
 
 /** Postgres caps a statement at 65535 bindings; history points are the widest rows. */

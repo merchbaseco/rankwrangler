@@ -77,19 +77,43 @@ visible to callers or recovery and a concurrently completed reusable run does no
   requests carry a 30-day research lease; general Product searches record interest only.
 - Successful observations choose the next interval: hot 1–7 days, warm 7–21 days, cold 30–60 days.
   Changed Merch membership halves the interval; quiet membership multiplies it by 1.5. Apply ±10%
-  jitter. Fresh Brand Analytics relative demand supplies separate tier evidence; tiny samples do not.
+  jitter. Keyword popularity uses current BSR strength and breadth.
 - Truly empty provider pages wait seven days, then thirty after repeated emptiness. Products
   removed by local filters are not empty-provider evidence. Failures back off from five minutes to
   twenty-four hours. Budget deferrals advance neither freshness nor failure counts.
 - Demotion requires two successful observations and fourteen days of grace. Unsupported probation
-  ends after thirty days. Inactive terms retire after ninety days without interest or fresh demand.
+  ends after thirty days. Inactive terms retire after ninety days without interest.
 - Keepa observes the first page only. A live pilot showed page 1 repeats page 0 and charges again.
-  SP-API exploration uses real continuation tokens, with five pages per job, ten requests per term
-  per day and twenty globally per day during the pilot. Background calls get one physical attempt;
-  failures retain their reservation and retry through the durable scheduler.
+  SP-API acquisition uses real continuation tokens and five accepted pages per job, independently
+  of Keepa tier/admission. The former ten-per-term/twenty-global daily pilot caps are removed.
+  Every physical Catalog start shares a persisted token bucket with foreground listing reads.
+  Background gets 10% of effective observed rate, capped at 0.25 requests/second; foreground has
+  queue priority and access to the remaining capacity. Rate headers, throttle cooldown and
+  Retry-After survive restart. Deferrals retain the page and schedule an actual dated wakeup.
+  A minute watchdog recovers lost wakeups; a short-policy queue coalesces pending jobs.
+  Background calls get one physical attempt; failures retry through durable backoff.
 - Exploration retains source, contiguous observed depth, oldest page time and stop reason. Two
   low-yield pages stop expansion; repeated pages, provider exhaustion and stale continuation each
   have bounded handling. These facts do not claim complete Amazon coverage or organic placement.
+
+Acquisition targets own tracked/trial/dormant state, the latest page-one Merch membership,
+explainable popularity score, cadence and next check. This is separate from Keepa admission.
+User searches directly track the exact phrase through API/MCP or the extension's Amazon search
+context; no synthetic apparel companion or product tags are added. Mined phrases enter trials.
+Two failed Merch trials become dormant; explicit user research reactivates them immediately.
+
+Score the latest first page using fresh current Merch BSRs, rewarding both strong leaders and
+breadth. Hot checks use 1–7 days,
+warm 7–21, cold 30–60, with change/quiet adaptation. Demotion requires two weak observations and
+fourteen days since weak evidence began. Product-rank updates can promote a keyword between
+searches. No new-ASIN yield is required to keep a strong known niche current. Novelty only stops
+expensive deeper paging. A durable claim sequence reserves one in five dispatches for trials,
+with the other class lending unused opportunities; physical request capacity remains the ceiling.
+
+[Keyword mining](keyword-mining.md) owns once-per-ASIN Ads recommendations, global Jev judgments,
+retry checkpoints, source evidence and provider budgets. Product facet classification remains
+independently disabled. It is not an acquisition source. Exact verified official-brand exclusions
+remain evidence-backed, without guessed aliases or whole-licensee exclusions.
 
 Provider tokens and durable Operation identifiers remain internal. Public keyword-results callers
 receive `keyword`, `searchedAt`, and compact `results`. Each result carries immutable
@@ -121,4 +145,4 @@ Existing Search runs remain opportunistic first-page evidence under decaying key
 Standalone placement history is out of scope. A future rank tracker needs deliberate multi-page
 collection, observed-depth semantics, and continuous bounded scheduling.
 RankWrangler exposes source-attributed evidence; it does not score opportunities, recommend niches,
-or promote queries from Brand Analytics data into product-search refresh activity.
+or estimate organic keyword search volume.

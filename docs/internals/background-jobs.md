@@ -27,17 +27,20 @@ where a second attempt would be redundant.
 | Product-history Operation | Event-driven worker plus one-minute stale-pending recovery. |
 | Catalog-search Operation | Event-driven first-page Keepa search plus one-minute stale-pending recovery. |
 | Active Catalog keyword | One-minute due scan plus one startup scan; one current run, no backfill. |
-| Top Search Terms dataset sync | Every five minutes with a bounded due-window batch. |
-| Top Search Terms report fetch | Event-driven; one grouped fetch across server instances. |
 | Product facets | One-minute worker definition, currently disabled by policy. |
 | Provider-attempt retention | Daily bounded deletion of attempts older than seven days. |
+
+The `process-keyword-sync` coordinator owns the new keyword loop. It runs discovery,
+autocomplete and ASIN keyword-mining stages, checks the persistent pause switch between stages,
+and schedules the next cycle no faster than ten seconds. A minute watchdog recovers lost wakes.
+Old independent stage schedules are unscheduled at startup. Errors are reported after the other
+stages have had an opportunity to progress; one provider failure cannot starve the remaining stages.
 
 ## State Ownership
 
 pg-boss owns dispatch and execution. Durable domain tables own recoverable state:
 
 - SP-API and Keepa queue tables own pending Product work;
-- Top Search Terms datasets own report ID, status, retry time, and recovery state;
 - Products own source freshness;
 - Catalog queries own keyword activity leases, refresh-attempt timestamps, and latest successful
   run watermarks;

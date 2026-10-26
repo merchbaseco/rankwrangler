@@ -198,82 +198,6 @@ export interface ContextRequest {
 		host?: string;
 	};
 }
-declare const TOP_SEARCH_TERMS_REPORT_PERIODS: readonly [
-	"DAY",
-	"WEEK"
-];
-declare const TOP_SEARCH_TERMS_REFRESH_TRIGGERS: readonly [
-	"requested",
-	"automatic"
-];
-export type TopSearchTermsReportPeriod = (typeof TOP_SEARCH_TERMS_REPORT_PERIODS)[number];
-export type TopSearchTermsRefreshTrigger = (typeof TOP_SEARCH_TERMS_REFRESH_TRIGGERS)[number];
-export type SearchTermsTrendDelta = {
-	rankDelta: number | null;
-	clickShareDelta: number | null;
-	conversionShareDelta: number | null;
-};
-export type SearchTermsTrendDeltas = {
-	d1: SearchTermsTrendDelta;
-	d7: SearchTermsTrendDelta;
-	d30: SearchTermsTrendDelta;
-};
-export interface KeywordEvidence {
-	searchFrequencyRank: number;
-	clickShareTop3: number;
-	conversionShareTop3: number;
-	topRowsCount: number;
-	isMerchRelevant: boolean;
-	merchReason: string;
-}
-export interface KeywordCurrent {
-	keyword: string;
-	marketplaceId: string;
-	reportPeriod: TopSearchTermsReportPeriod;
-	dataStartDate: string;
-	dataEndDate: string;
-	observedDate: string;
-	fetchedAt: string;
-	trigger: TopSearchTermsRefreshTrigger;
-	evidence: KeywordEvidence;
-}
-export interface KeywordSearchItem extends KeywordEvidence {
-	keyword: string;
-	observedDate: string;
-	trigger: TopSearchTermsRefreshTrigger;
-}
-export interface KeywordSearchSummary {
-	marketplaceId: string;
-	reportPeriod: TopSearchTermsReportPeriod;
-	dataStartDate: string | null;
-	dataEndDate: string | null;
-	observedDate: string | null;
-	fetchedAt: string | null;
-	totalFiltered: number;
-}
-export interface KeywordSearchResponse {
-	status: "ready" | "empty";
-	items: KeywordSearchItem[];
-	nextCursor: number | null;
-	summary: KeywordSearchSummary;
-}
-export interface KeywordHistoryPoint {
-	observedDate: string;
-	searchFrequencyRank: number;
-	clickShareTop3: number;
-	conversionShareTop3: number;
-	trigger: TopSearchTermsRefreshTrigger;
-}
-export interface KeywordHistoryResponse {
-	keyword: string;
-	marketplaceId: string;
-	reportPeriod: TopSearchTermsReportPeriod;
-	rangeDays: number;
-	status: "ready" | "empty";
-	latestObservedDate: string | null;
-	points: KeywordHistoryPoint[];
-	deltas: SearchTermsTrendDeltas;
-}
 export type PublicCutoutThumbnail = {
 	status: "available";
 	url: string;
@@ -505,15 +429,26 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				get: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						keyword: string;
-						dataEndDate?: string | undefined;
-						dataStartDate?: string | undefined;
-						marketplaceId?: "ATVPDKIKX0DER" | undefined;
-						reportPeriod?: "DAY" | "WEEK" | undefined;
 					};
 					output: {
 						keyword: string;
-						status: "ready" | "empty";
-						current: KeywordCurrent | null;
+						data: {
+							createdAt: string;
+							lastCheckedAt: string | null;
+							nextCheckAt: string | null;
+							id: string;
+							queryId: string | null;
+							term: string;
+							status: "queued" | "scanning" | "upToDate" | "untracked";
+							untrackedReason: "notRelevant" | "noMerchFound" | "notScheduled" | null;
+							retryScheduled: boolean;
+							heat: string;
+							score: number | null;
+							sources: string[];
+							products: number;
+							merch: number;
+							intervalDays: number | null;
+						};
 					};
 					meta: object;
 				}>;
@@ -525,30 +460,61 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					output: KeywordResults;
 					meta: object;
 				}>;
-				history: import("@trpc/server").TRPCQueryProcedure<{
-					input: {
-						keyword: string;
-						marketplaceId?: "ATVPDKIKX0DER" | undefined;
-						rangeDays?: number | undefined;
-						reportPeriod?: "DAY" | "WEEK" | undefined;
-					};
-					output: KeywordHistoryResponse;
-					meta: object;
-				}>;
 				search: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						text: string;
-						cursor?: number | undefined;
+						state?: "all" | "queued" | "scanning" | "upToDate" | "untracked" | undefined;
+						sort?: "work" | "newest" | undefined;
 						limit?: number | undefined;
-						maxRank?: number | undefined;
-						merchOnly?: boolean | undefined;
-						minRank?: number | undefined;
-						dataEndDate?: string | undefined;
-						dataStartDate?: string | undefined;
-						marketplaceId?: "ATVPDKIKX0DER" | undefined;
-						reportPeriod?: "DAY" | "WEEK" | undefined;
+						heat?: "unrated" | "hot" | "warm" | "cold" | "all" | undefined;
+						cursor?: {
+							key: [
+								number,
+								number,
+								number,
+								number,
+								number,
+								number,
+								string
+							];
+							asOf: string;
+							trialTurn: boolean;
+							sort: "work" | "newest";
+						} | undefined;
 					};
-					output: KeywordSearchResponse;
+					output: {
+						items: {
+							createdAt: string;
+							lastCheckedAt: string | null;
+							nextCheckAt: string | null;
+							id: string;
+							queryId: string | null;
+							term: string;
+							status: "queued" | "scanning" | "upToDate" | "untracked";
+							untrackedReason: "notRelevant" | "noMerchFound" | "notScheduled" | null;
+							retryScheduled: boolean;
+							heat: string;
+							score: number | null;
+							sources: string[];
+							products: number;
+							merch: number;
+							intervalDays: number | null;
+						}[];
+						nextCursor: {
+							key: [
+								number,
+								number,
+								number,
+								number,
+								number,
+								number,
+								string
+							];
+							asOf: string;
+							trialTurn: boolean;
+							sort: "work" | "newest";
+						} | null;
+					};
 					meta: object;
 				}>;
 			}>>;

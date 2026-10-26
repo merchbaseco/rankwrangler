@@ -48,7 +48,7 @@ const main = async () => {
         assertContains(stdout, 'product history <ASIN>');
         assertContains(stdout, 'product search [text]');
         assertContains(stdout, 'keyword results <keyword>');
-        assertContains(stdout, 'keyword history <keyword>');
+        assertContains(stdout, 'keyword search <text>');
         assertContains(stdout, 'changelog');
         assertContains(stdout, 'config set storage-dir <path>');
         assertContains(changelogStdout, latestChangelogHeading);

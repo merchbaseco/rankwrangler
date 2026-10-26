@@ -8,12 +8,8 @@ import {
 import type { LastUpdated } from "@/components/dashboard/app/config";
 import { DashboardFooter } from "@/components/dashboard/app/dashboard-footer";
 import { FiltersSidebar } from "@/components/dashboard/app/filters-sidebar";
-import {
-	type DashboardPage,
-	TopBar,
-} from "@/components/dashboard/app/top-bar";
+import { type DashboardPage, TopBar } from "@/components/dashboard/app/top-bar";
 import { CatalogPage } from "@/components/dashboard/catalog/catalog-page";
-import { KeywordsPage } from "@/components/dashboard/keywords/keywords-page";
 import { LogsPage } from "@/components/dashboard/logs/logs-page";
 import {
 	type FilterState,
@@ -25,8 +21,9 @@ import { useAccessUsage } from "@/hooks/use-access-usage";
 import { useTheme } from "@/hooks/use-theme";
 
 export function App() {
-	const [activePage, setActivePage] =
-		useState<DashboardPage>(getInitialDashboardPage);
+	const [activePage, setActivePage] = useState<DashboardPage>(
+		getInitialDashboardPage,
+	);
 	const [searchValue, setSearchValue] = useState("");
 	const [filters, setFilters] = useState<FilterState>({
 		bsrRange: null,
@@ -208,13 +205,9 @@ export function App() {
 					<div className="min-h-0 min-w-0 flex-1">
 						<CatalogPage />
 					</div>
-				) : activePage === "logs" ? (
-					<div className="min-h-0 min-w-0 flex-1">
-						<LogsPage />
-					</div>
 				) : (
 					<div className="min-h-0 min-w-0 flex-1">
-						<KeywordsPage />
+						<LogsPage />
 					</div>
 				)}
 			</div>
@@ -238,9 +231,7 @@ type AppUiState = {
 
 const getInitialDashboardPage = (): DashboardPage => {
 	const page = new URL(window.location.href).searchParams.get("page");
-	return page === "catalog" || page === "logs" || page === "keywords"
-		? page
-		: "products";
+	return page === "catalog" || page === "logs" ? page : "products";
 };
 
 type AppUiAction =

@@ -2,7 +2,6 @@ import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
 import { buildActivity } from '@/dev-seed/build-activity';
 import { buildCatalog } from '@/dev-seed/build-catalog';
 import { buildHistory } from '@/dev-seed/build-history';
-import { buildKeywords } from '@/dev-seed/build-keywords';
 import { buildSearch } from '@/dev-seed/build-search';
 import { createIdMinter } from '@/dev-seed/identity';
 import { createSeededRandom } from '@/dev-seed/random';
@@ -41,7 +40,6 @@ export const buildDevSeedPlan = (overrides: Partial<DevSeedOptions> = {}): DevSe
     const catalog = buildCatalog(context);
     const history = buildHistory(context, catalog.seedProducts);
     const search = buildSearch(context, catalog.seedProducts);
-    const keywords = buildKeywords(context);
     const activity = buildActivity(context, catalog.seedProducts);
 
     return {
@@ -61,8 +59,5 @@ export const buildDevSeedPlan = (overrides: Partial<DevSeedOptions> = {}): DevSe
         productHistoryPoints: history.productHistoryPoints,
         products: catalog.products,
         providerAttempts: activity.providerAttempts,
-        topSearchTermsDatasets: keywords.topSearchTermsDatasets,
-        topSearchTermsKeywordDaily: keywords.topSearchTermsKeywordDaily,
-        topSearchTermsSnapshots: keywords.topSearchTermsSnapshots,
     };
 };

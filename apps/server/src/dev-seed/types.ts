@@ -15,9 +15,6 @@ import type {
     productHistoryPoints,
     products,
     providerAttempts,
-    topSearchTermsDatasets,
-    topSearchTermsKeywordDaily,
-    topSearchTermsSnapshots,
 } from '@/db/schema';
 
 export interface DevSeedOptions {
@@ -54,9 +51,6 @@ export interface DevSeedPlan {
     readonly productHistoryPoints: readonly (typeof productHistoryPoints.$inferInsert)[];
     readonly products: readonly (typeof products.$inferInsert)[];
     readonly providerAttempts: readonly (typeof providerAttempts.$inferInsert)[];
-    readonly topSearchTermsDatasets: readonly (typeof topSearchTermsDatasets.$inferInsert)[];
-    readonly topSearchTermsKeywordDaily: readonly (typeof topSearchTermsKeywordDaily.$inferInsert)[];
-    readonly topSearchTermsSnapshots: readonly (typeof topSearchTermsSnapshots.$inferInsert)[];
 }
 
 /** Every named row list in a plan, in the order the writer inserts them. */
@@ -71,9 +65,6 @@ export const DEV_SEED_TABLE_KEYS = [
     'operations',
     'catalogSearchRuns',
     'catalogSearchResults',
-    'topSearchTermsDatasets',
-    'topSearchTermsSnapshots',
-    'topSearchTermsKeywordDaily',
     'jobExecutions',
     'jobExecutionLogs',
     'eventLogs',

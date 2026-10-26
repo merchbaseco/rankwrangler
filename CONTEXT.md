@@ -46,8 +46,8 @@ RankWrangler's marketplace-scoped knowledge that an Amazon detail-page listing i
 _Avoid_: Availability, buyability, isUnavailable
 
 **Merch-listing classification**:
-Product-level classification of listing type from bullet evidence. It is separate from Top Search
-Terms' `isMerchRelevant` classification and from opportunity assessment.
+Product-level classification of listing type from bullet evidence. It is separate from keyword
+candidate admission and from opportunity assessment.
 _Avoid_: Merch relevance, opportunity verdict
 
 **Merch-listing truth**:

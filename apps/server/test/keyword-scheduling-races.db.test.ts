@@ -10,15 +10,9 @@ import { keepaCapacityAttempts, keepaCapacityState } from '@/db/keepa-capacity-s
 import { lockCatalogQueryForReconciliation } from '@/db/catalog-query-resolution';
 import { acceptKeywordObservation } from '@/db/keyword-observation';
 import { lockKeywordScheduling } from '@/db/keyword-scheduling-lock';
-import { refreshKeywordDemand } from '@/db/keyword-demand';
 import { keywordProducts } from '@/db/keyword-collection-schema';
 import { products } from '@/db/product-schema';
 import { operations } from '@/db/ops-schema';
-import {
-    topSearchTermsDatasets,
-    topSearchTermsSnapshots,
-    topSearchTermsKeywordDaily,
-} from '@/db/top-search-terms-schema';
 
 const now = new Date('2026-10-23T12:00:00Z');
 const day = 86_400_000;
@@ -29,7 +23,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             await db.delete(catalogQueries);
             await db.delete(keepaCapacityAttempts);
             await db.delete(keepaCapacityState);
-            await db.delete(topSearchTermsDatasets);
             await db.insert(keepaCapacityState).values({
                 id: 1,
                 tokensLeft: 1200,
@@ -95,38 +88,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                     .where(eq(catalogQueries.id, observation.queryId));
                 expect(query.intervalDays).toBe(7);
             }
-        });
-
-        it('promotes demand using the head success committed while it was waiting', async () => {
-            const observation = await seedObservation();
-            await seedDemand();
-            let announce = () => {};
-            let release = () => {};
-            const held = new Promise<void>(resolve => {
-                announce = resolve;
-            });
-            const gate = new Promise<void>(resolve => {
-                release = resolve;
-            });
-            const head = db.transaction(async tx => {
-                await lockKeywordScheduling(tx);
-                await lockCatalogQueryForReconciliation(tx, observation.queryId);
-                await acceptKeywordObservation(tx, observation);
-                announce();
-                await gate;
-            });
-            await held;
-            const demand = refreshKeywordDemand(now);
-            await new Promise(resolve => setTimeout(resolve, 30));
-            release();
-            await Promise.all([head, demand]);
-            const [query] = await db
-                .select()
-                .from(catalogQueries)
-                .where(eq(catalogQueries.id, observation.queryId));
-            expect(query.tier).toBe('hot');
-            expect(query.latestSuccessfulRunAt).toEqual(now);
-            expect(query.nextDueAt?.getTime()).toBeGreaterThanOrEqual(now.getTime() + day);
         });
     }
 );
@@ -208,46 +169,4 @@ const seedObservation = async (term = 'fishing shirt') => {
         resultCount: 5,
         productIds: currentIds,
     };
-};
-const seedDemand = async () => {
-    const [dataset] = await db
-        .insert(topSearchTermsDatasets)
-        .values({
-            marketplaceId: 'ATVPDKIKX0DER',
-            reportPeriod: 'DAY',
-            dataStartDate: '2026-10-22',
-            dataEndDate: '2026-10-22',
-        })
-        .returning();
-    const [snapshot] = await db
-        .insert(topSearchTermsSnapshots)
-        .values({
-            datasetId: dataset.id,
-            marketplaceId: 'ATVPDKIKX0DER',
-            reportPeriod: 'DAY',
-            dataStartDate: '2026-10-22',
-            dataEndDate: '2026-10-22',
-            observedDate: '2026-10-23',
-            reportId: 'race',
-            sourceJobId: 'race',
-            fetchedAt: now,
-        })
-        .returning();
-    await db.insert(topSearchTermsKeywordDaily).values(
-        Array.from({ length: 30 }, (_, i) => ({
-            snapshotId: snapshot.id,
-            datasetId: dataset.id,
-            marketplaceId: 'ATVPDKIKX0DER',
-            reportPeriod: 'DAY',
-            dataStartDate: '2026-10-22',
-            dataEndDate: '2026-10-22',
-            observedDate: '2026-10-23',
-            searchTerm: i ? `term-${i} shirt` : 'fishing shirt',
-            searchFrequencyRank: i + 1,
-            clickShareTop3SumBasisPoints: 0,
-            conversionShareTop3SumBasisPoints: 0,
-            isMerchRelevant: true,
-            merchReason: 'apparel',
-        }))
-    );
 };

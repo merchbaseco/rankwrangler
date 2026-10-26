@@ -19,7 +19,6 @@ describe('Catalog query API contract', () => {
 
         expect(publicProcedures).toContain('api.public.keyword.get');
         expect(publicProcedures).toContain('api.public.keyword.search');
-        expect(publicProcedures).toContain('api.public.keyword.history');
         expect(publicProcedures).not.toContain('api.public.keyword.track');
         expect(publicProcedures).not.toContain('api.public.keyword.untrack');
         expect(publicProcedures).not.toContain('api.public.keyword.operation');

@@ -13,10 +13,9 @@ rw keyword results "retro gardening shirt"
 rw product history B0DV53VS61 --bucket week
 rw keyword get "retro gardening shirt"
 rw keyword search "retro gardening"
-rw keyword history "retro gardening shirt" --rangeDays 90
 ```
 
-The public command surface is Product `get/search/history`, keyword `get/search/history/results`,
+The public command surface is Product `get/search/history`, keyword `get/search/results`,
 auth, config, version, and changelog. Product search reads the collected database immediately and
 supports filters, sorting, and cursor pagination. Keyword results returns dated Amazon search
 results with placement and accepts `--refresh` to replace the observed Search run.

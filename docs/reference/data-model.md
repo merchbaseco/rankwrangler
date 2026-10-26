@@ -35,8 +35,6 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | History import | generated id | One Keepa import attempt, request context, provider accounting, and outcome. |
 | History point | `(productId, source, metric, categoryId, keepaMinutes)` | One source observation at one Keepa timestamp. |
 | Keepa category | `(marketplaceId, categoryId)` | Display name for a Keepa category id. |
-| Top Search Terms dataset | marketplace, period, and report window | Current fetch lifecycle for one Amazon Brand Analytics reporting window. |
-| Top Search Terms snapshot | `(datasetId, observedDate)` | One fetched daily observation of a dataset. |
 | Search-term row | `(snapshotId, searchTerm)` | Rank and top-three click/conversion shares for one term in one snapshot. |
 | Operation | generated id; unique pending `(type, targetKey)` | Durable coordination record and terminal resource or safe error. |
 | Catalog query | `(source, marketplaceId, normalizedTerm)` | Term interest, bounded admission, tier, demand evidence, research lease and next check. |
@@ -186,11 +184,11 @@ and placement are immutable; projected Product fields remain independent current
 Allowed facet families are `profession`, `hobby`, `animal`, `food`, `cause`, `identity`,
 `culture`, `holiday`, `occasion`, `place`, and `party-theme`.
 
-## Top Search Terms observations
 
-Brand Analytics rows are historical observations, not Products. Each row belongs to one snapshot
-and stores the source search-frequency rank, top-three click and conversion share sums in basis
-points, source-row count, and RankWrangler's Merch-relevance classification with its reason.
+## Keyword collection
 
-Dates in this subsystem are report and observation dates. They are not interchangeable with
-product-fetch timestamps or Keepa observation times.
+Canonical queries and discovery targets own tracked/trial/dormant status, first-page BSR standing,
+intervals and next checks. Mined candidates have a unique marketplace/normalized phrase identity
+and durable accepted/rejected judgment. Product mining and autocomplete own separate fenced work
+ledgers and provenance links. Keyword activity shares the event log with Products and jobs.
+Brand Analytics report tables and catalog demand fields were removed in migration 0048.

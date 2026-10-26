@@ -1,3 +1,7 @@
+import { syncControlGet } from './sync-control-get';
+import { syncControlSet } from './sync-control-set';
+import { keywordTrack } from './keyword-track';
+import { keywordDirectory } from './keyword-directory';
 import { router } from '@/api/trpc.js';
 import { accessUsage } from './access-usage';
 import { adminStatus } from './admin-status.js';
@@ -23,10 +27,11 @@ import { productSearch } from './product-search';
 import { productSearchMetadata } from './product-search-metadata';
 import { productSyncCompleted } from './product-sync-completed';
 import { providerTelemetryGet } from './provider-telemetry-get';
-import { searchtermsRouter } from './searchterms-router.js';
-import { topSearchTermsStatus } from './top-search-terms-status.js';
 
 export const appApiRouter = router({
+    syncControl: router({ get: syncControlGet, set: syncControlSet }),
+    keywordDirectory,
+    keywordTrack,
     access: router({
         usage: accessUsage,
     }),
@@ -35,7 +40,6 @@ export const appApiRouter = router({
     amazon: amazonRouter,
     classifyProductFacets,
     catalog: catalogRouter,
-    searchterms: searchtermsRouter,
     eventLogs: eventLogsList,
     getAdminStats,
     keepaLog,
@@ -43,7 +47,6 @@ export const appApiRouter = router({
     getProductFacetMetricsSummary,
     getProductFacets,
     jobExecutions,
-    topSearchTermsStatus,
     getProductHistory,
     getProductShortNameMetricsSummary,
     getProductCutoutThumbnailMetricsSummary,

@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { catalogQueries } from '@/db/catalog-search-schema';
 import { db } from '@/db/index';
 import { keywordDiscoveryAttempts, keywordExplorationPasses } from '@/db/keyword-collection-schema';
+import { discoveryTargets } from '@/db/discovery-target-schema';
 import { products } from '@/db/product-schema';
 import {
     getKeepaRefreshPolicyBuckets,
@@ -60,17 +61,21 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('operator collectio
                 nextDueAt: old,
             })
             .returning();
+        const [target] = await db
+            .insert(discoveryTargets)
+            .values({ queryId: query.id, kind: 'keyword', enabled: true })
+            .returning();
         const [pass] = await db
             .insert(keywordExplorationPasses)
             .values({
-                queryId: query.id,
+                targetId: target.id,
                 nextPageToken: 'private-provider-pagination-token',
                 resumeAt: old,
             })
             .returning();
         await db
             .insert(keywordDiscoveryAttempts)
-            .values({ queryId: query.id, passId: pass.id, page: 0, attemptedAt: now });
+            .values({ passId: pass.id, page: 0, attemptedAt: now });
         const snapshot = await getCollectionStatus();
         expect(snapshot.keepa.fresh).toBe(false);
         expect(snapshot.history.admissions).toEqual([

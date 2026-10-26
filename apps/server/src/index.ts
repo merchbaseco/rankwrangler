@@ -1,3 +1,5 @@
+import { readAutomaticSync } from '@/db/automatic-sync';
+import { syncOfficialBrandRegistry } from '@/db/official-brand-registry';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
@@ -22,7 +24,6 @@ import {
     verifyCutoverMigration,
     verifyMigrationTarget,
 } from '@/db/migrate.js';
-import { recoverStaleTopSearchTermsDatasets } from '@/db/top-search-terms/datasets.js';
 import { prepareJobQueues, startJobs } from '@/jobs/index.js';
 import { registerRankWranglerMcp } from '@/mcp/register';
 import {
@@ -50,12 +51,6 @@ import {
     sendProcessSpApiSyncQueueJob,
 } from '@/services/spapi-sync-queue.js';
 import { describeDevClerkSignInStatus, printStartupSummary } from '@/services/startup-summary';
-import {
-    getTopSearchTermsFetchStaleActiveJobCutoff,
-    registerTopSearchTermsJobWakeups,
-    sendSyncTopSearchTermsDatasetsJob,
-} from '@/services/top-search-terms-jobs.js';
-
 type JobsRuntime = Awaited<ReturnType<typeof startJobs>>;
 const createDisabledJobsRuntime = (): JobsRuntime => {
     return {
@@ -66,7 +61,6 @@ const createDisabledJobsRuntime = (): JobsRuntime => {
 
 const startServer = async () => {
     console.log('Starting RankWrangler Server...');
-
     if (process.argv.includes('--verify-migrations') || process.argv.includes('--verify-cutover')) {
         await (process.argv.includes('--verify-cutover')
             ? verifyCutoverMigration()
@@ -86,6 +80,7 @@ const startServer = async () => {
     }
 
     await testConnection();
+    console.log('[Server] Verified official-brand registry:', await syncOfficialBrandRegistry());
 
     const rankwranglerAccess = createRankWranglerAccess({
         authorizedParties: env.RANKWRANGLER_CLERK_AUTHORIZED_PARTIES.split(',')
@@ -119,14 +114,12 @@ const startServer = async () => {
     await boss.start();
     console.log('[Server] pg-boss initialized');
     registerSpApiSyncQueueWakeups(boss);
-    registerTopSearchTermsJobWakeups(boss);
     registerProductHistoryOperationWakeups(boss);
     registerCatalogSearchWakeups(boss);
     console.log(
         `[Server] Runtime flags: RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=${env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER}`
     );
 
-    let recoveredTopSearchTermsDatasetsCount = 0;
     let recoveredProductHistoryOperationsCount = 0;
     let recoveredCatalogSearchOperationsCount = 0;
     let startedCatalogKeywordRefreshesCount = 0;
@@ -138,26 +131,15 @@ const startServer = async () => {
         recoveredProductHistoryOperationsCount = await recoverStaleProductHistoryOperations();
         recoveredCatalogSearchOperationsCount = await recoverStaleCatalogSearchOperations();
         startedCatalogKeywordRefreshesCount = (await collectDueCatalogQueries()).startedCount;
-        const topSearchTermsRecoveryStartedAt = new Date();
-        const topSearchTermsStaleActiveJobCutoff = getTopSearchTermsFetchStaleActiveJobCutoff(
-            topSearchTermsRecoveryStartedAt
-        );
-        recoveredTopSearchTermsDatasetsCount = await recoverStaleTopSearchTermsDatasets({
-            marketplaceId: SPAPI_US_MARKETPLACE_ID,
-            staleActiveJobCutoff: topSearchTermsStaleActiveJobCutoff,
-            recoveredAt: topSearchTermsRecoveryStartedAt,
-        });
-        if (recoveredTopSearchTermsDatasetsCount > 0) {
-            console.warn(
-                `[Server] Recovered ${recoveredTopSearchTermsDatasetsCount} stale Top Search Terms datasets at startup`
-            );
-        }
 
         console.log('[Server] Jobs registered');
+        console.log(
+            '[Server] Keyword sync:',
+            (await readAutomaticSync()).paused ? 'Paused' : 'Running'
+        );
 
         // Kick the SP-API sync queue once on startup in case rows exist before the server starts.
         await sendProcessSpApiSyncQueueJob();
-        await sendSyncTopSearchTermsDatasetsJob();
     } else {
         await prepareJobQueues(boss);
         console.log('[Server] Job runner disabled; workers, schedules, and startup kicks skipped');
@@ -220,7 +202,6 @@ const startServer = async () => {
     });
 
     const port = env.RANKWRANGLER_PORT;
-
     console.log(`Attempting to start server on port ${port}...`);
 
     const shutdown = async (signal: string) => {
@@ -284,10 +265,6 @@ const startServer = async () => {
             realtimePath: TRPC_WEBSOCKET_PATH,
             shouldStartJobRunner: serverRuntimeFlags.shouldStartJobRunner,
             startupCatalogKeywordRefreshes: startedCatalogKeywordRefreshesCount,
-            topSearchTermsRecoveryCount: recoveredTopSearchTermsDatasetsCount,
-            topSearchTermsStatus: serverRuntimeFlags.shouldStartJobRunner
-                ? 'Enabled (dataset scheduler + fetch worker)'
-                : 'Disabled at runtime (job runner disabled)',
         });
     } catch (err) {
         console.error('Failed to start server:', err);

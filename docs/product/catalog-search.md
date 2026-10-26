@@ -25,8 +25,8 @@ A successful observation is reused for 24 hours. A missing or expired observatio
 collection, then waits for the run and Product enrichment. Explicit refresh requests a replacement
 run. Provider failures and caller deadlines preserve the existing retryable error behavior.
 
-The dashboard keeps its run-history and loading workflow. Keyword observations remain separate
-from Brand Analytics search-frequency evidence.
+The Keywords dashboard shows the stored directory and its collection lifecycle. Dated Amazon
+search results remain available through keyword.results.
 
 ## Collection boundaries
 

@@ -91,7 +91,7 @@ The interactive floor is measured head cost plus ten measured Product costs. Bac
 cannot cross it. Head/history lending requires the other queue to have no due work; borrowing unused
 interactive allocation also requires no waiting interactive request and twice the floor remaining.
 Discovery never borrows. Initial caps are fifty head requests and twenty discovery requests per day,
-with at most ten discovery requests per keyword per day. SP-API exploration has separate caps.
+with at most ten discovery requests per keyword per day. SP-API listing acquisition has a separate measured-rate budget; see [catalog search](catalog-search.md).
 Unknown costs permit only bounded interactive measurements; background work waits for measurements.
 
 Listing breadth comes from SP-API without enrolling every discovered Product in Keepa. Active Merch

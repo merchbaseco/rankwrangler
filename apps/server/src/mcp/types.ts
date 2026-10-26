@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+import type { keywordSearchInput } from '@/api/public/keyword-input';
 import type { ProductSearchInput } from '@/api/product-search-input';
 import type { ProductGetInclude } from '@/api/public/product-input';
 
@@ -34,21 +36,9 @@ export interface ProductHistoryMcpInput {
 
 export interface KeywordGetMcpInput {
     keyword: string;
-    marketplaceId: 'ATVPDKIKX0DER';
 }
 
-export interface KeywordSearchMcpInput {
-    text: string;
-    marketplaceId: 'ATVPDKIKX0DER';
-    cursor: number;
-    limit: number;
-}
-
-export interface KeywordHistoryMcpInput {
-    keyword: string;
-    marketplaceId: 'ATVPDKIKX0DER';
-    rangeDays: number;
-}
+export type KeywordSearchMcpInput = z.input<typeof keywordSearchInput>;
 
 export interface RankWranglerMcpStatus {
     [key: string]: unknown;
@@ -56,7 +46,7 @@ export interface RankWranglerMcpStatus {
     status: 'ready';
     capabilities: {
         product: ['get', 'getMany', 'search', 'history'];
-        keyword: ['get', 'search', 'history', 'results'];
+        keyword: ['get', 'search', 'results'];
     };
 }
 
@@ -72,7 +62,6 @@ export interface RankWranglerMcpDataSource {
         results(input: KeywordResultsMcpInput): Promise<Record<string, unknown>>;
         get(input: KeywordGetMcpInput): Promise<Record<string, unknown>>;
         search(input: KeywordSearchMcpInput): Promise<Record<string, unknown>>;
-        history(input: KeywordHistoryMcpInput): Promise<Record<string, unknown>>;
     };
 }
 
@@ -81,6 +70,6 @@ export const RANKWRANGLER_MCP_STATUS: RankWranglerMcpStatus = {
     status: 'ready',
     capabilities: {
         product: ['get', 'getMany', 'search', 'history'],
-        keyword: ['get', 'search', 'history', 'results'],
+        keyword: ['get', 'search', 'results'],
     },
 };

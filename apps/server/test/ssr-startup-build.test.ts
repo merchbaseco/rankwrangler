@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, symlink } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { spawn } from 'bun';
 
@@ -55,5 +56,73 @@ describe.skipIf(!process.env.CATALOG_SSR_FIXTURE_ROOT)('packaged server startup'
         });
         expect(await child.exited).toBe(0);
         expect(await new Response(child.stdout).text()).toContain('STARTUP_READY true');
+    });
+    it('boots the actual server bundle with the migrated private database and disabled jobs', async () => {
+        const root = process.env.CATALOG_SSR_FIXTURE_ROOT;
+        if (
+            !root ||
+            process.env.RANKWRANGLER_DATABASE_HOST !== '127.0.0.1' ||
+            process.env.RANKWRANGLER_DATABASE_NAME !== 'rankwrangler_catalog_test'
+        )
+            throw new Error('Private startup fixture required');
+        const { build } = await import('vite');
+        const { default: config } = await import('../vite.config');
+        const outDir = join(root, 'actual-server');
+        await build({
+            ...config,
+            configFile: false,
+            logLevel: 'silent',
+            build: { ...config.build, outDir },
+        });
+        await symlink(
+            join(import.meta.dir, '../node_modules'),
+            join(outDir, 'node_modules'),
+            'dir'
+        );
+        const port = Number(
+            process.env.CI
+                ? 5588
+                : execFileSync('dev-port', ['--group'], { encoding: 'utf8' }).trim().split(/\s+/)[1]
+        );
+        const child = spawn(['node', join(outDir, 'index.js')], {
+            cwd: join(import.meta.dir, '..'),
+            env: {
+                ...process.env,
+                RANKWRANGLER_PORT: String(port),
+                RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER: 'true',
+                RANKWRANGLER_DATABASE_MIGRATION_TARGET: 'latest',
+            },
+            stdout: 'pipe',
+            stderr: 'pipe',
+        });
+        const stdout = new Response(child.stdout).text();
+        const stderr = new Response(child.stderr).text();
+        try {
+            const deadline = Date.now() + 10_000;
+            let healthy = false;
+            while (Date.now() < deadline) {
+                try {
+                    const response = await fetch(`http://127.0.0.1:${port}/health/live`);
+                    if (response.ok && (await response.json()).status === 'ok') {
+                        healthy = true;
+                        break;
+                    }
+                } catch {
+                    /* server has not bound the private socket yet */
+                }
+                if (child.exitCode !== null) break;
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            if (!healthy) {
+                child.kill();
+                await child.exited;
+                throw new Error(`Private packaged startup failed: ${await stderr}`);
+            }
+        } finally {
+            child.kill();
+            await child.exited;
+        }
+        expect(await stdout).toContain('Job runner disabled');
+        expect(await stderr).not.toContain('ReferenceError');
     });
 });

@@ -11,18 +11,20 @@ import {
 } from 'drizzle-orm/pg-core';
 import { catalogQueries } from './catalog-search-schema';
 import { products } from './product-schema';
+import { discoveryTargets } from './discovery-target-schema';
 
 export const keywordExplorationPasses = pgTable(
     'keyword_exploration_passes',
     {
         id: uuid('id').primaryKey().defaultRandom(),
-        queryId: uuid('query_id')
-            .references(() => catalogQueries.id, { onDelete: 'cascade' })
+        targetId: uuid('target_id')
+            .references(() => discoveryTargets.id, { onDelete: 'cascade' })
             .notNull(),
         source: text('source').notNull().default('spapi'),
         nextPageToken: text('next_page_token'),
         lastPageFingerprint: text('last_page_fingerprint'),
         claimAt: timestamp('claim_at', { mode: 'date' }),
+        claimToken: uuid('claim_token'),
         failureCount: integer('failure_count').notNull().default(0),
         nextPage: integer('next_page').notNull().default(0),
         contiguousPages: integer('contiguous_pages').notNull().default(0),
@@ -35,13 +37,17 @@ export const keywordExplorationPasses = pgTable(
         updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
     },
     table => ({
-        queryCreatedIdx: index('keyword_exploration_query_created_idx').on(
-            table.queryId,
+        queryCreatedIdx: index('keyword_exploration_target_created_idx').on(
+            table.targetId,
             table.createdAt
         ),
-        activeQueryIdx: uniqueIndex('keyword_exploration_active_query_idx')
-            .on(table.queryId)
+        activeQueryIdx: uniqueIndex('keyword_exploration_active_target_idx')
+            .on(table.targetId)
             .where(sql`${table.stopReason} in ('running', 'budget', 'jobCap')`),
+        claimCheck: check(
+            'keyword_exploration_claim_check',
+            sql`(${table.claimAt} is null) = (${table.claimToken} is null)`
+        ),
         pageCheck: check(
             'keyword_exploration_page_check',
             sql`${table.nextPage} >= 0 AND ${table.contiguousPages} >= 0`
@@ -74,20 +80,33 @@ export const keywordDiscoveryAttempts = pgTable(
     'keyword_discovery_attempts',
     {
         id: uuid('id').primaryKey().defaultRandom(),
-        queryId: uuid('query_id')
-            .references(() => catalogQueries.id, { onDelete: 'cascade' })
-            .notNull(),
         passId: uuid('pass_id')
             .references(() => keywordExplorationPasses.id, { onDelete: 'cascade' })
             .notNull(),
+        claimToken: uuid('claim_token'),
         attemptedAt: timestamp('attempted_at', { mode: 'date' }).notNull().defaultNow(),
         page: integer('page').notNull(),
         status: text('status').notNull().default('reserved'),
+        startedAt: timestamp('started_at', { mode: 'date' }),
+        finishedAt: timestamp('finished_at', { mode: 'date' }),
+        resultCount: integer('result_count'),
+        newProducts: integer('new_products'),
+        newMerchProducts: integer('new_merch_products'),
+        knownMerch: integer('known_merch'),
+        unknownProducts: integer('unknown_products'),
+        nonMerchProducts: integer('non_merch_products'),
+        newMerchMemberships: integer('new_merch_memberships'),
     },
     table => ({
+        activePage: uniqueIndex('keyword_discovery_active_page_idx')
+            .on(table.passId, table.page, table.claimToken)
+            .where(sql`${table.status} in ('reserved','started','fetched')`),
+        acceptedPage: uniqueIndex('keyword_discovery_accepted_page_idx')
+            .on(table.passId, table.page)
+            .where(sql`${table.status}='accepted' and ${table.finishedAt} is not null`),
         attemptedIdx: index('keyword_discovery_attempted_idx').on(table.attemptedAt),
-        queryAttemptedIdx: index('keyword_discovery_query_attempted_idx').on(
-            table.queryId,
+        queryAttemptedIdx: index('keyword_discovery_pass_attempted_idx').on(
+            table.passId,
             table.attemptedAt
         ),
     })

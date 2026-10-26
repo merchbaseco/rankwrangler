@@ -1,10 +1,11 @@
+import { readDiscoveryStatus } from '@/db/discovery-status';
 import { sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { getKeepaCapacitySnapshot } from '@/services/keepa-capacity';
 import { getHistoryAdmissionOverloadSnapshot } from '@/services/product-history-overload';
 
 export const getCollectionStatus = async () => {
-    const [keepa, overload, history, keywords, passes, attempts] = await Promise.all([
+    const [keepa, overload, history, keywords, passes, attempts, discovery] = await Promise.all([
         getKeepaCapacitySnapshot(),
         getHistoryAdmissionOverloadSnapshot(),
         db.execute<{ state: string; products: number; automatic_eligible: number }>(sql`
@@ -31,12 +32,13 @@ export const getCollectionStatus = async () => {
             select stop_reason reason, count(*)::integer passes,
                 count(*) filter (where stop_reason in ('running','budget','jobCap')
                     and resume_at <= timezone('UTC',now()) and (claim_at is null or claim_at < timezone('UTC',now())-interval '5 minutes'))::integer ready
-            from keyword_exploration_passes group by stop_reason order by stop_reason
+            from keyword_exploration_passes where target_id in(select id from discovery_targets where enabled) group by stop_reason order by stop_reason
         `),
         db.execute<{ status: string; attempts: number }>(sql`
             select status, count(*)::integer attempts from keyword_discovery_attempts
             where attempted_at > timezone('UTC',now())-interval '24 hours' group by status order by status
         `),
+        readDiscoveryStatus(),
     ]);
     return {
         observedAt: new Date().toISOString(),
@@ -64,8 +66,7 @@ export const getCollectionStatus = async () => {
                 ready: row.ready,
             })),
             attempts24h: attempts.map(row => ({ status: row.status, attempts: row.attempts })),
-            globalLimit24h: 20,
-            keywordLimit24h: 10,
+            ...discovery,
         },
     };
 };

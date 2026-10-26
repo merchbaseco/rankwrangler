@@ -14,7 +14,6 @@ magical "find opportunities" score.
   classified niche in the dashboard.
 - Load the provider-neutral current Product and compact event-based BSR/price history sourced from
   Amazon SP-API and Keepa.
-- Explore Amazon Brand Analytics Top Search Terms across daily, weekly, and custom windows.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity, provider health, and bounded raw Provider-attempt telemetry through
   admin surfaces.
@@ -54,12 +53,14 @@ rw product search "retro gardening shirt"
 rw product history B0XXXXXXXX --metrics salesRank,price --bucket auto
 rw keyword get "retro gardening shirt"
 rw keyword search "retro gardening"
-rw keyword history "retro gardening shirt"
 ```
 
 Explicit `keyword.results` requests renew a 30-day research lease, including cached reuse.
 General catalog searches record interest. Background checks adapt to demand and observed change;
-bounded SP-API exploration grows listing coverage without buying history for every discovery.
+continuous SP-API acquisition expands through user searches, relevant demand terms and once-per-product
+Amazon Ads keyword recommendations
+without buying history for every discovery. Shared physical-request capacity protects foreground reads;
+Keepa head/history admission stays separate.
 Capacity-limited keyword checks retain a retry time without recording a provider failure or a
 successful observation. Freshness health allows that retry and its scheduler grace; actual provider
 failures and abandoned retries still report unhealthy collection.
@@ -136,9 +137,12 @@ For the Cloudflare-billed PlanetScale migration, follow the
 
 The [research plan](plans/merch-research.md) separates immediate catalog search from scheduled
 keyword collection. The shared database query, dashboard, public API, CLI and MCP changes are
-implemented and await schema migration and deployment. `keyword.results` preserves dated external
-search evidence. Search records keyword candidates without renewing standing collection.
-Adaptive collection tiers, durable token reservations, bounded SP-API exploration and explicit
-history admission are implemented in the same migration unit. Operator settings expose collection
+deployed as the initial research/collection pilot. `keyword.results` preserves dated external
+search evidence. Search directly tracks its exact keyword for background SP-API checks; paid Keepa admission stays separate.
+Adaptive Keepa collection tiers, durable token reservations and explicit history admission are live.
+The [growth completion](plans/merch-growth-completion.md) adds independent continuous SP-API
+acquisition, once-per-ASIN Ads keyword mining, once-per-tracked-keyword autocomplete, cached Jev
+judgments, a live keyword directory with plain statuses, processing order, pause/resume and lifecycle logs, and adaptive keyword standing; it is locally verified and
+awaits deployment. Operator settings expose collection
 backlogs and capacity. The [execution record](plans/merch-collection-execution.md) tracks verification.
 The [capacity baseline](plans/merch-capacity-baseline.md) records the initial pilot envelope.

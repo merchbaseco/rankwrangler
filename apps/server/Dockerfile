@@ -51,6 +51,9 @@ COPY --from=build /app/apps/server/package.json ./apps/server/package.json
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/server/drizzle ./apps/server/drizzle
 
+RUN cd /app/apps/server && node --input-type=module -e \
+    'import sharp from "sharp"; await sharp({create:{width:2,height:2,channels:4,background:"red"}}).png().toBuffer();'
+
 USER nodejs
 
 WORKDIR /app/apps/server

@@ -45,7 +45,7 @@ a policy-expired read returns the stored title, thumbnail, and `amazonListingSta
 queues a deduplicated background refresh. Only Products with no resolved listing wait, bounded by
 the caller deadline. See [Public Retrieval](../decisions/public-retrieval.md).
 
-Product `get`/`getMany`/`history`, Product search, and Brand Analytics keyword inputs have no
+Product `get`/`getMany`/`history`, Product search, and keyword directory inputs have no
 refresh control. `keyword.results` separately accepts `refresh`. Product `get`/`getMany`/`history` and keyword responses expose no
 pending data, freshness, Operations, polling state, provider status or response `schemaVersion`.
 
@@ -57,9 +57,8 @@ pending data, freshness, Operations, polling state, provider status or response 
 | `api.public.product.getMany` | mutation | Basic listing results for up to 200 Product identities. |
 | `api.public.product.search` | query | Paginated stored Products and keyword coverage. |
 | `api.public.product.history` | mutation | Product sales-rank and price series. |
-| `api.public.keyword.get` | query | Current Brand Analytics keyword evidence. |
-| `api.public.keyword.search` | query | Current filtered keyword evidence. |
-| `api.public.keyword.history` | query | Current keyword evidence over time. |
+| `api.public.keyword.get` | query | One stored keyword directory entry. |
+| `api.public.keyword.search` | query | Paginated keyword directory entries and collection status. |
 | `api.public.keyword.results` | mutation | Dated external search results with retained placement. |
 
 There is no public Catalog, Operation, polling, or provider-health namespace.
@@ -261,7 +260,7 @@ Results contain up to 20 Products from a US first-page observation. `organicSear
 source-supplied ordinal. Invalid or duplicate rows leave gaps. Membership and placement remain
 immutable, while the nested compact Product projection reflects current state. Placement is useful
 source evidence rather than a guaranteed Amazon organic rank. This capability is separate from
-Brand Analytics keyword reports.
+stored keyword directory entries.
 
 ## Product History
 
@@ -306,12 +305,20 @@ Requested metrics own their series; unrequested series are absent. Current valid
 succeeds with `points: []` and a summary whose four values are `null`. Summary values deliberately
 omit count and point dates already represented by the series.
 
-## Keyword Intelligence
+## Keyword directory
 
-The Brand Analytics keyword family contains `get`, `search`, and `history`. Inputs accept keyword/text, US
-marketplace and report-period defaults, and optional date, range, cursor, and limit fields. They do
-not accept refresh. Stored snapshots retain `requested` or `automatic` collection provenance where
-the keyword contract exposes history.
+`keyword.get({ keyword })` reads one normalized US keyword and returns `{ keyword, data }`;
+`data` is null when absent. `keyword.search({ text, state?, heat?, sort?, limit?, cursor? })` returns
+`items` and `nextCursor`. Pass the returned cursor object unchanged. State filters are all,
+queued, scanning, upToDate and untracked; all hides untracked entries. Heat filters are all, hot,
+warm, cold and unrated. Sort defaults to work priority; newest is also available. Workers run
+independently, so work order is a priority view rather than a fixed FIFO rank. Pass nextCursor
+unchanged to retain the full ordering snapshot. Both procedures read stored data without provider calls.
+Entries include sources, status, untrackedReason, retryScheduled, known Merch/product counts,
+score, last check, interval and next check. Reasons are notRelevant, noMerchFound and notScheduled.
+These describe our collection
+progress and priority, not organic search volume. Brand Analytics reports and keyword history
+were removed in v0.12.0. `keyword.results` still provides dated Amazon product-search evidence.
 
 ## Raw Request
 

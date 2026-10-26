@@ -40,7 +40,6 @@ then `MISSING_CONFIG`. Auth commands never print the secret.
 | `rw keyword results <keyword>` | Dated Amazon search results with placement. |
 | `rw keyword get <keyword>` | Current keyword evidence. |
 | `rw keyword search <text>` | Filtered keyword evidence. |
-| `rw keyword history <keyword>` | Keyword evidence over time. |
 | `rw auth status\|set\|clear` | Inspect or update secure-store authentication. |
 | `rw config show\|get\|set\|unset\|reset` | Inspect or update non-secret local configuration. |
 | `rw --version` | Installed version as plain text. |
@@ -83,7 +82,6 @@ With several ASINs, `--shortName` fails with `INVALID_INPUT`; request each ASIN 
 | `--shortName` | Include an image-informed short name; single Product get only. |
 | `--bucket <unit>` | `auto`, `day`, `week`, `month`; default `auto`. |
 | `--days <N>` | 30–3650; default 365. Cannot combine with explicit range bounds. |
-| `--rangeDays <N>` | Keyword history range, 7–365; default 90. |
 | `--startAt <ISO>` / `--endAt <ISO>` | Product history range bounds. |
 | `--limit <N>` | Product search 1–100, default 50; Product history max 10,000; keyword search max 100. |
 | `--cursor <value>` | Product search opaque cursor from `nextCursor`; keyword search numeric offset, default 0. |
@@ -124,7 +122,7 @@ Product search options:
 
 `keyword results` preserves the separate observed-search contract. It returns the keyword, search
 time, and compact Products with placement. It reuses a recent Search run or waits for collection;
-`--refresh` requests a replacement run. This is distinct from keyword Brand Analytics evidence.
+`--refresh` requests a replacement run. Keyword get/search instead read the stored keyword directory.
 
 Product history reports its resolved range `interval`. Requested series always contain a summary;
 empty series return `points: []` with `first`, `latest`, `min`, and `max` all `null`. Price history
@@ -166,3 +164,6 @@ Failures go to stderr and exit with status 1:
 
 Help, version, and changelog output are plain text. The dispatcher is
 [`packages/cli/src/index.ts`](../../packages/cli/src/index.ts).
+
+Keyword get/search read the stored keyword directory. Keyword search `--cursor` accepts the JSON
+`nextCursor` object returned by the previous result. Brand Analytics inputs and history are removed.

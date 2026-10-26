@@ -16,7 +16,7 @@ BEGIN
    IF NOT EXISTS (
       SELECT FROM pg_catalog.pg_roles
       WHERE rolname = 'rankwrangler') THEN
-      
+
       CREATE USER rankwrangler WITH PASSWORD 'SecurePass123';
    END IF;
 END
@@ -50,11 +50,13 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- products.amazon_listing_status records whether the Amazon listing is active or deleted),
 -- product_short_names, product_cutout_thumbnails, product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
--- product_history_points, keepa_categories, top_search_terms_datasets,
--- top_search_terms_snapshots, top_search_terms_keyword_daily,
+-- product_history_points, keepa_categories,
+--
 -- operations, event_logs, job_executions, job_execution_logs, provider_attempts
 -- catalog_queries (keyword admission, tiers, demand, due dates and research leases),
--- keyword_products, keyword_exploration_passes, keyword_discovery_attempts,
+-- keyword_products, keyword_exploration_passes (scoped discovery target and fenced claim),
+-- keyword_discovery_attempts (physical starts and page yield), discovery_targets, discovery_evidence,
+-- discovery_source_scans, brand_discovery_products, spapi_catalog_capacity,
 -- keepa_capacity_state, keepa_capacity_attempts, history_admission_rollouts,
 -- catalog_search_runs (page and trigger provenance),
 -- catalog_search_results, official_brands (verified marketplace-specific brand exclusions)
@@ -65,3 +67,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \echo 'User: rankwrangler'
 \echo 'Extensions: uuid-ossp'
 \echo 'Ready for Drizzle migrations...'
+
+-- automatic_sync_control, keyword_autocomplete, autocomplete_keyword_candidates,
+-- product_keyword_mining, mined_keyword_candidates, product_keyword_candidates and
+-- keyword_mining_capacity persist ASIN stages, globally cached judgments, provenance and pacing.

@@ -6,7 +6,8 @@ import { ensureAccessTokenFreshness as ensureSpApiAccessTokenFreshness } from '.
 import { createSpApiHttpError, runWithSpApiBackoff } from './sp-api-backoff';
 import { SpApiLimiterManager, type SpApiOperationRateLimiterStat } from './sp-api-limiter-manager';
 import { SP_API_CATALOG_QUEUE_WAIT_MS } from './sp-api-limiter-wait';
-
+import { persistedCatalogCapacity } from './sp-api-catalog-capacity';
+import type { SpApiKeywordSearchRequest } from './sp-api-keyword-request';
 // Reports API per-operation limits:
 // - createReport: 0.0167 RPS, burst 15
 // - getReport: 2 RPS, burst 15
@@ -39,9 +40,7 @@ const CATALOG_SEARCH_LIMIT = {
     reservoirIncreaseInterval: 1000,
     reservoirIncreaseMaximum: 2,
 } as const;
-
 type ReportsOperation = 'createReport' | 'getReport' | 'getReportDocument';
-
 interface LimiterSettings {
     reservoirIncreaseAmount: number;
     reservoirIncreaseInterval: number;
@@ -83,44 +82,48 @@ export class SpApiProvider {
             getReportDocument: new Bottleneck(REPORTS_GET_DOCUMENT_LIMIT),
         };
 
-        this.limiterManager = new SpApiLimiterManager([
-            {
-                burstCapacity: CATALOG_SEARCH_LIMIT.reservoirIncreaseMaximum,
-                configuredRps: getConfiguredRpsFromSettings(CATALOG_SEARCH_LIMIT),
-                label: 'Catalog Search',
-                limiter: this.catalogSearchLimiter,
-                maxConcurrent: CATALOG_SEARCH_LIMIT.maxConcurrent,
-                maxQueueWaitMs: SP_API_CATALOG_QUEUE_WAIT_MS,
-                operationId: 'catalog.searchCatalogItems',
-            },
-            {
-                burstCapacity: REPORTS_CREATE_LIMIT.reservoirIncreaseMaximum,
-                configuredRps: getConfiguredRpsFromSettings(REPORTS_CREATE_LIMIT),
-                label: 'Reports: createReport',
-                limiter: this.reportsLimiters.createReport,
-                maxConcurrent: REPORTS_CREATE_LIMIT.maxConcurrent,
-                maxQueueWaitMs: null,
-                operationId: 'reports.createReport',
-            },
-            {
-                burstCapacity: REPORTS_GET_LIMIT.reservoirIncreaseMaximum,
-                configuredRps: getConfiguredRpsFromSettings(REPORTS_GET_LIMIT),
-                label: 'Reports: getReport',
-                limiter: this.reportsLimiters.getReport,
-                maxConcurrent: REPORTS_GET_LIMIT.maxConcurrent,
-                maxQueueWaitMs: null,
-                operationId: 'reports.getReport',
-            },
-            {
-                burstCapacity: REPORTS_GET_DOCUMENT_LIMIT.reservoirIncreaseMaximum,
-                configuredRps: getConfiguredRpsFromSettings(REPORTS_GET_DOCUMENT_LIMIT),
-                label: 'Reports: getReportDocument',
-                limiter: this.reportsLimiters.getReportDocument,
-                maxConcurrent: REPORTS_GET_DOCUMENT_LIMIT.maxConcurrent,
-                maxQueueWaitMs: null,
-                operationId: 'reports.getReportDocument',
-            },
-        ]);
+        this.limiterManager = new SpApiLimiterManager(
+            [
+                {
+                    burstCapacity: CATALOG_SEARCH_LIMIT.reservoirIncreaseMaximum,
+                    configuredRps: getConfiguredRpsFromSettings(CATALOG_SEARCH_LIMIT),
+                    label: 'Catalog Search',
+                    limiter: this.catalogSearchLimiter,
+                    maxConcurrent: CATALOG_SEARCH_LIMIT.maxConcurrent,
+                    maxQueueWaitMs: SP_API_CATALOG_QUEUE_WAIT_MS,
+                    operationId: 'catalog.searchCatalogItems',
+                },
+                {
+                    burstCapacity: REPORTS_CREATE_LIMIT.reservoirIncreaseMaximum,
+                    configuredRps: getConfiguredRpsFromSettings(REPORTS_CREATE_LIMIT),
+                    label: 'Reports: createReport',
+                    limiter: this.reportsLimiters.createReport,
+                    maxConcurrent: REPORTS_CREATE_LIMIT.maxConcurrent,
+                    maxQueueWaitMs: null,
+                    operationId: 'reports.createReport',
+                },
+                {
+                    burstCapacity: REPORTS_GET_LIMIT.reservoirIncreaseMaximum,
+                    configuredRps: getConfiguredRpsFromSettings(REPORTS_GET_LIMIT),
+                    label: 'Reports: getReport',
+                    limiter: this.reportsLimiters.getReport,
+                    maxConcurrent: REPORTS_GET_LIMIT.maxConcurrent,
+                    maxQueueWaitMs: null,
+                    operationId: 'reports.getReport',
+                },
+                {
+                    burstCapacity: REPORTS_GET_DOCUMENT_LIMIT.reservoirIncreaseMaximum,
+                    configuredRps: getConfiguredRpsFromSettings(REPORTS_GET_DOCUMENT_LIMIT),
+                    label: 'Reports: getReportDocument',
+                    limiter: this.reportsLimiters.getReportDocument,
+                    maxConcurrent: REPORTS_GET_DOCUMENT_LIMIT.maxConcurrent,
+                    maxQueueWaitMs: null,
+                    operationId: 'reports.getReportDocument',
+                },
+            ],
+            undefined,
+            persistedCatalogCapacity
+        );
     }
 
     searchCatalogItemsByAsins = async ({
@@ -134,7 +137,7 @@ export class SpApiProvider {
             ensureAccessTokenFreshness: async () =>
                 await this.ensureAccessTokenFreshness(this.catalog),
             operation: `search catalog items (${marketplaceId}, ${asins.length} ASINs)`,
-            operationId: 'catalog.searchCatalogItems',
+                operationId: 'catalog.searchCatalogItems',
             run: async () =>
                 await this.catalogApi.searchCatalogItems([marketplaceId], {
                     identifiers: asins,
@@ -151,22 +154,22 @@ export class SpApiProvider {
         pageSize,
         pageToken,
         maxAttempts,
-    }: {
-        keyword: string;
-        marketplaceId: string;
-        pageSize: number;
-        pageToken?: string;
-        maxAttempts?: number;
-    }) => {
+        brandNames,
+        priority,
+        attemptId,
+    }: SpApiKeywordSearchRequest) => {
         return await this.limiterManager.runOperation({
             ensureAccessTokenFreshness: async () =>
                 await this.ensureAccessTokenFreshness(this.catalog),
             operation: `search catalog by keyword (${marketplaceId}, ${keyword})`,
             maxAttempts,
+            priority,
+            attemptId,
             operationId: 'catalog.searchCatalogItems',
             run: async () =>
                 await this.catalogApi.searchCatalogItems([marketplaceId], {
                     keywords: [keyword],
+                    ...(brandNames?.length ? { brandNames } : {}),
                     includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
                     pageSize,
                     pageToken,

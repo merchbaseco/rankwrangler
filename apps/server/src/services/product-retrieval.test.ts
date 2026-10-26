@@ -11,7 +11,7 @@ describe('Product sync persistence', () => {
         const resolvedAt = new Date('2026-08-08T12:00:00.000Z');
         const deps = {
             ensureProductIdentities: mock(() => Promise.resolve(0)),
-            upsertProductInfo: mock(() => Promise.resolve(undefined)),
+            upsertProductInfo: mock(() => Promise.resolve({ id: 'product-id', inserted: false })),
             markProductsDeleted: mock(() => Promise.resolve(1)),
         };
 

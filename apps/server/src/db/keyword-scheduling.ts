@@ -48,17 +48,9 @@ export const admitKeywordCandidates = async (now = new Date()) => {
                     or(
                         isNull(catalogQueries.admittedAt),
                         sql`${catalogQueries.lastRequestedAt} > ${catalogQueries.admittedAt}`,
-                        gt(catalogQueries.activeUntil, now),
-                        gt(
-                            catalogQueries.demandObservedAt,
-                            new Date(now.getTime() - 7 * KEYWORD_DAY_MS)
-                        )
+                        gt(catalogQueries.activeUntil, now)
                     ),
                     or(
-                        gt(
-                            catalogQueries.demandObservedAt,
-                            new Date(now.getTime() - 7 * KEYWORD_DAY_MS)
-                        ),
                         gt(
                             catalogQueries.lastRequestedAt,
                             new Date(now.getTime() - 30 * KEYWORD_DAY_MS)
@@ -171,13 +163,6 @@ export const retireKeywordAdmissions = async (now = new Date()) => {
                         lte(
                             catalogQueries.lastRequestedAt,
                             new Date(now.getTime() - 90 * KEYWORD_DAY_MS)
-                        )
-                    ),
-                    or(
-                        isNull(catalogQueries.demandObservedAt),
-                        lte(
-                            catalogQueries.demandObservedAt,
-                            new Date(now.getTime() - 30 * KEYWORD_DAY_MS)
                         )
                     )
                 )

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.12.0 - 2026-10-26
+
+### Added
+
+- Collect keyword candidates once per Merch ASIN through Amazon Ads and once per tracked keyword
+  through autocomplete, sharing cached Jev decisions and popularity-based discovery scheduling.
+- Add a persistent pause/resume control for the keyword pipeline, initialized paused on rollout.
+- Show the live keyword directory with plain status badges, work-priority ordering, BSR popularity
+  and refresh cadence in a Products-style table. Record keyword lifecycle events in Logs.
+
+### Changed
+
+- Breaking: keyword get/search now read the stored keyword directory; keyword search uses an opaque
+  cursor object. Remove Brand Analytics keyword history and its CLI/MCP operation.
+- Retire Search Terms, Brand Analytics report ingestion, metrics and health checks. Migration drops
+  obsolete report tables and demand fields while retaining canonical keywords and product evidence.
+
 ## v0.11.0 - 2026-10-23
 
 ### Changed

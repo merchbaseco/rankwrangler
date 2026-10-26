@@ -7,15 +7,14 @@ import { RANKWRANGLER_MCP_STATUS, type RankWranglerMcpDataSource } from './types
 const source: RankWranglerMcpDataSource = {
     status: async () => RANKWRANGLER_MCP_STATUS,
     product: {
+        history: async input => ({ data: input }),
         get: async input => ({ data: input }),
         getMany: async input => ({ data: input }),
-        history: async input => ({ data: input }),
         search: async input => ({ data: input }),
     },
     keyword: {
         get: async input => ({ data: input }),
         search: async input => ({ data: input }),
-        history: async input => ({ data: input }),
         results: async input => ({ data: input }),
     },
 };
@@ -80,7 +79,7 @@ describe('MCP catalog search and keyword evidence', () => {
             });
             const status = await client.callTool({ name: 'rankwrangler_status', arguments: {} });
             expect(status.structuredContent).toMatchObject({
-                capabilities: { keyword: ['get', 'search', 'history', 'results'] },
+                capabilities: { keyword: ['get', 'search', 'results'] },
             });
         } finally {
             await Promise.all([client.close(), server.close()]);

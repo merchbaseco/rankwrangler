@@ -2,7 +2,7 @@ import { Moon, Settings, Sun, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/utils";
 
-export type DashboardPage = "products" | "catalog" | "logs" | "keywords";
+export type DashboardPage = "products" | "catalog" | "logs";
 
 export const TopBar = ({
 	activePage,
@@ -69,15 +69,6 @@ export const TopBar = ({
 						onClick={() => onPageChange("logs")}
 					>
 						Logs
-					</Button>
-					<Button
-						type="button"
-						variant={activePage === "keywords" ? "secondary" : "ghost"}
-						size="sm"
-						className="h-6 rounded-sm px-2 text-[11px] uppercase"
-						onClick={() => onPageChange("keywords")}
-					>
-						Search Terms
 					</Button>
 				</div>
 				<span className="text-border">|</span>

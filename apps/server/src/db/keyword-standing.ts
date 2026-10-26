@@ -1,0 +1,112 @@
+import { writeKeywordEvents } from './keyword-events';
+import { and, eq, inArray } from 'drizzle-orm';
+import { keywordPopularity, nextKeywordStanding } from '@/services/keyword-standing-policy';
+import { catalogQueries } from './catalog-search-schema';
+import { discoveryTargets } from './discovery-target-schema';
+import { products } from './product-schema';
+import type { db } from './index';
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export const observeKeywordStanding = async (
+    tx: Transaction,
+    input: {
+        target: typeof discoveryTargets.$inferSelect;
+        productIds: string[];
+        resultCount: number;
+        now: Date;
+    }
+) => {
+    const { target, now } = input;
+    const rows = input.productIds.length
+        ? await tx
+              .select({
+                  id: products.id,
+                  rank: products.rootCategoryBsr,
+                  fetchedAt: products.spApiFetchedAt,
+              })
+              .from(products)
+              .where(
+                  and(
+                      inArray(products.id, input.productIds),
+                      eq(products.isMerchListing, true),
+                      eq(products.amazonListingStatus, 'active')
+                  )
+              )
+        : [];
+    const fresh = rows.filter(
+        row => row.fetchedAt && now.getTime() - row.fetchedAt.getTime() <= 7 * 86_400_000
+    );
+    const [query] = await tx
+        .select()
+        .from(catalogQueries)
+        .where(eq(catalogQueries.id, target.queryId));
+    const calculated = keywordPopularity({
+        ranks: fresh.map(row => row.rank),
+        now,
+    });
+    const popularity = rows.length
+        ? calculated
+        : { ...calculated, score: 0, tier: 'cold' as const };
+    const cadence = nextKeywordStanding({
+        previousTier: target.standingTier,
+        proposedTier: popularity.tier,
+        intervalDays: target.intervalDays,
+        previousIds: target.headProductIds,
+        currentIds: rows.map(row => row.id),
+        emptyCount: target.emptyCount,
+        resultCount: input.resultCount,
+        demotionObservedAt: target.demotionObservedAt,
+        demotionCount: target.demotionCount,
+        now,
+    });
+    const trialFailures =
+        target.tracking === 'trial' && rows.length === 0 ? target.trialFailures + 1 : 0;
+    const tracking =
+        target.tracking === 'tracked' || rows.length
+            ? ('tracked' as const)
+            : trialFailures >= 2
+              ? ('dormant' as const)
+              : target.tracking;
+    await tx
+        .update(discoveryTargets)
+        .set({
+            tracking,
+            enabled: tracking !== 'dormant',
+            trialFailures,
+            standingTier: cadence.tier,
+            intervalDays: cadence.intervalDays,
+            demotionCount: cadence.demotionCount,
+            demotionObservedAt: cadence.demotionObservedAt,
+            popularityScore: popularity.score ?? target.popularityScore,
+            scoreComponents:
+                popularity.score === null
+                    ? target.scoreComponents
+                    : {
+                          best: popularity.best,
+                          breadth: popularity.breadth,
+                      },
+            headProductIds: rows.map(row => row.id),
+            headObservedAt: now,
+            firstObservedAt: target.firstObservedAt ?? now,
+            nextCheckAt: cadence.nextDueAt,
+        })
+        .where(eq(discoveryTargets.id, target.id));
+    if (tracking !== target.tracking || cadence.tier !== target.standingTier)
+        await writeKeywordEvents(tx, [
+            {
+                id: target.queryId,
+                term: query.normalizedTerm,
+                action: 'keyword.standing.changed',
+                occurredAt: now,
+                details: {
+                    previousTracking: target.tracking,
+                    tracking,
+                    previousTier: target.standingTier,
+                    tier: cadence.tier,
+                    score: popularity.score,
+                    intervalDays: cadence.intervalDays,
+                },
+            },
+        ]);
+    return cadence.nextDueAt;
+};

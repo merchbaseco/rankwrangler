@@ -1,189 +1,236 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
-import { db } from '@/db/index';
 import { catalogQueries } from '@/db/catalog-search-schema';
+import { checkpointDiscoveryPage } from '@/db/discovery-checkpoint';
+import { discoveryTargets, brandDiscoveryProducts } from '@/db/discovery-target-schema';
+import { claimKeywordExploration, stopDiscoveryWork } from '@/db/discovery-work';
+import { db } from '@/db/index';
 import {
     keywordDiscoveryAttempts,
     keywordExplorationPasses,
     keywordProducts,
 } from '@/db/keyword-collection-schema';
-import {
-    checkpointDiscoveryPage,
-    claimKeywordExploration,
-    reserveDiscoveryAttempt,
-    stopDiscoveryWork,
-} from '@/db/keyword-discovery';
 import { resolveScheduledKeywordHead } from '@/db/keyword-scheduling';
 import { products } from '@/db/product-schema';
+import { persistDiscoveredSpApiProducts } from '@/services/spapi-keyword-discovery';
+import {
+    acceptDiscoveryFixture,
+    claimDiscoveryFixture,
+    discoveryNow as now,
+    discoveryProduct,
+    fetchDiscoveryReceipt,
+    primeCatalogCapacity,
+    resetDiscoveryFixture,
+    seedDiscoveryTarget,
+} from './discovery-fixture';
 
-const now = new Date('2026-10-23T12:00:00Z');
-describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
-    'keyword collection transactions',
-    () => {
-        beforeEach(async () => {
-            await db.delete(catalogQueries);
+const later = (seconds: number) => new Date(now.getTime() + seconds * 1000);
+describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acquisition', () => {
+    beforeEach(resetDiscoveryFixture);
+    it('discovers stored-tier keywords without Keepa admission or available Keepa capacity', async () => {
+        const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
+        const work = await claimDiscoveryFixture();
+        expect(work.target.id).toBe(target.id);
+        expect(await resolveScheduledKeywordHead({ queryId: target.queryId, now })).toEqual({
+            kind: 'notDue',
         });
-        it('makes a never-observed admitted keyword due regardless of stored product matches', async () => {
-            const [query] = await db
-                .insert(catalogQueries)
-                .values({
-                    source: 'keepa',
-                    marketplaceId: 'ATVPDKIKX0DER',
-                    normalizedTerm: 'fishing',
-                    displayTerm: 'Fishing',
-                    tier: 'probation',
-                    nextDueAt: now,
-                })
-                .returning();
-            const [a, b] = await Promise.all([
-                resolveScheduledKeywordHead({ queryId: query.id, now }),
-                resolveScheduledKeywordHead({ queryId: query.id, now }),
-            ]);
-            expect(
-                [a, b].filter(result => result.kind === 'pending' && result.created)
-            ).toHaveLength(1);
-            expect(a.kind === 'pending' && a.operation.input.workClass).toBe('discovery');
-            expect(b.kind === 'pending' && b.operation.id).toBe(
-                a.kind === 'pending' && a.operation.id
-            );
-        });
-        it('finds eligible work beyond thirty deferred exploration passes', async () => {
-            const queries = await db
-                .insert(catalogQueries)
-                .values(
-                    Array.from({ length: 31 }, (_, i) => ({
-                        source: 'keepa',
-                        marketplaceId: 'ATVPDKIKX0DER',
-                        normalizedTerm: `queued-${i}`,
-                        displayTerm: `Queued ${i}`,
-                        tier: 'probation',
-                        latestSuccessfulRunAt: new Date(now.getTime() - i * 1000),
-                    }))
-                )
-                .returning({ id: catalogQueries.id });
-            await db.insert(keywordExplorationPasses).values(
-                queries.slice(0, 30).map(query => ({
-                    queryId: query.id,
-                    resumeAt: new Date(now.getTime() + 86_400_000),
+        await primeCatalogCapacity();
+        await acceptDiscoveryFixture(work, [discoveryProduct('B0TST00001')]);
+        const [query] = await db
+            .select()
+            .from(catalogQueries)
+            .where(eq(catalogQueries.id, target.queryId));
+        expect(query.tier).toBe('stored');
+        expect(query.latestSuccessfulRunAt).toBeNull();
+        expect((await db.select().from(products))[0].historyAdmissionState).toBe('notAdmitted');
+    });
+    it('finds eligible work beyond thirty deferred targets', async () => {
+        for (let i = 0; i < 31; i += 1) {
+            const target = await seedDiscoveryTarget({ kind: 'keyword', term: `fishing ${i}` });
+            if (i < 30)
+                await db.insert(keywordExplorationPasses).values({
+                    targetId: target.id,
                     stopReason: 'lowYield',
-                }))
-            );
-            const work = await claimKeywordExploration(now);
-            expect(work?.pass.queryId).toBe(queries[30].id);
+                    resumeAt: later(86_400),
+                });
+        }
+        expect((await claimDiscoveryFixture()).scope).toEqual({
+            kind: 'keyword',
+            term: 'fishing 30',
         });
-
-        it('caps durable reservations at ten per keyword across attempts and restarts', async () => {
-            await createQuery('fishing');
-            const work = await claimKeywordExploration(now);
-            expect(work).not.toBeNull();
-            if (!work?.pass.claimAt) throw new Error('Missing discovery claim.');
-            for (let page = 0; page < 10; page += 1) {
-                expect(
-                    await reserveDiscoveryAttempt({
-                        queryId: work.pass.queryId,
-                        passId: work.pass.id,
-                        claimAt: work.pass.claimAt,
-                        page,
-                        now,
-                    })
-                ).toBeString();
-            }
-            expect(
-                await reserveDiscoveryAttempt({
-                    queryId: work.pass.queryId,
-                    passId: work.pass.id,
-                    claimAt: work.pass.claimAt,
-                    page: 10,
-                    now,
-                })
-            ).toBeNull();
-            const attempts = await db
-                .select()
-                .from(keywordDiscoveryAttempts)
-                .where(eq(keywordDiscoveryAttempts.queryId, work.pass.queryId));
-            expect(attempts).toHaveLength(10);
+    });
+    it('yields a continuation to an unvisited peer and resumes without repeating its page', async () => {
+        const first = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
+        await seedDiscoveryTarget({ kind: 'keyword', term: 'nurse shirt' });
+        await primeCatalogCapacity();
+        const work = await claimDiscoveryFixture();
+        const accepted = await acceptDiscoveryFixture(work, [discoveryProduct('B0TST00001')]);
+        await stopDiscoveryWork({
+            passId: work.pass.id,
+            claimToken: work.claimToken,
+            reason: 'jobCap',
+            now,
         });
-        it('checkpoints keyword novelty and rejects a stale owner before product writes', async () => {
-            await createQuery('gardening');
-            const work = await claimKeywordExploration(now);
-            if (!work?.pass.claimAt) throw new Error('Missing discovery claim.');
-            const claimAt = work.pass.claimAt;
-            const attemptId = await reserveDiscoveryAttempt({
-                queryId: work.pass.queryId,
-                passId: work.pass.id,
-                claimAt,
-                page: 0,
-                now,
-            });
-            if (!attemptId) throw new Error('Missing discovery attempt.');
-            let writes = 0;
-            const persist = async (
-                tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-                asins: string[]
-            ) => {
-                writes += 1;
-                const rows = await tx
-                    .insert(products)
-                    .values(
-                        asins.map(asin => ({
-                            asin,
-                            marketplaceId: 'ATVPDKIKX0DER',
-                            isMerchListing: true,
-                        }))
-                    )
-                    .onConflictDoUpdate({
-                        target: [products.marketplaceId, products.asin],
-                        set: { isMerchListing: true },
-                    })
-                    .returning({ id: products.id });
-                return {
-                    productIds: rows.map(row => row.id),
-                    merchProductIds: rows.map(row => row.id),
-                };
-            };
-            const input = {
-                passId: work.pass.id,
-                claimAt,
+        const peer = await claimDiscoveryFixture(later(10));
+        expect(peer.target.id).not.toBe(first.id);
+        await stopDiscoveryWork({
+            passId: peer.pass.id,
+            claimToken: peer.claimToken,
+            reason: 'budget',
+            retryAt: later(100),
+            now: later(10),
+        });
+        const resumed = await claimDiscoveryFixture(later(20));
+        expect(resumed.pass.id).toBe(accepted.pass.id);
+        expect(resumed.pass.nextPageToken).toBe('next-page');
+        expect(resumed.pass.nextPage).toBe(1);
+    });
+    it('keeps brand scope out of generic keyword membership and coverage', async () => {
+        const target = await seedDiscoveryTarget({
+            kind: 'brand',
+            term: 'shirt',
+            brandName: 'Independent Studio',
+        });
+        await primeCatalogCapacity();
+        const work = await claimDiscoveryFixture();
+        expect(work.scope).toEqual({
+            kind: 'brand',
+            term: 'shirt',
+            brandName: 'Independent Studio',
+        });
+        await acceptDiscoveryFixture(work, [discoveryProduct('B0TST00001')]);
+        expect(await db.select().from(keywordProducts)).toHaveLength(0);
+        expect(await db.select().from(brandDiscoveryProducts)).toHaveLength(1);
+        const [query] = await db
+            .select()
+            .from(catalogQueries)
+            .where(eq(catalogQueries.id, target.queryId));
+        expect(query.merchObservedAt).toBeNull();
+        expect(query.latestSuccessfulRunAt).toBeNull();
+    });
+    it('accepts a page once and records real new identities separately from membership', async () => {
+        await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
+        await primeCatalogCapacity();
+        const work = await claimDiscoveryFixture();
+        const attemptId = await fetchDiscoveryReceipt(work);
+        const input = {
+            passId: work.pass.id,
+            claimToken: work.claimToken,
+            attemptId,
+            page: 0,
+            nextPageToken: 'page-two',
+            observedAt: now,
+            products: [
+                discoveryProduct('B0TST00001'),
+                discoveryProduct('B0TST00002', { isMerchListing: false }),
+                discoveryProduct('B0TST00003', { isMerchListing: null }),
+            ],
+            persist: persistDiscoveredSpApiProducts,
+        };
+        await checkpointDiscoveryPage(input);
+        await checkpointDiscoveryPage(input);
+        expect(await db.select().from(products)).toHaveLength(3);
+        const [receipt] = await db.select().from(keywordDiscoveryAttempts);
+        expect(receipt).toMatchObject({
+            status: 'accepted',
+            resultCount: 3,
+            newProducts: 3,
+            newMerchProducts: 1,
+            knownMerch: 1,
+            unknownProducts: 1,
+            nonMerchProducts: 1,
+            newMerchMemberships: 1,
+        });
+        await seedDiscoveryTarget({
+            kind: 'brand',
+            term: 'shirt',
+            brandName: 'Independent Studio',
+        });
+        const peer = await claimDiscoveryFixture(later(10));
+        await acceptDiscoveryFixture(peer, [discoveryProduct('B0TST00001')], later(10));
+        const receipts = await db
+            .select()
+            .from(keywordDiscoveryAttempts)
+            .where(eq(keywordDiscoveryAttempts.passId, peer.pass.id));
+        expect(receipts[0]).toMatchObject({ newProducts: 0, newMerchMemberships: 1 });
+    });
+    it('rejects an expired worker before any Product write', async () => {
+        await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
+        const old = await claimDiscoveryFixture();
+        await primeCatalogCapacity();
+        const attemptId = await fetchDiscoveryReceipt(old);
+        const current = await claimDiscoveryFixture(later(301));
+        expect(current.claimToken).not.toBe(old.claimToken);
+        await expect(
+            checkpointDiscoveryPage({
+                passId: old.pass.id,
+                claimToken: old.claimToken,
                 attemptId,
                 page: 0,
-                nextPageToken: 'next',
-                observedAt: now,
-                products: ['B0TEST0001'],
-                persist,
-            };
-            const accepted = await checkpointDiscoveryPage(input);
-            expect(accepted).toMatchObject({
-                nextPage: 1,
-                contiguousPages: 1,
-                lowYieldPages: 1,
-                stopReason: 'running',
-            });
-            expect(
-                await db
-                    .select()
-                    .from(keywordProducts)
-                    .where(eq(keywordProducts.queryId, work.pass.queryId))
-            ).toHaveLength(1);
-            await stopDiscoveryWork({ passId: work.pass.id, claimAt, reason: 'jobCap', now });
-            await expect(checkpointDiscoveryPage({ ...input, page: 1 })).rejects.toThrow(
-                'ownership expired'
-            );
-            expect(writes).toBe(1);
-            const [pass] = await db
-                .select()
-                .from(keywordExplorationPasses)
-                .where(eq(keywordExplorationPasses.id, work.pass.id));
-            expect(pass.nextPage).toBe(1);
-            expect(pass.oldestPageAt).toEqual(now);
-        });
-    }
-);
-const createQuery = async (term: string) =>
-    await db.insert(catalogQueries).values({
-        source: 'keepa',
-        marketplaceId: 'ATVPDKIKX0DER',
-        normalizedTerm: term,
-        displayTerm: term,
-        tier: 'probation',
-        nextDueAt: now,
+                nextPageToken: null,
+                observedAt: later(302),
+                products: [discoveryProduct('B0TST00001')],
+                persist: persistDiscoveredSpApiProducts,
+            })
+        ).rejects.toThrow('ownership');
+        expect(await db.select().from(products)).toHaveLength(0);
     });
+    it('keeps old observed depth when an expired continuation starts a new pass', async () => {
+        const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
+        const [old] = await db
+            .insert(keywordExplorationPasses)
+            .values({
+                targetId: target.id,
+                nextPage: 3,
+                contiguousPages: 3,
+                nextPageToken: 'old-frontier',
+                stopReason: 'jobCap',
+                lastPageAt: new Date(now.getTime() - 2 * 86_400_000),
+                resumeAt: now,
+            })
+            .returning();
+        const work = await claimDiscoveryFixture();
+        expect(work.pass.id).not.toBe(old.id);
+        expect(work.pass.nextPage).toBe(0);
+        expect(work.pass.contiguousPages).toBe(0);
+        const [retained] = await db
+            .select()
+            .from(keywordExplorationPasses)
+            .where(eq(keywordExplorationPasses.id, old.id));
+        expect(retained).toMatchObject({
+            contiguousPages: 3,
+            nextPageToken: 'old-frontier',
+            stopReason: 'cursorExpired',
+        });
+    });
+    it('records successful emptiness separately from capacity and retry failures', async () => {
+        const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
+        await primeCatalogCapacity();
+        const work = await claimDiscoveryFixture();
+        const first = await acceptDiscoveryFixture(work, [], now, null);
+        expect(first.pass.resumeAt.getTime() - now.getTime()).toBeGreaterThanOrEqual(
+            6.3 * 86_400_000
+        );
+        expect(first.pass.resumeAt.getTime() - now.getTime()).toBeLessThanOrEqual(7.7 * 86_400_000);
+        await stopDiscoveryWork({
+            passId: work.pass.id,
+            claimToken: work.claimToken,
+            reason: 'complete',
+            now,
+        });
+        const nextAt = first.pass.resumeAt;
+        await primeCatalogCapacity(nextAt);
+        const again = await claimDiscoveryFixture(nextAt);
+        const second = await acceptDiscoveryFixture(again, [], nextAt, null);
+        expect(second.pass.resumeAt.getTime() - nextAt.getTime()).toBeGreaterThanOrEqual(
+            27 * 86_400_000
+        );
+        expect(second.pass.resumeAt.getTime() - nextAt.getTime()).toBeLessThanOrEqual(
+            33 * 86_400_000
+        );
+        expect(
+            (await db.select().from(discoveryTargets).where(eq(discoveryTargets.id, target.id)))[0]
+                .emptyCount
+        ).toBe(2);
+    });
+});

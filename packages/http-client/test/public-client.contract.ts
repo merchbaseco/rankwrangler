@@ -24,7 +24,7 @@ export type ProductProcedureContract = Assert<
     Equal<keyof PublicRouterInputs['product'], 'get' | 'getMany' | 'search' | 'history'>
 >;
 export type KeywordProcedureContract = Assert<
-    Equal<keyof PublicRouterInputs['keyword'], 'get' | 'search' | 'history' | 'results'>
+    Equal<keyof PublicRouterInputs['keyword'], 'get' | 'search' | 'results'>
 >;
 export type ProductSearchOutputContract = Assert<
     Equal<Awaited<ReturnType<ProductSearchMutation['query']>>, ProductSearchOutput>
@@ -66,7 +66,7 @@ export type ProductHistoryOutputContract = Assert<
 export type KeywordGetInputContract = Assert<
     Equal<
         keyof KeywordGetInput,
-        'keyword' | 'dataEndDate' | 'dataStartDate' | 'marketplaceId' | 'reportPeriod'
+        'keyword'
     >
 >;
 

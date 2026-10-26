@@ -9,7 +9,7 @@ const dataSource: RankWranglerMcpDataSource = {
         status: 'ready',
         capabilities: {
             product: ['get', 'getMany', 'search', 'history'],
-            keyword: ['get', 'search', 'history', 'results'],
+            keyword: ['get', 'search', 'results'],
         },
     }),
     product: {
@@ -22,7 +22,6 @@ const dataSource: RankWranglerMcpDataSource = {
         results: async input => ({ operation: 'results', data: { term: input.term } }),
         get: async input => ({ operation: 'get', data: { keyword: input.keyword } }),
         search: async input => ({ operation: 'search', data: { text: input.text } }),
-        history: async input => ({ operation: 'history', data: { keyword: input.keyword } }),
     },
 };
 
@@ -120,10 +119,6 @@ describe('RankWrangler MCP server', () => {
                 name: 'rankwrangler_keyword',
                 arguments: { operation: 'search', text: 'shirt' },
             }),
-            client.callTool({
-                name: 'rankwrangler_keyword',
-                arguments: { operation: 'history', keyword: 'shirts' },
-            }),
         ]);
 
         expect(calls.every(call => call.isError !== true)).toBe(true);
@@ -143,7 +138,6 @@ describe('RankWrangler MCP server', () => {
             { operation: 'history', data: { asin: 'B012345678' } },
             { operation: 'get', data: { keyword: 'shirts' } },
             { operation: 'search', data: { text: 'shirt' } },
-            { operation: 'history', data: { keyword: 'shirts' } },
         ]);
 
         await client.close();

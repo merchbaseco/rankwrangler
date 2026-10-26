@@ -238,7 +238,7 @@ describe('final public CLI contract', () => {
         }
     });
 
-    test('runs keyword get, search, and history with final output data', async () => {
+    test('runs keyword directory get and search with final output data', async () => {
         const requests: string[] = [];
         const server = serve({
             port: CLI_TEST_SERVER_PORT,
@@ -276,7 +276,6 @@ describe('final public CLI contract', () => {
             for (const args of [
                 ['keyword', 'get', 'garden shirt', ...baseArgs],
                 ['keyword', 'search', 'garden shirt', ...baseArgs],
-                ['keyword', 'history', 'garden shirt', ...baseArgs],
             ]) {
                 const result = await spawnCliAsync(args, {
                     ...workspace,
@@ -284,7 +283,7 @@ describe('final public CLI contract', () => {
                 });
                 expect(result.status).toBe(0);
             }
-            expect(requests).toEqual(['get', 'search', 'history']);
+            expect(requests).toEqual(['get', 'search']);
         } finally {
             server.stop(true);
         }

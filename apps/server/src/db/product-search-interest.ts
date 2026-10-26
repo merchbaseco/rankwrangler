@@ -1,4 +1,7 @@
-import { desc, eq } from 'drizzle-orm';
+import { researchDiscoveryScopes } from '@/services/discovery-candidate-policy';
+import { recordDiscoveryCandidates } from './discovery-candidates';
+import { discoveryTargets } from './discovery-target-schema';
+import { and, desc, eq } from 'drizzle-orm';
 import { keywordExplorationPasses } from './keyword-collection-schema';
 import type { ProductSearchInput } from '@/api/product-search-input';
 import { catalogQueries } from './catalog-search-schema';
@@ -12,33 +15,62 @@ export const recordProductSearchInterest = async (input: ProductSearchInput) => 
         return null;
     }
     const displayTerm = input.term.trim().replace(/\s+/g, ' ');
+    const scopes = researchDiscoveryScopes(displayTerm);
+    if (!scopes.length) return null;
     const now = new Date();
-    const [query] = await db
-        .insert(catalogQueries)
-        .values({
-            source: 'keepa',
-            marketplaceId: 'ATVPDKIKX0DER',
-            normalizedTerm: displayTerm.toLowerCase(),
-            displayTerm,
-            lastRequestedAt: now,
-        })
-        .onConflictDoUpdate({
-            target: [
-                catalogQueries.source,
-                catalogQueries.marketplaceId,
-                catalogQueries.normalizedTerm,
-            ],
-            set: { lastRequestedAt: now, displayTerm, updatedAt: now },
-        })
-        .returning({ id: catalogQueries.id, headCheckedAt: catalogQueries.latestSuccessfulRunAt });
-    const [pass] = query
+    const query = await db.transaction(async tx => {
+        const [query] = await tx
+            .insert(catalogQueries)
+            .values({
+                source: 'keepa',
+                marketplaceId: 'ATVPDKIKX0DER',
+                normalizedTerm: displayTerm.toLowerCase(),
+                displayTerm,
+                lastRequestedAt: now,
+            })
+            .onConflictDoUpdate({
+                target: [
+                    catalogQueries.source,
+                    catalogQueries.marketplaceId,
+                    catalogQueries.normalizedTerm,
+                ],
+                set: { lastRequestedAt: now, displayTerm, updatedAt: now },
+            })
+            .returning({
+                id: catalogQueries.id,
+                headCheckedAt: catalogQueries.latestSuccessfulRunAt,
+            });
+        await recordDiscoveryCandidates(
+            tx,
+            scopes.map(scope => ({
+                scope,
+                evidence: {
+                    kind: 'interest',
+                    sourceKey:
+                        scope.term.toLowerCase() === displayTerm.toLowerCase()
+                            ? 'request'
+                            : `related:${query.id}`,
+                    observedAt: now,
+                },
+            }))
+        );
+        return query;
+    });
+    const [observation] = query
         ? await db
-              .select()
+              .select({ pass: keywordExplorationPasses })
               .from(keywordExplorationPasses)
-              .where(eq(keywordExplorationPasses.queryId, query.id))
+              .innerJoin(
+                  discoveryTargets,
+                  eq(discoveryTargets.id, keywordExplorationPasses.targetId)
+              )
+              .where(
+                  and(eq(discoveryTargets.queryId, query.id), eq(discoveryTargets.kind, 'keyword'))
+              )
               .orderBy(desc(keywordExplorationPasses.createdAt))
               .limit(1)
         : [];
+    const pass = observation?.pass;
     return {
         keyword: displayTerm,
         headCheckedAt: query?.headCheckedAt?.toISOString() ?? null,

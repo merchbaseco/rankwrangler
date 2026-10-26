@@ -1,5 +1,5 @@
 ---
-summary: Defines the admin-only Keepa, SP-API, Top Search Terms, and product-classification observability surfaces.
+summary: Defines admin provider capacity, keyword collection, and product-classification monitoring.
 read_when:
   - checking provider capacity, refresh coverage, job health, or classification cost
   - deciding whether a dashboard metric is operator-only or part of the seller product contract
@@ -14,7 +14,6 @@ only to authorized admins in dashboard settings.
 | --- | --- |
 | Keepa | Token capacity, queue pressure, refresh-policy coverage, and recent history jobs. |
 | SP-API | Request/error health, refresh-policy coverage, and recent sync jobs. |
-| Top Search Terms | Dataset availability, pending/fetching/failed windows, and ingestion jobs. |
 | Facets | Classification throughput, cost/usage summaries, and assigned-value distribution. |
 | Short Names | Eligible/ready/needs-regeneration/pending/failed coverage, hourly generation outcomes, and Gemini/Jev request and error counts. |
 

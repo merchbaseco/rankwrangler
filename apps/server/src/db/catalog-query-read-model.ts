@@ -151,8 +151,6 @@ const mapCatalogQuery = ({
         page: 0,
         tier: query.tier,
         admissionReason: query.admissionReason,
-        demandPercentile: query.demandPercentile,
-        demandObservedAt: query.demandObservedAt?.toISOString() ?? null,
         lastRequestedAt: query.lastRequestedAt?.toISOString() ?? null,
         activeUntil: query.activeUntil?.toISOString() ?? null,
         latestSuccessfulRunAt: query.latestSuccessfulRunAt?.toISOString() ?? null,

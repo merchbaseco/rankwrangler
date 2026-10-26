@@ -51,5 +51,66 @@ try {
 } finally {
     await sql.end();
 }
-await runMigrations(original, 'latest');
-await verifyMigrationTarget(original, 'latest');
+const discoveryEntries = journal.entries.filter((entry: { idx: number }) => entry.idx < 41);
+writeFileSync(
+    join(staged, 'meta/_journal.json'),
+    JSON.stringify({ ...journal, entries: discoveryEntries })
+);
+for (const entry of discoveryEntries) {
+    cpSync(join(original, `${entry.tag}.sql`), join(staged, `${entry.tag}.sql`));
+}
+await runMigrations(staged, 'latest');
+const discoverySql = postgres({
+    ...createDatabaseConnectionOptions(databaseConfigurationSchema.parse(process.env), 'direct'),
+    max: 1,
+});
+try {
+    const [query] =
+        await discoverySql`select id from catalog_queries where normalized_term='migration fishing'`;
+    const [pass] = await discoverySql`insert into keyword_exploration_passes
+        (query_id,next_page_token,next_page,contiguous_pages,stop_reason,claim_at)
+        values (${query.id},'preserved-frontier',3,3,'budget',timezone('UTC',now())) returning id`;
+    const receipts =
+        await discoverySql`insert into keyword_discovery_attempts(query_id,pass_id,page,status)
+        values (${query.id},${pass.id},0,'accepted'),(${query.id},${pass.id},0,'accepted') returning id`;
+    const fingerprint = async () =>
+        await discoverySql`select
+        (select count(*) from products)::int products,
+        (select count(*) from product_history_points)::int history,
+        (select count(*) from product_history_imports)::int imports,
+        (select count(*) from catalog_search_runs)::int runs,
+        (select count(*) from catalog_search_results)::int results,
+        (select count(*) from keyword_products)::int membership`;
+    const before = await fingerprint();
+    await runMigrations(original, 'latest');
+    await verifyMigrationTarget(original, 'latest');
+    const [preserved] = await discoverySql`select p.*,t.query_id from keyword_exploration_passes p
+        join discovery_targets t on t.id=p.target_id where p.id=${pass.id}`;
+    const afterReceipts =
+        await discoverySql`select id from keyword_discovery_attempts where pass_id=${pass.id}`;
+    if (
+        preserved.query_id !== query.id ||
+        preserved.next_page_token !== 'preserved-frontier' ||
+        preserved.next_page !== 3 ||
+        preserved.contiguous_pages !== 3 ||
+        !preserved.claim_token ||
+        JSON.stringify(before) !== JSON.stringify(await fingerprint()) ||
+        receipts
+            .map(row => row.id)
+            .sort()
+            .join() !==
+            afterReceipts
+                .map(row => row.id)
+                .sort()
+                .join()
+    ) {
+        throw new Error(
+            'Scoped discovery migration did not preserve canonical data and continuation'
+        );
+    }
+    console.log(
+        '[Migration proof] Discovery targets preserve data, pass, cursor and legacy duplicate receipts'
+    );
+} finally {
+    await discoverySql.end();
+}

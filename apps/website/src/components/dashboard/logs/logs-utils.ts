@@ -15,6 +15,7 @@ export const statusOptions: EventLogStatus[] = [
 	"partial",
 ];
 export const typeOptions: EventLogPrimitiveType[] = [
+	"keyword",
 	"product",
 	"history",
 	"job",
@@ -53,6 +54,11 @@ export const toggleFilter = <T extends string>(
 };
 
 export const getTargetLabel = (log: EventLogRow) => {
+	if (
+		log.primitiveType === "keyword" &&
+		typeof log.detailsJson.keyword === "string"
+	)
+		return log.detailsJson.keyword;
 	if (log.asin && log.marketplaceId) {
 		return `${log.asin} (${log.marketplaceId})`;
 	}

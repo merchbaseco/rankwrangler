@@ -220,12 +220,30 @@ export { products } from './product-schema';
 export { productShortNames } from './product-short-name-schema';
 export { providerAttempts } from './provider-telemetry-schema';
 export { rankwranglerServiceAccounts } from './service-account-schema';
-export {
-    topSearchTermsDatasets,
-    topSearchTermsKeywordDaily,
-    topSearchTermsSnapshots,
-} from './top-search-terms-schema';
 
 export { historyAdmissionRollouts } from './history-admission-rollout-schema';
 export { keepaCapacityState, keepaCapacityAttempts } from './keepa-capacity-schema';
-export { keywordExplorationPasses, keywordProducts, keywordDiscoveryAttempts } from './keyword-collection-schema';
+export {
+    keywordExplorationPasses,
+    keywordProducts,
+    keywordDiscoveryAttempts,
+} from './keyword-collection-schema';
+
+export {
+    discoveryTargets,
+    discoveryEvidence,
+    discoverySourceScans,
+    brandDiscoveryProducts,
+} from './discovery-target-schema';
+export { spApiCatalogCapacity } from './spapi-capacity-schema';
+
+export {
+    productKeywordMining,
+    minedKeywordCandidates,
+    productKeywordCandidates,
+    keywordMiningCapacity,
+} from './keyword-mining-schema';
+
+export { keywordAutocomplete, autocompleteKeywordCandidates } from './keyword-autocomplete-schema';
+
+export { automaticSyncControl } from './automatic-sync-schema';

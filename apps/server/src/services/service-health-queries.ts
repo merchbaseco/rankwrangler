@@ -15,7 +15,7 @@ import {
     sql,
 } from 'drizzle-orm';
 import { db } from '@/db/index';
-import { catalogQueries, products, topSearchTermsDatasets } from '@/db/schema';
+import { catalogQueries, products } from '@/db/schema';
 import {
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
@@ -31,13 +31,11 @@ import {
     readServiceHealth,
     type ServiceHealthProbes,
     SPAPI_CATALOG_SCHEDULER_LAG_MS,
-    TOP_SEARCH_TERMS_SCHEDULER_LAG_MS,
 } from '@/services/service-health';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
 import { buildSpApiBlindspotRefreshCondition } from '@/services/spapi-blindspot-selection';
 import { SPAPI_REFRESH_POLICY_BUCKETS } from '@/services/spapi-refresh-policy';
 import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection';
-import { TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS } from '@/services/top-search-terms-report-state-machine';
 
 const probePostgres = async () => {
     await db.execute(sql`SELECT 1`);
@@ -53,14 +51,6 @@ export const probeSpapiCatalog = async (now: Date) => {
 
 export const probeKeepaHistory = async (now: Date) =>
     hasProductOverdueFloor(keepaHistoryOverdueCondition(now));
-
-export const probeTopSearchTerms = async (now: Date) => {
-    const [row] = await db.execute<{ failing: boolean }>(topSearchTermsUnhealthyStatement(now));
-    if (typeof row?.failing !== 'boolean') {
-        throw new Error('Top search terms health probe returned no boolean.');
-    }
-    return row.failing;
-};
 
 export const probeCatalogQueries = async (now: Date) => {
     const [row] = await db
@@ -82,7 +72,6 @@ const databaseHealthProbes: ServiceHealthProbes = {
         'catalog-queries': probeCatalogQueries,
         'keepa-history': probeKeepaHistory,
         'spapi-catalog': probeSpapiCatalog,
-        'top-search-terms': probeTopSearchTerms,
     },
 };
 
@@ -173,60 +162,6 @@ const catalogQueriesOverdueCondition = (now: Date) =>
             )
         )
     );
-
-const topSearchTermsUnhealthyStatement = (now: Date) => {
-    const dueAt = dueBefore(now, 0, TOP_SEARCH_TERMS_SCHEDULER_LAG_MS);
-    const pendingRequestedAfter = new Date(now.getTime() - TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS);
-    const usDatasets = db
-        .select({ id: topSearchTermsDatasets.id })
-        .from(topSearchTermsDatasets)
-        .where(eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID));
-    const overdueDatasets = db
-        .select({ id: topSearchTermsDatasets.id })
-        .from(topSearchTermsDatasets)
-        .where(
-            and(
-                eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID),
-                overdueUsDataset(dueAt, pendingRequestedAfter)
-            )
-        );
-
-    return sql`SELECT (${notExists(usDatasets)} OR ${exists(overdueDatasets)}) AS failing`;
-};
-
-const overdueUsDataset = (dueAt: Date, pendingRequestedAfter: Date) =>
-    or(
-        and(
-            isNotNull(topSearchTermsDatasets.nextRefreshAt),
-            lte(topSearchTermsDatasets.nextRefreshAt, dueAt),
-            refreshIsNotWaitingOnAmazon(pendingRequestedAfter)
-        ),
-        and(
-            eq(topSearchTermsDatasets.status, 'failed'),
-            lte(topSearchTermsDatasets.lastFailedAt, dueAt),
-            or(
-                isNull(topSearchTermsDatasets.lastCompletedAt),
-                lt(topSearchTermsDatasets.lastCompletedAt, topSearchTermsDatasets.lastFailedAt)
-            )
-        ),
-        and(
-            isNotNull(topSearchTermsDatasets.reportId),
-            amazonReportInFlight(),
-            isNotNull(topSearchTermsDatasets.reportRequestedAt),
-            lte(topSearchTermsDatasets.reportRequestedAt, pendingRequestedAfter)
-        )
-    );
-
-const refreshIsNotWaitingOnAmazon = (pendingRequestedAfter: Date) =>
-    or(
-        isNull(topSearchTermsDatasets.reportId),
-        not(amazonReportInFlight()),
-        isNull(topSearchTermsDatasets.reportRequestedAt),
-        lte(topSearchTermsDatasets.reportRequestedAt, pendingRequestedAfter)
-    );
-
-const amazonReportInFlight = () =>
-    inArray(topSearchTermsDatasets.status, ['queued', 'in_progress']);
 
 const hasProductOverdueFloor = async (condition: ReturnType<typeof and>) => {
     if (!condition) {

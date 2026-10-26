@@ -48,8 +48,7 @@ screen compact Products with market metrics. `keyword.results` preserves dated e
 evidence and can wait for collection under the existing 24-hour reuse policy.
 
 Product `get` returns the current Product. `getMany` returns basic listing data, and `history`
-returns compact rank and price series. Brand Analytics keyword `get`, `search`, and `history`
-remain separate from observed search results. Retryable `TIMEOUT` errors preserve retry hints.
+returns compact rank and price series. Keyword `get` and `search` read the stored keyword directory, separately from observed search results. Retryable `TIMEOUT` errors preserve retry hints.
 
 ## Types
 
@@ -58,7 +57,7 @@ import type { PublicRouterInputs, PublicRouterOutputs } from '@rankwrangler/http
 
 type ProductGetInput = PublicRouterInputs['product']['get'];
 type ProductSearchOutput = PublicRouterOutputs['product']['search'];
-type KeywordHistoryOutput = PublicRouterOutputs['keyword']['history'];
+type KeywordSearchOutput = PublicRouterOutputs['keyword']['search'];
 ```
 
 When the public router changes, regenerate and build the declarations:

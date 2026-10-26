@@ -2,7 +2,6 @@ import type { Context } from '@/api/context';
 import { publicAppRouter } from '@/api/router-public';
 import {
     type KeywordGetMcpInput,
-    type KeywordHistoryMcpInput,
     type KeywordResultsMcpInput,
     type KeywordSearchMcpInput,
     type ProductGetManyMcpInput,
@@ -48,10 +47,6 @@ export const createRankWranglerMcpDataSource = (ctx: Context): RankWranglerMcpDa
             search: async (input: KeywordSearchMcpInput) => ({
                 data: await caller.keyword.search(input),
                 operation: 'search',
-            }),
-            history: async (input: KeywordHistoryMcpInput) => ({
-                data: await caller.keyword.history(input),
-                operation: 'history',
             }),
         },
     };

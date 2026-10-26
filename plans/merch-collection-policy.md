@@ -1,6 +1,7 @@
 # Keyword and Product collection policy
 
-Proposed October 23, 2026 after a follow-up adversarial review with Claude. Not implemented.
+Reviewed October 23, 2026 with Claude. The initial collection policy shipped October 24; the
+October 25 acquisition changes below are locally implemented and await deployment.
 This supersedes the earlier zero-matching-Products trigger and fixed weekly lease for generic
 database searches. New intervals, shares, page limits and percentile cutoffs are starting defaults,
 not measured guarantees. Existing Product schedules are identified separately below.
@@ -102,29 +103,32 @@ Only a successful check changes the adaptive interval:
 
 ## Explore beyond the first page under a different budget
 
-The current Keepa adapter supports page zero only. Multi-page exploration requires an adapter
-change and a pilot of actual paging, response size and cost. Compare full history/stats flags with
-lighter discovery requests before sizing caps. Keep existing payload semantics until the pilot
-proves that lighter requests retain necessary listing and classification evidence.
+The live pilot verified Keepa repeats page zero when asked for page one and charges again. Keepa
+therefore supplies heads only; SP-API supplies listing breadth using real continuation tokens.
+Acquisition runs independently of paid head/history admission. Once-per-ASIN Ads recommendations filtered by cached Jev judgments join directly tracked user searches
+and apparel-specific BA trials. Product tags are excluded. Source
+support never fabricates provider observations. See the owning [internals](../docs/internals/catalog-search.md).
 
-Proposed initial limits:
+Current implementation:
 
-1. Give an admitted initial exploration a two-page sample when budget permits. Already-known
+1. Give an initial exploration a two-page sample when budget permits. Already-known
    Products do not suppress it.
 2. Allow at most five page requests per exploration job. This is a job cap, not a lifetime depth cap.
-3. Allow at most ten page requests per keyword in a rolling 24 hours, inside the global discovery
-   allowance. This is a starting fairness limit, not a promise to spend ten pages.
+3. Remove per-keyword and global daily SP-API pilot ceilings. Share a durable Catalog token bucket
+   with foreground reads; background receives 10% of effective observed capacity, capped at 0.25 RPS.
+   Rate changes, Retry-After, cooldown and page ownership survive restarts. Target selection is fair.
 4. After the initial sample, stop after two completed low-yield pages. Initial low yield means
    fewer than three useful Merch ASINs new to this keyword's observed membership. Do not confuse
    novelty to the keyword with novelty to the whole catalog.
 5. Checkpoint accepted pages and the next frontier. A job cap yields to other work. A budget stop
    resumes when capacity permits. Neither means the keyword is exhausted.
-6. A low-yield stop makes deeper re-exploration eligible after 30 days for hot keywords and 60 days
-   for warm keywords. Cold terms get head checks, not routine deep mining.
+6. Recurring SP-API checks use independent popularity standing and adaptive hot/warm/cold cadence.
+   Fresh product ranks can promote a keyword before its previous deadline. Novelty governs deeper
+   paging, not freshness. See [keyword mining](../docs/internals/keyword-mining.md).
 7. Paging cursors are advisory because source ordering changes. For a frontier older than 24 hours,
-   refresh the head and overlap the previous frontier before continuing; those requests count
-   against the job and daily limits. If the provider cannot support continuation, restart or
-   partition within budget and record partial coverage.
+   preserve the old pass and start a new pass at page zero. Accepted receipts and old observed
+   depth remain intact; a new pass starts with no claimed depth. Provider failures preserve
+   the last accepted frontier and retry with backoff.
 8. Store source limits and stop reasons separately from claims about Amazon. A provider page cap
    or exhausted provider query is not proof of exhaustive Amazon Merch coverage.
 

@@ -28,8 +28,6 @@ export const catalogQueries = pgTable(
         intervalDays: integer('interval_days').notNull().default(7),
         consecutiveEmpty: integer('consecutive_empty').notNull().default(0),
         failureCount: integer('failure_count').notNull().default(0),
-        demandPercentile: integer('demand_percentile'),
-        demandObservedAt: timestamp('demand_observed_at', { mode: 'date' }),
         demotionObservedAt: timestamp('demotion_observed_at', { mode: 'date' }),
         demotionCount: integer('demotion_count').notNull().default(0),
         merchObservedAt: timestamp('merch_observed_at', { mode: 'date' }),

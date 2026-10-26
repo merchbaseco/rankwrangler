@@ -1,0 +1,1 @@
+ALTER TABLE "spapi_catalog_capacity" ADD COLUMN "background_paused_until" timestamp;

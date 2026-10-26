@@ -271,6 +271,9 @@ bun test/upgrade-collection-fixture.ts
 
 "$postgres_bin_dir/pg_restore" --list "$backup_path" >/dev/null
 
+"$postgres_bin_dir/psql" -h 127.0.0.1 -p "$test_port" -U rankwrangler -d "$database_name" \
+    -v ON_ERROR_STOP=1 -c "UPDATE automatic_sync_control SET paused=false WHERE id=1"
+
 cd "$repo_dir"
 RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
 RANKWRANGLER_DATABASE_PORT="$test_port" \
@@ -296,6 +299,15 @@ bun test \
     apps/server/test/catalog-search-history.db.test.ts \
     apps/server/test/catalog-query-refresh.db.test.ts \
     apps/server/test/keyword-collection.db.test.ts \
+    apps/server/test/discovery-capacity.db.test.ts \
+    apps/server/test/discovery-sources.db.test.ts \
+    apps/server/test/keyword-mining.db.test.ts \
+    apps/server/test/keyword-autocomplete.db.test.ts \
+    apps/server/test/keyword-directory.db.test.ts \
+    apps/server/test/keyword-directory-status.db.test.ts \
+    apps/server/test/keyword-sync-control.db.test.ts \
+    apps/server/test/keyword-standing.db.test.ts \
+    apps/server/test/discovery-agent-research.db.test.ts \
     apps/server/test/keyword-scheduling-races.db.test.ts \
     apps/server/test/keepa-capacity.db.test.ts \
     apps/server/test/collection-status.db.test.ts \

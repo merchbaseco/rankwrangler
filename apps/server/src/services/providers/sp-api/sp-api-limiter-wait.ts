@@ -40,14 +40,16 @@ export const scheduleWithQueueDeadline = <T>({
     maxQueueWaitMs,
     onQueueDeadline,
     task,
+    priority = 5,
 }: {
     limiter: Bottleneck;
     maxQueueWaitMs: number | null;
     onQueueDeadline: () => SpApiLimiterWaitError;
     task: () => Promise<T>;
+    priority?: number;
 }): Promise<T> => {
     if (maxQueueWaitMs === null) {
-        return limiter.schedule(task);
+        return limiter.schedule({ priority }, task);
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -61,7 +63,7 @@ export const scheduleWithQueueDeadline = <T>({
         }, maxQueueWaitMs);
 
         limiter
-            .schedule(async () => {
+            .schedule({ priority }, async () => {
                 if (state === 'abandoned') {
                     return null;
                 }

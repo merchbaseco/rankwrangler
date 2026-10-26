@@ -15,7 +15,6 @@ describe('public agent surface', () => {
                 'api.public.keyword.get',
                 'api.public.keyword.results',
                 'api.public.keyword.search',
-                'api.public.keyword.history',
             ].sort()
         );
     });

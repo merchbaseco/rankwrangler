@@ -7,7 +7,11 @@ describe('SP-API keyword discovery', () => {
     it('retains continuation and normalizes listing evidence without requesting history', async () => {
         const requests: unknown[] = [];
         const result = await discoverSpApiKeyword(
-            { term: 'fishing shirt', marketplaceId, pageToken: 'page-two' },
+            {
+                scope: { kind: 'keyword', term: 'fishing shirt' },
+                marketplaceId,
+                pageToken: 'page-two',
+            },
             {
                 searchCatalogItemsByKeyword: input => {
                     requests.push(input);
@@ -50,6 +54,8 @@ describe('SP-API keyword discovery', () => {
                 marketplaceId,
                 pageSize: 20,
                 maxAttempts: 1,
+                priority: 'background',
+                attemptId: undefined,
                 pageToken: 'page-two',
             },
         ]);
@@ -70,7 +76,7 @@ describe('SP-API keyword discovery', () => {
     });
 
     it('distinguishes a successful empty final page from malformed provider output', async () => {
-        const input = { term: 'fishing', marketplaceId };
+        const input = { scope: { kind: 'keyword' as const, term: 'fishing' }, marketplaceId };
         const empty = await discoverSpApiKeyword(input, {
             searchCatalogItemsByKeyword: async () => ({ items: [] }),
         });
@@ -81,5 +87,34 @@ describe('SP-API keyword discovery', () => {
                 searchCatalogItemsByKeyword: async () => ({ pagination: {} }),
             })
         ).rejects.toThrow();
+    });
+    it('sends exact brand scope on every continuation request', async () => {
+        const requests: unknown[] = [];
+        await discoverSpApiKeyword(
+            {
+                scope: { kind: 'brand', term: 'shirt', brandName: 'Joy Haus' },
+                marketplaceId,
+                pageToken: 'brand-page-two',
+                workId: 'receipt-id',
+            },
+            {
+                searchCatalogItemsByKeyword: async input => {
+                    requests.push(input);
+                    return { items: [] };
+                },
+            }
+        );
+        expect(requests).toEqual([
+            {
+                keyword: 'shirt',
+                brandNames: ['Joy Haus'],
+                marketplaceId,
+                pageSize: 20,
+                pageToken: 'brand-page-two',
+                priority: 'background',
+                maxAttempts: 1,
+                attemptId: 'receipt-id',
+            },
+        ]);
     });
 });
