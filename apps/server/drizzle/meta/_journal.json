@@ -365,6 +365,13 @@
       "when": 1793119101555,
       "tag": "0051_keyword_collection_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1793120528816,
+      "tag": "0052_keyword_provider_pacing",
+      "breakpoints": true
     }
   ]
 }

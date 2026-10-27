@@ -10,6 +10,9 @@ import {
     deferKeywordMiningProvider,
     KeywordMiningDeferred,
     recordKeywordMiningTokens,
+    relaxKeywordProvider,
+    retryAfterMs,
+    throttleKeywordProvider,
 } from '@/db/keyword-mining-capacity';
 import { captureProviderAttempt } from './providers/provider-telemetry';
 
@@ -150,22 +153,14 @@ const getAdsSession = async () => {
 };
 
 const checkResponse = async (response: Response, provider: 'ads' | 'jev') => {
-    if (response.status === 429 || response.status >= 500) {
-        const raw = response.headers.get('retry-after');
-        const seconds = Number(raw);
-        const wait =
-            raw && !Number.isFinite(seconds)
-                ? Date.parse(raw) - Date.now()
-                : (seconds || 60) * 1000;
-        const retryAt = new Date(
-            Date.now() + Math.max(60_000, Number.isFinite(wait) ? wait : 60_000)
+    if (response.status === 429 || response.status >= 500)
+        throw new KeywordMiningDeferred(
+            await throttleKeywordProvider(provider, retryAfterMs(response.headers.get('retry-after')))
         );
-        await deferKeywordMiningProvider(provider, retryAt);
-        throw new KeywordMiningDeferred(retryAt);
-    }
     if (response.status === 401 || response.status === 403) {
         if (provider === 'ads') session = null;
         await deferKeywordMiningProvider(provider, new Date(Date.now() + 3_600_000));
     }
     if (!response.ok) throw new Error(`Keyword ${provider} request failed (${response.status})`);
+    await relaxKeywordProvider(provider);
 };

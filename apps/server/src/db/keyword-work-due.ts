@@ -33,6 +33,8 @@ export const listDueProductMining = async (
         where m.stage=${stage} and m.next_due_at<=${now.toISOString()}::timestamp
             and (m.claim_at is null or m.claim_at<=${now.toISOString()}::timestamp-${lease})
             and p.marketplace_id='ATVPDKIKX0DER' and p.is_merch_listing and p.amazon_listing_status='active'
+            and not exists(select 1 from official_brands b where b.marketplace_id=p.marketplace_id
+                and b.normalized_brand=lower(btrim(regexp_replace(p.brand,'[[:space:]]+',' ','g'))))
         order by m.next_due_at, m.product_id limit ${limit}`);
 
 // Same eligibility as claimProductKeywordMining's first claim: strongest rank first, never excluded.

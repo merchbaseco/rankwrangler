@@ -52,8 +52,11 @@ Claims use UUID fencing and five-minute leases. A saved stage does not intention
 external-response/database-save crash window can repeat a request. Recommendations, judgments,
 acceptance and completion are separate durable stages, never synchronous work in a research read.
 
-Ads starts are spaced at least ten seconds; Jev batches at least two seconds, shared durably across
-workers. Each mining job makes one provider call (Ads, a fit batch or a relevance batch) and then
+Starts are paced per provider, durably across workers: Ads 30 seconds, Jev two seconds and
+autocomplete ten seconds at base. Amazon publishes no fixed Ads limit (it is dynamic), and ten-second
+Ads spacing drew a 429 on nearly every call in production, so pacing adapts: each 429 or 5xx doubles
+the spacing (to at most fifteen minutes) and waits the longer of Retry-After and a backoff of one
+minute doubling to thirty; each success clears the streak and eases spacing 10% toward base. Each mining job makes one provider call (Ads, a fit batch or a relevance batch) and then
 ends its job; see "Keyword jobs" below. A minute watchdog recovers lost wakes. Persist Retry-After/cooldown, and reserve before token/profile
 work so a provider cooldown also prevents authentication traffic. Auth failures pause the provider
 for an hour; per-product failures back off. These initial ceilings limit recursion; they are not a
@@ -81,9 +84,8 @@ retain internal punctuation. Department aliases do not guarantee
 Merch fit. Shared Jev judgments filter apparel relevance, including cached rejections from Ads mining.
 Accepted new phrases become trials, not immediately recursive expansion seeds.
 
-Autocomplete starts are spaced at least ten seconds using a durable reservation independent of Ads.
-Jev capacity remains shared. A minute watchdog and dated followups recover work; failures back off,
-429/5xx responses persist at least a minute of cooldown, and 403 pauses autocomplete for an hour.
+Autocomplete has its own durable reservation and the same adaptive pacing as Ads; 403 pauses it
+for an hour. Jev capacity remains shared. Failures back off per seed.
 Research reads remain database-only. No Keepa work is added. Normal operation calls each seed once;
 a crash after an external response but before its database save can still cause a retry.
 
@@ -175,8 +177,10 @@ when they did work or failed; empty or waiting runs are not.
 ## Keyword directory and activity
 
 The Keywords page uses the Products layout: filter sidebar, search, paginated table and footer.
-Its single status is Queued, Scanning or Up to date. Pending judgments, trial checks, expansion
-and product acquisition remain internal stages rather than separate visible status columns.
+Its single status is Queued, Scanning or Up to date. Up to date means the keyword's first page is
+fresh: deeper pages of a continuing pass and its one-time autocomplete expansion run in the
+background without holding it in Queued. Pending judgments, trial checks, expansion and product
+acquisition remain internal stages rather than separate visible status columns.
 Untracked keywords are hidden by default. Their reason comes from durable evidence: rejected
 candidate (Not relevant), dormant after two failed trials (No Merch found), or no enabled target
 (Not scheduled). An explicit user-tracked target takes precedence over an old model rejection.

@@ -4,6 +4,9 @@ import {
     reserveKeywordMiningCall,
     deferKeywordMiningProvider,
     KeywordMiningDeferred,
+    relaxKeywordProvider,
+    retryAfterMs,
+    throttleKeywordProvider,
 } from '@/db/keyword-mining-capacity';
 import { captureProviderAttempt } from './providers/provider-telemetry';
 
@@ -46,24 +49,20 @@ export const fetchKeywordAutocomplete = async (seed: string) => {
                 signal: AbortSignal.timeout(10_000),
             })
     );
-    if (response.status === 429 || response.status >= 500 || response.status === 403) {
-        const raw = response.headers.get('retry-after');
-        const seconds = Number(raw);
-        const wait =
-            raw && !Number.isFinite(seconds)
-                ? Date.parse(raw) - Date.now()
-                : (seconds || 60) * 1000;
-        const retryAt = new Date(
-            Date.now() +
-                Math.max(
-                    response.status === 403 ? 3_600_000 : 60_000,
-                    Number.isFinite(wait) ? wait : 60_000
-                )
-        );
+    if (response.status === 403) {
+        const retryAt = new Date(Date.now() + 3_600_000);
         await deferKeywordMiningProvider('autocomplete', retryAt);
         throw new KeywordMiningDeferred(retryAt);
     }
+    if (response.status === 429 || response.status >= 500)
+        throw new KeywordMiningDeferred(
+            await throttleKeywordProvider(
+                'autocomplete',
+                retryAfterMs(response.headers.get('retry-after'))
+            )
+        );
     if (!response.ok) throw new Error(`Autocomplete request failed (${response.status})`);
+    await relaxKeywordProvider('autocomplete');
     return parseAutocompleteSuggestions(seed, await response.json());
 };
 

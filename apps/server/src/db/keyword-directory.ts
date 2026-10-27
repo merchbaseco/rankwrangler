@@ -47,7 +47,8 @@ export const readKeywordDirectory = async (
                     when a.failure_count>0 then 'retrying' when a.stage='suggestionsSaved' then 'judging' when t.tracking='tracked' and t.enabled then 'queued' else 'not eligible' end expansion,
                 case when p.claim_at>${asOf}::timestamp-interval '5 minutes' then 'running'
                     when not coalesce(t.enabled,false) then 'paused' when p.failure_count>0 then 'retrying'
-                    when p.stop_reason in ('running','budget','jobCap') then 'waiting'
+                    when p.stop_reason in ('running','budget','jobCap') and (t.head_observed_at is null
+                        or t.next_check_at<=${asOf}::timestamp) then 'waiting'
                     when t.next_check_at<=${asOf}::timestamp or t.head_observed_at is null then 'queued' else 'scheduled' end discovery,
                 coalesce(m.products,0)::int products,coalesce(m.merch,0)::int merch,
                 coalesce(p.last_page_at,t.head_observed_at) "lastCheckedAt",case when p.stop_reason in ('running','budget','jobCap') then p.resume_at else least(t.next_check_at,p.resume_at) end "nextCheckAt",t.interval_days "intervalDays",
@@ -80,8 +81,7 @@ export const readKeywordDirectory = async (
         ), classified as (
             select *,case when "untrackedReason" is not null then 'untracked'
                 when expansion='running' or discovery='running' then 'scanning'
-                when qualification in ('pending','accepted') or expansion in ('queued','judging','retrying')
-                    or discovery in ('queued','waiting','retrying') then 'queued'
+                when qualification in ('pending','accepted') or discovery in ('queued','waiting','retrying') then 'queued'
                 else 'upToDate' end status,
                 (expansion='retrying' or discovery='retrying') "retryScheduled"
             from directory

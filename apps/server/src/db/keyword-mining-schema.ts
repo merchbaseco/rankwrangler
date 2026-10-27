@@ -94,4 +94,7 @@ export const keywordMiningCapacity = pgTable('keyword_mining_capacity', {
     day: text('day'),
     dayStarts: integer('day_starts').notNull().default(0),
     dayTokens: bigint('day_tokens', { mode: 'number' }).notNull().default(0),
+    // Adaptive pacing: spacing between starts grows on throttling and eases back on success.
+    spacingMs: integer('spacing_ms'),
+    consecutiveThrottles: integer('consecutive_throttles').notNull().default(0),
 });

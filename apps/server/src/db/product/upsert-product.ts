@@ -1,5 +1,5 @@
 import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { products } from '@/db/schema';
 import type { SpApiProduct } from '@/types';
@@ -11,65 +11,97 @@ export const upsertProductInfo = async (
     productInfo: SpApiProduct,
     database: ProductWriteDatabase = db
 ) => {
-    const [previous] = await database
-        .select({ merch: products.isMerchListing, status: products.amazonListingStatus })
-        .from(products)
-        .where(
-            and(
-                eq(products.marketplaceId, productInfo.marketplaceId),
-                eq(products.asin, productInfo.asin)
-            )
-        );
-    const dateFirstAvailable = productInfo.dateFirstAvailable
-        ? new Date(productInfo.dateFirstAvailable)
-        : null;
-    const fetchedAt = new Date(productInfo.fetchedAt);
+    const [identity] = await upsertProductsInfo([productInfo], database);
+    return identity;
+};
 
-    const [identity] = await database
+// One read and one multi-row upsert per call, whatever the batch size: a 20-product SP-API page
+// used to make about forty sequential round trips to the database.
+export const upsertProductsInfo = async (
+    productInfos: readonly SpApiProduct[],
+    database: ProductWriteDatabase = db
+) => {
+    const unique = [...new Map(productInfos.map(info => [info.asin, info])).values()].sort(
+        (left, right) => left.asin.localeCompare(right.asin)
+    );
+    if (!unique.length) return [];
+    const marketplaceId = unique[0].marketplaceId;
+    if (unique.some(info => info.marketplaceId !== marketplaceId))
+        throw new Error('A product batch must belong to one marketplace');
+    const asins = unique.map(info => info.asin);
+    const previous = new Map(
+        (
+            await database
+                .select({
+                    asin: products.asin,
+                    merch: products.isMerchListing,
+                    status: products.amazonListingStatus,
+                })
+                .from(products)
+                .where(and(eq(products.marketplaceId, marketplaceId), inArray(products.asin, asins)))
+        ).map(row => [row.asin, row])
+    );
+    const identities = await database
         .insert(products)
-        .values({
-            marketplaceId: productInfo.marketplaceId,
-            asin: productInfo.asin,
-            dateFirstAvailable,
-            thumbnailUrl: productInfo.thumbnailUrl,
-            title: productInfo.title,
-            brand: productInfo.brand,
-            isMerchListing: productInfo.isMerchListing,
-            amazonListingStatus: 'active',
-            bullet1: productInfo.bullet1,
-            bullet2: productInfo.bullet2,
-            rootCategoryId: productInfo.rootCategoryId,
-            rootCategoryBsr: productInfo.rootCategoryBsr,
-            spApiFetchedAt: fetchedAt,
-            spApiResolvedAt: fetchedAt,
-        })
+        .values(
+            unique.map(info => {
+                const fetchedAt = new Date(info.fetchedAt);
+                return {
+                    marketplaceId,
+                    asin: info.asin,
+                    dateFirstAvailable: info.dateFirstAvailable
+                        ? new Date(info.dateFirstAvailable)
+                        : null,
+                    thumbnailUrl: info.thumbnailUrl,
+                    title: info.title,
+                    brand: info.brand,
+                    isMerchListing: info.isMerchListing,
+                    amazonListingStatus: 'active' as const,
+                    bullet1: info.bullet1,
+                    bullet2: info.bullet2,
+                    rootCategoryId: info.rootCategoryId,
+                    rootCategoryBsr: info.rootCategoryBsr,
+                    spApiFetchedAt: fetchedAt,
+                    spApiResolvedAt: fetchedAt,
+                };
+            })
+        )
         .onConflictDoUpdate({
             target: [products.marketplaceId, products.asin],
             set: {
-                dateFirstAvailable,
-                thumbnailUrl: productInfo.thumbnailUrl,
-                title: productInfo.title,
-                brand: productInfo.brand,
+                dateFirstAvailable: incoming(products.dateFirstAvailable),
+                thumbnailUrl: incoming(products.thumbnailUrl),
+                title: incoming(products.title),
+                brand: incoming(products.brand),
                 isMerchListing: reconcileMerchListing(products.isMerchListing),
                 amazonListingStatus: 'active',
                 bullet1: reconcileSellerBullet(products.bullet1, products.isMerchListing),
                 bullet2: reconcileSellerBullet(products.bullet2, products.isMerchListing),
                 rootCategoryId: preserveExistingOnNull(products.rootCategoryId),
                 rootCategoryBsr: preserveExistingOnNull(products.rootCategoryBsr),
-                spApiFetchedAt: fetchedAt,
-                spApiResolvedAt: fetchedAt,
+                spApiFetchedAt: incoming(products.spApiFetchedAt),
+                spApiResolvedAt: incoming(products.spApiResolvedAt),
             },
         })
         .returning({
             id: products.id,
+            asin: products.asin,
             inserted: sql<boolean>`(xmax = 0)`,
             merch: products.isMerchListing,
         });
-    if (previous && (previous.merch !== identity.merch || previous.status !== 'active'))
-        await notifyKeywordProductRows(database, [identity.id]);
-    return { id: identity.id, inserted: identity.inserted };
+    const changed = identities.filter(identity => {
+        const before = previous.get(identity.asin);
+        return before && (before.merch !== identity.merch || before.status !== 'active');
+    });
+    if (changed.length)
+        await notifyKeywordProductRows(
+            database,
+            changed.map(identity => identity.id)
+        );
+    return identities.map(({ id, asin, inserted }) => ({ id, asin, inserted }));
 };
 
+const incoming = (column: { name: string }) => sql.raw(`excluded.${column.name}`);
 const preserveExistingOnNull = (column: { name: string }) => {
     return sql`COALESCE(${sql.raw(`excluded.${column.name}`)}, ${column})`;
 };

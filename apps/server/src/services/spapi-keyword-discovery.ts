@@ -1,7 +1,7 @@
 import type { DiscoveryScope } from './discovery-types';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { db } from '@/db/index';
-import { upsertProductInfo } from '@/db/product/upsert-product';
+import { upsertProductsInfo } from '@/db/product/upsert-product';
 import { products as productTable } from '@/db/product-schema';
 import {
     createSpApiProvider,
@@ -55,13 +55,9 @@ export const persistDiscoveredSpApiProducts = async (
     transaction: Transaction,
     products: SpApiProduct[]
 ) => {
-    const newProductIds: string[] = [];
-    for (const product of [...products].sort((left, right) =>
-        left.asin.localeCompare(right.asin)
-    )) {
-        const identity = await upsertProductInfo(product, transaction);
-        if (identity.inserted) newProductIds.push(identity.id);
-    }
+    const newProductIds = (await upsertProductsInfo(products, transaction))
+        .filter(identity => identity.inserted)
+        .map(identity => identity.id);
     if (!products.length) {
         return {
             productIds: [],

@@ -11,7 +11,7 @@ export const scanKeywordJob = defineJob(keywordQueues.scan, {
 })
     .input(z.object({ targetId: z.string().uuid() }))
     .queue(keywordQueueOptions)
-    .gate(spApiBackgroundGate, { concurrency: 2 })
+    .gate(spApiBackgroundGate, { concurrency: 4 })
     .work(async job => {
         const result = await scanKeywordPage(job.data.targetId);
         switch (result.kind) {

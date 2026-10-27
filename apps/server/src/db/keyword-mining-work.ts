@@ -38,6 +38,8 @@ export const claimProductKeywordMining = async (
                     eq(products.isMerchListing, true),
                     eq(products.amazonListingStatus, 'active'),
                     eq(mining.stage, kind === 'source' ? 'pending' : 'recommendationsSaved'),
+                    sql`not exists(select 1 from official_brands b where b.marketplace_id=${products.marketplaceId}
+                and b.normalized_brand=lower(btrim(regexp_replace(${products.brand},'[[:space:]]+',' ','g'))))`,
                     productId ? eq(mining.productId, productId) : undefined,
                     sql`${mining.nextDueAt}<=${now.toISOString()}::timestamp`,
                     sql`(${mining.claimAt} is null or ${mining.claimAt}<${new Date(now.getTime() - 300_000).toISOString()}::timestamp)`

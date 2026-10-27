@@ -26,6 +26,8 @@ import {
     deferKeywordMiningProvider,
     keywordProviderReadyAt,
     recordKeywordMiningTokens,
+    relaxKeywordProvider,
+    throttleKeywordProvider,
 } from '@/db/keyword-mining-capacity';
 import { resetDiscoveryFixture, discoveryNow as now } from './discovery-fixture';
 const market = 'ATVPDKIKX0DER';
@@ -200,17 +202,35 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('once-per-ASIN keyw
             .update(keywordMiningCapacity)
             .set({ dailyLimit: 2 })
             .where(eq(keywordMiningCapacity.provider, 'ads'));
-        await reserveKeywordMiningCall('ads', new Date(morning.getTime() + 11_000));
+        await reserveKeywordMiningCall('ads', new Date(morning.getTime() + 31_000));
         const midnight = new Date('2026-10-28T00:00:00Z');
         await expect(
-            reserveKeywordMiningCall('ads', new Date(morning.getTime() + 22_000))
+            reserveKeywordMiningCall('ads', new Date(morning.getTime() + 62_000))
         ).rejects.toMatchObject({ retryAt: midnight });
         const [state] = await db.select().from(keywordMiningCapacity);
-        expect(keywordProviderReadyAt(state, new Date(morning.getTime() + 22_000))).toEqual(
+        expect(keywordProviderReadyAt(state, new Date(morning.getTime() + 62_000))).toEqual(
             midnight
         );
         await reserveKeywordMiningCall('ads', midnight);
         await recordKeywordMiningTokens('jev', 1000, midnight);
+    });
+    it('backs off exponentially on repeated throttling and eases pacing after success', async () => {
+        const at = new Date('2026-10-27T09:00:00Z');
+        await reserveKeywordMiningCall('ads', at);
+        const first = await throttleKeywordProvider('ads', null, at);
+        const second = await throttleKeywordProvider('ads', null, at);
+        const longer = await throttleKeywordProvider('ads', 600_000, at);
+        expect(first.getTime() - at.getTime()).toBe(60_000);
+        expect(second.getTime() - at.getTime()).toBe(120_000);
+        expect(longer.getTime() - at.getTime()).toBe(600_000);
+        const [throttled] = await db.select().from(keywordMiningCapacity);
+        expect(throttled).toMatchObject({ consecutiveThrottles: 3, spacingMs: 240_000 });
+        await relaxKeywordProvider('ads');
+        const [relaxed] = await db.select().from(keywordMiningCapacity);
+        expect(relaxed).toMatchObject({ consecutiveThrottles: 0, spacingMs: 216_000 });
+        await reserveKeywordMiningCall('ads', longer);
+        const [reserved] = await db.select().from(keywordMiningCapacity);
+        expect(reserved.nextStartAt.getTime() - longer.getTime()).toBe(216_000);
     });
     it('persists provider cooldown and never shortens a prior deadline', async () => {
         await reserveKeywordMiningCall('ads', now);

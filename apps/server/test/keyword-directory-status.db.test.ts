@@ -39,7 +39,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('plain keyword stat
             .update(keywordExplorationPasses)
             .set({ claimAt: new Date(now.getTime() - 360_000) })
             .where(eq(keywordExplorationPasses.id, pass.id));
-        expect((await read('queued')).items[0].status).toBe('queued');
+        // A fresh first page is up to date; deeper pages waiting their turn do not hold it back.
+        expect((await read()).items[0].status).toBe('upToDate');
         await db
             .update(keywordExplorationPasses)
             .set({ claimAt: null, claimToken: null, stopReason: 'sourceEnd' })
@@ -98,14 +99,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('plain keyword stat
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
         expect((await read()).items[0]).toMatchObject({ status: 'queued', untrackedReason: null });
     });
-    it('queues unfinished autocomplete even when product observations are current', async () => {
+    it('does not hold a fresh keyword back for its one-time autocomplete expansion', async () => {
         const now = new Date();
         const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
         await db
             .update(discoveryTargets)
             .set({ headObservedAt: now, nextCheckAt: new Date(now.getTime() + 86_400_000) })
             .where(eq(discoveryTargets.id, target.id));
-        expect((await read()).items[0].status).toBe('queued');
+        expect((await read()).items[0].status).toBe('upToDate');
         await db
             .insert(keywordAutocomplete)
             .values({ queryId: target.queryId, claimAt: now, claimToken: token });
