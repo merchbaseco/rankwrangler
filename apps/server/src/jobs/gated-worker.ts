@@ -14,17 +14,22 @@ export const startGatedWorker = (input: {
     gate: ProviderGate;
     run: (job: Job<unknown>) => Promise<unknown>;
     failureBackoffMs?: number;
+    // Parallel fetch loops. The provider's own reservation still enforces its rate; extra loops
+    // only hide per-job latency (an SP-API page takes about a second end to end).
+    concurrency?: number;
 }) => {
     let stopped = false;
-    let wake: (() => void) | null = null;
+    const sleepers = new Set<() => void>();
     const sleep = (ms: number) =>
         new Promise<void>(resolve => {
             if (stopped) return resolve();
-            const timer = setTimeout(resolve, ms);
-            wake = () => {
+            const wake = () => {
                 clearTimeout(timer);
+                sleepers.delete(wake);
                 resolve();
             };
+            const timer = setTimeout(wake, ms);
+            sleepers.add(wake);
         });
     const loop = async () => {
         while (!stopped) {
@@ -71,11 +76,11 @@ export const startGatedWorker = (input: {
             }
         }
     };
-    const running = loop();
+    const running = Promise.all(Array.from({ length: input.concurrency ?? 1 }, loop));
     return {
         stop: async () => {
             stopped = true;
-            wake?.();
+            for (const wake of [...sleepers]) wake();
             await running;
         },
     };

@@ -12,6 +12,7 @@ import {
     uniqueIndex,
     check,
     boolean,
+    bigint,
 } from 'drizzle-orm/pg-core';
 import { products } from './product-schema';
 
@@ -88,4 +89,9 @@ export const keywordMiningCapacity = pgTable('keyword_mining_capacity', {
     provider: text('provider').$type<'ads' | 'jev' | 'autocomplete'>().primaryKey(),
     nextStartAt: timestamp('next_start_at', { mode: 'date' }).notNull().defaultNow(),
     starts: integer('starts').notNull().default(0),
+    // Starts admitted on `day` (UTC). Null `dailyLimit` uses the provider's default ceiling.
+    dailyLimit: integer('daily_limit'),
+    day: text('day'),
+    dayStarts: integer('day_starts').notNull().default(0),
+    dayTokens: bigint('day_tokens', { mode: 'number' }).notNull().default(0),
 });

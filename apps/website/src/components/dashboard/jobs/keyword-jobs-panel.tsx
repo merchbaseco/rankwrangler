@@ -88,6 +88,18 @@ const QueueTable = ({ status }: { status: Status }) => (
 						<span className="ml-1 text-muted-foreground">
 							{providerState(status.paused, queue.providerReadyAt)}
 						</span>
+						{queue.usage ? (
+							<span className="block text-muted-foreground">
+								{formatNumber(queue.usage.startsToday)}
+								{queue.usage.dailyLimit
+									? ` of ${formatNumber(queue.usage.dailyLimit)}`
+									: ""}{" "}
+								calls today
+								{queue.usage.tokensToday
+									? ` · ${formatNumber(queue.usage.tokensToday)} tokens`
+									: ""}
+							</span>
+						) : null}
 					</td>
 					<td className="text-right tabular-nums">{formatNumber(queue.waiting)}</td>
 					<td className="text-right tabular-nums">

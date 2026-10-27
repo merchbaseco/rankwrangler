@@ -358,6 +358,13 @@
       "when": 1793114776248,
       "tag": "0050_product_keyword_selection",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1793119101555,
+      "tag": "0051_keyword_collection_limits",
+      "breakpoints": true
     }
   ]
 }

@@ -70,6 +70,16 @@ describe('keyword collection policy', () => {
                 resultCount: 20,
             })
         ).toMatchObject({ nextPage: 7, contiguousPages: 7, stopReason: 'running' });
+        expect(
+            explorationCheckpoint({
+                page: 9,
+                nextPage: 9,
+                contiguousPages: 9,
+                lowYieldPages: 0,
+                newMerchCount: 12,
+                resultCount: 20,
+            }).stopReason
+        ).toBe('pageLimit');
     });
     it('does not manufacture contiguous coverage across gaps', () => {
         expect(

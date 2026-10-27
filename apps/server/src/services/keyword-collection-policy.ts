@@ -53,6 +53,12 @@ export const keywordRetryAt = (failures: number, now: Date, retryAfterMs = 0) =>
             Math.max(retryAfterMs, Math.min(KEYWORD_DAY_MS, 300_000 * 2 ** Math.min(failures, 9)))
     );
 
+// A pass stops at this many pages even while pages keep finding new Merch. Later checks start a
+// new pass from the first page, so results beyond this depth are not collected.
+export const PASS_MAX_PAGES = 10;
+
+// newMerchCount is Merch new to the whole catalog on this page: once a niche's products are
+// already stored, deeper pages stop paying for themselves even if they are new to this keyword.
 export const explorationCheckpoint = ({
     page,
     nextPage,
@@ -75,6 +81,12 @@ export const explorationCheckpoint = ({
         contiguousPages: page === contiguousPages ? page + 1 : contiguousPages,
         lowYieldPages: quiet,
         stopReason:
-            resultCount === 0 ? 'sourceEnd' : frontier >= 2 && quiet >= 2 ? 'lowYield' : 'running',
+            resultCount === 0
+                ? 'sourceEnd'
+                : frontier >= 2 && quiet >= 2
+                  ? 'lowYield'
+                  : frontier >= PASS_MAX_PAGES
+                    ? 'pageLimit'
+                    : 'running',
     };
 };

@@ -119,7 +119,11 @@ due) are claimed ahead of continuing depth, except on every fourth claim, which 
 deep passes keep moving under a steady head load. Either kind borrows the other's unused turn. The
 directory's processing order does not yet include this head/depth preference.
 
-Two low-yield pages stop deeper exploration. Low yield cannot demote a known strong niche. Completed
+Two consecutive pages that each add fewer than three Merch products new to the whole catalog stop
+deeper exploration; a pass also stops at ten pages (`pageLimit`), and later passes restart from
+the first page, so results past page ten are not collected. Novelty is catalog-wide, not
+per-keyword, so a pass stops paying for pages of products we already store. Low yield cannot
+demote a known strong niche. Completed
 passes revisit at the target's next check; unfinished continuations retain provider cursor, budget
 retry and ownership rules. An expired continuation preserves old evidence and starts a new pass.
 
@@ -146,6 +150,13 @@ before an SP-API continuation cursor expires at a day, so depth cannot starve be
 ready time instead of failing it. Pause stops the scheduler and every gated fetch; a running job
 finishes saving. Claims and leases still guard each entity, so a lost or duplicate job repeats no
 saved stage.
+
+Ads, Jev and autocomplete also have daily ceilings in `keyword_mining_capacity` (UTC day,
+`day_starts`, nullable `daily_limit` defaulting to 500 / 2,000 / 1,000). A provider at its ceiling
+waits until the next UTC midnight; the Keyword Jobs page shows calls today against the ceiling and
+Jev input tokens (`day_tokens`). Raise a ceiling with one update of `daily_limit`. Background keyword
+scans may use 75% of the measured SP-API Catalog rate, up to `spapi_catalog_capacity
+.background_max_rps` (0.5 by default); raising that value speeds scanning without a deploy.
 
 Mining and autocomplete are the producers of scan work. The scheduler tops their queues up to
 thirty jobs (about five minutes of starts) only while the estimated scan backlog is within two days

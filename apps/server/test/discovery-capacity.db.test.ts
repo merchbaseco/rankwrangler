@@ -91,7 +91,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable Catalog ca
         });
         expect(decision.kind).toBe('deferred');
         if (decision.kind !== 'deferred') throw new Error('Expected rate wakeup');
-        expect(decision.retryAt).toEqual(new Date(now.getTime() + 6250));
+        // One background token per 2s at the default 0.5/s operator ceiling.
+        expect(decision.retryAt).toEqual(new Date(now.getTime() + 2000));
         await stopDiscoveryWork({
             passId: work.pass.id,
             claimToken: work.claimToken,

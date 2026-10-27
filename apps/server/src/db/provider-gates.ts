@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { catalogCapacityDecision } from '@/services/catalog-capacity-policy';
 import { isAutomaticSyncPaused } from './automatic-sync';
 import { db } from './index';
+import { keywordProviderReadyAt } from './keyword-mining-capacity';
 import { keywordMiningCapacity } from './keyword-mining-schema';
 import { spApiCatalogCapacity } from './spapi-capacity-schema';
 
@@ -30,10 +31,10 @@ const keywordProviderGate =
     async (now = new Date()) => {
         if (await isAutomaticSyncPaused()) return null;
         const [row] = await db
-            .select({ nextStartAt: keywordMiningCapacity.nextStartAt })
+            .select()
             .from(keywordMiningCapacity)
             .where(eq(keywordMiningCapacity.provider, provider));
-        return row && row.nextStartAt > now ? row.nextStartAt : now;
+        return keywordProviderReadyAt(row, now);
     };
 
 export const adsGate = keywordProviderGate('ads');

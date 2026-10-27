@@ -25,7 +25,8 @@ export const readScanBacklog = async (now = new Date()) => {
                 and p.stop_reason in ('running','budget','jobCap')
             where t.enabled`),
     ]);
-    const backgroundRps = capacity ? catalogCapacityBalance(capacity, now).backgroundRps : 0.1;
+    // Before the first Catalog call there is no capacity row; assume the default 0.5/s ceiling.
+    const backgroundRps = capacity ? catalogCapacityBalance(capacity, now).backgroundRps : 0.5;
     return {
         dueHeads: backlog?.heads ?? 0,
         oldestDueHeadAt: backlog?.oldest_due_head_at ?? null,

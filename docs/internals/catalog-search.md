@@ -87,13 +87,13 @@ visible to callers or recovery and a concurrently completed reusable run does no
   SP-API acquisition uses real continuation tokens, one page per claim with due heads ahead of depth, independently
   of Keepa tier/admission. The former ten-per-term/twenty-global daily pilot caps are removed.
   Every physical Catalog start shares a persisted token bucket with foreground listing reads.
-  Background gets 10% of effective observed rate, capped at 0.25 requests/second; foreground has
-  queue priority and access to the remaining capacity. Rate headers, throttle cooldown and
-  Retry-After survive restart. Deferrals retain the page and schedule an actual dated wakeup.
-  A minute watchdog recovers lost wakeups; a short-policy queue coalesces pending jobs.
+  Background gets 75% of effective observed rate, capped at the stored `background_max_rps`
+  (0.5 requests/second by default); foreground has queue priority and access to the remaining
+  capacity. Rate headers, throttle cooldown and Retry-After survive restart. Deferrals retain the
+  page; the gated `scan-keyword` queue re-sends the job for the bucket's ready time.
   Background calls get one physical attempt; failures retry through durable backoff.
 - Exploration retains source, contiguous observed depth, oldest page time and stop reason. Two
-  low-yield pages stop expansion; repeated pages, provider exhaustion and stale continuation each
+  pages each adding fewer than three catalog-new Merch products, or ten pages, stop a pass; repeated pages, provider exhaustion and stale continuation each
   have bounded handling. These facts do not claim complete Amazon coverage or organic placement.
 
 Acquisition targets own tracked/trial/dormant state, the latest page-one Merch membership,

@@ -17,6 +17,8 @@ export const spApiCatalogCapacity = pgTable(
         lastThrottleAt: timestamp('last_throttle_at', { mode: 'date' }),
         foregroundStarts: bigint('foreground_starts', { mode: 'number' }).notNull().default(0),
         backgroundStarts: bigint('background_starts', { mode: 'number' }).notNull().default(0),
+        // Operator ceiling for background keyword scans, raised in steps as production holds up.
+        backgroundMaxRps: doublePrecision('background_max_rps').notNull().default(0.5),
     },
     table => ({ singleton: check('spapi_catalog_capacity_singleton', sql`${table.id}=1`) })
 );

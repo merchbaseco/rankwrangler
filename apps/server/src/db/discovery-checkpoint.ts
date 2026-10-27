@@ -81,7 +81,7 @@ export const checkpointDiscoveryPage = async <T>(input: {
         const checkpoint = explorationCheckpoint({
             ...pass,
             page: input.page,
-            newMerchCount,
+            newMerchCount: persisted.newMerchProductIds.length,
             resultCount: input.products.length,
         });
         const fingerprint = [...persisted.productIds].sort().join(',');

@@ -9,6 +9,7 @@ import {
     minedKeywordCandidates as candidates,
     productKeywordMining as mining,
     productKeywordCandidates as links,
+    keywordMiningCapacity,
 } from '@/db/keyword-mining-schema';
 import { discoveryTargets } from '@/db/discovery-target-schema';
 import {
@@ -20,7 +21,12 @@ import {
 } from '@/db/keyword-mining-work';
 import { mineProductKeywords } from '@/services/product-keyword-mining';
 import { claimRelevanceCandidates, saveProductRelevance } from '@/db/product-keyword-relevance';
-import { reserveKeywordMiningCall, deferKeywordMiningProvider } from '@/db/keyword-mining-capacity';
+import {
+    reserveKeywordMiningCall,
+    deferKeywordMiningProvider,
+    keywordProviderReadyAt,
+    recordKeywordMiningTokens,
+} from '@/db/keyword-mining-capacity';
 import { resetDiscoveryFixture, discoveryNow as now } from './discovery-fixture';
 const market = 'ATVPDKIKX0DER';
 const add = async (asin: string) => {
@@ -186,6 +192,25 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('once-per-ASIN keyw
             claimKeywordJudgments(b, now),
         ]);
         expect(batches.flat()).toHaveLength(1);
+    });
+    it('stops a provider for the rest of the UTC day once its daily ceiling is used', async () => {
+        const morning = new Date('2026-10-27T09:00:00Z');
+        await reserveKeywordMiningCall('ads', morning);
+        await db
+            .update(keywordMiningCapacity)
+            .set({ dailyLimit: 2 })
+            .where(eq(keywordMiningCapacity.provider, 'ads'));
+        await reserveKeywordMiningCall('ads', new Date(morning.getTime() + 11_000));
+        const midnight = new Date('2026-10-28T00:00:00Z');
+        await expect(
+            reserveKeywordMiningCall('ads', new Date(morning.getTime() + 22_000))
+        ).rejects.toMatchObject({ retryAt: midnight });
+        const [state] = await db.select().from(keywordMiningCapacity);
+        expect(keywordProviderReadyAt(state, new Date(morning.getTime() + 22_000))).toEqual(
+            midnight
+        );
+        await reserveKeywordMiningCall('ads', midnight);
+        await recordKeywordMiningTokens('jev', 1000, midnight);
     });
     it('persists provider cooldown and never shortens a prior deadline', async () => {
         await reserveKeywordMiningCall('ads', now);

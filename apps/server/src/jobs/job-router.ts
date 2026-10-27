@@ -45,7 +45,7 @@ type AnyJobDefinition = {
     schedule?: JobSchedule;
     persistSuccess: 'always' | 'didWork';
     queueOptions: Omit<Queue, 'name'>;
-    gate?: ProviderGate;
+    gate?: { gate: ProviderGate; concurrency: number };
     work: JobWorkFn<unknown, unknown>;
 };
 
@@ -63,7 +63,7 @@ class JobBuilder<TInput = unknown> {
     private workerOptions?: WorkOptions;
     private schedule?: JobSchedule;
     private queueOptions: Omit<Queue, 'name'> = {};
-    private providerGate?: ProviderGate;
+    private providerGate?: { gate: ProviderGate; concurrency: number };
     private readonly jobName: string;
     private readonly startupSummary?: string;
     private readonly persistSuccess: 'always' | 'didWork';
@@ -96,8 +96,8 @@ class JobBuilder<TInput = unknown> {
     }
 
     // Gated jobs are fetched one at a time, only once the provider can start (see gated-worker).
-    gate(gate: ProviderGate) {
-        this.providerGate = gate;
+    gate(gate: ProviderGate, { concurrency = 1 } = {}) {
+        this.providerGate = { gate, concurrency };
         return this;
     }
 
@@ -237,7 +237,8 @@ export const startRegisteredJobs = async (
                 startGatedWorker({
                     boss,
                     name: jobDefinition.jobName,
-                    gate: jobDefinition.gate,
+                    gate: jobDefinition.gate.gate,
+                    concurrency: jobDefinition.gate.concurrency,
                     run: runJob,
                 })
             );

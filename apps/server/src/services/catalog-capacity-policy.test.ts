@@ -17,6 +17,7 @@ const state = {
     lastThrottleAt: null,
     foregroundStarts: 0,
     backgroundStarts: 0,
+    backgroundMaxRps: 0.5,
 } satisfies typeof spApiCatalogCapacity.$inferSelect;
 
 describe('durable Catalog capacity policy', () => {
@@ -47,7 +48,8 @@ describe('durable Catalog capacity policy', () => {
         });
         expect(next.kind).toBe('deferred');
         if (next.kind === 'deferred')
-            expect(next.retryAt.toISOString()).toBe('2026-10-25T12:00:10.000Z');
+            // Background scans run at the operator ceiling of 0.5 per second.
+            expect(next.retryAt.toISOString()).toBe('2026-10-25T12:00:02.000Z');
         expect(
             catalogCapacityDecision(current, {
                 priority: 'foreground',
@@ -74,8 +76,16 @@ describe('durable Catalog capacity policy', () => {
             protectedQueued: false,
         });
         expect(deferred.kind).toBe('deferred');
+        // The operator ceiling (0.5/s) binds below 75% of the measured 1.6/s.
         if (deferred.kind === 'deferred')
-            expect(deferred.retryAt.getTime() - now.getTime()).toBe(6250);
+            expect(deferred.retryAt.getTime() - now.getTime()).toBe(2000);
+        const raised = catalogCapacityDecision(
+            { ...observed, backgroundMaxRps: 2 },
+            { now, priority: 'background', protectedQueued: false }
+        );
+        // Raised past the share, scans get 75% of the measured rate: 1.2/s.
+        if (raised.kind === 'deferred')
+            expect(raised.retryAt.getTime() - now.getTime()).toBe(Math.ceil(1000 / 1.2));
     });
     it('persists throttle cooldown and honors longer Retry-After', () => {
         const throttled = {

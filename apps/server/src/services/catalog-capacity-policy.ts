@@ -1,13 +1,15 @@
 import type { spApiCatalogCapacity } from '@/db/spapi-capacity-schema';
 
-export const CATALOG_BACKGROUND_SHARE = 0.1;
-export const CATALOG_BACKGROUND_MAX_RPS = 0.25;
+// Background keyword scans may use most of the Catalog rate: interactive and listing reads go
+// first through the shared bucket, and they used about 70 calls a day in October 2026. The
+// absolute ceiling is the operator-set `background_max_rps` on the capacity row.
+export const CATALOG_BACKGROUND_SHARE = 0.75;
 type State = typeof spApiCatalogCapacity.$inferSelect;
 
 export const catalogCapacityBalance = (state: State, now: Date) => {
     const fresh = state.observedAt && now.getTime() - state.observedAt.getTime() <= 3_600_000;
     const rps = Math.max(0.05, fresh ? state.effectiveRps : Math.min(state.effectiveRps, 1));
-    const backgroundRps = Math.min(CATALOG_BACKGROUND_MAX_RPS, rps * CATALOG_BACKGROUND_SHARE);
+    const backgroundRps = Math.min(state.backgroundMaxRps, rps * CATALOG_BACKGROUND_SHARE);
     const seconds = Math.max(0, now.getTime() - state.updatedAt.getTime()) / 1000;
     return {
         rps,

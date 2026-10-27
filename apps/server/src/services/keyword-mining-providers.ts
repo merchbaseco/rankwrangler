@@ -9,6 +9,7 @@ import {
     reserveKeywordMiningCall,
     deferKeywordMiningProvider,
     KeywordMiningDeferred,
+    recordKeywordMiningTokens,
 } from '@/db/keyword-mining-capacity';
 import { captureProviderAttempt } from './providers/provider-telemetry';
 
@@ -23,6 +24,7 @@ let session: { token: string; expiresAt: number; profileId: number } | null = nu
 const recommendationsSchema = z.object({
     keywordTargetList: z.array(z.object({ keyword: z.string().min(1).max(200) })).max(200),
 });
+const jevUsageSchema = z.object({ usage: z.object({ input_tokens: z.number().nonnegative() }) });
 const profileSchema = z.array(
     z.object({
         profileId: z.number(),
@@ -93,7 +95,10 @@ const askJev = async (
         })
     );
     await checkResponse(response, 'jev');
-    return parseKeywordJudgments(candidates, await response.json());
+    const payload: unknown = await response.json();
+    const tokens = jevUsageSchema.safeParse(payload).data?.usage.input_tokens;
+    if (tokens) await recordKeywordMiningTokens('jev', tokens);
+    return parseKeywordJudgments(candidates, payload);
 };
 
 const getAdsSession = async () => {
