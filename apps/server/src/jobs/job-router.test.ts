@@ -34,7 +34,7 @@ describe('intervalMsToCronExpression', () => {
 
 const loadSubject = async () => {
     seedRequiredEnvForTests();
-    return await import('./job-router.js');
+    return await import('./job-runtime-utils.js');
 };
 
 const seedRequiredEnvForTests = () => {

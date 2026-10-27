@@ -29,12 +29,17 @@ where a second attempt would be redundant.
 | Active Catalog keyword | One-minute due scan plus one startup scan; one current run, no backfill. |
 | Product facets | One-minute worker definition, currently disabled by policy. |
 | Provider-attempt retention | Daily bounded deletion of attempts older than seven days. |
+| Job-execution retention | Daily bounded deletion of run history older than fourteen days. |
+| Keyword pipeline | One-minute scheduler feeding four provider-gated entity queues. |
 
-The `process-keyword-sync` coordinator owns the new keyword loop. It runs discovery,
-autocomplete and ASIN keyword-mining stages, checks the persistent pause switch between stages,
-and schedules the next cycle no faster than ten seconds. A minute watchdog recovers lost wakes.
-Old independent stage schedules are unscheduled at startup. Errors are reported after the other
-stages have had an opportunity to progress; one provider failure cannot starve the remaining stages.
+New and changed jobs follow [background jobs](../decisions/background-jobs.md): one job per external
+call on one entity, one queue per provider, schedulers that only enqueue. A job definition can declare
+`.queue({ policy })` and `.gate(providerGate)`. A gated queue runs one worker that fetches the next
+job, by priority, only once its gate reports the provider can start; the job may return a `followup`
+to re-send itself for its entity after it completes. Entity queues use the `exclusive` policy keyed by
+entity. The keyword pipeline is the first user; see
+[keyword jobs](keyword-mining.md#keyword-jobs). Retired `process-keyword-sync` and older keyword
+stage schedules are unscheduled at startup.
 
 ## State Ownership
 

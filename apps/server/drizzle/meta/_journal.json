@@ -351,6 +351,13 @@
       "when": 1793050468760,
       "tag": "0049_automatic_sync_control",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1793114776248,
+      "tag": "0050_product_keyword_selection",
+      "breakpoints": true
     }
   ]
 }

@@ -71,3 +71,4 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- automatic_sync_control, keyword_autocomplete, autocomplete_keyword_candidates,
 -- product_keyword_mining, mined_keyword_candidates, product_keyword_candidates and
 -- keyword_mining_capacity persist ASIN stages, globally cached judgments, provenance and pacing.
+-- product_keyword_candidates also keeps Ads order, per-product relevance and the capped selection.

@@ -17,6 +17,7 @@ These pages explain choices that should survive individual implementations.
 | [Durable catalog search](catalog-search.md) | Understand why queries, runs, results, and asynchronous Operations are persisted separately. |
 | [Unified Merch database](unified-merch-database.md) | Understand the accepted target of immediate database search, independent collection, and accepted early coverage gaps. |
 | [Caller-synchronous public retrieval](public-retrieval.md) | Understand why public reads wait for policy-current data and omit refresh/work/provider state. |
+| [Background jobs](background-jobs.md) | Understand why background work runs as small entity jobs behind provider-gated queues fed by schedulers. |
 | [Provider telemetry and bridges](provider-telemetry.md) | Understand why raw Provider attempts are short-lived and external calls live behind typed bridges. |
 | [Amazon listing status](amazon-listing-status.md) | Understand why listing existence is active/deleted and separate from offers, inventory, and thumbnails. |
 | [Website visual direction](website-visual-direction.md) | Understand the dense paper style, BSR tier palette, card table and shelf the website redesign targets. |

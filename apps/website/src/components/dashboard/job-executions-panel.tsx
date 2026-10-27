@@ -10,20 +10,22 @@ import { cn } from "@/lib/utils";
 type JobExecutionsPanelProps = {
 	className?: string;
 	rowsClassName?: string;
+	jobNames?: [string, ...string[]];
 };
 
 export function JobExecutionsPanel({
 	className,
 	rowsClassName,
+	jobNames,
 }: JobExecutionsPanelProps) {
 	const [expandedExecutionId, setExpandedExecutionId] = useState<string | null>(
 		null,
 	);
 	const query = api.api.app.jobExecutions.useQuery(
-		{ limit: 25 },
+		{ limit: 25, jobNames },
 		{
 			retry: false,
-			refetchInterval: 15_000,
+			staleTime: Infinity,
 			refetchOnWindowFocus: false,
 		},
 	);

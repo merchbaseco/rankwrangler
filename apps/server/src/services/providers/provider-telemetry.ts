@@ -34,6 +34,7 @@ export const geminiProviderOperations = ['gemini.productDesign.observe'] as cons
 export const typeSafeProviderOperations = [
     'typesafe.productShortName.choose',
     'typesafe.keyword.judge',
+    'typesafe.keyword.relevance',
 ] as const;
 export const cloudflareProviderOperations = [
     'cloudflare.cutout.transform',

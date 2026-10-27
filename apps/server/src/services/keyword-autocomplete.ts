@@ -22,26 +22,32 @@ const defaults = {
     finish: finishKeywordAutocomplete,
     release: releaseKeywordAutocomplete,
 };
-export const expandKeywordAutocomplete = async (deps = defaults) => {
+// One provider call per pass, like product mining, so a cooling provider never idles other work.
+export const expandKeywordAutocomplete = async (
+    deps = defaults,
+    options: { kind: 'source' | 'judgment'; queryId?: string } = { kind: 'source' }
+) => {
     if (!deps.configured()) return { didWork: false, kind: 'disabled' as const, nextWakeAt: null };
-    const work = await deps.claim();
+    const work = await deps.claim(new Date(), options);
     if (!work) return { didWork: false, kind: 'idle' as const, nextWakeAt: null };
+    let didWork = false;
     try {
         if (work.stage === 'pending') await deps.save(work, await deps.suggest(work.term));
-        const candidates = await deps.claimJudgments(work);
-        if (candidates.length) await deps.saveJudgments(work, await deps.judge(candidates));
+        else {
+            const candidates = await deps.claimJudgments(work);
+            if (candidates.length) await deps.saveJudgments(work, await deps.judge(candidates));
+            didWork = candidates.length > 0;
+        }
+        didWork ||= work.stage === 'pending';
         const complete = await deps.finish(work);
-        const nextWakeAt = new Date(Date.now() + (complete ? 10_000 : 30_000));
-        if (!complete) await deps.release(work, { retryAt: nextWakeAt });
-        return {
-            didWork: true,
-            kind: complete ? ('complete' as const) : ('yielded' as const),
-            nextWakeAt,
-        };
+        if (complete)
+            return { didWork: true, kind: 'complete' as const, term: work.term, nextWakeAt: new Date() };
+        await deps.release(work, { retryAt: new Date(Date.now() + (didWork ? 0 : 30_000)) });
+        return { didWork, kind: 'yielded' as const, term: work.term, nextWakeAt: new Date() };
     } catch (error) {
         if (error instanceof KeywordMiningDeferred) {
             await deps.release(work, { retryAt: error.retryAt });
-            return { didWork: false, kind: 'deferred' as const, nextWakeAt: error.retryAt };
+            return { didWork, kind: 'deferred' as const, term: work.term, nextWakeAt: error.retryAt };
         }
         await deps.release(work, { failed: true });
         throw error;

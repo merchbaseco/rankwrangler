@@ -1,4 +1,8 @@
-import { buildKeywordJudgmentRequest, parseKeywordJudgments } from './keyword-judgment-contract';
+import {
+    buildKeywordJudgmentRequest,
+    buildProductRelevanceRequest,
+    parseKeywordJudgments,
+} from './keyword-judgment-contract';
 import { z } from 'zod';
 import { env } from '@/config/env';
 import {
@@ -61,21 +65,32 @@ export const fetchAsinKeywordRecommendations = async (asin: string) => {
         .keywordTargetList.map(row => row.keyword);
 };
 
-export const judgeMinedKeywords = async (candidates: { id: string; term: string }[]) => {
+export const judgeMinedKeywords = (candidates: readonly Candidate[]) =>
+    askJev('typesafe.keyword.judge', candidates, buildKeywordJudgmentRequest(candidates));
+
+export const judgeProductRelevance = (productTitle: string, candidates: readonly Candidate[]) =>
+    askJev(
+        'typesafe.keyword.relevance',
+        candidates,
+        buildProductRelevanceRequest(productTitle, candidates)
+    );
+
+type Candidate = { id: string; term: string };
+const askJev = async (
+    operation: 'typesafe.keyword.judge' | 'typesafe.keyword.relevance',
+    candidates: readonly Candidate[], request: unknown) => {
     if (!candidates.length) return [];
     await reserveKeywordMiningCall('jev');
-    const response = await captureProviderAttempt(
-        { provider: 'typesafe', operation: 'typesafe.keyword.judge' },
-        () =>
-            fetch('https://api.typesafe.ai/v1/systemone', {
-                method: 'POST',
-                headers: {
-                    authorization: `Bearer ${env.RANKWRANGLER_TYPESAFE_API_KEY}`,
-                    'content-type': 'application/json',
-                },
-                body: JSON.stringify(buildKeywordJudgmentRequest(candidates)),
-                signal: AbortSignal.timeout(15_000),
-            })
+    const response = await captureProviderAttempt({ provider: 'typesafe', operation }, () =>
+        fetch('https://api.typesafe.ai/v1/systemone', {
+            method: 'POST',
+            headers: {
+                authorization: `Bearer ${env.RANKWRANGLER_TYPESAFE_API_KEY}`,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify(request),
+            signal: AbortSignal.timeout(45_000),
+        })
     );
     await checkResponse(response, 'jev');
     return parseKeywordJudgments(candidates, await response.json());

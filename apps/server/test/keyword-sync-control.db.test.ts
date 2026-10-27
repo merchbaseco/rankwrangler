@@ -7,9 +7,9 @@ import { eventLogs } from '@/db/ops-schema';
 import { products } from '@/db/product-schema';
 import {
     claimKeywordExploration,
-    nextDiscoveryWakeAt,
     reserveDiscoveryAttempt,
 } from '@/db/discovery-work';
+import { spApiBackgroundGate } from '@/db/provider-gates';
 import { reserveCatalogCapacity } from '@/db/spapi-capacity';
 import { claimKeywordAutocomplete } from '@/db/keyword-autocomplete-work';
 import {
@@ -23,6 +23,7 @@ import { saveKeywordJudgments } from '@/db/mined-keyword-candidates';
 import { reserveKeywordMiningCall, deferKeywordMiningProvider } from '@/db/keyword-mining-capacity';
 import { keywordMiningCapacity } from '@/db/keyword-mining-schema';
 import { mineProductKeywords } from '@/services/product-keyword-mining';
+import { claimRelevanceCandidates, saveProductRelevance } from '@/db/product-keyword-relevance';
 import {
     resetDiscoveryFixture,
     seedDiscoveryTarget,
@@ -59,13 +60,18 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword sync pause
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
         await db
             .insert(products)
-            .values({ asin: 'B0TST00001', marketplaceId: 'ATVPDKIKX0DER', isMerchListing: true });
+            .values({
+                asin: 'B0TST00001',
+                marketplaceId: 'ATVPDKIKX0DER',
+                title: 'Fishing Shirt',
+                isMerchListing: true,
+            });
         await db.delete(automaticSyncControl);
         expect((await readAutomaticSync()).paused).toBe(true);
         expect(await claimKeywordExploration()).toBeNull();
         expect(await claimKeywordAutocomplete()).toBeNull();
         expect(await claimProductKeywordMining()).toBeNull();
-        expect(await nextDiscoveryWakeAt()).toBeNull();
+        expect(await spApiBackgroundGate()).toBeNull();
         for (const provider of ['ads', 'jev', 'autocomplete'] as const)
             await expect(reserveKeywordMiningCall(provider)).rejects.toThrow('deferred');
         expect(await db.select().from(keywordMiningCapacity)).toHaveLength(0);
@@ -109,13 +115,19 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword sync pause
     it('resumes saved Ads recommendations without refetching or counting pause as failure', async () => {
         await db
             .insert(products)
-            .values({ asin: 'B0TST00001', marketplaceId: 'ATVPDKIKX0DER', isMerchListing: true });
+            .values({
+                asin: 'B0TST00001',
+                marketplaceId: 'ATVPDKIKX0DER',
+                title: 'Fishing Shirt',
+                isMerchListing: true,
+            });
         let adsCalls = 0;
         let jevCalls = 0;
         let clock = new Date();
         const deps = {
             configured: () => true,
-            claim: () => claimProductKeywordMining(clock),
+            claim: (_now: Date, options?: { kind: 'source' | 'judgment' }) =>
+                claimProductKeywordMining(clock, options),
             recommend: async () => {
                 adsCalls++;
                 await setAutomaticSyncPaused(true, 'operator');
@@ -129,15 +141,21 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword sync pause
                 return rows.map(row => ({ id: row.id, probability: 0.95 }));
             },
             saveJudgments: saveKeywordJudgments,
+            claimRelevance: claimRelevanceCandidates,
+            judgeRelevance: async (_title: string, rows: { id: string; term: string }[]) =>
+                rows.map(row => ({ id: row.id, probability: 0.95 })),
+            saveRelevance: saveProductRelevance,
             finish: finishProductKeywordMining,
             release: releaseProductKeywordMining,
         };
-        expect((await mineProductKeywords(deps)).kind).toBe('deferred');
+        expect((await mineProductKeywords(deps)).kind).toBe('yielded');
+        expect((await mineProductKeywords(deps, { kind: 'judgment' as const })).kind).toBe('idle');
         expect(adsCalls).toBe(1);
         expect(jevCalls).toBe(0);
         await setAutomaticSyncPaused(false, 'operator');
         clock = new Date(Date.now() + 61_000);
-        expect((await mineProductKeywords(deps)).kind).toBe('complete');
+        expect((await mineProductKeywords(deps, { kind: 'judgment' as const })).kind).toBe('yielded');
+        expect((await mineProductKeywords(deps, { kind: 'judgment' as const })).kind).toBe('complete');
         expect(adsCalls).toBe(1);
         expect(jevCalls).toBe(1);
     });

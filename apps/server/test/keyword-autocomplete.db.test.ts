@@ -20,6 +20,7 @@ import {
 } from '@/db/keyword-mining-work';
 import { saveKeywordJudgments } from '@/db/mined-keyword-candidates';
 import { expandKeywordAutocomplete } from '@/services/keyword-autocomplete';
+import { claimRelevanceCandidates, saveProductRelevance } from '@/db/product-keyword-relevance';
 import { reserveKeywordMiningCall, deferKeywordMiningProvider } from '@/db/keyword-mining-capacity';
 import {
     resetDiscoveryFixture,
@@ -33,10 +34,22 @@ const claim = async (at = now) => {
     if (!work) throw new Error('Missing autocomplete work');
     return work;
 };
+const relevant = async (work: Awaited<ReturnType<typeof product>>) => {
+    const rows = await claimRelevanceCandidates(work);
+    await saveProductRelevance(
+        work,
+        rows.map(row => ({ id: row.id, probability: 0.9 }))
+    );
+};
 const product = async () => {
     await db
         .insert(products)
-        .values({ asin: 'B07ZSKYWL2', marketplaceId: 'ATVPDKIKX0DER', isMerchListing: true });
+        .values({
+            asin: 'B07ZSKYWL2',
+            marketplaceId: 'ATVPDKIKX0DER',
+            title: 'Mele Kalikimaka Christmas Shirt',
+            isMerchListing: true,
+        });
     const work = await claimProductKeywordMining(now);
     if (!work) throw new Error('Missing product work');
     return work;
@@ -87,7 +100,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable keyword au
         let providerCalls = 0;
         const result = await expandKeywordAutocomplete({
             configured: () => true,
-            claim: () => claimKeywordAutocomplete(now),
+            claim: (_now: Date, options?: { kind: 'source' | 'judgment' }) =>
+                claimKeywordAutocomplete(now, options),
             suggest: async () => {
                 providerCalls++;
                 return [];
@@ -98,7 +112,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable keyword au
             saveJudgments: saveKeywordJudgments,
             finish: finishKeywordAutocomplete,
             release: releaseKeywordAutocomplete,
-        });
+        }, { kind: 'judgment' });
         expect(result.kind).toBe('complete');
         expect(providerCalls).toBe(0);
     });
@@ -118,6 +132,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable keyword au
             })),
             now
         );
+        await relevant(ads);
         expect(await finishProductKeywordMining(ads, now)).toBe(true);
         await seed();
         const work = await claim();
@@ -155,6 +170,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable keyword au
             later
         );
         expect(await finishKeywordAutocomplete(work, later)).toBe(true);
+        await relevant(ads);
         expect(await finishProductKeywordMining(ads, later)).toBe(true);
     });
     it('completes empty responses and ignores disabled seeds', async () => {

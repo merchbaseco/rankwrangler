@@ -1,7 +1,6 @@
 import { checkpointDiscoveryPage } from '@/db/discovery-checkpoint';
 import {
     claimKeywordExploration,
-    nextDiscoveryWakeAt,
     reserveDiscoveryAttempt,
     stopDiscoveryWork,
 } from '@/db/discovery-work';
@@ -15,59 +14,47 @@ const defaultDeps = {
     persist: persistDiscoveredSpApiProducts,
     checkpoint: checkpointDiscoveryPage,
     stop: stopDiscoveryWork,
-    nextWake: nextDiscoveryWakeAt,
 };
-export const exploreKeywords = async (deps = defaultDeps) => {
-    const work = await deps.claim();
-    let pages = 0;
-    if (!work?.pass.claimToken)
-        return { kind: 'idle' as const, didWork: false, pages, nextWakeAt: await deps.nextWake() };
+
+// One SP-API page for one keyword target. `continues` means the pass has another page ready; the
+// scan job then queues that page behind due heads instead of fetching it now.
+export const scanKeywordPage = async (targetId: string, deps = defaultDeps) => {
+    const work = await deps.claim(new Date(), { targetId });
+    if (!work?.pass.claimToken) return { kind: 'notDue' as const, didWork: false };
     const claimToken = work.pass.claimToken;
-    let pass = work.pass;
+    const pass = work.pass;
+    const term = work.scope.term;
+    const page = pass.nextPage;
     let attemptId: string | null = null;
     try {
-        while (pages < 5) {
-            attemptId = await deps.reserve({ passId: pass.id, claimToken, page: pass.nextPage });
-            if (!attemptId)
-                return {
-                    kind: 'lostClaim' as const,
-                    didWork: pages > 0,
-                    pages,
-                    nextWakeAt: await deps.nextWake(),
-                };
-            const page = await deps.discover({
-                scope: work.scope,
-                marketplaceId: work.marketplaceId,
-                pageToken: pass.nextPageToken ?? undefined,
-                workId: attemptId,
-            });
-            pass = await deps.checkpoint({
-                passId: pass.id,
-                claimToken,
-                attemptId,
-                page: pass.nextPage,
-                nextPageToken: page.nextPageToken,
-                observedAt: page.observedAt,
-                products: page.products,
-                persist: deps.persist,
-            });
-            pages += 1;
-            if (pass.stopReason !== 'running') {
-                await deps.stop({ passId: pass.id, claimToken, reason: 'complete' });
-                return {
-                    kind: 'complete' as const,
-                    didWork: true,
-                    pages,
-                    nextWakeAt: await deps.nextWake(),
-                };
-            }
-        }
-        await deps.stop({ passId: pass.id, claimToken, reason: 'jobCap' });
+        attemptId = await deps.reserve({ passId: pass.id, claimToken, page });
+        if (!attemptId) return { kind: 'lostClaim' as const, didWork: false, term, page };
+        const result = await deps.discover({
+            scope: work.scope,
+            marketplaceId: work.marketplaceId,
+            pageToken: pass.nextPageToken ?? undefined,
+            workId: attemptId,
+        });
+        const next = await deps.checkpoint({
+            passId: pass.id,
+            claimToken,
+            attemptId,
+            page,
+            nextPageToken: result.nextPageToken,
+            observedAt: result.observedAt,
+            products: result.products,
+            persist: deps.persist,
+        });
+        const continues = next.stopReason === 'running';
+        await deps.stop({ passId: pass.id, claimToken, reason: continues ? 'jobCap' : 'complete' });
         return {
-            kind: 'yielded' as const,
+            kind: 'scanned' as const,
             didWork: true,
-            pages,
-            nextWakeAt: await deps.nextWake(),
+            term,
+            page,
+            products: result.products.length,
+            stopReason: next.stopReason,
+            continues,
         };
     } catch (error) {
         if (error instanceof CatalogCapacityDeferredError) {
@@ -78,12 +65,7 @@ export const exploreKeywords = async (deps = defaultDeps) => {
                 reason: 'budget',
                 retryAt: error.retryAt,
             });
-            return {
-                kind: 'deferred' as const,
-                didWork: pages > 0,
-                pages,
-                nextWakeAt: await deps.nextWake(),
-            };
+            return { kind: 'waiting' as const, didWork: false, term, page, retryAt: error.retryAt };
         }
         await deps.stop({
             passId: pass.id,
@@ -91,12 +73,6 @@ export const exploreKeywords = async (deps = defaultDeps) => {
             attemptId: attemptId ?? undefined,
             reason: 'failure',
         });
-        return {
-            kind: 'failed' as const,
-            error,
-            didWork: pages > 0,
-            pages,
-            nextWakeAt: await deps.nextWake(),
-        };
+        throw error;
     }
 };

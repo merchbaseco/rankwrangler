@@ -84,7 +84,7 @@ visible to callers or recovery and a concurrently completed reusable run does no
 - Demotion requires two successful observations and fourteen days of grace. Unsupported probation
   ends after thirty days. Inactive terms retire after ninety days without interest.
 - Keepa observes the first page only. A live pilot showed page 1 repeats page 0 and charges again.
-  SP-API acquisition uses real continuation tokens and five accepted pages per job, independently
+  SP-API acquisition uses real continuation tokens, one page per claim with due heads ahead of depth, independently
   of Keepa tier/admission. The former ten-per-term/twenty-global daily pilot caps are removed.
   Every physical Catalog start shares a persisted token bucket with foreground listing reads.
   Background gets 10% of effective observed rate, capped at 0.25 requests/second; foreground has

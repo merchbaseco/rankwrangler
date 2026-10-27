@@ -1,4 +1,8 @@
-import { processKeywordSyncJob } from './process-keyword-sync';
+import { autocompleteKeywordJob } from './autocomplete-keyword';
+import { judgeKeywordsJob } from './judge-keywords';
+import { recommendProductKeywordsJob } from './recommend-product-keywords';
+import { scanKeywordJob } from './scan-keyword';
+import { scheduleKeywordWorkJob } from './schedule-keyword-work';
 import type { PgBoss } from 'pg-boss';
 import { reconcileHistoryAdmissionJob } from '@/jobs/reconcile-history-admission';
 import { catalogSearchJob } from '@/jobs/catalog-search';
@@ -9,6 +13,7 @@ import { startRegisteredJobs } from '@/jobs/job-router.js';
 import { processKeepaHistoryRefreshQueueJob } from '@/jobs/process-keepa-history-refresh-queue.js';
 import { processProductFacetClassificationJob } from '@/jobs/process-product-facet-classification.js';
 import { processSpApiSyncQueueJob } from '@/jobs/process-spapi-sync-queue.js';
+import { pruneJobExecutionsJob } from '@/jobs/prune-job-executions';
 import { pruneProviderAttemptsJob } from '@/jobs/prune-provider-attempts';
 import { recoverStaleCatalogSearchOperationsJob } from '@/jobs/recover-stale-catalog-search-operations';
 import { recoverStaleProductHistoryOperationsJob } from '@/jobs/recover-stale-product-history-operations.js';
@@ -17,7 +22,11 @@ import { repairAccessProjectionsJob } from '@/jobs/repair-access-projections';
 import { reprocessStaleProductsJob } from '@/jobs/reprocess-stale-products.js';
 
 const registeredJobs = [
-    processKeywordSyncJob,
+    scheduleKeywordWorkJob,
+    scanKeywordJob,
+    recommendProductKeywordsJob,
+    judgeKeywordsJob,
+    autocompleteKeywordJob,
     catalogSearchJob,
     reconcileHistoryAdmissionJob,
     collectDueCatalogQueriesJob,
@@ -27,6 +36,7 @@ const registeredJobs = [
     processProductFacetClassificationJob,
     processSpApiSyncQueueJob,
     pruneProviderAttemptsJob,
+    pruneJobExecutionsJob,
     reprocessStaleProductsJob,
     recoverStaleProductHistoryOperationsJob,
     recoverStaleCatalogSearchOperationsJob,
@@ -36,10 +46,7 @@ const registeredJobs = [
 
 export const prepareJobQueues = async (boss: PgBoss) => {
     for (const job of registeredJobs)
-        await boss.createQueue(
-            job.jobName,
-            job.jobName === processKeywordSyncJob.jobName ? { policy: 'short' } : {}
-        );
+        await boss.createQueue(job.jobName, job.queueOptions);
 };
 
 export const startJobs = async (boss: PgBoss) => {
@@ -47,6 +54,7 @@ export const startJobs = async (boss: PgBoss) => {
     await boss.unschedule('discover-catalog');
     await boss.unschedule('mine-product-keywords');
     await boss.unschedule('expand-keyword-autocomplete');
+    await boss.unschedule('process-keyword-sync');
     await boss.unschedule('sync-top-search-terms-datasets');
     await boss.unschedule('fetch-top-search-terms-dataset');
     await prepareJobQueues(boss);

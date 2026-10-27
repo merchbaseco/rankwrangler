@@ -19,15 +19,30 @@ import {
     releaseProductKeywordMining,
 } from '@/db/keyword-mining-work';
 import { mineProductKeywords } from '@/services/product-keyword-mining';
+import { claimRelevanceCandidates, saveProductRelevance } from '@/db/product-keyword-relevance';
 import { reserveKeywordMiningCall, deferKeywordMiningProvider } from '@/db/keyword-mining-capacity';
 import { resetDiscoveryFixture, discoveryNow as now } from './discovery-fixture';
 const market = 'ATVPDKIKX0DER';
 const add = async (asin: string) => {
     const [p] = await db
         .insert(products)
-        .values({ asin, marketplaceId: market, isMerchListing: true, rootCategoryBsr: 100_000 })
+        .values({
+            asin,
+            marketplaceId: market,
+            title: 'Funny Fishing Shirt',
+            isMerchListing: true,
+            rootCategoryBsr: 100_000,
+        })
         .returning();
     return p;
+};
+const relevant = async (work: Awaited<ReturnType<typeof claim>>, probability = 0.9) => {
+    const rows = await claimRelevanceCandidates(work);
+    await saveProductRelevance(
+        work,
+        rows.map(row => ({ id: row.id, probability }))
+    );
+    return rows;
 };
 const claim = async (at = now) => {
     const work = await claimProductKeywordMining(at);
@@ -53,6 +68,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('once-per-ASIN keyw
             batch.map(row => ({ id: row.id, probability: 0.95 })),
             now
         );
+        expect(await finishProductKeywordMining(work, now)).toBe(false);
+        await relevant(work);
         expect(await finishProductKeywordMining(work, now)).toBe(true);
         await db
             .update(products)
@@ -69,12 +86,15 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('once-per-ASIN keyw
             remaining.map(row => ({ id: row.id, probability: 0.9 })),
             now
         );
+        await relevant(second);
         expect(await finishProductKeywordMining(second, now)).toBe(true);
         expect(await db.select().from(candidates)).toHaveLength(21);
         expect(await db.select().from(links)).toHaveLength(40);
-        expect(
-            (await db.select().from(discoveryTargets)).every(row => row.tracking === 'trial')
-        ).toBe(true);
+        const targets = await db.select().from(discoveryTargets);
+        expect(targets.every(row => row.tracking === 'trial')).toBe(true);
+        // Both products' first five Ads phrases are the same five, so they share five targets.
+        expect(targets).toHaveLength(5);
+        expect((await db.select().from(links)).filter(row => row.selected)).toHaveLength(10);
     });
     it('resumes a saved Ads response after a judgment failure without another Ads call', async () => {
         await add('B0TST00001');
@@ -83,7 +103,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('once-per-ASIN keyw
         let judgments = 0;
         const deps = {
             configured: () => true,
-            claim: () => claimProductKeywordMining(at),
+            claim: (_now: Date, options?: { kind: 'source' | 'judgment' }) =>
+                claimProductKeywordMining(at, options),
             recommend: async () => {
                 ads += 1;
                 return ['fishing shirt'];
@@ -96,16 +117,24 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('once-per-ASIN keyw
                 return rows.map(row => ({ id: row.id, probability: 0.9 }));
             },
             saveJudgments: saveKeywordJudgments,
+            claimRelevance: claimRelevanceCandidates,
+            judgeRelevance: async (_title: string, rows: { id: string; term: string }[]) =>
+                rows.map(row => ({ id: row.id, probability: 0.9 })),
+            saveRelevance: saveProductRelevance,
             finish: finishProductKeywordMining,
             release: (
                 work: Parameters<typeof releaseProductKeywordMining>[0],
                 input: Parameters<typeof releaseProductKeywordMining>[1]
             ) => releaseProductKeywordMining(work, { ...input, now: at }),
         };
-        await expect(mineProductKeywords(deps)).rejects.toThrow('judge offline');
+        expect((await mineProductKeywords(deps)).kind).toBe('yielded');
+        at = new Date(Date.now() + 1000);
+        await expect(mineProductKeywords(deps, { kind: 'judgment' as const })).rejects.toThrow('judge offline');
         expect((await db.select().from(mining))[0].stage).toBe('recommendationsSaved');
-        at = new Date(now.getTime() + 301_000);
-        expect((await mineProductKeywords(deps)).kind).toBe('complete');
+        at = new Date(at.getTime() + 3_600_000);
+        expect((await mineProductKeywords(deps)).kind).toBe('idle');
+        expect((await mineProductKeywords(deps, { kind: 'judgment' as const })).kind).toBe('yielded');
+        expect((await mineProductKeywords(deps, { kind: 'judgment' as const })).kind).toBe('complete');
         expect(ads).toBe(1);
         expect(judgments).toBe(2);
     });
@@ -137,7 +166,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('once-per-ASIN keyw
         await saveKeywordRecommendations(current, ['fishing shirt'], now);
         await releaseProductKeywordMining(current, { now });
         await add('B0TST00002');
-        const a = await claim();
+        // The saved first product is judgment work; the new second product is source work.
+        const a = await claimProductKeywordMining(now, { kind: 'judgment' });
+        if (!a) throw new Error('Missing saved mining work');
         const bProduct = await add('B0TST00003');
         const [bMining] = await db
             .insert(mining)
@@ -191,10 +222,41 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('once-per-ASIN keyw
             batch.map(row => ({ id: row.id, probability: 0.95 })),
             now
         );
+        await relevant(a);
+        await relevant(b);
         expect(await finishProductKeywordMining(a, now)).toBe(true);
         expect(await finishProductKeywordMining(b, now)).toBe(true);
         expect((await db.select().from(candidates)).every(row => row.verdict === 'accepted')).toBe(
             true
         );
+    });
+    it('counts already-tracked phrases in the cap, keeps provider order and never rejects globally for one product', async () => {
+        const terms = ['cat dad shirt', 'batman shirt', 'funny cat dad tee', 'cat mom shirt'];
+        await recordProductSearchInterest(productSearchInput.parse({ term: 'cat mom shirt' }));
+        await add('B0TST00001');
+        const work = await claim();
+        await saveKeywordRecommendations(work, terms, now);
+        expect((await db.select().from(mining))[0].recommendations).toEqual(terms);
+        const fit = await claimKeywordJudgments(work, now);
+        await saveKeywordJudgments(
+            work,
+            fit.map(row => ({ id: row.id, probability: 0.95 })),
+            now
+        );
+        const asked = await claimRelevanceCandidates(work);
+        expect(asked.map(row => row.term)).toEqual(terms);
+        await saveProductRelevance(
+            work,
+            asked.map(row => ({ id: row.id, probability: row.term === 'batman shirt' ? 0.1 : 0.9 }))
+        );
+        expect(await finishProductKeywordMining(work, now)).toBe(true);
+        const selected = await db
+            .select({ term: candidates.term })
+            .from(links)
+            .innerJoin(candidates, eq(candidates.id, links.candidateId))
+            .where(eq(links.selected, true));
+        expect(selected.map(row => row.term).sort()).toEqual(['cat dad shirt', 'cat mom shirt']);
+        const batman = (await db.select().from(candidates)).find(row => row.term === 'batman shirt');
+        expect(batman?.verdict).toBe('accepted');
     });
 });

@@ -1,3 +1,4 @@
+import { notifyKeywordQueryRows } from './keyword-directory-notifications';
 import { isAutomaticSyncPaused } from './automatic-sync';
 import { writeKeywordEvents } from './keyword-events';
 import { randomUUID } from 'node:crypto';
@@ -18,7 +19,14 @@ import {
 import { recordDiscoveryCandidates } from './discovery-candidates';
 import { keywordRetryAt } from '@/services/keyword-collection-policy';
 
-export const claimKeywordAutocomplete = async (now = new Date()) =>
+// `source` takes seeds that still need their Amazon call; `judgment` takes saved suggestions.
+export const claimKeywordAutocomplete = async (
+    now = new Date(),
+    {
+        kind = 'source' as 'source' | 'judgment',
+        queryId,
+    }: { kind?: 'source' | 'judgment'; queryId?: string } = {}
+) =>
     db.transaction(async tx => {
         if (await isAutomaticSyncPaused(tx)) return null;
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext('keyword-autocomplete'))`);
@@ -37,7 +45,9 @@ export const claimKeywordAutocomplete = async (now = new Date()) =>
                     eq(discoveryTargets.kind, 'keyword'),
                     eq(discoveryTargets.enabled, true),
                     eq(discoveryTargets.tracking, 'tracked'),
-                    sql`(${expansion.queryId} is null or (${expansion.stage}<>'complete' and ${expansion.nextDueAt}<=${now.toISOString()}::timestamp
+                    queryId ? eq(catalogQueries.id, queryId) : undefined,
+                    sql`(${kind === 'source' ? sql`${expansion.queryId} is null or ` : sql``}(${expansion.stage}=${kind === 'source' ? 'pending' : 'suggestionsSaved'}
+                and ${expansion.nextDueAt}<=${now.toISOString()}::timestamp
                 and (${expansion.claimAt} is null or ${expansion.claimAt}<${new Date(now.getTime() - 300_000).toISOString()}::timestamp)))`
                 )
             )
@@ -57,6 +67,7 @@ export const claimKeywordAutocomplete = async (now = new Date()) =>
             .set({ claimToken: randomUUID(), claimAt: now })
             .where(eq(expansion.queryId, seed.queryId))
             .returning();
+        await notifyKeywordQueryRows(tx, [seed.queryId]);
         return { ...seed, ...owned, claimToken: owned.claimToken! };
     });
 export type AutocompleteWork = NonNullable<Awaited<ReturnType<typeof claimKeywordAutocomplete>>>;
@@ -207,5 +218,6 @@ export const releaseKeywordAutocomplete = async (
                     details: { retryAt: released[0].retryAt.toISOString() },
                 },
             ]);
+        if (released.length) await notifyKeywordQueryRows(tx, [work.queryId]);
         await releaseCandidateJudgments(tx, work.claimToken);
     });

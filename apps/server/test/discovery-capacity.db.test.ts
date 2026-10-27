@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 import { PgBoss } from 'pg-boss';
 import { buildDatabaseUrl } from '@/config/database-url';
 import { prepareJobQueues } from '@/jobs/index';
-import { processKeywordSyncJob } from '@/jobs/process-keyword-sync';
+import { keywordQueues } from '@/jobs/keyword-job-queues';
+import { spApiBackgroundGate } from '@/db/provider-gates';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db/index';
 import {
     reserveDiscoveryAttempt,
     stopDiscoveryWork,
-    nextDiscoveryWakeAt,
 } from '@/db/discovery-work';
 import {
     reserveCatalogCapacity,
@@ -100,7 +100,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable Catalog ca
             retryAt: decision.retryAt,
             now,
         });
-        expect(await nextDiscoveryWakeAt(now)).toEqual(decision.retryAt);
+        expect(await spApiBackgroundGate(now)).toEqual(decision.retryAt);
         const restarted = await claimDiscoveryFixture(decision.retryAt);
         expect(restarted.pass.nextPage).toBe(1);
         expect(restarted.pass.failureCount).toBe(0);
@@ -152,7 +152,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable Catalog ca
         });
         expect((await readCatalogCapacity())?.effectiveRps).toBe(0.8);
     });
-    it('coalesces a dated followup and watchdog while allowing one active job', async () => {
+    it('keeps one queued-or-running scan per keyword and accepts its followup after completion', async () => {
         const boss = new PgBoss({
             connectionString: buildDatabaseUrl(),
             schema: 'pgboss_discovery_proof',
@@ -163,25 +163,27 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable Catalog ca
         await boss.start();
         try {
             await prepareJobQueues(boss);
-            const name = processKeywordSyncJob.jobName;
+            const name = keywordQueues.scan;
             expect((await boss.getQueues()).find(queue => queue.name === name)?.policy).toBe(
-                'short'
+                'exclusive'
             );
-            const id = await boss.send(name, {}, { singletonKey: name });
-            const active = await boss.fetch(name);
+            const key = '00000000-0000-4000-8000-0000000000aa';
+            const id = await boss.send(name, { targetId: key }, { singletonKey: key, priority: 1 });
+            expect(await boss.send(name, { targetId: key }, { singletonKey: key })).toBeNull();
+            const active = await boss.fetch(name, { priority: true });
             expect(active[0].id).toBe(id);
-            const wake = await boss.send(
-                name,
-                {},
-                { singletonKey: name, startAfter: new Date(Date.now() + 10_000) }
-            );
-            expect(wake).not.toBeNull();
-            expect(await boss.send(name, {}, { singletonKey: name })).toBeNull();
+            expect(await boss.send(name, { targetId: key }, { singletonKey: key })).toBeNull();
             await boss.complete(name, id!);
+            const followup = await boss.send(
+                name,
+                { targetId: key },
+                { singletonKey: key, startAfter: new Date(Date.now() + 10_000) }
+            );
+            expect(followup).not.toBeNull();
             expect(await boss.fetch(name)).toHaveLength(0);
             const resumed = await boss.fetch(name, { ignoreStartAfter: true });
-            expect(resumed[0].id).toBe(wake);
-            await boss.complete(name, wake!);
+            expect(resumed[0].id).toBe(followup);
+            await boss.complete(name, followup!);
         } finally {
             await boss.stop({ graceful: false });
         }

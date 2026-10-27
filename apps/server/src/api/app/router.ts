@@ -1,3 +1,7 @@
+import { eventLogCreated } from '@/api/app/event-log-created';
+import { syncControlChanged } from '@/api/app/sync-control-changed';
+import { keywordDirectoryChanged } from '@/api/app/keyword-directory-changed';
+import { keywordDirectoryRows } from './keyword-directory-rows';
 import { syncControlGet } from './sync-control-get';
 import { syncControlSet } from './sync-control-set';
 import { keywordTrack } from './keyword-track';
@@ -27,10 +31,15 @@ import { productSearch } from './product-search';
 import { productSearchMetadata } from './product-search-metadata';
 import { productSyncCompleted } from './product-sync-completed';
 import { providerTelemetryGet } from './provider-telemetry-get';
+import { jobActivity } from './job-activity';
+import { keywordJobsStatus } from './keyword-jobs-status';
 
 export const appApiRouter = router({
-    syncControl: router({ get: syncControlGet, set: syncControlSet }),
+    syncControl: router({ get: syncControlGet, set: syncControlSet, changed: syncControlChanged }),
+    keyword: router({ directory: router({ changed: keywordDirectoryChanged }) }),
+    activity: router({ created: eventLogCreated }),
     keywordDirectory,
+    keywordDirectoryRows,
     keywordTrack,
     access: router({
         usage: accessUsage,
@@ -47,6 +56,7 @@ export const appApiRouter = router({
     getProductFacetMetricsSummary,
     getProductFacets,
     jobExecutions,
+    jobs: router({ keywordStatus: keywordJobsStatus, activity: jobActivity }),
     getProductHistory,
     getProductShortNameMetricsSummary,
     getProductCutoutThumbnailMetricsSummary,

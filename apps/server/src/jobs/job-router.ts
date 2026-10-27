@@ -1,10 +1,13 @@
-import type { Job, PgBoss, SendOptions, WorkOptions } from 'pg-boss';
+import type { Job, PgBoss, Queue, SendOptions, WorkOptions } from 'pg-boss';
+import type { ProviderGate } from '@/db/provider-gates';
+import { startGatedWorker } from '@/jobs/gated-worker';
 import { z } from 'zod';
 import { runTrackedJob } from '@/services/job-executions.js';
 import {
     buildStartupSummary,
     createJobLog,
     getDidWorkResult,
+    intervalMsToCronExpression,
     type JobLogFn,
 } from '@/jobs/job-runtime-utils.js';
 
@@ -41,6 +44,8 @@ type AnyJobDefinition = {
     workOptions?: WorkOptions;
     schedule?: JobSchedule;
     persistSuccess: 'always' | 'didWork';
+    queueOptions: Omit<Queue, 'name'>;
+    gate?: ProviderGate;
     work: JobWorkFn<unknown, unknown>;
 };
 
@@ -57,6 +62,8 @@ class JobBuilder<TInput = unknown> {
     private sendOptions: SendOptions = {};
     private workerOptions?: WorkOptions;
     private schedule?: JobSchedule;
+    private queueOptions: Omit<Queue, 'name'> = {};
+    private providerGate?: ProviderGate;
     private readonly jobName: string;
     private readonly startupSummary?: string;
     private readonly persistSuccess: 'always' | 'didWork';
@@ -80,6 +87,17 @@ class JobBuilder<TInput = unknown> {
 
     options(options: SendOptions) {
         this.sendOptions = { ...this.sendOptions, ...options };
+        return this;
+    }
+
+    queue(options: Omit<Queue, 'name'>) {
+        this.queueOptions = options;
+        return this;
+    }
+
+    // Gated jobs are fetched one at a time, only once the provider can start (see gated-worker).
+    gate(gate: ProviderGate) {
+        this.providerGate = gate;
         return this;
     }
 
@@ -134,6 +152,8 @@ class JobBuilder<TInput = unknown> {
             workOptions: this.workerOptions,
             schedule: this.schedule,
             persistSuccess: this.persistSuccess,
+            queueOptions: this.queueOptions,
+            gate: this.providerGate,
             work: workFn as JobWorkFn<unknown, unknown>,
         };
 
@@ -174,27 +194,18 @@ export const startRegisteredJobs = async (
             continue;
         }
 
-        await boss.createQueue(jobDefinition.jobName);
+        await boss.createQueue(jobDefinition.jobName, jobDefinition.queueOptions);
         createdQueues.add(jobDefinition.jobName);
     }
 
+    const gatedWorkers: { stop: () => Promise<void> }[] = [];
     for (const jobDefinition of jobs) {
-        const worker = async (incomingJobs: Job<unknown> | Job<unknown>[]) => {
-            const queuedJobs = Array.isArray(incomingJobs)
-                ? incomingJobs
-                : [incomingJobs];
-
-            for (const queuedJob of queuedJobs) {
-                await runTrackedJob({
+        const runJob = (queuedJob: Job<unknown>) =>
+            runTrackedJob({
                     jobName: jobDefinition.jobName,
                     input: queuedJob.data,
-                    shouldPersistSuccess: result => {
-                        if (jobDefinition.persistSuccess === 'always') {
-                            return true;
-                        }
-
-                        return getDidWorkResult(result);
-                    },
+                    shouldPersistSuccess: result =>
+                jobDefinition.persistSuccess === 'always' || getDidWorkResult(result),
                     run: async logger => {
                         const parsedInput = jobDefinition.parseInput(queuedJob.data);
                         const typedJob = {
@@ -206,13 +217,32 @@ export const startRegisteredJobs = async (
 
                         return jobDefinition.work(typedJob, signal, log, { boss });
                     },
-                }).catch(() => {
+                });
+        const worker = async (incomingJobs: Job<unknown> | Job<unknown>[]) => {
+            const queuedJobs = Array.isArray(incomingJobs)
+                ? incomingJobs
+                : [incomingJobs];
+
+            for (const queuedJob of queuedJobs) {
+                await runJob(queuedJob).catch(() => {
                     // Intentionally swallow worker errors after runTrackedJob persists failure details.
                     // Queue-level retries are controlled per job via explicit follow-up scheduling.
                     return undefined;
                 });
             }
         };
+
+        if (jobDefinition.gate) {
+            gatedWorkers.push(
+                startGatedWorker({
+                    boss,
+                    name: jobDefinition.jobName,
+                    gate: jobDefinition.gate,
+                    run: runJob,
+                })
+            );
+            continue;
+        }
 
         if (jobDefinition.workOptions) {
             await boss.work(
@@ -256,46 +286,11 @@ export const startRegisteredJobs = async (
     hasStartedJobsRuntime = true;
 
     return {
-        stop: async () => {},
+        stop: async () => {
+            await Promise.all(gatedWorkers.map(worker => worker.stop()));
+        },
         startupSummary: jobs.map(job => {
             return `${job.jobName} (${job.startupSummary})`;
         }),
     };
-};
-
-export const intervalMsToCronExpression = (everyMs: number) => {
-    if (!Number.isFinite(everyMs) || everyMs <= 0 || everyMs % (60 * 1000) !== 0) {
-        throw new Error(
-            `[Jobs] Unsupported interval ${everyMs}ms. Interval scheduling must be in whole minutes.`
-        );
-    }
-
-    const everyMinutes = everyMs / (60 * 1000);
-
-    if (everyMinutes === 1) {
-        return '* * * * *';
-    }
-
-    if (everyMinutes < 60 && 60 % everyMinutes === 0) {
-        return `*/${everyMinutes} * * * *`;
-    }
-
-    if (everyMinutes === 60) {
-        return '0 * * * *';
-    }
-
-    if (everyMinutes < 24 * 60 && everyMinutes % 60 === 0) {
-        const everyHours = everyMinutes / 60;
-        if (24 % everyHours === 0) {
-            return `0 */${everyHours} * * *`;
-        }
-    }
-
-    if (everyMinutes === 24 * 60) {
-        return '0 0 * * *';
-    }
-
-    throw new Error(
-        `[Jobs] Unsupported interval ${everyMs}ms. Use .cron() for non-hourly/minute-compatible schedules.`
-    );
 };

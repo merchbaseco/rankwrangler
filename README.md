@@ -146,3 +146,19 @@ judgments, a live keyword directory with plain statuses, processing order, pause
 awaits deployment. Operator settings expose collection
 backlogs and capacity. The [execution record](plans/merch-collection-execution.md) tracks verification.
 The [capacity baseline](plans/merch-capacity-baseline.md) records the initial pilot envelope.
+
+The Keywords table, sync control and Live Logs receive committed changes through separate tRPC
+WebSocket subscriptions. Keyword events reread only changed terms and patch the loaded table cache;
+there is no periodic refresh. Reconnection reconciles missed updates. See
+[realtime events](docs/internals/realtime-events.md).
+
+Autocomplete keeps Amazon’s native keyword variants, including pluralization and inserted words,
+and removes stray trailing commas from search seeds.
+
+Each mined product contributes at most five keyword roots: Jev judges global apparel fit (cached
+per phrase) and topical relevance to that product, then selection keeps distinct phrases in Ads
+order. Collection runs as small jobs (one keyword page, one Ads call, one Jev batch) behind one
+queue per provider, fed by a one-minute scheduler that holds back new mining or autocomplete sources
+while queued scans exceed about two days of capacity. Settings → Keyword Jobs shows queues, provider
+readiness and recent runs live. See [keyword mining](docs/internals/keyword-mining.md) and
+[background jobs](docs/decisions/background-jobs.md). Not deployed.

@@ -1,6 +1,7 @@
 import { Activity, BarChart3, Bell, Key, RefreshCw, User } from "lucide-react";
 import { useMemo, useState } from "react";
 import { KeepaMetricsPanel } from "@/components/dashboard/keepa-metrics-panel";
+import { KeywordJobsPanel } from "@/components/dashboard/jobs/keyword-jobs-panel";
 import { ProductFacetMetricsPanel } from "@/components/dashboard/product-facet-metrics-panel";
 import { ProductShortNameMetricsPanel } from "@/components/dashboard/product-short-name-metrics-panel";
 import { ProductCutoutThumbnailMetricsPanel } from "@/components/dashboard/product-cutout-thumbnail-metrics-panel";
@@ -29,6 +30,7 @@ type SettingsPage =
 	| "api"
 	| "notifications"
 	| "account"
+	| "metrics-jobs"
 	| "metrics-keepa"
 	| "metrics-spapi"
 	| "metrics-facets"
@@ -45,6 +47,7 @@ const BASE_SETTINGS_NAV: NavItem[] = [
 ];
 
 const METRICS_NAV: NavItem[] = [
+	{ key: "metrics-jobs", label: "Keyword Jobs", icon: Activity },
 	{ key: "metrics-keepa", label: "Keepa", icon: Activity },
 	{ key: "metrics-spapi", label: "SP-API", icon: Activity },
 	{ key: "metrics-facets", label: "Facets", icon: Activity },
@@ -120,6 +123,7 @@ export const SettingsModal = ({
 								{page === "api" ? <ApiSettings /> : null}
 								{page === "notifications" ? <NotificationSettings /> : null}
 								{page === "account" ? <AccountSettings /> : null}
+								{page === "metrics-jobs" ? <KeywordJobsPanel /> : null}
 								{page === "metrics-keepa" ? <KeepaMetricsPanel /> : null}
 								{page === "metrics-spapi" ? <SpApiMetricsPanel /> : null}
 								{page === "metrics-facets" ? (

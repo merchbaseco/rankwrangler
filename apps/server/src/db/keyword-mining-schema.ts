@@ -11,6 +11,7 @@ import {
     primaryKey,
     uniqueIndex,
     check,
+    boolean,
 } from 'drizzle-orm/pg-core';
 import { products } from './product-schema';
 
@@ -30,6 +31,7 @@ export const productKeywordMining = pgTable(
         nextDueAt: timestamp('next_due_at', { mode: 'date' }).notNull().defaultNow(),
         failureCount: integer('failure_count').notNull().default(0),
         recommendedAt: timestamp('recommended_at', { mode: 'date' }),
+        selectionVersion: text('selection_version'),
         completedAt: timestamp('completed_at', { mode: 'date' }),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
     },
@@ -75,6 +77,9 @@ export const productKeywordCandidates = pgTable(
         candidateId: uuid('candidate_id')
             .notNull()
             .references(() => minedKeywordCandidates.id, { onDelete: 'cascade' }),
+        position: integer('position'),
+        relevance: real('relevance'),
+        selected: boolean('selected').notNull().default(false),
     },
     table => ({ pk: primaryKey({ columns: [table.productId, table.candidateId] }) })
 );

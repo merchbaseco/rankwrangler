@@ -1,6 +1,6 @@
+import { notifyKeywordQueryRows } from './keyword-directory-notifications';
 import { isAutomaticSyncPaused } from './automatic-sync';
 import { writeKeywordEvents } from './keyword-events';
-import { catalogCapacityDecision } from '@/services/catalog-capacity-policy';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { DiscoveryScope } from '@/services/discovery-types';
@@ -14,7 +14,8 @@ import { spApiCatalogCapacity } from './spapi-capacity-schema';
 const leaseMs = 300_000;
 const continuing = ['running', 'budget', 'jobCap'];
 
-export const claimKeywordExploration = async (now = new Date()) =>
+// With a targetId, claims that target only if it is due; a scan-keyword job names its keyword.
+export const claimKeywordExploration = async (now = new Date(), { targetId }: { targetId?: string } = {}) =>
     db.transaction(async tx => {
         if (await isAutomaticSyncPaused(tx)) return null;
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext('catalog-discovery-dispatch'))`);
@@ -27,7 +28,11 @@ export const claimKeywordExploration = async (now = new Date()) =>
             .from(spApiCatalogCapacity)
             .where(eq(spApiCatalogCapacity.id, 1))
             .for('update');
-        const trialTurn = (capacity?.discoveryClaims ?? 0) % 5 === 0;
+        const claims = capacity?.discoveryClaims ?? 0;
+        const trialTurn = claims % 5 === 0;
+        // Heads (first or due recurring checks) come before continuing depth, except every
+        // fourth claim, which prefers depth so deep passes keep moving under a steady head load.
+        const depthTurn = claims % 4 === 3;
         const [candidate] = await tx
             .select({ target: discoveryTargets, query: catalogQueries })
             .from(discoveryTargets)
@@ -35,6 +40,7 @@ export const claimKeywordExploration = async (now = new Date()) =>
             .where(
                 and(
                     eq(discoveryTargets.enabled, true),
+                    targetId ? eq(discoveryTargets.id, targetId) : undefined,
                     sql`not exists (
             select 1 from (select resume_at,claim_at,stop_reason from keyword_exploration_passes
                 where target_id=${discoveryTargets.id} order by created_at desc,id desc limit 1) latest
@@ -45,6 +51,8 @@ export const claimKeywordExploration = async (now = new Date()) =>
                 )
             )
             .orderBy(
+                sql`case when exists(select 1 from keyword_exploration_passes p where p.target_id=${discoveryTargets.id}
+                    and p.stop_reason in ('running','budget','jobCap') and p.next_page>0)=${depthTurn} then 0 else 1 end`,
                 sql`case when ${discoveryTargets.tracking}=${trialTurn ? 'trial' : 'tracked'} then 0 else 1 end`,
                 sql`case when ${discoveryTargets.headObservedAt} is null then 1 else
                     greatest(0,extract(epoch from(${now.toISOString()}::timestamp-coalesce(${discoveryTargets.nextCheckAt},${now.toISOString()}::timestamp))))
@@ -101,6 +109,7 @@ export const claimKeywordExploration = async (now = new Date()) =>
             .update(discoveryTargets)
             .set({ lastSelectedAt: now })
             .where(eq(discoveryTargets.id, target.id));
+        await notifyKeywordQueryRows(tx, [target.queryId]);
         let scope: DiscoveryScope;
         if (target.kind === 'brand') {
             if (!target.brandName) throw new Error('Brand target lacks exact provider brand scope');
@@ -230,34 +239,10 @@ export const stopDiscoveryWork = async (input: Stop) =>
                     },
                 ]);
         }
+        const [target] = await tx
+            .select({ queryId: discoveryTargets.queryId })
+            .from(discoveryTargets)
+            .where(eq(discoveryTargets.id, pass.targetId));
+        if (target) await notifyKeywordQueryRows(tx, [target.queryId]);
         return resumeAt;
     });
-
-export const nextDiscoveryWakeAt = async (now = new Date()) => {
-    if (await isAutomaticSyncPaused()) return null;
-    const [row] = await db.execute<{ epoch: number | null }>(sql`
-        select extract(epoch from min(greatest(
-            coalesce(case when latest.stop_reason in ('running','budget','jobCap') then latest.resume_at
-                else least(latest.resume_at,coalesce(t.next_check_at,latest.resume_at)) end,${now.toISOString()}::timestamp),
-            coalesce(latest.claim_at+interval '5 minutes',${now.toISOString()}::timestamp),
-            ${now.toISOString()}::timestamp)))::double precision epoch
-        from discovery_targets t left join lateral (
-            select resume_at,claim_at,stop_reason from keyword_exploration_passes where target_id=t.id
-            order by created_at desc,id desc limit 1
-        ) latest on true where t.enabled
-    `);
-    if (row?.epoch === null || row?.epoch === undefined) return null;
-    const [capacity] = await db
-        .select()
-        .from(spApiCatalogCapacity)
-        .where(eq(spApiCatalogCapacity.id, 1));
-    const decision = capacity
-        ? catalogCapacityDecision(capacity, { priority: 'background', protectedQueued: false, now })
-        : null;
-    return new Date(
-        Math.max(
-            Math.ceil(row.epoch * 1000),
-            decision?.kind === 'deferred' ? decision.retryAt.getTime() : now.getTime()
-        )
-    );
-};

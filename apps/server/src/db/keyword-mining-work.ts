@@ -5,7 +5,7 @@ import {
     releaseCandidateJudgments,
 } from './mined-keyword-candidates';
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from './index';
 import { products } from './product-schema';
 import {
@@ -15,8 +15,16 @@ import {
 } from './keyword-mining-schema';
 import { recordDiscoveryCandidates } from './discovery-candidates';
 import { keywordRetryAt } from '@/services/keyword-collection-policy';
+import { PRODUCT_RELEVANCE_VERSION } from '@/services/keyword-judgment-contract';
+import { selectProductKeywords } from '@/services/product-keyword-selection';
 
-export const claimProductKeywordMining = async (now = new Date()) =>
+// Two claim kinds so each waits only on its own provider: `source` takes products that still need
+// their Ads call (new or deferred), `judgment` takes products whose Ads response is saved.
+export type MiningClaimKind = 'source' | 'judgment';
+export const claimProductKeywordMining = async (
+    now = new Date(),
+    { kind = 'source' as MiningClaimKind, productId }: { kind?: MiningClaimKind; productId?: string } = {}
+) =>
     db.transaction(async tx => {
         if (await isAutomaticSyncPaused(tx)) return null;
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext('product-keyword-mining'))`);
@@ -29,7 +37,8 @@ export const claimProductKeywordMining = async (now = new Date()) =>
                     eq(products.marketplaceId, 'ATVPDKIKX0DER'),
                     eq(products.isMerchListing, true),
                     eq(products.amazonListingStatus, 'active'),
-                    sql`${mining.stage}<>'complete'`,
+                    eq(mining.stage, kind === 'source' ? 'pending' : 'recommendationsSaved'),
+                    productId ? eq(mining.productId, productId) : undefined,
                     sql`${mining.nextDueAt}<=${now.toISOString()}::timestamp`,
                     sql`(${mining.claimAt} is null or ${mining.claimAt}<${new Date(now.getTime() - 300_000).toISOString()}::timestamp)`
                 )
@@ -38,6 +47,7 @@ export const claimProductKeywordMining = async (now = new Date()) =>
             .limit(1)
             .for('update', { of: mining });
         let product = existing?.product;
+        if (!product && kind === 'judgment') return null;
         if (!product) {
             [product] = await tx
                 .select()
@@ -47,6 +57,8 @@ export const claimProductKeywordMining = async (now = new Date()) =>
                         eq(products.marketplaceId, 'ATVPDKIKX0DER'),
                         eq(products.isMerchListing, true),
                         eq(products.amazonListingStatus, 'active'),
+                        sql`length(btrim(coalesce(${products.title},'')))>0`,
+                        productId ? eq(products.id, productId) : undefined,
                         sql`not exists(select 1 from product_keyword_mining m where m.product_id=${products.id})`,
                         sql`not exists(select 1 from official_brands b where b.marketplace_id=${products.marketplaceId}
                 and b.normalized_brand=lower(btrim(regexp_replace(${products.brand},'[[:space:]]+',' ','g'))))`
@@ -97,7 +109,13 @@ export const saveKeywordRecommendations = async (
         if (ids.length)
             await tx
                 .insert(links)
-                .values(ids.map(candidateId => ({ productId: work.productId, candidateId })))
+                .values(
+                    ids.map((candidateId, position) => ({
+                        productId: work.productId,
+                        candidateId,
+                        position,
+                    }))
+                )
                 .onConflictDoNothing();
         await tx
             .update(mining)
@@ -144,17 +162,32 @@ export const finishProductKeywordMining = async (work: MiningWork, now = new Dat
             .for('update');
         if (!owned || owned.stage !== 'recommendationsSaved') return false;
         const rows = await tx
-            .select({ candidate: candidates })
+            .select({
+                candidateId: links.candidateId,
+                term: candidates.term,
+                verdict: candidates.verdict,
+                relevance: links.relevance,
+            })
             .from(links)
             .innerJoin(candidates, eq(candidates.id, links.candidateId))
-            .where(eq(links.productId, work.productId));
-        if (rows.some(row => row.candidate.verdict === null)) return false;
+            .where(eq(links.productId, work.productId))
+            .orderBy(sql`${links.position} asc nulls last`, candidates.term);
+        if (rows.some(row => !row.verdict || (row.verdict === 'accepted' && row.relevance === null)))
+            return false;
+        const selected = new Set(selectProductKeywords(rows));
+        if (selected.size)
+            await tx
+                .update(links)
+                .set({ selected: true })
+                .where(
+                    and(eq(links.productId, work.productId), inArray(links.candidateId, [...selected]))
+                );
         await recordDiscoveryCandidates(
             tx,
             rows
-                .filter(row => row.candidate.verdict === 'accepted')
-                .map(({ candidate }) => ({
-                    scope: { kind: 'keyword' as const, term: candidate.term },
+                .filter(row => selected.has(row.candidateId))
+                .map(row => ({
+                    scope: { kind: 'keyword' as const, term: row.term },
                     evidence: {
                         kind: 'adsRecommendation' as const,
                         sourceKey: work.product.asin,
@@ -167,6 +200,7 @@ export const finishProductKeywordMining = async (work: MiningWork, now = new Dat
             .update(mining)
             .set({
                 stage: 'complete',
+                selectionVersion: PRODUCT_RELEVANCE_VERSION,
                 completedAt: now,
                 claimAt: null,
                 claimToken: null,
