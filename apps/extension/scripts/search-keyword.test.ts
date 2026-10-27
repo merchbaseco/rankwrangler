@@ -19,4 +19,16 @@ describe("Amazon extension keyword context", () => {
 		).toBeNull();
 		expect(readAmazonSearchKeyword("https://amazon.com/s?k=")).toBeNull();
 	});
+	it("drops trailing comma typos while keeping commas inside phrases", () => {
+		expect(
+			readAmazonSearchKeyword(
+				"https://amazon.com/s?k=mele+kalikimaka+t+shirt%2C"
+			)
+		).toBe("mele kalikimaka t shirt");
+		expect(
+			readAmazonSearchKeyword(
+				"https://amazon.com/s?k=peace%2C+love%2C+fishing%2C"
+			)
+		).toBe("peace, love, fishing");
+	});
 });

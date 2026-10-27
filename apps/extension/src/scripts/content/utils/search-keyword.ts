@@ -4,6 +4,11 @@ export const readAmazonSearchKeyword = (pageUrl: string): string | null => {
 		return null;
 	if (!/^\/s(?:\/|$)/u.test(url.pathname) && url.pathname !== "/gp/search")
 		return null;
-	const term = url.searchParams.get("k")?.trim().replace(/\s+/gu, " ");
+	const term = url.searchParams
+		.get("k")
+		?.trim()
+		.replace(/\s+/gu, " ")
+		.replace(/(?:[,，]\s*)+$/u, "")
+		.trimEnd();
 	return term && term.length <= 200 ? term : null;
 };
