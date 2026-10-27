@@ -3,7 +3,8 @@ import { useDeferredValue, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/trpc";
+import { useEventLogs } from "./use-event-logs";
+import { useEventLogCreated } from "./use-event-log-created";
 import { cn } from "@/lib/utils";
 import { FilterGroup, LogDetails, TableCell, TableHead } from "./logs-ui-parts";
 import {
@@ -40,11 +41,8 @@ export const LogsPage = () => {
 		[activeLevels, activeStatuses, activeTypes, deferredSearchValue],
 	);
 
-	const query = api.api.app.eventLogs.useInfiniteQuery(queryInput, {
-		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-		refetchInterval: isLive ? 5000 : false,
-		refetchOnWindowFocus: false,
-	});
+	useEventLogCreated(isLive);
+	const query = useEventLogs(queryInput);
 
 	const logs = useMemo(
 		() => query.data?.pages.flatMap((page) => page.items) ?? [],

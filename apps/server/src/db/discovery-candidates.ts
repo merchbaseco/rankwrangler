@@ -1,8 +1,10 @@
+import { notifyKeywordDirectoryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
 import { and, eq, inArray, sql, getTableColumns } from 'drizzle-orm';
 import {
     normalizeDiscoveryBrand,
     normalizeDiscoveryText,
+    normalizeDiscoveryKeyword,
 } from '@/services/discovery-candidate-policy';
 import type { DiscoveryScope, DiscoverySource } from '@/services/discovery-types';
 import { catalogQueries } from './catalog-search-schema';
@@ -22,7 +24,10 @@ export const recordDiscoveryCandidates = async (
     if (!candidates.length) return { targets: 0 };
     const terms = new Map(
         candidates.map(candidate => {
-            const displayTerm = normalizeDiscoveryText(candidate.scope.term);
+            const displayTerm =
+                candidate.scope.kind === 'keyword'
+                    ? normalizeDiscoveryKeyword(candidate.scope.term)
+                    : normalizeDiscoveryText(candidate.scope.term);
             return [displayTerm.toLowerCase(), displayTerm];
         })
     );
@@ -199,5 +204,6 @@ export const recordDiscoveryCandidates = async (
                 },
             }))
     );
+    await notifyKeywordDirectoryRows(tx, [...terms.keys()]);
     return { targets: targets.length };
 };

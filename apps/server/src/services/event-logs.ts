@@ -1,13 +1,5 @@
-import {
-    and,
-    desc,
-    eq,
-    ilike,
-    inArray,
-    lt,
-    or,
-    type SQL,
-} from 'drizzle-orm';
+import { notifyEventLogCreated } from '@/db/event-log-notifications';
+import { and, desc, eq, ilike, inArray, lt, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { eventLogs } from '@/db/schema.js';
@@ -50,7 +42,10 @@ const eventLogsListInputSchema = z.object({
         .optional(),
     levels: z.array(eventLogLevelSchema).max(eventLogLevels.length).optional(),
     statuses: z.array(eventLogStatusSchema).max(eventLogStatuses.length).optional(),
-    primitiveTypes: z.array(eventLogPrimitiveTypeSchema).max(eventLogPrimitiveTypes.length).optional(),
+    primitiveTypes: z
+        .array(eventLogPrimitiveTypeSchema)
+        .max(eventLogPrimitiveTypes.length)
+        .optional(),
     actions: z.array(z.string().min(1)).max(25).optional(),
     asin: z.string().min(1).optional(),
     marketplaceId: z.string().min(1).optional(),
@@ -71,34 +66,40 @@ export const createEventLogs = async (inputs: EventLogCreateInput[]) => {
         return [];
     }
 
-    const parsedInputs = inputs.map((input) => eventLogCreateInputSchema.parse(input));
-    const insertedRows = await db
-        .insert(eventLogs)
-        .values(
-            parsedInputs.map((input) => ({
-                accountId: input.accountId,
-                occurredAt: input.occurredAt ?? new Date(),
-                level: input.level,
-                status: input.status,
-                category: input.category,
-                action: input.action,
-                primitiveType: input.primitiveType,
-                message: input.message,
-                detailsJson: input.detailsJson,
-                primitiveId: input.primitiveId ?? null,
-                marketplaceId: input.marketplaceId ?? null,
-                asin: input.asin ?? null,
-                jobName: input.jobName ?? null,
-                jobRunId: input.jobRunId ?? null,
-                requestId: input.requestId ?? null,
-            }))
-        )
-        .returning({
-            id: eventLogs.id,
-            occurredAt: eventLogs.occurredAt,
-        });
+    const parsedInputs = inputs.map(input => eventLogCreateInputSchema.parse(input));
+    return db.transaction(async tx => {
+        const insertedRows = await tx
+            .insert(eventLogs)
+            .values(
+                parsedInputs.map(input => ({
+                    accountId: input.accountId,
+                    occurredAt: input.occurredAt ?? new Date(),
+                    level: input.level,
+                    status: input.status,
+                    category: input.category,
+                    action: input.action,
+                    primitiveType: input.primitiveType,
+                    message: input.message,
+                    detailsJson: input.detailsJson,
+                    primitiveId: input.primitiveId ?? null,
+                    marketplaceId: input.marketplaceId ?? null,
+                    asin: input.asin ?? null,
+                    jobName: input.jobName ?? null,
+                    jobRunId: input.jobRunId ?? null,
+                    requestId: input.requestId ?? null,
+                }))
+            )
+            .returning({
+                id: eventLogs.id,
+                occurredAt: eventLogs.occurredAt,
+            });
 
-    return insertedRows;
+        await notifyEventLogCreated(
+            tx,
+            parsedInputs.map(input => input.accountId)
+        );
+        return insertedRows;
+    });
 };
 
 export const createEventLogSafe = async (input: EventLogCreateInput) => {
@@ -215,8 +216,11 @@ export const listEventLogs = async (input: EventLogListInput) => {
         : null;
 
     return {
-        items: items.map((item) => ({
+        items: items.map(item => ({
             ...item,
+            level: eventLogLevelSchema.parse(item.level),
+            status: eventLogStatusSchema.parse(item.status),
+            primitiveType: eventLogPrimitiveTypeSchema.parse(item.primitiveType),
             occurredAt: item.occurredAt.toISOString(),
         })),
         nextCursor,

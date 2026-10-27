@@ -1,3 +1,5 @@
+import { notifyKeywordDirectoryRows } from './keyword-directory-notifications';
+import { notifyEventLogCreated } from './event-log-notifications';
 import type { db } from './index';
 import { eventLogs } from './ops-schema';
 
@@ -29,4 +31,9 @@ export const writeKeywordEvents = async (
             detailsJson: { keyword: event.term, ...event.details },
         }))
     );
+    await notifyKeywordDirectoryRows(
+        tx,
+        events.map(event => event.term)
+    );
+    await notifyEventLogCreated(tx, ['global']);
 };

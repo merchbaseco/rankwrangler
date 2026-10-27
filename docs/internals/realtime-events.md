@@ -70,3 +70,52 @@ update latency, and reload reads current Product state.
 
 This boundary keeps the server stateless across connections and prevents realtime delivery from
 becoming a second data store.
+
+## Keyword directory, sync control and activity
+
+The app additionally exposes three independent subscriptions, each with its own React hook:
+
+- `api.app.keyword.directory.changed`: changed normalized terms, consumed by
+  `useKeywordDirectoryChanged`;
+- `api.app.syncControl.changed`: the singleton control identity, consumed by
+  `useSyncControlChanged`;
+- `api.app.activity.created`: the activity account identity, consumed by
+  `useEventLogCreated` while Logs is live.
+
+Write paths call PostgreSQL `pg_notify` inside the same transaction as their durable changes.
+Postgres delivers only on commit, including writes from another process; rollback sends nothing.
+The app uses one direct PostgreSQL LISTEN session shared by the domain listeners (including the admin
+`job_activity` channel written with each recorded job run), opened
+by the first subscriber. `db/realtime-connection.ts` owns its lifecycle rather than postgres.js
+`listen()`, which re-listens only once after a drop and silently stops if that attempt fails. Every
+close re-issues LISTEN for all channels with backoff (one second doubling to thirty) until it
+succeeds; the session has no idle or lifetime timer.
+The transaction-pooled application port cannot own LISTEN. Browser subscriptions keep using the
+existing authenticated tRPC WebSocket connection, not a separate browser transport. Closing the
+server closes the LISTEN session too. No schema migration or database trigger is required.
+
+Keyword events carry identities, not table payloads. The directory listener coalesces arrivals,
+serializes reads of at most 100 changed terms, and patches only those rows into the active filter's
+React Query infinite cache. It removes mismatches, sorts matching rows, deduplicates page overlap,
+and retains a bounded loaded window. Canonical SP-API/Keepa Merch-classification changes and
+Amazon deletion updates also notify the affected keyword memberships, so counts update without
+waiting for another keyword scan. The unseen pagination boundary never advances because of
+an event; it rewinds if arrivals displace rows. This prevents gaps without rereading every page.
+An in-flight row response cannot overwrite a newer reconciliation or an unmounted filter. A patch
+that lands while the directory itself is fetching (Load more or a refetch) is deferred and its
+terms re-read afterward, because the arriving page would otherwise overwrite it. Each patch marks
+other filters' cached directory pages stale so they refetch when shown again.
+
+Status and processing order are computed at the first page's observation time, so a check coming
+due changes a row without any database write. The catalog arms one timer for the earliest future
+`nextCheckAt` among loaded rows (at least 30 seconds out) and then refetches the loaded pages at a
+fresh observation time. With no loaded row waiting to come due, nothing is scheduled. A claim that
+expires after a worker crash is still only reflected at the next reconciliation.
+
+Each stream emits `resync` once when its listener becomes ready or the database listener reconnects.
+That closes the initial-read/subscription race and recovers missed events without polling.
+Directory reconciliation refetches its loaded pages once; normal row events never do. Sync changes
+invalidate only sync control. Activity events are coalesced to at most one refresh per second
+that never cancels a refresh already running, refetch only the visible Logs filter and mark the
+others stale; resume/live resubscription reconciles it. Queries have explicit freshness policies and no interval refetch.
+A sync mutation writes its acknowledged result directly into its small control cache.

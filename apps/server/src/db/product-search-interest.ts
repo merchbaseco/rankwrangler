@@ -1,4 +1,7 @@
-import { researchDiscoveryScopes } from '@/services/discovery-candidate-policy';
+import {
+    researchDiscoveryScopes,
+    normalizeDiscoveryKeyword,
+} from '@/services/discovery-candidate-policy';
 import { recordDiscoveryCandidates } from './discovery-candidates';
 import { discoveryTargets } from './discovery-target-schema';
 import { and, desc, eq } from 'drizzle-orm';
@@ -14,7 +17,7 @@ export const recordProductSearchInterest = async (input: ProductSearchInput) => 
     ) {
         return null;
     }
-    const displayTerm = input.term.trim().replace(/\s+/g, ' ');
+    const displayTerm = normalizeDiscoveryKeyword(input.term);
     const scopes = researchDiscoveryScopes(displayTerm);
     if (!scopes.length) return null;
     const now = new Date();

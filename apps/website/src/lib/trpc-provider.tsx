@@ -23,7 +23,10 @@ const RealtimeConnectionContext =
 
 export function TRPCProvider({ children }: PropsWithChildren) {
 	const { getToken } = useAuth();
-	const [queryClient] = useState(() => new QueryClient());
+	const [queryClient] = useState(
+		() =>
+			new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } }),
+	);
 	const [{ trpcClient, wsClient }] = useState(() =>
 		createWebsiteTrpcRuntime({
 			baseUrl: resolveWebsiteApiBaseUrl(),

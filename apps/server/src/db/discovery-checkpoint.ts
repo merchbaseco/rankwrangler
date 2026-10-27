@@ -1,3 +1,4 @@
+import { notifyKeywordQueryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
 import { observeKeywordStanding } from './keyword-standing';
 import { and, eq } from 'drizzle-orm';
@@ -159,5 +160,6 @@ export const checkpointDiscoveryPage = async <T>(input: {
                 },
             ]);
         }
+        await notifyKeywordQueryRows(tx, [target.queryId]);
         return next;
     });

@@ -9,6 +9,7 @@ import { PgBoss } from 'pg-boss';
 import { createContext } from '@/api/context.js';
 import { registerHealthRoutes } from '@/api/health-routes.js';
 import { appRouter } from '@/api/router.js';
+import { closeRealtimeConnection } from '@/db/realtime-connection';
 import { registerTrpcWebsocketServer, TRPC_WEBSOCKET_PATH } from '@/api/trpc-websocket-server';
 import { createCorsOriginHandler } from '@/config/cors-origin';
 import { buildDatabaseUrl } from '@/config/database-url';
@@ -134,7 +135,7 @@ const startServer = async () => {
 
         console.log('[Server] Jobs registered');
         console.log(
-            '[Server] Keyword sync:',
+            '[Server] Keyword sync (directory, control and Logs push over tRPC WebSocket):',
             (await readAutomaticSync()).paused ? 'Paused' : 'Running'
         );
 
@@ -217,7 +218,8 @@ const startServer = async () => {
             console.log('[Server] pg-boss stopped');
 
             await trpcWebsocketServer.close();
-            console.log('[Server] tRPC WebSocket server closed');
+            await closeRealtimeConnection();
+            console.log('[Server] tRPC WebSocket server and notification session closed');
 
             await fastify.close();
             console.log('[Server] Fastify server closed');

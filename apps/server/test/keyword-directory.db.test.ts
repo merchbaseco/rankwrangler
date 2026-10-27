@@ -81,6 +81,20 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             expect(logs.filter(row => row.action === 'keyword.candidate.added')).toHaveLength(2);
             expect(logs.every(row => row.primitiveType === 'keyword')).toBe(true);
         });
+        it('records comma-typo searches under the same canonical keyword', async () => {
+            await recordProductSearchInterest(
+                productSearchInput.parse({ term: 'mele kalikimaka t shirt,' })
+            );
+            await recordProductSearchInterest(
+                productSearchInput.parse({ term: 'mele kalikimaka t shirt' })
+            );
+            const directory = await listKeywordDirectory(keywordDirectoryInput.parse({}));
+            expect(directory.items.map(row => row.term)).toEqual(['mele kalikimaka t shirt']);
+            const stored = await db.execute<{ count: number }>(
+                sql`select count(*)::int count from catalog_queries`
+            );
+            expect(stored[0].count).toBe(1);
+        });
         it('logs direct user-added keywords once and each accepted discovery page once', async () => {
             await recordProductSearchInterest(productSearchInput.parse({ term: 'fishing shirt' }));
             await recordProductSearchInterest(productSearchInput.parse({ term: 'fishing shirt' }));

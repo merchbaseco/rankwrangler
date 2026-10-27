@@ -1,4 +1,5 @@
-import { sql } from 'drizzle-orm';
+import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { products } from '@/db/schema';
 import type { SpApiProduct } from '@/types';
@@ -10,6 +11,15 @@ export const upsertProductInfo = async (
     productInfo: SpApiProduct,
     database: ProductWriteDatabase = db
 ) => {
+    const [previous] = await database
+        .select({ merch: products.isMerchListing, status: products.amazonListingStatus })
+        .from(products)
+        .where(
+            and(
+                eq(products.marketplaceId, productInfo.marketplaceId),
+                eq(products.asin, productInfo.asin)
+            )
+        );
     const dateFirstAvailable = productInfo.dateFirstAvailable
         ? new Date(productInfo.dateFirstAvailable)
         : null;
@@ -50,8 +60,14 @@ export const upsertProductInfo = async (
                 spApiResolvedAt: fetchedAt,
             },
         })
-        .returning({ id: products.id, inserted: sql<boolean>`(xmax = 0)` });
-    return identity;
+        .returning({
+            id: products.id,
+            inserted: sql<boolean>`(xmax = 0)`,
+            merch: products.isMerchListing,
+        });
+    if (previous && (previous.merch !== identity.merch || previous.status !== 'active'))
+        await notifyKeywordProductRows(database, [identity.id]);
+    return { id: identity.id, inserted: identity.inserted };
 };
 
 const preserveExistingOnNull = (column: { name: string }) => {

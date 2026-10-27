@@ -1,7 +1,7 @@
 import { SyncControl } from "./sync-control";
 import { KeywordDirectoryFilter } from "./keyword-directory-filter";
 import { DashboardTable } from "@/components/dashboard/dashboard-table";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { SearchBar } from "@/components/dashboard/search-bar";
 import { KeywordStatusBadge } from "./keyword-status-badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { api } from "@/lib/trpc";
+import { useKeywordDirectory } from "./use-keyword-directory";
+import { useKeywordDirectoryChanged } from "./use-keyword-directory-changed";
+import { useKeywordDirectoryDueRefresh } from "./use-keyword-directory-due-refresh";
+import { useKeywordTrack } from "./use-keyword-track";
+import { uniqueKeywordRows } from "./keyword-directory-cache";
 
 const states = ["all", "queued", "scanning", "upToDate", "untracked"] as const;
 const statusLabels: Record<string, string> = {
@@ -47,24 +51,16 @@ export const CatalogPage = () => {
 	const [search, setSearch] = useState("");
 	const [state, setState] = useState<(typeof states)[number]>("all");
 	const [heat, setHeat] = useState<(typeof heats)[number]>("all");
-	const utils = api.useUtils();
-	const track = api.api.app.keywordTrack.useMutation({
-		onSuccess: () => {
-			setState("all");
-			setHeat("all");
-			return utils.api.app.keywordDirectory.invalidate();
-		},
-	});
+	const track = useKeywordTrack();
 	const deferredSearch = useDeferredValue(search.trim());
-	const query = api.api.app.keywordDirectory.useInfiniteQuery(
-		{ search: deferredSearch || undefined, state, heat, limit: 50 },
-		{
-			getNextPageParam: (page) => page.nextCursor ?? undefined,
-			refetchInterval: 10_000,
-			refetchOnWindowFocus: false,
-		},
+	const input = useMemo(
+		() => ({ search: deferredSearch || undefined, state, heat, limit: 50 }),
+		[deferredSearch, state, heat],
 	);
-	const items = query.data?.pages.flatMap((page) => page.items) ?? [];
+	useKeywordDirectoryChanged(input);
+	const query = useKeywordDirectory(input);
+	const items = uniqueKeywordRows(query.data?.pages ?? []);
+	useKeywordDirectoryDueRefresh(input, items);
 	return (
 		<div className="flex h-full min-h-0 bg-background">
 			<aside className="w-48 shrink-0 overflow-y-auto border-r border-border bg-card text-xs">
@@ -89,7 +85,16 @@ export const CatalogPage = () => {
 					searchValue={search}
 					onSearchValueChange={setSearch}
 					onSubmit={() => {
-						if (search.trim()) track.mutate({ term: search.trim() });
+						if (search.trim())
+							track.mutate(
+								{ term: search.trim() },
+								{
+									onSuccess: () => {
+										setState("all");
+										setHeat("all");
+									},
+								},
+							);
 					}}
 				>
 					<SyncControl />

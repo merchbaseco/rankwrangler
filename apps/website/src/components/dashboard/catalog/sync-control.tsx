@@ -1,22 +1,14 @@
 import { CircleAlert, Pause, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/trpc";
+import { useSyncControl } from "./use-sync-control";
+import { useSyncControlSet } from "./use-sync-control-set";
+import { useSyncControlChanged } from "./use-sync-control-changed";
 
 export const SyncControl = () => {
-	const utils = api.useUtils();
-	const query = api.api.app.syncControl.get.useQuery(undefined, {
-		refetchInterval: 5000,
-		retry: false,
-	});
-	const mutation = api.api.app.syncControl.set.useMutation({
-		onSuccess: async () => {
-			await Promise.all([
-				utils.api.app.syncControl.get.invalidate(),
-				utils.api.app.keywordDirectory.invalidate(),
-			]);
-		},
-	});
+	useSyncControlChanged();
+	const query = useSyncControl();
+	const mutation = useSyncControlSet();
 	if (!query.data)
 		return (
 			<Button

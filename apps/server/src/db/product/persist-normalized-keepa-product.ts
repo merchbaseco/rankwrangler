@@ -1,3 +1,4 @@
+import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
 import { and, eq, ne, sql } from 'drizzle-orm';
 import type { db } from '@/db/index';
 import {
@@ -18,6 +19,12 @@ export const persistNormalizedKeepaProduct = async (
     importDetails: KeepaIngestionImport
 ) => {
     const product = normalized.product;
+    const [previous] = await transaction
+        .select({ merch: products.isMerchListing })
+        .from(products)
+        .where(
+            and(eq(products.marketplaceId, product.marketplaceId), eq(products.asin, product.asin))
+        );
     const [storedProduct] = await transaction
         .insert(products)
         .values({
@@ -75,12 +82,15 @@ export const persistNormalizedKeepaProduct = async (
         })
         .returning({
             id: products.id,
+            merch: products.isMerchListing,
         });
 
     if (!storedProduct) {
         throw new Error(`Failed to persist Keepa Product ${product.asin}`);
     }
 
+    if (previous && previous.merch !== storedProduct.merch)
+        await notifyKeywordProductRows(transaction, [storedProduct.id]);
     const [insertedImport] = await transaction
         .insert(productHistoryImports)
         .values({

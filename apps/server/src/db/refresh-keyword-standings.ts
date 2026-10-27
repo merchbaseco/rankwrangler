@@ -1,3 +1,4 @@
+import { notifyKeywordQueryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
 import { and, eq, sql } from 'drizzle-orm';
 import { keywordPopularity } from '@/services/keyword-standing-policy';
@@ -108,6 +109,10 @@ export const refreshKeywordStandings = async (now = new Date()) =>
         and (t.popularity_score,t.score_components,t.standing_tier,t.interval_days,t.next_check_at)
             is distinct from (u.score,u.components,u.tier,u.interval,u.next)
         returning t.query_id,t.standing_tier tier,u.expected_tier previous_tier,t.popularity_score score,t.interval_days interval`);
+            await notifyKeywordQueryRows(
+                tx,
+                changed.map(row => row.query_id)
+            );
             await writeKeywordEvents(
                 tx,
                 changed

@@ -21,18 +21,23 @@ type DirectoryRow = {
     nextCheckAt: string | null;
     intervalDays: number | null;
 };
-export const listKeywordDirectory = async (
+export const readKeywordDirectory = async (
     input: z.infer<typeof keywordDirectoryInput>,
-    exactTerm?: string
+    exactTerm?: string,
+    options?: {
+        terms?: readonly string[];
+        view?: Pick<z.infer<typeof keywordDirectoryCursor>, 'asOf' | 'trialTurn' | 'sort'>;
+    }
 ) => {
-    const asOf = input.cursor?.asOf ?? new Date().toISOString();
-    const sort = input.cursor?.sort ?? input.sort;
+    const asOf = options?.view?.asOf ?? input.cursor?.asOf ?? new Date().toISOString();
+    const sort = options?.view?.sort ?? input.cursor?.sort ?? input.sort;
     const [capacity] = input.cursor
         ? []
         : await db.execute<{ trial_turn: boolean }>(
               sql`select (discovery_claims%5=0) trial_turn from spapi_catalog_capacity where id=1`
           );
-    const trialTurn = input.cursor?.trialTurn ?? capacity?.trial_turn ?? true;
+    const trialTurn =
+        options?.view?.trialTurn ?? input.cursor?.trialTurn ?? capacity?.trial_turn ?? true;
     const rows = await db.execute<DirectoryRow>(sql`
         with directory as (
             select q.id,q.id "queryId",q.normalized_term term,q.created_at "createdAt",
@@ -98,11 +103,22 @@ export const listKeywordDirectory = async (
             case when status='untracked' then null else "intervalDays" end "intervalDays"
         from ordered where
             ${input.search ? sql`position(${input.search.toLowerCase()} in term)>0` : sql`true`}
-            and ${exactTerm ? sql`term=${exactTerm}` : input.state === 'all' ? sql`status<>'untracked'` : sql`status=${input.state}`}
+            and ${
+                options?.terms
+                    ? sql`term in (${sql.join(
+                          options.terms.map(term => sql`${term}`),
+                          sql`,`
+                      )})`
+                    : exactTerm
+                      ? sql`term=${exactTerm}`
+                      : input.state === 'all'
+                        ? sql`status<>'untracked'`
+                        : sql`status=${input.state}`
+            }
             and ${input.heat === 'all' ? sql`true` : sql`heat=${input.heat}`}
             and ${input.cursor ? sql`"sortKey">${JSON.stringify(input.cursor.key)}::jsonb` : sql`true`}
             order by "sortKey" asc limit ${input.limit + 1}`);
-    const items = rows.slice(0, input.limit).map(({ sortKey, ...row }) => ({
+    const items = rows.slice(0, input.limit).map(row => ({
         ...row,
         createdAt: utcTimestamp(row.createdAt)!,
         lastCheckedAt: utcTimestamp(row.lastCheckedAt),
@@ -111,6 +127,7 @@ export const listKeywordDirectory = async (
     const last = rows.slice(0, input.limit).at(-1);
     return {
         items,
+        view: { asOf, trialTurn, sort },
         nextCursor:
             rows.length > input.limit && last ? { key: last.sortKey, asOf, trialTurn, sort } : null,
     };
@@ -118,3 +135,11 @@ export const listKeywordDirectory = async (
 
 const utcTimestamp = (value: string | null) =>
     value === null ? null : new Date(`${value.replace(' ', 'T')}Z`).toISOString();
+
+export const listKeywordDirectory = async (
+    input: z.infer<typeof keywordDirectoryInput>,
+    exactTerm?: string
+) => {
+    const result = await readKeywordDirectory(input, exactTerm);
+    return { items: result.items.map(({ sortKey, ...row }) => row), nextCursor: result.nextCursor };
+};
