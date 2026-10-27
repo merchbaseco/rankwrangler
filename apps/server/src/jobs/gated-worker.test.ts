@@ -81,4 +81,24 @@ describe('provider-gated worker', () => {
         expect(calls.complete).toEqual(['job-2']);
         expect(calls.send).toHaveLength(0);
     });
+    it('staggers parallel loops by the provider start spacing', async () => {
+        const jobs = Array.from({ length: 4 }, (_, i) => ({ ...job, id: `job-${i}` }));
+        const { boss, calls } = fakeBoss(jobs);
+        const starts: number[] = [];
+        const worker = startGatedWorker({
+            boss,
+            name: 'scan-keyword',
+            gate: async () => new Date(0),
+            concurrency: 4,
+            startSpacingMs: async () => 40,
+            run: async () => {
+                starts.push(Date.now());
+                return { didWork: true };
+            },
+        });
+        await until(() => calls.complete.length === 4);
+        await worker.stop();
+        const gaps = starts.slice(1).map((at, index) => at - starts[index]);
+        expect(gaps.every(gap => gap >= 30)).toBe(true);
+    });
 });

@@ -15,6 +15,8 @@ import { searchKeepaCatalog } from '@/services/keepa-catalog-search';
 import { normalizeKeepaProduct } from '@/services/keepa-product-normalizer';
 import { type CatalogSearchOperationInput, sanitizeOperationError } from '@/services/operations';
 import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
+import { getErrorMessage } from '@/services/job-executions-utils';
+import { TRPCError } from '@trpc/server';
 import { defineJob } from './job-router';
 
 const catalogSearchJobInput = z.object({
@@ -143,7 +145,12 @@ export const runCatalogSearchOperation = async (
             operationId,
             queryId: input.queryId,
         });
-        return { didWork: true, status: 'failed' } as const;
+        // The Operation keeps the sanitized public error; the admin-only run record keeps a cause:
+        // provider errors by code only (their text can echo provider payloads), anything else with
+        // its message, so failures such as database timeouts are diagnosable.
+        const cause = failureCause(error);
+        console.error('[Job][catalog-search] Catalog search failed', { operationId, cause });
+        return { didWork: true, status: 'failed', cause } as const;
     }
 };
 
@@ -188,4 +195,12 @@ const normalizeSearchResults = (
     }
 
     return Array.from(accepted.values());
+};
+
+const failureCause = (error: unknown) => {
+    if (error instanceof TRPCError) return `TRPCError ${error.code}`;
+    const name = error instanceof Error ? error.name : typeof error;
+    const code =
+        error && typeof error === 'object' && 'code' in error ? ` ${String(error.code)}` : '';
+    return `${name}${code}: ${getErrorMessage(error).slice(0, 300)}`;
 };

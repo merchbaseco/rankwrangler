@@ -80,6 +80,7 @@ describe('Catalog search worker', () => {
         expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
             didWork: true,
             status: 'failed',
+            cause: 'TRPCError BAD_GATEWAY',
         });
         expect(deps.persistSuccess.mock.calls).toHaveLength(0);
         expect(deps.completeWithError.mock.calls[0]?.[0].error).toEqual({

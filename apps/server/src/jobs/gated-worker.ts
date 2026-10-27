@@ -17,7 +17,12 @@ export const startGatedWorker = (input: {
     // Parallel fetch loops. The provider's own reservation still enforces its rate; extra loops
     // only hide per-job latency (an SP-API page takes about a second end to end).
     concurrency?: number;
+    // How long the loops leave between job starts. Without it, every loop sees the provider
+    // ready at the same moment, races for one reservation, and all but one re-queue.
+    startSpacingMs?: () => Promise<number>;
 }) => {
+    let nextStartAt = 0;
+    let spacingMs = 0;
     let stopped = false;
     const sleepers = new Set<() => void>();
     const sleep = (ms: number) =>
@@ -39,11 +44,15 @@ export const startGatedWorker = (input: {
                     await sleep(pausedPollMs);
                     continue;
                 }
-                const wait = readyAt.getTime() - Date.now();
+                const wait = Math.max(readyAt.getTime(), nextStartAt) - Date.now();
                 if (wait > 0) {
                     await sleep(Math.min(wait, maxGateWaitMs));
                     continue;
                 }
+                // Claim this start slot synchronously (before any await) so sibling loops wait for
+                // the next one, then refresh the spacing for later starts.
+                nextStartAt = Date.now() + spacingMs;
+                if (input.startSpacingMs) spacingMs = await input.startSpacingMs();
                 const [job] = await input.boss.fetch(input.name, {
                     batchSize: 1,
                     priority: true,
@@ -76,7 +85,10 @@ export const startGatedWorker = (input: {
             }
         }
     };
-    const running = Promise.all(Array.from({ length: input.concurrency ?? 1 }, loop));
+    const running = (async () => {
+        if (input.startSpacingMs) spacingMs = await input.startSpacingMs().catch(() => 0);
+        await Promise.all(Array.from({ length: input.concurrency ?? 1 }, loop));
+    })();
     return {
         stop: async () => {
             stopped = true;

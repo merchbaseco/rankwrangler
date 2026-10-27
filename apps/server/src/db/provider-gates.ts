@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { catalogCapacityDecision } from '@/services/catalog-capacity-policy';
+import { catalogCapacityBalance, catalogCapacityDecision } from '@/services/catalog-capacity-policy';
 import { isAutomaticSyncPaused } from './automatic-sync';
 import { db } from './index';
 import { keywordProviderReadyAt } from './keyword-mining-capacity';
@@ -24,6 +24,16 @@ export const spApiBackgroundGate: ProviderGate = async (now = new Date()) => {
         now,
     });
     return decision.kind === 'deferred' ? decision.retryAt : now;
+};
+
+// One background Catalog start interval, with 10% slack, for staggering parallel scan workers.
+export const spApiBackgroundSpacingMs = async (now = new Date()) => {
+    const [capacity] = await db
+        .select()
+        .from(spApiCatalogCapacity)
+        .where(eq(spApiCatalogCapacity.id, 1));
+    const rps = capacity ? catalogCapacityBalance(capacity, now).backgroundRps : 0.5;
+    return Math.ceil((1000 / rps) * 1.1);
 };
 
 const keywordProviderGate =

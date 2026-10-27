@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { spApiBackgroundGate } from '@/db/provider-gates';
+import { spApiBackgroundGate, spApiBackgroundSpacingMs } from '@/db/provider-gates';
 import { scanKeywordPage } from '@/services/keyword-discovery';
 import { defineJob } from './job-router';
 import { keywordQueueOptions, keywordQueues, scanPriority } from './keyword-job-queues';
@@ -11,7 +11,7 @@ export const scanKeywordJob = defineJob(keywordQueues.scan, {
 })
     .input(z.object({ targetId: z.string().uuid() }))
     .queue(keywordQueueOptions)
-    .gate(spApiBackgroundGate, { concurrency: 4 })
+    .gate(spApiBackgroundGate, { concurrency: 4, startSpacingMs: spApiBackgroundSpacingMs })
     .work(async job => {
         const result = await scanKeywordPage(job.data.targetId);
         switch (result.kind) {
