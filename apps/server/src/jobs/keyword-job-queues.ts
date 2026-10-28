@@ -12,5 +12,6 @@ export const keywordQueueOptions = {
     expireInSeconds: 600,
 } as const;
 
-// Keeping existing keywords fresh comes before extending them with deeper pages.
-export const scanPriority = { head: 1, depth: 0 } as const;
+// Re-checking graduated keywords comes first, then trial keywords' qualifying first page, then
+// deeper pages. Without the split, ~200k queued trial checks delayed due re-checks by hours.
+export const scanPriority = { recheck: 2, head: 1, depth: 0 } as const;

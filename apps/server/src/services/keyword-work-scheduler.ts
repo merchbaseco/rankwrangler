@@ -68,11 +68,18 @@ const defaults: Omit<Deps, keyof QueueAccess> = {
     dueAutocomplete: listDueAutocomplete,
     promote: promoteWaitingJobs,
 };
-const scanJobs = (rows: readonly { id: string; depth: boolean }[], depth: boolean) =>
+const scanJobs = (
+    rows: readonly { id: string; depth: boolean; tracked: boolean }[],
+    depth: boolean
+) =>
     rows
         .filter(row => row.depth === depth)
         .map(row => ({
             data: { targetId: row.id },
             singletonKey: row.id,
-            priority: depth ? scanPriority.depth : scanPriority.head,
+            priority: depth
+                ? scanPriority.depth
+                : row.tracked
+                  ? scanPriority.recheck
+                  : scanPriority.head,
         }));

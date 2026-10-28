@@ -145,9 +145,10 @@ one queue per provider, at most one queued-or-running job per entity.
 | `register-brand-analytics-keywords` | none (one chain) | always open | Lists 2,000 kept terms as trial keywords; queues itself while a full batch was listed |
 
 A gated queue fetches its next job only once its provider can start, so waiting work stays visible
-in the queue. Scan jobs for due heads carry priority 1 and deeper pages priority 0; within a
-priority the oldest waits least. The scheduler raises depth jobs waiting six hours to head
-priority, well before an SP-API continuation cursor expires at a day. A provider wait or lost
+in the queue. Due re-checks of graduated keywords carry priority 2, trial keywords' qualifying first pages
+priority 1 and deeper pages priority 0, so a backlog of trials never delays keeping graduated
+keywords fresh; within a priority the oldest waits least. The scheduler raises depth jobs waiting
+six hours to trial-head priority, well before an SP-API continuation cursor expires at a day. A provider wait or lost
 reservation re-sends the same job for the provider's ready time instead of failing it. Claims and
 leases still guard each entity, so a lost or duplicate job repeats no saved stage. The import job
 may run up to an hour, the time a weekly download and aggregation can take.

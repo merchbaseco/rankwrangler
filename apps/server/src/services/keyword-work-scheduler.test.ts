@@ -23,8 +23,9 @@ const setup = (producersOpen = true, queued = 0) => {
         isPaused: async () => false,
         backlog: backlog(producersOpen),
         dueScans: (async () => [
-            { id: 'head', depth: false },
-            { id: 'deep', depth: true },
+            { id: 'head', depth: false, tracked: false },
+            { id: 'recheck', depth: false, tracked: true },
+            { id: 'deep', depth: true, tracked: true },
         ]) as never,
         dueAutocomplete: mock(async () => [{ id: 'seed' }]) as never,
         promote: mock(async () => 0),
@@ -40,11 +41,12 @@ describe('keyword work scheduler', () => {
         ).toEqual({ didWork: false, paused: true });
         expect(inserted).toEqual({});
     });
-    it('queues heads above depth and autocomplete seeds', async () => {
+    it('queues re-checks above trial heads above depth, and autocomplete seeds', async () => {
         const { queues, overrides, inserted } = setup();
         const result = await scheduleKeywordWork(queues, overrides);
         expect(inserted['scan-keyword']).toEqual([
             { data: { targetId: 'head' }, singletonKey: 'head', priority: 1 },
+            { data: { targetId: 'recheck' }, singletonKey: 'recheck', priority: 2 },
             { data: { targetId: 'deep' }, singletonKey: 'deep', priority: 0 },
         ]);
         expect(inserted['autocomplete-keyword']?.map(job => job.singletonKey)).toEqual(['seed']);
@@ -54,7 +56,7 @@ describe('keyword work scheduler', () => {
         const { queues, overrides, inserted } = setup(false);
         await scheduleKeywordWork(queues, overrides);
         expect(inserted['autocomplete-keyword']).toBeUndefined();
-        expect(inserted['scan-keyword']).toHaveLength(2);
+        expect(inserted['scan-keyword']).toHaveLength(3);
     });
     it('only tops autocomplete up to a short queue', async () => {
         const { queues, overrides, inserted } = setup(true, 30);

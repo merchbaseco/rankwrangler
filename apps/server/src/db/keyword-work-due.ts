@@ -9,8 +9,9 @@ const lease = sql`interval '5 minutes'`;
 // already past its first page; everything else due is a head check. Trials registered together
 // are listed most searched first (Brand Analytics rank).
 export const listDueKeywordScans = async (now: Date, limit: number) =>
-    db.execute<{ id: string; depth: boolean }>(sql`
-        select t.id, coalesce(latest.stop_reason in ('running','budget','jobCap') and latest.next_page>0,false) depth
+    db.execute<{ id: string; depth: boolean; tracked: boolean }>(sql`
+        select t.id, coalesce(latest.stop_reason in ('running','budget','jobCap') and latest.next_page>0,false) depth,
+            t.tracking='tracked' tracked
         from discovery_targets t join catalog_queries q on q.id=t.query_id
         left join brand_analytics_search_terms ba on ba.marketplace_id=q.marketplace_id
             and ba.normalized_term=q.normalized_term

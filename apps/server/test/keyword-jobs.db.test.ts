@@ -31,7 +31,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword pipeline j
     it('lists a due keyword head until a job claims it, then leaves it to that job', async () => {
         const now = new Date();
         const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
-        expect(await listDueKeywordScans(now, 10)).toEqual([{ id: target.id, depth: false }]);
+        expect(await listDueKeywordScans(now, 10)).toEqual([
+            { id: target.id, depth: false, tracked: expect.any(Boolean) },
+        ]);
         const claimed = await claimKeywordExploration(now, { targetId: target.id });
         expect(claimed?.target.id).toBe(target.id);
         expect(await listDueKeywordScans(now, 10)).toEqual([]);
