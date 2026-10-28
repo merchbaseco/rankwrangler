@@ -19,7 +19,7 @@ export const readKeepaDueWork = async (database: Pick<typeof db, 'execute'>) => 
              or exists (select 1 from keepa_capacity_attempts where work_class='head'
                 and settled_at is null and created_at > timezone('UTC',now())-interval '60 minutes')) head_due,
             exists (select 1 from keepa_capacity_attempts where work_class='interactive'
-                and settled_at is null and created_at > timezone('UTC',now())-interval '60 minutes') interactive_waiting
+                and settled_at is null and created_at > timezone('UTC',now())-interval '5 minutes') interactive_waiting
     `);
     return {
         historyDue: facts.history_due,

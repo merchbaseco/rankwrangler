@@ -6,6 +6,7 @@ import {
 import {
     type KeepaCapacity,
     KeepaCapacityDeferredError,
+    type KeepaWorkClass,
 } from '@/services/providers/keepa/keepa-capacity-types';
 import type { KeepaUsageSource } from '@/services/providers/keepa/keepa-provider-types';
 import { db } from './index';
@@ -52,6 +53,7 @@ export const persistedKeepaCapacity: KeepaCapacity = {
             );
     },
     reserve: async id => {
+        let workClass = null as KeepaWorkClass | null;
         const deferred = await db.transaction(async tx => {
             await tx.execute(LOCK);
             const [attempt] = await tx
@@ -61,6 +63,7 @@ export const persistedKeepaCapacity: KeepaCapacity = {
             if (!attempt || attempt.reservedAt || attempt.settledAt) {
                 throw new Error('Invalid Keepa reservation transition');
             }
+            workClass = attempt.workClass;
             const now = new Date();
             const [state] = await tx
                 .select()
@@ -136,6 +139,11 @@ export const persistedKeepaCapacity: KeepaCapacity = {
                 .where(eq(keepaCapacityAttempts.id, id));
             return null;
         });
+        // An interactive attempt short on tokens stays open, so background work keeps yielding while
+        // its caller retries; the provider cancels it if it gives up.
+        if (deferred === 'bucket' && workClass === 'interactive') {
+            throw new KeepaCapacityDeferredError(deferred, new Date(Date.now() + 5_000));
+        }
         if (deferred) {
             await db
                 .update(keepaCapacityAttempts)

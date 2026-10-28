@@ -14,7 +14,7 @@ const facts: KeepaCapacityFacts = {
     spent: { interactive: 0, history: 0, head: 0, discovery: 0 },
     historyDue: true,
     headDue: true,
-    interactiveWaiting: true,
+    interactiveWaiting: false,
     headRequests: 0,
     discoveryRequests: 0,
     keywordDiscoveryRequests: 0,
@@ -64,7 +64,7 @@ describe('Keepa capacity policy', () => {
         expect(
             getKeepaReservation(
                 { operation: 'product', workClass: 'history' },
-                { ...facts, spent: { ...facts.spent, history: 600 } }
+                { ...facts, spent: { ...facts.spent, history: 840 } }
             )
         ).toEqual({ reason: 'rolling-share' });
     });
@@ -77,17 +77,43 @@ describe('Keepa capacity policy', () => {
     });
 });
 
+describe('Keepa interactive priority', () => {
+    it('limits interactive work by the physical bucket only', () => {
+        const spent = { interactive: 1200, history: 1200, head: 0, discovery: 0 };
+        const request = { operation: 'search' as const, workClass: 'interactive' as const };
+        expect(getKeepaReservation(request, { ...facts, spent, tokensLeft: 10 })).toEqual({
+            cost: 10,
+        });
+        expect(getKeepaReservation(request, { ...facts, spent, tokensLeft: 9 })).toEqual({
+            reason: 'bucket',
+        });
+    });
+    it('makes every background class yield while interactive work waits', () => {
+        for (const workClass of ['history', 'head', 'discovery'] as const) {
+            expect(
+                getKeepaReservation(
+                    { operation: 'search', workClass },
+                    { ...facts, interactiveWaiting: true }
+                )
+            ).toEqual({ reason: 'interactive-waiting' });
+        }
+    });
+});
+
 describe('Keepa protected share lending', () => {
     it('lends unused head capacity only when no head work is due', () => {
         const spent = { ...facts.spent, history: 600 };
         expect(
             getKeepaReservation(
                 { operation: 'product', workClass: 'history' },
-                { ...facts, spent, headDue: false }
+                { ...facts, spent, headDue: false, tokensLeft: 40 }
             )
         ).toEqual({ cost: 1 });
         expect(
-            getKeepaReservation({ operation: 'product', workClass: 'history' }, { ...facts, spent })
+            getKeepaReservation(
+                { operation: 'product', workClass: 'history' },
+                { ...facts, spent, tokensLeft: 40 }
+            )
         ).toEqual({ reason: 'rolling-share' });
     });
     it('borrows interactive capacity only with no waiting interest and double the floor left', () => {
@@ -110,7 +136,7 @@ describe('Keepa protected share lending', () => {
             })
         ).toEqual({ reason: 'rolling-share' });
         expect(getKeepaReservation(request, { ...facts, spent, interactiveWaiting: true })).toEqual(
-            { reason: 'rolling-share' }
+            { reason: 'interactive-waiting' }
         );
     });
     it('never lends capacity to discovery even when no other work is due', () => {

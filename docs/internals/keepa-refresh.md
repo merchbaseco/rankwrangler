@@ -86,10 +86,16 @@ Every physical Keepa request reserves capacity durably just before dispatch. Err
 and ingestion failures retain their provider cost; missing accounting retains the reservation for
 its rolling window. Provider attempts are independent of Product import success.
 
-Rolling hourly refill shares are interactive 20%, history 50%, keyword heads 20%, discovery 10%.
-The interactive floor is measured head cost plus ten measured Product costs. Background work
-cannot cross it. Head/history lending requires the other queue to have no due work; borrowing unused
-interactive allocation also requires no waiting interactive request and twice the floor remaining.
+Interactive work (someone is waiting on it) is limited only by the physical bucket. While an
+interactive attempt is open (created in the last five minutes and unsettled), every background class
+yields. An interactive request short on tokens keeps its attempt open and retries every five seconds
+for up to ninety, so background work cannot take the refill it is waiting for.
+
+Background classes share the rolling hourly refill: history 50%, keyword heads 20%, discovery 10%,
+with 20% held for interactive work. The interactive floor is measured head cost plus ten measured
+Product costs. Background work cannot cross it. Head/history lending requires the other queue to
+have no due work; borrowing the unused interactive allocation also requires twice the floor
+remaining.
 Discovery never borrows. Initial caps are fifty head requests and twenty discovery requests per day,
 with at most ten discovery requests per keyword per day. SP-API listing acquisition has a separate measured-rate budget; see [catalog search](catalog-search.md).
 Unknown costs permit only bounded interactive measurements; background work waits for measurements.

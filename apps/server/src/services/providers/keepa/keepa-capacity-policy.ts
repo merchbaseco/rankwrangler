@@ -39,11 +39,19 @@ export const getKeepaReservation = (
     if (available < cost) {
         return { reason: 'bucket' };
     }
+    // Someone is waiting on interactive work: only the physical bucket limits it, and background
+    // work yields until it is served.
+    if (request.workClass === 'interactive') {
+        return { cost };
+    }
+    if (facts.interactiveWaiting) {
+        return { reason: 'interactive-waiting' };
+    }
     const floor =
         facts.productCost !== null && facts.headCost !== null
             ? facts.headCost + 10 * facts.productCost
             : null;
-    if (request.workClass !== 'interactive' && (floor === null || available - cost < floor)) {
+    if (floor === null || available - cost < floor) {
         return { reason: 'interactive-floor' };
     }
     if (request.workClass === 'head' && facts.headRequests >= 50) {
@@ -93,7 +101,6 @@ const getClassAllowance = (
     }
     if (
         (workClass === 'head' || workClass === 'history') &&
-        !facts.interactiveWaiting &&
         floor !== null &&
         postBalance >= 2 * floor
     ) {

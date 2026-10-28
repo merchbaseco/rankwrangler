@@ -2,6 +2,7 @@ import Bottleneck from 'bottleneck';
 import { captureProviderAttempt } from '@/services/providers/provider-telemetry';
 import type { KeepaAttemptRequest, KeepaWorkClass } from './keepa-capacity-types';
 import { fetchKeepaJson } from './keepa-fetch';
+import { reserveKeepaCapacity } from './keepa-interactive-reserve';
 import { getKeepaProviderPriority, requireKeepaDomainId } from './keepa-marketplaces';
 import { lazyPersistedCapacity } from './keepa-persisted-capacity';
 import type {
@@ -114,27 +115,20 @@ export class KeepaProvider {
         if (page !== 0) {
             throw new Error('Keepa search supports only the first result page');
         }
+        const request: KeepaAttemptRequest = {
+            operation: 'search',
+            workClass: workClass ?? (priority === 'interactiveCatalog' ? 'interactive' : 'head'),
+            keywordId,
+            workId,
+        };
         return await this.schedule(
             priority,
-            {
-                operation: 'search',
-                workClass:
-                    workClass ?? (priority === 'interactiveCatalog' ? 'interactive' : 'head'),
-                keywordId,
-                workId,
-            },
+            request,
             async attemptId => {
                 const payload = await this.fetchJson<KeepaResponse>({
                     operation: 'keepa.catalog.search',
                     attemptId,
-                    request: {
-                        operation: 'search',
-                        workClass:
-                            workClass ??
-                            (priority === 'interactiveCatalog' ? 'interactive' : 'head'),
-                        keywordId,
-                        workId,
-                    },
+                    request,
                     path: 'search',
                     params: {
                         domain: String(domainId),
@@ -242,7 +236,12 @@ export class KeepaProvider {
             await this.ensureFreshTokenState();
         }
         const attemptId = queuedId ?? (await this.deps.capacity.enqueue(request));
-        await this.deps.capacity.reserve(attemptId);
+        await reserveKeepaCapacity({
+            capacity: this.deps.capacity,
+            attemptId,
+            workClass: request.workClass,
+            refreshBucket: () => this.ensureFreshTokenState(),
+        });
         return await fetchKeepaJson<T>({
             ...this.deps,
             operation,
