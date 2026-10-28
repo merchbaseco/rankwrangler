@@ -97,6 +97,26 @@ describe('Catalog search worker', () => {
         ]);
     });
 
+    it('records the database reason behind a wrapped query failure', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
+        const reason = Object.assign(new Error('value too long for type character varying(10)'), {
+            name: 'PostgresError',
+            code: '22001',
+            column_name: 'title',
+        });
+        const deps = createDeps({
+            claimOperationWork: async () => createOperation(),
+            persistSuccess: async () => {
+                throw new Error('Failed query: insert into "products" ...', { cause: reason });
+            },
+        });
+
+        expect(await runCatalogSearchOperation(createOperation().id, deps)).toMatchObject({
+            status: 'failed',
+            cause: 'PostgresError 22001: value too long for type character varying(10) column_name=title',
+        });
+    });
+
     it('defers budget-limited work without recording a provider failure or fresh observation', async () => {
         const { runCatalogSearchOperation } = await loadSubject();
         const deps = createDeps({

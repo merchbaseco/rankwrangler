@@ -197,10 +197,18 @@ const normalizeSearchResults = (
     return Array.from(accepted.values());
 };
 
+// A database failure arrives wrapped: its message is the SQL text and the reason (Postgres code,
+// message, constraint) sits on `cause`, so the deepest cause is what gets recorded.
 const failureCause = (error: unknown) => {
     if (error instanceof TRPCError) return `TRPCError ${error.code}`;
-    const name = error instanceof Error ? error.name : typeof error;
-    const code =
-        error && typeof error === 'object' && 'code' in error ? ` ${String(error.code)}` : '';
-    return `${name}${code}: ${getErrorMessage(error).slice(0, 300)}`;
+    let root = error;
+    while (root instanceof Error && root.cause !== undefined) root = root.cause;
+    const name = root instanceof Error ? root.name : typeof root;
+    const fields = root && typeof root === 'object' ? (root as Record<string, unknown>) : {};
+    const code = fields.code === undefined ? '' : ` ${String(fields.code)}`;
+    const detail = ['constraint_name', 'column_name', 'detail']
+        .filter(key => typeof fields[key] === 'string')
+        .map(key => ` ${key}=${String(fields[key])}`)
+        .join('');
+    return `${name}${code}: ${getErrorMessage(root).slice(0, 300)}${detail}`.slice(0, 600);
 };
