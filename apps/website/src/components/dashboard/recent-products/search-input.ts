@@ -1,4 +1,5 @@
 import type { SortingState } from '@tanstack/react-table';
+import type { MerchListingFilter } from '@/components/dashboard/app/config';
 import type { RouterInputs } from '@/lib/trpc';
 import { LAST_UPDATED_HOURS, type FilterState } from './types';
 
@@ -27,7 +28,7 @@ export const buildSearchInput = ({
     return {
         term: searchValue.trim() || undefined,
         marketplaceIds: filters.marketplaceIds,
-        isMerchListing: 'all',
+        isMerchListing: MERCH_LISTING_INPUT[filters.merchListing],
         amazonListingStatus: 'all',
         includeOfficialBrands: true,
         salesRank: filters.bsrRange
@@ -44,3 +45,10 @@ export const buildSearchInput = ({
         limit: 50,
     };
 };
+
+const MERCH_LISTING_INPUT = {
+    merch: true,
+    notMerch: false,
+    unknown: 'unknown',
+    all: 'all',
+} as const satisfies Record<MerchListingFilter, SearchInput['isMerchListing']>;

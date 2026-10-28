@@ -129,12 +129,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
         };
         await checkpointDiscoveryPage(input);
         await checkpointDiscoveryPage(input);
-        expect(await db.select().from(products)).toHaveLength(3);
+        expect(await db.select().from(products)).toHaveLength(2);
         const [receipt] = await db.select().from(keywordDiscoveryAttempts);
         expect(receipt).toMatchObject({
             status: 'accepted',
             resultCount: 3,
-            newProducts: 3,
+            newProducts: 2,
             newMerchProducts: 1,
             knownMerch: 1,
             unknownProducts: 1,
@@ -153,6 +153,47 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
             .from(keywordDiscoveryAttempts)
             .where(eq(keywordDiscoveryAttempts.passId, peer.pass.id));
         expect(receipts[0]).toMatchObject({ newProducts: 0, newMerchMemberships: 1 });
+    });
+    it('stores only Merch and unknown Products while still counting skipped non-Merch', async () => {
+        const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
+        await db.insert(products).values({
+            marketplaceId: 'ATVPDKIKX0DER',
+            asin: 'B0TST00004',
+            title: 'Old title',
+            isMerchListing: false,
+        });
+        await primeCatalogCapacity();
+        const work = await claimDiscoveryFixture();
+        const { pass } = await acceptDiscoveryFixture(work, [
+            discoveryProduct('B0TST00001'),
+            discoveryProduct('B0TST00002', { isMerchListing: false }),
+            discoveryProduct('B0TST00003', { isMerchListing: null }),
+            discoveryProduct('B0TST00004', { isMerchListing: false, title: 'New title' }),
+        ]);
+        const stored = await db
+            .select({ asin: products.asin, title: products.title })
+            .from(products)
+            .orderBy(products.asin);
+        expect(stored).toEqual([
+            { asin: 'B0TST00001', title: 'Fishing shirt' },
+            { asin: 'B0TST00003', title: 'Fishing shirt' },
+            { asin: 'B0TST00004', title: 'New title' },
+        ]);
+        expect(
+            await db
+                .select()
+                .from(keywordProducts)
+                .where(eq(keywordProducts.queryId, target.queryId))
+        ).toHaveLength(3);
+        const [receipt] = await db.select().from(keywordDiscoveryAttempts);
+        expect(receipt).toMatchObject({
+            resultCount: 4,
+            newProducts: 2,
+            knownMerch: 1,
+            unknownProducts: 1,
+            nonMerchProducts: 2,
+        });
+        expect(pass.lastPageFingerprint).toBe('B0TST00001,B0TST00002,B0TST00003,B0TST00004');
     });
     it('rejects an expired worker before any Product write', async () => {
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });

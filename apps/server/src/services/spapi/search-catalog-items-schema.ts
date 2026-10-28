@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { BulletEvidence } from '@/services/merch-listing-classification';
+import type { BulletEvidence, MerchListingEvidence } from '@/services/merch-listing-classification';
 
 export const VariantSchema = z.enum([
     'MAIN',
@@ -31,14 +31,15 @@ const AttributeValueEntrySchema = z.object({
     marketplace_id: z.string(),
 });
 
-const BulletPointEntrySchema = z.object({
+const MarketplaceTextEntrySchema = z.object({
     value: z.string(),
     marketplace_id: z.string().optional(),
 });
 
 const ItemAttributesSchema = z.object({
     product_site_launch_date: z.array(AttributeValueEntrySchema).optional(),
-    bullet_point: z.array(BulletPointEntrySchema).optional(),
+    bullet_point: z.array(MarketplaceTextEntrySchema).optional(),
+    part_number: z.array(MarketplaceTextEntrySchema).optional(),
 });
 
 const ItemImageSchema = z.object({
@@ -75,13 +76,21 @@ export const ItemSearchResultsSchema = z.object({
         .optional(),
 });
 
-export const getMarketplaceBulletEvidence = (
-    bulletPoints:
-        | Array<{
-              value: string;
-              marketplace_id?: string;
-          }>
-        | undefined,
+type MarketplaceTextEntries = z.infer<typeof MarketplaceTextEntrySchema>[] | undefined;
+
+export const getMarketplaceMerchListingEvidence = (
+    attributes: z.infer<typeof ItemAttributesSchema> | undefined,
+    marketplaceId: string
+): MerchListingEvidence => ({
+    bullets: getMarketplaceBulletEvidence(attributes?.bullet_point, marketplaceId),
+    partNumber:
+        filterMarketplaceEntries(attributes?.part_number, marketplaceId)
+            .map(entry => entry.value.trim())
+            .find(Boolean) ?? null,
+});
+
+const getMarketplaceBulletEvidence = (
+    bulletPoints: MarketplaceTextEntries,
     marketplaceId: string
 ): BulletEvidence => {
     if (!bulletPoints) {
@@ -90,12 +99,13 @@ export const getMarketplaceBulletEvidence = (
 
     return {
         kind: 'available',
-        bullets: bulletPoints
-            .filter(
-                bulletPoint =>
-                    !bulletPoint.marketplace_id || bulletPoint.marketplace_id === marketplaceId
-            )
+        bullets: filterMarketplaceEntries(bulletPoints, marketplaceId)
             .map(bulletPoint => bulletPoint.value)
             .filter(Boolean),
     };
 };
+
+const filterMarketplaceEntries = (entries: MarketplaceTextEntries, marketplaceId: string) =>
+    (entries ?? []).filter(
+        entry => !entry.marketplace_id || entry.marketplace_id === marketplaceId
+    );

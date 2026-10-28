@@ -1,10 +1,12 @@
 import type { ProductThumbnail } from "@/components/dashboard/product-thumbnail";
 import type { ProductFreshness } from "@/components/dashboard/product-history-panel/types";
+import type { MerchListingFilter } from "@/components/dashboard/app/config";
 
 export type FilterState = {
 	bsrRange: [number, number] | null;
 	marketplaceIds: string[];
 	lastUpdated: "all" | "24h" | "7d" | "30d";
+	merchListing: MerchListingFilter;
 };
 
 export type Product = {

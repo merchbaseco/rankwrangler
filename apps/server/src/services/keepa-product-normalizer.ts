@@ -27,6 +27,7 @@ export type KeepaProductPayload = {
     brand?: string;
     imagesCSV?: string;
     features?: string[] | null;
+    partNumber?: string | null;
     listedSince?: number;
     rootCategory?: number;
     trackingSince?: number;
@@ -106,7 +107,10 @@ export const normalizeKeepaProduct = ({
     );
     const rootCategoryId = normalizeCategoryId(product.salesRankReference);
     const listingRootCategoryId = normalizeCategoryId(product.rootCategory) ?? rootCategoryId;
-    const merchClassification = classifyMerchListing(getKeepaBulletEvidence(product.features));
+    const merchClassification = classifyMerchListing({
+        bullets: getKeepaBulletEvidence(product.features),
+        partNumber: product.partNumber ?? null,
+    });
 
     return {
         product: {

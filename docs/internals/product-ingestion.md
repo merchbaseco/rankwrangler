@@ -65,7 +65,8 @@ Catalog discovery or an explicit refresh can recheck them; a cached or older dis
 ## Source Normalization
 
 SP-API and Keepa adapters own source-specific listing extraction, while one source-neutral module
-owns deterministic Merch template matching and seller-bullet extraction. Keepa normalization also
+owns deterministic Merch classification (part-number fingerprint, template matching) and
+seller-bullet extraction. Keepa normalization also
 owns current Keepa metrics and event-based rank and price points. Source-specific timestamps remain
 separate on the Product.
 

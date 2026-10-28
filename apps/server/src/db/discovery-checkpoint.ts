@@ -90,7 +90,7 @@ export const checkpointDiscoveryPage = async <T>(input: {
                 target.kind === 'keyword' ? await searchFrequencyRank(tx, target.queryId) : null
             ),
         });
-        const fingerprint = [...persisted.productIds].sort().join(',');
+        const fingerprint = [...persisted.pageAsins].sort().join(',');
         if (
             (input.page > 0 && pass.lastPageFingerprint === fingerprint && fingerprint) ||
             (input.nextPageToken && input.nextPageToken === pass.nextPageToken)

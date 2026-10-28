@@ -115,8 +115,9 @@ not persist query identity, result placement, or run history; that belongs to th
   Keepa queue work in one transaction.
 - A failed Keepa transaction never advances `keepaFetchedAt`.
 - Missing optional Keepa values do not erase useful stored values.
-- `isMerchListing` is nullable knowledge: new unclassified Products start at `null`, available
-  empty bullet evidence stores `false`, and unavailable evidence is a persistence no-op. Stored
+- `isMerchListing` is nullable knowledge: new unclassified Products start at `null`, a
+  non-matching part number or available bullets (even `[]`) store `false`, and evidence with
+  neither is a persistence no-op. Stored
   `true` is monotonic across provider writes.
 - The shared Product retrieval service owns blocking lookups, durable queueing, freshness checks,
   in-flight deduplication, and response availability. A completed empty provider response retains

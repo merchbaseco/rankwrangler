@@ -19,7 +19,7 @@ export const discoverSpApiKeyword = async (
         scope: DiscoveryScope;
         pageToken?: string;
         marketplaceId: string;
-        workId?: string;
+        workId: string;
     },
     provider: Pick<SpApiProvider, 'searchCatalogItemsByKeyword'> = createSpApiProvider()
 ) => {
@@ -51,15 +51,18 @@ export const discoverSpApiKeyword = async (
     return { products, nextPageToken: response.pagination?.nextToken ?? null, observedAt };
 };
 
+/**
+ * Stores a scanned page's Merch and unknown Products. A Product classified non-Merch is stored only
+ * when it already exists, so keyword scans keep known rows current without filling the catalog with
+ * other sellers' listings. Counts and the page fingerprint still cover every result on the page.
+ */
 export const persistDiscoveredSpApiProducts = async (
     transaction: Transaction,
     products: SpApiProduct[]
 ) => {
-    const newProductIds = (await upsertProductsInfo(products, transaction))
-        .filter(identity => identity.inserted)
-        .map(identity => identity.id);
     if (!products.length) {
         return {
+            pageAsins: [],
             productIds: [],
             merchProductIds: [],
             newProductIds: [],
@@ -68,25 +71,43 @@ export const persistDiscoveredSpApiProducts = async (
             nonMerchCount: 0,
         };
     }
-    const identities = and(
-        eq(productTable.marketplaceId, products[0].marketplaceId),
-        inArray(
-            productTable.asin,
-            products.map(product => product.asin)
-        )
+    const marketplaceId = products[0].marketplaceId;
+    const pageAsins = [...new Set(products.map(product => product.asin))];
+    const existingAsins = new Set(
+        (
+            await transaction
+                .select({ asin: productTable.asin })
+                .from(productTable)
+                .where(productIdentities(marketplaceId, pageAsins))
+        ).map(row => row.asin)
     );
-    const rows = await transaction
-        .select({ id: productTable.id, isMerchListing: productTable.isMerchListing })
-        .from(productTable)
-        .where(identities);
+    const stored = products.filter(
+        product => product.isMerchListing !== false || existingAsins.has(product.asin)
+    );
+    const storedAsins = new Set(stored.map(product => product.asin));
+    const skippedNonMerchCount = pageAsins.filter(asin => !storedAsins.has(asin)).length;
+    const newProductIds = (await upsertProductsInfo(stored, transaction))
+        .filter(identity => identity.inserted)
+        .map(identity => identity.id);
+    const rows = stored.length
+        ? await transaction
+              .select({ id: productTable.id, isMerchListing: productTable.isMerchListing })
+              .from(productTable)
+              .where(productIdentities(marketplaceId, [...storedAsins]))
+        : [];
     return {
+        pageAsins,
         newProductIds,
         newMerchProductIds: rows
             .filter(row => row.isMerchListing === true && newProductIds.includes(row.id))
             .map(row => row.id),
         unknownCount: rows.filter(row => row.isMerchListing === null).length,
-        nonMerchCount: rows.filter(row => row.isMerchListing === false).length,
+        nonMerchCount:
+            rows.filter(row => row.isMerchListing === false).length + skippedNonMerchCount,
         productIds: rows.map(row => row.id),
         merchProductIds: rows.filter(row => row.isMerchListing === true).map(row => row.id),
     };
 };
+
+const productIdentities = (marketplaceId: string, asins: string[]) =>
+    and(eq(productTable.marketplaceId, marketplaceId), inArray(productTable.asin, asins));

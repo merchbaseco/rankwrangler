@@ -34,7 +34,9 @@ Catalog runs retain immutable search membership while their current Products res
 cached and fresh runs use the same background path. Dashboard and internal Product records may retain
 `pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to
 `available` or `unavailable`. Product `isMerchListing` is nullable knowledge: `null` means unknown,
-distinct from known non-Merch (`false`).
+distinct from known non-Merch (`false`). A listing is Merch when its part number is a Merch design
+code or a bullet matches Merch template text; keyword scans store only Merch and unknown Products,
+and the dashboard Products page defaults to Merch listings.
 
 ## Use RankWrangler
 
@@ -155,7 +157,8 @@ Autocomplete keeps Amazon’s native keyword variants, including pluralization a
 and removes stray trailing commas from search seeds.
 
 Keywords come from Amazon's weekly Brand Analytics search terms report: terms whose top clicked
-products include apparel become trials, most searched first, and a trial is tracked once its first
+products include a Merch product type (apparel, hats, bags, phone accessories, drinkware, home
+goods or stationery) become trials, most searched first, and a trial is tracked once its first
 SP-API page shows at least three confirmed Merch listings. Brand Analytics popularity also sets scan
 depth (ten, five or three pages). Collection runs as small jobs (one keyword page, one autocomplete
 call, one report step) behind one queue per provider, fed by a one-minute scheduler that holds back

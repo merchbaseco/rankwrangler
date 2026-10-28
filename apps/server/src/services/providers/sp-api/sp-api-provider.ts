@@ -129,14 +129,17 @@ export class SpApiProvider {
     searchCatalogItemsByAsins = async ({
         asins,
         marketplaceId,
+        priority,
     }: {
         asins: string[];
         marketplaceId: string;
+        priority?: 'foreground' | 'background';
     }) => {
         return await this.limiterManager.runOperation({
             ensureAccessTokenFreshness: async () =>
                 await this.ensureAccessTokenFreshness(this.catalog),
             operation: `search catalog items (${marketplaceId}, ${asins.length} ASINs)`,
+            priority,
                 operationId: 'catalog.searchCatalogItems',
             run: async () =>
                 await this.catalogApi.searchCatalogItems([marketplaceId], {

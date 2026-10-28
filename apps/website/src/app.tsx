@@ -5,7 +5,11 @@ import {
 	useState,
 	useTransition,
 } from "react";
-import type { LastUpdated } from "@/components/dashboard/app/config";
+import {
+	DEFAULT_MERCH_LISTING_FILTER,
+	type LastUpdated,
+	type MerchListingFilter,
+} from "@/components/dashboard/app/config";
 import { DashboardFooter } from "@/components/dashboard/app/dashboard-footer";
 import { FiltersSidebar } from "@/components/dashboard/app/filters-sidebar";
 import { type DashboardPage, TopBar } from "@/components/dashboard/app/top-bar";
@@ -29,6 +33,7 @@ export function App() {
 		bsrRange: null,
 		marketplaceIds: [],
 		lastUpdated: "all",
+		merchListing: DEFAULT_MERCH_LISTING_FILTER,
 	});
 	const [, startFilterTransition] = useTransition();
 	const [uiState, dispatchUiState] = useReducer(
@@ -99,6 +104,15 @@ export function App() {
 		[startFilterTransition],
 	);
 
+	const updateMerchListing = useCallback(
+		(merchListing: MerchListingFilter) => {
+			startFilterTransition(() => {
+				setFilters((previous) => ({ ...previous, merchListing }));
+			});
+		},
+		[startFilterTransition],
+	);
+
 	const activeFilterCount = useMemo(() => {
 		let count = 0;
 		if (filters.bsrRange !== null) {
@@ -108,6 +122,9 @@ export function App() {
 			count += 1;
 		}
 		if (filters.lastUpdated !== "all") {
+			count += 1;
+		}
+		if (filters.merchListing !== DEFAULT_MERCH_LISTING_FILTER) {
 			count += 1;
 		}
 		if (uiState.activeFacets.length > 0) {
@@ -175,6 +192,7 @@ export function App() {
 								dispatchUiState({ type: "toggleNichesSection" })
 							}
 							onUpdateLastUpdated={updateLastUpdated}
+							onUpdateMerchListing={updateMerchListing}
 						/>
 
 						<div className="flex min-w-0 flex-1 flex-col overflow-hidden">

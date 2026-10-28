@@ -123,8 +123,9 @@ The public Product is one current provider-neutral projection:
 Public callers never receive a pending thumbnail, provider block or timestamps,
 `trackingStartedAt`, freshness, status, Operations, or `schemaVersion`.
 
-`isMerchListing` is `true` for known Merch evidence, `false` for available evidence with no known
-template match, and `null` when bullet evidence is unavailable or classification has not run.
+`isMerchListing` is `true` when the part number matches the Merch design-code fingerprint or a bullet
+matches a Merch template, `false` when a part number or bullets were observed without either match,
+and `null` when neither was available or classification has not run.
 Public consumers receive only this nullable field; provider, freshness, and status metadata are
 not exposed for the property.
 

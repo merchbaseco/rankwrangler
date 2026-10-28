@@ -2,13 +2,55 @@ import { normalizeDiscoveryKeyword } from './discovery-candidate-policy';
 
 export const BRAND_ANALYTICS_MARKETPLACE_ID = 'ATVPDKIKX0DER';
 
-// A clicked product counts as apparel when its title names a shirt-like garment. A search term is
-// kept only when at least one of its top-3 clicked products does: in the October eval this kept
-// about 197k of 2.95M weekly terms and 83% of the owner's real clicked-search volume, while dropping
-// terms such as "halloween makeup" or "christmas lights".
-export const APPAREL_TITLE_PATTERN =
-    /\b(t-?shirts?|tees?|shirts?|hoodies?|sweatshirts?|tank tops?|raglans?|pullovers?|crewnecks?|v-necks?)\b/i;
-export const MIN_APPAREL_CLICKS = 1;
+// A clicked product counts when its title names a product type Merch on Demand sells: shirts and
+// other apparel, hats, bags, phone accessories, home goods, drinkware and stationery. A search term
+// is kept only when at least one of its top-3 clicked products does. The apparel-only version of
+// this filter kept about 197k of 2.95M weekly terms and 83% of the owner's real clicked-search
+// volume; widening it to every Merch product type admits mug, tote and PopSockets searches while
+// still dropping terms such as "halloween makeup" or "christmas lights". The stored count keeps its
+// original `apparelClicks` name.
+export const MERCH_PRODUCT_TITLE_PATTERN = new RegExp(
+    `\\b(?:${[
+        't-?shirts?',
+        'tees?',
+        'shirts?',
+        'tops',
+        '(?:tank|crop) top',
+        'raglans?',
+        'jerseys?',
+        'sweatshirts?',
+        'hoodies?',
+        'pullovers?',
+        'crewnecks?',
+        'v-necks?',
+        'polos?',
+        'quarter[- ]zips?',
+        '1/4 zips?',
+        'jackets?',
+        'hats?',
+        '(?:baseball|trucker|dad|snapback) caps?',
+        'visors?',
+        'backpacks?',
+        'pop ?sockets?',
+        'pop ?grips?',
+        '(?:i?phone|galaxy)\\b.{0,40}?\\bcases?',
+        'totes?',
+        'cross-?body(?: bags?)?',
+        'laptop sleeves?',
+        'mouse ?pads?',
+        'pillows?',
+        'blankets?',
+        'posters?',
+        'tumblers?',
+        'mugs?',
+        'water bottles?',
+        'journals?',
+        'notebooks?',
+        'pens?',
+    ].join('|')})\\b`,
+    'i'
+);
+export const MIN_MERCH_PRODUCT_CLICKS = 1;
 const MAX_CLICKED_ASINS = 3;
 const MAX_TERM_LENGTH = 200;
 
@@ -54,7 +96,7 @@ export const createBrandAnalyticsAccumulator = () => {
         terms += 1;
         const previous = kept.get(group.term);
         const merged = previous ? mergeEntries(previous, group) : group;
-        if (apparelClicks(merged) >= MIN_APPAREL_CLICKS) kept.set(group.term, merged);
+        if (apparelClicks(merged) >= MIN_MERCH_PRODUCT_CLICKS) kept.set(group.term, merged);
         group = null;
     };
     return {
@@ -79,7 +121,7 @@ export const createBrandAnalyticsAccumulator = () => {
     };
 };
 
-type Click = { asin: string; order: number; apparel: boolean };
+type Click = { asin: string; order: number; merchProduct: boolean };
 type Entry = { term: string; rank: number; clicks: Click[] };
 
 const dayMs = 86_400_000;
@@ -102,7 +144,7 @@ const parseRow = (row: Record<string, unknown>) => {
             ? {
                   asin,
                   order: Number.isFinite(order) ? order : MAX_CLICKED_ASINS + 1,
-                  apparel: APPAREL_TITLE_PATTERN.test(title),
+                  merchProduct: MERCH_PRODUCT_TITLE_PATTERN.test(title),
               }
             : null,
     };
@@ -117,7 +159,7 @@ const mergeEntries = (a: Entry, b: Entry): Entry => ({
 const topClicks = (entry: Entry) =>
     [...entry.clicks].sort((a, b) => a.order - b.order).slice(0, MAX_CLICKED_ASINS);
 
-const apparelClicks = (entry: Entry) => topClicks(entry).filter(click => click.apparel).length;
+const apparelClicks = (entry: Entry) => topClicks(entry).filter(click => click.merchProduct).length;
 
 const toTerm = (entry: Entry): BrandAnalyticsTerm => ({
     term: entry.term,

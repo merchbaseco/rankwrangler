@@ -169,6 +169,30 @@ describe('normalizeKeepaProduct', () => {
         });
     });
 
+    it('classifies a Merch part number even when no feature matches a template', () => {
+        const merch = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+            product: {
+                asin: 'B0MERCH006',
+                partNumber: 'AFCHRPAT1KY',
+                features: ['Seller bullet one', 'Seller bullet two'],
+            },
+        });
+        const partNumberOnly = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+            product: { asin: 'B0MERCH007', partNumber: 'GIL1100MDWHTP6-01-White-M' },
+        });
+
+        expect(merch.product).toMatchObject({
+            isMerchListing: true,
+            bullet1: 'Seller bullet one',
+            bullet2: 'Seller bullet two',
+        });
+        expect(partNumberOnly.product).toMatchObject({ isMerchListing: false });
+    });
+
     it('classifies Keepa template features and extracts seller bullets before persistence', () => {
         const result = normalizeKeepaProduct({
             marketplaceId: 'ATVPDKIKX0DER',

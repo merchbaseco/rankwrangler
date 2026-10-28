@@ -25,8 +25,8 @@ kind of Product.
 | Keepa ingestion | Rich Product/history reads and scheduled refreshes normalize accepted Keepa Product data into the same Product and history records. |
 | Keepa Catalog search | One first-page response imports Keepa observations and histories, preserves Search-run membership, and leaves Product enrichment to shared background retrieval on run reads. |
 
-SP-API and Keepa adapters extract listing description evidence for one shared deterministic Merch
-classifier. Keepa adds separately attributed current metrics and event history. A Keepa write
+SP-API and Keepa adapters extract part-number and bullet evidence for one shared deterministic
+Merch classifier. Keepa adds separately attributed current metrics and event history. A Keepa write
 advances its freshness watermark only after the Product, history, and import audit persist
 successfully.
 

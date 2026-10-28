@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { buildSearchInput } from './search-input';
 
-const filters = { bsrRange: null, marketplaceIds: [], lastUpdated: 'all' } as const;
+const filters = {
+    bsrRange: null,
+    marketplaceIds: [],
+    lastUpdated: 'all',
+    merchListing: 'merch',
+} as const;
 
 describe('dashboard catalog search', () => {
     it('sends catalog filters and sorting to the server across every page', () => {
@@ -11,6 +16,7 @@ describe('dashboard catalog search', () => {
                 bsrRange: [100, 300_000],
                 marketplaceIds: ['ATVPDKIKX0DER', 'A1F83G8C2ARO7P'],
                 lastUpdated: '24h',
+                merchListing: 'all',
             },
             searchValue: '  fishing shirt  ',
             sorting: [{ id: 'rootCategoryBsr', desc: false }],
@@ -40,5 +46,21 @@ describe('dashboard catalog search', () => {
         expect(input.marketplaceIds).toEqual([]);
         expect(input.updatedAt).toBeUndefined();
         expect(input.sort).toBe('updatedAtDesc');
+        expect(input.isMerchListing).toBe(true);
+    });
+
+    it('maps each Merch listing filter to the server filter', () => {
+        const merchFilter = (merchListing: 'merch' | 'notMerch' | 'unknown' | 'all') =>
+            buildSearchInput({
+                activeFacetKeys: [],
+                filters: { ...filters, merchListing },
+                searchValue: '',
+                sorting: [],
+                now: 0,
+            }).isMerchListing;
+        expect(merchFilter('merch')).toBe(true);
+        expect(merchFilter('notMerch')).toBe(false);
+        expect(merchFilter('unknown')).toBe('unknown');
+        expect(merchFilter('all')).toBe('all');
     });
 });

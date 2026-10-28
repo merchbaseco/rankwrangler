@@ -4,7 +4,7 @@ import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider
 import { getRootCategoryId } from '@/types/amazon-root-categories.js';
 import type { ProductThumbnail } from '@/types/index.js';
 import {
-    getMarketplaceBulletEvidence,
+    getMarketplaceMerchListingEvidence,
     ItemSearchResultsSchema,
     VariantSchema,
     type ItemSchema,
@@ -121,11 +121,9 @@ export const mapCatalogItemFromKeywordSearch = (
         ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
         : null;
 
-    const bulletEvidence = getMarketplaceBulletEvidence(
-        item.attributes?.bullet_point,
-        marketplaceId
+    const merchClassification = classifyMerchListing(
+        getMarketplaceMerchListingEvidence(item.attributes, marketplaceId)
     );
-    const merchClassification = classifyMerchListing(bulletEvidence);
 
     const salesRank = item.salesRanks?.find(rank => rank.marketplaceId === marketplaceId);
     const displayGroupRank = salesRank?.displayGroupRanks?.[0];

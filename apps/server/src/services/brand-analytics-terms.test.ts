@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import {
-    APPAREL_TITLE_PATTERN,
     createBrandAnalyticsAccumulator,
     latestBrandAnalyticsWeek,
+    MERCH_PRODUCT_TITLE_PATTERN,
 } from './brand-analytics-terms';
 
 const row = (searchTerm: string, rank: number, asin: string, title: string, order: number) => ({
@@ -13,8 +13,8 @@ const row = (searchTerm: string, rank: number, asin: string, title: string, orde
     clickShareRank: order,
 });
 
-describe('apparel title pattern', () => {
-    it('matches shirt-like garments as whole words', () => {
+describe('Merch product title pattern', () => {
+    it('matches every Merch product type as whole words', () => {
         for (const title of [
             'Funny Nurse T-Shirt',
             'Retro tshirt',
@@ -22,17 +22,50 @@ describe('apparel title pattern', () => {
             'Pullover Hoodie',
             'Crewneck Sweatshirt',
             'Tank Top',
+            'Cute Summer Tops for Women',
             'Raglan Baseball Tee',
             'V-Neck T-Shirt',
+            'Hockey Jersey',
+            'Golf Polo Shirt',
+            'Funny Fishing Quarter-Zip Pullover',
+            'Softshell Jacket',
+            'Trucker Hat',
+            'Retro Dad Cap',
+            'Sun Visor',
+            'School Backpack',
+            'Cat Mom PopSockets Swappable PopGrip',
+            'iPhone 15 Pro Max Case',
+            'Teacher Tote Bag',
+            'Crossbody Bag',
+            'Laptop Sleeve',
+            'Gaming Mouse Pad',
+            'Throw Pillow',
+            'Fleece Throw Blanket',
+            'Retro Movie Poster',
+            'Stainless Steel Insulated Tumbler',
+            'Funny Coffee Mug',
+            'Water Bottle',
+            'Hardcover Journal',
+            'Retractable Pen',
         ])
-            expect(APPAREL_TITLE_PATTERN.test(title)).toBe(true);
-        for (const title of ['Halloween Makeup Kit', 'Christmas Lights', 'Teeth Whitening'])
-            expect(APPAREL_TITLE_PATTERN.test(title)).toBe(false);
+            expect(MERCH_PRODUCT_TITLE_PATTERN.test(title)).toBe(true);
+        for (const title of [
+            'Halloween Makeup Kit',
+            'Christmas Lights',
+            'Teeth Whitening',
+            'Face Paint',
+            'Hatchet for Camping',
+            'Laptop Stand',
+            'Capsule Coffee Machine',
+            'Top Rated Air Fryer',
+            'Penguin Plush',
+        ])
+            expect(MERCH_PRODUCT_TITLE_PATTERN.test(title)).toBe(false);
     });
 });
 
 describe('Brand Analytics accumulator', () => {
-    it('keeps terms with at least one apparel click and drops the rest', () => {
+    it('keeps terms with at least one Merch product click and drops the rest', () => {
         const accumulator = createBrandAnalyticsAccumulator();
         for (const input of [
             row('Halloween Makeup', 40, 'B0MAKEUP01', 'Halloween Makeup Kit', 1),
@@ -41,17 +74,24 @@ describe('Brand Analytics accumulator', () => {
             row('  Nurse   Shirt, ', 7, 'B0NURSE002', 'Nurse Life T-Shirt', 2),
             row('  Nurse   Shirt, ', 7, 'B0NURSE003', 'Nurse Hoodie', 3),
             row('christmas lights', 3, 'B0LIGHTS01', 'LED String Lights', 1),
+            row('teacher gifts', 12, 'B0TOTE0001', 'Teacher Appreciation Tote Bag', 1),
         ])
             accumulator.add(input);
         expect(accumulator.finish()).toEqual({
-            rows: 6,
-            terms: 3,
+            rows: 7,
+            terms: 4,
             kept: [
                 {
                     term: 'nurse shirt',
                     rank: 7,
                     clickedAsins: ['B0NURSE001', 'B0NURSE002', 'B0NURSE003'],
-                    apparelClicks: 2,
+                    apparelClicks: 3,
+                },
+                {
+                    term: 'teacher gifts',
+                    rank: 12,
+                    clickedAsins: ['B0TOTE0001'],
+                    apparelClicks: 1,
                 },
             ],
         });
@@ -68,7 +108,7 @@ describe('Brand Analytics accumulator', () => {
                 term: 'dog mom',
                 rank: 900,
                 clickedAsins: ['B0DOGMOM01', 'B0DOGMOM02', 'B0DOGMOM03'],
-                apparelClicks: 1,
+                apparelClicks: 2,
             },
             { term: 'cat dad', rank: 901, clickedAsins: ['B0CATDAD01'], apparelClicks: 1 },
         ]);

@@ -38,9 +38,9 @@ export const reserveCatalogCapacity: CatalogCapacity['reserve'] = async input =>
                     .where(eq(spApiCatalogCapacity.id, 1));
             return { kind: decision.kind, reason: decision.reason, retryAt: decision.retryAt };
         }
-        if (input.priority === 'background') {
-            if (!input.attemptId)
-                throw new Error('Background Catalog request needs a durable page attempt');
+        // Keyword discovery claims its durable page attempt with the capacity. Maintenance work
+        // without an attempt (Merch reclassification) only spends background capacity.
+        if (input.priority === 'background' && input.attemptId) {
             const rows = await tx
                 .select({ attempt: keywordDiscoveryAttempts, pass: keywordExplorationPasses })
                 .from(keywordDiscoveryAttempts)

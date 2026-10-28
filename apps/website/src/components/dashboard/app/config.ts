@@ -1,4 +1,8 @@
 export type LastUpdated = "all" | "24h" | "7d" | "30d";
+export type MerchListingFilter = "merch" | "notMerch" | "unknown" | "all";
+
+// The Products page shows Merch listings unless the reader switches to another listing type.
+export const DEFAULT_MERCH_LISTING_FILTER: MerchListingFilter = "merch";
 
 export const BSR_MIN = 1;
 export const BSR_MAX = 2_000_000;
@@ -40,6 +44,16 @@ export const LAST_UPDATED_OPTIONS: Array<{ key: LastUpdated; label: string }> =
 		{ key: "7d", label: "Last 7 days" },
 		{ key: "30d", label: "Last 30 days" },
 	];
+
+export const MERCH_LISTING_OPTIONS: Array<{
+	key: MerchListingFilter;
+	label: string;
+}> = [
+	{ key: "merch", label: "Merch" },
+	{ key: "all", label: "All listings" },
+	{ key: "notMerch", label: "Not Merch" },
+	{ key: "unknown", label: "Unknown" },
+];
 
 export const FACET_CATEGORY_META: Record<
 	string,

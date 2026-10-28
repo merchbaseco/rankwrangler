@@ -8,7 +8,8 @@ const spApiProvider = createSpApiProvider();
 // Get product info using searchCatalogItems API (supports single or multiple ASINs)
 export const searchCatalogItemsByAsins = async (
     marketplaceId: string,
-    asins: string[]
+    asins: string[],
+    options: { priority?: 'foreground' | 'background' } = {}
 ): Promise<SpApiProduct[]> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
@@ -21,6 +22,7 @@ export const searchCatalogItemsByAsins = async (
     const rawResponse = await spApiProvider.searchCatalogItemsByAsins({
         asins,
         marketplaceId,
+        priority: options.priority,
     });
 
     // Validate response and parse items

@@ -11,6 +11,7 @@ describe('SP-API keyword discovery', () => {
                 scope: { kind: 'keyword', term: 'fishing shirt' },
                 marketplaceId,
                 pageToken: 'page-two',
+                workId: 'receipt-id',
             },
             {
                 searchCatalogItemsByKeyword: input => {
@@ -55,7 +56,7 @@ describe('SP-API keyword discovery', () => {
                 pageSize: 20,
                 maxAttempts: 1,
                 priority: 'background',
-                attemptId: undefined,
+                attemptId: 'receipt-id',
                 pageToken: 'page-two',
             },
         ]);
@@ -76,7 +77,11 @@ describe('SP-API keyword discovery', () => {
     });
 
     it('distinguishes a successful empty final page from malformed provider output', async () => {
-        const input = { scope: { kind: 'keyword' as const, term: 'fishing' }, marketplaceId };
+        const input = {
+            scope: { kind: 'keyword' as const, term: 'fishing' },
+            marketplaceId,
+            workId: 'receipt-id',
+        };
         const empty = await discoverSpApiKeyword(input, {
             searchCatalogItemsByKeyword: async () => ({ items: [] }),
         });

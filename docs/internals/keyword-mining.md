@@ -12,6 +12,12 @@ weekly Brand Analytics import supplies real search terms; a term that plausibly 
 a trial; one real SP-API search of its first page decides whether it is tracked. Products join a
 keyword only by appearing in its scanned results (`keyword_products`).
 
+Scans store Merch and unknown Products only. A result classified non-Merch is written only when the
+Product already exists (it is still refreshed); otherwise it is skipped, so keyword collection does
+not fill the catalog with other sellers' listings. Skipped results still count toward the page's
+result count, its non-Merch count and its page fingerprint (sorted ASINs, used to detect a provider
+repeating a page), so admission, standing and novelty see the whole page.
+
 This replaced per-product mining (Amazon Ads `KEYWORDS_FOR_ASINS` plus Jev fit and relevance
 judgments). An October eval against the owner's real Amazon ad search-term data showed invented
 per-product phrases were the wrong direction, so the Ads and Jev keyword paths were deleted.
@@ -47,15 +53,19 @@ The document is one JSON object whose `dataByDepartmentAndSearchTerm` array has 
 term and top-3 clicked ASIN (about 8.8M rows and 2.95M terms a week for the US). Parsing it whole
 exhausts a 2 GB heap, so `readBrandAnalyticsRows` scans the text stream and parses one row object at
 a time; the accumulator keeps only the current term's rows and the kept terms. A term is kept when
-at least one of its top-3 clicked item titles matches the apparel pattern
-(`t-shirt`, `tee`, `shirt`, `hoodie`, `sweatshirt`, `tank top`, `raglan`, `pullover`, `crewneck`,
-`v-neck`). In the eval this kept about 197k terms and 83% of the owner's real clicked-search
-volume, and correctly dropped terms such as "halloween makeup" and "christmas lights". There is no
+at least one of its top-3 clicked item titles names a Merch on Demand product type
+(`MERCH_PRODUCT_TITLE_PATTERN`): shirts, tees, tops, jerseys, sweatshirts, hoodies, polos,
+quarter-zips, jackets, hats, caps, visors, backpacks, PopSockets/PopGrips, phone cases, totes,
+crossbody bags, laptop sleeves, mouse pads, pillows, blankets, posters, tumblers, mugs, water
+bottles, journals, notebooks and pens, each as a whole word. The earlier apparel-only pattern kept
+about 197k terms and 83% of the owner's real clicked-search volume; widening it admits searches
+whose shoppers click mugs, totes or PopSockets, while terms such as "halloween makeup" and
+"christmas lights" still drop. The stored count keeps its `apparel_clicks` column name. There is no
 keyword-level official-brand filter: the verified official-brand registry applies to Product
 brands, not search phrases.
 
 `brand_analytics_search_terms` keeps one row per marketplace and normalized term (normalized like
-canonical keywords): latest search frequency rank, apparel clicks, up to three clicked ASINs, first
+canonical keywords): latest search frequency rank, Merch product clicks (`apparel_clicks`), up to three clicked ASINs, first
 and last seen week (the rank is from the last seen week) and when it was registered as a trial.
 Imports upsert; no weekly snapshot history is stored (the retired design kept about 10M rows and
 4 GB). The import row records rows, terms, kept terms and terms new to the table.

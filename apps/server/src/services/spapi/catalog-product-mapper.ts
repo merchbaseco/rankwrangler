@@ -3,7 +3,7 @@ import { classifyMerchListing } from '@/services/merch-listing-classification';
 import type { SpApiProduct } from '@/types';
 import { getRootCategoryId } from '@/types/amazon-root-categories';
 import {
-    getMarketplaceBulletEvidence,
+    getMarketplaceMerchListingEvidence,
     type ItemSchema,
     VariantSchema,
 } from './search-catalog-items-schema';
@@ -21,11 +21,9 @@ export const mapSpApiCatalogItem = (
     const dateFirstAvailable = productSiteLaunchDate?.value
         ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
         : null;
-    const bulletEvidence = getMarketplaceBulletEvidence(
-        item.attributes?.bullet_point,
-        marketplaceId
+    const merchClassification = classifyMerchListing(
+        getMarketplaceMerchListingEvidence(item.attributes, marketplaceId)
     );
-    const merchClassification = classifyMerchListing(bulletEvidence);
 
     // Extract root category ID and BSR from display group rank (only one display group per item)
     const salesRank = item.salesRanks?.find(sr => sr.marketplaceId === marketplaceId);
