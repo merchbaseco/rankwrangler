@@ -5,6 +5,7 @@ export type DiscoverySource =
     | 'brandAnalytics'
     | 'adsRecommendation'
     | 'autocomplete'
+    | 'themeAutocomplete'
     | 'legacy';
 
 export type DiscoveryScope =

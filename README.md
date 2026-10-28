@@ -157,9 +157,10 @@ Autocomplete keeps Amazon’s native keyword variants, including pluralization a
 and removes stray trailing commas from search seeds.
 
 Keywords come from Amazon's weekly Brand Analytics search terms report: terms whose top clicked
-products include a Merch product type (apparel, hats, bags, phone accessories, drinkware, home
-goods or stationery) become trials, most searched first, and a trial is tracked once its first
-SP-API page shows at least three confirmed Merch listings. Brand Analytics popularity also sets scan
+products include apparel become trials, most searched first, and a trial is tracked once its first
+SP-API page shows at least three confirmed Merch listings. Every tracked keyword registers its
+theme ("teacher shirts for women" is "teacher"); a theme admits searches that name any other Merch
+product type with the same theme ("teacher blanket"), and is expanded once through autocomplete. Brand Analytics popularity also sets scan
 depth (ten, five or three pages). Collection runs as small jobs (one keyword page, one autocomplete
 call, one report step) behind one queue per provider, fed by a one-minute scheduler that holds back
 new trials and autocomplete seeds while queued scans exceed about two days of capacity. Settings → Keyword Jobs shows queues, provider

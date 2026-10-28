@@ -33,6 +33,7 @@ export const KeywordJobsPanel = () => {
 		<div className="space-y-3 p-3">
 			<Summary status={query.data} />
 			<BrandAnalyticsSummary status={query.data} />
+			<ThemeSummary status={query.data} />
 			<QueueTable status={query.data} />
 			<JobExecutionsPanel jobNames={KEYWORD_JOBS} />
 		</div>
@@ -72,7 +73,7 @@ const Summary = ({ status }: { status: Status }) => {
 };
 
 const BrandAnalyticsSummary = ({ status }: { status: Status }) => {
-	const { latestWeek, lastImported, keptTerms, awaitingTrial } =
+	const { latestWeek, lastImported, keptTerms, awaitingTrial, awaitingTheme } =
 		status.brandAnalytics;
 	const stats = [
 		[
@@ -89,6 +90,7 @@ const BrandAnalyticsSummary = ({ status }: { status: Status }) => {
 				: formatNumber(lastImported.newTerms),
 		],
 		["Awaiting trial", formatNumber(awaitingTrial)],
+		["Awaiting theme", formatNumber(awaitingTheme)],
 		[
 			"Report",
 			latestWeek
@@ -115,6 +117,28 @@ const BrandAnalyticsSummary = ({ status }: { status: Status }) => {
 					Last error: {latestWeek.lastError}
 				</p>
 			) : null}
+		</section>
+	);
+};
+
+const ThemeSummary = ({ status }: { status: Status }) => {
+	const { total, expanded, pending } = status.themes;
+	const stats = [
+		["Themes", formatNumber(total)],
+		["Expanded", formatNumber(expanded)],
+		["Awaiting autocomplete", formatNumber(pending)],
+	];
+	return (
+		<section aria-label="Keyword themes" className="space-y-2">
+			<h3 className="font-medium text-xs">Keyword themes</h3>
+			<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
+				{stats.map(([label, value]) => (
+					<div key={label}>
+						<dt className="text-muted-foreground">{label}</dt>
+						<dd className="font-medium tabular-nums">{value}</dd>
+					</div>
+				))}
+			</dl>
 		</section>
 	);
 };

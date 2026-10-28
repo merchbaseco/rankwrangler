@@ -1,4 +1,5 @@
 import { writeKeywordEvents } from './keyword-events';
+import { registerKeywordThemes } from './keyword-themes';
 import { and, eq, inArray } from 'drizzle-orm';
 import {
     keywordPopularity,
@@ -92,6 +93,12 @@ export const observeKeywordStanding = async (
             nextCheckAt: cadence.nextDueAt,
         })
         .where(eq(discoveryTargets.id, target.id));
+    if (target.kind === 'keyword' && target.tracking !== 'tracked' && tracking === 'tracked')
+        await registerKeywordThemes(
+            tx,
+            [{ queryId: query.id, term: query.normalizedTerm, marketplaceId: query.marketplaceId }],
+            now
+        );
     if (tracking !== target.tracking || cadence.tier !== target.standingTier)
         await writeKeywordEvents(tx, [
             {

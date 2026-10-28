@@ -1,5 +1,6 @@
 import { notifyKeywordDirectoryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
+import { registerKeywordThemes } from './keyword-themes';
 import { and, eq, inArray, sql, getTableColumns } from 'drizzle-orm';
 import {
     normalizeDiscoveryBrand,
@@ -202,6 +203,24 @@ export const recordDiscoveryCandidates = async (
                         .tracking,
                     tracking: target.tracking,
                 },
+            }))
+    );
+    // A keyword that becomes tracked here (user interest) registers its theme, as graduation does.
+    await registerKeywordThemes(
+        tx,
+        targets
+            .filter(
+                target =>
+                    target.kind === 'keyword' &&
+                    target.tracking === 'tracked' &&
+                    !previousTargets.some(
+                        previous => previous.id === target.id && previous.tracking === 'tracked'
+                    )
+            )
+            .map(target => ({
+                queryId: target.queryId,
+                term: [...queryIds].find(([, id]) => id === target.queryId)![0],
+                marketplaceId: 'ATVPDKIKX0DER',
             }))
     );
     await notifyKeywordDirectoryRows(tx, [...terms.keys()]);

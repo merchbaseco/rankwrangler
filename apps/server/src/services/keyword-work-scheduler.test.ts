@@ -27,7 +27,9 @@ const setup = (producersOpen = true, queued = 0) => {
             { id: 'recheck', depth: false, tracked: true },
             { id: 'deep', depth: true, tracked: true },
         ]) as never,
-        dueAutocomplete: mock(async () => [{ id: 'seed' }]) as never,
+        dueAutocomplete: mock(async () => [{ id: 'seed' }, { id: 'seed-2' }]) as never,
+        dueThemes: mock(async () => [{ id: 'theme' }]) as never,
+        backfillThemes: mock(async () => ({ scanned: 0, registered: 0 })),
         promote: mock(async () => 0),
     };
     return { queues, overrides, inserted };
@@ -38,10 +40,12 @@ describe('keyword work scheduler', () => {
         const { queues, overrides, inserted } = setup();
         expect(
             await scheduleKeywordWork(queues, { ...overrides, isPaused: async () => true })
-        ).toEqual({ didWork: false, paused: true });
+        ).toEqual({ didWork: false, paused: true, themesRegistered: 0 });
         expect(inserted).toEqual({});
+        // The theme backfill is database-only and keeps running while paused.
+        expect(overrides.backfillThemes).toHaveBeenCalled();
     });
-    it('queues re-checks above trial heads above depth, and autocomplete seeds', async () => {
+    it('queues re-checks above trial heads above depth, and autocomplete seeds and themes', async () => {
         const { queues, overrides, inserted } = setup();
         const result = await scheduleKeywordWork(queues, overrides);
         expect(inserted['scan-keyword']).toEqual([
@@ -49,7 +53,11 @@ describe('keyword work scheduler', () => {
             { data: { targetId: 'recheck' }, singletonKey: 'recheck', priority: 2 },
             { data: { targetId: 'deep' }, singletonKey: 'deep', priority: 0 },
         ]);
-        expect(inserted['autocomplete-keyword']?.map(job => job.singletonKey)).toEqual(['seed']);
+        expect(inserted['autocomplete-keyword']).toEqual([
+            { data: { queryId: 'seed' }, singletonKey: 'seed' },
+            { data: { themeId: 'theme' }, singletonKey: 'theme:theme' },
+            { data: { queryId: 'seed-2' }, singletonKey: 'seed-2' },
+        ]);
         expect(result.didWork).toBe(true);
     });
     it('adds no autocomplete seeds while scan backlog is over its allowance', async () => {
@@ -63,5 +71,14 @@ describe('keyword work scheduler', () => {
         await scheduleKeywordWork(queues, overrides);
         expect(inserted['autocomplete-keyword']).toBeUndefined();
         expect(overrides.dueAutocomplete).not.toHaveBeenCalled();
+        expect(overrides.dueThemes).not.toHaveBeenCalled();
+    });
+    it('shares the autocomplete top-up between seeds and themes', async () => {
+        const { queues, overrides, inserted } = setup(true, 28);
+        await scheduleKeywordWork(queues, overrides);
+        expect(inserted['autocomplete-keyword']?.map(job => job.singletonKey)).toEqual([
+            'seed',
+            'theme:theme',
+        ]);
     });
 });

@@ -20,7 +20,7 @@ A background system answers three separate questions, and RankWrangler gives eac
 
 ## Primitives
 
-- **Entity.** A Product, keyword target, autocomplete seed or weekly Brand Analytics import. Due times, stages, claims and
+- **Entity.** A Product, keyword target, autocomplete seed, keyword theme or weekly Brand Analytics import. Due times, stages, claims and
   failure counts stay in its tables. The database remains the source of truth; a lost or duplicate
   job never loses or repeats durable work, because jobs re-check and fence that state.
 - **Job.** One unit of work on one entity: at most one external call, save what came back, then

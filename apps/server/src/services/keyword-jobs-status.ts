@@ -2,6 +2,7 @@ import { readAutomaticSync } from '@/db/automatic-sync';
 import { readBrandAnalyticsStatus } from '@/db/brand-analytics-imports';
 import { readJobQueueCounts } from '@/db/job-queue-status';
 import { readAutocompleteUsage } from '@/db/keyword-autocomplete-capacity';
+import { readKeywordThemeCounts } from '@/db/keyword-themes';
 import { readScanBacklog } from '@/db/keyword-scan-backlog';
 import { autocompleteGate, type ProviderGate, spApiBackgroundGate } from '@/db/provider-gates';
 import { keywordQueues } from '@/jobs/keyword-job-queues';
@@ -25,16 +26,17 @@ const queues: readonly {
 ];
 
 // One operator read: pause state, scan backlog against its allowance, the weekly Brand Analytics
-// import, and for each keyword queue its live counts and whether its provider can start now.
+// import, keyword theme counts, and for each keyword queue its live counts and whether its provider can start now.
 export const readKeywordJobsStatus = async () => {
     const now = new Date();
-    const [control, backlog, counts, readiness, usage, brandAnalytics] = await Promise.all([
+    const [control, backlog, counts, readiness, usage, brandAnalytics, themes] = await Promise.all([
         readAutomaticSync(),
         readScanBacklog(now),
         readJobQueueCounts(queues.map(queue => queue.name)),
         Promise.all(queues.map(queue => queue.gate?.(now) ?? Promise.resolve(now))),
         readAutocompleteUsage(now),
         readBrandAnalyticsStatus(),
+        readKeywordThemeCounts(),
     ]);
     return {
         paused: control.paused,
@@ -67,7 +69,9 @@ export const readKeywordJobsStatus = async () => {
                 : null,
             keptTerms: brandAnalytics.terms?.kept ?? 0,
             awaitingTrial: brandAnalytics.terms?.unregistered ?? 0,
+            awaitingTheme: brandAnalytics.terms?.awaiting_theme ?? 0,
         },
+        themes,
         queues: queues.map((queue, index) => {
             const row = counts.find(count => count.name === queue.name);
             const readyAt = readiness[index];

@@ -238,6 +238,7 @@ export {
 export { spApiCatalogCapacity } from './spapi-capacity-schema';
 
 export { keywordAutocomplete, keywordProviderCapacity } from './keyword-autocomplete-schema';
+export { keywordThemes } from './keyword-theme-schema';
 
 export { brandAnalyticsSearchTerms, brandAnalyticsImports } from './brand-analytics-schema';
 

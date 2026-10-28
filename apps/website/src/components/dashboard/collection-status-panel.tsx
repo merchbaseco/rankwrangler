@@ -153,6 +153,8 @@ const SOURCE_LABELS: Record<string, string> = {
 	adsRecommendation: "Amazon Ads (retired)",
 	interest: "Research interest",
 	brandAnalytics: "Brand Analytics",
+	autocomplete: "Autocomplete",
+	themeAutocomplete: "Theme autocomplete",
 	catalogFacet: "Catalog topics",
 	catalogBrand: "Catalog brands",
 	legacy: "Imported",

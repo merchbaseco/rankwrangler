@@ -303,6 +303,7 @@ bun test \
     apps/server/test/discovery-sources.db.test.ts \
     apps/server/test/keyword-jobs.db.test.ts \
     apps/server/test/keyword-autocomplete.db.test.ts \
+    apps/server/test/keyword-themes.db.test.ts \
     apps/server/test/keyword-directory.db.test.ts \
     apps/server/test/keyword-realtime.db.test.ts \
     apps/server/test/keyword-directory-status.db.test.ts \

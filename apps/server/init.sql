@@ -71,5 +71,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- automatic_sync_control, keyword_autocomplete and keyword_mining_capacity persist the pause
 -- switch, one-time autocomplete expansion and autocomplete pacing.
 -- brand_analytics_search_terms keeps the latest kept weekly Brand Analytics search terms (rank,
--- apparel clicks, clicked ASINs, first/last week, trial registration); brand_analytics_imports
--- records each weekly report import's state and counts.
+-- apparel clicks, Merch product text, theme, clicked ASINs, first/last week, trial registration);
+-- brand_analytics_imports records each weekly report import's state and counts; keyword_themes
+-- holds one row per tracked-keyword theme and its one-time autocomplete expansion.
