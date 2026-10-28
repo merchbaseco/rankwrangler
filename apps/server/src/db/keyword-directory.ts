@@ -6,14 +6,15 @@ import { db } from './index';
 type DirectoryRow = {
     sortKey: z.infer<typeof keywordDirectoryCursor>['key'];
     id: string;
-    queryId: string | null;
+    queryId: string;
     term: string;
     createdAt: string;
     status: 'queued' | 'scanning' | 'upToDate' | 'untracked';
-    untrackedReason: 'notRelevant' | 'noMerchFound' | 'notScheduled' | null;
+    untrackedReason: 'noMerchFound' | 'notScheduled' | null;
     retryScheduled: boolean;
     heat: string;
     score: number | null;
+    searchFrequencyRank: number | null;
     sources: string[];
     products: number;
     merch: number;
@@ -42,9 +43,9 @@ export const readKeywordDirectory = async (
         with directory as (
             select q.id,q.id "queryId",q.normalized_term term,q.created_at "createdAt",
                 coalesce(t.tracking,'untracked') qualification,coalesce(t.standing_tier,'unrated') heat,
-                t.popularity_score score,coalesce(s.sources,'{}'::text[]) sources,
+                t.popularity_score score,ba.search_frequency_rank "searchFrequencyRank",coalesce(s.sources,'{}'::text[]) sources,
                 case when a.stage='complete' then 'complete' when a.claim_at>${asOf}::timestamp-interval '5 minutes' then 'running'
-                    when a.failure_count>0 then 'retrying' when a.stage='suggestionsSaved' then 'judging' when t.tracking='tracked' and t.enabled then 'queued' else 'not eligible' end expansion,
+                    when a.failure_count>0 then 'retrying' when t.tracking='tracked' and t.enabled then 'queued' else 'not eligible' end expansion,
                 case when p.claim_at>${asOf}::timestamp-interval '5 minutes' then 'running'
                     when not coalesce(t.enabled,false) then 'paused' when p.failure_count>0 then 'retrying'
                     when p.stop_reason in ('running','budget','jobCap') and (t.head_observed_at is null
@@ -53,7 +54,6 @@ export const readKeywordDirectory = async (
                 coalesce(m.products,0)::int products,coalesce(m.merch,0)::int merch,
                 coalesce(p.last_page_at,t.head_observed_at) "lastCheckedAt",case when p.stop_reason in ('running','budget','jobCap') then p.resume_at else least(t.next_check_at,p.resume_at) end "nextCheckAt",t.interval_days "intervalDays",
                 case when t.enabled and t.tracking<>'dormant' then null
-                    when c.verdict='rejected' then 'notRelevant'
                     when t.tracking='dormant' and t.trial_failures>=2 then 'noMerchFound'
                     else 'notScheduled' end "untrackedReason",
                 case when t.tracking='tracked' and t.enabled and coalesce(a.stage,'pending')<>'complete' then coalesce(a.next_due_at,q.created_at) end "autocompleteDueAt",
@@ -64,24 +64,16 @@ export const readKeywordDirectory = async (
             from catalog_queries q
             left join discovery_targets t on t.query_id=q.id and t.kind='keyword'
             left join keyword_autocomplete a on a.query_id=q.id
-            left join mined_keyword_candidates c on c.marketplace_id=q.marketplace_id and c.term=q.normalized_term
+            left join brand_analytics_search_terms ba on ba.marketplace_id=q.marketplace_id and ba.normalized_term=q.normalized_term
             left join lateral (select array_agg(distinct e.kind) sources from discovery_evidence e where e.target_id=t.id and e.eligible) s on true
             left join lateral (select claim_at,stop_reason,resume_at,last_page_at,failure_count from keyword_exploration_passes where target_id=t.id order by created_at desc,id desc limit 1) p on true
             left join lateral (select count(*) products,count(*) filter(where pr.is_merch_listing=true and pr.amazon_listing_status='active') merch
                 from keyword_products kp join products pr on pr.id=kp.product_id where kp.query_id=q.id) m on true
             where q.marketplace_id='ATVPDKIKX0DER'
-            union all
-            select c.id,null::uuid,c.term,c.created_at,case when c.verdict is null then 'pending' else c.verdict end,'unrated',null::real,
-                array_remove(array[case when exists(select 1 from product_keyword_candidates l where l.candidate_id=c.id) then 'adsRecommendation' end,
-                    case when exists(select 1 from autocomplete_keyword_candidates l where l.candidate_id=c.id) then 'autocomplete' end],null),
-                case when c.claim_at>${asOf}::timestamp-interval '5 minutes' then 'running' else 'not eligible' end,
-                'not eligible',0,0,null::timestamp,null::timestamp,null::real,case when c.verdict='rejected' then 'notRelevant' end,null::timestamp,3,0::double precision,0::bigint,extract(epoch from c.created_at)*1000000,c.id
-            from mined_keyword_candidates c where c.marketplace_id='ATVPDKIKX0DER'
-                and not exists(select 1 from catalog_queries q where q.marketplace_id=c.marketplace_id and q.normalized_term=c.term)
         ), classified as (
             select *,case when "untrackedReason" is not null then 'untracked'
                 when expansion='running' or discovery='running' then 'scanning'
-                when qualification in ('pending','accepted') or discovery in ('queued','waiting','retrying') then 'queued'
+                when discovery in ('queued','waiting','retrying') then 'queued'
                 else 'upToDate' end status,
                 (expansion='retrying' or discovery='retrying') "retryScheduled"
             from directory
@@ -94,11 +86,11 @@ export const readKeywordDirectory = async (
             select *,case when ${sort}='newest' then jsonb_build_array(0,0,0,0,0,-extract(epoch from "createdAt")*1000000,id)
                 else jsonb_build_array(bucket,
                     case when bucket in (2,3) then extract(epoch from eligible_at)*1000000 else 0 end,
-                    case when bucket=1 and discovery in ('queued','waiting','retrying') then "scanClass" when bucket=1 and qualification in ('pending','accepted') then 3 when bucket=1 then 2 else 0 end,
+                    case when bucket=1 and discovery in ('queued','waiting','retrying') then "scanClass" when bucket=1 then 2 else 0 end,
                     case when bucket=1 and discovery in ('queued','waiting','retrying') then -urgency when bucket=1 then -coalesce(score,0)::double precision else 0 end,
                     selected,"queueCreated","queueIdentity") end "sortKey"
             from readiness
-        ) select id,"queryId",term,"createdAt",status,"untrackedReason","retryScheduled",heat,score,sources,products,merch,"lastCheckedAt","sortKey",
+        ) select id,"queryId",term,"createdAt",status,"untrackedReason","retryScheduled",heat,score,"searchFrequencyRank",sources,products,merch,"lastCheckedAt","sortKey",
             case when status='untracked' then null else "nextCheckAt" end "nextCheckAt",
             case when status='untracked' then null else "intervalDays" end "intervalDays"
         from ordered where

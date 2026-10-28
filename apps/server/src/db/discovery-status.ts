@@ -7,7 +7,7 @@ import { db } from './index';
 import { readCatalogCapacity } from './spapi-capacity';
 
 export const readDiscoveryStatus = async () => {
-    const [state, scopes, sources, yields, mining, standings] = await Promise.all([
+    const [state, scopes, sources, yields, [brandAnalytics], standings] = await Promise.all([
         readCatalogCapacity(),
         db.execute<{ kind: string; targets: number; enabled: number }>(sql`
             select kind,count(*)::int targets,count(*) filter(where enabled)::int enabled
@@ -37,9 +37,9 @@ export const readDiscoveryStatus = async () => {
                 coalesce(sum(non_merch_products) filter(where status='accepted'),0)::int non_merch,
                 count(*) filter(where started_at is not null)::int physical_starts
             from keyword_discovery_attempts where attempted_at>timezone('UTC',now())-interval '24 hours'`),
-        db.execute<{ stage: string; products: number }>(
-            sql`select stage,count(*)::int products from product_keyword_mining group by stage order by stage`
-        ),
+        db.execute<{ kept: number; registered: number }>(sql`
+            select count(*)::int kept,count(*) filter(where registered_at is not null)::int registered
+            from brand_analytics_search_terms`),
         db.execute<{
             keyword: string;
             tracking: string;
@@ -56,7 +56,7 @@ export const readDiscoveryStatus = async () => {
     if (!counts) throw new Error('Discovery yield aggregate returned no row');
     const balance = state ? catalogCapacityBalance(state, new Date()) : null;
     return {
-        mining: [...mining],
+        brandAnalytics: brandAnalytics ?? { kept: 0, registered: 0 },
         standings: [...standings],
         scopes: [...scopes],
         sources: [...sources],

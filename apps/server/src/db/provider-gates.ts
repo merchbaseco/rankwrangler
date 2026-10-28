@@ -1,9 +1,12 @@
 import { eq } from 'drizzle-orm';
-import { catalogCapacityBalance, catalogCapacityDecision } from '@/services/catalog-capacity-policy';
+import {
+    catalogCapacityBalance,
+    catalogCapacityDecision,
+} from '@/services/catalog-capacity-policy';
 import { isAutomaticSyncPaused } from './automatic-sync';
 import { db } from './index';
-import { keywordProviderReadyAt } from './keyword-mining-capacity';
-import { keywordMiningCapacity } from './keyword-mining-schema';
+import { autocompleteReadyAt } from './keyword-autocomplete-capacity';
+import { keywordProviderCapacity } from './keyword-autocomplete-schema';
 import { spApiCatalogCapacity } from './spapi-capacity-schema';
 
 // A gate reports when its provider can next start background keyword work, or null while the
@@ -36,17 +39,11 @@ export const spApiBackgroundSpacingMs = async (now = new Date()) => {
     return Math.ceil((1000 / rps) * 1.1);
 };
 
-const keywordProviderGate =
-    (provider: 'ads' | 'jev' | 'autocomplete'): ProviderGate =>
-    async (now = new Date()) => {
-        if (await isAutomaticSyncPaused()) return null;
-        const [row] = await db
-            .select()
-            .from(keywordMiningCapacity)
-            .where(eq(keywordMiningCapacity.provider, provider));
-        return keywordProviderReadyAt(row, now);
-    };
-
-export const adsGate = keywordProviderGate('ads');
-export const jevGate = keywordProviderGate('jev');
-export const autocompleteGate = keywordProviderGate('autocomplete');
+export const autocompleteGate: ProviderGate = async (now = new Date()) => {
+    if (await isAutomaticSyncPaused()) return null;
+    const [row] = await db
+        .select()
+        .from(keywordProviderCapacity)
+        .where(eq(keywordProviderCapacity.provider, 'autocomplete'));
+    return autocompleteReadyAt(row, now);
+};

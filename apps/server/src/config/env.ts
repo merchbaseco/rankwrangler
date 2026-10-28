@@ -10,9 +10,6 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 export const env = createEnv({
     server: {
-        RANKWRANGLER_ADS_CLIENT_ID: z.string().optional(),
-        RANKWRANGLER_ADS_CLIENT_SECRET: z.string().optional(),
-        RANKWRANGLER_ADS_REFRESH_TOKEN: z.string().optional(),
         RANKWRANGLER_PORT: z.coerce.number().default(8080),
         RANKWRANGLER_SPAPI_REFRESH_TOKEN: z.string(),
         RANKWRANGLER_SPAPI_CLIENT_ID: z.string(),
@@ -58,9 +55,6 @@ export const env = createEnv({
             databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_PASSWORD,
     },
     runtimeEnv: {
-        RANKWRANGLER_ADS_CLIENT_ID: process.env.RANKWRANGLER_ADS_CLIENT_ID,
-        RANKWRANGLER_ADS_CLIENT_SECRET: process.env.RANKWRANGLER_ADS_CLIENT_SECRET,
-        RANKWRANGLER_ADS_REFRESH_TOKEN: process.env.RANKWRANGLER_ADS_REFRESH_TOKEN,
         RANKWRANGLER_PORT: process.env.RANKWRANGLER_PORT,
         RANKWRANGLER_SPAPI_REFRESH_TOKEN: process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN,
         RANKWRANGLER_SPAPI_CLIENT_ID: process.env.RANKWRANGLER_SPAPI_CLIENT_ID,

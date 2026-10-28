@@ -1,28 +1,16 @@
 import { sql } from 'drizzle-orm';
-import {
-    pgTable,
-    uuid,
-    text,
-    timestamp,
-    integer,
-    jsonb,
-    index,
-    primaryKey,
-    check,
-} from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, jsonb, index, check } from 'drizzle-orm/pg-core';
 import { catalogQueries } from './catalog-search-schema';
-import { minedKeywordCandidates } from './keyword-mining-schema';
 
+// Once-per-seed Amazon autocomplete expansion. The saved suggestions record provenance; each one
+// became a keyword trial with `autocomplete` discovery evidence naming this seed.
 export const keywordAutocomplete = pgTable(
     'keyword_autocomplete',
     {
         queryId: uuid('query_id')
             .primaryKey()
             .references(() => catalogQueries.id, { onDelete: 'cascade' }),
-        stage: text('stage')
-            .$type<'pending' | 'suggestionsSaved' | 'complete'>()
-            .notNull()
-            .default('pending'),
+        stage: text('stage').$type<'pending' | 'complete'>().notNull().default('pending'),
         suggestions: jsonb('suggestions').$type<string[]>(),
         suggestedAt: timestamp('suggested_at', { mode: 'date' }),
         completedAt: timestamp('completed_at', { mode: 'date' }),
@@ -42,15 +30,17 @@ export const keywordAutocomplete = pgTable(
     })
 );
 
-export const autocompleteKeywordCandidates = pgTable(
-    'autocomplete_keyword_candidates',
-    {
-        queryId: uuid('query_id')
-            .notNull()
-            .references(() => keywordAutocomplete.queryId, { onDelete: 'cascade' }),
-        candidateId: uuid('candidate_id')
-            .notNull()
-            .references(() => minedKeywordCandidates.id, { onDelete: 'cascade' }),
-    },
-    table => ({ pk: primaryKey({ columns: [table.queryId, table.candidateId] }) })
-);
+// Durable autocomplete pacing and daily ceiling. The table keeps its earlier name, from when it
+// also paced Amazon Ads and Jev; autocomplete is now its only provider.
+export const keywordProviderCapacity = pgTable('keyword_mining_capacity', {
+    provider: text('provider').$type<'autocomplete'>().primaryKey(),
+    nextStartAt: timestamp('next_start_at', { mode: 'date' }).notNull().defaultNow(),
+    starts: integer('starts').notNull().default(0),
+    // Starts admitted on `day` (UTC). Null `dailyLimit` uses the default ceiling.
+    dailyLimit: integer('daily_limit'),
+    day: text('day'),
+    dayStarts: integer('day_starts').notNull().default(0),
+    // Adaptive pacing: spacing between starts grows on throttling and eases back on success.
+    spacingMs: integer('spacing_ms'),
+    consecutiveThrottles: integer('consecutive_throttles').notNull().default(0),
+});

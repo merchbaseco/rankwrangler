@@ -24,4 +24,4 @@ can rely on; reference docs own exact request and response shapes.
 | Domain completion notifications | [Realtime events](realtime-events.md) |
 | Persisted customer-visible events | [Activity log](activity-log.md) |
 
-Keyword discovery and cadence: [Keyword mining](keyword-mining.md).
+Keyword discovery and cadence: [Keyword collection](keyword-mining.md).

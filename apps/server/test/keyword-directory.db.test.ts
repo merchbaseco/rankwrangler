@@ -7,16 +7,12 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { eventLogs } from '@/db/ops-schema';
-import { minedKeywordCandidates } from '@/db/keyword-mining-schema';
 import { listKeywordDirectory } from '@/db/keyword-directory';
 import {
     claimKeywordAutocomplete,
-    saveAutocompleteSuggestions,
-    claimAutocompleteJudgments,
     finishKeywordAutocomplete,
     releaseKeywordAutocomplete,
 } from '@/db/keyword-autocomplete-work';
-import { saveKeywordJudgments } from '@/db/mined-keyword-candidates';
 import {
     resetDiscoveryFixture,
     seedDiscoveryTarget,
@@ -34,51 +30,29 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             await resetDiscoveryFixture();
             await db.delete(eventLogs).where(eq(eventLogs.category, 'keyword'));
         });
-        it('shows queued candidates and keeps rejected candidates in the untracked filter', async () => {
+        it('shows autocomplete suggestions as queued trials and logs the expansion', async () => {
             await seedDiscoveryTarget({ kind: 'keyword', term: 'hawaiian christmas' });
             const work = await claimKeywordAutocomplete(now);
             if (!work) throw new Error('Missing seed');
-            await saveAutocompleteSuggestions(
+            expect(
+                (await listKeywordDirectory(keywordDirectoryInput.parse({}))).items.find(
+                    row => row.term === work.term
+                )
+            ).toMatchObject({ status: 'queued', untrackedReason: null, merch: 0 });
+            await finishKeywordAutocomplete(
                 work,
                 ['hawaiian christmas shirt', 'hawaiian christmas cards'],
                 now
             );
-            const initial = await listKeywordDirectory(keywordDirectoryInput.parse({}));
-            expect(initial.items).toHaveLength(3);
-            expect(initial.items.find(row => row.term === work.term)).toMatchObject({
-                status: 'queued',
-                untrackedReason: null,
-                merch: 0,
-            });
-            expect(initial.items.find(row => row.term.endsWith('shirt'))).toMatchObject({
-                status: 'queued',
-                untrackedReason: null,
-            });
-            const batch = await claimAutocompleteJudgments(work, now);
-            await saveKeywordJudgments(
-                work,
-                batch.map(row => ({
-                    id: row.id,
-                    probability: row.term.endsWith('shirt') ? 0.95 : 0.05,
-                })),
-                now
-            );
-            expect(await finishKeywordAutocomplete(work, now)).toBe(true);
-            expect(await finishKeywordAutocomplete(work, now)).toBe(false);
             const admitted = await listKeywordDirectory(keywordDirectoryInput.parse({}));
-            expect(admitted.items).toHaveLength(2);
+            expect(admitted.items).toHaveLength(3);
             expect(admitted.items.find(row => row.term.endsWith('shirt'))).toMatchObject({
                 status: 'queued',
                 sources: ['autocomplete'],
             });
-            expect(
-                (await listKeywordDirectory(keywordDirectoryInput.parse({ state: 'untracked' })))
-                    .items
-            ).toHaveLength(1);
             const logs = await db.select().from(eventLogs).where(eq(eventLogs.category, 'keyword'));
             expect(logs.filter(row => row.action === 'keyword.expanded')).toHaveLength(1);
-            expect(logs.filter(row => row.action === 'keyword.qualified')).toHaveLength(2);
-            expect(logs.filter(row => row.action === 'keyword.candidate.added')).toHaveLength(2);
+            expect(logs.filter(row => row.action === 'keyword.added')).toHaveLength(3);
             expect(logs.every(row => row.primitiveType === 'keyword')).toBe(true);
         });
         it('records comma-typo searches under the same canonical keyword', async () => {
@@ -136,10 +110,13 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             expect(directory.items[0]).toMatchObject({ status: 'queued', retryScheduled: true });
         });
         it('preserves sub-millisecond creation times in pagination cursors', async () => {
-            await db.execute(sql`insert into mined_keyword_candidates(marketplace_id,term,created_at) values
-            ('ATVPDKIKX0DER','first shirt','2026-10-26 12:00:00.123457'),
-            ('ATVPDKIKX0DER','second shirt','2026-10-26 12:00:00.123456'),
-            ('ATVPDKIKX0DER','third shirt','2026-10-26 12:00:00.123455')`);
+            for (const term of ['first shirt', 'second shirt', 'third shirt'])
+                await seedDiscoveryTarget({ kind: 'keyword', term });
+            await db.execute(sql`update catalog_queries q set created_at=v.created_at::timestamp
+            from (values ('first shirt','2026-10-26 12:00:00.123457'),
+                ('second shirt','2026-10-26 12:00:00.123456'),
+                ('third shirt','2026-10-26 12:00:00.123455')) v(term,created_at)
+            where q.normalized_term=v.term`);
             const first = await listKeywordDirectory(
                 keywordDirectoryInput.parse({ limit: 1, sort: 'newest' })
             );
@@ -152,13 +129,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             expect(remaining.items.map(row => row.term)).toEqual(['second shirt', 'third shirt']);
         });
         it('paginates equal timestamps without duplicates and filters literal text', async () => {
-            await db.insert(minedKeywordCandidates).values(
-                ['fishing shirt', 'fishing boat shirt', '100% fishing shirt'].map(term => ({
-                    term,
-                    marketplaceId: 'ATVPDKIKX0DER',
-                    createdAt: now,
-                }))
-            );
+            for (const term of ['fishing shirt', 'fishing boat shirt', '100% fishing shirt'])
+                await seedDiscoveryTarget({ kind: 'keyword', term }, now);
             const first = await listKeywordDirectory(keywordDirectoryInput.parse({ limit: 2 }));
             expect(first.nextCursor).not.toBeNull();
             const second = await listKeywordDirectory(

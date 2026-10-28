@@ -301,7 +301,6 @@ bun test \
     apps/server/test/keyword-collection.db.test.ts \
     apps/server/test/discovery-capacity.db.test.ts \
     apps/server/test/discovery-sources.db.test.ts \
-    apps/server/test/keyword-mining.db.test.ts \
     apps/server/test/keyword-jobs.db.test.ts \
     apps/server/test/keyword-autocomplete.db.test.ts \
     apps/server/test/keyword-directory.db.test.ts \

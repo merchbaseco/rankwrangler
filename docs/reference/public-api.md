@@ -315,10 +315,10 @@ warm, cold and unrated. Sort defaults to work priority; newest is also available
 independently, so work order is a priority view rather than a fixed FIFO rank. Pass nextCursor
 unchanged to retain the full ordering snapshot. Both procedures read stored data without provider calls.
 Entries include sources, status, untrackedReason, retryScheduled, known Merch/product counts,
-score, last check, interval and next check. Reasons are notRelevant, noMerchFound and notScheduled.
-These describe our collection
-progress and priority, not organic search volume. Brand Analytics reports and keyword history
-were removed in v0.12.0. `keyword.results` still provides dated Amazon product-search evidence.
+score, searchFrequencyRank (the latest weekly Amazon Brand Analytics rank, or null when Amazon does
+not rank the term), last check, interval and next check. Reasons are noMerchFound and notScheduled.
+Status and score describe our collection progress and priority, not organic search volume.
+Weekly Brand Analytics history is not exposed. `keyword.results` still provides dated Amazon product-search evidence.
 
 ## Raw Request
 

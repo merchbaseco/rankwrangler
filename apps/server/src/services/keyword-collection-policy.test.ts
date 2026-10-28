@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
     explorationCheckpoint,
+    passPageLimit,
     KEYWORD_DAY_MS,
     keywordRetryAt,
     nextKeywordObservation,
@@ -92,5 +93,25 @@ describe('keyword collection policy', () => {
                 resultCount: 20,
             }).contiguousPages
         ).toBe(2);
+    });
+    it('limits pass depth by Brand Analytics popularity', () => {
+        expect(passPageLimit(null)).toBe(10);
+        expect(passPageLimit(1)).toBe(10);
+        expect(passPageLimit(100_000)).toBe(10);
+        expect(passPageLimit(100_001)).toBe(5);
+        expect(passPageLimit(1_000_000)).toBe(5);
+        expect(passPageLimit(1_000_001)).toBe(3);
+        const page = (pageLimit: number) =>
+            explorationCheckpoint({
+                page: 2,
+                nextPage: 2,
+                contiguousPages: 2,
+                lowYieldPages: 0,
+                newMerchCount: 12,
+                resultCount: 20,
+                pageLimit,
+            }).stopReason;
+        expect(page(3)).toBe('pageLimit');
+        expect(page(5)).toBe('running');
     });
 });

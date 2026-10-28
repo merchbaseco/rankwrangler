@@ -8,7 +8,7 @@ import { catalogQueries } from '@/db/catalog-search-schema';
 import { discoveryTargets } from '@/db/discovery-target-schema';
 import { keywordAutocomplete } from '@/db/keyword-autocomplete-schema';
 import { keywordExplorationPasses } from '@/db/keyword-collection-schema';
-import { minedKeywordCandidates } from '@/db/keyword-mining-schema';
+import { brandAnalyticsSearchTerms } from '@/db/brand-analytics-schema';
 import { listKeywordDirectory } from '@/db/keyword-directory';
 import { resetDiscoveryFixture, seedDiscoveryTarget } from './discovery-fixture';
 
@@ -64,40 +64,32 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('plain keyword stat
             normalizedTerm: 'old phrase',
             displayTerm: 'Old phrase',
         });
-        await db.insert(minedKeywordCandidates).values({
-            marketplaceId: 'ATVPDKIKX0DER',
-            term: 'christmas cards',
-            verdict: 'rejected',
-        });
         expect((await read()).items).toEqual([]);
         const rows = (await read('untracked')).items;
-        expect(rows).toHaveLength(3);
+        expect(rows).toHaveLength(2);
         expect(rows.find(row => row.term === 'empty niche shirt')).toMatchObject({
             status: 'untracked',
             untrackedReason: 'noMerchFound',
             nextCheckAt: null,
             intervalDays: null,
         });
-        expect(rows.find(row => row.term === 'christmas cards')?.untrackedReason).toBe(
-            'notRelevant'
-        );
         expect(rows.find(row => row.term === 'old phrase')?.untrackedReason).toBe('notScheduled');
     });
-    it('treats a live candidate judgment as scanning and respects explicit user tracking over a rejection', async () => {
-        const now = new Date();
-        await db.insert(minedKeywordCandidates).values({
+    it('shows the Brand Analytics rank of a ranked keyword', async () => {
+        await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
+        await seedDiscoveryTarget({ kind: 'keyword', term: 'unranked shirt' });
+        await db.insert(brandAnalyticsSearchTerms).values({
             marketplaceId: 'ATVPDKIKX0DER',
-            term: 'fishing shirt',
-            claimAt: now,
-            claimToken: token,
+            normalizedTerm: 'fishing shirt',
+            searchFrequencyRank: 4321,
+            apparelClicks: 2,
+            clickedAsins: ['B0TST00001', 'B0TST00002'],
+            firstSeenWeek: '2026-10-18',
+            lastSeenWeek: '2026-10-18',
         });
-        expect((await read()).items[0].status).toBe('scanning');
-        await db
-            .update(minedKeywordCandidates)
-            .set({ verdict: 'rejected', claimAt: null, claimToken: null });
-        expect((await read()).items).toEqual([]);
-        await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
-        expect((await read()).items[0]).toMatchObject({ status: 'queued', untrackedReason: null });
+        const rows = (await read()).items;
+        expect(rows.find(row => row.term === 'fishing shirt')?.searchFrequencyRank).toBe(4321);
+        expect(rows.find(row => row.term === 'unranked shirt')?.searchFrequencyRank).toBeNull();
     });
     it('does not hold a fresh keyword back for its one-time autocomplete expansion', async () => {
         const now = new Date();
@@ -132,14 +124,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('plain keyword stat
                     tracking: target.id === trial.id ? 'trial' : 'tracked',
                 })
                 .where(eq(discoveryTargets.id, target.id));
-            await db
-                .insert(keywordExplorationPasses)
-                .values({
-                    targetId: target.id,
-                    stopReason: 'sourceEnd',
-                    resumeAt: due,
-                    createdAt: due,
-                });
+            await db.insert(keywordExplorationPasses).values({
+                targetId: target.id,
+                stopReason: 'sourceEnd',
+                resumeAt: due,
+                createdAt: due,
+            });
             if (target.id !== trial.id)
                 await db
                     .insert(keywordAutocomplete)
@@ -167,16 +157,15 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('plain keyword stat
     it('keeps a new product scan ready even when autocomplete is waiting to retry', async () => {
         const now = new Date();
         const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
-        await db
-            .insert(keywordAutocomplete)
-            .values({
-                queryId: target.queryId,
-                failureCount: 1,
-                nextDueAt: new Date(now.getTime() + 86_400_000),
-            });
-        await db
-            .insert(minedKeywordCandidates)
-            .values({ marketplaceId: 'ATVPDKIKX0DER', term: 'other shirt' });
+        await db.insert(keywordAutocomplete).values({
+            queryId: target.queryId,
+            failureCount: 1,
+            nextDueAt: new Date(now.getTime() + 86_400_000),
+        });
+        await seedDiscoveryTarget(
+            { kind: 'keyword', term: 'other shirt' },
+            new Date(now.getTime() + 1000)
+        );
         const result = await listKeywordDirectory(keywordDirectoryInput.parse({ limit: 1 }));
         expect(result.items[0].term).toBe('fishing shirt');
         expect(result.nextCursor?.key[0]).toBe(1);

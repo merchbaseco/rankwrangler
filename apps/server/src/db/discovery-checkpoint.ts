@@ -1,8 +1,12 @@
 import { notifyKeywordQueryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
 import { observeKeywordStanding } from './keyword-standing';
-import { and, eq } from 'drizzle-orm';
-import { explorationCheckpoint, KEYWORD_DAY_MS } from '@/services/keyword-collection-policy';
+import { and, eq, sql } from 'drizzle-orm';
+import {
+    explorationCheckpoint,
+    KEYWORD_DAY_MS,
+    passPageLimit,
+} from '@/services/keyword-collection-policy';
 import type { persistDiscoveredSpApiProducts } from '@/services/spapi-keyword-discovery';
 import { catalogQueries } from './catalog-search-schema';
 import { lockCatalogQueryForReconciliation } from './catalog-query-resolution';
@@ -10,6 +14,8 @@ import { recordDiscoveryMembership } from './discovery-membership';
 import { discoveryTargets } from './discovery-target-schema';
 import { db } from './index';
 import { keywordDiscoveryAttempts, keywordExplorationPasses } from './keyword-collection-schema';
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export const checkpointDiscoveryPage = async <T>(input: {
     passId: string;
@@ -19,10 +25,7 @@ export const checkpointDiscoveryPage = async <T>(input: {
     nextPageToken: string | null;
     observedAt: Date;
     products: T[];
-    persist: (
-        tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-        products: T[]
-    ) => ReturnType<typeof persistDiscoveredSpApiProducts>;
+    persist: (tx: Transaction, products: T[]) => ReturnType<typeof persistDiscoveredSpApiProducts>;
 }) =>
     db.transaction(async tx => {
         const [pass] = await tx
@@ -83,6 +86,9 @@ export const checkpointDiscoveryPage = async <T>(input: {
             page: input.page,
             newMerchCount: persisted.newMerchProductIds.length,
             resultCount: input.products.length,
+            pageLimit: passPageLimit(
+                target.kind === 'keyword' ? await searchFrequencyRank(tx, target.queryId) : null
+            ),
         });
         const fingerprint = [...persisted.productIds].sort().join(',');
         if (
@@ -163,3 +169,13 @@ export const checkpointDiscoveryPage = async <T>(input: {
         await notifyKeywordQueryRows(tx, [target.queryId]);
         return next;
     });
+
+// The keyword's latest Brand Analytics rank, or null when Amazon does not rank it.
+const searchFrequencyRank = async (tx: Transaction, queryId: string) => {
+    const [row] = await tx.execute<{ rank: number }>(sql`
+        select ba.search_frequency_rank rank from catalog_queries q
+        join brand_analytics_search_terms ba on ba.marketplace_id=q.marketplace_id
+            and ba.normalized_term=q.normalized_term
+        where q.id=${queryId}`);
+    return row?.rank ?? null;
+};

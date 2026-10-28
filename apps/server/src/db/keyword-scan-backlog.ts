@@ -4,8 +4,8 @@ import { scanBackpressure } from '@/services/keyword-scan-backpressure';
 import { db } from './index';
 import { spApiCatalogCapacity } from './spapi-capacity-schema';
 
-// Estimated SP-API scan work still ahead, and whether the producers that create more of it (Ads
-// mining, autocomplete) should admit new sources.
+// Estimated SP-API scan work still ahead, and whether the producers that create more of it
+// (Brand Analytics trials, autocomplete) should admit new keywords.
 export const readScanBacklog = async (now = new Date()) => {
     const [[capacity], [backlog]] = await Promise.all([
         db.select().from(spApiCatalogCapacity).where(eq(spApiCatalogCapacity.id, 1)),

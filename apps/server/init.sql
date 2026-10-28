@@ -68,7 +68,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \echo 'Extensions: uuid-ossp'
 \echo 'Ready for Drizzle migrations...'
 
--- automatic_sync_control, keyword_autocomplete, autocomplete_keyword_candidates,
--- product_keyword_mining, mined_keyword_candidates, product_keyword_candidates and
--- keyword_mining_capacity persist ASIN stages, globally cached judgments, provenance and pacing.
--- product_keyword_candidates also keeps Ads order, per-product relevance and the capped selection.
+-- automatic_sync_control, keyword_autocomplete and keyword_mining_capacity persist the pause
+-- switch, one-time autocomplete expansion and autocomplete pacing.
+-- brand_analytics_search_terms keeps the latest kept weekly Brand Analytics search terms (rank,
+-- apparel clicks, clicked ASINs, first/last week, trial registration); brand_analytics_imports
+-- records each weekly report import's state and counts.

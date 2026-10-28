@@ -372,6 +372,20 @@
       "when": 1793120528816,
       "tag": "0052_keyword_provider_pacing",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1793206357989,
+      "tag": "0053_retire_product_keyword_mining",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1793206358432,
+      "tag": "0054_brand_analytics_search_terms",
+      "breakpoints": true
     }
   ]
 }

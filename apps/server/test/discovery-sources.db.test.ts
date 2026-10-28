@@ -10,7 +10,7 @@ import { productSearchInput } from '@/api/product-search-input';
 import { discoveryNow as now, resetDiscoveryFixture } from './discovery-fixture';
 describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword sources without tags', () => {
     beforeEach(resetDiscoveryFixture);
-    it('tracks actual user searches immediately, once, without asking Jev', async () => {
+    it('tracks actual user searches immediately, once, as tracked keywords', async () => {
         await recordProductSearchInterest(productSearchInput.parse({ term: 'RN' }));
         await recordProductSearchInterest(productSearchInput.parse({ term: ' rn ' }));
         await recordProductSearchInterest(productSearchInput.parse({ term: 'B0TST00001' }));

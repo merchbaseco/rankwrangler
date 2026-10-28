@@ -3,25 +3,17 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { keywordAutocomplete } from '@/db/keyword-autocomplete-schema';
 import { discoveryTargets, discoveryEvidence } from '@/db/discovery-target-schema';
-import { minedKeywordCandidates } from '@/db/keyword-mining-schema';
-import { products } from '@/db/product-schema';
 import {
     claimKeywordAutocomplete,
-    saveAutocompleteSuggestions,
-    claimAutocompleteJudgments,
     finishKeywordAutocomplete,
     releaseKeywordAutocomplete,
 } from '@/db/keyword-autocomplete-work';
-import {
-    claimProductKeywordMining,
-    saveKeywordRecommendations,
-    claimKeywordJudgments,
-    finishProductKeywordMining,
-} from '@/db/keyword-mining-work';
-import { saveKeywordJudgments } from '@/db/mined-keyword-candidates';
 import { expandKeywordAutocomplete } from '@/services/keyword-autocomplete';
-import { claimRelevanceCandidates, saveProductRelevance } from '@/db/product-keyword-relevance';
-import { reserveKeywordMiningCall, deferKeywordMiningProvider } from '@/db/keyword-mining-capacity';
+import {
+    AutocompleteDeferred,
+    deferAutocomplete,
+    reserveAutocompleteCall,
+} from '@/db/keyword-autocomplete-capacity';
 import {
     resetDiscoveryFixture,
     seedDiscoveryTarget,
@@ -34,33 +26,13 @@ const claim = async (at = now) => {
     if (!work) throw new Error('Missing autocomplete work');
     return work;
 };
-const relevant = async (work: Awaited<ReturnType<typeof product>>) => {
-    const rows = await claimRelevanceCandidates(work);
-    await saveProductRelevance(
-        work,
-        rows.map(row => ({ id: row.id, probability: 0.9 }))
-    );
-};
-const product = async () => {
-    await db
-        .insert(products)
-        .values({
-            asin: 'B07ZSKYWL2',
-            marketplaceId: 'ATVPDKIKX0DER',
-            title: 'Mele Kalikimaka Christmas Shirt',
-            isMerchListing: true,
-        });
-    const work = await claimProductKeywordMining(now);
-    if (!work) throw new Error('Missing product work');
-    return work;
-};
 
 describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable keyword autocomplete', () => {
     beforeEach(resetDiscoveryFixture);
-    it('expands once, rejects self/duplicates, saves provenance and trials without recursively expanding them', async () => {
+    it('expands once, rejects self/duplicates and registers trials without recursively expanding them', async () => {
         await seed();
         const work = await claim();
-        await saveAutocompleteSuggestions(
+        await finishKeywordAutocomplete(
             work,
             [
                 'hawaiian christmas',
@@ -70,108 +42,49 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable keyword au
             ],
             now
         );
-        const batch = await claimAutocompleteJudgments(work, now);
-        expect(batch).toHaveLength(2);
-        await saveKeywordJudgments(
-            work,
-            batch.map(row => ({
-                id: row.id,
-                probability: row.term.endsWith('shirt') ? 0.95 : 0.05,
-            })),
-            now
-        );
-        expect(await finishKeywordAutocomplete(work, now)).toBe(true);
         expect(await claimKeywordAutocomplete(now)).toBeNull();
         expect(
             (await db.select().from(discoveryTargets)).filter(t => t.tracking === 'trial')
-        ).toHaveLength(1);
+        ).toHaveLength(2);
         expect(
-            (await db.select().from(discoveryEvidence)).some(
-                e => e.kind === 'autocomplete' && e.sourceKey === work.queryId
+            (await db.select().from(discoveryEvidence)).filter(
+                e => e.kind === 'autocomplete' && e.sourceKey === work.queryId && e.eligible
             )
-        ).toBe(true);
-        expect((await db.select().from(keywordAutocomplete))[0].suggestions).toHaveLength(2);
+        ).toHaveLength(2);
+        const [expansion] = await db.select().from(keywordAutocomplete);
+        expect(expansion).toMatchObject({ stage: 'complete' });
+        expect(expansion.suggestions).toEqual([
+            'hawaiian christmas shirt',
+            'hawaiian christmas cards',
+        ]);
     });
-    it('resumes saved responses after Jev failure without fetching Amazon again', async () => {
+    it('releases a deferred seed without completing it', async () => {
         await seed();
-        const work = await claim();
-        await saveAutocompleteSuggestions(work, ['hawaiian christmas shirt'], now);
-        await releaseKeywordAutocomplete(work, { retryAt: now, now });
-        let providerCalls = 0;
-        const result = await expandKeywordAutocomplete({
-            configured: () => true,
-            claim: (_now: Date, options?: { kind: 'source' | 'judgment' }) =>
-                claimKeywordAutocomplete(now, options),
+        const retryAt = new Date(now.getTime() + 60_000);
+        const result = await expandKeywordAutocomplete(undefined, {
+            claim: () => claimKeywordAutocomplete(now),
             suggest: async () => {
-                providerCalls++;
-                return [];
+                throw new AutocompleteDeferred(retryAt);
             },
-            save: saveAutocompleteSuggestions,
-            claimJudgments: claimAutocompleteJudgments,
-            judge: async rows => rows.map(row => ({ id: row.id, probability: 0.95 })),
-            saveJudgments: saveKeywordJudgments,
             finish: finishKeywordAutocomplete,
             release: releaseKeywordAutocomplete,
-        }, { kind: 'judgment' });
-        expect(result.kind).toBe('complete');
-        expect(providerCalls).toBe(0);
+        });
+        expect(result).toMatchObject({ kind: 'deferred', nextWakeAt: retryAt });
+        const [expansion] = await db.select().from(keywordAutocomplete);
+        expect(expansion).toMatchObject({ stage: 'pending', claimToken: null });
+        expect(expansion.nextDueAt).toEqual(retryAt);
     });
-    it('shares accepted and rejected Ads judgments without another Jev call', async () => {
-        const ads = await product();
-        await saveKeywordRecommendations(
-            ads,
-            ['hawaiian christmas shirt', 'hawaiian christmas cards'],
-            now
-        );
-        const batch = await claimKeywordJudgments(ads, now);
-        await saveKeywordJudgments(
-            ads,
-            batch.map(row => ({
-                id: row.id,
-                probability: row.term.endsWith('shirt') ? 0.95 : 0.05,
-            })),
-            now
-        );
-        await relevant(ads);
-        expect(await finishProductKeywordMining(ads, now)).toBe(true);
-        await seed();
-        const work = await claim();
-        await saveAutocompleteSuggestions(
-            work,
-            ['hawaiian christmas shirt', 'hawaiian christmas cards'],
-            now
-        );
-        expect(await claimAutocompleteJudgments(work, now)).toEqual([]);
-        expect(await finishKeywordAutocomplete(work, now)).toBe(true);
-        expect(await db.select().from(minedKeywordCandidates)).toHaveLength(2);
-    });
-    it('fences stale owners and claims shared candidates once across both sources', async () => {
+    it('fences stale owners', async () => {
         await seed();
         const old = await claim();
         expect(await claimKeywordAutocomplete(now)).toBeNull();
         const later = new Date(now.getTime() + 300_001);
         const work = await claim(later);
         await expect(
-            saveAutocompleteSuggestions(old, ['hawaiian christmas shirt'], later)
+            finishKeywordAutocomplete(old, ['hawaiian christmas shirt'], later)
         ).rejects.toThrow('expired');
-        await releaseKeywordAutocomplete(old, { now: later });
-        await saveAutocompleteSuggestions(work, ['hawaiian christmas shirt'], later);
-        const ads = await product();
-        await saveKeywordRecommendations(ads, ['hawaiian christmas shirt'], later);
-        const batches = await Promise.all([
-            claimAutocompleteJudgments(work, later),
-            claimKeywordJudgments(ads, later),
-        ]);
-        expect(batches.flat()).toHaveLength(1);
-        const owner = batches[0].length ? work : ads;
-        await saveKeywordJudgments(
-            owner,
-            batches.flat().map(row => ({ id: row.id, probability: 0.95 })),
-            later
-        );
-        expect(await finishKeywordAutocomplete(work, later)).toBe(true);
-        await relevant(ads);
-        expect(await finishProductKeywordMining(ads, later)).toBe(true);
+        await finishKeywordAutocomplete(work, ['hawaiian christmas shirt'], later);
+        expect(await claimKeywordAutocomplete(later)).toBeNull();
     });
     it('completes empty responses and ignores disabled seeds', async () => {
         const target = await seed();
@@ -185,18 +98,16 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('durable keyword au
             .set({ enabled: true })
             .where(eq(discoveryTargets.id, target.id));
         const work = await claim();
-        await saveAutocompleteSuggestions(work, [], now);
-        expect(await finishKeywordAutocomplete(work, now)).toBe(true);
+        await finishKeywordAutocomplete(work, [], now);
         expect(await claimKeywordAutocomplete(now)).toBeNull();
     });
-    it('persists independent autocomplete pacing and never shortens cooldowns', async () => {
-        await reserveKeywordMiningCall('autocomplete', now);
-        await expect(reserveKeywordMiningCall('autocomplete', now)).rejects.toThrow('deferred');
-        await reserveKeywordMiningCall('ads', now);
-        await deferKeywordMiningProvider('autocomplete', new Date(now.getTime() + 60_000));
-        await deferKeywordMiningProvider('autocomplete', new Date(now.getTime() + 20_000));
-        await expect(
-            reserveKeywordMiningCall('autocomplete', new Date(now.getTime() + 30_000))
-        ).rejects.toThrow('deferred');
+    it('persists autocomplete pacing and never shortens cooldowns', async () => {
+        await reserveAutocompleteCall(now);
+        await expect(reserveAutocompleteCall(now)).rejects.toThrow('deferred');
+        await deferAutocomplete(new Date(now.getTime() + 60_000));
+        await deferAutocomplete(new Date(now.getTime() + 20_000));
+        await expect(reserveAutocompleteCall(new Date(now.getTime() + 30_000))).rejects.toThrow(
+            'deferred'
+        );
     });
 });

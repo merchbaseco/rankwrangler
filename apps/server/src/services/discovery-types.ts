@@ -1,3 +1,5 @@
+// `adsRecommendation` evidence is no longer produced; it remains on keywords that the retired
+// Amazon Ads product mining registered.
 export type DiscoverySource =
     | 'interest'
     | 'brandAnalytics'

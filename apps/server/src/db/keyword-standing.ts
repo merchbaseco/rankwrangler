@@ -1,6 +1,10 @@
 import { writeKeywordEvents } from './keyword-events';
 import { and, eq, inArray } from 'drizzle-orm';
-import { keywordPopularity, nextKeywordStanding } from '@/services/keyword-standing-policy';
+import {
+    keywordPopularity,
+    nextKeywordStanding,
+    nextKeywordTracking,
+} from '@/services/keyword-standing-policy';
 import { catalogQueries } from './catalog-search-schema';
 import { discoveryTargets } from './discovery-target-schema';
 import { products } from './product-schema';
@@ -59,14 +63,11 @@ export const observeKeywordStanding = async (
         demotionCount: target.demotionCount,
         now,
     });
-    const trialFailures =
-        target.tracking === 'trial' && rows.length === 0 ? target.trialFailures + 1 : 0;
-    const tracking =
-        target.tracking === 'tracked' || rows.length
-            ? ('tracked' as const)
-            : trialFailures >= 2
-              ? ('dormant' as const)
-              : target.tracking;
+    const { tracking, trialFailures } = nextKeywordTracking({
+        tracking: target.tracking,
+        trialFailures: target.trialFailures,
+        merchOnFirstPage: rows.length,
+    });
     await tx
         .update(discoveryTargets)
         .set({

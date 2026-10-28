@@ -6,27 +6,13 @@ import { and, eq, sql } from 'drizzle-orm';
 import { db } from './index';
 import { catalogQueries } from './catalog-search-schema';
 import { discoveryTargets } from './discovery-target-schema';
-import {
-    keywordAutocomplete as expansion,
-    autocompleteKeywordCandidates as links,
-} from './keyword-autocomplete-schema';
-import { minedKeywordCandidates as candidates } from './keyword-mining-schema';
-import {
-    saveCandidateTerms,
-    claimCandidateJudgments,
-    releaseCandidateJudgments,
-} from './mined-keyword-candidates';
+import { keywordAutocomplete as expansion } from './keyword-autocomplete-schema';
 import { recordDiscoveryCandidates } from './discovery-candidates';
+import { normalizeDiscoveryKeyword } from '@/services/discovery-candidate-policy';
 import { keywordRetryAt } from '@/services/keyword-collection-policy';
 
-// `source` takes seeds that still need their Amazon call; `judgment` takes saved suggestions.
-export const claimKeywordAutocomplete = async (
-    now = new Date(),
-    {
-        kind = 'source' as 'source' | 'judgment',
-        queryId,
-    }: { kind?: 'source' | 'judgment'; queryId?: string } = {}
-) =>
+// Claims a tracked seed whose one-time expansion is due. With a queryId, only that seed.
+export const claimKeywordAutocomplete = async (now = new Date(), queryId?: string) =>
     db.transaction(async tx => {
         if (await isAutomaticSyncPaused(tx)) return null;
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext('keyword-autocomplete'))`);
@@ -46,7 +32,7 @@ export const claimKeywordAutocomplete = async (
                     eq(discoveryTargets.enabled, true),
                     eq(discoveryTargets.tracking, 'tracked'),
                     queryId ? eq(catalogQueries.id, queryId) : undefined,
-                    sql`(${kind === 'source' ? sql`${expansion.queryId} is null or ` : sql``}(${expansion.stage}=${kind === 'source' ? 'pending' : 'suggestionsSaved'}
+                    sql`(${expansion.queryId} is null or (${expansion.stage}<>'complete'
                 and ${expansion.nextDueAt}<=${now.toISOString()}::timestamp
                 and (${expansion.claimAt} is null or ${expansion.claimAt}<${new Date(now.getTime() - 300_000).toISOString()}::timestamp)))`
                 )
@@ -72,9 +58,11 @@ export const claimKeywordAutocomplete = async (
     });
 export type AutocompleteWork = NonNullable<Awaited<ReturnType<typeof claimKeywordAutocomplete>>>;
 
-export const saveAutocompleteSuggestions = async (
+// Saves the suggestions, registers each as a keyword trial and completes the seed in one
+// transaction. No model judges them: a trial's first-page scan decides whether it is tracked.
+export const finishKeywordAutocomplete = async (
     work: AutocompleteWork,
-    phrases: string[],
+    phrases: readonly string[],
     now = new Date()
 ) =>
     db.transaction(async tx => {
@@ -86,87 +74,28 @@ export const saveAutocompleteSuggestions = async (
             )
             .for('update');
         if (!owned) throw new Error('Autocomplete claim expired');
-        if (owned.stage !== 'pending') return;
-        const { terms, ids } = await saveCandidateTerms(
+        const suggestions = [
+            ...new Set(phrases.map(term => normalizeDiscoveryKeyword(term).toLowerCase())),
+        ]
+            .filter(term => term && term !== work.term)
+            .slice(0, 10);
+        const registered = await recordDiscoveryCandidates(
             tx,
-            work.marketplaceId,
-            phrases
-                .filter(term => term.trim().replace(/\s+/gu, ' ').toLowerCase() !== work.term)
-                .slice(0, 10),
-            now
-        );
-        if (ids.length)
-            await tx
-                .insert(links)
-                .values(ids.map(candidateId => ({ queryId: work.queryId, candidateId })))
-                .onConflictDoNothing();
-        await tx
-            .update(expansion)
-            .set({
-                stage: 'suggestionsSaved',
-                suggestions: terms,
-                suggestedAt: now,
-                failureCount: 0,
-            })
-            .where(eq(expansion.queryId, work.queryId));
-    });
-
-export const claimAutocompleteJudgments = async (work: AutocompleteWork, now = new Date()) =>
-    db.transaction(async tx => {
-        const [owned] = await tx
-            .select()
-            .from(expansion)
-            .where(
-                and(eq(expansion.queryId, work.queryId), eq(expansion.claimToken, work.claimToken))
-            )
-            .for('update');
-        if (!owned || owned.stage !== 'suggestionsSaved')
-            throw new Error('Autocomplete claim expired');
-        const rows = await tx
-            .select({ id: links.candidateId })
-            .from(links)
-            .where(eq(links.queryId, work.queryId));
-        return claimCandidateJudgments(
-            tx,
-            work.claimToken,
-            rows.map(row => row.id),
-            now
-        );
-    });
-
-export const finishKeywordAutocomplete = async (work: AutocompleteWork, now = new Date()) =>
-    db.transaction(async tx => {
-        const [owned] = await tx
-            .select()
-            .from(expansion)
-            .where(
-                and(eq(expansion.queryId, work.queryId), eq(expansion.claimToken, work.claimToken))
-            )
-            .for('update');
-        if (!owned || owned.stage !== 'suggestionsSaved') return false;
-        const rows = await tx
-            .select({ candidate: candidates })
-            .from(links)
-            .innerJoin(candidates, eq(candidates.id, links.candidateId))
-            .where(eq(links.queryId, work.queryId));
-        if (rows.some(row => row.candidate.verdict === null)) return false;
-        await recordDiscoveryCandidates(
-            tx,
-            rows
-                .filter(row => row.candidate.verdict === 'accepted')
-                .map(({ candidate }) => ({
-                    scope: { kind: 'keyword' as const, term: candidate.term },
-                    evidence: {
-                        kind: 'autocomplete' as const,
-                        sourceKey: work.queryId,
-                        observedAt: owned.suggestedAt ?? now,
-                    },
-                }))
+            suggestions.map(term => ({
+                scope: { kind: 'keyword' as const, term },
+                evidence: {
+                    kind: 'autocomplete' as const,
+                    sourceKey: work.queryId,
+                    observedAt: now,
+                },
+            }))
         );
         await tx
             .update(expansion)
             .set({
                 stage: 'complete',
+                suggestions,
+                suggestedAt: now,
                 completedAt: now,
                 claimAt: null,
                 claimToken: null,
@@ -179,13 +108,10 @@ export const finishKeywordAutocomplete = async (work: AutocompleteWork, now = ne
                 term: work.term,
                 action: 'keyword.expanded',
                 occurredAt: now,
-                details: {
-                    suggestions: owned.suggestions?.length ?? 0,
-                    accepted: rows.filter(row => row.candidate.verdict === 'accepted').length,
-                },
+                details: { suggestions: suggestions.length, trials: registered.targets },
             },
         ]);
-        return true;
+        await notifyKeywordQueryRows(tx, [work.queryId]);
     });
 
 export const releaseKeywordAutocomplete = async (
@@ -219,5 +145,4 @@ export const releaseKeywordAutocomplete = async (
                 },
             ]);
         if (released.length) await notifyKeywordQueryRows(tx, [work.queryId]);
-        await releaseCandidateJudgments(tx, work.claimToken);
     });

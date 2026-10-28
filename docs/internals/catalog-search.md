@@ -93,14 +93,17 @@ visible to callers or recovery and a concurrently completed reusable run does no
   page; the gated `scan-keyword` queue re-sends the job for the bucket's ready time.
   Background calls get one physical attempt; failures retry through durable backoff.
 - Exploration retains source, contiguous observed depth, oldest page time and stop reason. Two
-  pages each adding fewer than three catalog-new Merch products, or ten pages, stop a pass; repeated pages, provider exhaustion and stale continuation each
+  pages each adding fewer than three catalog-new Merch products, or the pass's page limit (ten,
+  five or three pages by Brand Analytics popularity), stop a pass; repeated pages, provider exhaustion and stale continuation each
   have bounded handling. These facts do not claim complete Amazon coverage or organic placement.
 
 Acquisition targets own tracked/trial/dormant state, the latest page-one Merch membership,
 explainable popularity score, cadence and next check. This is separate from Keepa admission.
 User searches directly track the exact phrase through API/MCP or the extension's Amazon search
-context; no synthetic apparel companion or product tags are added. Mined phrases enter trials.
-Two failed Merch trials become dormant; explicit user research reactivates them immediately.
+context; no synthetic apparel companion or product tags are added. Brand Analytics search terms
+and autocomplete suggestions enter trials; a trial graduates when its first page shows at least
+three confirmed Merch listings. Two failed trials become dormant; explicit user research
+reactivates them immediately.
 
 Score the latest first page using fresh current Merch BSRs, rewarding both strong leaders and
 breadth. Hot checks use 1–7 days,
@@ -110,8 +113,8 @@ searches. No new-ASIN yield is required to keep a strong known niche current. No
 expensive deeper paging. A durable claim sequence reserves one in five dispatches for trials,
 with the other class lending unused opportunities; physical request capacity remains the ceiling.
 
-[Keyword mining](keyword-mining.md) owns once-per-ASIN Ads recommendations, global Jev judgments,
-retry checkpoints, source evidence and provider budgets. Product facet classification remains
+[Keyword collection](keyword-mining.md) owns the weekly Brand Analytics import, trial admission,
+autocomplete expansion, retry checkpoints, source evidence and provider budgets. Product facet classification remains
 independently disabled. It is not an acquisition source. Exact verified official-brand exclusions
 remain evidence-backed, without guessed aliases or whole-licensee exclusions.
 

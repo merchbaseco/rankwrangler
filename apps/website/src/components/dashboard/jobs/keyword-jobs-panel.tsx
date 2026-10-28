@@ -9,9 +9,8 @@ type Status = RouterOutputs["api"]["app"]["jobs"]["keywordStatus"];
 const KEYWORD_JOBS: [string, ...string[]] = [
 	"schedule-keyword-work",
 	"scan-keyword",
-	"recommend-product-keywords",
-	"judge-keywords",
 	"autocomplete-keyword",
+	"import-brand-analytics",
 ];
 
 export const KeywordJobsPanel = () => {
@@ -33,6 +32,7 @@ export const KeywordJobsPanel = () => {
 	return (
 		<div className="space-y-3 p-3">
 			<Summary status={query.data} />
+			<BrandAnalyticsSummary status={query.data} />
 			<QueueTable status={query.data} />
 			<JobExecutionsPanel jobNames={KEYWORD_JOBS} />
 		</div>
@@ -48,8 +48,12 @@ const Summary = ({ status }: { status: Status }) => {
 			`${formatNumber(backlog.queuedPages)} of ${formatNumber(backlog.allowancePages)} pages`,
 		],
 		[
-			"New Ads and autocomplete",
-			status.paused ? "Paused" : backlog.producersOpen ? "Admitted" : "Held back (scan backlog)",
+			"New trials and autocomplete",
+			status.paused
+				? "Paused"
+				: backlog.producersOpen
+					? "Admitted"
+					: "Held back (scan backlog)",
 		],
 		["Keyword checks due", formatNumber(backlog.dueHeads)],
 		["Oldest due check", age(backlog.oldestDueHeadAt) ?? "None"],
@@ -64,6 +68,54 @@ const Summary = ({ status }: { status: Status }) => {
 				</div>
 			))}
 		</dl>
+	);
+};
+
+const BrandAnalyticsSummary = ({ status }: { status: Status }) => {
+	const { latestWeek, lastImported, keptTerms, awaitingTrial } =
+		status.brandAnalytics;
+	const stats = [
+		[
+			"Last imported week",
+			lastImported
+				? `${lastImported.weekStart} – ${lastImported.weekEnd}`
+				: "None yet",
+		],
+		["Kept search terms", formatNumber(keptTerms)],
+		[
+			"New terms last import",
+			lastImported?.newTerms === null || !lastImported
+				? "—"
+				: formatNumber(lastImported.newTerms),
+		],
+		["Awaiting trial", formatNumber(awaitingTrial)],
+		[
+			"Report",
+			latestWeek
+				? `${latestWeek.weekStart}: ${reportState(latestWeek.status, latestWeek.reportStatus)}`
+				: "Not requested",
+		],
+	];
+	return (
+		<section aria-label="Brand Analytics import" className="space-y-2">
+			<h3 className="font-medium text-xs">Brand Analytics import</h3>
+			<dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
+				{stats.map(([label, value]) => (
+					<div key={label}>
+						<dt className="text-muted-foreground">{label}</dt>
+						<dd className="font-medium tabular-nums">{value}</dd>
+					</div>
+				))}
+			</dl>
+			{latestWeek?.lastError ? (
+				<p
+					className="truncate text-muted-foreground text-xs"
+					title={latestWeek.lastError}
+				>
+					Last error: {latestWeek.lastError}
+				</p>
+			) : null}
+		</section>
 	);
 };
 
@@ -95,17 +147,18 @@ const QueueTable = ({ status }: { status: Status }) => (
 									? ` of ${formatNumber(queue.usage.dailyLimit)}`
 									: ""}{" "}
 								calls today
-								{queue.usage.tokensToday
-									? ` · ${formatNumber(queue.usage.tokensToday)} tokens`
-									: ""}
 							</span>
 						) : null}
 					</td>
-					<td className="text-right tabular-nums">{formatNumber(queue.waiting)}</td>
+					<td className="text-right tabular-nums">
+						{formatNumber(queue.waiting)}
+					</td>
 					<td className="text-right tabular-nums">
 						{formatNumber(queue.scheduled)}
 					</td>
-					<td className="text-right tabular-nums">{formatNumber(queue.running)}</td>
+					<td className="text-right tabular-nums">
+						{formatNumber(queue.running)}
+					</td>
 					<td className="text-right tabular-nums">
 						{age(queue.oldestWaitingAt) ?? "—"}
 					</td>
@@ -115,6 +168,23 @@ const QueueTable = ({ status }: { status: Status }) => (
 	</table>
 );
 
+const reportState = (status: string, reportStatus: string | null) => {
+	switch (status) {
+		case "pending":
+			return reportStatus
+				? `waiting to request again (${reportStatus})`
+				: "waiting to request";
+		case "requested":
+			return `generating${reportStatus ? ` (${reportStatus})` : ""}`;
+		case "ready":
+			return "importing";
+		case "imported":
+			return "imported";
+		default:
+			return status;
+	}
+};
+
 const providerState = (paused: boolean, readyAt: string | null) => {
 	if (paused) return "· paused";
 	if (!readyAt) return "· ready";
@@ -123,7 +193,10 @@ const providerState = (paused: boolean, readyAt: string | null) => {
 
 const age = (iso: string | null) => {
 	if (!iso) return null;
-	const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+	const minutes = Math.max(
+		0,
+		Math.round((Date.now() - Date.parse(iso)) / 60_000),
+	);
 	if (minutes < 60) return `${minutes}m`;
 	const hours = Math.round(minutes / 60);
 	return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`;

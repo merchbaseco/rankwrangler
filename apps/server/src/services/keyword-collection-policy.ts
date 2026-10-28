@@ -56,6 +56,22 @@ export const keywordRetryAt = (failures: number, now: Date, retryAfterMs = 0) =>
 // A pass stops at this many pages even while pages keep finding new Merch. Later checks start a
 // new pass from the first page, so results beyond this depth are not collected.
 export const PASS_MAX_PAGES = 10;
+// Brand Analytics popularity sets how deep a pass may go: the most searched terms get the full
+// depth, rarer ones fewer pages. Keywords Amazon does not rank keep the full depth.
+export const POPULAR_RANK_MAX = 100_000;
+export const COMMON_RANK_MAX = 1_000_000;
+export const POPULAR_PASS_PAGES = 10;
+export const COMMON_PASS_PAGES = 5;
+export const RARE_PASS_PAGES = 3;
+
+export const passPageLimit = (searchFrequencyRank: number | null) =>
+    searchFrequencyRank === null
+        ? PASS_MAX_PAGES
+        : searchFrequencyRank <= POPULAR_RANK_MAX
+          ? POPULAR_PASS_PAGES
+          : searchFrequencyRank <= COMMON_RANK_MAX
+            ? COMMON_PASS_PAGES
+            : RARE_PASS_PAGES;
 
 // newMerchCount is Merch new to the whole catalog on this page: once a niche's products are
 // already stored, deeper pages stop paying for themselves even if they are new to this keyword.
@@ -66,6 +82,7 @@ export const explorationCheckpoint = ({
     lowYieldPages,
     newMerchCount,
     resultCount,
+    pageLimit = PASS_MAX_PAGES,
 }: {
     page: number;
     nextPage: number;
@@ -73,6 +90,7 @@ export const explorationCheckpoint = ({
     lowYieldPages: number;
     newMerchCount: number;
     resultCount: number;
+    pageLimit?: number;
 }) => {
     const frontier = Math.max(nextPage, page + 1);
     const quiet = newMerchCount < 3 ? lowYieldPages + 1 : 0;
@@ -85,7 +103,7 @@ export const explorationCheckpoint = ({
                 ? 'sourceEnd'
                 : frontier >= 2 && quiet >= 2
                   ? 'lowYield'
-                  : frontier >= PASS_MAX_PAGES
+                  : frontier >= pageLimit
                     ? 'pageLimit'
                     : 'running',
     };

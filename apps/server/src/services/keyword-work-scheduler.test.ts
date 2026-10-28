@@ -2,7 +2,6 @@ import { describe, expect, it, mock } from 'bun:test';
 import type { JobInsert } from 'pg-boss';
 import { scheduleKeywordWork } from './keyword-work-scheduler';
 
-const rows = (...ids: string[]) => ids.map(id => ({ id })) as never;
 const backlog = (producersOpen: boolean) =>
     (async () => ({
         queuedPages: 0,
@@ -27,11 +26,9 @@ const setup = (producersOpen = true, queued = 0) => {
             { id: 'head', depth: false },
             { id: 'deep', depth: true },
         ]) as never,
-        dueMining: (async (_now: Date, stage: string) =>
-            stage === 'pending' ? rows('retry') : rows('saved')) as never,
-        unmined: mock(async () => rows('new')) as never,
-        dueAutocomplete: (async (_now: Date, stage: string) =>
-            stage === 'pending' ? rows('seed') : rows('suggested')) as never,
+        dueAutocomplete: mock(async () => [{ id: 'seed' }]) as never,
+        dueImport: (async () => ({ id: 'week' })) as never,
+        registerTrials: mock(async () => 500),
         promote: mock(async () => 0),
     };
     return { queues, overrides, inserted };
@@ -44,35 +41,33 @@ describe('keyword work scheduler', () => {
             await scheduleKeywordWork(queues, { ...overrides, isPaused: async () => true })
         ).toEqual({ didWork: false, paused: true });
         expect(inserted).toEqual({});
+        expect(overrides.registerTrials).not.toHaveBeenCalled();
     });
-    it('queues heads above depth and every saved response for Jev', async () => {
+    it('queues heads above depth, the due import and new trials', async () => {
         const { queues, overrides, inserted } = setup();
         const result = await scheduleKeywordWork(queues, overrides);
         expect(inserted['scan-keyword']).toEqual([
             { data: { targetId: 'head' }, singletonKey: 'head', priority: 1 },
             { data: { targetId: 'deep' }, singletonKey: 'deep', priority: 0 },
         ]);
-        expect(inserted['judge-keywords']?.map(job => job.singletonKey)).toEqual([
-            'product:saved',
-            'seed:suggested',
+        expect(inserted['import-brand-analytics']).toEqual([
+            { data: { importId: 'week' }, singletonKey: 'week' },
         ]);
-        expect(inserted['recommend-product-keywords']?.map(job => job.singletonKey)).toEqual([
-            'retry',
-            'new',
-        ]);
+        expect(inserted['autocomplete-keyword']?.map(job => job.singletonKey)).toEqual(['seed']);
         expect(result.didWork).toBe(true);
+        expect(result.enqueued?.trials).toBe(500);
     });
-    it('stops new Ads and autocomplete sources while scan backlog is over its allowance', async () => {
+    it('registers no trials or seeds while scan backlog is over its allowance', async () => {
         const { queues, overrides, inserted } = setup(false);
         await scheduleKeywordWork(queues, overrides);
-        expect(inserted['recommend-product-keywords']).toBeUndefined();
+        expect(overrides.registerTrials).not.toHaveBeenCalled();
         expect(inserted['autocomplete-keyword']).toBeUndefined();
-        expect(inserted['judge-keywords']).toHaveLength(2);
+        expect(inserted['import-brand-analytics']).toHaveLength(1);
     });
-    it('only tops producers up to a short queue', async () => {
+    it('only tops autocomplete up to a short queue', async () => {
         const { queues, overrides, inserted } = setup(true, 30);
         await scheduleKeywordWork(queues, overrides);
-        expect(inserted['recommend-product-keywords']).toBeUndefined();
-        expect(overrides.unmined).not.toHaveBeenCalled();
+        expect(inserted['autocomplete-keyword']).toBeUndefined();
+        expect(overrides.dueAutocomplete).not.toHaveBeenCalled();
     });
 });

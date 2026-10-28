@@ -1,13 +1,13 @@
 import { normalizeDiscoveryKeyword } from './discovery-candidate-policy';
 import { z } from 'zod';
 import {
-    reserveKeywordMiningCall,
-    deferKeywordMiningProvider,
-    KeywordMiningDeferred,
-    relaxKeywordProvider,
+    AutocompleteDeferred,
+    deferAutocomplete,
+    relaxAutocomplete,
+    reserveAutocompleteCall,
     retryAfterMs,
-    throttleKeywordProvider,
-} from '@/db/keyword-mining-capacity';
+    throttleAutocomplete,
+} from '@/db/keyword-autocomplete-capacity';
 import { captureProviderAttempt } from './providers/provider-telemetry';
 
 const keywordSuggestionSchema = z.object({
@@ -35,7 +35,7 @@ export const parseAutocompleteSuggestions = (seed: string, input: unknown) => {
 };
 
 export const fetchKeywordAutocomplete = async (seed: string) => {
-    await reserveKeywordMiningCall('autocomplete');
+    await reserveAutocompleteCall();
     const url = createKeywordAutocompleteUrl(seed);
     const response = await captureProviderAttempt(
         { provider: 'amazonAutocomplete', operation: 'amazon.autocomplete' },
@@ -51,18 +51,15 @@ export const fetchKeywordAutocomplete = async (seed: string) => {
     );
     if (response.status === 403) {
         const retryAt = new Date(Date.now() + 3_600_000);
-        await deferKeywordMiningProvider('autocomplete', retryAt);
-        throw new KeywordMiningDeferred(retryAt);
+        await deferAutocomplete(retryAt);
+        throw new AutocompleteDeferred(retryAt);
     }
     if (response.status === 429 || response.status >= 500)
-        throw new KeywordMiningDeferred(
-            await throttleKeywordProvider(
-                'autocomplete',
-                retryAfterMs(response.headers.get('retry-after'))
-            )
+        throw new AutocompleteDeferred(
+            await throttleAutocomplete(retryAfterMs(response.headers.get('retry-after')))
         );
     if (!response.ok) throw new Error(`Autocomplete request failed (${response.status})`);
-    await relaxKeywordProvider('autocomplete');
+    await relaxAutocomplete();
     return parseAutocompleteSuggestions(seed, await response.json());
 };
 

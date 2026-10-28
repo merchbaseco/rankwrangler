@@ -237,13 +237,8 @@ export {
 } from './discovery-target-schema';
 export { spApiCatalogCapacity } from './spapi-capacity-schema';
 
-export {
-    productKeywordMining,
-    minedKeywordCandidates,
-    productKeywordCandidates,
-    keywordMiningCapacity,
-} from './keyword-mining-schema';
+export { keywordAutocomplete, keywordProviderCapacity } from './keyword-autocomplete-schema';
 
-export { keywordAutocomplete, autocompleteKeywordCandidates } from './keyword-autocomplete-schema';
+export { brandAnalyticsSearchTerms, brandAnalyticsImports } from './brand-analytics-schema';
 
 export { automaticSyncControl } from './automatic-sync-schema';

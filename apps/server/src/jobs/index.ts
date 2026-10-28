@@ -1,6 +1,5 @@
 import { autocompleteKeywordJob } from './autocomplete-keyword';
-import { judgeKeywordsJob } from './judge-keywords';
-import { recommendProductKeywordsJob } from './recommend-product-keywords';
+import { importBrandAnalyticsJob } from './import-brand-analytics';
 import { scanKeywordJob } from './scan-keyword';
 import { scheduleKeywordWorkJob } from './schedule-keyword-work';
 import type { PgBoss } from 'pg-boss';
@@ -24,9 +23,8 @@ import { reprocessStaleProductsJob } from '@/jobs/reprocess-stale-products.js';
 const registeredJobs = [
     scheduleKeywordWorkJob,
     scanKeywordJob,
-    recommendProductKeywordsJob,
-    judgeKeywordsJob,
     autocompleteKeywordJob,
+    importBrandAnalyticsJob,
     catalogSearchJob,
     reconcileHistoryAdmissionJob,
     collectDueCatalogQueriesJob,
@@ -45,8 +43,7 @@ const registeredJobs = [
 ];
 
 export const prepareJobQueues = async (boss: PgBoss) => {
-    for (const job of registeredJobs)
-        await boss.createQueue(job.jobName, job.queueOptions);
+    for (const job of registeredJobs) await boss.createQueue(job.jobName, job.queueOptions);
 };
 
 export const startJobs = async (boss: PgBoss) => {

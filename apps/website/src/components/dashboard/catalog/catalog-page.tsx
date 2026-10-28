@@ -27,7 +27,6 @@ const statusLabels: Record<string, string> = {
 	untracked: "Untracked",
 };
 const reasonLabels: Record<string, string> = {
-	notRelevant: "Not relevant",
 	noMerchFound: "No Merch found",
 	notScheduled: "Not scheduled",
 };
@@ -36,14 +35,15 @@ const columns = [
 	{ key: "source", width: 116 },
 	{ key: "status", width: 212 },
 	{ key: "products", width: 144 },
-	{ key: "popularity", width: 112 },
+	{ key: "popularity", width: 168 },
 	{ key: "lastChecked", width: 144 },
 	{ key: "nextCheck", width: 180 },
 ];
 const heats = ["all", "hot", "warm", "cold", "unrated"] as const;
 const sourceLabels: Record<string, string> = {
 	interest: "User search",
-	adsRecommendation: "ASIN",
+	brandAnalytics: "Brand Analytics",
+	adsRecommendation: "Amazon Ads",
 	autocomplete: "Autocomplete",
 	legacy: "Imported",
 };
@@ -237,9 +237,19 @@ export const CatalogPage = () => {
 									<TableCell className="font-mono tabular-nums">
 										{item.merch} / {item.products}
 									</TableCell>
-									<TableCell>
+									<TableCell
+										className="truncate"
+										title={
+											item.searchFrequencyRank === null
+												? undefined
+												: `Brand Analytics search frequency rank ${item.searchFrequencyRank.toLocaleString()}`
+										}
+									>
 										{item.heat}
 										{item.score === null ? "" : ` · ${Math.round(item.score)}`}
+										{item.searchFrequencyRank === null
+											? ""
+											: ` · #${item.searchFrequencyRank.toLocaleString()}`}
 									</TableCell>
 									<TableCell className="whitespace-nowrap text-muted-foreground">
 										{date(item.lastCheckedAt)}

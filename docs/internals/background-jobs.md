@@ -30,7 +30,7 @@ where a second attempt would be redundant.
 | Product facets | One-minute worker definition, currently disabled by policy. |
 | Provider-attempt retention | Daily bounded deletion of attempts older than seven days. |
 | Job-execution retention | Daily bounded deletion of run history older than fourteen days. |
-| Keyword pipeline | One-minute scheduler feeding four provider-gated entity queues. |
+| Keyword pipeline | One-minute scheduler feeding gated scan and autocomplete queues and the weekly Brand Analytics import. |
 
 New and changed jobs follow [background jobs](../decisions/background-jobs.md): one job per external
 call on one entity, one queue per provider, schedulers that only enqueue. A job definition can declare

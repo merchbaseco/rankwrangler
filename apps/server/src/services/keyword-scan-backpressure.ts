@@ -1,5 +1,5 @@
-// Producers (Ads mining and autocomplete) stop admitting new sources while queued scan work
-// exceeds this many days of background SP-API capacity. Already-saved stages still finish.
+// Producers (Brand Analytics trials and autocomplete) stop admitting new keywords while queued
+// scan work exceeds this many days of background SP-API capacity.
 export const SCAN_BACKLOG_DAYS = 2;
 // Share of the background rate expected to produce accepted pages after retries, cooldowns and
 // foreground demand. A planning assumption from the October capacity model, not a measurement.

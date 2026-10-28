@@ -19,7 +19,7 @@ export const resetDiscoveryFixture = async () => {
     ) {
         throw new Error('Discovery proof requires the private loopback database');
     }
-    await db.execute(sql`truncate mined_keyword_candidates,keyword_mining_capacity,products,catalog_queries,discovery_source_scans,spapi_catalog_capacity,
+    await db.execute(sql`truncate keyword_mining_capacity,brand_analytics_search_terms,brand_analytics_imports,products,catalog_queries,discovery_source_scans,spapi_catalog_capacity,
         official_brands,keepa_capacity_state,keepa_capacity_attempts,operations cascade`);
 };
 

@@ -53,11 +53,10 @@ export const CollectionStatusPanel = () => {
 		["SP-API discovery / 24h", String(discoveryAttempts)],
 		["Acquisition targets", formatNumber(targets)],
 		[
-			"Products mined",
-			formatNumber(
-				exploration.mining.find((row) => row.stage === "complete")?.products ??
-					0,
-			),
+			"Brand Analytics terms",
+			`${formatNumber(exploration.brandAnalytics.registered)} of ${formatNumber(
+				exploration.brandAnalytics.kept,
+			)} trialed`,
 		],
 		["New listings / 24h", formatNumber(exploration.yield24h.new_products)],
 		["New Merch / 24h", formatNumber(exploration.yield24h.new_merch)],
@@ -151,9 +150,9 @@ export const CollectionStatusPanel = () => {
 };
 
 const SOURCE_LABELS: Record<string, string> = {
-	adsRecommendation: "ASIN keyword recommendations",
+	adsRecommendation: "Amazon Ads (retired)",
 	interest: "Research interest",
-	brandAnalytics: "Buyer demand",
+	brandAnalytics: "Brand Analytics",
 	catalogFacet: "Catalog topics",
 	catalogBrand: "Catalog brands",
 	legacy: "Imported",

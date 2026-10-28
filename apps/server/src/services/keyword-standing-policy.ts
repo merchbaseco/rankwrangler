@@ -1,6 +1,30 @@
 import { KEYWORD_DAY_MS, nextKeywordObservation } from './keyword-collection-policy';
 
 export type StandingTier = 'unrated' | 'hot' | 'warm' | 'cold';
+export type KeywordTracking = 'trial' | 'tracked' | 'dormant';
+
+// A trial graduates when its first page shows at least this many confirmed Merch listings. Three
+// is a starting point, to be calibrated against real first-page scans.
+export const MIN_MERCH_ON_FIRST_PAGE = 3;
+// Trials whose first page shows too little Merch this many times go dormant.
+export const TRIAL_FAILURE_LIMIT = 2;
+
+// What a first-page head check means for a keyword's tracking. Tracked keywords stay tracked; a
+// trial graduates on enough Merch and otherwise counts a failure toward dormancy.
+export const nextKeywordTracking = (input: {
+    tracking: KeywordTracking;
+    trialFailures: number;
+    merchOnFirstPage: number;
+}) => {
+    if (input.tracking !== 'trial') return { tracking: input.tracking, trialFailures: 0 };
+    if (input.merchOnFirstPage >= MIN_MERCH_ON_FIRST_PAGE)
+        return { tracking: 'tracked' as const, trialFailures: 0 };
+    const trialFailures = input.trialFailures + 1;
+    return {
+        tracking: trialFailures >= TRIAL_FAILURE_LIMIT ? ('dormant' as const) : ('trial' as const),
+        trialFailures,
+    };
+};
 export const keywordPopularity = (input: { ranks: readonly (number | null)[]; now: Date }) => {
     const strengths = input.ranks
         .filter((rank): rank is number => rank !== null && rank > 0)

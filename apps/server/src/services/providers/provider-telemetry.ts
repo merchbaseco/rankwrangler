@@ -7,7 +7,6 @@ export const providerNames = [
     'gemini',
     'typesafe',
     'cloudflare',
-    'amazonAds',
     'amazonAutocomplete',
 ] as const;
 export type ProviderName = (typeof providerNames)[number];
@@ -31,11 +30,7 @@ export const spApiProviderOperations = [
 export type SpApiProviderOperation = (typeof spApiProviderOperations)[number];
 
 export const geminiProviderOperations = ['gemini.productDesign.observe'] as const;
-export const typeSafeProviderOperations = [
-    'typesafe.productShortName.choose',
-    'typesafe.keyword.judge',
-    'typesafe.keyword.relevance',
-] as const;
+export const typeSafeProviderOperations = ['typesafe.productShortName.choose'] as const;
 export const cloudflareProviderOperations = [
     'cloudflare.cutout.transform',
     'cloudflare.r2.put',
@@ -44,17 +39,10 @@ export type GeminiProviderOperation = (typeof geminiProviderOperations)[number];
 export type TypeSafeProviderOperation = (typeof typeSafeProviderOperations)[number];
 export type CloudflareProviderOperation = (typeof cloudflareProviderOperations)[number];
 
-export const amazonAdsOperations = [
-    'ads.lwa.token',
-    'ads.profiles',
-    'ads.keyword.recommendations',
-] as const;
-
 export const autocompleteOperations = ['amazon.autocomplete'] as const;
 
 export const providerOperations = [
     ...autocompleteOperations,
-    ...amazonAdsOperations,
     ...keepaProviderOperations,
     ...spApiProviderOperations,
     ...geminiProviderOperations,
@@ -65,7 +53,6 @@ export type ProviderOperation = (typeof providerOperations)[number];
 
 export type ProviderAttemptDescriptor =
     | { provider: 'amazonAutocomplete'; operation: (typeof autocompleteOperations)[number] }
-    | { provider: 'amazonAds'; operation: (typeof amazonAdsOperations)[number] }
     | { provider: 'keepa'; operation: KeepaProviderOperation }
     | { provider: 'spapi'; operation: SpApiProviderOperation }
     | { provider: 'gemini'; operation: GeminiProviderOperation }

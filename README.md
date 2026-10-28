@@ -57,9 +57,8 @@ rw keyword search "retro gardening"
 
 Explicit `keyword.results` requests renew a 30-day research lease, including cached reuse.
 General catalog searches record interest. Background checks adapt to demand and observed change;
-continuous SP-API acquisition expands through user searches, relevant demand terms and once-per-product
-Amazon Ads keyword recommendations
-without buying history for every discovery. Shared physical-request capacity protects foreground reads;
+continuous SP-API acquisition expands through user searches, weekly Amazon Brand Analytics search
+terms and Amazon autocomplete without buying history for every discovery. Shared physical-request capacity protects foreground reads;
 Keepa head/history admission stays separate.
 Capacity-limited keyword checks retain a retry time without recording a provider failure or a
 successful observation. Freshness health allows that retry and its scheduler grace; actual provider
@@ -141,8 +140,8 @@ deployed as the initial research/collection pilot. `keyword.results` preserves d
 search evidence. Search directly tracks its exact keyword for background SP-API checks; paid Keepa admission stays separate.
 Adaptive Keepa collection tiers, durable token reservations and explicit history admission are live.
 The [growth completion](plans/merch-growth-completion.md) adds independent continuous SP-API
-acquisition, once-per-ASIN Ads keyword mining, once-per-tracked-keyword autocomplete, cached Jev
-judgments, a live keyword directory with plain statuses, processing order, pause/resume and lifecycle logs, and adaptive keyword standing; it is locally verified and
+acquisition, weekly Brand Analytics keyword sources, once-per-tracked-keyword autocomplete,
+a live keyword directory with plain statuses, processing order, pause/resume and lifecycle logs, and adaptive keyword standing; it is locally verified and
 awaits deployment. Operator settings expose collection
 backlogs and capacity. The [execution record](plans/merch-collection-execution.md) tracks verification.
 The [capacity baseline](plans/merch-capacity-baseline.md) records the initial pilot envelope.
@@ -155,10 +154,11 @@ there is no periodic refresh. Reconnection reconciles missed updates. See
 Autocomplete keeps Amazon’s native keyword variants, including pluralization and inserted words,
 and removes stray trailing commas from search seeds.
 
-Each mined product contributes at most five keyword roots: Jev judges global apparel fit (cached
-per phrase) and topical relevance to that product, then selection keeps distinct phrases in Ads
-order. Collection runs as small jobs (one keyword page, one Ads call, one Jev batch) behind one
-queue per provider, fed by a one-minute scheduler that holds back new mining or autocomplete sources
-while queued scans exceed about two days of capacity. Settings → Keyword Jobs shows queues, provider
-readiness and recent runs live. See [keyword mining](docs/internals/keyword-mining.md) and
+Keywords come from Amazon's weekly Brand Analytics search terms report: terms whose top clicked
+products include apparel become trials, most searched first, and a trial is tracked once its first
+SP-API page shows at least three confirmed Merch listings. Brand Analytics popularity also sets scan
+depth (ten, five or three pages). Collection runs as small jobs (one keyword page, one autocomplete
+call, one report step) behind one queue per provider, fed by a one-minute scheduler that holds back
+new trials and autocomplete seeds while queued scans exceed about two days of capacity. Settings → Keyword Jobs shows queues, provider
+readiness and recent runs live. See [keyword collection](docs/internals/keyword-mining.md) and
 [background jobs](docs/decisions/background-jobs.md). Not deployed.

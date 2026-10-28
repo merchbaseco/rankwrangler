@@ -188,7 +188,14 @@ Allowed facet families are `profession`, `hobby`, `animal`, `food`, `cause`, `id
 ## Keyword collection
 
 Canonical queries and discovery targets own tracked/trial/dormant status, first-page BSR standing,
-intervals and next checks. Mined candidates have a unique marketplace/normalized phrase identity
-and durable accepted/rejected judgment. Product mining and autocomplete own separate fenced work
-ledgers and provenance links. Keyword activity shares the event log with Products and jobs.
-Brand Analytics report tables and catalog demand fields were removed in migration 0048.
+intervals and next checks; discovery evidence records each source (`interest`, `brandAnalytics`,
+`autocomplete`, and historical `adsRecommendation`). Autocomplete owns a fenced once-per-seed
+ledger with its saved suggestions. Keyword activity shares the event log with Products and jobs.
+
+| Record | Identity | Meaning |
+| --- | --- | --- |
+| Brand Analytics search term | `(marketplaceId, normalizedTerm)` | Latest kept weekly search term: search frequency rank, apparel clicks (1–3), up to three clicked ASINs, first and last seen Sunday week, and trial registration time. No weekly history. |
+| Brand Analytics import | generated id, unique `(marketplaceId, weekStart)` | One weekly report's state (`pending`, `requested`, `ready`, `imported`, `superseded`), report and document ids, Amazon status, retry and claim fields, and row/term/kept/new counts. |
+
+Per-product Ads keyword mining, its candidate judgments and links were removed with the move to
+Brand Analytics sources.
