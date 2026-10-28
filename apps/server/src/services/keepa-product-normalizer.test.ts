@@ -106,6 +106,20 @@ describe('normalizeKeepaProduct', () => {
         });
     });
 
+    it('drops the no-category Long.MAX_VALUE sentinel instead of overflowing bigint', () => {
+        const result = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-10-28T17:00:00.000Z'),
+            product: {
+                asin: 'B0C7QHJ4BT',
+                rootCategory: 9_223_372_036_854_775_807,
+                salesRankReference: 9_223_372_036_854_775_807,
+            },
+        });
+
+        expect(result.product).toMatchObject({ rootCategoryId: null, keepaRootCategoryId: null });
+    });
+
     it('falls back to the latest history value when current stats are missing', () => {
         const result = normalizeKeepaProduct({
             marketplaceId: 'ATVPDKIKX0DER',
