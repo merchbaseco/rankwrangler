@@ -84,7 +84,9 @@ With several ASINs, `--shortName` fails with `INVALID_INPUT`; request each ASIN 
 | `--days <N>` | 30–3650; default 365. Cannot combine with explicit range bounds. |
 | `--startAt <ISO>` / `--endAt <ISO>` | Product history range bounds. |
 | `--limit <N>` | Product search 1–100, default 50; Product history max 10,000; keyword search max 100. |
-| `--cursor <value>` | Product search opaque cursor from `nextCursor`; keyword search numeric offset, default 0. |
+| `--cursor <value>` | Product search opaque cursor from `nextCursor`; keyword search JSON `nextCursor`. |
+| `--stage <value>` | Keyword search: `graduated` (default), `trial`, `dropped`, `untracked`, `all`. |
+| `--freshness <value>` | Keyword search: `all` (default), `live`, `needsSync`, `syncing`. |
 | `--refresh` | Keyword results only; requests a replacement Search run. |
 | `-m, --marketplace <id>` | Marketplace override; Product defaults to US. |
 | `--baseUrl <origin>` | API-origin override; `/api` is normalized away. |
@@ -165,5 +167,6 @@ Failures go to stderr and exit with status 1:
 Help, version, and changelog output are plain text. The dispatcher is
 [`packages/cli/src/index.ts`](../../packages/cli/src/index.ts).
 
-Keyword get/search read the stored keyword directory. Keyword search `--cursor` accepts the JSON
-`nextCursor` object returned by the previous result. Brand Analytics inputs and history are removed.
+Keyword get/search read the stored keyword directory. Keyword search returns graduated keywords
+unless `--stage` selects trials, dropped, untracked or all; `--freshness` narrows by data freshness.
+Keyword search `--cursor` accepts the JSON `nextCursor` object returned by the previous result. Brand Analytics inputs and history are removed.

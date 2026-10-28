@@ -46,8 +46,9 @@ const keywordInputSchema = z
         keyword: z.string().trim().min(1).max(200).optional(),
         limit: z.number().int().min(1).max(100).optional(),
         operation: z.enum(['get', 'search', 'results']),
-        state: z.enum(['all', 'queued', 'scanning', 'upToDate', 'untracked']).optional(),
-        heat: z.enum(['all', 'hot', 'warm', 'cold', 'unrated']).optional(),
+        stage: keywordDirectoryInput.shape.stage.removeDefault().optional(),
+        freshness: keywordDirectoryInput.shape.freshness.removeDefault().optional(),
+        heat: keywordDirectoryInput.shape.heat.removeDefault().optional(),
         term: z.string().trim().min(1).max(200).optional(),
         refresh: z.boolean().optional(),
         text: z.string().trim().min(1).max(200).optional(),
@@ -57,7 +58,7 @@ const keywordInputSchema = z
         rejectFieldsOutsideOperation(input, context, {
             get: ['keyword'],
             results: ['term', 'refresh'],
-            search: ['cursor', 'limit', 'text', 'state', 'heat', 'sort'],
+            search: ['cursor', 'limit', 'text', 'stage', 'freshness', 'heat', 'sort'],
         })
     );
 
@@ -148,7 +149,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler keyword data synchronously. operation=get reads a keyword directory entry; search filters our stored keyword directory using text, state, heat, limit and an opaque nextCursor. These reads show queued/scanning/upToDate status, untracked reasons, popularity and refresh cadence. results uses term and optional refresh to fetch or reuse dated Amazon search evidence, returning keyword, searchedAt and results with placements. It may wait for collection and normally reuses evidence for 24 hours. Responses contain data or a standard error.',
+                'Read RankWrangler keyword data synchronously. operation=get reads a keyword directory entry; search filters our stored keyword directory using text, stage (default graduated; trial, dropped, untracked or all), freshness (live, needsSync, syncing or all), heat, limit and an opaque nextCursor. These reads show each keyword stage, data freshness, popularity and refresh cadence. results uses term and optional refresh to fetch or reuse dated Amazon search evidence, returning keyword, searchedAt and results with placements. It may wait for collection and normally reuses evidence for 24 hours. Responses contain data or a standard error.',
             inputSchema: keywordInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler keyword',
@@ -173,7 +174,8 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                         source.keyword.search({
                             cursor: input.cursor,
                             sort: input.sort,
-                            state: input.state,
+                            stage: input.stage,
+                            freshness: input.freshness,
                             heat: input.heat,
                             limit: input.limit ?? 25,
                             text: requireValue(input.text, 'text'),

@@ -44,7 +44,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('committed keyword 
             await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing' });
             await seedDiscoveryTarget({ kind: 'keyword', term: 'hawaiian christmas' });
             const all = await readKeywordDirectory(keywordDirectoryInput.parse({}));
-            const rows = await readKeywordDirectory(keywordDirectoryInput.parse({}), undefined, {
+            const rows = await readKeywordDirectory(keywordDirectoryInput.parse({}), {
                 terms: ['fishing'],
                 view: all.view,
             });
@@ -52,6 +52,13 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('committed keyword 
             expect(rows.items[0].sortKey).toEqual(
                 all.items.find(row => row.term === 'fishing')?.sortKey
             );
+            // Row reads ignore the stage filter so the client can drop rows that left its view.
+            await db.execute(sql`update discovery_targets set tracking='dormant',enabled=false`);
+            const dropped = await readKeywordDirectory(keywordDirectoryInput.parse({}), {
+                terms: ['fishing'],
+                view: all.view,
+            });
+            expect(dropped.items[0]).toMatchObject({ stage: 'dropped', freshness: null });
         } finally {
             await stop();
         }
@@ -94,7 +101,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('committed keyword 
         try {
             await upsertProductInfo({ ...source, isMerchListing: true });
             await within(changed.promise);
-            const rows = await readKeywordDirectory(keywordDirectoryInput.parse({}), undefined, {
+            const rows = await readKeywordDirectory(keywordDirectoryInput.parse({}), {
                 terms: ['fishing'],
             });
             expect(rows.items[0].merch).toBe(1);

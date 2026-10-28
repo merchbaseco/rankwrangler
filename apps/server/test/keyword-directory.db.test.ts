@@ -30,7 +30,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             await resetDiscoveryFixture();
             await db.delete(eventLogs).where(eq(eventLogs.category, 'keyword'));
         });
-        it('shows autocomplete suggestions as queued trials and logs the expansion', async () => {
+        it('shows autocomplete suggestions as trials awaiting a check and logs the expansion', async () => {
             await seedDiscoveryTarget({ kind: 'keyword', term: 'hawaiian christmas' });
             const work = await claimKeywordAutocomplete(now);
             if (!work) throw new Error('Missing seed');
@@ -38,18 +38,24 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 (await listKeywordDirectory(keywordDirectoryInput.parse({}))).items.find(
                     row => row.term === work.term
                 )
-            ).toMatchObject({ status: 'queued', untrackedReason: null, merch: 0 });
+            ).toMatchObject({ stage: 'graduated', freshness: 'needsSync', merch: 0 });
             await finishKeywordAutocomplete(
                 work,
                 ['hawaiian christmas shirt', 'hawaiian christmas cards'],
                 now
             );
-            const admitted = await listKeywordDirectory(keywordDirectoryInput.parse({}));
+            const admitted = await listKeywordDirectory(
+                keywordDirectoryInput.parse({ stage: 'all' })
+            );
             expect(admitted.items).toHaveLength(3);
             expect(admitted.items.find(row => row.term.endsWith('shirt'))).toMatchObject({
-                status: 'queued',
+                stage: 'trial',
+                freshness: 'needsSync',
                 sources: ['autocomplete'],
             });
+            expect(
+                (await listKeywordDirectory(keywordDirectoryInput.parse({}))).items
+            ).toHaveLength(1);
             const logs = await db.select().from(eventLogs).where(eq(eventLogs.category, 'keyword'));
             expect(logs.filter(row => row.action === 'keyword.expanded')).toHaveLength(1);
             expect(logs.filter(row => row.action === 'keyword.added')).toHaveLength(3);
@@ -107,7 +113,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             expect(logs).toHaveLength(1);
             expect(logs[0].status).toBe('failed');
             const directory = await listKeywordDirectory(keywordDirectoryInput.parse({}));
-            expect(directory.items[0]).toMatchObject({ status: 'queued', retryScheduled: true });
+            expect(directory.items[0]).toMatchObject({
+                freshness: 'needsSync',
+                retryScheduled: true,
+            });
         });
         it('preserves sub-millisecond creation times in pagination cursors', async () => {
             for (const term of ['first shirt', 'second shirt', 'third shirt'])

@@ -18,6 +18,8 @@ export interface CliOptionValues {
     includeOfficialBrands?: boolean;
     merch?: string;
     listingStatus?: string;
+    stage?: string;
+    freshness?: string;
     sort?: string;
     minBsr?: string;
     maxBsr?: string;

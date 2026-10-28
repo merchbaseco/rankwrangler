@@ -1,6 +1,7 @@
 import { eventLogCreated } from '@/api/app/event-log-created';
 import { syncControlChanged } from '@/api/app/sync-control-changed';
 import { keywordDirectoryChanged } from '@/api/app/keyword-directory-changed';
+import { keywordDirectoryCounts } from './keyword-directory-counts';
 import { keywordDirectoryRows } from './keyword-directory-rows';
 import { syncControlGet } from './sync-control-get';
 import { syncControlSet } from './sync-control-set';
@@ -39,6 +40,7 @@ export const appApiRouter = router({
     keyword: router({ directory: router({ changed: keywordDirectoryChanged }) }),
     activity: router({ created: eventLogCreated }),
     keywordDirectory,
+    keywordDirectoryCounts,
     keywordDirectoryRows,
     keywordTrack,
     access: router({

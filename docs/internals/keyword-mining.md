@@ -173,31 +173,44 @@ existing WebSocket), never on an interval. Runs are recorded when they did work 
 ## Keyword directory and activity
 
 The Keywords page uses the Products layout: filter sidebar, search, paginated table and footer.
-Its single status is Queued, Scanning or Up to date. Up to date means the keyword's first page is
-fresh: deeper pages of a continuing pass and its one-time autocomplete expansion run in the
-background without holding it in Queued. Trial checks, expansion and product acquisition remain
-internal stages rather than separate visible status columns. Untracked keywords are hidden by
-default. Their reason comes from durable state: dormant after two failed trials (No Merch found) or
-no enabled target (Not scheduled). No second mutable copy of these reasons is stored. The
-popularity column shows standing tier, score and, when Amazon ranks the term, its Brand Analytics
-search frequency rank.
+Each keyword shows two separate dimensions, both derived from durable state with no stored copy:
 
-Clock/amber, spinner/blue, check/green and pause/muted badges distinguish queued, scanning,
-up-to-date and untracked states; text remains visible and reduced motion disables the spinner.
-The directory shares the Products DashboardTable background and fixed column layout. Data rows
-are 40 pixels high; retry and untracked notes stay inline and truncate with a full-text tooltip.
+- **Stage** says whether the keyword is worth tracking. `trial` awaits or is undergoing its
+  first-page qualification check; `graduated` is tracked (it passed, or a user asked for it);
+  `dropped` is dormant after failed trials (shown as not enough Merch on page 1); `untracked` is a
+  stored query with no enabled keyword target, such as a brand-only scope.
+- **Freshness** says whether our data is current. `live` means the first page is fresh: deeper
+  pages of a continuing pass and the one-time autocomplete expansion run in the background without
+  holding it back. `needsSync` means the next check is due or the head was never observed.
+  `syncing` means a scan or expansion is claimed now. Trials only ever need or undergo their
+  check, so the page reads them as Awaiting check and Checking. Dropped and untracked keywords have
+  no freshness, interval or next check.
 
-The default ordering follows processing priority, without a separate customer-facing sort label:
-scanning, ready queued work, deferred work, up-to-date entries by next check, then untracked.
-Ready product scans use the dispatcher's current trial/tracked preference, normalized overdue
-score, last selection, target creation and target identity. Other stages have independent workers,
-so there is no fixed global FIFO position. Pagination carries the complete ordering, a fixed
-observation time and trial-turn snapshot; microsecond creation/selection times are retained as
-exact epoch microseconds. Live state changes may reorder rows. API callers can request
-sort=newest; cursors must be passed through unchanged.
+The default view is Graduated. The sidebar filters stage (Graduated, Trial, Dropped, All, plus
+Untracked while any exist) with per-stage counts from one grouped query over queries and targets,
+freshness for graduated keywords (check progress for trials) and popularity. The footer shows how
+many trials are waiting. Counts follow directory events at most every 30 seconds. The popularity
+column shows standing tier, score and, when Amazon ranks the term, its Brand Analytics search
+frequency rank.
+
+Stage badges are outlined (graduated, trial) or muted (dropped, untracked). Check/green,
+clock/amber and spinner/blue badges distinguish live, needs sync and syncing; text remains visible
+and reduced motion disables the spinner. The directory shares the Products DashboardTable
+background and fixed column layout. Data rows are 40 pixels high; retry and dropped notes stay
+inline and truncate with a full-text tooltip.
+
+The default ordering is a work view without a separate customer-facing sort label: graduated
+keywords first (syncing, then needing sync by due time, then live by next check), then trials by
+Brand Analytics rank with unranked trials last (their admission order), then dropped and untracked
+keywords newest first. Ties fall back to target creation and target identity, matching the
+dispatcher. Workers run independently, so this is a priority view rather than a fixed FIFO
+position. Pagination carries the complete ordering and a fixed observation time; microsecond
+creation times are retained as exact epoch microseconds. Live state changes may reorder rows. API
+callers can request sort=newest; cursors must be passed through unchanged.
 
 Track keyword explicitly records user interest; typing in the filter does not schedule work.
-The public directory get/search share this state and ordering with the dashboard.
+The public directory get/search share stage, freshness and ordering with the dashboard; get reads
+a keyword in any stage.
 
 Keyword events are written in the same transaction as their state change: keyword added, tracking
 changed, expanded, products mined (one per accepted page) and standing changed. Retries do not

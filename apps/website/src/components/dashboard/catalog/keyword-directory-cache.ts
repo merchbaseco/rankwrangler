@@ -53,9 +53,10 @@ export const uniqueKeywordRows = (pages: Page[]) => {
 };
 const matchesDirectory = (row: DirectoryRow, input: DirectoryInput) =>
 	(!input.search || row.term.includes(input.search.toLowerCase())) &&
-	(!input.state || input.state === "all"
-		? row.status !== "untracked"
-		: row.status === input.state) &&
+	(input.stage === "all" || row.stage === (input.stage ?? "graduated")) &&
+	(!input.freshness ||
+		input.freshness === "all" ||
+		row.freshness === input.freshness) &&
 	(!input.heat || input.heat === "all" || row.heat === input.heat);
 const compareKeys = (
 	a: DirectoryRow["sortKey"],

@@ -64,6 +64,8 @@ const { positionals, values } = parseArgs({
         includeOfficialBrands: { type: 'boolean' },
         merch: { type: 'string' },
         listingStatus: { type: 'string' },
+        stage: { type: 'string' },
+        freshness: { type: 'string' },
         sort: { type: 'string' },
         minBsr: { type: 'string' },
         maxBsr: { type: 'string' },

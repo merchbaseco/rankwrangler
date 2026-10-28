@@ -198,6 +198,17 @@ export interface ContextRequest {
 		host?: string;
 	};
 }
+declare const keywordStages: readonly [
+	"graduated",
+	"trial",
+	"dropped",
+	"untracked"
+];
+declare const keywordFreshness: readonly [
+	"live",
+	"needsSync",
+	"syncing"
+];
 export type PublicCutoutThumbnail = {
 	status: "available";
 	url: string;
@@ -439,8 +450,8 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							id: string;
 							queryId: string;
 							term: string;
-							status: "queued" | "scanning" | "upToDate" | "untracked";
-							untrackedReason: "noMerchFound" | "notScheduled" | null;
+							stage: (typeof keywordStages)[number];
+							freshness: (typeof keywordFreshness)[number] | null;
 							retryScheduled: boolean;
 							heat: string;
 							score: number | null;
@@ -464,8 +475,9 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				search: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						text: string;
-						state?: "all" | "queued" | "scanning" | "upToDate" | "untracked" | undefined;
+						freshness?: "live" | "needsSync" | "syncing" | "all" | undefined;
 						sort?: "work" | "newest" | undefined;
+						stage?: "trial" | "graduated" | "dropped" | "untracked" | "all" | undefined;
 						limit?: number | undefined;
 						heat?: "unrated" | "hot" | "warm" | "cold" | "all" | undefined;
 						cursor?: {
@@ -479,7 +491,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 								string
 							];
 							asOf: string;
-							trialTurn: boolean;
 							sort: "work" | "newest";
 						} | undefined;
 					};
@@ -491,8 +502,8 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							id: string;
 							queryId: string;
 							term: string;
-							status: "queued" | "scanning" | "upToDate" | "untracked";
-							untrackedReason: "noMerchFound" | "notScheduled" | null;
+							stage: (typeof keywordStages)[number];
+							freshness: (typeof keywordFreshness)[number] | null;
 							retryScheduled: boolean;
 							heat: string;
 							score: number | null;
@@ -503,6 +514,8 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							intervalDays: number | null;
 						}[];
 						nextCursor: {
+							sort: "work" | "newest";
+							asOf: string;
 							key: [
 								number,
 								number,
@@ -512,9 +525,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 								number,
 								string
 							];
-							asOf: string;
-							trialTurn: boolean;
-							sort: "work" | "newest";
 						} | null;
 					};
 					meta: object;
@@ -567,7 +577,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						bucket?: "auto" | "day" | "week" | "month" | undefined;
+						bucket?: "day" | "week" | "auto" | "month" | undefined;
 						days?: unknown;
 						endAt?: unknown;
 						limit?: unknown;

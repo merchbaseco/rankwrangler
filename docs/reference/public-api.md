@@ -308,16 +308,23 @@ omit count and point dates already represented by the series.
 ## Keyword directory
 
 `keyword.get({ keyword })` reads one normalized US keyword and returns `{ keyword, data }`;
-`data` is null when absent. `keyword.search({ text, state?, heat?, sort?, limit?, cursor? })` returns
-`items` and `nextCursor`. Pass the returned cursor object unchanged. State filters are all,
-queued, scanning, upToDate and untracked; all hides untracked entries. Heat filters are all, hot,
-warm, cold and unrated. Sort defaults to work priority; newest is also available. Workers run
-independently, so work order is a priority view rather than a fixed FIFO rank. Pass nextCursor
-unchanged to retain the full ordering snapshot. Both procedures read stored data without provider calls.
-Entries include sources, status, untrackedReason, retryScheduled, known Merch/product counts,
-score, searchFrequencyRank (the latest weekly Amazon Brand Analytics rank, or null when Amazon does
-not rank the term), last check, interval and next check. Reasons are noMerchFound and notScheduled.
-Status and score describe our collection progress and priority, not organic search volume.
+`data` is null when absent, and any stage is returned.
+`keyword.search({ text, stage?, freshness?, heat?, sort?, limit?, cursor? })` returns `items` and
+`nextCursor`. Pass the returned cursor object unchanged. Stage filters are graduated (default),
+trial, dropped, untracked and all. Freshness filters are all (default), live, needsSync and
+syncing. Heat filters are all, hot, warm, cold and unrated. Sort defaults to work priority:
+graduated keywords syncing, then due, then live; trials by Brand Analytics rank; then dropped and
+untracked. Newest is also available. Workers run independently, so work order is a priority view
+rather than a fixed FIFO rank. Pass nextCursor unchanged to retain the full ordering snapshot. Both
+procedures read stored data without provider calls.
+Entries include sources, stage, freshness, retryScheduled, known Merch/product counts, score,
+searchFrequencyRank (the latest weekly Amazon Brand Analytics rank, or null when Amazon does not
+rank the term), last check, interval and next check. Stage is trial (awaiting its first-page
+qualification check), graduated (tracked), dropped (failed the check) or untracked (not
+scheduled). Freshness is live (first page current), needsSync (check due or never observed) or
+syncing (a check is running); trials are only needsSync or syncing, and dropped or untracked
+entries have null freshness, interval and next check. Stage, freshness and score describe our
+collection progress and priority, not organic search volume.
 Weekly Brand Analytics history is not exposed. `keyword.results` still provides dated Amazon product-search evidence.
 
 ## Raw Request

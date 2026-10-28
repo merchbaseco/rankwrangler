@@ -104,9 +104,12 @@ an event; it rewinds if arrivals displace rows. This prevents gaps without rerea
 An in-flight row response cannot overwrite a newer reconciliation or an unmounted filter. A patch
 that lands while the directory itself is fetching (Load more or a refetch) is deferred and its
 terms re-read afterward, because the arriving page would otherwise overwrite it. Each patch marks
-other filters' cached directory pages stale so they refetch when shown again.
+other filters' cached directory pages stale so they refetch when shown again. Row reads ignore the
+stage and freshness filters, so a keyword that graduates or is dropped leaves the active view.
+Stage counts are a separate query refreshed at most once per 30 seconds of directory events and on
+reconciliation.
 
-Status and processing order are computed at the first page's observation time, so a check coming
+Freshness and processing order are computed at the first page's observation time, so a check coming
 due changes a row without any database write. The catalog arms one timer for the earliest future
 `nextCheckAt` among loaded rows (at least 30 seconds out) and then refetches the loaded pages at a
 fresh observation time. With no loaded row waiting to come due, nothing is scheduled. A claim that

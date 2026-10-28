@@ -19,6 +19,14 @@ export const useKeywordDirectoryChanged = (input: DirectoryInput) => {
 	useEffect(() => {
 		const directory = utils.api.app.keywordDirectory;
 		const queryKey = getQueryKey(api.api.app.keywordDirectory, input, "infinite");
+		// Stage counts span every keyword, so refresh them at most once per window, not per event.
+		let countsTimer: ReturnType<typeof setTimeout> | null = null;
+		const refreshCounts = () => {
+			countsTimer ??= setTimeout(() => {
+				countsTimer = null;
+				void utils.api.app.keywordDirectoryCounts.invalidate();
+			}, countsRefreshMs);
+		};
 		const listener = createKeywordDirectoryEventUpdates({
 			view: () => directory.getInfiniteData(input)?.pages[0]?.view,
 			read: (terms, view) => readRows({ terms, view }),
@@ -32,12 +40,17 @@ export const useKeywordDirectoryChanged = (input: DirectoryInput) => {
 					predicate: (query) => query.queryHash !== hashKey(queryKey),
 					refetchType: "none",
 				});
+				refreshCounts();
 				return true;
 			},
-			reconcile: () => directory.invalidate(input),
+			reconcile: () => {
+				void utils.api.app.keywordDirectoryCounts.invalidate();
+				return directory.invalidate(input);
+			},
 		});
 		updates.current = listener;
 		return () => {
+			if (countsTimer) clearTimeout(countsTimer);
 			listener.dispose();
 			updates.current = null;
 		};
@@ -46,3 +59,5 @@ export const useKeywordDirectoryChanged = (input: DirectoryInput) => {
 		onData: (event) => updates.current?.onData(event),
 	});
 };
+
+const countsRefreshMs = 30_000;

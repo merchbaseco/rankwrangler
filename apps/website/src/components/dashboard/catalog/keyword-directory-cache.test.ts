@@ -7,20 +7,23 @@ import {
 import { createKeywordDirectoryEventUpdates } from "./keyword-directory-event-updates";
 const view = {
 	asOf: "2026-10-26T12:00:00.000Z",
-	trialTurn: true,
 	sort: "work" as const,
 };
 const row = (
 	term: string,
 	position: number,
-	status: DirectoryRow["status"] = "queued",
+	stage: DirectoryRow["stage"] = "graduated",
+	freshness: DirectoryRow["freshness"] = stage === "graduated" ||
+	stage === "trial"
+		? "needsSync"
+		: null,
 ): DirectoryRow => ({
 	id: `00000000-0000-4000-8000-${String(position).padStart(12, "0")}`,
 	queryId: `00000000-0000-4000-8000-${String(position).padStart(12, "0")}`,
 	term,
 	createdAt: view.asOf,
-	status,
-	untrackedReason: status === "untracked" ? "noMerchFound" : null,
+	stage,
+	freshness,
 	retryScheduled: false,
 	heat: "unrated",
 	score: null,
@@ -32,8 +35,8 @@ const row = (
 	nextCheckAt: null,
 	intervalDays: null,
 	sortKey: [
-		1,
 		0,
+		1,
 		0,
 		0,
 		0,
@@ -101,7 +104,7 @@ describe("keyword directory event updates", () => {
 		};
 		const patched = patchKeywordDirectory(
 			original,
-			[row("first", 1, "untracked"), row("later", 9)],
+			[row("first", 1, "dropped"), row("later", 9)],
 			["first", "later"],
 			{ limit: 2 },
 		)!;
@@ -112,6 +115,27 @@ describe("keyword directory event updates", () => {
 		expect(patched.pages[0].nextCursor?.key).toEqual(
 			original.pages[0].nextCursor?.key,
 		);
+	});
+	it("keeps rows only while they match the stage and freshness filters", () => {
+		const original = {
+			pages: [page([row("first", 1), row("second", 2)])],
+			pageParams: [undefined],
+		};
+		const input = { limit: 2, stage: "trial" as const, freshness: "syncing" as const };
+		const patched = patchKeywordDirectory(
+			original,
+			[row("first", 1, "trial", "syncing"), row("second", 2, "trial")],
+			["first", "second"],
+			input,
+		)!;
+		expect(patched.pages[0].items.map((r) => r.term)).toEqual(["first"]);
+		const graduated = patchKeywordDirectory(
+			original,
+			[row("first", 1, "trial"), row("second", 2, "graduated", "live")],
+			["first", "second"],
+			{ limit: 2 },
+		)!;
+		expect(graduated.pages[0].items.map((r) => r.term)).toEqual(["second"]);
 	});
 	it("batches notifications into a row read, not a table refetch", async () => {
 		const reads: string[][] = [];

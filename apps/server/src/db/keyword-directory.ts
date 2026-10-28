@@ -1,7 +1,13 @@
-import { keywordDirectoryInput, keywordDirectoryCursor } from '@/api/keyword-directory-input';
+import type {
+    keywordDirectoryInput,
+    keywordDirectoryCursor,
+    keywordFreshness,
+    keywordStages,
+} from '@/api/keyword-directory-input';
 import { sql } from 'drizzle-orm';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { db } from './index';
+import { keywordDirectoryWhereSql, keywordStageSql } from './keyword-directory-stage';
 
 type DirectoryRow = {
     sortKey: z.infer<typeof keywordDirectoryCursor>['key'];
@@ -9,8 +15,8 @@ type DirectoryRow = {
     queryId: string;
     term: string;
     createdAt: string;
-    status: 'queued' | 'scanning' | 'upToDate' | 'untracked';
-    untrackedReason: 'noMerchFound' | 'notScheduled' | null;
+    stage: (typeof keywordStages)[number];
+    freshness: (typeof keywordFreshness)[number] | null;
     retryScheduled: boolean;
     heat: string;
     score: number | null;
@@ -22,27 +28,22 @@ type DirectoryRow = {
     nextCheckAt: string | null;
     intervalDays: number | null;
 };
+type DirectoryView = Pick<z.infer<typeof keywordDirectoryCursor>, 'asOf' | 'sort'>;
+
+// Default order: graduated keywords first (syncing, then needing sync by due time, then live by
+// next check), then trials in Brand Analytics rank order, then dropped and untracked, newest first.
+// Reading specific terms ignores stage and freshness filters so callers can re-evaluate a row.
 export const readKeywordDirectory = async (
     input: z.infer<typeof keywordDirectoryInput>,
-    exactTerm?: string,
-    options?: {
-        terms?: readonly string[];
-        view?: Pick<z.infer<typeof keywordDirectoryCursor>, 'asOf' | 'trialTurn' | 'sort'>;
-    }
+    options?: { terms?: readonly string[]; view?: DirectoryView }
 ) => {
     const asOf = options?.view?.asOf ?? input.cursor?.asOf ?? new Date().toISOString();
     const sort = options?.view?.sort ?? input.cursor?.sort ?? input.sort;
-    const [capacity] = input.cursor
-        ? []
-        : await db.execute<{ trial_turn: boolean }>(
-              sql`select (discovery_claims%5=0) trial_turn from spapi_catalog_capacity where id=1`
-          );
-    const trialTurn =
-        options?.view?.trialTurn ?? input.cursor?.trialTurn ?? capacity?.trial_turn ?? true;
+    const terms = options?.terms;
     const rows = await db.execute<DirectoryRow>(sql`
         with directory as (
             select q.id,q.id "queryId",q.normalized_term term,q.created_at "createdAt",
-                coalesce(t.tracking,'untracked') qualification,coalesce(t.standing_tier,'unrated') heat,
+                ${keywordStageSql} stage,coalesce(t.standing_tier,'unrated') heat,
                 t.popularity_score score,ba.search_frequency_rank "searchFrequencyRank",coalesce(s.sources,'{}'::text[]) sources,
                 case when a.stage='complete' then 'complete' when a.claim_at>${asOf}::timestamp-interval '5 minutes' then 'running'
                     when a.failure_count>0 then 'retrying' when t.tracking='tracked' and t.enabled then 'queued' else 'not eligible' end expansion,
@@ -53,13 +54,6 @@ export const readKeywordDirectory = async (
                     when t.next_check_at<=${asOf}::timestamp or t.head_observed_at is null then 'queued' else 'scheduled' end discovery,
                 coalesce(m.products,0)::int products,coalesce(m.merch,0)::int merch,
                 coalesce(p.last_page_at,t.head_observed_at) "lastCheckedAt",case when p.stop_reason in ('running','budget','jobCap') then p.resume_at else least(t.next_check_at,p.resume_at) end "nextCheckAt",t.interval_days "intervalDays",
-                case when t.enabled and t.tracking<>'dormant' then null
-                    when t.tracking='dormant' and t.trial_failures>=2 then 'noMerchFound'
-                    else 'notScheduled' end "untrackedReason",
-                case when t.tracking='tracked' and t.enabled and coalesce(a.stage,'pending')<>'complete' then coalesce(a.next_due_at,q.created_at) end "autocompleteDueAt",
-                case when t.tracking=${trialTurn ? 'trial' : 'tracked'} then 0 else 1 end "scanClass",
-                case when t.head_observed_at is null then 1 else greatest(0,extract(epoch from(${asOf}::timestamp-coalesce(t.next_check_at,${asOf}::timestamp))))/greatest(t.interval_days*86400,1) end::double precision urgency,
-                coalesce(extract(epoch from t.last_selected_at)*1000000,0)::bigint selected,
                 extract(epoch from coalesce(t.created_at,q.created_at))*1000000 "queueCreated",coalesce(t.id,q.id) "queueIdentity"
             from catalog_queries q
             left join discovery_targets t on t.query_id=q.id and t.kind='keyword'
@@ -69,69 +63,57 @@ export const readKeywordDirectory = async (
             left join lateral (select claim_at,stop_reason,resume_at,last_page_at,failure_count from keyword_exploration_passes where target_id=t.id order by created_at desc,id desc limit 1) p on true
             left join lateral (select count(*) products,count(*) filter(where pr.is_merch_listing=true and pr.amazon_listing_status='active') merch
                 from keyword_products kp join products pr on pr.id=kp.product_id where kp.query_id=q.id) m on true
-            where q.marketplace_id='ATVPDKIKX0DER'
+            where ${keywordDirectoryWhereSql(input, terms)}
+                and ${terms || input.stage === 'all' ? sql`true` : sql`${keywordStageSql}=${input.stage}`}
         ), classified as (
-            select *,case when "untrackedReason" is not null then 'untracked'
-                when expansion='running' or discovery='running' then 'scanning'
-                when discovery in ('queued','waiting','retrying') then 'queued'
-                else 'upToDate' end status,
-                (expansion='retrying' or discovery='retrying') "retryScheduled"
+            select *,case when stage in ('dropped','untracked') then null
+                    when expansion='running' or discovery='running' then 'syncing'
+                    when stage='trial' or discovery in ('queued','waiting','retrying') then 'needsSync'
+                    else 'live' end freshness,
+                (stage in ('graduated','trial') and (expansion='retrying' or discovery='retrying')) "retryScheduled"
             from directory
-        ), readiness as (
-            select *,coalesce(least(case when discovery in ('queued','waiting','retrying') then coalesce("nextCheckAt","createdAt") else "nextCheckAt" end,"autocompleteDueAt"),"createdAt") eligible_at,
-                case when status='scanning' then 0 when status='untracked' then 4 when status='upToDate' then 3
-                    when coalesce(least(case when discovery in ('queued','waiting','retrying') then coalesce("nextCheckAt","createdAt") else "nextCheckAt" end,"autocompleteDueAt"),"createdAt")>${asOf}::timestamp then 2 else 1 end bucket
-            from classified
         ), ordered as (
-            select *,case when ${sort}='newest' then jsonb_build_array(0,0,0,0,0,-extract(epoch from "createdAt")*1000000,id)
-                else jsonb_build_array(bucket,
-                    case when bucket in (2,3) then extract(epoch from eligible_at)*1000000 else 0 end,
-                    case when bucket=1 and discovery in ('queued','waiting','retrying') then "scanClass" when bucket=1 then 2 else 0 end,
-                    case when bucket=1 and discovery in ('queued','waiting','retrying') then -urgency when bucket=1 then -coalesce(score,0)::double precision else 0 end,
-                    selected,"queueCreated","queueIdentity") end "sortKey"
-            from readiness
-        ) select id,"queryId",term,"createdAt",status,"untrackedReason","retryScheduled",heat,score,"searchFrequencyRank",sources,products,merch,"lastCheckedAt","sortKey",
-            case when status='untracked' then null else "nextCheckAt" end "nextCheckAt",
-            case when status='untracked' then null else "intervalDays" end "intervalDays"
+            select *,${sort === 'newest' ? newestKey : workKey} "sortKey" from classified
+        ) select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,"searchFrequencyRank",sources,products,merch,"lastCheckedAt","sortKey",
+            case when freshness is null then null else "nextCheckAt" end "nextCheckAt",
+            case when freshness is null then null else "intervalDays" end "intervalDays"
         from ordered where
-            ${input.search ? sql`position(${input.search.toLowerCase()} in term)>0` : sql`true`}
-            and ${
-                options?.terms
-                    ? sql`term in (${sql.join(
-                          options.terms.map(term => sql`${term}`),
-                          sql`,`
-                      )})`
-                    : exactTerm
-                      ? sql`term=${exactTerm}`
-                      : input.state === 'all'
-                        ? sql`status<>'untracked'`
-                        : sql`status=${input.state}`
-            }
-            and ${input.heat === 'all' ? sql`true` : sql`heat=${input.heat}`}
+            ${terms || input.freshness === 'all' ? sql`true` : sql`freshness=${input.freshness}`}
             and ${input.cursor ? sql`"sortKey">${JSON.stringify(input.cursor.key)}::jsonb` : sql`true`}
-            order by "sortKey" asc limit ${input.limit + 1}`);
-    const items = rows.slice(0, input.limit).map(row => ({
+            order by "sortKey" asc limit ${terms ? terms.length : input.limit + 1}`);
+    const limit = terms ? terms.length : input.limit;
+    const items = rows.slice(0, limit).map(row => ({
         ...row,
         createdAt: utcTimestamp(row.createdAt)!,
         lastCheckedAt: utcTimestamp(row.lastCheckedAt),
         nextCheckAt: utcTimestamp(row.nextCheckAt),
     }));
-    const last = rows.slice(0, input.limit).at(-1);
+    const last = items.at(-1);
+    const view: DirectoryView = { asOf, sort };
     return {
         items,
-        view: { asOf, trialTurn, sort },
-        nextCursor:
-            rows.length > input.limit && last ? { key: last.sortKey, asOf, trialTurn, sort } : null,
+        view,
+        nextCursor: !terms && rows.length > limit && last ? { key: last.sortKey, ...view } : null,
     };
 };
 
-const utcTimestamp = (value: string | null) =>
-    value === null ? null : new Date(`${value.replace(' ', 'T')}Z`).toISOString();
-
 export const listKeywordDirectory = async (
     input: z.infer<typeof keywordDirectoryInput>,
-    exactTerm?: string
+    options?: { terms?: readonly string[] }
 ) => {
-    const result = await readKeywordDirectory(input, exactTerm);
+    const result = await readKeywordDirectory(input, options);
     return { items: result.items.map(({ sortKey, ...row }) => row), nextCursor: result.nextCursor };
 };
+
+const workKey = sql`jsonb_build_array(
+    case stage when 'graduated' then 0 when 'trial' then 1 when 'dropped' then 2 else 3 end,
+    case freshness when 'syncing' then 0 when 'needsSync' then 1 when 'live' then 2 else 3 end,
+    case when stage='trial' then coalesce("searchFrequencyRank",2147483647)
+        when freshness='needsSync' then extract(epoch from coalesce("nextCheckAt","createdAt"))*1000000
+        when freshness='live' then coalesce(extract(epoch from "nextCheckAt")*1000000,0)
+        when freshness is null then -extract(epoch from "createdAt")*1000000 else 0 end,
+    0,0,"queueCreated","queueIdentity")`;
+const newestKey = sql`jsonb_build_array(0,0,0,0,0,-extract(epoch from "createdAt")*1000000,id)`;
+
+const utcTimestamp = (value: string | null) =>
+    value === null ? null : new Date(`${value.replace(' ', 'T')}Z`).toISOString();

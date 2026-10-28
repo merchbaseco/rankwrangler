@@ -141,7 +141,7 @@ search evidence. Search directly tracks its exact keyword for background SP-API 
 Adaptive Keepa collection tiers, durable token reservations and explicit history admission are live.
 The [growth completion](plans/merch-growth-completion.md) adds independent continuous SP-API
 acquisition, weekly Brand Analytics keyword sources, once-per-tracked-keyword autocomplete,
-a live keyword directory with plain statuses, processing order, pause/resume and lifecycle logs, and adaptive keyword standing; it is locally verified and
+a live keyword directory with separate stage and freshness, processing order, pause/resume and lifecycle logs, and adaptive keyword standing; it is locally verified and
 awaits deployment. Operator settings expose collection
 backlogs and capacity. The [execution record](plans/merch-collection-execution.md) tracks verification.
 The [capacity baseline](plans/merch-capacity-baseline.md) records the initial pilot envelope.

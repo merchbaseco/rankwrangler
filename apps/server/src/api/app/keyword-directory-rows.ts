@@ -11,10 +11,6 @@ export const keywordDirectoryRows = appProcedure
         })
     )
     .query(async ({ input }) => {
-        const result = await readKeywordDirectory(
-            keywordDirectoryInput.parse({ limit: 100 }),
-            undefined,
-            input
-        );
+        const result = await readKeywordDirectory(keywordDirectoryInput.parse({}), input);
         return result.items;
     });

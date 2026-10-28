@@ -9,6 +9,8 @@ export const keywordGet = publicApiProcedure
     .query(async ({ input, ctx }) => {
         await consumeServiceAccountUsageForRequest(ctx, 1);
         const term = input.keyword.trim().replace(/\s+/gu, ' ').toLowerCase();
-        const result = await listKeywordDirectory(keywordDirectoryInput.parse({ limit: 1 }), term);
+        const result = await listKeywordDirectory(keywordDirectoryInput.parse({}), {
+            terms: [term],
+        });
         return { keyword: term, data: result.items[0] ?? null };
     });
