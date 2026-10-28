@@ -10,6 +10,7 @@ import { listDueKeywordScans } from '@/db/keyword-work-due';
 import { prepareJobQueues } from '@/jobs/index';
 import { keywordQueues } from '@/jobs/keyword-job-queues';
 import { readKeywordJobsStatus } from '@/services/keyword-jobs-status';
+import { scheduleBrandAnalytics } from '@/services/brand-analytics-scheduler';
 import { scheduleKeywordWork } from '@/services/keyword-work-scheduler';
 import { resetDiscoveryFixture, seedDiscoveryTarget } from './discovery-fixture';
 
@@ -77,18 +78,13 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword pipeline j
                         ? ((await boss.insert(name, jobs, { returnId: true }))?.length ?? 0)
                         : 0,
             };
+            expect((await scheduleBrandAnalytics(boss)).importId).not.toBeNull();
+            expect((await boss.getQueueStats(keywordQueues.brandAnalytics)).queuedCount).toBe(1);
+            expect(await registerBrandAnalyticsTrials(2000)).toBe(1);
             const first = await scheduleKeywordWork(queues);
-            expect(first.paused ? null : first.enqueued).toMatchObject({
-                scanHeads: 1,
-                brandAnalytics: 1,
-                trials: 1,
-            });
+            expect(first.paused ? null : first.enqueued).toMatchObject({ scanHeads: 2 });
             const second = await scheduleKeywordWork(queues);
-            expect(second.paused ? null : second.enqueued).toMatchObject({
-                brandAnalytics: 0,
-                trials: 0,
-            });
-            // The registered trial's first head joins the queue on the next pass.
+            expect(second.paused ? null : second.enqueued).toMatchObject({ scanHeads: 0 });
             expect((await boss.getQueueStats(keywordQueues.scan)).queuedCount).toBe(2);
             const status = await readKeywordJobsStatus();
             expect(status.queues.find(queue => queue.name === keywordQueues.scan)).toMatchObject({

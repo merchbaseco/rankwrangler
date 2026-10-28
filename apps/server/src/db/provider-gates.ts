@@ -14,6 +14,10 @@ import { spApiCatalogCapacity } from './spapi-capacity-schema';
 // own reservation stays authoritative, so a lost race defers instead of overrunning the provider.
 export type ProviderGate = (now?: Date) => Promise<Date | null>;
 
+// For free, quota-light work that should run regardless of Pause sync (the Brand Analytics import
+// and keyword listing). It uses the gated worker only for its self-scheduled followups.
+export const alwaysOpenGate: ProviderGate = async (now = new Date()) => now;
+
 export const spApiBackgroundGate: ProviderGate = async (now = new Date()) => {
     if (await isAutomaticSyncPaused()) return null;
     const [capacity] = await db

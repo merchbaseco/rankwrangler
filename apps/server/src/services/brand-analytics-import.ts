@@ -23,7 +23,8 @@ const defaults = {
 };
 
 // Advances one weekly import by one step, each a single provider call: request the report, check
-// its status, or download, aggregate and save it. The scheduler enqueues the next due step.
+// its status, or download, aggregate and save it. Unfinished steps return a followup time, and the
+// job queues itself again for it; a failed step waits for its backoff and the six-hour check.
 export const advanceBrandAnalyticsImport = async (importId: string, deps = defaults) => {
     const now = new Date();
     const work = await deps.claim(importId, now);
@@ -76,7 +77,13 @@ const requestReport = async (work: BrandAnalyticsImportWork, deps: Deps, now: Da
         },
         now
     );
-    return { kind: 'requested' as const, didWork: true, weekStart: work.weekStart, reportId };
+    return {
+        kind: 'requested' as const,
+        didWork: true,
+        weekStart: work.weekStart,
+        reportId,
+        followup: { at: new Date(now.getTime() + BRAND_ANALYTICS_POLL_MS) },
+    };
 };
 
 const checkReport = async (work: BrandAnalyticsImportWork, deps: Deps, now: Date) => {
@@ -94,7 +101,12 @@ const checkReport = async (work: BrandAnalyticsImportWork, deps: Deps, now: Date
             },
             now
         );
-        return { kind: 'ready' as const, didWork: true, weekStart: work.weekStart };
+        return {
+            kind: 'ready' as const,
+            didWork: true,
+            weekStart: work.weekStart,
+            followup: { at: now },
+        };
     }
     if (reportStatus === 'IN_QUEUE' || reportStatus === 'IN_PROGRESS') {
         await deps.release(
@@ -102,11 +114,17 @@ const checkReport = async (work: BrandAnalyticsImportWork, deps: Deps, now: Date
             { reportStatus, nextAttemptAt: new Date(now.getTime() + BRAND_ANALYTICS_POLL_MS) },
             now
         );
-        return { kind: 'processing' as const, didWork: false, weekStart: work.weekStart };
+        return {
+            kind: 'processing' as const,
+            didWork: false,
+            weekStart: work.weekStart,
+            followup: { at: new Date(now.getTime() + BRAND_ANALYTICS_POLL_MS) },
+        };
     }
     // CANCELLED usually means Amazon has not published the week yet; FATAL is a failed report.
     // Either way the week is requested again later.
     const failureCount = work.failureCount + 1;
+    const nextAttemptAt = new Date(now.getTime() + rerequestDelayMs(failureCount));
     await deps.release(
         work,
         {
@@ -115,11 +133,17 @@ const checkReport = async (work: BrandAnalyticsImportWork, deps: Deps, now: Date
             reportId: null,
             failureCount,
             lastError: `Report ${work.reportId} ended ${reportStatus}`,
-            nextAttemptAt: new Date(now.getTime() + rerequestDelayMs(failureCount)),
+            nextAttemptAt,
         },
         now
     );
-    return { kind: 'rerequest' as const, didWork: true, weekStart: work.weekStart, reportStatus };
+    return {
+        kind: 'rerequest' as const,
+        didWork: true,
+        weekStart: work.weekStart,
+        reportStatus,
+        followup: { at: nextAttemptAt },
+    };
 };
 
 const importReport = async (work: BrandAnalyticsImportWork, deps: Deps, now: Date) => {

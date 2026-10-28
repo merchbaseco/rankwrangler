@@ -49,7 +49,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword sync pause
             'keyword.sync.resumed',
         ]);
     });
-    it('fails closed without a state row and does not consume keyword provider capacity while paused', async () => {
+    it('fails closed without a state row and spends no scan or provider capacity while paused', async () => {
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
         await db.insert(products).values({
             asin: 'B0TST00001',
@@ -73,9 +73,11 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword sync pause
             firstSeenWeek: '2026-10-18',
             lastSeenWeek: '2026-10-18',
         });
-        expect(await registerBrandAnalyticsTrials(10)).toBe(0);
+        // The import and keyword listing are free and ignore the pause; only scans wait.
+        expect(await registerBrandAnalyticsTrials(10)).toBe(1);
         const due = await ensureBrandAnalyticsImport();
-        expect(due && (await claimBrandAnalyticsImport(due.id))).toBeNull();
+        expect(due && (await claimBrandAnalyticsImport(due.id))).not.toBeNull();
+        expect(await claimKeywordExploration()).toBeNull();
     });
     it('preserves the product scan checkpoint when paused between pages and permits foreground lookups', async () => {
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);

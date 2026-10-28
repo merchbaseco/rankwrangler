@@ -38,7 +38,9 @@ step with one provider call:
 3. `ready`: download the GZIP JSON document, aggregate it while streaming and save (`imported`).
    A failing download backs off from ten minutes to six hours; three failures request it afresh.
 
-The scheduler enqueues the step that is due; a 90-minute claim lease fences overlapping runs.
+Each unfinished step queues the job again for its next time; a saved week queues keyword listing.
+A failed step stops the chain until its backoff passes and the six-hourly check restarts it. A
+90-minute claim lease fences overlapping runs.
 Report generation took one to ten minutes in the POC.
 
 The document is one JSON object whose `dataByDepartmentAndSearchTerm` array has one row per search
@@ -60,8 +62,10 @@ Imports upsert; no weekly snapshot history is stored (the retired design kept ab
 
 ## Trials and admission
 
-While the scan backlog is within bounds, the scheduler registers up to 500 unregistered kept terms
-a minute, most searched first, through the canonical keyword and discovery-evidence path with
+After a week is saved, `register-brand-analytics-keywords` lists unregistered kept terms as trial
+keywords, 2,000 per job, most searched first, queueing itself until none remain. Listing ignores
+Pause sync, so new searches appear in the Keywords directory as Queued soon after an import.
+Registration goes through the canonical keyword and discovery-evidence path with
 eligible `brandAnalytics` evidence (`week:<sunday>`). Existing keywords only gain the evidence: a
 tracked keyword stays tracked and a dormant one stays dormant. Due trial heads are listed most
 searched first.
@@ -133,10 +137,12 @@ one queue per provider, at most one queued-or-running job per entity.
 
 | Job | Entity | Provider gate | What it does next |
 | --- | --- | --- | --- |
-| `schedule-keyword-work` | none, every minute | none | Enqueues due scans and the due import step; registers trials and seeds while backlog allows |
+| `schedule-brand-analytics` | none, every six hours | none | Starts the newest week's import when due and nudges keyword listing; ignores Pause sync |
+| `schedule-keyword-work` | none, every minute | none | While sync runs, enqueues due scans and tops up autocomplete seeds while backlog allows |
 | `scan-keyword` | keyword target | SP-API background capacity | Fetches one page; queues the next page of a continuing pass at depth priority |
 | `autocomplete-keyword` | tracked seed | autocomplete spacing | Saves up to ten suggestions as trials and completes the seed |
-| `import-brand-analytics` | weekly import | SP-API Reports limiter | Requests, checks, or downloads and saves one week's report |
+| `import-brand-analytics` | weekly import | always open | Requests, checks (every two minutes) or downloads and saves one week's report; queues its own next step, then keyword listing |
+| `register-brand-analytics-keywords` | none (one chain) | always open | Lists 2,000 kept terms as trial keywords; queues itself while a full batch was listed |
 
 A gated queue fetches its next job only once its provider can start, so waiting work stays visible
 in the queue. Scan jobs for due heads carry priority 1 and deeper pages priority 0; within a
@@ -150,9 +156,9 @@ Background keyword scans may use 75% of the measured SP-API Catalog rate, up to
 `spapi_catalog_capacity.background_max_rps` (0.5 by default); raising that value speeds scanning
 without a deploy.
 
-Brand Analytics trials are the main producer of scan work, with autocomplete second. Both are
-admitted only while the estimated scan backlog is within two days of productive background SP-API
-capacity; autocomplete is topped up to thirty queued seeds (about five minutes of starts). The
+Listed Brand Analytics trials are the main source of due scans; scans themselves run at the
+background SP-API rate in work order. Autocomplete seeds are admitted only while the estimated scan
+backlog is within two days of productive background SP-API capacity; autocomplete is topped up to thirty queued seeds (about five minutes of starts). The
 backlog estimate counts five pages for a keyword with no first head, the remaining planned depth of
 a continuing pass (at least one page) and one page per due recurring head. Capacity is the current
 background rate times 86,400 times 0.7. The 70% share, five-page allowance and two-day threshold are
@@ -207,9 +213,10 @@ directory once. See [Realtime events](realtime-events.md).
 ## Pause and resume
 
 The Keywords page has one admin-only Pause sync / Resume sync control for the keyword pipeline. It
-controls the keyword scheduler (scans, trial registration, autocomplete and the Brand Analytics
-import), the gated scan and autocomplete queues, and import claims. Existing Product refresh,
-history refresh and deliberate reads stay outside this switch. Pausing does not disable tracked
+controls refresh work only: the keyword scheduler (due scans and autocomplete seeds) and the gated
+scan and autocomplete queues. The weekly Brand Analytics import and keyword listing always run,
+because they are free and spend no scan capacity; paused, new keywords simply wait in Queued.
+Existing Product refresh, history refresh and deliberate reads also stay outside this switch. Pausing does not disable tracked
 keywords or delete queued work.
 
 `automatic_sync_control` persists the flag and actor; a missing row also means paused. Already

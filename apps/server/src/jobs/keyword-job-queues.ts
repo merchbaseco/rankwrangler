@@ -4,6 +4,7 @@ export const keywordQueues = {
     scan: 'scan-keyword',
     autocomplete: 'autocomplete-keyword',
     brandAnalytics: 'import-brand-analytics',
+    brandAnalyticsKeywords: 'register-brand-analytics-keywords',
 } as const;
 export const keywordQueueOptions = {
     policy: 'exclusive',

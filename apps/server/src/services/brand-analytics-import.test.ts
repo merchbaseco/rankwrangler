@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import type { BrandAnalyticsImportWork } from '@/db/brand-analytics-imports';
-import { advanceBrandAnalyticsImport } from './brand-analytics-import';
+import { advanceBrandAnalyticsImport, BRAND_ANALYTICS_POLL_MS } from './brand-analytics-import';
 
 const work = (patch: Partial<BrandAnalyticsImportWork>): BrandAnalyticsImportWork =>
     ({
@@ -45,6 +45,9 @@ describe('Brand Analytics import steps', () => {
             status: 'requested',
             reportId: 'report-1',
         });
+        expect(followupDelay(await advanceBrandAnalyticsImport('import', deps(work({})) as never))).toBe(
+            BRAND_ANALYTICS_POLL_MS
+        );
     });
     it('keeps polling while Amazon generates the report', async () => {
         const d = deps(work({ status: 'requested', reportId: 'report-1' }), 'IN_PROGRESS');
@@ -56,7 +59,8 @@ describe('Brand Analytics import steps', () => {
     });
     it('marks a finished report ready for its download step', async () => {
         const d = deps(work({ status: 'requested', reportId: 'report-1' }));
-        await advanceBrandAnalyticsImport('import', d as never);
+        // The download step follows straight away.
+        expect(followupDelay(await advanceBrandAnalyticsImport('import', d as never))).toBe(0);
         expect(d.release.mock.calls[0][1]).toMatchObject({
             status: 'ready',
             reportDocumentId: 'document-1',
@@ -96,3 +100,8 @@ describe('Brand Analytics import steps', () => {
         });
     });
 });
+
+const followupDelay = (result: unknown) => {
+    const at = (result as { followup?: { at: Date } }).followup?.at;
+    return at ? Math.round((at.getTime() - Date.now()) / 1000) * 1000 : null;
+};

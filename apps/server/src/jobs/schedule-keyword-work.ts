@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { scheduleKeywordWork } from '@/services/keyword-work-scheduler';
 import { defineJob } from './job-router';
 
-// Every minute: enqueue due keyword scans and the weekly Brand Analytics import step, and, while
-// scan backlog allows, register Brand Analytics trials and top up autocomplete. Calls no provider.
+// Every minute while sync runs: enqueue due keyword scans and, while scan backlog allows, top up
+// autocomplete. Calls no provider.
 export const scheduleKeywordWorkJob = defineJob('schedule-keyword-work', {
     persistSuccess: 'didWork',
     startupSummary:
-        'every minute; enqueues due keyword scans, Brand Analytics import, trials and autocomplete',
+        'every minute; enqueues due keyword scans and autocomplete',
 })
     .input(z.object({}))
     .queue({ policy: 'singleton' })

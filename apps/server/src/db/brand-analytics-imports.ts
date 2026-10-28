@@ -5,7 +5,6 @@ import {
     type BrandAnalyticsTerm,
     latestBrandAnalyticsWeek,
 } from '@/services/brand-analytics-terms';
-import { isAutomaticSyncPaused } from './automatic-sync';
 import { brandAnalyticsImports, brandAnalyticsSearchTerms } from './brand-analytics-schema';
 import { db } from './index';
 
@@ -54,7 +53,6 @@ export const ensureBrandAnalyticsImport = async (now = new Date()) =>
 
 export const claimBrandAnalyticsImport = async (id: string, now = new Date()) =>
     db.transaction(async tx => {
-        if (await isAutomaticSyncPaused(tx)) return null;
         const [row] = await tx
             .select()
             .from(brandAnalyticsImports)

@@ -1,6 +1,8 @@
 import { autocompleteKeywordJob } from './autocomplete-keyword';
 import { importBrandAnalyticsJob } from './import-brand-analytics';
 import { scanKeywordJob } from './scan-keyword';
+import { registerBrandAnalyticsKeywordsJob } from './register-brand-analytics-keywords';
+import { scheduleBrandAnalyticsJob } from './schedule-brand-analytics';
 import { scheduleKeywordWorkJob } from './schedule-keyword-work';
 import type { PgBoss } from 'pg-boss';
 import { reconcileHistoryAdmissionJob } from '@/jobs/reconcile-history-admission';
@@ -25,6 +27,8 @@ const registeredJobs = [
     scanKeywordJob,
     autocompleteKeywordJob,
     importBrandAnalyticsJob,
+    registerBrandAnalyticsKeywordsJob,
+    scheduleBrandAnalyticsJob,
     catalogSearchJob,
     reconcileHistoryAdmissionJob,
     collectDueCatalogQueriesJob,

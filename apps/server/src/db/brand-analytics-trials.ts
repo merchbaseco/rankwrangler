@@ -1,6 +1,5 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { BRAND_ANALYTICS_MARKETPLACE_ID } from '@/services/brand-analytics-terms';
-import { isAutomaticSyncPaused } from './automatic-sync';
 import { brandAnalyticsSearchTerms as terms } from './brand-analytics-schema';
 import { recordDiscoveryCandidates } from './discovery-candidates';
 import { db } from './index';
@@ -10,7 +9,7 @@ import { db } from './index';
 // (a dormant keyword stays dormant); they only gain the evidence.
 export const registerBrandAnalyticsTrials = async (limit: number, now = new Date()) =>
     db.transaction(async tx => {
-        if (limit <= 0 || (await isAutomaticSyncPaused(tx))) return 0;
+        if (limit <= 0) return 0;
         const rows = await tx
             .select({ term: terms.normalizedTerm, week: terms.lastSeenWeek })
             .from(terms)
