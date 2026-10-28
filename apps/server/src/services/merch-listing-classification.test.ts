@@ -15,6 +15,12 @@ const MERCH_PART_NUMBERS = [
 ];
 
 const NON_MERCH_PART_NUMBERS = [
+    // Structured 11-character codes from books, DVDs and branded goods that matched the bare shape.
+    'YES33194325',
+    'YES20562489',
+    'PARD345624D',
+    'PPAX1364775',
+    '83344X08001',
     'GIL1100MDWHTP6-01-White-M',
     'GIL1100-036-2XL',
     '105484',
