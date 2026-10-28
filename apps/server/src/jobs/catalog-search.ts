@@ -160,6 +160,9 @@ export const catalogSearchJob = defineJob(CATALOG_SEARCH_JOB_NAME, {
 })
     .input(catalogSearchJobInput)
     .options({ retryLimit: 0, priority: 10 })
+    // A live search must not wait behind a scheduled refresh that is still saving its history;
+    // Keepa calls themselves stay serialized, interactive first, by the provider's limiter.
+    .workOptions({ localConcurrency: 3 })
     .work(async job => {
         return await runCatalogSearchOperation(job.data.operationId);
     });
