@@ -1,29 +1,20 @@
 import { KEYWORD_DAY_MS, nextKeywordObservation } from './keyword-collection-policy';
 
 export type StandingTier = 'unrated' | 'hot' | 'warm' | 'cold';
-export type KeywordTracking = 'trial' | 'tracked' | 'dormant';
+export type KeywordTracking = 'trial' | 'tracked' | 'dropped';
 
 // A trial graduates when its first page shows at least this many confirmed Merch listings. Three
 // is a starting point, to be calibrated against real first-page scans.
 export const MIN_MERCH_ON_FIRST_PAGE = 3;
-// Trials whose first page shows too little Merch this many times go dormant.
-export const TRIAL_FAILURE_LIMIT = 2;
 
-// What a first-page head check means for a keyword's tracking. Tracked keywords stay tracked; a
-// trial graduates on enough Merch and otherwise counts a failure toward dormancy.
+// What a first-page head check means for a keyword's tracking. One check decides a trial: enough
+// Merch graduates it, anything less drops it. Tracked and dropped keywords keep their tracking.
 export const nextKeywordTracking = (input: {
     tracking: KeywordTracking;
-    trialFailures: number;
     merchOnFirstPage: number;
-}) => {
-    if (input.tracking !== 'trial') return { tracking: input.tracking, trialFailures: 0 };
-    if (input.merchOnFirstPage >= MIN_MERCH_ON_FIRST_PAGE)
-        return { tracking: 'tracked' as const, trialFailures: 0 };
-    const trialFailures = input.trialFailures + 1;
-    return {
-        tracking: trialFailures >= TRIAL_FAILURE_LIMIT ? ('dormant' as const) : ('trial' as const),
-        trialFailures,
-    };
+}): KeywordTracking => {
+    if (input.tracking !== 'trial') return input.tracking;
+    return input.merchOnFirstPage >= MIN_MERCH_ON_FIRST_PAGE ? 'tracked' : 'dropped';
 };
 /** Lowest popularity scores that propose Hot and Warm standing. */
 export const KEYWORD_HOT_SCORE = 75;

@@ -62,7 +62,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('tracked keyword st
         });
         expect(standing.nextCheckAt!.getTime() - next.getTime()).toBeLessThan(2 * 86_400_000);
     });
-    it('graduates a trial only once its first page shows enough Merch', async () => {
+    it('drops a trial whose first page shows too little Merch', async () => {
         const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'trial shirt' });
         await db
             .update(discoveryTargets)
@@ -80,9 +80,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('tracked keyword st
             .select()
             .from(discoveryTargets)
             .where(eq(discoveryTargets.id, target.id));
-        expect(standing).toMatchObject({ tracking: 'trial', trialFailures: 1, enabled: true });
+        expect(standing).toMatchObject({ tracking: 'dropped', enabled: false });
     });
-    it('reactivates a dormant completed keyword immediately when a user searches it', async () => {
+    it('reactivates a dropped completed keyword immediately when a user searches it', async () => {
         const target = await seedDiscoveryTarget({
             kind: 'keyword',
             term: 'tropical christmas shirt',
@@ -90,7 +90,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('tracked keyword st
         const future = new Date(Date.now() + 30 * 86_400_000);
         await db
             .update(discoveryTargets)
-            .set({ tracking: 'dormant', enabled: false, nextCheckAt: future })
+            .set({ tracking: 'dropped', enabled: false, nextCheckAt: future })
             .where(eq(discoveryTargets.id, target.id));
         await db
             .insert(keywordExplorationPasses)

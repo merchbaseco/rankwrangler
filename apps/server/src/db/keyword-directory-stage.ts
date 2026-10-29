@@ -3,9 +3,9 @@ import type { z } from 'zod';
 import type { keywordDirectoryFilters } from '@/api/keyword-directory-input';
 
 // Stage comes from durable target state alone: a keyword query with no enabled keyword target is
-// untracked, a failed trial is dormant (dropped), and tracked means it passed or a user asked.
+// untracked, a trial without enough Merch is dropped, and tracked means it passed or a user asked.
 // Both expressions read the `q` (catalog_queries) and `t` (keyword discovery_targets) aliases.
-export const keywordStageSql = sql`case when t.tracking='dormant' then 'dropped'
+export const keywordStageSql = sql`case when t.tracking='dropped' then 'dropped'
     when t.id is null or not t.enabled then 'untracked'
     when t.tracking='trial' then 'trial' else 'graduated' end`;
 

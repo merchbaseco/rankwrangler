@@ -28,7 +28,7 @@ export const discoveryTargets = pgTable(
         scopeKey: text('scope_key').notNull().default(''),
         brandName: text('brand_name'),
         tracking: text('tracking')
-            .$type<'trial' | 'tracked' | 'dormant'>()
+            .$type<'trial' | 'tracked' | 'dropped'>()
             .notNull()
             .default('trial'),
         standingTier: text('standing_tier')
@@ -45,7 +45,6 @@ export const discoveryTargets = pgTable(
         firstObservedAt: timestamp('first_observed_at', { mode: 'date' }),
         nextCheckAt: timestamp('next_check_at', { mode: 'date' }),
         intervalDays: real('interval_days').notNull().default(7),
-        trialFailures: integer('trial_failures').notNull().default(0),
         demotionObservedAt: timestamp('demotion_observed_at', { mode: 'date' }),
         demotionCount: integer('demotion_count').notNull().default(0),
         emptyCount: integer('empty_count').notNull().default(0),

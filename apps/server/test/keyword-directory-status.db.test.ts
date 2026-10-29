@@ -59,19 +59,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword stage and 
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
         const trial = await seedDiscoveryTarget({ kind: 'keyword', term: 'new niche shirt' }, now);
         const dropped = await seedDiscoveryTarget({ kind: 'keyword', term: 'empty shirt' }, now);
-        // A trial that failed once is still awaiting its decisive check, never live.
+        // A trial awaits its one decisive check, never live.
         await db
             .update(discoveryTargets)
-            .set({
-                tracking: 'trial',
-                trialFailures: 1,
-                headObservedAt: now,
-                nextCheckAt: new Date(now.getTime() + day),
-            })
+            .set({ tracking: 'trial', nextCheckAt: new Date(now.getTime() + day) })
             .where(eq(discoveryTargets.id, trial.id));
         await db
             .update(discoveryTargets)
-            .set({ tracking: 'dormant', enabled: false, trialFailures: 2 })
+            .set({ tracking: 'dropped', enabled: false, headObservedAt: now })
             .where(eq(discoveryTargets.id, dropped.id));
         await db.insert(catalogQueries).values({
             source: 'keepa',

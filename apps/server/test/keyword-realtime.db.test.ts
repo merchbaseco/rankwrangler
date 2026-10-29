@@ -53,7 +53,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('committed keyword 
                 all.items.find(row => row.term === 'fishing')?.sortKey
             );
             // Row reads ignore the stage filter so the client can drop rows that left its view.
-            await db.execute(sql`update discovery_targets set tracking='dormant',enabled=false`);
+            await db.execute(sql`update discovery_targets set tracking='dropped',enabled=false`);
             const dropped = await readKeywordDirectory(keywordDirectoryInput.parse({}), {
                 terms: ['fishing'],
                 view: all.view,
