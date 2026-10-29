@@ -175,6 +175,7 @@ describe('normalizeKeepaProduct', () => {
             fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
             product: {
                 asin: 'B0MERCH006',
+                title: 'Funny Cat Lover Graphic T-Shirt',
                 partNumber: 'AFCHRPAT1KY',
                 features: ['Seller bullet one', 'Seller bullet two'],
             },

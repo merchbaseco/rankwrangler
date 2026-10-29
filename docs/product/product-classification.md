@@ -21,7 +21,7 @@ Product truth is binary, while public knowledge is `isMerchListing: boolean | nu
 
 | Value | Meaning |
 | --- | --- |
-| `true` | The listing's part number is a Merch on Demand design code, or a bullet matches Merch template language. |
+| `true` | A bullet matches Merch template language, or the part number is a Merch on Demand design code on a listing with no model number whose title names a Merch product. |
 | `false` | The classifier saw the listing's part number or bullets and found neither Merch signal. |
 | `null` | RankWrangler has no Merch-listing classification knowledge for the Product yet. |
 

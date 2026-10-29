@@ -61,7 +61,11 @@ describe('classifyMerchListing', () => {
 
     it.each(MERCH_PART_NUMBERS)('recognizes Merch part number %s', partNumber => {
         expect(
-            classifyMerchListing({ bullets: { kind: 'unavailable' }, partNumber })
+            classifyMerchListing({
+                bullets: { kind: 'unavailable' },
+                partNumber,
+                title: 'Funny Cat Lover Graphic T-Shirt',
+            })
         ).toMatchObject({ isMerchListing: true });
     });
 
@@ -69,6 +73,26 @@ describe('classifyMerchListing', () => {
         expect(
             classifyMerchListing({ bullets: { kind: 'unavailable' }, partNumber })
         ).toMatchObject({ isMerchListing: false });
+    });
+
+    it.each([
+        ['ULGS322B01S', 'ULGS322B01S', 'SONGMICS Dresser for Bedroom, Wide Dresser with 5 Fabric Drawers'],
+        ['FG3H8900WHT', '2060338', 'Rubbermaid Configurations Deluxe Closet Kit, White'],
+        ['MINGLUO0121', null, 'Lilaly White Sewing Buttons, 100 pcs, 5 Sizes Round Buttons'],
+    ])('rejects a fitting part number %s with a model number or no Merch product', (partNumber, modelNumber, title) => {
+        expect(
+            classifyMerchListing({ bullets: noBullets, partNumber, modelNumber, title })
+        ).toMatchObject({ isMerchListing: false });
+    });
+
+    it('requires a Merch product in the title for a part-number match', () => {
+        const evidence = { bullets: noBullets, partNumber: 'AFCHRPAT1KY' };
+        expect(classifyMerchListing({ ...evidence, title: 'Mele Kalikimaka Sweatshirt' })).toMatchObject(
+            { isMerchListing: true }
+        );
+        expect(classifyMerchListing({ ...evidence, title: null })).toMatchObject({
+            isMerchListing: false,
+        });
     });
 
     it('keeps seller bullets for part-number Merch listings without template bullets', () => {
@@ -79,6 +103,7 @@ describe('classifyMerchListing', () => {
                     bullets: ['Breast cancer awareness horror tee', 'Pink ribbon slasher gift'],
                 },
                 partNumber: 'AFCHRPAT1KY',
+                title: 'In October We Wear Pink Breast Cancer Awareness Horror T-Shirt',
             })
         ).toEqual({
             isMerchListing: true,

@@ -18,18 +18,25 @@ Product truth is binary: a Product either is a Merch listing or it is not. Persi
 classification knowledge is `isMerchListing: boolean | null`. Every new unclassified Product starts
 at `null`; `null` means unknown, not non-Merch.
 
-Adapters report two pieces of evidence: the listing's part number (or `null`) and bullet evidence
-with an explicit availability distinction:
+Adapters report the listing's part number, model number and title (each possibly `null`) and
+bullet evidence with an explicit availability distinction:
 
 - **Available:** a bullet array is present, including an empty `[]`.
 - **Unavailable:** no bullet evidence is available.
 
-The classifier returns `true` when the part number matches the Merch design-code fingerprint (11
-uppercase alphanumeric characters with at least one letter, optionally followed by a 10-character
-`B0…` suffix) or any bullet matches a known Merch on Demand template bullet. It returns `false` when
-there is a part number or available bullets and neither matches, and no result when there is neither
-a part number nor available bullets; persistence treats that observation as a no-op. Titles are not
-evidence: licensed and other print-on-demand sellers copy Merch title suffixes.
+The classifier returns `true` when any bullet matches a known Merch on Demand template bullet, or
+when the part number matches the Merch design-code fingerprint (11 uppercase alphanumeric
+characters with at least one letter and never five digits in a row, optionally followed by a
+10-character `B0…` suffix) on a listing with no model number whose title names a Merch product. It
+returns `false` when there is a part number or available bullets and neither rule holds, and no
+result when there is neither a part number nor available bullets; persistence treats that
+observation as a no-op.
+
+The part-number fingerprint alone also fits structured catalog codes such as `YES33194325`,
+`ULGS322B01S`, `FG3H8900WHT` and `MINGLUO0121` (books, furniture, closet kits, buttons). In samples
+Merch listings never carried a model number (0 of 60) and always named their product in the title,
+so those two conditions gate the part-number path. A title alone is never evidence: licensed and
+other print-on-demand sellers copy Merch title suffixes.
 
 One source-neutral deterministic classifier consumes available evidence from both SP-API and Keepa.
 The provider adapters extract evidence at their source boundaries (SP-API `part_number` and

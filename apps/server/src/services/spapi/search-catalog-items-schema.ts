@@ -36,10 +36,18 @@ const MarketplaceTextEntrySchema = z.object({
     marketplace_id: z.string().optional(),
 });
 
+// Model numbers are not always strings in catalog payloads; one odd value must not fail the item.
+const ModelNumberEntrySchema = z.object({
+    value: z.union([z.string(), z.number()]).transform(String),
+    marketplace_id: z.string().optional(),
+});
+
 const ItemAttributesSchema = z.object({
     product_site_launch_date: z.array(AttributeValueEntrySchema).optional(),
     bullet_point: z.array(MarketplaceTextEntrySchema).optional(),
     part_number: z.array(MarketplaceTextEntrySchema).optional(),
+    model_number: z.array(ModelNumberEntrySchema).optional(),
+    item_name: z.array(MarketplaceTextEntrySchema).optional(),
 });
 
 const ItemImageSchema = z.object({
@@ -83,11 +91,15 @@ export const getMarketplaceMerchListingEvidence = (
     marketplaceId: string
 ): MerchListingEvidence => ({
     bullets: getMarketplaceBulletEvidence(attributes?.bullet_point, marketplaceId),
-    partNumber:
-        filterMarketplaceEntries(attributes?.part_number, marketplaceId)
-            .map(entry => entry.value.trim())
-            .find(Boolean) ?? null,
+    partNumber: firstMarketplaceValue(attributes?.part_number, marketplaceId),
+    modelNumber: firstMarketplaceValue(attributes?.model_number, marketplaceId),
+    title: firstMarketplaceValue(attributes?.item_name, marketplaceId),
 });
+
+const firstMarketplaceValue = (entries: MarketplaceTextEntries, marketplaceId: string) =>
+    filterMarketplaceEntries(entries, marketplaceId)
+        .map(entry => entry.value.trim())
+        .find(Boolean) ?? null;
 
 const getMarketplaceBulletEvidence = (
     bulletPoints: MarketplaceTextEntries,

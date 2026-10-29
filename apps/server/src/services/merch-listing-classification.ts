@@ -19,7 +19,15 @@ export type BulletEvidence =
 export interface MerchListingEvidence {
     bullets: BulletEvidence;
     partNumber: string | null;
+    modelNumber?: string | null;
+    title?: string | null;
 }
+
+// A part-number match alone also fits some structured catalog codes (`ULGS322B01S`, `FG3H8900WHT`,
+// `MINGLUO0121`). Merch listings never carry a model number and always name their Merch product
+// in the title, so a part-number match counts only with both.
+const MERCH_PRODUCT_IN_TITLE =
+    /\b(t-?shirts?|tees?|shirts?|tank tops?|crop tops?|tops?|raglans?|jerseys?|sweatshirts?|crewnecks?|hoodies?|hoody|pullovers?|zip|polos?|quarter-zip|jackets?|hats?|caps?|visors?|backpacks?|popsockets?|popgrips?|cases?|totes?|bags?|crossbody|laptop sleeve|mouse ?pads?|pillows?|blankets?|throws?|posters?|tumblers?|mugs?|cups?|bottles?|journals?|notebooks?|pens?)\b/i;
 
 export interface MerchListingClassification {
     isMerchListing: boolean;
@@ -28,9 +36,10 @@ export interface MerchListingClassification {
 }
 
 /**
- * Classifies a listing from its part number and bullets. A Merch part-number fingerprint or any
- * Merch template bullet makes it Merch; otherwise any available evidence makes it non-Merch. With
- * neither bullets nor a part number there is no classification.
+ * Classifies a listing from its bullets and part number. Any Merch template bullet makes it Merch;
+ * so does a Merch part-number fingerprint on a listing with no model number whose title names a
+ * Merch product. Otherwise any available evidence makes it non-Merch. With neither bullets nor a
+ * part number there is no classification.
  */
 export const classifyMerchListing = (
     evidence: MerchListingEvidence
@@ -45,7 +54,10 @@ export const classifyMerchListing = (
             ? dedupeAndNormalizeBullets(evidence.bullets.bullets)
             : [];
     const isMerchListing =
-        isMerchPartNumber(partNumber) || normalizedBullets.some(isMerchTemplateBullet);
+        normalizedBullets.some(isMerchTemplateBullet) ||
+        (isMerchPartNumber(partNumber) &&
+            !evidence.modelNumber?.trim() &&
+            MERCH_PRODUCT_IN_TITLE.test(evidence.title ?? ''));
     const sellerBullets = isMerchListing
         ? normalizedBullets.filter(bullet => !isMerchTemplateBullet(bullet))
         : [];

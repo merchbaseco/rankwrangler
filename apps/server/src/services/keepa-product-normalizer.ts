@@ -28,6 +28,7 @@ export type KeepaProductPayload = {
     imagesCSV?: string;
     features?: string[] | null;
     partNumber?: string | null;
+    model?: string | null;
     listedSince?: number;
     rootCategory?: number;
     trackingSince?: number;
@@ -110,6 +111,8 @@ export const normalizeKeepaProduct = ({
     const merchClassification = classifyMerchListing({
         bullets: getKeepaBulletEvidence(product.features),
         partNumber: product.partNumber ?? null,
+        modelNumber: product.model ?? null,
+        title: product.title ?? null,
     });
 
     return {

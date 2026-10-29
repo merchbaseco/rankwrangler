@@ -11,6 +11,7 @@ describe('mapSpApiCatalogItem Merch classification', () => {
                 asin: 'B0HJFG2PW9',
                 attributes: {
                     part_number: [{ value: '28KSGP99PGP', marketplace_id: US }],
+                    item_name: [{ value: 'Cute Mushroom Frog Premium T-Shirt', marketplace_id: US }],
                     bullet_point: [
                         { value: 'Cute mushroom frog design', marketplace_id: US },
                         { value: 'Great gift for cottagecore fans', marketplace_id: US },
@@ -51,6 +52,7 @@ describe('mapSpApiCatalogItem Merch classification', () => {
                 asin: 'B000123457',
                 attributes: {
                     part_number: [{ value: 'G816D85AV0HB07535YF3H', marketplace_id: US }],
+                    item_name: [{ value: 'Three Possum Moon Funny Meme T-Shirt', marketplace_id: US }],
                 },
             },
             US,
