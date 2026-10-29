@@ -16,7 +16,7 @@ consume that contract.
 | Surface | Ownership |
 | --- | --- |
 | `apps/server` | Fastify/tRPC API, Drizzle persistence, Provider bridges, and pg-boss workers. |
-| `apps/website` | Clerk-authenticated React dashboard for research and operations. |
+| `apps/website` | Cloudflare-authenticated React dashboard for research and operations. |
 | `apps/extension` | Chrome and Safari augmentation of Amazon pages using the public API. |
 | `packages/http-client` | Published typed client derived from the public tRPC router. |
 | `packages/cli` | Published `rw` JSON interface for agents and automation. |
@@ -57,7 +57,7 @@ immutable evidence about that execution, not alternate Product records.
 The caller-synchronous public boundary below is the accepted target. Dashboard work coordination
 describes current behavior.
 
-HTTP tRPC owns queries and mutations. Clerk-authenticated tRPC WebSockets own app subscriptions.
+HTTP tRPC owns queries and mutations. Cloudflare-authenticated tRPC WebSockets own app subscriptions.
 The server performs cheap reads directly and delegates scheduled or provider work to pg-boss.
 Provider retrieval persists durable work before dispatch. Every public data capability hides that
 lifecycle behind its own freshness policy: current cached data returns immediately; missing or

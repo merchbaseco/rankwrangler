@@ -19,7 +19,7 @@ can rely on; reference docs own exact request and response shapes.
 | Historical rank and price observations | [Product history](product-history.md) |
 | Keepa freshness and scheduling | [Keepa refresh](keepa-refresh.md) |
 | External product-result research | [Catalog search](catalog-search.md) |
-| Centralized Clerk access, metering, and admin boundaries | [Authentication](authentication.md) |
+| Cloudflare access, metering, and admin boundaries | [Authentication](authentication.md) |
 | pg-boss scheduling and worker attempts | [Background jobs](background-jobs.md) |
 | Domain completion notifications | [Realtime events](realtime-events.md) |
 | Persisted customer-visible events | [Activity log](activity-log.md) |

@@ -47,7 +47,7 @@ correlation belongs in the dedicated columns so filters do not need to inspect J
 
 ## Listing and filtering
 
-The Clerk-authenticated dashboard query returns newest-first cursor pagination. It supports:
+The Cloudflare-authenticated dashboard query returns newest-first cursor pagination. It supports:
 
 - level, status, primitive-type, and action filters;
 - exact ASIN, marketplace, or job-run filters;

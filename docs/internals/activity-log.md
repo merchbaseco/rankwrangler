@@ -8,7 +8,7 @@ read_when:
 # Activity Log
 
 The activity log is a searchable, persisted timeline of meaningful Product, history, job, and
-system outcomes. The dashboard reads it through a Clerk-authenticated paginated query.
+system outcomes. The dashboard reads it through a Cloudflare-authenticated paginated query.
 
 ## Event Shape
 

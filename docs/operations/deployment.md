@@ -102,90 +102,18 @@ replays the values captured by the most recent deploy. That baked copy is the pl
 runtime copy, exactly like a Worker secret. Rotating a credential therefore requires a redeploy, not
 just a restart.
 
-## Central-auth staged deployment
+## Authentication migration
 
-Migration `0028` deletes legacy licenses and therefore is never an ordinary first-start migration.
-`RANKWRANGLER_DATABASE_MIGRATION_TARGET` has two states:
+The older license-to-canonical-user cutover through migration `0028` is historical.
+It must already be applied before deploying the current stack. Do not replay its
+Clerk bootstrap, webhook, or Native API setup for the Cloudflare migration.
 
-| Target | Deployment behavior |
-| --- | --- |
-| `pre-cutover` | Apply through additive migration `0027`; leave the existing production containers unchanged. |
-| `latest` | Require the guarded cutover to be already applied, apply later migrations, verify the latest schema, then start the new containers. |
-
-Configure Clerk's production `user.created`, `user.updated`, and `user.deleted` webhook endpoint as
-`https://rankwrangler.merchbase.co/api/webhooks/clerk/access`. The shorter
-`/api/webhooks/clerk` path is not a route and returns `404`.
-
-Before the extension or centralized-auth stack is verified, enable the Clerk production Native API.
-`RANKWRANGLER_CLERK_AUTHORIZED_PARTIES` is declared in `.env.schema` as the complete three-party
-list:
-
-```text
-https://rankwrangler.merchbase.co,chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc,https://clerk.merchbase.co
-```
-
-The website/API origin, permanent Chrome extension origin, and Clerk Sync Host are all required.
-Omitting the Sync Host can leave extension requests unauthorized even when the website and extension
-origins are present. Change it in `.env.schema` and redeploy; do not replace it with a manual SQL or
-projection change.
-
-Use this sequence:
-
-1. Keep `RANKWRANGLER_DATABASE_MIGRATION_TARGET` at `pre-cutover` in `.env.schema`. The first workflow run builds
-   the central-auth images and applies the additive schema without changing the running license-auth
-   application.
-2. Populate the exact Access Projection directly from current Clerk metadata while the old
-   containers remain live. This one-off uses the new image without publishing its server or webhook,
-   requires explicit Clerk subject and Merchbase User identifiers, and emits only fingerprints:
-
-   ```bash
-   bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml \
-     run --rm --no-deps -e RANKWRANGLER_DATABASE_MIGRATION_TARGET=pre-cutover \
-     server node dist/index.js --bootstrap-access-projection \
-     --clerk-subject=<user_...> --merchbase-user-id=<mbu_...>
-   ```
-
-   The command uses `@merchbaseco/access` to load Clerk public metadata and applies it through the
-   normal projection store. It fails on missing, denied, expired, mismatched, or ambiguously stored
-   identity state. It never derives a mapping from email or writes a manual SQL projection.
-   From an approved checked-out source tree, the equivalent command is:
-
-   ```bash
-   RANKWRANGLER_DATABASE_MIGRATION_TARGET=pre-cutover \
-     bunx varlock run -- bun run --cwd apps/server central-auth:bootstrap-projection -- \
-     --clerk-subject=<user_...> --merchbase-user-id=<mbu_...>
-   ```
-
-   The bootstrap entrypoint itself caps its migration run at `pre-cutover`, even if the surrounding
-   environment is misconfigured as `latest`.
-3. Verify the additive tables, then enter a maintenance window before copying metering or approving
-   gates. Stop Caddy and the old server so no legacy usage debit can race the preservation proof.
-   Rerun the projection bootstrap after traffic stops so gate approval uses the latest Clerk state.
-4. Create the temporary production backup, restore it to a disposable database, and complete the
-   before/after preservation proof. Populate only explicit production mappings and approved gates.
-5. With PostgreSQL still running and application traffic stopped, run the guarded migration:
-
-   ```bash
-   bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml \
-     run --rm --no-deps -e RANKWRANGLER_DATABASE_MIGRATION_TARGET=latest \
-     server node dist/index.js --migrate-only
-   ```
-
-6. Set `RANKWRANGLER_DATABASE_MIGRATION_TARGET` to `latest` in `.env.schema`, verify the migration, and start the new stack:
-
-   ```bash
-   bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml \
-     run --rm --no-deps -e RANKWRANGLER_DATABASE_MIGRATION_TARGET=latest \
-     server node dist/index.js --verify-migrations
-   bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml up -d
-   ```
-
-7. Complete health, Clerk session, API-key/OAuth, projection, metering, job, Chrome, and Safari
-   verification. Delete the temporary backup only after all end-to-end checks pass.
-
-Do not set `latest` before the explicit guarded migration succeeds. The deployment workflow checks
-that `0028` is already applied before running later migrations and refuses to replace the existing
-containers if either the check or a migration fails.
+Follow [Authentication](../internals/authentication.md) for the current host/audience,
+projection, OAuth and development contracts. The coordinated suite cutover supplies the
+new Cloudflare configuration, preserves existing canonical users and service accounts,
+applies later additive migrations, and verifies key aliases and revocation. Keep a
+verified database backup and the prior deployment revision for rollback. Publish and
+change production only after the operator authorizes the prepared release.
 
 ## Verification
 

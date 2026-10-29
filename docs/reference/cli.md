@@ -17,7 +17,7 @@ binary alias.
 
 ```bash
 npm install -g @rankwrangler/cli
-rw auth set ak_...
+rw auth set --stdin
 rw auth status
 ```
 

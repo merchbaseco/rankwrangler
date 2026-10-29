@@ -11,9 +11,9 @@ RankWrangler separates interactive dashboard sessions from portable agent creden
 
 | Consumer | Authentication | Surface |
 | --- | --- | --- |
-| Dashboard | Clerk session | `api.app.*` tRPC procedures |
+| Dashboard | Cloudflare interactive session | `api.app.*` tRPC procedures |
 | CLI and integrations | Merchbase API key or OAuth bearer | `api.public.*` tRPC procedures |
-| Chrome extension | Clerk Sync Host session | Background requests through authenticated data procedures |
+| Chrome extension | Managed OAuth with S256 PKCE | Background requests through authenticated data procedures |
 | Safari extension | Native OAuth Authorization Code + PKCE | Background requests through the public surface |
 
 The public surface exposes one current Product, a basic batch of up to 200 Products, Product
@@ -33,11 +33,11 @@ history, and receives the same typed Product contract used by the extensions.
 
 ## Credential handling
 
-- Send Merchbase API keys or OAuth access tokens as `Authorization: Bearer <credential>`; the Chrome
-  extension sends its transient Clerk session token through the same authenticated data client.
+- Public clients translate `mbk_v1` Merchbase keys into native Cloudflare service headers.
+  Opaque OAuth access tokens use `Authorization: Bearer`; neither credential belongs in a URL.
 - Prefer the CLI secure store or `MERCHBASE_API_KEY` for automation; never commit a key.
-- Extensions do not store or display suite API keys; Chrome delegates to Clerk Sync Host and Safari
-  stores OAuth tokens in native Keychain storage.
+- Extensions use OAuth instead of suite API keys. Chrome keeps renewable context in trusted
+  extension storage; Safari keeps it in the native Keychain.
 - Provider credentials and Keepa token state are internal and never part of the public contract.
 
 Exact calls and command shapes live in the [public API](../reference/public-api.md),

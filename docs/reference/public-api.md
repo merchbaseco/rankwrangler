@@ -17,21 +17,19 @@ The hosted agent-tool contract is documented in [Hosted MCP](mcp.md).
 ## Endpoint And Authentication
 
 The tRPC endpoint is `{origin}/api/{procedure}`. Production origin:
-`https://rankwrangler.merchbase.co`.
+`https://rankwrangler-api.merchbase.co`.
 
-Public integration calls live under `api.public.*` and require a Merchbase API key or OAuth bearer.
-The browser extension may use a transient Clerk session token for the same data procedures:
-
-```http
-Authorization: Bearer ak_... | oat_...
-Content-Type: application/json
-```
+Public integration calls live under `api.public.*`. Opaque OAuth access tokens use
+`Authorization: Bearer <access-token>`. Public clients decode `mbk_v1` machine credentials into
+`CF-Access-Client-Id` and `CF-Access-Client-Secret` headers; the envelope itself is not a bearer token.
+Chrome and Safari use Managed OAuth against the API host. Requests carrying native secret headers
+must not follow redirects.
 
 Invalid or absent credentials produce `UNAUTHORIZED`; denied centralized access produces
 `FORBIDDEN`; unavailable centralized access produces `SERVICE_UNAVAILABLE`; exhausted allowance
 produces `TOO_MANY_REQUESTS` with a retry hint. Missing Products produce `NOT_FOUND`. Retryable
 provider failure or request deadline exhaustion produces `TIMEOUT` with a provider-neutral message
-and retry hint. Dashboard `api.app.*` procedures are separate Clerk-authenticated contracts.
+and retry hint. Dashboard `api.app.*` procedures are separate interactive Cloudflare contracts.
 
 ## Retrieval Contract
 
@@ -333,9 +331,9 @@ tRPC mutations use an `input` envelope:
 
 ```bash
 curl -s -X POST \
-  https://rankwrangler.merchbase.co/api/api.public.product.get \
+  https://rankwrangler-api.merchbase.co/api/api.public.product.get \
   -H 'Content-Type: application/json' \
-  -H "Authorization: Bearer $MERCHBASE_API_KEY" \
+  -H 'Authorization: Bearer <opaque-oauth-access-token>' \
   -d '{"input":{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}}'
 ```
 

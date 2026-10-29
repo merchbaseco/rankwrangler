@@ -34,9 +34,9 @@ Feature hooks subscribe and invalidate the exact tRPC reads that own the display
 ## Transport
 
 The website uses tRPC `splitLink`: HTTP batching for queries and mutations, and `/api/trpc`
-WebSockets only for subscriptions. The browser supplies its Clerk token in connection parameters;
-the server verifies it through the same Clerk app boundary as HTTP procedures and closes the
-connection at credential expiry. The dedicated WebSocket router exposes only shipped domain
+WebSockets only for subscriptions. Cloudflare supplies the signed assertion on the same-origin
+upgrade; connection parameters contain no credential. The server verifies the interactive audience
+and trusted Origin, then closes at the verified authorization deadline or on a projection update. The dedicated WebSocket router exposes only shipped domain
 subscriptions.
 
 The Product-history panel subscribes by marketplace/ASIN. Its feature hook rejects completion from

@@ -1,119 +1,75 @@
 ---
-summary: Defines the production Chrome extension build inputs, permanent unpacked identity, Clerk origin, and live verification contract.
+summary: Defines Chrome extension identity, Cloudflare Managed OAuth configuration, builds, and live verification.
 read_when:
-  - building or loading the RankWrangler Chrome extension for centralized Clerk authentication
-  - changing the Chrome manifest key, Sync Host, account route, or extension release checks
+  - building or loading the RankWrangler Chrome extension
+  - changing its manifest identity, OAuth callback, permissions, or release checks
 ---
 
 # Chrome extension release
 
-RankWrangler Chrome uses the production Merchbase Clerk Sync Host for interactive sign-in. The
-background service worker obtains a short-lived Clerk session token and sends it as the explicit
-`Authorization: Bearer` header to `https://rankwrangler.merchbase.co/api`. The extension never
-accepts, stores, displays, migrates, or falls back to `MERCHBASE_API_KEY` or a legacy RankWrangler
-license key.
+Chrome signs in with Cloudflare Managed OAuth using Authorization Code and S256
+PKCE through `browser.identity.launchWebAuthFlow`. Its background worker sends
+the opaque access token to `https://rankwrangler-api.merchbase.co` in the
+Authorization header. Refresh credentials stay in trusted extension storage;
+content scripts never receive them. The extension does not accept suite API keys
+or old license keys.
 
-## Required build inputs
+## Build
 
-`bun run extension:build:chrome` is the production build. It loads the repository-root environment
-and runs a shared auth preflight before any bundle is emitted; it fails when any required value is
-absent or unsafe. A local `pk_test_` value is not a production configuration and is rejected.
-
-| Variable | Production contract |
-| --- | --- |
-| `VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY` | Explicit Clerk production `pk_live_` publishable key. It is public client configuration, not a secret. |
-| `VITE_MERCHBASE_CLERK_SYNC_HOST` | Explicitly `https://clerk.merchbase.co`, the production Clerk Sync Host used for cookie/session synchronization. |
-| `VITE_MERCHBASE_CLERK_ACCOUNT_URL` | Explicit verified HTTPS `merchbase.co` sign-in/account route opened by the popup. This navigation URL is deliberately separate from the Sync Host; do not rely on an implicit host-root fallback for release builds. |
-
-The public key is safe to commit and no private derivation material is retained in this repository.
-Never generate a replacement key for a routine build: a changed key creates a different Chrome
-origin and breaks the Clerk allow-list and the stable unpacked identity.
-
-The public key and ID are committed implementation constants. The build derives and checks
-`hfoliiddbbblflnaakfggibiiphalbnc` from the source manifest key; there are no identity environment
-overrides to keep synchronized.
-
-For a production build, export the live Clerk value and the verified account route in the invoking
-environment, then run:
+Run from the repository root:
 
 ```bash
-export VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY=<pk_live_publishable_key>
-export VITE_MERCHBASE_CLERK_SYNC_HOST=https://clerk.merchbase.co
-export VITE_MERCHBASE_CLERK_ACCOUNT_URL=<verified_https_merchbase_account_route>
-
 bun run extension:test:auth
 bun run extension:build:chrome
 ```
 
-The artifact is `apps/extension/dist/`. The build does not read or embed `MERCHBASE_CLERK_SECRET_KEY`,
-`MERCHBASE_CLERK_JWT_KEY`, `RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET`, or `MERCHBASE_API_KEY`.
+The build validates the fixed Cloudflare issuer and permanent public manifest key
+before emitting `apps/extension/dist/`. Public configuration is declared in
+`.env.schema`; `VITE_MERCHBASE_ACCESS_ISSUER` must match
+`https://thearcade.cloudflareaccess.com`. No Clerk or machine secret belongs in
+the extension build.
 
-## Stable origin and Clerk configuration
-
-The Chrome source manifest contains the permanent public key. Chrome derives the stable extension
-ID `hfoliiddbbblflnaakfggibiiphalbnc` from its SHA-256 digest. Confirm the generated artifact
-contains the expected key before loading it:
+The manifest public key fixes the Chrome ID to
+`hfoliiddbbblflnaakfggibiiphalbnc`. Keep this identity across builds. Verify the
+built key matches the source before loading it:
 
 ```bash
 jq -e -s '.[0].key == .[1].key' apps/extension/dist/manifest.json apps/extension/manifest.json
 ```
 
-In Chrome, `chrome://extensions` must show the same ID after **Load unpacked**. A build without a
-manifest key has an ephemeral ID and is not a valid production verification artifact.
+## Provider and origin configuration
 
-The Clerk production instance's browser-extension allowed-origin setting must include exactly:
-
-```text
-chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc
-```
-
-Configure the same exact origin in the Clerk development instance only when testing a development
-build. This is an operator-controlled Clerk setting; the build and this task do not mutate it.
-
-The Clerk production Native API must also be enabled. The server's `RANKWRANGLER_CLERK_AUTHORIZED_PARTIES` must
-contain all three production bearer-token parties, exactly as shown in the deployment environment
-example:
+Allow this exact redirect in the suite API Access application's Managed OAuth
+configuration:
 
 ```text
-https://rankwrangler.merchbase.co,chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc,https://clerk.merchbase.co
+https://hfoliiddbbblflnaakfggibiiphalbnc.chromiumapp.org/oauth/callback
 ```
 
-The first value authorizes the website/API origin, the second authorizes the stable Chrome
-extension, and the third authorizes the Sync Host. Website and extension origins alone are
-insufficient for Sync Host sessions and produce unauthorized API requests.
+The API must accept the exact extension origin in its browser Origin/CORS
+boundary. This permission does not replace signed assertion verification.
+The manifest uses `identity` for the OAuth browser flow, `storage` and `alarms`
+for credential lifecycle, and existing Amazon/debug permissions. It no longer
+uses Clerk cookie synchronization.
 
-The manifest keeps `storage` and `cookies` for Clerk Sync Host state, `tabs` for the account page
-and extension messaging, `scripting` for the existing debug control, and the existing Amazon,
-RankWrangler API, and Sync Host host permissions. The server accepts the stable `chrome-extension://`
-origin for CORS; Clerk still requires the exact origin above.
+## Live verification
 
-## Live verification checklist
+Use an isolated Chrome profile and the built extension. Mocked previews do not
+prove browser permissions or sign-in.
 
-Use a built and loaded extension; the mocked preview does not prove permissions or background auth.
+1. Confirm the loaded ID matches the permanent ID above.
+2. Sign in from the popup and complete Cloudflare authorization. Confirm the
+   popup becomes signed in and an authorized product request succeeds.
+3. Exercise concurrent requests after one five-minute access-token lifetime.
+   They must use a renewed credential and remain successful. Inspect statuses
+   and redacted timing metadata only.
+4. Restart Chrome and verify refresh from the stored credential context.
+5. Sign out, then confirm product/history calls stop and trusted storage no
+   longer contains the credential. Verify provider revocation separately.
+6. Check denied access, usage-limit responses, and network failures show safe
+   messages and do not retry indefinitely or expose tokens.
 
-1. Confirm the generated manifest key and Chrome ID match the values above.
-2. From the popup, click **Sign in**. It opens `VITE_MERCHBASE_CLERK_ACCOUNT_URL`; complete interactive Clerk
-   authentication there and return to the extension.
-3. Confirm the popup changes from signed out to signed in. The background worker must obtain the
-   current Clerk session token through the Chrome refresh path (`getToken({ skipCache: true })` when
-   issuing or refreshing a token, with only a short-lived in-memory reuse before `exp`). It must not
-   read extension storage for an API key.
-4. Prove refresh beyond one token lifetime. Record a successful Amazon product/search request, wait
-   at least 75 seconds (the current production Native API token lifetime is 60 seconds), then issue
-   another request and several concurrent product requests if available. Every post-wait request
-   must remain `200`, proving the worker did not replay an expired Sync Host token. Inspect only
-   redacted `iss`/`azp`/`exp` metadata or request status when validating the refreshed JWT; never copy,
-   log, or display the bearer token value.
-5. Sign out or revoke access. Product and history calls must stop with the signed-out/unauthorized
-   message; the popup must offer a retry/account action and must not show a raw token or server
-   error.
-6. Confirm an API daily-limit response is rendered as the usage-limit message and does not retry
-   blindly. Confirm network failures are generic and do not expose request details.
-7. Inspect the popup and extension storage surfaces: no license editor, license validation, legacy
-   key, or suite API-key field exists. `MERCHBASE_API_KEY` remains a CLI-only environment variable.
-8. If Safari is rebuilt, confirm its generated manifest has no Chrome `key`; Safari continues to use
-   native OAuth Authorization Code + PKCE and Keychain storage.
-
-This checklist is read-only with respect to Clerk and production data. Loading an unpacked build is
-the supported personal verification path; no Web Store publication or Chrome identity migration is
-part of this contract.
+An unpacked build is the personal verification path; Web Store publication is a
+separate release action. Safari uses its own native OAuth and Keychain flow;
+follow [the wrapper guide](../../apps/extension/safari-extension/README.md) for
+associated-domain signing and live verification.
