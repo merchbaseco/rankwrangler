@@ -3,7 +3,6 @@ import { estimateKeepaTokens } from '@/services/providers/keepa/keepa-capacity-p
 import { db } from './index';
 import { readKeepaMeasuredCosts } from './keepa-capacity';
 import { keepaCapacityState } from './keepa-capacity-schema';
-import { readKeepaDueWork } from './keepa-due-work';
 
 export const readKeepaCapacitySnapshot = async () => {
     const [state] = await db.select().from(keepaCapacityState);
@@ -31,10 +30,7 @@ export const readKeepaCapacitySnapshot = async () => {
         estimatedTokensLeft: state ? estimateKeepaTokens(state, new Date()) : null,
         fresh: Boolean(state && Date.now() - state.observedAt.getTime() <= 120_000),
         ...costs,
-        interactiveFloor:
-            costs.headCost !== null && costs.productCost !== null
-                ? costs.headCost + 10 * costs.productCost
-                : null,
+        liveReserveTokens: state?.liveReserveTokens ?? null,
         interactiveWaiting: interest.interactive_waiting,
         rollingHour: rolling.map(row => ({
             workClass: row.work_class,
@@ -42,6 +38,5 @@ export const readKeepaCapacitySnapshot = async () => {
             actualTokens: row.actual_tokens,
             reservedUnknownTokens: row.reserved_unknown_tokens,
         })),
-        lending: await readKeepaDueWork(db),
     };
 };

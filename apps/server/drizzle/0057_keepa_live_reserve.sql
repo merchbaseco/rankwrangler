@@ -1,0 +1,1 @@
+ALTER TABLE "keepa_capacity_state" ADD COLUMN "live_reserve_tokens" integer DEFAULT 100 NOT NULL;

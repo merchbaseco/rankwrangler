@@ -7,34 +7,34 @@ import {
 
 const facts: KeepaCapacityFacts = {
     tokensLeft: 1200,
-    refillRate: 20,
     productCost: 1,
     headCost: 10,
     reservedCost: 0,
-    spent: { interactive: 0, history: 0, head: 0, discovery: 0 },
-    historyDue: true,
-    headDue: true,
+    reserveTokens: 100,
     interactiveWaiting: false,
     headRequests: 0,
     discoveryRequests: 0,
     keywordDiscoveryRequests: 0,
 };
+const history = { operation: 'product' as const, workClass: 'history' as const };
+
 describe('Keepa capacity policy', () => {
-    it('protects the measured floor after all unresolved reservations', () => {
+    it('lets background spend the bucket down to the live reserve', () => {
+        expect(getKeepaReservation(history, { ...facts, tokensLeft: 101 })).toEqual({ cost: 1 });
+        expect(getKeepaReservation(history, { ...facts, tokensLeft: 100 })).toEqual({
+            reason: 'live-reserve',
+        });
         expect(
-            getKeepaReservation(
-                { operation: 'search', workClass: 'head' },
-                { ...facts, tokensLeft: 40, reservedCost: 11 }
-            )
-        ).toEqual({ reason: 'interactive-floor' });
-        expect(
-            getKeepaReservation(
-                { operation: 'search', workClass: 'head' },
-                { ...facts, tokensLeft: 40, reservedCost: 10 }
-            )
-        ).toEqual({ cost: 10 });
+            getKeepaReservation(history, { ...facts, tokensLeft: 150, reservedCost: 50 })
+        ).toEqual({ reason: 'live-reserve' });
     });
-    it('requires measured background cost and limits discovery per keyword', () => {
+    it('does not ration background by the hour while the bucket is above the reserve', () => {
+        expect(getKeepaReservation({ operation: 'search', workClass: 'head' }, facts)).toEqual({
+            cost: 10,
+        });
+        expect(getKeepaReservation(history, { ...facts, tokensLeft: 600 })).toEqual({ cost: 1 });
+    });
+    it('requires measured background cost and keeps the head and discovery caps', () => {
         expect(
             getKeepaReservation(
                 { operation: 'search', workClass: 'discovery' },
@@ -54,20 +54,6 @@ describe('Keepa capacity policy', () => {
             )
         ).toEqual({ reason: 'head-pilot-cap' });
     });
-    it('limits each rolling class even when the physical bucket is full', () => {
-        expect(
-            getKeepaReservation(
-                { operation: 'search', workClass: 'discovery' },
-                { ...facts, spent: { ...facts.spent, discovery: 120 } }
-            )
-        ).toEqual({ reason: 'rolling-share' });
-        expect(
-            getKeepaReservation(
-                { operation: 'product', workClass: 'history' },
-                { ...facts, spent: { ...facts.spent, history: 840 } }
-            )
-        ).toEqual({ reason: 'rolling-share' });
-    });
     it('clamps estimated refill to the real hourly bucket and respects the first refill', () => {
         const observedAt = new Date('2026-10-23T12:00:00Z');
         const state = { tokensLeft: 1, refillRate: 20, refillInMs: 30_000, observedAt };
@@ -77,18 +63,15 @@ describe('Keepa capacity policy', () => {
     });
 });
 
-describe('Keepa interactive priority', () => {
-    it('limits interactive work by the physical bucket only', () => {
-        const spent = { interactive: 1200, history: 1200, head: 0, discovery: 0 };
+describe('Keepa live requests', () => {
+    it('spend the reserve and anything else the bucket holds', () => {
         const request = { operation: 'search' as const, workClass: 'interactive' as const };
-        expect(getKeepaReservation(request, { ...facts, spent, tokensLeft: 10 })).toEqual({
-            cost: 10,
-        });
-        expect(getKeepaReservation(request, { ...facts, spent, tokensLeft: 9 })).toEqual({
+        expect(getKeepaReservation(request, { ...facts, tokensLeft: 10 })).toEqual({ cost: 10 });
+        expect(getKeepaReservation(request, { ...facts, tokensLeft: 9 })).toEqual({
             reason: 'bucket',
         });
     });
-    it('makes every background class yield while interactive work waits', () => {
+    it('make every background class yield while one waits', () => {
         for (const workClass of ['history', 'head', 'discovery'] as const) {
             expect(
                 getKeepaReservation(
@@ -97,60 +80,5 @@ describe('Keepa interactive priority', () => {
                 )
             ).toEqual({ reason: 'interactive-waiting' });
         }
-    });
-});
-
-describe('Keepa protected share lending', () => {
-    it('lends unused head capacity only when no head work is due', () => {
-        const spent = { ...facts.spent, history: 600 };
-        expect(
-            getKeepaReservation(
-                { operation: 'product', workClass: 'history' },
-                { ...facts, spent, headDue: false, tokensLeft: 40 }
-            )
-        ).toEqual({ cost: 1 });
-        expect(
-            getKeepaReservation(
-                { operation: 'product', workClass: 'history' },
-                { ...facts, spent, tokensLeft: 40 }
-            )
-        ).toEqual({ reason: 'rolling-share' });
-    });
-    it('borrows interactive capacity only with no waiting interest and double the floor left', () => {
-        const spent = { ...facts.spent, history: 600 };
-        const request = { operation: 'product' as const, workClass: 'history' as const };
-        expect(
-            getKeepaReservation(request, {
-                ...facts,
-                spent,
-                interactiveWaiting: false,
-                tokensLeft: 41,
-            })
-        ).toEqual({ cost: 1 });
-        expect(
-            getKeepaReservation(request, {
-                ...facts,
-                spent,
-                interactiveWaiting: false,
-                tokensLeft: 40,
-            })
-        ).toEqual({ reason: 'rolling-share' });
-        expect(getKeepaReservation(request, { ...facts, spent, interactiveWaiting: true })).toEqual(
-            { reason: 'interactive-waiting' }
-        );
-    });
-    it('never lends capacity to discovery even when no other work is due', () => {
-        expect(
-            getKeepaReservation(
-                { operation: 'search', workClass: 'discovery' },
-                {
-                    ...facts,
-                    historyDue: false,
-                    headDue: false,
-                    interactiveWaiting: false,
-                    spent: { ...facts.spent, discovery: 120 },
-                }
-            )
-        ).toEqual({ reason: 'rolling-share' });
     });
 });

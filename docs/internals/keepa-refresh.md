@@ -91,12 +91,12 @@ interactive attempt is open (created in the last five minutes and unsettled), ev
 yields. An interactive request short on tokens keeps its attempt open and retries every five seconds
 for up to ninety, so background work cannot take the refill it is waiting for.
 
-Background classes share the rolling hourly refill: history 50%, keyword heads 20%, discovery 10%,
-with 20% held for interactive work. The interactive floor is measured head cost plus ten measured
-Product costs. Background work cannot cross it. Head/history lending requires the other queue to
-have no due work; borrowing the unused interactive allocation also requires twice the floor
-remaining.
-Discovery never borrows. Initial caps are fifty head requests and twenty discovery requests per day,
+Keepa refills the bucket every minute and drops tokens older than an hour, so a full bucket wastes
+its refill. Background work (history, keyword heads, discovery) may therefore spend the bucket down
+to a live reserve, `keepa_capacity_state.live_reserve_tokens` (100 by default, about ten live keyword
+searches); there are no hourly per-class shares. Change the reserve with one update of that column,
+without a deploy, and raise it if live requests start waiting.
+Initial caps are fifty head requests and twenty discovery requests per day,
 with at most ten discovery requests per keyword per day. SP-API listing acquisition has a separate measured-rate budget; see [catalog search](catalog-search.md).
 Unknown costs permit only bounded interactive measurements; background work waits for measurements.
 

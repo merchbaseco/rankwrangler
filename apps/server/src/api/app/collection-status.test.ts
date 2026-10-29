@@ -12,10 +12,9 @@ const snapshot = {
         fresh: false,
         productCost: null,
         headCost: null,
-        interactiveFloor: null,
+        liveReserveTokens: null,
         interactiveWaiting: 0,
         rollingHour: [],
-        lending: { historyDue: false, headDue: false, interactiveWaiting: false },
     },
     history: {
         admissions: [],

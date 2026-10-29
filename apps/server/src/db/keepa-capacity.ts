@@ -11,7 +11,7 @@ import {
 import type { KeepaUsageSource } from '@/services/providers/keepa/keepa-provider-types';
 import { db } from './index';
 import { keepaCapacityAttempts, keepaCapacityState } from './keepa-capacity-schema';
-import { readKeepaDueWork } from './keepa-due-work';
+import { isKeepaInteractiveWaiting } from './keepa-due-work';
 
 const LOCK = sql`select pg_advisory_xact_lock(728194402)`;
 export const readKeepaMeasuredCosts = async (database: Pick<typeof db, 'execute'> = db) => {
@@ -84,10 +84,6 @@ export const persistedKeepaCapacity: KeepaCapacity = {
             }
             const costs = await readKeepaMeasuredCosts(tx);
             const [totals] = await tx.execute<{
-                interactive: number;
-                history: number;
-                head: number;
-                discovery: number;
                 reserved: number;
                 heads: number;
                 discoveries: number;
@@ -95,10 +91,6 @@ export const persistedKeepaCapacity: KeepaCapacity = {
                 interactive_operation_attempts: number;
             }>(sql`
                 select
-                    coalesce(sum(coalesce(actual_tokens, reserved_tokens)) filter (where work_class='interactive' and reserved_at > timezone('UTC',now())-interval '60 minutes'),0)::float8 interactive,
-                    coalesce(sum(coalesce(actual_tokens, reserved_tokens)) filter (where work_class='history' and reserved_at > timezone('UTC',now())-interval '60 minutes'),0)::float8 history,
-                    coalesce(sum(coalesce(actual_tokens, reserved_tokens)) filter (where work_class='head' and reserved_at > timezone('UTC',now())-interval '60 minutes'),0)::float8 head,
-                    coalesce(sum(coalesce(actual_tokens, reserved_tokens)) filter (where work_class='discovery' and reserved_at > timezone('UTC',now())-interval '60 minutes'),0)::float8 discovery,
                     coalesce(sum(reserved_tokens) filter (where reserved_at > timezone('UTC',now())-interval '60 minutes' and actual_tokens is null),0)::float8 reserved,
                     count(*) filter (where work_class='head' and reserved_at > timezone('UTC',now())-interval '24 hours')::integer heads,
                     count(*) filter (where work_class='discovery' and reserved_at > timezone('UTC',now())-interval '24 hours')::integer discoveries,
@@ -116,16 +108,10 @@ export const persistedKeepaCapacity: KeepaCapacity = {
             }
             const decision = getKeepaReservation(attempt, {
                 ...costs,
-                ...(await readKeepaDueWork(tx)),
+                interactiveWaiting: await isKeepaInteractiveWaiting(tx),
                 tokensLeft: estimateKeepaTokens(state, now),
-                refillRate: state.refillRate,
                 reservedCost: totals.reserved,
-                spent: {
-                    interactive: totals.interactive,
-                    history: totals.history,
-                    head: totals.head,
-                    discovery: totals.discovery,
-                },
+                reserveTokens: state.liveReserveTokens,
                 headRequests: totals.heads,
                 discoveryRequests: totals.discoveries,
                 keywordDiscoveryRequests: totals.keyword_discoveries,

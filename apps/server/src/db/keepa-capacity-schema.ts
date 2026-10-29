@@ -13,6 +13,8 @@ export const keepaCapacityState = pgTable(
         refillRate: integer('refill_rate').notNull(),
         refillInMs: integer('refill_in_ms').notNull(),
         observedAt: timestamp('observed_at', { mode: 'date' }).notNull(),
+        // Tokens background work leaves in the bucket for live requests; change it in place to tune.
+        liveReserveTokens: integer('live_reserve_tokens').notNull().default(100),
     },
     table => ({ singleton: check('keepa_capacity_singleton', sql`${table.id} = 1`) })
 );

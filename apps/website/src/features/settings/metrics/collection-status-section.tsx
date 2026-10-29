@@ -84,9 +84,9 @@ const CollectionStatusBody = ({ status }: { status: CollectionStatus }) => {
                         ? 'unknown balance'
                         : `${formatCount(keepa.estimatedTokensLeft)} estimated tokens`}
                     {keepa.refillRate === null ? '' : ` · ${keepa.refillRate}/min refill`}
-                    {keepa.interactiveFloor === null
+                    {keepa.liveReserveTokens === null
                         ? ''
-                        : ` · ${keepa.interactiveFloor} reserved floor`}
+                        : ` · ${keepa.liveReserveTokens} kept for live requests`}
                 </li>
                 {keepa.rollingHour.length > 0 ? (
                     <li>

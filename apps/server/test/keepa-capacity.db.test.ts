@@ -44,6 +44,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 refillRate: 20,
                 refillInMs: 60_000,
                 observedAt: new Date(),
+                liveReserveTokens: 20,
             });
         });
         it('uses UTC even when the database host runs in another timezone', async () => {
@@ -60,7 +61,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             expect(outcomes.filter(result => result.status === 'fulfilled')).toHaveLength(2);
             expect(outcomes.filter(result => result.status === 'rejected')).toHaveLength(1);
             const snapshot = await readKeepaCapacitySnapshot();
-            expect(snapshot.interactiveFloor).toBe(20);
+            expect(snapshot.liveReserveTokens).toBe(20);
             expect(
                 snapshot.rollingHour.find(row => row.workClass === 'head')?.reservedUnknownTokens
             ).toBe(20);
