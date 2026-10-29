@@ -30,6 +30,15 @@ final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling,
             Task { [weak self] in
                 await self?.handleGetAccessToken(context)
             }
+        case "signOut":
+            Task {
+                do {
+                    try await SafariTokenSession.shared.signOut()
+                    finish(context, with: nativeSuccess())
+                } catch {
+                    finish(context, with: nativeFailure("Account sign-out could not be fully completed."))
+                }
+            }
         case "beginOAuth":
             Task { [weak self] in
                 await self?.handleBeginOAuth(context, message: message)
@@ -51,29 +60,8 @@ final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling,
 
     private func handleGetAccessToken(_ context: NSExtensionContext) async {
         do {
-            guard let stored = try KeychainTokenStore.read() else {
-                finish(context, with: nativeSuccess())
-                return
-            }
-
-            if stored.expiresAt > Date().addingTimeInterval(60) {
-                finish(context, with: nativeSuccess(accessToken: stored.accessToken))
-                return
-            }
-
-            guard let refreshToken = stored.refreshToken else {
-                try KeychainTokenStore.delete()
-                finish(context, with: nativeSuccess())
-                return
-            }
-
-            let refreshed = try await OAuthClient.refresh(
-                refreshToken: refreshToken,
-                clientId: stored.clientId,
-                tokenURL: stored.tokenURL
-            )
-            try KeychainTokenStore.save(refreshed)
-            finish(context, with: nativeSuccess(accessToken: refreshed.accessToken))
+            let token = try await SafariTokenSession.shared.getAccessToken()
+            finish(context, with: nativeSuccess(accessToken: token))
         } catch {
             finish(context, with: nativeFailure("Account authentication is unavailable."))
         }
@@ -88,32 +76,37 @@ final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling,
             return
         }
 
+        var generation: Int?
         do {
-            let authorization = try await authorize(configuration: configuration)
-            let token = try await OAuthClient.exchange(
+            let attempt = try await SafariTokenSession.shared.beginSignIn()
+            generation = attempt
+            let client = try await OAuthClient.shared.register(configuration: configuration)
+            let authorization = try await authorize(client: client)
+            let token = try await OAuthClient.shared.exchange(
                 authorizationCode: authorization.code,
                 verifier: authorization.verifier,
-                configuration: configuration
+                client: client
             )
-            try KeychainTokenStore.save(token)
+            try await SafariTokenSession.shared.finishSignIn(token, generation: attempt)
             finish(context, with: nativeSuccess())
         } catch {
+            if let generation { await SafariTokenSession.shared.cancelSignIn(generation: generation) }
             finish(context, with: nativeFailure("Account sign-in was not completed."))
         }
     }
 
-    private func authorize(configuration: OAuthConfiguration) async throws -> AuthorizationResult {
+    private func authorize(client: OAuthClientConfiguration) async throws -> AuthorizationResult {
         guard authenticationSession == nil else {
             throw OAuthError.busy
         }
 
         let verifier = try PKCE.randomVerifier()
-        var components = URLComponents(url: configuration.authorizationURL, resolvingAgainstBaseURL: false)
+        var components = URLComponents(url: client.authorizationURL, resolvingAgainstBaseURL: false)
         components?.queryItems = [
             URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "client_id", value: configuration.clientId),
-            URLQueryItem(name: "redirect_uri", value: configuration.redirectURI.absoluteString),
-            URLQueryItem(name: "scope", value: configuration.scopes),
+            URLQueryItem(name: "client_id", value: client.clientId),
+            URLQueryItem(name: "redirect_uri", value: client.configuration.redirectURI.absoluteString),
+            URLQueryItem(name: "resource", value: client.configuration.resource.absoluteString),
             URLQueryItem(name: "state", value: verifier.state),
             URLQueryItem(name: "code_challenge", value: verifier.challenge),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
@@ -125,7 +118,7 @@ final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling,
         return try await withCheckedThrowingContinuation { continuation in
             let session = ASWebAuthenticationSession(
                 url: authorizationURL,
-                callbackURLScheme: configuration.redirectURI.scheme,
+                callback: .https(host: client.configuration.redirectURI.host!, path: client.configuration.redirectURI.path),
                 completionHandler: { [weak self] callbackURL, error in
                     self?.authenticationSession = nil
                     if let error {
@@ -134,7 +127,7 @@ final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling,
                     }
                     guard
                         let callbackURL,
-                        let callback = OAuthCallback(url: callbackURL),
+                        let callback = OAuthCallback(url: callbackURL, expected: client.configuration.redirectURI),
                         callback.state == verifier.state
                     else {
                         continuation.resume(throwing: OAuthError.invalidCallback)

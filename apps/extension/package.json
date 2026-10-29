@@ -22,7 +22,8 @@
         "test:auth": "bun test scripts/chrome-extension-config.test.ts scripts/clerk-token-cache.test.ts scripts/search-keyword.test.ts",
         "preview": "vite preview",
         "lint": "biome check src/",
-        "lint:fix": "biome check --write --unsafe src/"
+        "lint:fix": "biome check --write --unsafe src/",
+        "test:safari:oauth": "bash scripts/test-safari-oauth.sh"
     },
     "author": "RankWrangler",
     "license": "ISC",

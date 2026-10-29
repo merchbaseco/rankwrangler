@@ -1,59 +1,57 @@
-//
-//  SafariOAuthSupport.swift
-//  Shared (Extension)
-//
-
 import CryptoKit
 import Foundation
 import Security
 
-struct OAuthConfiguration {
-    let authorizationURL: URL
-    let tokenURL: URL
-    let clientId: String
+struct OAuthConfiguration: Equatable {
+    static let trustedIssuer = URL(string: "https://thearcade.cloudflareaccess.com")!
+    static let protectedResource = URL(string: "https://rankwrangler-api.merchbase.co/")!
+    static let callbackURI = URL(string: "https://rankwrangler.merchbase.co/oauth/safari/callback")!
+
+    let issuer: URL
+    let resource: URL
     let redirectURI: URL
-    let scopes: String
 
     init?(message: [String: Any]) {
         guard
-            let authorizationURLString = message["authorizationURL"] as? String,
-            let tokenURLString = message["tokenURL"] as? String,
-            let clientId = message["clientId"] as? String,
-            let redirectURIString = message["redirectURI"] as? String,
-            let authorizationURL = URL(string: authorizationURLString),
-            let tokenURL = URL(string: tokenURLString),
-            let redirectURI = URL(string: redirectURIString),
-            authorizationURL.scheme == "https",
-            tokenURL.scheme == "https",
-            redirectURI.scheme != nil,
-            !clientId.isEmpty
-        else {
-            return nil
-        }
-
-        self.authorizationURL = authorizationURL
-        self.tokenURL = tokenURL
-        self.clientId = clientId
+            let issuerString = message["issuer"] as? String,
+            let resourceString = message["resource"] as? String,
+            let redirectString = message["redirectURI"] as? String,
+            let issuer = URL(string: issuerString), issuer == Self.trustedIssuer,
+            let resource = URL(string: resourceString), resource == Self.protectedResource,
+            let redirectURI = URL(string: redirectString), redirectURI == Self.callbackURI
+        else { return nil }
+        self.issuer = issuer
+        self.resource = resource
         self.redirectURI = redirectURI
-        self.scopes = (message["scopes"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            ?? "openid email profile"
     }
+}
+
+struct OAuthClientConfiguration {
+    let configuration: OAuthConfiguration
+    let authorizationURL: URL
+    let tokenURL: URL
+    let revocationURL: URL
+    let clientId: String
 }
 
 struct OAuthCallback {
     let code: String
     let state: String
 
-    init?(url: URL) {
+    init?(url: URL, expected: URL) {
         guard
             let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-            let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
-            let state = components.queryItems?.first(where: { $0.name == "state" })?.value,
-            !code.isEmpty,
-            !state.isEmpty
-        else {
-            return nil
-        }
+            url.scheme == expected.scheme, url.host == expected.host,
+            url.port == expected.port, url.path == expected.path,
+            url.user == nil, url.password == nil, url.fragment == nil,
+            let items = components.queryItems,
+            items.filter({ $0.name == "code" }).count == 1,
+            items.filter({ $0.name == "state" }).count == 1,
+            !items.contains(where: { $0.name == "error" }),
+            let code = items.first(where: { $0.name == "code" })?.value,
+            let state = items.first(where: { $0.name == "state" })?.value,
+            !code.isEmpty, !state.isEmpty
+        else { return nil }
         self.code = code
         self.state = state
     }
@@ -68,6 +66,7 @@ enum OAuthError: Error {
     case busy
     case invalidCallback
     case invalidConfiguration
+    case reauthenticationRequired
     case unavailable
 }
 
@@ -81,117 +80,66 @@ enum PKCE {
 
     private static func randomString(byteCount: Int) throws -> String {
         var bytes = [UInt8](repeating: 0, count: byteCount)
-        let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        guard status == errSecSuccess else {
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
             throw OAuthError.unavailable
         }
         return Data(bytes).base64URLEncodedString()
     }
 }
 
-struct OAuthToken: Codable {
+struct OAuthToken: Codable, Sendable {
     let accessToken: String
     let refreshToken: String?
     let expiresAt: Date
     let clientId: String
+    let issuer: URL
+    let resource: URL
     let tokenURL: URL
+    let revocationURL: URL
 
-    init(response: TokenResponse, clientId: String, tokenURL: URL, previousRefreshToken: String? = nil) {
+    var hasTrustedContext: Bool {
+        issuer == OAuthConfiguration.trustedIssuer
+            && resource == OAuthConfiguration.protectedResource
+            && OAuthClient.isIssuerEndpoint(tokenURL, issuer: issuer)
+            && OAuthClient.isIssuerEndpoint(revocationURL, issuer: issuer)
+    }
+
+    init(response: TokenResponse, client: OAuthClientConfiguration, previousRefreshToken: String? = nil) throws {
+        guard !response.accessToken.isEmpty,
+            response.tokenType.lowercased() == "bearer", response.expiresIn > 0,
+            response.refreshToken == nil || response.refreshToken?.isEmpty == false,
+            response.resource == nil || response.resource == client.configuration.resource.absoluteString
+        else { throw OAuthError.unavailable }
         accessToken = response.accessToken
         refreshToken = response.refreshToken ?? previousRefreshToken
-        expiresAt = Date().addingTimeInterval(TimeInterval(response.expiresIn ?? 3600))
-        self.clientId = clientId
-        self.tokenURL = tokenURL
+        expiresAt = Date().addingTimeInterval(TimeInterval(response.expiresIn))
+        clientId = client.clientId
+        issuer = client.configuration.issuer
+        resource = client.configuration.resource
+        tokenURL = client.tokenURL
+        revocationURL = client.revocationURL
     }
 }
 
 struct TokenResponse: Decodable {
     let accessToken: String
     let refreshToken: String?
-    let expiresIn: Int?
+    let expiresIn: Int
+    let tokenType: String
+    let resource: String?
 
     enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
         case refreshToken = "refresh_token"
         case expiresIn = "expires_in"
-    }
-}
-
-enum OAuthClient {
-    static func exchange(
-        authorizationCode: String,
-        verifier: String,
-        configuration: OAuthConfiguration
-    ) async throws -> OAuthToken {
-        let response = try await request(
-            tokenURL: configuration.tokenURL,
-            form: [
-                "grant_type": "authorization_code",
-                "code": authorizationCode,
-                "code_verifier": verifier,
-                "client_id": configuration.clientId,
-                "redirect_uri": configuration.redirectURI.absoluteString,
-            ]
-        )
-        return OAuthToken(response: response, clientId: configuration.clientId, tokenURL: configuration.tokenURL)
-    }
-
-    static func refresh(
-        refreshToken: String,
-        clientId: String,
-        tokenURL: URL
-    ) async throws -> OAuthToken {
-        let response = try await request(
-            tokenURL: tokenURL,
-            form: [
-                "grant_type": "refresh_token",
-                "refresh_token": refreshToken,
-                "client_id": clientId,
-            ]
-        )
-        return OAuthToken(
-            response: response,
-            clientId: clientId,
-            tokenURL: tokenURL,
-            previousRefreshToken: refreshToken
-        )
-    }
-
-    private static func request(tokenURL: URL, form: [String: String]) async throws -> TokenResponse {
-        var request = URLRequest(url: tokenURL)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = form
-            .map { "\($0.key)=\($0.value.formURLEncoded())" }
-            .joined(separator: "&")
-            .data(using: .utf8)
-
-        return try await withCheckedThrowingContinuation { continuation in
-            URLSession.shared.dataTask(with: request) { data, response, error in
-                guard error == nil,
-                    let data,
-                    let httpResponse = response as? HTTPURLResponse,
-                    (200..<300).contains(httpResponse.statusCode)
-                else {
-                    continuation.resume(throwing: OAuthError.unavailable)
-                    return
-                }
-
-                do {
-                    continuation.resume(returning: try JSONDecoder().decode(TokenResponse.self, from: data))
-                } catch {
-                    continuation.resume(throwing: OAuthError.unavailable)
-                }
-            }.resume()
-        }
+        case tokenType = "token_type"
+        case resource
     }
 }
 
 func nativeSuccess(accessToken: String? = nil) -> [String: Any] {
     var payload: [String: Any] = ["success": true]
-    if let accessToken {
-        payload["accessToken"] = accessToken
-    }
+    if let accessToken { payload["accessToken"] = accessToken }
     return payload
 }
 
@@ -205,12 +153,5 @@ private extension Data {
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
-    }
-}
-
-private extension String {
-    func formURLEncoded() -> String {
-        addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._* ")))
-            ?? ""
     }
 }

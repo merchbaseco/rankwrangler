@@ -128,6 +128,9 @@ bun run cli:test:e2e
 bun run docs:list
 ```
 
+Safari native authentication requires macOS 14.4 or later. Follow the
+[Safari wrapper guide](apps/extension/safari-extension/README.md) for its HTTPS callback and signing checks.
+
 Start with the [documentation index](docs/README.md). The [domain glossary](CONTEXT.md) defines
 Product, observation, history, catalog query, search run, and search result. Operational setup,
 deployment, releases, and recovery live under [operations](docs/operations/README.md).

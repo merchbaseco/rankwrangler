@@ -16,20 +16,15 @@ const safariNativeApplicationId =
 	"merchbase.rankwrangler";
 
 const safariOAuthConfiguration = {
-	authorizationURL:
-		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_AUTHORIZATION_URL?.trim() ??
-		"https://clerk.merchbase.co/oauth/authorize",
-	tokenURL:
-		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_TOKEN_URL?.trim() ??
-		"https://clerk.merchbase.co/oauth/token",
-	clientId:
-		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_CLIENT_ID?.trim() ?? "",
+	issuer:
+		import.meta.env.VITE_MERCHBASE_ACCESS_ISSUER?.trim() ??
+		"https://thearcade.cloudflareaccess.com",
+	resource:
+		import.meta.env.VITE_RANKWRANGLER_SAFARI_OAUTH_RESOURCE?.trim() ??
+		"https://rankwrangler-api.merchbase.co/",
 	redirectURI:
-		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_REDIRECT_URI?.trim() ??
-		"rankwrangler://oauth/callback",
-	scopes:
-		import.meta.env.VITE_RANKWRANGLER_CLERK_OAUTH_SCOPES?.trim() ??
-		"openid email profile",
+		import.meta.env.VITE_RANKWRANGLER_SAFARI_OAUTH_REDIRECT_URI?.trim() ??
+		"https://rankwrangler.merchbase.co/oauth/safari/callback",
 };
 
 export type ExtensionAuthState =
@@ -54,7 +49,7 @@ const getClerk = () => {
 const sendSafariNativeMessage = async (message: Record<string, string>) => {
 	const response = (await browser.runtime.sendNativeMessage(
 		safariNativeApplicationId,
-		message
+		message,
 	)) as SafariNativeResponse;
 
 	if ("error" in response) {

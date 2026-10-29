@@ -9,8 +9,14 @@ import Security
 private let keychainService = "co.merchbase.rankwrangler.safari.oauth"
 private let keychainAccount = "tokens"
 
-enum KeychainTokenStore {
-    static func read() throws -> OAuthToken? {
+protocol OAuthTokenStore: Sendable {
+    func read() throws -> OAuthToken?
+    func save(_ token: OAuthToken) throws
+    func delete() throws
+}
+
+struct KeychainTokenStore: OAuthTokenStore {
+    func read() throws -> OAuthToken? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainService,
@@ -26,10 +32,15 @@ enum KeychainTokenStore {
         guard status == errSecSuccess, let data = result as? Data else {
             throw OAuthError.unavailable
         }
-        return try JSONDecoder().decode(OAuthToken.self, from: data)
+        do {
+            return try JSONDecoder().decode(OAuthToken.self, from: data)
+        } catch is DecodingError {
+            try delete()
+            return nil
+        }
     }
 
-    static func save(_ token: OAuthToken) throws {
+    func save(_ token: OAuthToken) throws {
         let data = try JSONEncoder().encode(token)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -52,7 +63,7 @@ enum KeychainTokenStore {
         }
     }
 
-    static func delete() throws {
+    func delete() throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainService,
