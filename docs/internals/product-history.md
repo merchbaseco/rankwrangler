@@ -24,7 +24,7 @@ value did not change frequently; they do not imply that RankWrangler stopped col
 `product_history_series` holds one row per Product, source, metric and category. The row keeps the
 whole series as two parallel `integer[]` columns: `keepa_minutes`, strictly ascending Keepa
 minutes, and `keepa_values`, the value at each minute. A missing point keeps Keepa's negative
-marker (`-1`; the backfill writes `-1` for every old missing point).
+marker (`-1`).
 `observedAt` is derived from the Keepa minute and is not stored. The composite primary key is the
 only index; every read starts from a Product id, joined from `(marketplace_id, asin)` on
 `products`.

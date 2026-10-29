@@ -173,42 +173,6 @@ export const productHistorySeries = pgTable(
     })
 );
 
-/**
- * Superseded by `productHistorySeries`. Kept only so `scripts/backfill-product-history-series.ts`
- * can convert production rows; remove it (and that script) in the migration that drops the table.
- */
-export const productHistoryPoints = pgTable(
-    'product_history_points',
-    {
-        id: uuid('id').primaryKey().defaultRandom(),
-        productId: uuid('product_id')
-            .references(() => products.id, { onDelete: 'cascade' })
-            .notNull(),
-        marketplaceId: text('marketplace_id').notNull(),
-        asin: text('asin').notNull(),
-        source: text('source').notNull(),
-        metric: text('metric').notNull(),
-        categoryId: bigint('category_id', { mode: 'number' }).notNull().default(-1),
-        observedAt: timestamp('observed_at', { mode: 'date' }).notNull(),
-        keepaMinutes: integer('keepa_minutes').notNull(),
-        valueInt: integer('value_int'),
-        isMissing: boolean('is_missing').notNull().default(false),
-        createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
-    },
-    table => ({
-        uniquePointIdx: uniqueIndex('product_history_points_unique_idx').on(
-            table.productId,
-            table.source,
-            table.metric,
-            table.categoryId,
-            table.keepaMinutes
-        ),
-        marketplaceAsinMetricObservedAtIdx: index(
-            'product_history_points_marketplace_asin_metric_observed_at_idx'
-        ).on(table.marketplaceId, table.asin, table.metric, table.observedAt),
-    })
-);
-
 export const keepaCategories = pgTable(
     'keepa_categories',
     {

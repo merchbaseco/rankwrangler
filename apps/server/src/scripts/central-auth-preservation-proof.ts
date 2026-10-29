@@ -77,11 +77,6 @@ const capture = async (sql: postgres.Sql, options: Options): Promise<Preservatio
             'product_history_imports',
             'to_jsonb(product_history_imports)::text'
         ),
-        productHistoryPoints: await captureCollection(
-            sql,
-            'product_history_points',
-            'to_jsonb(product_history_points)::text'
-        ),
         // Normalize additive listing resolution state so schema evolution is not treated as data loss.
         products: await captureCollection(
             sql,

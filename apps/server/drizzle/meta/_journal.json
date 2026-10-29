@@ -428,6 +428,13 @@
       "when": 1793289034993,
       "tag": "0060_product_history_series",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1793290662809,
+      "tag": "0061_drop_product_history_points",
+      "breakpoints": true
     }
   ]
 }

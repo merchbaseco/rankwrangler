@@ -69,34 +69,12 @@ measured-rate budget described in [catalog search internals](../internals/catalo
 
 See [Keepa refresh internals](../internals/keepa-refresh.md) for data semantics and ownership.
 
-## History series backfill
+## History storage
 
-History moved from `product_history_points` (one row per point) to `product_history_series` (one
-row per Product, metric and category). The rollout has three steps, each its own deploy or command:
-
-1. Deploy the release with migration `0060_product_history_series`. It only creates the new table;
-   from then on every Keepa save writes series and every read decodes them. The old table is left
-   untouched and nothing writes to it.
-2. Immediately after the deploy, convert existing history from the server directory of the deployed
-   checkout:
-
-   ```bash
-   VARLOCK_ENV=production bun run --cwd apps/server history:backfill-series
-   ```
-
-   It works in bounded batches of 25 Products by Product id, each batch one atomic upsert, and logs
-   `resume with --after <productId>`. Rerun with `-- --after <id>` after an interruption; a full
-   rerun is also safe, because batches merge into existing series and a fresh Keepa fetch wins any
-   minute it shares with the old points. It finishes by printing how many Products with points
-   still lack series; that must be `0`. Until a Product's batch runs, its charts, sparklines and
-   best-ever rank read empty; there is no fallback to the old table, so start the backfill right
-   after the deploy rather than waiting for scheduled refetches to rebuild history.
-3. In a later release, after the backfill reports `0`, remove `productHistoryPoints` from
-   `apps/server/src/db/schema.ts` together with the backfill script and module, generate the drop
-   migration, and deploy it. The drop cannot ship with step 1, because migrations run on deploy
-   and would discard the old rows before the backfill reads them. The same change updates the
-   preservation proofs that still count `product_history_points`
-   (`src/scripts/central-auth-preservation-proof.ts`, `test/upgrade-collection-fixture.ts`).
+History moved from `product_history_points` (one row per point, 20 GB for ~8.9k Products) to
+`product_history_series` (one row per Product, metric and category, ~0.5 GB for the same data) on
+October 29, 2026. The one-time backfill converted all 8,875 Products (72,664 series) and the old
+table was then dropped.
 
 ## Catalog search live smoke
 

@@ -1,16 +1,12 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
-import {
-    backfillProductHistorySeries,
-    countProductsMissingHistorySeries,
-} from '@/db/product/backfill-product-history-series';
 import { persistNormalizedKeepaProduct } from '@/db/product/persist-normalized-keepa-product';
 import {
     countProductHistoryPoints,
     writeProductHistorySeries,
 } from '@/db/product/product-history-series';
-import { keepaCategories, productHistoryPoints, productHistorySeries, products } from '@/db/schema';
+import { keepaCategories, productHistorySeries, products } from '@/db/schema';
 import { getProductHistoryPoints } from '@/services/keepa';
 import { keepaMinuteToDate } from '@/services/keepa-history-series';
 import {
@@ -95,71 +91,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Product history se
         expect(await countProductHistoryPoints(product.id, 'keepa')).toEqual({ price_new: 3 });
     });
 
-    it('backfills old points in resumable batches, keeping newer series values', async () => {
-        const first = await insertProduct('B0SERIES02');
-        const second = await insertProduct('B0SERIES03');
-        await db
-            .insert(productHistoryPoints)
-            .values([
-                oldPoint(first, 'B0SERIES02', 'bsr_main', 77, 300, 5_000),
-                oldPoint(first, 'B0SERIES02', 'bsr_main', 77, 100, 7_000),
-                oldPoint(first, 'B0SERIES02', 'price_new', -1, 100, null),
-                oldPoint(second, 'B0SERIES03', 'price_new', -1, 100, 1_999),
-                oldPoint(second, 'B0SERIES03', 'price_new', -1, 200, 2_099),
-            ]);
-        // A fetch after the deploy already wrote this Product's series; it wins shared minutes.
-        await writeProductHistorySeries(
-            db,
-            second,
-            [
-                {
-                    metric: 'price_new',
-                    categoryId: -1,
-                    keepaMinutes: [200, 400],
-                    values: [2_199, 2_299],
-                },
-            ],
-            { source: 'keepa', prefer: 'incoming' }
-        );
-        expect(await countProductsMissingHistorySeries()).toBe(1);
 
-        const [lowId, highId] = [first, second].sort();
-        const partial = await backfillProductHistorySeries({ batchSize: 1, limit: 1 });
-        expect(partial).toMatchObject({ products: 1, lastProductId: lowId });
-        const rest = await backfillProductHistorySeries({ afterProductId: lowId, batchSize: 1 });
-        expect(rest).toMatchObject({ products: 1, lastProductId: highId });
-
-        const expected = [
-            {
-                productId: first,
-                metric: 'bsr_main',
-                categoryId: 77,
-                keepaMinutes: [100, 300],
-                keepaValues: [7_000, 5_000],
-            },
-            {
-                productId: first,
-                metric: 'price_new',
-                categoryId: -1,
-                keepaMinutes: [100],
-                keepaValues: [-1],
-            },
-            {
-                productId: second,
-                metric: 'price_new',
-                categoryId: -1,
-                keepaMinutes: [100, 200, 400],
-                keepaValues: [1_999, 2_199, 2_299],
-            },
-        ].sort((left, right) =>
-            left.productId === right.productId ? 0 : left.productId < right.productId ? -1 : 1
-        );
-        expect(await readSeries()).toEqual(expected);
-        expect(await countProductsMissingHistorySeries()).toBe(0);
-
-        await backfillProductHistorySeries({ batchSize: 10 });
-        expect(await readSeries()).toEqual(expected);
-    });
 });
 
 const persist = async (payload: KeepaProductPayload) => {
@@ -193,43 +125,3 @@ const point = (
     value,
     isMissing: value === null,
 });
-
-const insertProduct = async (productAsin: string) => {
-    const [row] = await db
-        .insert(products)
-        .values({ marketplaceId: market, asin: productAsin })
-        .returning({ id: products.id });
-    return row.id;
-};
-
-const oldPoint = (
-    productId: string,
-    productAsin: string,
-    metric: string,
-    categoryId: number,
-    keepaMinutes: number,
-    valueInt: number | null
-) => ({
-    productId,
-    marketplaceId: market,
-    asin: productAsin,
-    source: 'keepa',
-    metric,
-    categoryId,
-    observedAt: keepaMinuteToDate(keepaMinutes),
-    keepaMinutes,
-    valueInt,
-    isMissing: valueInt === null,
-});
-
-const readSeries = async () =>
-    await db
-        .select({
-            productId: productHistorySeries.productId,
-            metric: productHistorySeries.metric,
-            categoryId: productHistorySeries.categoryId,
-            keepaMinutes: productHistorySeries.keepaMinutes,
-            keepaValues: productHistorySeries.keepaValues,
-        })
-        .from(productHistorySeries)
-        .orderBy(productHistorySeries.productId, productHistorySeries.metric);

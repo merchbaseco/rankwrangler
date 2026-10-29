@@ -76,7 +76,6 @@ try {
     const fingerprint = async () =>
         await discoverySql`select
         (select count(*) from products)::int products,
-        (select count(*) from product_history_points)::int history,
         (select count(*) from product_history_imports)::int imports,
         (select count(*) from catalog_search_runs)::int runs,
         (select count(*) from catalog_search_results)::int results,
