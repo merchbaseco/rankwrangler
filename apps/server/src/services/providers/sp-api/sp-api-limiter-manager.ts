@@ -269,7 +269,7 @@ export class SpApiLimiterManager {
     };
 }
 
-const mapTelemetryOperation = (operationId: SpApiLimiterOperationId) => {
+export const mapTelemetryOperation = (operationId: SpApiLimiterOperationId) => {
     switch (operationId) {
         case 'catalog.searchCatalogItems':
             return 'spapi.catalog.search' as const;

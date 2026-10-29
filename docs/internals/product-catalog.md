@@ -73,10 +73,9 @@ short-name row stores the name or valid abstention, source fingerprint, and gene
 after opt-in.
 Cross-process claims prevent duplicate generation; an expired pending claim can be retried on the
 next request. The fingerprint includes title, image URL, and generator version, so unchanged names
-have no time-based refresh while changed inputs regenerate. Settings compares fingerprints with the
-current title and image to count Products needing regeneration. Generation events and physical Gemini
-and TypeSafe attempts feed the admin System Status page (`/status`). Other Product read paths do not invoke
-these providers.
+have no time-based refresh while changed inputs regenerate. Generation events land in the admin
+System Status event log (`/status`), and physical Gemini and TypeSafe attempts in Provider-attempt
+telemetry. Other Product read paths do not invoke these providers.
 Opted-in reads require `RANKWRANGLER_GEMINI_API_KEY` and `RANKWRANGLER_TYPESAFE_API_KEY`.
 The TypeSafe key must be provisioned as a RankWrangler-owned credential in each active lifecycle
 before clients use the opt-in; missing credentials fail the opted-in request.
@@ -87,8 +86,8 @@ and returns an intermediate WebP. RankWrangler crops its visible alpha bounds, s
 large as its aspect ratio allows, and centers it on a transparent 128×128 WebP canvas in R2. A sparse
 claim row prevents duplicate work across processes. Source URL and generator version determine the
 asset key, so the next requested read regenerates after either changes. Generation failures keep the
-original thumbnail available and retry after a short cooldown. Settings shows coverage, failures,
-transform attempts, and R2 uploads. Other Product reads do not start cutout work.
+original thumbnail available and retry after a short cooldown. Other Product reads do not start
+cutout work.
 
 `listing.bulletPoints` is always an array, with `[]` for no bullets. `salesRank` contains `current`
 and `averages.last30Days`/`averages.last90Days`; demand drop windows use `last30Days`, `last90Days`,

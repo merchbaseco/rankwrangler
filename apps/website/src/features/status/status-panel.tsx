@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { formatCount } from './metrics/metric-format';
+import { formatCount } from './status-model';
 
 /** One data series' colour on the status page; `status.css` maps each to a theme token. */
 export type SeriesTone = 'current' | 'due' | 'pending' | 'idle' | 'faint' | 'accent' | 'alert';
@@ -31,8 +31,29 @@ export const StatusSection = ({
     </section>
 );
 
-/** A bordered card holding one panel when a section sets two side by side. */
+/** A surface card holding a section's content; a titled card heads it with the title and aside. */
 export const StatusCard = ({
+    aside,
+    children,
+    title,
+}: {
+    aside?: ReactNode;
+    children: ReactNode;
+    title?: string;
+}) => (
+    <div className="status-card">
+        {title || aside ? (
+            <div className="status-card__header">
+                {title ? <h3 className="status-card__title">{title}</h3> : null}
+                {aside ? <span className="status-card__aside">{aside}</span> : null}
+            </div>
+        ) : null}
+        {children}
+    </div>
+);
+
+/** One titled part of a card, such as a provider's usage above its refresh tiers. */
+export const StatusBlock = ({
     aside,
     children,
     title,
@@ -41,9 +62,9 @@ export const StatusCard = ({
     children: ReactNode;
     title: string;
 }) => (
-    <div className="status-card">
+    <div className="status-block">
         <div className="status-card__header">
-            <h3 className="status-card__title">{title}</h3>
+            <h3 className="status-block__title">{title}</h3>
             {aside ? <span className="status-card__aside">{aside}</span> : null}
         </div>
         {children}
@@ -52,19 +73,10 @@ export const StatusCard = ({
 
 /**
  * The headline figures: the first is the big number, the rest sit beside it smaller. A figure
- * with `of` reads as "864 of 1,200".
+ * with `of` reads as "864 of 1,200" and a `note` trails it small; `display` replaces the
+ * formatted value (a percentage), and `tone` colours a figure that needs attention.
  */
-export const Headline = ({
-    figures,
-}: {
-    figures: ReadonlyArray<{
-        readonly label: string;
-        readonly of?: number | null;
-        readonly value: number | null;
-        readonly prefix?: string;
-        readonly suffix?: string;
-    }>;
-}) => (
+export const Headline = ({ figures }: { figures: readonly HeadlineFigure[] }) => (
     <dl className="status-headline">
         {figures.map((figure, index) => (
             <div
@@ -72,18 +84,30 @@ export const Headline = ({
                 key={figure.label}
             >
                 <dt className="status-figure__label">{figure.label}</dt>
-                <dd className="status-figure__value">
-                    {figure.value === null
-                        ? '—'
-                        : `${figure.prefix ?? ''}${formatCount(figure.value)}${figure.suffix ?? ''}`}
+                <dd className={cn('status-figure__value', figure.tone && toneInk[figure.tone])}>
+                    {figure.display ??
+                        (figure.value === null
+                            ? '—'
+                            : `${figure.prefix ?? ''}${formatCount(figure.value)}`)}
                     {figure.of != null ? (
                         <span className="status-figure__of"> of {formatCount(figure.of)}</span>
                     ) : null}
+                    {figure.note ? <span className="status-figure__of"> {figure.note}</span> : null}
                 </dd>
             </div>
         ))}
     </dl>
 );
+
+export interface HeadlineFigure {
+    readonly display?: string;
+    readonly label: string;
+    readonly note?: string;
+    readonly of?: number | null;
+    readonly prefix?: string;
+    readonly tone?: 'warning' | 'danger';
+    readonly value: number | null;
+}
 
 /**
  * A horizontal bar split into its segments, proportional to their values over `total` (the
@@ -149,6 +173,8 @@ export const Legend = ({ segments }: { segments: readonly Segment[] }) => (
         ))}
     </ul>
 );
+
+const toneInk = { danger: 'text-danger', warning: 'text-warning' } as const;
 
 const describe = (segments: readonly Segment[]) =>
     segments.map(segment => `${segment.label} ${formatCount(segment.value)}`).join(', ');

@@ -1,31 +1,31 @@
 import { Button } from '@heroui/react';
 import { useSyncControl } from '@/features/keywords/use-sync-control';
-import { formatCount } from './metrics/metric-format';
 import {
     Headline,
     Legend,
     type Segment,
     SegmentedBar,
+    StatusBlock,
     StatusCard,
     StatusSection,
 } from './status-panel';
 import { useKeywordOverview } from './use-keyword-overview';
 
-const stageRows = [
-    { key: 'trial', label: 'Trial', tone: 'idle' },
-    { key: 'graduated', label: 'Graduated', tone: 'current' },
-    { key: 'dropped', label: 'Dropped', tone: 'alert' },
-    { key: 'untracked', label: 'Untracked', tone: 'faint' },
-] as const;
-
 /**
- * Keywords: every keyword by stage (Brand Analytics terms start in trial and graduate once page
- * one shows three Merch Products), and the graduated keywords' freshness. Automatic keyword
- * sync is paused and resumed here.
+ * Keywords in one card, both as the same segmented bar: every keyword by stage (Brand Analytics
+ * terms start in trial and graduate once page one shows three Merch Products; dropped is a normal
+ * end state), then the graduated keywords' freshness. Automatic sync is paused and resumed here.
  */
 export const StatusKeywords = () => {
     const { facets, stages } = useKeywordOverview();
-    const total = stages ? stageRows.reduce((sum, row) => sum + stages[row.key], 0) : null;
+    const stageSegments: Segment[] = stages
+        ? [
+              { key: 'trial', label: 'Trial', tone: 'accent', value: stages.trial },
+              { key: 'graduated', label: 'Graduated', tone: 'current', value: stages.graduated },
+              { key: 'dropped', label: 'Dropped', tone: 'idle', value: stages.dropped },
+              { key: 'untracked', label: 'Untracked', tone: 'faint', value: stages.untracked },
+          ]
+        : [];
     const freshness: Segment[] = facets
         ? [
               { key: 'live', label: 'Live', tone: 'current', value: facets.freshness.live },
@@ -38,51 +38,26 @@ export const StatusKeywords = () => {
               { key: 'syncing', label: 'Syncing', tone: 'accent', value: facets.freshness.syncing },
           ]
         : [];
+    const total = stageSegments.reduce((sum, segment) => sum + segment.value, 0);
 
     return (
-        <StatusSection caption="Trial, graduation and freshness" title="Keywords">
-            <div className="status-pair">
-                <StatusCard
-                    aside={total === null ? null : `${formatCount(total)} keywords`}
-                    title="Stage"
-                >
-                    <dl className="status-rows">
-                        {stageRows.map(row => (
-                            <div className="status-row" key={row.key}>
-                                <dt>{row.label}</dt>
-                                <dd className="status-row__bar">
-                                    <SegmentedBar
-                                        label={row.label}
-                                        segments={[
-                                            {
-                                                key: row.key,
-                                                label: row.label,
-                                                tone: row.tone,
-                                                value: stages?.[row.key] ?? 0,
-                                            },
-                                        ]}
-                                        size="sm"
-                                        total={total}
-                                    />
-                                </dd>
-                                <dd className="status-row__value">
-                                    {stages ? formatCount(stages[row.key]) : '—'}
-                                </dd>
-                            </div>
-                        ))}
-                    </dl>
-                </StatusCard>
-                <StatusCard aside={<SyncControl />} title="Freshness">
-                    <Headline
-                        figures={[
-                            { label: 'Graduated', value: facets?.stage.graduated ?? null },
-                            { label: 'Checked · 24h', value: facets?.minedLast24h ?? null },
-                        ]}
-                    />
-                    <SegmentedBar label="Freshness" segments={freshness} size="sm" />
+        <StatusSection caption={<SyncControl />} title="Keywords">
+            <StatusCard>
+                <Headline
+                    figures={[
+                        { label: 'Keywords', value: stages ? total : null },
+                        { label: 'Checked · 24h', value: facets?.minedLast24h ?? null },
+                    ]}
+                />
+                <StatusBlock title="Stage">
+                    <SegmentedBar label="Keyword stage" segments={stageSegments} />
+                    <Legend segments={stageSegments} />
+                </StatusBlock>
+                <StatusBlock title="Freshness of graduated">
+                    <SegmentedBar label="Graduated keyword freshness" segments={freshness} />
                     <Legend segments={freshness} />
-                </StatusCard>
-            </div>
+                </StatusBlock>
+            </StatusCard>
         </StatusSection>
     );
 };

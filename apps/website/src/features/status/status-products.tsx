@@ -2,30 +2,29 @@ import type { SystemStatus } from './status-model';
 import { Headline, Legend, type Segment, SegmentedBar, StatusSection } from './status-panel';
 
 /**
- * Products: how much of the catalog is indexed and how deep. Every Product sits in one segment,
- * from Merch listings with current sales history to the non-Merch Products nobody schedules.
+ * Products: how many are indexed, then the sales-history sync status of the Merch listings.
+ * Every Merch listing sits in one segment: it has Keepa sales history, it is waiting for its first
+ * history download, or it sits outside the automatic Keepa tiers and is synced only on demand.
  */
 export const StatusProducts = ({ products }: { products: SystemStatus['products'] }) => {
     const { history } = products;
     const segments: Segment[] = [
-        { key: 'current', label: 'History current', tone: 'current', value: history.current },
-        { key: 'overdue', label: 'History overdue', tone: 'due', value: history.overdue },
+        { key: 'history', label: 'Has sales history', tone: 'current', value: history.withHistory },
         {
             key: 'awaiting',
-            label: 'Awaiting first fetch',
+            label: 'Waiting for first history',
             tone: 'pending',
             value: history.awaitingFirst,
         },
-        { key: 'unscheduled', label: 'Not scheduled', tone: 'idle', value: history.notScheduled },
         {
-            key: 'non-merch',
-            label: 'Non-Merch',
-            tone: 'faint',
-            value: Math.max(products.total - products.merch, 0),
+            key: 'untracked',
+            label: 'Not tracked by Keepa',
+            tone: 'idle',
+            value: history.notTracked,
         },
     ];
     return (
-        <StatusSection caption="Indexed Products by sales-history coverage" title="Products">
+        <StatusSection caption="Sync status of Merch Products" title="Products">
             <Headline
                 figures={[
                     { label: 'Products indexed', value: products.total },
@@ -33,7 +32,7 @@ export const StatusProducts = ({ products }: { products: SystemStatus['products'
                     { label: 'New · 24h', prefix: '+', value: products.new24h },
                 ]}
             />
-            <SegmentedBar label="Products" segments={segments} />
+            <SegmentedBar label="Merch Products" segments={segments} />
             <Legend segments={segments} />
         </StatusSection>
     );

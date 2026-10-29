@@ -1,4 +1,3 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { jobExecutionLogs, jobExecutions } from '@/db/schema.js';
 import { getErrorMessage, toJsonValue } from '@/services/job-executions-utils.js';
@@ -31,33 +30,10 @@ type RunTrackedJobInput<TResult> = {
     run: (logger: JobLogger) => Promise<TResult>;
 };
 
-type ListRecentJobExecutionsInput = { limit: number; status?: JobStatus; jobNames?: string[] };
-
 export type JobLogger = {
     info: (message: string, context?: unknown) => void;
     warn: (message: string, context?: unknown) => void;
     error: (message: string, context?: unknown) => void;
-};
-
-export type JobExecutionLogRecord = {
-    id: string;
-    level: string;
-    message: string;
-    context: unknown;
-    createdAt: string;
-};
-
-export type JobExecutionRecord = {
-    id: string;
-    jobName: string;
-    status: string;
-    input: unknown;
-    output: unknown;
-    errorMessage: string | null;
-    startedAt: string;
-    finishedAt: string;
-    durationMs: number;
-    logs: JobExecutionLogRecord[];
 };
 
 export const runTrackedJob = async <TResult>({
@@ -130,90 +106,6 @@ export const runTrackedJob = async <TResult>({
     }
 };
 
-export const listRecentJobExecutions = async ({
-    limit,
-    status,
-    jobNames,
-}: ListRecentJobExecutionsInput): Promise<JobExecutionRecord[]> => {
-    const filter =
-        status && jobNames && jobNames.length > 0
-            ? and(
-                  eq(jobExecutions.status, status),
-                  inArray(jobExecutions.jobName, jobNames)
-              )
-            : status
-              ? eq(jobExecutions.status, status)
-              : jobNames && jobNames.length > 0
-                ? inArray(jobExecutions.jobName, jobNames)
-                : undefined;
-
-    const executions = await db
-        .select({
-            id: jobExecutions.id,
-            jobName: jobExecutions.jobName,
-            status: jobExecutions.status,
-            input: jobExecutions.input,
-            output: jobExecutions.output,
-            errorMessage: jobExecutions.errorMessage,
-            startedAt: jobExecutions.startedAt,
-            finishedAt: jobExecutions.finishedAt,
-        })
-        .from(jobExecutions)
-        .where(filter)
-        .orderBy(desc(jobExecutions.startedAt))
-        .limit(limit);
-
-    if (executions.length === 0) {
-        return [];
-    }
-
-    const executionIds = executions.map((execution) => execution.id);
-
-    const logs = await db
-        .select({
-            id: jobExecutionLogs.id,
-            executionId: jobExecutionLogs.executionId,
-            level: jobExecutionLogs.level,
-            message: jobExecutionLogs.message,
-            context: jobExecutionLogs.context,
-            createdAt: jobExecutionLogs.createdAt,
-        })
-        .from(jobExecutionLogs)
-        .where(inArray(jobExecutionLogs.executionId, executionIds))
-        .orderBy(desc(jobExecutionLogs.createdAt));
-
-    const logsByExecutionId = new Map<string, JobExecutionLogRecord[]>();
-
-    for (const log of logs) {
-        const existingLogs = logsByExecutionId.get(log.executionId) ?? [];
-        existingLogs.push({
-            id: log.id,
-            level: log.level,
-            message: log.message,
-            context: log.context,
-            createdAt: log.createdAt.toISOString(),
-        });
-        logsByExecutionId.set(log.executionId, existingLogs);
-    }
-
-    return executions.map((execution) => {
-        const executionLogs = logsByExecutionId.get(execution.id) ?? [];
-
-        return {
-            id: execution.id,
-            jobName: execution.jobName,
-            status: execution.status,
-            input: execution.input,
-            output: execution.output,
-            errorMessage: execution.errorMessage,
-            startedAt: execution.startedAt.toISOString(),
-            finishedAt: execution.finishedAt.toISOString(),
-            durationMs: execution.finishedAt.getTime() - execution.startedAt.getTime(),
-            logs: executionLogs.reverse(),
-        };
-    });
-};
-
 const persistJobExecution = async ({
     jobName,
     status,
@@ -249,8 +141,6 @@ const persistJobExecution = async ({
             createdAt: log.createdAt,
         }))
     );
-    // Sent after the run and its logs are saved; the Jobs screen refreshes on it instead of polling.
-    await db.execute(sql`select pg_notify('job_activity', ${JSON.stringify({ jobName })})`);
 };
 
 const pushLog = (

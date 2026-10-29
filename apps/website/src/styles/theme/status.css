@@ -25,21 +25,6 @@
             calc(var(--spacing-base) * 16);
     }
 
-    .status-page__header {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: calc(var(--spacing-base) * 4);
-    }
-
-    .status-page__title {
-        font-size: 1.625rem;
-        font-weight: 600;
-        line-height: 1.15;
-        letter-spacing: -0.01em;
-    }
-
     /* ---------------------------------------------------------------------------------------------
      * Sections and cards
      * -------------------------------------------------------------------------------------------*/
@@ -90,6 +75,30 @@
     .status-card__title {
         font-size: var(--text-lg);
         font-weight: 600;
+    }
+
+    /* Side-by-side sections keep their own height instead of stretching to the taller one. */
+    .status-pair--top {
+        align-items: start;
+    }
+
+    /* A titled part of a card (usage, then refresh tiers): figures, bar, legend or table. */
+    .status-block {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing-base) * 3);
+        min-width: 0;
+    }
+
+    .status-block__title {
+        font-size: var(--text-sm);
+        font-weight: 600;
+    }
+
+    /* A tier's info mark: muted, and the arrow cursor, since it only explains. */
+    .status-hint {
+        display: inline-flex;
+        color: var(--muted);
     }
 
     /* ---------------------------------------------------------------------------------------------
@@ -247,7 +256,7 @@
 
     .status-row {
         display: grid;
-        grid-template-columns: 6rem minmax(0, 1fr) 5.5rem;
+        grid-template-columns: 8.5rem minmax(0, 1fr) 7.5rem;
         align-items: center;
         gap: calc(var(--spacing-base) * 4);
         font-size: var(--text-sm);
@@ -259,28 +268,53 @@
         font-variant-numeric: tabular-nums;
     }
 
-    /* The event log keeps a fixed window so the page below it stays reachable. */
+    /* The event log explorer: filters, then the histogram, then the event list, on one card. */
+    .status-explorer {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing-base) * 4);
+        min-width: 0;
+        padding: calc(var(--spacing-base) * 4);
+        border-radius: var(--radius-tile);
+        background-color: var(--surface);
+        box-shadow: var(--surface-shadow);
+    }
+
+    .status-histogram {
+        min-width: 0;
+    }
+
+    /* The list keeps a fixed window (its rows are virtualized inside it), so the page scrolls past
+     * it and only the window's own rows render. */
     .status-events {
         display: flex;
         flex-direction: column;
         height: 32rem;
         min-height: 0;
         overflow: hidden;
-        border-radius: var(--radius-tile);
-        box-shadow: var(--surface-shadow);
     }
 
     /* ---------------------------------------------------------------------------------------------
      * Banner indicator and its hover card
      * -------------------------------------------------------------------------------------------*/
 
+    /* The banner pill: a dot and a word ("Live"), the height of the icon buttons beside it. */
     .status-indicator {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
+        gap: calc(var(--spacing-base) * 2);
+        height: 1.75rem;
+        padding-inline: calc(var(--spacing-base) * 2.5);
         border-radius: var(--radius-pill);
+        color: var(--muted);
+        font-size: var(--text-sm);
+        font-weight: 500;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .status-indicator--attention {
+        color: var(--warning);
     }
 
     .status-indicator:hover {
@@ -354,6 +388,16 @@
 
         .status-figure--lead .status-figure__value {
             font-size: 2rem;
+        }
+
+        .status-card,
+        .status-explorer {
+            padding: calc(var(--spacing-base) * 4);
+        }
+
+        .status-row {
+            grid-template-columns: 7.5rem minmax(0, 1fr) 6.5rem;
+            gap: calc(var(--spacing-base) * 3);
         }
     }
 }

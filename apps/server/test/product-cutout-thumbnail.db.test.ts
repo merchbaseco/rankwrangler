@@ -9,7 +9,6 @@ import {
 } from '@/db/product/product-cutout-thumbnail-store';
 import { products } from '@/db/product-schema';
 import { getCutoutInputFingerprint } from '@/services/product-cutout-thumbnail';
-import { getProductCutoutThumbnailMetrics } from '@/services/product-cutout-thumbnail-metrics';
 
 const identity = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0CUTOUT01' };
 const firstSource = 'https://m.media-amazon.com/images/I/first.jpg';
@@ -85,6 +84,5 @@ describeCatalogDb('Product cutout thumbnail persistence', () => {
             inputFingerprint: getCutoutInputFingerprint(secondSource),
             objectKey: 'cutouts/current.webp',
         });
-        expect((await getProductCutoutThumbnailMetrics()).coverage.ready).toBeGreaterThanOrEqual(1);
     });
 });

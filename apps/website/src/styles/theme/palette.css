@@ -113,6 +113,10 @@
     --status-due: #2f7d66;
     --status-halo-ok: rgba(42, 127, 105, 0.22);
     --status-halo-attention: rgba(154, 101, 18, 0.22);
+    /* Event levels in the System Status histogram: routine events stay quiet so trouble stands out.
+     * Each follows its swatch, so it needs no dark-theme twin. */
+    --status-event-info: var(--tier-slow-sw);
+    --status-event-debug: var(--surface-tertiary);
     --tier-elite-sw: #7b57ef;
     --tier-hot-sw: #ee6a3c;
     --tier-strong-sw: #f0b13d;

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { db } from '@/db/index';
 import { products } from '@/db/schema';
-import { readProductIndex, readSystemPipelines } from '@/db/system-status';
+import { providerAttempts } from '@/db/provider-telemetry-schema';
+import { readProductIndex, readProviderCalls } from '@/db/system-status';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
 import { resetDiscoveryFixture } from './discovery-fixture';
 
@@ -12,11 +13,16 @@ const DAY_MS = 24 * HOUR_MS;
 describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status reads', () => {
     beforeEach(async () => {
         await resetDiscoveryFixture();
+        await db.delete(providerAttempts);
     });
 
-    it('splits the catalog by sales-history coverage', async () => {
+    it('splits the Merch catalog by sales-history sync status', async () => {
         await insertProduct({ asin: 'B0STAT0001', keepaFetchedAt: hoursBefore(1), bsr: 40_000 });
-        await insertProduct({ asin: 'B0STAT0002', keepaFetchedAt: hoursBefore(48), bsr: 40_000 });
+        await insertProduct({
+            asin: 'B0STAT0002',
+            bsr: 2_000_000,
+            keepaFetchedAt: hoursBefore(48),
+        });
         await insertProduct({ asin: 'B0STAT0003', keepaFetchedAt: null, bsr: 500_000 });
         await insertProduct({ asin: 'B0STAT0004', keepaFetchedAt: null, bsr: 2_000_000 });
         await insertProduct({ asin: 'B0STAT0005', bsr: 40_000, isMerchListing: false });
@@ -24,31 +30,26 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
         const index = await readProductIndex(NOW);
 
         expect(index).toMatchObject({ total: 5, merch: 4 });
-        expect(index.history).toEqual({
-            current: 1,
-            overdue: 1,
-            awaitingFirst: 1,
-            notScheduled: 1,
-        });
+        // History counts wherever it came from; only listings without it split by tier.
+        expect(index.history).toEqual({ withHistory: 2, awaitingFirst: 1, notTracked: 1 });
     });
 
-    it('reports last run, next due and the overdue backlog per pipeline', async () => {
-        // A sub-50k BSR refreshes history every 12 hours; the fresh one is next due in 11 hours.
-        await insertProduct({ asin: 'B0STAT0011', keepaFetchedAt: hoursBefore(1), bsr: 40_000 });
+    it('counts throttles apart from other provider errors', async () => {
+        await insertAttempt({ statusCode: 200, isError: false });
+        await insertAttempt({ statusCode: 429, isError: true });
+        await insertAttempt({ statusCode: 429, isError: true });
+        await insertAttempt({ statusCode: 500, isError: true });
+        await insertAttempt({ statusCode: null, isError: true });
 
-        const fresh = await readSystemPipelines(NOW);
-        const history = fresh.find(row => row.pipeline === 'keepa-history');
-        expect(history).toMatchObject({
-            lastRunAt: hoursBefore(1).toISOString(),
-            nextDueAt: new Date(NOW.getTime() + 11 * HOUR_MS).toISOString(),
-            overdue: 0,
-        });
+        const [calls] = await readProviderCalls(NOW);
 
-        await insertProduct({ asin: 'B0STAT0012', keepaFetchedAt: hoursBefore(72), bsr: 40_000 });
-        const behind = await readSystemPipelines(NOW);
-        expect(behind.find(row => row.pipeline === 'keepa-history')).toMatchObject({
-            nextDueAt: NOW.toISOString(),
-            overdue: 1,
+        expect(calls).toEqual({
+            provider: 'spapi',
+            operation: 'spapi.catalog.search',
+            calls1h: 5,
+            calls24h: 5,
+            throttled24h: 2,
+            errors24h: 2,
         });
     });
 });
@@ -78,7 +79,23 @@ const insertProduct = async ({
         keepaFetchedAt,
         marketplaceId: SPAPI_US_MARKETPLACE_ID,
         rootCategoryBsr: bsr,
-        // Health waits out the SP-API write lag before judging history, so settle it first.
         spApiFetchedAt: hoursBefore(6),
+    });
+};
+
+const insertAttempt = async ({
+    isError,
+    statusCode,
+}: {
+    isError: boolean;
+    statusCode: number | null;
+}) => {
+    await db.insert(providerAttempts).values({
+        attemptedAt: new Date(NOW.getTime() - 10 * 60 * 1000),
+        isError,
+        latencyMs: 120,
+        operation: 'spapi.catalog.search',
+        provider: 'spapi',
+        statusCode,
     });
 };

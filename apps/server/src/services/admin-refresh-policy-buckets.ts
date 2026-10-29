@@ -37,6 +37,8 @@ export interface SpApiRefreshPolicyBucketStat {
     key: SpApiRefreshPolicyBucketKey | 'nonAutoRefresh';
     label: string;
     refreshEveryLabel: string;
+    /** The long explanation the short label leaves out, shown on hover. */
+    hint: string | null;
     count: number;
     isAutoRefresh: boolean;
 }
@@ -45,6 +47,8 @@ export interface KeepaRefreshPolicyBucketStat {
     key: KeepaRefreshPolicyBucketKey;
     label: string;
     refreshEveryLabel: string;
+    /** The long explanation the short label leaves out, shown on hover. */
+    hint: string | null;
     count: number;
     isAutoRefresh: boolean;
 }
@@ -64,13 +68,17 @@ export const getSpApiRefreshPolicyBuckets = async (): Promise<SpApiRefreshPolicy
             key: bucket.key,
             label: bucket.label,
             refreshEveryLabel: bucket.refreshEveryLabel,
+            hint: null,
             count: countByKey[bucket.key],
             isAutoRefresh: true,
         })),
         {
             key: 'nonAutoRefresh',
-            label: 'Outside numeric BSR schedule',
-            refreshEveryLabel: 'Unknown/Merch without BSR: bounded checks; non-Merch: none',
+            label: 'No BSR',
+            refreshEveryLabel: 'Bounded',
+            hint:
+                'Unclassified and Merch listings without a BSR get bounded checks; ' +
+                'non-Merch listings are never refreshed.',
             count: counts.non_auto_refresh,
             isAutoRefresh: false,
         },
@@ -92,6 +100,7 @@ export const getKeepaRefreshPolicyBuckets = async (): Promise<KeepaRefreshPolicy
         key: bucket.key,
         label: bucket.label,
         refreshEveryLabel: bucket.refreshEveryLabel,
+        hint: bucket.hint,
         count: countByKey[bucket.key],
         isAutoRefresh: bucket.isAutoRefresh,
     }));

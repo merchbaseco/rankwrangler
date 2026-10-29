@@ -1,19 +1,14 @@
 const MINUTE_MS = 60 * 1000;
-const HOUR_MS = 60 * MINUTE_MS;
 
-export const SPAPI_CATALOG_SCHEDULER_LAG_MS = HOUR_MS;
-export const KEEPA_HISTORY_SCHEDULER_LAG_MS = 3 * HOUR_MS;
-export const PRODUCT_HEALTH_OVERDUE_FLOOR = 2;
-export const CATALOG_QUERIES_SCHEDULER_LAG_MS = 15 * MINUTE_MS;
+// A provider is down only when it answered nothing but errors across at least this many calls
+// in the window. A quiet provider is not down, and a backlog is not an outage.
+export const PROVIDER_HEALTH_WINDOW_MS = 15 * MINUTE_MS;
+export const PROVIDER_HEALTH_MIN_CALLS = 3;
 
-export const SERVICE_HEALTH_CHECKS = [
-    'postgres',
-    'spapi-catalog',
-    'keepa-history',
-    'catalog-queries',
-] as const;
+export const SERVICE_HEALTH_CHECKS = ['postgres', 'keepa', 'spapi'] as const;
 
 export type ServiceHealthCheckName = (typeof SERVICE_HEALTH_CHECKS)[number];
+export type ProviderHealthCheckName = Exclude<ServiceHealthCheckName, 'postgres'>;
 
 export type ServiceHealthResult =
     | { status: 'ok' }
@@ -23,11 +18,8 @@ export type HealthFailingProbe = (now: Date) => Promise<boolean>;
 
 export interface ServiceHealthProbes {
     postgres: () => Promise<void>;
-    freshness: Record<Exclude<ServiceHealthCheckName, 'postgres'>, HealthFailingProbe>;
+    providers: Record<ProviderHealthCheckName, HealthFailingProbe>;
 }
-
-export const dueBefore = (now: Date, intervalMs: number, graceMs: number) =>
-    new Date(now.getTime() - intervalMs - graceMs);
 
 export const serviceHealthFromFailures = (failures: readonly string[]): ServiceHealthResult => {
     const failing = SERVICE_HEALTH_CHECKS.filter(name => failures.includes(name));
@@ -55,7 +47,7 @@ export const readServiceHealth = async (
         }
 
         try {
-            if (await probes.freshness[name](now)) {
+            if (await probes.providers[name](now)) {
                 failures.push(name);
             }
         } catch (error) {

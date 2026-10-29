@@ -1,21 +1,19 @@
-import { Chip, Spinner } from '@heroui/react';
+import { Alert, Spinner } from '@heroui/react';
 import { Navigate } from 'react-router-dom';
 import { useAdminAccess } from '@/hooks/use-admin-access';
-import { useAdminStats } from './metrics/use-admin-stats';
-import { StatusAllowances } from './status-allowances';
-import { StatusDetails } from './status-details';
 import { StatusEvents } from './status-events';
-import { formatRelative, pipelineLabels, type SystemStatus, systemTone } from './status-model';
-import { StatusProducts } from './status-products';
-import { StatusRefresh } from './status-refresh';
-import { StatusSchedule } from './status-schedule';
 import { StatusKeywords } from './status-keywords';
+import { failingChecks, healthCheckLabels, type SystemStatus } from './status-model';
+import { StatusProducts } from './status-products';
+import { StatusProviders } from './status-providers';
+import { useRefreshTiers } from './use-refresh-tiers';
 import { useSystemStatus } from './use-system-status';
 
 /**
- * System Status (`/status`, admins only): one top-down read of the system. Schedules first, then
- * the Products and keywords indexed, provider usage against allowance, the refresh cadence per
- * BSR bucket, each pipeline's detail, and the full event log. Everyone else goes to Explore.
+ * System Status (`/status`, admins only): one top-down read of the system. Products and their
+ * sync status, keywords by stage and freshness, Keepa and SP-API usage each above its refresh
+ * tiers, then the event log explorer. A failing health check adds one alert at the top. Everyone
+ * else goes to Explore.
  */
 export const StatusPage = () => {
     const access = useAdminAccess();
@@ -27,59 +25,47 @@ export const StatusPage = () => {
 
 const StatusOverview = () => {
     const status = useSystemStatus();
-    const stats = useAdminStats();
+    const tiers = useRefreshTiers();
     return (
         <div className="status-page">
             <div className="status-page__inner">
-                <StatusHeader status={status.data} />
+                <h1 className="sr-only">System status</h1>
                 {status.data ? (
                     <>
-                        <StatusSchedule status={status.data} />
+                        <HealthAlert status={status.data} />
                         <StatusProducts products={status.data.products} />
                         <StatusKeywords />
-                        <StatusAllowances
-                            calls={status.data.calls}
-                            keepa={status.data.keepa}
-                            stats={stats.data}
-                        />
+                        <StatusProviders status={status.data} tiers={tiers.data} />
                     </>
                 ) : status.error ? (
-                    <p className="text-danger">System status did not load: {status.error.message}</p>
+                    <p className="text-danger">
+                        System status did not load: {status.error.message}
+                    </p>
                 ) : (
                     <PageSpinner />
                 )}
-                {stats.data ? <StatusRefresh stats={stats.data} /> : null}
-                <StatusDetails />
                 <StatusEvents />
             </div>
         </div>
     );
 };
 
-const StatusHeader = ({ status }: { status: SystemStatus | undefined }) => {
-    const tone = systemTone(status);
-    const failing =
-        status?.health.status === 'degraded'
-            ? status.health.failing
-                  .map(check => (check === 'postgres' ? 'Database' : pipelineLabels[check]))
-                  .join(', ')
-            : null;
+/** One slim alert while `/api/health` is degraded, naming what failed; nothing while it is ok. */
+const HealthAlert = ({ status }: { status: SystemStatus }) => {
+    const failing = failingChecks(status);
+    if (failing.length === 0) {
+        return null;
+    }
     return (
-        <header className="status-page__header">
-            <div className="flex flex-wrap items-center gap-3">
-                <h1 className="status-page__title">System status</h1>
-                {tone === 'unknown' ? null : (
-                    <Chip color={tone === 'ok' ? 'success' : 'warning'} size="sm" variant="soft">
-                        {tone === 'ok' ? 'Operational' : `Degraded · ${failing}`}
-                    </Chip>
-                )}
-            </div>
-            {status ? (
-                <span className="font-mono text-muted text-sm tabular-nums">
-                    Updated {formatRelative(status.observedAt)}
-                </span>
-            ) : null}
-        </header>
+        <Alert status="warning">
+            <Alert.Indicator />
+            <Alert.Content>
+                <Alert.Title>
+                    {failing.map(check => healthCheckLabels[check]).join(', ')}{' '}
+                    {failing.length === 1 ? 'is' : 'are'} unreachable
+                </Alert.Title>
+            </Alert.Content>
+        </Alert>
     );
 };
 

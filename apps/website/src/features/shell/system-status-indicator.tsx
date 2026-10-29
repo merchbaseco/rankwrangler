@@ -1,9 +1,9 @@
 import { Link, Tooltip } from '@heroui/react';
-import { formatCount } from '@/features/status/metrics/metric-format';
 import {
+    failingChecks,
+    formatCount,
     fraction,
-    isPipelineFailing,
-    pipelineLabels,
+    healthCheckLabels,
     type SystemStatus,
     systemTone,
 } from '@/features/status/status-model';
@@ -12,9 +12,9 @@ import { useAdminAccess } from '@/hooks/use-admin-access';
 import { cn } from '@/lib/utils';
 
 /**
- * The banner's system status (admins only): one dot, green while every health check passes and
- * amber when one fails, linking to System Status. Hovering shows each pipeline's state and the
- * Keepa credit left, so a glance answers "is it working" without naming internals in the banner.
+ * The banner's system status (admins only): a small "Live" pill with a green dot while every
+ * health check passes, amber with a short label naming what failed. It links to System Status;
+ * hovering shows each dependency's reachability and the Keepa tokens left.
  */
 export const SystemStatusIndicator = () => {
     const { isAdmin } = useAdminAccess();
@@ -23,61 +23,60 @@ export const SystemStatusIndicator = () => {
         return null;
     }
     const tone = systemTone(status.data);
-    const label = { attention: 'Needs attention', ok: 'All systems normal', unknown: 'Status' }[
-        tone
-    ];
+    const label = pillLabel(status.data);
     return (
         <Tooltip closeDelay={150} delay={150}>
             <Link
                 aria-label={`System status: ${label}`}
-                className="status-indicator"
+                className={cn('status-indicator', `status-indicator--${tone}`)}
                 href="/status"
             >
                 <span
                     aria-hidden
                     className={cn('status-indicator__dot', `status-indicator__dot--${tone}`)}
                 />
+                {label}
             </Link>
             <Tooltip.Content className="status-hover" placement="bottom end">
-                {status.data ? <StatusHover status={status.data} /> : label}
+                {status.data ? <StatusHover status={status.data} /> : 'System status'}
             </Tooltip.Content>
         </Tooltip>
     );
 };
 
 const StatusHover = ({ status }: { status: SystemStatus }) => {
-    const credits = fraction(status.keepa.tokensLeft ?? 0, status.keepa.capacity);
+    const failing = failingChecks(status);
+    const { keepa } = status;
+    const credits = fraction(keepa.tokensLeft ?? 0, keepa.capacity);
     const creditsLow =
-        status.keepa.tokensLeft !== null &&
-        status.keepa.liveReserveTokens !== null &&
-        status.keepa.tokensLeft <= status.keepa.liveReserveTokens;
-    const capacity = formatCount(status.keepa.capacity ?? 0);
+        keepa.tokensLeft !== null &&
+        keepa.liveReserveTokens !== null &&
+        keepa.tokensLeft <= keepa.liveReserveTokens;
+    const capacity = formatCount(keepa.capacity ?? 0);
     return (
         <div className="status-hover__body">
             <div className="status-hover__title">
-                {systemTone(status) === 'ok' ? 'All systems normal' : 'Needs attention'}
+                {failing.length === 0 ? 'RankWrangler is working' : 'Needs attention'}
             </div>
             <dl className="status-hover__rows">
-                {status.pipelines.map(pipeline => {
-                    const failing = isPipelineFailing(status, pipeline.pipeline);
+                {checks.map(check => {
+                    const down = failing.includes(check);
                     return (
-                        <div className="status-hover__row" key={pipeline.pipeline}>
+                        <div className="status-hover__row" key={check}>
                             <dt className="flex items-center gap-2">
                                 <span
                                     aria-hidden
                                     className={cn(
                                         'status-indicator__dot',
-                                        failing
+                                        down
                                             ? 'status-indicator__dot--attention'
                                             : 'status-indicator__dot--ok'
                                     )}
                                 />
-                                {pipelineLabels[pipeline.pipeline]}
+                                {healthCheckLabels[check]}
                             </dt>
-                            <dd className={failing ? 'text-warning' : 'text-muted'}>
-                                {pipeline.overdue > 0
-                                    ? `${formatCount(pipeline.overdue)} overdue`
-                                    : 'On schedule'}
+                            <dd className={down ? 'text-warning' : 'text-muted'}>
+                                {down ? 'Unreachable' : 'Reachable'}
                             </dd>
                         </div>
                     );
@@ -85,31 +84,46 @@ const StatusHover = ({ status }: { status: SystemStatus }) => {
             </dl>
             <div className="status-hover__meter">
                 <div className="flex justify-between">
-                    <span>Keepa credits</span>
+                    <span>Keepa tokens</span>
                     <span
                         className={cn(
                             'font-mono tabular-nums',
                             creditsLow ? 'text-warning' : 'text-muted'
                         )}
                     >
-                        {status.keepa.tokensLeft === null
+                        {keepa.tokensLeft === null
                             ? '—'
-                            : `${formatCount(Math.round(status.keepa.tokensLeft))} / ${capacity}`}
+                            : `${formatCount(Math.round(keepa.tokensLeft))} / ${capacity}`}
                     </span>
                 </div>
-                {status.keepa.tokensLeft === null ? null : (
-                <span className="status-bar status-bar--sm" role="presentation">
-                    <span
-                        className={cn(
-                            'status-bar__segment',
-                            creditsLow ? 'status-tone--due' : 'status-tone--current'
-                        )}
-                        style={{ flexGrow: credits }}
-                    />
-                    <span className="status-bar__rest" style={{ flexGrow: 1 - credits }} />
-                </span>
+                {keepa.tokensLeft === null ? null : (
+                    <span className="status-bar status-bar--sm" role="presentation">
+                        <span
+                            className={cn(
+                                'status-bar__segment',
+                                creditsLow ? 'status-tone--pending' : 'status-tone--current'
+                            )}
+                            style={{ flexGrow: credits }}
+                        />
+                        <span className="status-bar__rest" style={{ flexGrow: 1 - credits }} />
+                    </span>
                 )}
             </div>
         </div>
     );
+};
+
+const checks = ['postgres', 'keepa', 'spapi'] as const;
+
+/** "Live" while healthy; otherwise the one failing dependency, or how many failed. */
+const pillLabel = (status: SystemStatus | undefined) => {
+    if (!status) {
+        return 'Status';
+    }
+    const failing = failingChecks(status);
+    if (failing.length === 0) {
+        return 'Live';
+    }
+    const [only] = failing;
+    return failing.length === 1 && only ? `${healthCheckLabels[only]} down` : 'Degraded';
 };

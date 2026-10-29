@@ -1,26 +1,27 @@
 import { readKeepaCapacitySnapshot } from '@/db/keepa-capacity-snapshot';
-import { readProductIndex, readProviderCalls, readSystemPipelines } from '@/db/system-status';
+import { readProductIndex, readProviderCalls } from '@/db/system-status';
+import { mapTelemetryOperation } from '@/services/providers/sp-api/sp-api-limiter-manager';
+import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 import { createDatabaseHealthReaders } from '@/services/service-health-queries';
 
 const healthReaders = createDatabaseHealthReaders();
 
 /**
- * The admin system status: `/api/health`'s verdict, each pipeline's schedule, the Product index,
- * the Keepa token allowance and each provider's calls. One read for the banner indicator and the
- * top of System Status.
+ * The admin system status: `/api/health`'s verdict, the Product index, the Keepa token
+ * allowance, each provider's calls, and each SP-API operation's hourly rate limit. One read for
+ * the banner indicator and the top of System Status.
  */
 export const getSystemStatus = async (now = new Date()) => {
-    const [health, pipelines, products, keepa, calls] = await Promise.all([
+    const [health, products, keepa, calls, limiters] = await Promise.all([
         healthReaders.readServiceHealth(),
-        readSystemPipelines(now),
         readProductIndex(now),
         readKeepaCapacitySnapshot(),
         readProviderCalls(now),
+        createSpApiProvider().getOperationRateLimiterStats(),
     ]);
     return {
         observedAt: now.toISOString(),
         health,
-        pipelines,
         products,
         calls,
         keepa: {
@@ -35,5 +36,10 @@ export const getSystemStatus = async (now = new Date()) => {
                 tokens: row.actualTokens + row.reservedUnknownTokens,
             })),
         },
+        // Each operation's configured rate over an hour: the ceiling its calls are measured on.
+        spApiLimits: limiters.map(limiter => ({
+            operation: mapTelemetryOperation(limiter.operationId),
+            hourlyLimit: Math.round(limiter.configuredRps * 3600),
+        })),
     };
 };

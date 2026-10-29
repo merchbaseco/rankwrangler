@@ -10,51 +10,56 @@ export const KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 7 * DAY_IN_MS;
 export const KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS = DAY_IN_MS / 2;
 export const KEEPA_FAILURE_RETRY_BASE_MS = 5 * MINUTE_IN_MS;
 export const KEEPA_FAILURE_RETRY_MAX_MS = DAY_IN_MS;
-export const KEEPA_FETCH_SUCCESS_GUARD_LABEL =
-    'Global fetch guard: never invoke Keepa more than once per ASIN every 12h';
 
 type KeepaRefreshPolicyBucket = {
     key: string;
     label: string;
     refreshEveryLabel: string;
+    hint: string | null;
     isAutoRefresh: boolean;
 };
 
 export const KEEPA_REFRESH_POLICY_BUCKETS = [
     {
         key: 'daily',
-        label: 'Merch BSR <300k',
-        refreshEveryLabel: 'Automatic sync every 12h under 50k BSR, daily otherwise',
+        label: '< 300k',
+        refreshEveryLabel: '12–24h',
+        hint: 'Every 12 hours under 50k BSR, daily otherwise.',
         isAutoRefresh: true,
     },
     {
         key: 'weekly',
-        label: 'Merch BSR 300k to <1M',
-        refreshEveryLabel: 'Automatic weekly sync',
+        label: '300k – 1M',
+        refreshEveryLabel: 'Weekly',
+        hint: null,
         isAutoRefresh: true,
     },
     {
         key: 'onDemand',
-        label: 'Merch BSR >=1M',
-        refreshEveryLabel: 'Sync on demand',
+        label: '≥ 1M',
+        refreshEveryLabel: 'On demand',
+        hint: 'Synced only when someone opens the Product.',
         isAutoRefresh: false,
     },
     {
         key: 'merchMissingBsr',
-        label: 'Merch Missing BSR',
-        refreshEveryLabel: 'No Keepa sync',
+        label: 'No BSR',
+        refreshEveryLabel: 'Never',
+        hint: 'Merch listings Amazon reports without a BSR.',
         isAutoRefresh: false,
     },
     {
         key: 'unknown',
-        label: 'Classification Unknown',
-        refreshEveryLabel: 'No Keepa sync',
+        label: 'Unclassified',
+        refreshEveryLabel: 'Never',
+        hint: 'Not yet classified as Merch or non-Merch.',
         isAutoRefresh: false,
     },
     {
         key: 'nonMerch',
         label: 'Non-Merch',
-        refreshEveryLabel: 'No Keepa sync',
+        refreshEveryLabel: 'Never',
+        hint: null,
         isAutoRefresh: false,
     },
 ] as const satisfies readonly KeepaRefreshPolicyBucket[];

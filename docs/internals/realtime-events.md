@@ -90,9 +90,8 @@ row.
 
 Write paths call PostgreSQL `pg_notify` inside the same transaction as their durable changes.
 Postgres delivers only on commit, including writes from another process; rollback sends nothing.
-The app uses one direct PostgreSQL LISTEN session shared by the domain listeners (including the admin
-`job_activity` channel written with each recorded job run), opened
-by the first subscriber. `db/realtime-connection.ts` owns its lifecycle rather than postgres.js
+The app uses one direct PostgreSQL LISTEN session shared by the domain listeners, opened by the
+first subscriber. `db/realtime-connection.ts` owns its lifecycle rather than postgres.js
 `listen()`, which re-listens only once after a drop and silently stops if that attempt fails. Every
 close re-issues LISTEN for all channels with backoff (one second doubling to thirty) until it
 succeeds; the session has no idle or lifetime timer.

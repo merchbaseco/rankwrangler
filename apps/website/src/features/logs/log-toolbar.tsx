@@ -7,6 +7,7 @@ import {
     PlayIcon,
     RefreshIcon,
 } from '@hugeicons-pro/core-stroke-rounded';
+import type { ReactNode } from 'react';
 import { Icon } from '@/components/ui/icon';
 import { LogFilterMenu } from './log-filter-menu';
 import { logLevelIcons, logStatusIcons, logTypeFilters } from './log-icons';
@@ -27,6 +28,7 @@ export const LogToolbar = ({
     hasFilters,
     isFetching,
     isLive,
+    leading,
     levels,
     onClear,
     onLevelsChange,
@@ -40,6 +42,8 @@ export const LogToolbar = ({
     hasFilters: boolean;
     isFetching: boolean;
     isLive: boolean;
+    /** Controls set before the type segment, such as System Status's time range and search. */
+    leading?: ReactNode;
     levels: readonly EventLogLevel[];
     onClear: () => void;
     onLevelsChange: (levels: EventLogLevel[]) => void;
@@ -51,6 +55,7 @@ export const LogToolbar = ({
     type: EventLogTypeFilter;
 }) => (
     <Toolbar aria-label="Event filters" className="pane-filters">
+        {leading}
         <Segment
             aria-label="Event type"
             onSelectionChange={key => onTypeChange(key as EventLogTypeFilter)}
