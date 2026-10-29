@@ -30,7 +30,7 @@ type KeepaMerchCoverageStats = {
 };
 
 const KEEPA_JOB_NAMES = [
-    'fetch-keepa-history-for-asin',
+    'fetch-keepa-history-batch',
     'enqueue-scheduled-keepa-history-refresh',
 ] as const;
 

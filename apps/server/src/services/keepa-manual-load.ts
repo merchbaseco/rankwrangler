@@ -78,7 +78,6 @@ const runKeepaProductHistoryManualLoad = async ({
                 marketplaceId,
                 asin,
                 days,
-                queuePriority: 'manual',
                 operationId,
             });
         } catch (error) {

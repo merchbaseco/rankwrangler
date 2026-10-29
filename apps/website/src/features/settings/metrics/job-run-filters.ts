@@ -18,7 +18,7 @@ export const jobFamilies: Readonly<
     >
 > = {
     keepa: {
-        jobNames: ['fetch-keepa-history-for-asin', 'enqueue-scheduled-keepa-history-refresh'],
+        jobNames: ['fetch-keepa-history-batch', 'enqueue-scheduled-keepa-history-refresh'],
         statLabels: { all: 'Keepa Fetches', failed: 'Job Failures', success: 'Job Successes' },
     },
     spapi: {

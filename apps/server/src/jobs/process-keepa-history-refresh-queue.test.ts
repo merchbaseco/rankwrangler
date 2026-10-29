@@ -67,16 +67,31 @@ describe('processKeepaHistoryRefreshQueue', () => {
         expect(getDueKeepaHistoryRefreshQueueItems.mock.calls[0]).toEqual([2]);
         expect(holdKeepaHistoryRefreshQueueItems.mock.calls[0]).toEqual([[queueItem.id]]);
         expect(calls.send.mock.calls[0]).toEqual([
-            'fetch-keepa-history-for-asin',
-            {
-                marketplaceId: queueItem.marketplaceId,
-                asin: queueItem.asin,
-            },
-            {
-                singletonKey: `fetch-keepa-history-for-asin:${queueItem.marketplaceId}:${queueItem.asin}`,
-                retryLimit: 0,
-            },
+            'fetch-keepa-history-batch',
+            { marketplaceId: queueItem.marketplaceId, asins: [queueItem.asin] },
+            { retryLimit: 0 },
         ]);
+    });
+
+    it('sends due work as Keepa requests of up to 100 products per marketplace', async () => {
+        const { processKeepaHistoryRefreshQueue } = await loadSubject();
+        const items = Array.from({ length: 250 }, (_, index) => ({
+            ...createQueueItem(),
+            id: `queue-${index}`,
+            asin: `B${String(index).padStart(9, '0')}`,
+        }));
+        const { boss, calls, deps } = createContext({
+            getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens: () => Promise.resolve(250),
+            getDueKeepaHistoryRefreshQueueItems: () => Promise.resolve(items),
+        });
+
+        const result = await processKeepaHistoryRefreshQueue(boss, deps);
+
+        expect(result.dispatchedCount).toBe(250);
+        const sizes = (calls.send.mock.calls as unknown as [string, { asins: string[] }][]).map(
+            ([, payload]) => payload.asins.length
+        );
+        expect(sizes).toEqual([100, 100, 50]);
     });
 
     it('does not select or dispatch queue work when Keepa has no capacity', async () => {

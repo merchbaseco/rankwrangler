@@ -435,6 +435,13 @@
       "when": 1793290662809,
       "tag": "0061_drop_product_history_points",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1793293909040,
+      "tag": "0062_keepa_attempt_item_count",
+      "breakpoints": true
     }
   ]
 }

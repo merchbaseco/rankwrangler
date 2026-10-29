@@ -1,24 +1,22 @@
 import { and, asc, desc, eq, inArray, lte, sql } from 'drizzle-orm';
 import { env } from '@/config/env';
 import { db } from '@/db/index';
+import { keepaCapacityState } from '@/db/keepa-capacity-schema';
 import { keepaHistoryRefreshQueue, productHistoryImports } from '@/db/schema';
 import {
     getProductHistoryEligibilitySnapshot,
     getAutomaticHistoryDecision,
 } from '@/services/product-history-eligibility';
+import { getKeepaHistoryDispatchBatchSize } from '@/services/keepa-history-dispatch';
 import { createKeepaProvider } from '@/services/providers/keepa/keepa-provider';
 import { getKeepaFailureRetryDelayMs } from '@/services/keepa-refresh-policy';
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
-const KEEPA_INITIAL_HISTORY_DAYS = 3650;
+export const KEEPA_INITIAL_HISTORY_DAYS = 3650;
 const KEEPA_MIN_INCREMENTAL_HISTORY_DAYS = 30;
 const KEEPA_INCREMENTAL_BUFFER_DAYS = 7;
-const KEEPA_DISPATCH_HOLD_MS = 5 * 60 * 1000;
-const KEEPA_MIN_TOKEN_BUFFER = 0;
-// A history fetch measures one token. The durable reservation enforces the real budget and the
-// live reserve, so dispatch only needs to keep up with the refill: one minute's worth per run.
-const KEEPA_TOKENS_PER_HISTORY_FETCH = 1;
-const KEEPA_DEFAULT_REFILL_PER_MINUTE = 20;
+const KEEPA_DISPATCH_HOLD_MS = 15 * 60 * 1000;
+const KEEPA_DEFAULT_LIVE_RESERVE_TOKENS = 100;
 const keepaProvider = createKeepaProvider();
 
 export type KeepaHistoryRefreshQueueItem = {
@@ -92,26 +90,27 @@ export const enqueueKeepaHistoryRefreshForAsin = async ({
     } as const;
 };
 
-export const getKeepaHistoryRefreshQueueBatchSize = () => {
+export const getKeepaHistoryRefreshQueueBatchSize = (
+    reserveTokens = KEEPA_DEFAULT_LIVE_RESERVE_TOKENS
+) => {
     const tokenState = keepaProvider.getRuntimeTokenState();
-    const tokensLeft = tokenState.tokensLeft;
-
-    if (typeof tokensLeft !== 'number') {
+    if (typeof tokenState.tokensLeft !== 'number') {
         return 1;
     }
-
-    const tokensAvailableForDispatch = Math.max(0, tokensLeft - KEEPA_MIN_TOKEN_BUFFER);
-    const tokenConstrainedBatchSize = Math.trunc(
-        tokensAvailableForDispatch / KEEPA_TOKENS_PER_HISTORY_FETCH
-    );
-
-    const refillPerMinute = tokenState.refillRate ?? KEEPA_DEFAULT_REFILL_PER_MINUTE;
-    return Math.max(0, Math.min(refillPerMinute, tokenConstrainedBatchSize));
+    return getKeepaHistoryDispatchBatchSize({
+        tokensLeft: tokenState.tokensLeft,
+        reserveTokens,
+    });
 };
 
 export const getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens = async () => {
     await keepaProvider.ensureFreshTokenState();
-    return getKeepaHistoryRefreshQueueBatchSize();
+    const [state] = await db
+        .select({ liveReserveTokens: keepaCapacityState.liveReserveTokens })
+        .from(keepaCapacityState);
+    return getKeepaHistoryRefreshQueueBatchSize(
+        state?.liveReserveTokens ?? KEEPA_DEFAULT_LIVE_RESERVE_TOKENS
+    );
 };
 
 export const hasDueKeepaHistoryRefreshQueueItems = async () => {

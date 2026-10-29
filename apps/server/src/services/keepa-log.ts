@@ -1,8 +1,8 @@
 import { asc, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { jobExecutions, keepaHistoryRefreshQueue } from '@/db/schema.js';
+import { KEEPA_HISTORY_BATCH_JOB_NAME } from '@/jobs/fetch-keepa-history-batch';
 
-const FETCH_KEEPA_HISTORY_JOB_NAME = 'fetch-keepa-history-for-asin';
 
 type KeepaLogInput = {
     queueLimit: number;
@@ -76,7 +76,7 @@ export const getKeepaLogSnapshot = async ({
                 finishedAt: jobExecutions.finishedAt,
             })
             .from(jobExecutions)
-            .where(eq(jobExecutions.jobName, FETCH_KEEPA_HISTORY_JOB_NAME))
+            .where(eq(jobExecutions.jobName, KEEPA_HISTORY_BATCH_JOB_NAME))
             .orderBy(desc(jobExecutions.finishedAt))
             .limit(processedLimit),
     ]);
@@ -115,25 +115,18 @@ export const getKeepaLogSnapshot = async ({
     };
 };
 
+// One run is one Keepa request; a batch of several products is labelled by its size.
 const getKeepaJobPayload = (input: unknown) => {
-    if (!isRecord(input)) {
+    if (!isRecord(input) || typeof input.marketplaceId !== 'string' || !Array.isArray(input.asins)) {
         return null;
     }
-
-    const marketplaceId = input.marketplaceId;
-    const asin = input.asin;
-
-    if (typeof marketplaceId !== 'string' || typeof asin !== 'string') {
+    const asins = input.asins.filter((asin): asin is string => typeof asin === 'string');
+    if (input.marketplaceId.length === 0 || asins.length === 0) {
         return null;
     }
-
-    if (marketplaceId.length === 0 || asin.length === 0) {
-        return null;
-    }
-
     return {
-        marketplaceId,
-        asin,
+        marketplaceId: input.marketplaceId,
+        asin: asins.length === 1 ? asins[0] : `${asins.length} products`,
     };
 };
 

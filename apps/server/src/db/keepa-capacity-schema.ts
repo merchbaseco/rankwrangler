@@ -27,6 +27,7 @@ export const keepaCapacityAttempts = pgTable(
         workClass: text('work_class').$type<KeepaWorkClass>().notNull(),
         keywordId: uuid('keyword_id'),
         workId: text('work_id'),
+        itemCount: integer('item_count').notNull().default(1),
         reservedTokens: integer('reserved_tokens'),
         actualTokens: integer('actual_tokens'),
         refillRate: integer('refill_rate'),

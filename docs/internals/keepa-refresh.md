@@ -47,12 +47,18 @@ already in `keepa_history_refresh_queue`. The queue is unique by marketplace and
 
 The queue processor runs every minute. It first checks the indexed queue for due work and does not
 contact Keepa from an idle dispatcher tick. When work is due, it refreshes the in-memory Keepa
-token snapshot when stale, derives a batch of up to one minute's refill (20 fetches on our plan, at
-one token each), performs an authoritative due-row
-selection, holds those rows, and dispatches one singleton fetch job per ASIN. Work becoming due
-immediately after an empty preflight waits until the next minute. Provider token counts and refill
-timing are internal capacity signals used by operational dashboard surfaces, never part of the
-public API or CLI contract.
+token snapshot when stale and takes as many due products as there are tokens above the live
+reserve (one token per product), at most 300 per run. It holds those rows for fifteen minutes and
+sends them as batch jobs of up to 100 products each. A full bucket therefore drains within a few
+minutes, and the pace then settles at the refill rate (20 a minute on our plan). The cap bounds how
+much one run saves, not what Keepa allows.
+
+Each batch job drops products that are no longer due, then makes one Keepa product request for
+first-time syncs (full history) and one for incremental syncs (the longest gap among them). Each
+returned product is saved in its own transaction, so one bad product fails alone; its import row
+records its share of the request's tokens. Provider token counts and refill timing are internal
+capacity signals used by operational dashboard surfaces, never part of the public API or CLI
+contract.
 
 First successful collection requests up to 3,650 days. Later collections use a staleness-aware
 window with a 30-day minimum and overlap buffer. Failed queue work remains with exponential retry
@@ -85,7 +91,9 @@ Explicit history reads remain available outside standing admission.
 
 ## Protected capacity
 
-Every physical Keepa request reserves capacity durably just before dispatch. Errors, empty results
+Every physical Keepa request reserves capacity durably just before dispatch. A batched product
+request reserves the measured per-product cost times its product count, and measured costs divide
+each attempt's tokens by its product count. Errors, empty results
 and ingestion failures retain their provider cost; missing accounting retains the reservation for
 its rolling window. Provider attempts are independent of Product import success.
 

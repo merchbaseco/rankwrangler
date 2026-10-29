@@ -9,7 +9,7 @@ import { reconcileHistoryAdmissionJob } from '@/jobs/reconcile-history-admission
 import { catalogSearchJob } from '@/jobs/catalog-search';
 import { collectDueCatalogQueriesJob } from '@/jobs/collect-due-catalog-queries';
 import { enqueueScheduledKeepaHistoryRefreshJob } from '@/jobs/enqueue-scheduled-keepa-history-refresh.js';
-import { fetchKeepaHistoryForAsinJob } from '@/jobs/fetch-keepa-history-for-asin.js';
+import { fetchKeepaHistoryBatchJob } from '@/jobs/fetch-keepa-history-batch';
 import { startRegisteredJobs } from '@/jobs/job-router.js';
 import { processKeepaHistoryRefreshQueueJob } from '@/jobs/process-keepa-history-refresh-queue.js';
 import { processProductFacetClassificationJob } from '@/jobs/process-product-facet-classification.js';
@@ -33,7 +33,7 @@ const registeredJobs = [
     reconcileHistoryAdmissionJob,
     collectDueCatalogQueriesJob,
     enqueueScheduledKeepaHistoryRefreshJob,
-    fetchKeepaHistoryForAsinJob,
+    fetchKeepaHistoryBatchJob,
     processKeepaHistoryRefreshQueueJob,
     processProductFacetClassificationJob,
     processSpApiSyncQueueJob,

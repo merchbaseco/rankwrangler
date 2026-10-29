@@ -31,7 +31,6 @@ type LoadKeepaProductHistoryParams = {
     marketplaceId: string;
     asin: string;
     days: number;
-    queuePriority?: 'manual' | 'background';
     operationId?: string;
     canDispatch?: () => Promise<boolean>;
 };
@@ -108,7 +107,6 @@ const loadKeepaProductHistoryOnce = async ({
     marketplaceId,
     asin,
     days,
-    queuePriority = 'background',
     operationId,
     canDispatch,
 }: LoadKeepaProductHistoryParams): Promise<KeepaImportSummary> => {
@@ -169,7 +167,6 @@ const loadKeepaProductHistoryOnce = async ({
             marketplaceId,
             asin,
             days,
-            priority: queuePriority === 'manual' ? 'manualProduct' : 'scheduledProduct',
             canDispatch: async () => {
                 const keepaFetchedAt = await getProductKeepaFetchedAt(productId);
                 cachedImportBeforeDispatch = await getRecentSuccessfulKeepaImport(
@@ -372,7 +369,7 @@ export const hasRecentSuccessfulKeepaImportForAsin = async ({
     );
 };
 
-const resolveCategoryNames = async ({
+export const resolveCategoryNames = async ({
     marketplaceId,
     categoryIds,
 }: {
@@ -497,7 +494,7 @@ const chunkArray = <T>(values: T[], chunkSize: number): T[][] => {
     return chunks;
 };
 
-const extractKeepaErrorDetails = (error: unknown) => {
+export const extractKeepaErrorDetails = (error: unknown) => {
     if (error instanceof KeepaApiError) {
         return {
             code: error.code,
