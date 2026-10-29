@@ -14,6 +14,7 @@ export interface MerchReclassificationDeps {
     readBatch: (afterAsin: string, limit: number) => Promise<StoredMerchListing[]>;
     fetchProducts: (asins: string[]) => Promise<SpApiProduct[]>;
     writeProducts: (products: SpApiProduct[]) => Promise<void>;
+    demoteProducts: (asins: string[]) => Promise<void>;
     sleep: (ms: number) => Promise<void>;
     log: (message: string) => void;
 }
@@ -21,11 +22,13 @@ export interface MerchReclassificationDeps {
 /**
  * Re-fetches stored listings in SP-API batches and reclassifies them with the current Merch
  * classifier. Writes go through the Product upsert, so stored `true` is never downgraded and new
- * Merch evidence upgrades `false` or `null`. A dry run fetches and tallies without writing.
- * Transition keys read `before->after`, where `after` is what reconciliation would store.
+ * Merch evidence upgrades `false` or `null`. With `demote`, stored Merch that fresh evidence now
+ * classifies non-Merch is explicitly cleared: the upsert alone never downgrades, so this is how a
+ * tightened classifier undoes earlier false positives. A dry run fetches and tallies without
+ * writing. Transition keys read `before->after`.
  */
 export const reclassifyMerchListings = async (
-    input: { afterAsin: string; limit: number | null; dryRun: boolean },
+    input: { afterAsin: string; limit: number | null; dryRun: boolean; demote?: boolean },
     deps: MerchReclassificationDeps
 ) => {
     const transitions = new Map<string, number>();
@@ -43,14 +46,19 @@ export const reclassifyMerchListings = async (
             deps
         );
         const byAsin = new Map(fetched.map(product => [product.asin, product]));
+        const demoted: string[] = [];
         for (const row of stored) {
             const product = byAsin.get(row.asin);
+            const demote = input.demote && row.isMerchListing === true && product?.isMerchListing === false;
+            if (demote) demoted.push(row.asin);
+            const after = demote ? false : reconciled(row.isMerchListing, product?.isMerchListing ?? null);
             const key = product
-                ? `${label(row.isMerchListing)}->${label(reconciled(row.isMerchListing, product.isMerchListing))}`
+                ? `${label(row.isMerchListing)}->${label(after)}`
                 : `${label(row.isMerchListing)}->missing`;
             transitions.set(key, (transitions.get(key) ?? 0) + 1);
         }
         if (!input.dryRun && fetched.length) await deps.writeProducts(fetched);
+        if (!input.dryRun && demoted.length) await deps.demoteProducts(demoted);
         checked += stored.length;
         afterAsin = stored[stored.length - 1].asin;
         deps.log(`checked ${checked} through ${afterAsin}`);

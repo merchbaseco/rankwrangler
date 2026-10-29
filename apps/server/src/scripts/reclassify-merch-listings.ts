@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { upsertProductsInfo } from '@/db/product/upsert-product';
 import { products } from '@/db/product-schema';
@@ -11,7 +11,8 @@ import { searchCatalogItemsByAsins } from '@/services/spapi/search-catalog-items
  *
  *   varlock run -p ../../.env.schema -- bun src/scripts/reclassify-merch-listings.ts --dry-run
  *
- * Flags: `--dry-run` tallies flips without writing; `--include-merch` also re-fetches Products
+ * Flags: `--dry-run` tallies flips without writing; `--demote` re-checks only stored Merch and
+ * clears it where fresh evidence is non-Merch; `--include-merch` also re-fetches Products
  * already known as Merch (refreshing seller bullets); `--after <ASIN>` resumes after an ASIN;
  * `--limit <n>` stops after n Products. Requests use background Catalog capacity, so the script
  * yields to foreground lookups and waits while automatic sync is paused.
@@ -21,6 +22,7 @@ const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';
 const main = async () => {
     const args = process.argv.slice(2);
     const dryRun = args.includes('--dry-run');
+    const demote = args.includes('--demote');
     const includeMerch = args.includes('--include-merch');
     const afterAsin = readFlag(args, '--after') ?? '';
     const limitValue = readFlag(args, '--limit');
@@ -29,10 +31,11 @@ const main = async () => {
 
     console.log(
         `[Reclassify] ${dryRun ? 'Dry run' : 'Writing'}: US Products after "${afterAsin}"` +
-            `${includeMerch ? ', including known Merch' : ''}${limit ? `, limit ${limit}` : ''}`
+            `${includeMerch ? ', including known Merch' : ''}${demote ? ', demoting known Merch only' : ''}` +
+            `${limit ? `, limit ${limit}` : ''}`
     );
     const result = await reclassifyMerchListings(
-        { afterAsin, limit, dryRun },
+        { afterAsin, limit, dryRun, demote },
         {
             readBatch: async (after, size) =>
                 await db
@@ -43,7 +46,11 @@ const main = async () => {
                             eq(products.marketplaceId, US_MARKETPLACE_ID),
                             eq(products.amazonListingStatus, 'active'),
                             gt(products.asin, after),
-                            includeMerch ? undefined : sql`${products.isMerchListing} is not true`
+                            demote
+                                ? sql`${products.isMerchListing} is true`
+                                : includeMerch
+                                  ? undefined
+                                  : sql`${products.isMerchListing} is not true`
                         )
                     )
                     .orderBy(asc(products.asin))
@@ -54,6 +61,17 @@ const main = async () => {
                 }),
             writeProducts: async fetched => {
                 await upsertProductsInfo(fetched);
+            },
+            demoteProducts: async asins => {
+                await db
+                    .update(products)
+                    .set({ isMerchListing: false, bullet1: null, bullet2: null })
+                    .where(
+                        and(
+                            eq(products.marketplaceId, US_MARKETPLACE_ID),
+                            inArray(products.asin, asins)
+                        )
+                    );
             },
             sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
             log: message => console.log(`[Reclassify] ${message}`),

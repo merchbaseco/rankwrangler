@@ -32,11 +32,13 @@ const fetched = (asin: string, isMerchListing: boolean | null): SpApiProduct => 
 
 const harness = (options: { deferFirst?: boolean } = {}) => {
     const writes: SpApiProduct[][] = [];
+    const demotions: string[][] = [];
     const sleeps: number[] = [];
     const reads: Array<[string, number]> = [];
     let deferred = options.deferFirst ?? false;
     return {
         writes,
+        demotions,
         sleeps,
         reads,
         deps: {
@@ -61,6 +63,9 @@ const harness = (options: { deferFirst?: boolean } = {}) => {
             },
             writeProducts: async (products: SpApiProduct[]) => {
                 writes.push(products);
+            },
+            demoteProducts: async (asins: string[]) => {
+                demotions.push(asins);
             },
             sleep: async (ms: number) => {
                 sleeps.push(ms);
@@ -109,5 +114,19 @@ describe('reclassifyMerchListings', () => {
             ['B0TST00001', 'B0TST00002'],
             ['B0TST00003'],
         ]);
+    });
+
+    it('clears stored Merch that fresh evidence now classifies non-Merch only when demoting', async () => {
+        const kept = harness();
+        await reclassifyMerchListings({ afterAsin: '', limit: null, dryRun: false }, kept.deps);
+        expect(kept.demotions).toEqual([]);
+
+        const run = harness();
+        const result = await reclassifyMerchListings(
+            { afterAsin: '', limit: null, dryRun: false, demote: true },
+            run.deps
+        );
+        expect(run.demotions).toEqual([['B0TST00004']]);
+        expect(result.transitions['merch->nonMerch']).toBe(1);
     });
 });
