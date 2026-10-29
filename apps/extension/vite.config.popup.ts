@@ -81,7 +81,7 @@ export default defineConfig(async () => ({
             },
         },
         createChromeManifestPlugin({
-            env,
+            env: process.env,
             manifestPath: path.resolve(__dirname, 'manifest.json'),
             requireProduction: process.env.CHROME_RELEASE_BUILD === '1',
             target,
