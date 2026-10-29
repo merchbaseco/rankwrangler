@@ -8,19 +8,26 @@ export const KEYWORD_FRESH_DAYS = 60;
 type Sort = AppKeywordDirectoryInput['sort'];
 
 /**
- * Shelf and facet measures the research sorts, sidebar filters and facet counts need. Each lateral
- * runs only when the request sorts, filters or counts by it (`shelf: true`), so the default
- * work-ordered directory pays nothing extra. The shelf is the first ten active Merch head
- * Products in page-one order; `elite` counts its Elite-tier Products.
+ * The per-keyword measures sorts, sidebar filters and facet counts need: Product and Merch counts,
+ * the shelf (the first ten active Merch head Products in page-one order, its median BSR, fresh and
+ * Elite-tier counts) and the dominant facet. Each is a lateral per row, so they run only for rows
+ * matching `measured`; every other row reads zero counts and no shelf, and `measured: null` skips
+ * them outright for a read that measures its page afterwards. The shelf runs only when the request
+ * sorts, filters or counts by it (`shelf: true`) and the facet only under a facet filter.
  */
 export const directoryMeasures = (input: {
     sort: Sort;
     facet?: string;
     asOf: string;
     shelf?: boolean;
+    measured: SQL | null;
 }) => {
+    const { measured } = input;
+    const products = measured
+        ? sql`left join lateral (${directoryProductCounts(sql`r."queryId"`)} and ${measured}) m on true`
+        : sql`left join lateral (select 0 products,0 merch) m on true`;
     const shelf =
-        input.shelf || input.sort === 'medianBsr' || input.sort === 'fresh'
+        measured && (input.shelf || input.sort === 'medianBsr' || input.sort === 'fresh')
             ? sql`left join lateral (
                 select round(percentile_cont(0.5) within group (order by s.bsr))::int median_bsr,
                     count(*) filter(where s.first_available>=${input.asOf}::timestamp-${KEYWORD_FRESH_DAYS}*interval '1 day')::int fresh,
@@ -29,23 +36,30 @@ export const directoryMeasures = (input: {
                     from discovery_targets ht
                     cross join jsonb_array_elements_text(ht.head_product_ids) with ordinality h(id,ord)
                     join products pr on pr.id=h.id::uuid
-                    where ht.query_id=r."queryId" and ht.kind='keyword'
+                    where ht.query_id=r."queryId" and ht.kind='keyword' and ${measured}
                         and pr.is_merch_listing=true and pr.amazon_listing_status='active'
                     order by h.ord limit ${KEYWORD_SHELF_SIZE}) s
             ) sh on true`
             : sql`left join lateral (select null::int median_bsr,0 fresh,0 elite) sh on true`;
-    const facet = input.facet
-        ? sql`left join lateral (${dominantFacetQuery(sql`r."queryId"`)}) f on true`
-        : sql`left join lateral (select null::text facet) f on true`;
-    return sql`${shelf} ${facet}`;
+    const facet =
+        measured && input.facet
+            ? sql`left join lateral (${dominantFacetQuery(sql`r."queryId"`, measured)}) f on true`
+            : sql`left join lateral (select null::text facet) f on true`;
+    return sql`${products} ${shelf} ${facet}`;
 };
 
+/** A keyword's retained Products and how many are active Merch listings, as int counts. */
+export const directoryProductCounts = (queryId: SQL) => sql`
+    select count(*)::int products,
+        count(*) filter(where pr.is_merch_listing=true and pr.amazon_listing_status='active')::int merch
+    from keyword_products kp join products pr on pr.id=kp.product_id where kp.query_id=${queryId}`;
+
 /** The facet value most of a keyword's retained Products carry; ties break by facet, name. */
-export const dominantFacetQuery = (queryId: SQL) => sql`
+export const dominantFacetQuery = (queryId: SQL, measured: SQL = sql`true`) => sql`
     select pfv.facet,pfv.name from keyword_products kp
     join product_facets pf on pf.product_id=kp.product_id
     join product_facet_values pfv on pfv.id=pf.facet_value_id
-    where kp.query_id=${queryId}
+    where kp.query_id=${queryId} and ${measured}
     group by pfv.id,pfv.facet,pfv.name
     order by count(*) desc,pfv.facet,pfv.name limit 1`;
 
