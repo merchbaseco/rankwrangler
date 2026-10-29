@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { blocksIn, herouiBlocks, proBlocksDir, proBlocksInstalled } from './heroui-blocks';
+import proBlocks from './heroui-pro-blocks.json';
 
 /**
  * Guarded contract for the theme files (AGENTS.md "UI Component Rules"):
@@ -24,16 +26,6 @@ const ruleFiles = [
     'mix.css',
     'screens.css',
 ];
-
-/** HeroUI and Pro blocks (from their stylesheet names), so `.tabs__indicator` reads as a part. */
-const herouiBlocks = [
-    '../../node_modules/@heroui/styles/dist/components',
-    '../../node_modules/@heroui-pro/react/dist/css/components',
-].flatMap(dir =>
-    readdirSync(join(import.meta.dir, dir)).flatMap(name =>
-        name.endsWith('.css') && name !== 'index.css' ? [name.slice(0, -4)] : []
-    )
-);
 
 /**
  * Selectors allowed to re-point `--spacing`: HeroUI sizes controls in spacing multiples.
@@ -166,6 +158,13 @@ const layoutProperty =
     /^(?:(?:min-|max-)?width|max-height|flex(?:-[a-z]+)?|gap|margin(?:-[a-z]+)*|align-[a-z]+|justify-[a-z]+|white-space|overflow(?:-[a-z]+)?|position|top|bottom|inset(?:-[a-z]+)*|z-index|vertical-align|border(?:-[a-z]+)?-width)$/;
 
 describe('heroui theme contract', () => {
+    test.if(proBlocksInstalled)(
+        'the committed HeroUI Pro block list matches the installed dist',
+        () => {
+            expect([...proBlocks].sort()).toEqual(blocksIn(proBlocksDir).sort());
+        }
+    );
+
     const read = (name: string) => ({ css: readFileSync(join(themeDir, name), 'utf8'), name });
     const rules = ruleFiles.map(read);
     const styled = ruleFiles.flatMap(name =>
