@@ -1,7 +1,7 @@
-import { productSearchInput } from '@/api/product-search-input';
+import { appProductSearchInput } from '@/api/product-search-input';
 import { appProcedure } from '@/api/trpc';
-import { searchProducts } from '@/services/product-search';
+import { searchAppProducts } from '@/services/product-app-search';
 
 export const productSearch = appProcedure
-    .input(productSearchInput)
-    .query(({ input }) => searchProducts(input));
+    .input(appProductSearchInput)
+    .query(({ input }) => searchAppProducts(input));

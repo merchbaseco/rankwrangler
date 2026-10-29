@@ -100,6 +100,13 @@ export const products = pgTable(
             table.rootCategoryBsr.asc().nullsLast(),
             table.id.asc()
         ),
+        // Explore's published windows (last 60 days / year) and first-available sorts range-scan
+        // this instead of sorting or filtering the whole marketplace.
+        marketplaceFirstAvailableIdx: index('products_marketplace_first_available_idx').on(
+            table.marketplaceId,
+            table.dateFirstAvailable.desc().nullsLast(),
+            table.id.asc()
+        ),
         keepaRefreshCandidateIdx: index('products_keepa_refresh_candidate_idx').on(
             table.isMerchListing,
             table.rootCategoryBsr,

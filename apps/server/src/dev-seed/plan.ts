@@ -1,11 +1,13 @@
-import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
 import { buildActivity } from '@/dev-seed/build-activity';
 import { buildCatalog } from '@/dev-seed/build-catalog';
 import { buildHistory } from '@/dev-seed/build-history';
+import { buildKeywords } from '@/dev-seed/build-keywords';
+import { buildLongTailKeywords } from '@/dev-seed/build-long-tail-keywords';
 import { buildSearch } from '@/dev-seed/build-search';
 import { createIdMinter } from '@/dev-seed/identity';
 import { createSeededRandom } from '@/dev-seed/random';
 import type { BuilderContext, DevSeedOptions, DevSeedPlan } from '@/dev-seed/types';
+import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
 
 /**
  * Assembles the whole synthetic week in memory before anything is written, so
@@ -39,17 +41,28 @@ export const buildDevSeedPlan = (overrides: Partial<DevSeedOptions> = {}): DevSe
 
     const catalog = buildCatalog(context);
     const history = buildHistory(context, catalog.seedProducts);
-    const search = buildSearch(context, catalog.seedProducts);
+    const search = buildSearch(context, catalog.seedProducts, catalog.featuredTerms);
     const activity = buildActivity(context, catalog.seedProducts);
+    const keywords = buildKeywords(context, catalog, search);
+    const longTail = buildLongTailKeywords(context, catalog);
 
     return {
-        catalogQueries: search.catalogQueries,
+        catalogQueries: [...search.catalogQueries, ...longTail.catalogQueries],
         catalogSearchResults: search.catalogSearchResults,
         catalogSearchRuns: search.catalogSearchRuns,
+        discoveryTargets: [...keywords.discoveryTargets, ...longTail.discoveryTargets],
         eventLogs: activity.eventLogs,
         jobExecutionLogs: activity.jobExecutionLogs,
         jobExecutions: activity.jobExecutions,
         keepaCategories: catalog.keepaCategories,
+        keywordAutocomplete: [...keywords.keywordAutocomplete, ...longTail.keywordAutocomplete],
+        keywordDiscoveryAttempts: keywords.keywordDiscoveryAttempts,
+        keywordExplorationPasses: [
+            ...keywords.keywordExplorationPasses,
+            ...longTail.keywordExplorationPasses,
+        ],
+        keywordProducts: [...keywords.keywordProducts, ...longTail.keywordProducts],
+        keywordStandingObservations: keywords.keywordStandingObservations,
         marketplaceId: context.marketplaceId,
         operations: search.operations,
         options,
@@ -58,6 +71,7 @@ export const buildDevSeedPlan = (overrides: Partial<DevSeedOptions> = {}): DevSe
         productHistoryImports: history.productHistoryImports,
         productHistoryPoints: history.productHistoryPoints,
         products: catalog.products,
+        productShortNames: keywords.productShortNames,
         providerAttempts: activity.providerAttempts,
     };
 };

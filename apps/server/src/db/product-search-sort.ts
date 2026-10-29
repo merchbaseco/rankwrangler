@@ -12,7 +12,7 @@ import {
     sql,
 } from 'drizzle-orm';
 import { z } from 'zod';
-import type { ProductSearchInput } from '@/api/product-search-input';
+import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { products } from './product-schema';
 
 type CursorCast = 'real' | 'integer' | 'timestamp';
@@ -35,7 +35,7 @@ const cursorSchema = z.object({
 });
 export class InvalidProductSearchCursorError extends Error {}
 
-export const productSearchSort = (input: ProductSearchInput, relevance: SQL<number>) => {
+export const productSearchSort = (input: StoredProductSearchInput, relevance: SQL<number>) => {
     const sort = input.sort === 'relevance' && !input.term ? 'discoveredAtDesc' : input.sort;
     const definitions = {
         relevance: { column: relevance, ascending: false, cast: 'real' },
@@ -57,9 +57,10 @@ export const productSearchSort = (input: ProductSearchInput, relevance: SQL<numb
         priceAsc: { column: products.keepaCurrentNewPrice, ascending: true, cast: 'integer' },
         priceDesc: { column: products.keepaCurrentNewPrice, ascending: false, cast: 'integer' },
         monthlySoldDesc: { column: products.keepaMonthlySold, ascending: false, cast: 'integer' },
-    } satisfies Record<ProductSearchInput['sort'], SortDefinition>;
+    } satisfies Record<StoredProductSearchInput['sort'], SortDefinition>;
     const definition = definitions[sort];
-    const { cursor: _cursor, limit: _limit, ...filters } = input;
+    // Paging fields stay out of the scope so a cursor survives page-size and offset changes.
+    const { cursor: _cursor, limit: _limit, page: _page, pageSize: _pageSize, ...filters } = input;
     const scope = createHash('sha256').update(JSON.stringify(filters)).digest('base64url');
     let after: SQL | undefined;
     if (input.cursor) {

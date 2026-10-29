@@ -1,11 +1,17 @@
 import { and, eq, gte, inArray, isNull, lte, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
-import type { ProductSearchInput } from '@/api/product-search-input';
+import type { ProductCatalogFilterInput, ProductSearchInput } from '@/api/product-search-input';
 import { officialBrands } from './official-brand-schema';
 import { products } from './product-schema';
+import { productGridPredicates, productHasNiche } from './product-search-grid';
 import { productSearchUpdatedAt } from './product-search-sort';
 import { productSearchTextFilter } from './product-search-text-filter';
 
-export const productSearchFilters = (input: ProductSearchInput) => {
+/**
+ * The stored search's WHERE clause. `base` is every filter except Explore's sidebar groups, which
+ * come back separately in `grid` so the facet aggregate can count each group without its own
+ * filter; `where` is all of them.
+ */
+export const productSearchFilters = (input: ProductCatalogFilterInput, now = new Date()) => {
     const text = productSearchTextFilter(input);
     const conditions: Array<SQL | undefined> = [text.where];
     if (input.marketplaceIds.length) {
@@ -63,7 +69,23 @@ export const productSearchFilters = (input: ProductSearchInput) => {
         )})
     )`);
     }
-    return { where: and(...conditions), relevance: text.relevance };
+    const grid = productGridPredicates(
+        input,
+        {
+            bsr: products.rootCategoryBsr,
+            firstAvailableAt: products.dateFirstAvailable,
+            // Qualified by hand: a single-table select renders a bare `"id"`.
+            hasNiche: productHasNiche(sql`${products}.${sql.identifier(products.id.name)}`),
+        },
+        now
+    );
+    const base = and(...conditions) ?? sql`true`;
+    return {
+        base,
+        grid,
+        where: and(base, grid.tier, grid.published, grid.niche),
+        relevance: text.relevance,
+    };
 };
 
 const normalizedBrand = (column: SQLWrapper) =>

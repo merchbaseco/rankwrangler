@@ -23,8 +23,10 @@ This replaced per-product mining (Amazon Ads `KEYWORDS_FOR_ASINS` plus Jev fit a
 judgments). An October eval against the owner's real Amazon ad search-term data showed invented
 per-product phrases were the wrong direction, so the Ads and Jev keyword paths were deleted.
 
-User searches directly track normalized keywords. Product search records the exact supplied phrase;
-explicit keyword-results reads register the same identity. The extension records the Amazon US
+User searches directly track normalized keywords. Product search records the exact supplied phrase
+on its first page; explicit keyword-results reads register the same identity. The dashboard's
+live as-you-type search reads with `recordInterest: false` and records a phrase only when the
+person submits it (⏎ in the banner search, or Track), so typed prefixes never become keywords. The extension records the Amazon US
 `k` search term once per content-page mount by calling Product search with limit one, using its
 existing authenticated client. This incurs one ordinary search usage debit and no provider fanout.
 ASIN-only lookups do not create keyword searches. Product tags do not participate. User-tracked
@@ -195,6 +197,12 @@ A bounded cursor scan refreshes standings from stored rank changes, promoting us
 without paying for another search. The scan never counts as a keyword observation or demotion.
 Scores represent research priority, not estimated searches or sales.
 
+`head_product_ids` stores the page-one active Merch head in provider placement order, so the
+first ten are the keyword's shelf. `keyword_standing_observations` keeps score history: one
+`search` row per page-one observation, and one `storedRanks` row only when the cursor scan changes
+the score. Rows are small and grow with check cadence (hot keywords at most daily); no pruning job
+exists yet. When volume warrants it, prune rows older than a year, keeping the weekly trend.
+
 ## Scan depth and freshness
 
 A durable claim counter reserves one in five dispatch opportunities for trials and the rest for
@@ -245,16 +253,18 @@ a continuing pass (at least one page) and one page per due recurring head. Capac
 background rate times 86,400 times 0.7. The 70% share, five-page allowance and two-day threshold are
 planning assumptions, not measured throughput.
 
-Settings → Keyword Jobs shows pause state, scan backlog against its allowance, the Brand Analytics
-import (last imported week, kept terms, new terms in the last import, terms awaiting trial,
-product-text terms awaiting their theme and the latest report state), keyword themes (total,
-expanded, awaiting autocomplete), each queue's waiting, scheduled and running jobs with its provider's
-readiness, and recent runs. It refreshes when a job run is recorded (`job_activity` over the
-existing WebSocket), never on an interval. Runs are recorded when they did work or failed.
+Settings → Metrics → Keyword jobs (`apps/website/src/features/settings/metrics/`) shows pause
+state, scan backlog against its allowance, the Brand Analytics import (last imported week, kept
+terms, new terms in the last import, terms awaiting trial, product-text terms awaiting their theme
+and the latest report state), keyword themes (total, expanded, awaiting autocomplete), each queue's
+waiting, scheduled and running jobs with its provider's readiness, and recent runs. It refreshes
+when a job run is recorded (`job_activity` over the existing WebSocket), never on an interval. Runs
+are recorded when they did work or failed.
 
 ## Keyword directory and activity
 
-The Keywords page uses the Products layout: filter sidebar, search, paginated table and footer.
+The Keywords page (`/keywords`, `apps/website/src/features/keywords/`) has a top-bar search, a KPI
+band, a filter sidebar and a paged table with server sorts (score, median BSR, fresh, Merch).
 Each keyword shows two separate dimensions, both derived from durable state with no stored copy:
 
 - **Stage** says whether the keyword is worth tracking. `trial` awaits or is undergoing its
@@ -268,18 +278,18 @@ Each keyword shows two separate dimensions, both derived from durable state with
   check, so the page reads them as Awaiting check and Checking. Dropped and untracked keywords have
   no freshness, interval or next check.
 
-The default view is Graduated. The sidebar filters stage (Graduated, Trial, Dropped, All, plus
-Untracked while any exist) with per-stage counts from one grouped query over queries and targets,
-freshness for graduated keywords (check progress for trials) and popularity. The footer shows how
-many trials are waiting. Counts follow directory events at most every 30 seconds. The popularity
-column shows standing tier, score and, when Amazon ranks the term, its Brand Analytics search
-frequency rank.
+The grid opens on Graduated keywords. The sidebar filters stage (Graduated, Trial, Dropped, plus
+Untracked while any exist; no stage box means every stage), freshness, heat, the Elite shelf and
+Merch results, each with counts from `keyword.directoryFacets`. The Needs sync KPI shows the
+needing-sync and syncing counts, and its tooltip how many trials await their check. Counts follow
+directory events. The Score column's tooltip adds the Brand Analytics search frequency rank when
+Amazon ranks the term; an unscored trial shows that rank in place of the score.
 
-Stage badges are outlined (graduated, trial) or muted (dropped, untracked). Check/green,
-clock/amber and spinner/blue badges distinguish live, needs sync and syncing; text remains visible
-and reduced motion disables the spinner. The directory shares the Products DashboardTable
-background and fixed column layout. Data rows are 40 pixels high; retry and dropped notes stay
-inline and truncate with a full-text tooltip.
+The Status column reads a graduated keyword's freshness: green dot Live (with time since the last
+check), grey dot Needs sync, accent spinner Syncing. Trials read Awaiting check or Checking, and
+dropped and untracked keywords a hollow dot with why. Text remains visible and reduced motion
+disables the spinner. Track appears for dropped and untracked keywords; tracking records interest,
+which schedules the keyword again.
 
 The default ordering is a work view without a separate customer-facing sort label: graduated
 keywords first (syncing, then needing sync by due time, then live by next check), then trials by
@@ -289,6 +299,25 @@ dispatcher. Workers run independently, so this is a priority view rather than a 
 position. Pagination carries the complete ordering and a fixed observation time; microsecond
 creation times are retained as exact epoch microseconds. Live state changes may reorder rows. API
 callers can request sort=newest; cursors must be passed through unchanged.
+
+The dashboard directory also sorts by score, shelf median BSR, fresh shelf count (first available
+within 60 days) or Merch count, and filters by the dominant facet value across the keyword's
+retained Products. Each row adds the shelf (ASIN, rank, thumbnail, stored short name, first
+available), median BSR, fresh count, dominant facet, seven-day score delta and twelve weekly score
+points read from score history. These are dashboard-only; public keyword get/search keep the base
+input and row shape.
+
+The dashboard directory's sidebar filters are unions (empty means any): `heat` (Hot, Warm,
+Cold), `stage` and `freshness` (replacing the public single values), plus `shelfElite` (the shelf
+holds a Product at BSR ≤2,500, or not) and `merch` (any retained active Merch, or none). `page` with
+`pageSize` reads by offset and ignores the cursor; every page carries `total` from a window count
+over the filtered rows. `api.app.keyword.directoryFacets` takes the same filters and returns the
+sidebar counts and KPI band in one aggregate over the same directory source: each group counted
+under the other filters but not its own, a 20-bucket score histogram (bucket heat follows the
+75/35 score thresholds), keywords checked within 24 hours, the median of shelf median BSRs, and
+the needing-sync and syncing counts (freshness counts, so they hold under a freshness filter). It computes
+the shelf lateral for every keyword (at most ten head Products each, by primary key) and is
+memoized per filter for 15 seconds.
 
 Track keyword explicitly records user interest; typing in the filter does not schedule work.
 The public directory get/search share stage, freshness and ordering with the dashboard; get reads

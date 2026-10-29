@@ -36,7 +36,7 @@ cached and fresh runs use the same background path. Dashboard and internal Produ
 `available` or `unavailable`. Product `isMerchListing` is nullable knowledge: `null` means unknown,
 distinct from known non-Merch (`false`). A listing is Merch when its part number is a Merch design
 code or a bullet matches Merch template text; keyword scans store only Merch and unknown Products,
-and the dashboard Products page defaults to Merch listings.
+and the dashboard Explore grid defaults to Merch listings (its Listing type filter widens it).
 
 ## Use RankWrangler
 
@@ -58,7 +58,8 @@ rw keyword search "retro gardening"
 ```
 
 Explicit `keyword.results` requests renew a 30-day research lease, including cached reuse.
-General catalog searches record interest. Background checks adapt to demand and observed change;
+General catalog searches record interest; the dashboard's as-you-type search does not, and records a
+phrase only when it is submitted. Background checks adapt to demand and observed change;
 continuous SP-API acquisition expands through user searches, weekly Amazon Brand Analytics search
 terms and Amazon autocomplete without buying history for every discovery. Shared physical-request capacity protects foreground reads;
 Keepa head/history admission stays separate.
@@ -143,7 +144,7 @@ search evidence. Search directly tracks its exact keyword for background SP-API 
 Adaptive Keepa collection tiers, durable token reservations and explicit history admission are live.
 The [growth completion](plans/merch-growth-completion.md) adds independent continuous SP-API
 acquisition, weekly Brand Analytics keyword sources, once-per-tracked-keyword autocomplete,
-a live keyword directory with separate stage and freshness, processing order, pause/resume and lifecycle logs, and adaptive keyword standing; it is locally verified and
+a live keyword directory with separate stage and freshness, processing order, pause/resume and lifecycle logs, and adaptive keyword standing with score history; it is locally verified and
 awaits deployment. Operator settings expose collection
 backlogs and capacity. The [execution record](plans/merch-collection-execution.md) tracks verification.
 The [capacity baseline](plans/merch-capacity-baseline.md) records the initial pilot envelope.
@@ -163,6 +164,7 @@ theme ("teacher shirts for women" is "teacher"); a theme admits searches that na
 product type with the same theme ("teacher blanket"), and is expanded once through autocomplete. Brand Analytics popularity also sets scan
 depth (ten, five or three pages). Collection runs as small jobs (one keyword page, one autocomplete
 call, one report step) behind one queue per provider, fed by a one-minute scheduler that holds back
-new trials and autocomplete seeds while queued scans exceed about two days of capacity. Settings → Keyword Jobs shows queues, provider
-readiness and recent runs live. See [keyword collection](docs/internals/keyword-mining.md) and
+new trials and autocomplete seeds while queued scans exceed about two days of capacity. Settings →
+Metrics → Keyword jobs shows queues, the Brand Analytics import, provider readiness and recent runs
+live. See [keyword collection](docs/internals/keyword-mining.md) and
 [background jobs](docs/decisions/background-jobs.md). Not deployed.

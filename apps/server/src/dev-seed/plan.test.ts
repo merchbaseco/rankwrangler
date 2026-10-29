@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'bun:test';
+import { DEV_SEED_ASIN_PREFIX, DEV_SEED_UUID_PREFIX } from '@/dev-seed/identity';
+import { buildDevSeedPlan } from '@/dev-seed/plan';
+import { DAY_MS, HOUR_MS } from '@/dev-seed/time-offsets';
+import { DEV_SEED_TABLE_KEYS, type DevSeedPlan, summarizePlan } from '@/dev-seed/types';
 import {
     catalogQueryStatuses,
     deriveCatalogQueryStatus,
@@ -8,13 +12,9 @@ import {
     eventLogPrimitiveTypes,
     eventLogStatuses,
 } from '@/services/event-log-enums';
-import { PRODUCT_DEFAULT_MAX_AGE_MS } from '@/services/product-freshness-policy';
-import { productFacetKeys } from '@/services/product-facet-taxonomy';
 import { keepaHistoryMetricColumns } from '@/services/keepa-history-metrics';
-import { DEV_SEED_ASIN_PREFIX, DEV_SEED_UUID_PREFIX } from '@/dev-seed/identity';
-import { buildDevSeedPlan } from '@/dev-seed/plan';
-import { DAY_MS, HOUR_MS } from '@/dev-seed/time-offsets';
-import { DEV_SEED_TABLE_KEYS, summarizePlan, type DevSeedPlan } from '@/dev-seed/types';
+import { productFacetKeys } from '@/services/product-facet-taxonomy';
+import { PRODUCT_DEFAULT_MAX_AGE_MS } from '@/services/product-freshness-policy';
 
 /**
  * The coverage contract.
@@ -32,6 +32,9 @@ import { DEV_SEED_TABLE_KEYS, summarizePlan, type DevSeedPlan } from '@/dev-seed
  * policy, the real keyword classifier, the real freshness constant — so the
  * contract tracks the product instead of restating the fixture.
  */
+
+/** The Product page's auto-sync threshold (`KEEPA_STALE_REFRESH_MS` in the website). */
+const KEEPA_AUTO_SYNC_AGE_MS = 48 * HOUR_MS;
 
 /** A fixed anchor, so a promise about the generated week cannot pass by luck. */
 const NOW = new Date('2026-08-20T15:30:00.000Z');
@@ -67,7 +70,14 @@ describe('dev seed coverage contract: shape and reproducibility', () => {
     it('promises every row is marked, so a re-run clears its own rows and nothing else', () => {
         for (const key of DEV_SEED_TABLE_KEYS) {
             for (const row of plan[key]) {
-                const marked = 'id' in row ? row.id : (row as { productId: string }).productId;
+                const marked =
+                    'id' in row
+                        ? row.id
+                        : 'productId' in row
+                          ? row.productId
+                          : 'queryId' in row
+                            ? row.queryId
+                            : (row as { claimId: string }).claimId;
                 expect({ key, marked: String(marked).startsWith(DEV_SEED_UUID_PREFIX) }).toEqual({
                     key,
                     marked: true,
@@ -215,6 +225,18 @@ describe('dev seed coverage contract: Product history', () => {
         expect(categoryPoints.length).toBeGreaterThan(0);
         for (const point of categoryPoints) {
             expect(point.categoryId).toBeGreaterThan(0);
+        }
+    });
+
+    it('promises every Product has a recent successful import, so its page never auto-syncs Keepa', () => {
+        for (const product of plan.products) {
+            const imported = plan.productHistoryImports.filter(
+                row => row.productId === product.id && row.status === 'success'
+            );
+            expect(imported.length).toBeGreaterThan(0);
+            for (const row of imported) {
+                expect(age(row.createdAt)).toBeLessThan(KEEPA_AUTO_SYNC_AGE_MS);
+            }
         }
     });
 

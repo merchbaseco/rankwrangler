@@ -25,6 +25,9 @@ export const nextKeywordTracking = (input: {
         trialFailures,
     };
 };
+/** Lowest popularity scores that propose Hot and Warm standing. */
+export const KEYWORD_HOT_SCORE = 75;
+export const KEYWORD_WARM_SCORE = 35;
 export const keywordPopularity = (input: { ranks: readonly (number | null)[]; now: Date }) => {
     const strengths = input.ranks
         .filter((rank): rank is number => rank !== null && rank > 0)
@@ -36,7 +39,12 @@ export const keywordPopularity = (input: { ranks: readonly (number | null)[]; no
     const score = Math.round(Math.min(1, 0.4 * best + 0.6 * breadth) * 100);
     return {
         score,
-        tier: score >= 75 ? ('hot' as const) : score >= 35 ? ('warm' as const) : ('cold' as const),
+        tier:
+            score >= KEYWORD_HOT_SCORE
+                ? ('hot' as const)
+                : score >= KEYWORD_WARM_SCORE
+                  ? ('warm' as const)
+                  : ('cold' as const),
         best,
         breadth,
     };

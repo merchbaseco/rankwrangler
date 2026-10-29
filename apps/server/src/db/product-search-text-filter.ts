@@ -1,12 +1,12 @@
 import { and, eq, inArray, or, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
-import type { ProductSearchInput } from '@/api/product-search-input';
+import type { ProductCatalogFilterInput } from '@/api/product-search-input';
 import { products } from './product-schema';
 import { productSearchDocument } from './product-search-document';
 
 const asinPattern = /^[A-Z0-9]{10}$/i;
 
-export const productSearchTextFilter = (input: ProductSearchInput) => {
+export const productSearchTextFilter = (input: ProductCatalogFilterInput) => {
     const document =
         input.textFields === 'title'
             ? sql`to_tsvector('simple', coalesce(${products.title}, ''))`

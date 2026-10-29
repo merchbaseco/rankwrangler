@@ -1,21 +1,28 @@
-import type { DevSeedIdMinter } from '@/dev-seed/identity';
-import type { SeededRandom } from '@/dev-seed/random';
 import type {
     catalogQueries,
     catalogSearchResults,
     catalogSearchRuns,
+    discoveryTargets,
     eventLogs,
     jobExecutionLogs,
     jobExecutions,
     keepaCategories,
+    keywordAutocomplete,
+    keywordDiscoveryAttempts,
+    keywordExplorationPasses,
+    keywordProducts,
+    keywordStandingObservations,
     operations,
     productFacets,
     productFacetValues,
     productHistoryImports,
     productHistoryPoints,
+    productShortNames,
     products,
     providerAttempts,
 } from '@/db/schema';
+import type { DevSeedIdMinter } from '@/dev-seed/identity';
+import type { SeededRandom } from '@/dev-seed/random';
 
 export interface DevSeedOptions {
     /** RNG seed. The same string always produces the same week. */
@@ -40,16 +47,23 @@ export interface DevSeedPlan {
     readonly catalogQueries: readonly (typeof catalogQueries.$inferInsert)[];
     readonly catalogSearchResults: readonly (typeof catalogSearchResults.$inferInsert)[];
     readonly catalogSearchRuns: readonly (typeof catalogSearchRuns.$inferInsert)[];
+    readonly discoveryTargets: readonly (typeof discoveryTargets.$inferInsert)[];
     readonly eventLogs: readonly (typeof eventLogs.$inferInsert)[];
     readonly jobExecutionLogs: readonly (typeof jobExecutionLogs.$inferInsert)[];
     readonly jobExecutions: readonly (typeof jobExecutions.$inferInsert)[];
     readonly keepaCategories: readonly (typeof keepaCategories.$inferInsert)[];
+    readonly keywordAutocomplete: readonly (typeof keywordAutocomplete.$inferInsert)[];
+    readonly keywordDiscoveryAttempts: readonly (typeof keywordDiscoveryAttempts.$inferInsert)[];
+    readonly keywordExplorationPasses: readonly (typeof keywordExplorationPasses.$inferInsert)[];
+    readonly keywordProducts: readonly (typeof keywordProducts.$inferInsert)[];
+    readonly keywordStandingObservations: readonly (typeof keywordStandingObservations.$inferInsert)[];
     readonly operations: readonly (typeof operations.$inferInsert)[];
     readonly productFacetValues: readonly (typeof productFacetValues.$inferInsert)[];
     readonly productFacets: readonly (typeof productFacets.$inferInsert)[];
     readonly productHistoryImports: readonly (typeof productHistoryImports.$inferInsert)[];
     readonly productHistoryPoints: readonly (typeof productHistoryPoints.$inferInsert)[];
     readonly products: readonly (typeof products.$inferInsert)[];
+    readonly productShortNames: readonly (typeof productShortNames.$inferInsert)[];
     readonly providerAttempts: readonly (typeof providerAttempts.$inferInsert)[];
 }
 
@@ -57,6 +71,7 @@ export interface DevSeedPlan {
 export const DEV_SEED_TABLE_KEYS = [
     'keepaCategories',
     'products',
+    'productShortNames',
     'productFacetValues',
     'productFacets',
     'productHistoryImports',
@@ -65,6 +80,12 @@ export const DEV_SEED_TABLE_KEYS = [
     'operations',
     'catalogSearchRuns',
     'catalogSearchResults',
+    'discoveryTargets',
+    'keywordProducts',
+    'keywordStandingObservations',
+    'keywordExplorationPasses',
+    'keywordDiscoveryAttempts',
+    'keywordAutocomplete',
     'jobExecutions',
     'jobExecutionLogs',
     'eventLogs',
@@ -97,6 +118,8 @@ export interface SeedProduct {
     readonly demand: number;
     /** Whether this Product carries a history series the chart can render. */
     readonly hasHistory: boolean;
+    /** Audience names (primary first) whose search terms may place it. */
+    readonly audiences: readonly string[];
 }
 
 export interface BuilderContext {

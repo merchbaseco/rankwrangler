@@ -202,12 +202,30 @@ export const keepaCategories = pgTable(
 );
 
 export { accessProjection, accessProjectionEvents } from './access-schema';
+export { automaticSyncControl } from './automatic-sync-schema';
+export { brandAnalyticsImports, brandAnalyticsSearchTerms } from './brand-analytics-schema';
 export {
     catalogQueries,
     catalogSearchResults,
     catalogSearchRuns,
 } from './catalog-search-schema';
 export { rankwranglerCutoverGate } from './cutover-gate-schema';
+export {
+    brandDiscoveryProducts,
+    discoveryEvidence,
+    discoverySourceScans,
+    discoveryTargets,
+    keywordStandingObservations,
+} from './discovery-target-schema';
+export { historyAdmissionRollouts } from './history-admission-rollout-schema';
+export { keepaCapacityAttempts, keepaCapacityState } from './keepa-capacity-schema';
+export { keywordAutocomplete, keywordProviderCapacity } from './keyword-autocomplete-schema';
+export { keywordThemes } from './keyword-theme-schema';
+export {
+    keywordDiscoveryAttempts,
+    keywordExplorationPasses,
+    keywordProducts,
+} from './keyword-collection-schema';
 export { officialBrands } from './official-brand-schema';
 export {
     eventLogs,
@@ -220,26 +238,4 @@ export { products } from './product-schema';
 export { productShortNames } from './product-short-name-schema';
 export { providerAttempts } from './provider-telemetry-schema';
 export { rankwranglerServiceAccounts } from './service-account-schema';
-
-export { historyAdmissionRollouts } from './history-admission-rollout-schema';
-export { keepaCapacityState, keepaCapacityAttempts } from './keepa-capacity-schema';
-export {
-    keywordExplorationPasses,
-    keywordProducts,
-    keywordDiscoveryAttempts,
-} from './keyword-collection-schema';
-
-export {
-    discoveryTargets,
-    discoveryEvidence,
-    discoverySourceScans,
-    brandDiscoveryProducts,
-} from './discovery-target-schema';
 export { spApiCatalogCapacity } from './spapi-capacity-schema';
-
-export { keywordAutocomplete, keywordProviderCapacity } from './keyword-autocomplete-schema';
-export { keywordThemes } from './keyword-theme-schema';
-
-export { brandAnalyticsSearchTerms, brandAnalyticsImports } from './brand-analytics-schema';
-
-export { automaticSyncControl } from './automatic-sync-schema';

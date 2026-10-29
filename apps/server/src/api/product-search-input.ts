@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { bsrTierKeys } from '@/services/bsr-tiers';
 
 const numericRange = z
     .object({
@@ -59,3 +60,40 @@ export const productSearchInput = z.object({
 });
 
 export type ProductSearchInput = z.infer<typeof productSearchInput>;
+
+/**
+ * Explore's sidebar filters, dashboard-only. `tiers` is a union of BSR tiers (a Product with no
+ * rank is `slow`); `published` windows `firstAvailableAt` by UTC calendar day (the last 60 or 365
+ * days, today included); `niche` asks whether a Product carries any semantic facet.
+ */
+const productGridFilters = {
+    tiers: z.array(z.enum(bsrTierKeys)).max(bsrTierKeys.length).default([]),
+    published: z.enum(['last60d', 'lastYear', 'any']).default('any'),
+    niche: z.enum(['has', 'none', 'any']).default('any'),
+};
+
+/**
+ * The dashboard's Product search. `recordInterest: false` reads without tracking the term, so the
+ * website's as-you-type search never turns half-typed prefixes into keywords; the website records
+ * a phrase only on an explicit submit (keywordTrack). The default keeps the public behaviour.
+ * `page` (1-based) switches to offset paging and ignores `cursor`; `pageSize` overrides `limit`.
+ */
+export const appProductSearchInput = productSearchInput.extend({
+    recordInterest: z.boolean().default(true),
+    ...productGridFilters,
+    page: z.number().int().min(1).max(10_000).optional(),
+    pageSize: z.number().int().min(1).max(100).optional(),
+});
+export type AppProductSearchInput = z.infer<typeof appProductSearchInput>;
+
+/** Facet counts and KPI aggregates take the search filters without paging, sort or interest. */
+export const productSearchFacetsInput = productSearchInput
+    .omit({ sort: true, cursor: true, limit: true })
+    .extend(productGridFilters);
+export type ProductSearchFacetsInput = z.infer<typeof productSearchFacetsInput>;
+
+/** Everything the stored search reads; the public search leaves the dashboard fields unset. */
+export type StoredProductSearchInput = ProductSearchInput &
+    Partial<Pick<AppProductSearchInput, 'tiers' | 'published' | 'niche' | 'page' | 'pageSize'>>;
+/** The filter part shared by search, its total, and facets. */
+export type ProductCatalogFilterInput = Omit<StoredProductSearchInput, 'sort' | 'cursor' | 'limit'>;

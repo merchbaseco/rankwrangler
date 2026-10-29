@@ -82,6 +82,12 @@ The app additionally exposes three independent subscriptions, each with its own 
 - `api.app.activity.created`: the activity account identity, consumed by
   `useEventLogCreated` while Logs is live.
 
+The Keywords page (`apps/website/src/features/keywords/`) also refreshes its summary picks, which
+are whole-directory aggregates a row patch cannot update, from the directory stream at most once a
+minute (`useKeywordHighlightsRefresh`). Directory rows (`keywordDirectory`, `keywordDirectoryRows`)
+share one enriched shape, so a patched row carries the same shelf, facet and score trend as a page
+row.
+
 Write paths call PostgreSQL `pg_notify` inside the same transaction as their durable changes.
 Postgres delivers only on commit, including writes from another process; rollback sends nothing.
 The app uses one direct PostgreSQL LISTEN session shared by the domain listeners (including the admin

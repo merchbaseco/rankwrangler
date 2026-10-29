@@ -1,4 +1,3 @@
-import type { DiscoveryScope } from './discovery-types';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { db } from '@/db/index';
 import { upsertProductsInfo } from '@/db/product/upsert-product';
@@ -10,6 +9,7 @@ import {
 import { mapSpApiCatalogItem } from '@/services/spapi/catalog-product-mapper';
 import { ItemSearchResultsSchema } from '@/services/spapi/search-catalog-items-schema';
 import type { SpApiProduct } from '@/types';
+import type { DiscoveryScope } from './discovery-types';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const asinPattern = /^[A-Z0-9]{10}$/i;
@@ -89,12 +89,20 @@ export const persistDiscoveredSpApiProducts = async (
     const newProductIds = (await upsertProductsInfo(stored, transaction))
         .filter(identity => identity.inserted)
         .map(identity => identity.id);
-    const rows = stored.length
-        ? await transaction
-              .select({ id: productTable.id, isMerchListing: productTable.isMerchListing })
-              .from(productTable)
-              .where(productIdentities(marketplaceId, [...storedAsins]))
-        : [];
+    // Keep provider page order: keyword standing stores the head in search-rank order.
+    const order = new Map(products.map((product, index) => [product.asin, index]));
+    const rows = (
+        stored.length
+            ? await transaction
+                  .select({
+                      id: productTable.id,
+                      asin: productTable.asin,
+                      isMerchListing: productTable.isMerchListing,
+                  })
+                  .from(productTable)
+                  .where(productIdentities(marketplaceId, [...storedAsins]))
+            : []
+    ).sort((left, right) => (order.get(left.asin) ?? 0) - (order.get(right.asin) ?? 0));
     return {
         pageAsins,
         newProductIds,

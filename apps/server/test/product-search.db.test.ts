@@ -1,8 +1,8 @@
-import { keywordProducts } from '@/db/keyword-collection-schema';
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { sql } from 'drizzle-orm';
 import { productSearchInput } from '@/api/product-search-input';
 import { db } from '@/db/index';
+import { keywordProducts } from '@/db/keyword-collection-schema';
 import { searchStoredProducts } from '@/db/product-search';
 import { InvalidProductSearchCursorError } from '@/db/product-search-sort';
 import {
@@ -199,7 +199,11 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('stored Merch resea
             { facet: 'hobby', name: 'fishing' },
             { facet: 'profession', name: 'nurse' },
         ];
-        expect((await search({ facets, isMerchListing: 'all' })).items).toHaveLength(2);
+        const both = await search({ facets, isMerchListing: 'all' });
+        expect(both.items).toHaveLength(2);
+        expect(both.items.find(item => item.asin === 'B000000001')?.facets).toEqual([
+            { facet: 'hobby', name: 'fishing' },
+        ]);
         expect(
             (await search({ facets, isMerchListing: 'unknown' })).items.map(item => item.asin)
         ).toEqual(['B000000002']);

@@ -1,10 +1,10 @@
+import { DAY_MS, HOUR_MS, MINUTE_MS, shiftMs } from '@/dev-seed/time-offsets';
+import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-seed/types';
+import { SEED_MERCH_SEARCH_TERMS, seedAudienceForTerm } from '@/dev-seed/vocabulary';
 import {
     CATALOG_QUERY_ACTIVE_WINDOW_MS,
     type CatalogQueryStatus,
 } from '@/services/catalog-query-refresh-policy';
-import { SEED_MERCH_SEARCH_TERMS } from '@/dev-seed/vocabulary';
-import { DAY_MS, HOUR_MS, MINUTE_MS, shiftMs } from '@/dev-seed/time-offsets';
-import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-seed/types';
 
 /**
  * Catalog queries and their immutable Search-run evidence.
@@ -41,14 +41,18 @@ export interface SearchBuild {
 
 export const buildSearch = (
     context: BuilderContext,
-    seedProducts: readonly SeedProduct[]
+    seedProducts: readonly SeedProduct[],
+    featuredTerms: readonly string[]
 ): SearchBuild => {
     const { random, now, marketplaceId, mintId, options } = context;
     const queries: PlanRows<'catalogQueries'> = [];
     const runs: PlanRows<'catalogSearchRuns'> = [];
     const results: PlanRows<'catalogSearchResults'> = [];
     const operations: PlanRows<'operations'> = [];
-    const terms = random.shuffle(SEED_MERCH_SEARCH_TERMS).slice(0, options.queryCount);
+    const terms =
+        featuredTerms.length > 0
+            ? featuredTerms
+            : random.shuffle(SEED_MERCH_SEARCH_TERMS).slice(0, options.queryCount);
 
     terms.forEach((term, index) => {
         const status =
@@ -67,9 +71,7 @@ export const buildSearch = (
                     : shiftMs(shape.latestSuccessfulRunAt, -runIndex * random.int(6, 9) * DAY_MS);
             const startedAt = shiftMs(completedAt, -random.int(900, 6000));
             const operationId = mintId('operation');
-            const placed = random
-                .shuffle(seedProducts)
-                .slice(0, random.int(MIN_RESULTS_PER_RUN, MAX_RESULTS_PER_RUN));
+            const placed = placeForTerm(context, seedProducts, term);
             const ordered = [...placed].sort((left, right) => right.demand - left.demand);
             const runId = mintId('catalogRun');
 
@@ -237,4 +239,25 @@ const shapeForStatus = (context: BuilderContext, status: CatalogQueryStatus): Qu
                 nextRefreshAttemptAt: null,
             };
     }
+};
+
+/**
+ * A term's results: its own niche (designs whose audience the term is about),
+ * shuffled per run so placement moves between runs. A niche too thin to fill a
+ * page falls back to a random handful, as a sparse real search would.
+ */
+const placeForTerm = (
+    context: BuilderContext,
+    seedProducts: readonly SeedProduct[],
+    term: string
+) => {
+    const { random } = context;
+    const audience = seedAudienceForTerm(term)?.name;
+    const niche = seedProducts.filter(product => audience && product.audiences.includes(audience));
+    if (niche.length >= 3) {
+        return random.shuffle(niche).slice(0, MAX_RESULTS_PER_RUN);
+    }
+    return random
+        .shuffle(seedProducts)
+        .slice(0, random.int(MIN_RESULTS_PER_RUN, MAX_RESULTS_PER_RUN));
 };

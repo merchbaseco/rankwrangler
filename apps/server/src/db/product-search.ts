@@ -1,14 +1,23 @@
 import { and, sql } from 'drizzle-orm';
-import type { ProductSearchInput } from '@/api/product-search-input';
+import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { db } from './index';
 import { getMarketplaceCurrencyCode } from './product/marketplace-currency';
 import { products } from './product-schema';
 import { productSearchFilters } from './product-search-filters';
 import { productSearchSort, productSearchUpdatedAt } from './product-search-sort';
 
-export const searchStoredProducts = async (input: ProductSearchInput) => {
-    const filters = productSearchFilters(input);
-    const sort = productSearchSort(input, filters.relevance);
+/**
+ * One page of stored Products. `page` reads by offset (deep pages cost the skipped rows) and
+ * ignores the cursor; otherwise keyset paging continues from `cursor`. Either way `nextCursor`
+ * continues after the returned page.
+ */
+export const searchStoredProducts = async (input: StoredProductSearchInput, now = new Date()) => {
+    const size = input.pageSize ?? input.limit;
+    const filters = productSearchFilters(input, now);
+    const sort = productSearchSort(
+        input.page ? { ...input, cursor: null } : input,
+        filters.relevance
+    );
     const rows = await db
         .select({
             id: products.id,
@@ -35,17 +44,20 @@ export const searchStoredProducts = async (input: ProductSearchInput) => {
             drops90: products.keepaSalesRankDrops90,
             drops180: products.keepaSalesRankDrops180,
             drops365: products.keepaSalesRankDrops365,
+            // Qualified by hand: Drizzle renders a bare `"id"` in a single-table select, which
+            // this subquery would bind to `pfv.id`.
             facets: sql<Array<{ facet: string; name: string }>>`coalesce((
             select jsonb_agg(jsonb_build_object('facet', pfv.facet, 'name', pfv.name) order by pfv.facet, pfv.name)
             from product_facets pf join product_facet_values pfv on pfv.id = pf.facet_value_id
-            where pf.product_id = ${products.id}
+            where pf.product_id = ${products}.${sql.identifier(products.id.name)}
         ), '[]'::jsonb)`,
         })
         .from(products)
         .where(and(filters.where, sort.after))
         .orderBy(...sort.order)
-        .limit(input.limit + 1);
-    const page = rows.slice(0, input.limit);
+        .limit(size + 1)
+        .offset(input.page ? (input.page - 1) * size : 0);
+    const page = rows.slice(0, size);
     const last = page.at(-1);
     return {
         items: page.map(row => ({
@@ -84,6 +96,6 @@ export const searchStoredProducts = async (input: ProductSearchInput) => {
             },
             facets: row.facets,
         })),
-        nextCursor: rows.length > input.limit && last ? sort.encode(last) : null,
+        nextCursor: rows.length > size && last ? sort.encode(last) : null,
     };
 };

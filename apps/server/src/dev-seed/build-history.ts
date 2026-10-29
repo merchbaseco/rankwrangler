@@ -1,10 +1,10 @@
+import { DAY_MS, HOUR_MS, shiftMs } from '@/dev-seed/time-offsets';
+import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-seed/types';
 import {
     KEEPA_MAIN_CATEGORY_ID,
     keepaHistoryMetricColumns,
 } from '@/services/keepa-history-metrics';
 import { dateToKeepaMinute } from '@/services/keepa-product-normalizer';
-import { DAY_MS, HOUR_MS, shiftMs } from '@/dev-seed/time-offsets';
-import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-seed/types';
 
 /**
  * Keepa change points for the Products the catalog marks as having history, so
@@ -16,6 +16,13 @@ import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-s
  */
 
 const HOURS_PER_RANK_POINT = 6;
+/** Daily rank points before the dense week, so the 30-day sparkline spans its window. */
+const SPARKLINE_DAYS = 30;
+/** Sparser rank points back to 90 days, so the preview's 90-day chart is drawn, not carried in. */
+const QUARTER_DAYS = 90;
+const QUARTER_STEP_DAYS = 3;
+/** One old peak per Product, so best-ever BSR differs from the recent range. */
+const PEAK_DAYS_AGO = 180;
 const PRICE_CHANGE_RATE = 0.12;
 /** One Product carries a category series so `bsrCategory` has something to show. */
 const CATEGORY_SERIES_PRODUCTS = 1;
@@ -39,6 +46,33 @@ export const buildHistory = (
         const baseRank = product.rootCategoryBsr ?? 400_000;
         let rank = Math.max(1, Math.round(baseRank * random.between(1.05, 1.4)));
         let price = product.currentNewPrice + random.int(-400, 400);
+        const rankPoint = (observedAt: Date, valueInt: number) => ({
+            id: mintId('historyPoint'),
+            productId: product.id,
+            marketplaceId,
+            asin: product.asin,
+            source: 'keepa',
+            metric: keepaHistoryMetricColumns.bsrMain,
+            categoryId: KEEPA_MAIN_CATEGORY_ID,
+            observedAt,
+            keepaMinutes: dateToKeepaMinute(observedAt),
+            valueInt,
+            isMissing: false,
+        });
+        points.push(
+            rankPoint(
+                shiftMs(now, -PEAK_DAYS_AGO * DAY_MS),
+                Math.max(1, Math.round(baseRank * random.between(0.25, 0.5)))
+            )
+        );
+        for (let day = QUARTER_DAYS; day > SPARKLINE_DAYS; day -= QUARTER_STEP_DAYS) {
+            rank = Math.max(1, Math.round(rank * random.between(0.88, 1.12)));
+            points.push(rankPoint(shiftMs(now, -day * DAY_MS), rank));
+        }
+        for (let day = SPARKLINE_DAYS; day > options.dayCount; day -= 1) {
+            rank = Math.max(1, Math.round(rank * random.between(0.85, 1.15)));
+            points.push(rankPoint(shiftMs(now, -day * DAY_MS), rank));
+        }
 
         for (let step = pointCount; step >= 0; step -= 1) {
             const observedAt = shiftMs(now, -step * HOURS_PER_RANK_POINT * HOUR_MS);
@@ -46,19 +80,7 @@ export const buildHistory = (
             // the catalog row says it should.
             const pull = (baseRank - rank) * 0.12;
             rank = Math.max(1, Math.round(rank + pull + random.normal() * baseRank * 0.06));
-            points.push({
-                id: mintId('historyPoint'),
-                productId: product.id,
-                marketplaceId,
-                asin: product.asin,
-                source: 'keepa',
-                metric: keepaHistoryMetricColumns.bsrMain,
-                categoryId: KEEPA_MAIN_CATEGORY_ID,
-                observedAt,
-                keepaMinutes: dateToKeepaMinute(observedAt),
-                valueInt: rank,
-                isMissing: false,
-            });
+            points.push(rankPoint(observedAt, rank));
 
             if (productIndex < CATEGORY_SERIES_PRODUCTS) {
                 points.push({
@@ -106,6 +128,22 @@ export const buildHistory = (
             })
         );
     });
+
+    // Keepa answered for the history-less Products too, just with no rank series:
+    // without a successful import the Product page reads them as never synced
+    // and starts a real Keepa refresh on open.
+    for (const product of seedProducts) {
+        if (!product.hasHistory) {
+            imports.push(
+                buildImport({
+                    context,
+                    product,
+                    status: 'success',
+                    createdAt: product.keepaFetchedAt,
+                })
+            );
+        }
+    }
 
     // One failed import, so the activity surfaces have a real error to render.
     const failing = tracked.at(-1);

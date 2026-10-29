@@ -1,10 +1,14 @@
-import { notifyKeywordQueryRows } from './keyword-directory-notifications';
-import { writeKeywordEvents } from './keyword-events';
 import { and, eq, sql } from 'drizzle-orm';
 import { keywordPopularity } from '@/services/keyword-standing-policy';
-import { db } from './index';
 import { catalogQueries } from './catalog-search-schema';
-import { discoveryTargets, discoverySourceScans } from './discovery-target-schema';
+import {
+    discoverySourceScans,
+    discoveryTargets,
+    keywordStandingObservations,
+} from './discovery-target-schema';
+import { db } from './index';
+import { notifyKeywordQueryRows } from './keyword-directory-notifications';
+import { writeKeywordEvents } from './keyword-events';
 
 export const refreshKeywordStandings = async (now = new Date()) =>
     db.transaction(async tx => {
@@ -90,6 +94,7 @@ export const refreshKeywordStandings = async (now = new Date()) =>
         });
         if (updates.length) {
             const changed = await tx.execute<{
+                id: string;
                 query_id: string;
                 tier: string;
                 previous_tier: string;
@@ -108,11 +113,28 @@ export const refreshKeywordStandings = async (now = new Date()) =>
             is not distinct from (u.expected_head,u.expected_ids,u.expected_tier,u.expected_interval,u.expected_next)
         and (t.popularity_score,t.score_components,t.standing_tier,t.interval_days,t.next_check_at)
             is distinct from (u.score,u.components,u.tier,u.interval,u.next)
-        returning t.query_id,t.standing_tier tier,u.expected_tier previous_tier,t.popularity_score score,t.interval_days interval`);
+        returning t.id,t.query_id,t.standing_tier tier,u.expected_tier previous_tier,t.popularity_score score,t.interval_days interval`);
             await notifyKeywordQueryRows(
                 tx,
                 changed.map(row => row.query_id)
             );
+            // The scan is not an observation; it only extends score history when the score moved.
+            const rescored = changed.filter(
+                row =>
+                    rows.find(item => item.target.id === row.id)?.target.popularityScore !==
+                    row.score
+            );
+            if (rescored.length)
+                await tx.insert(keywordStandingObservations).values(
+                    rescored.map(row => ({
+                        targetId: row.id,
+                        queryId: row.query_id,
+                        observedAt: now,
+                        popularityScore: row.score,
+                        standingTier: row.tier as typeof discoveryTargets.$inferSelect.standingTier,
+                        source: 'storedRanks' as const,
+                    }))
+                );
             await writeKeywordEvents(
                 tx,
                 changed

@@ -305,6 +305,7 @@ bun test \
     apps/server/test/keyword-autocomplete.db.test.ts \
     apps/server/test/keyword-themes.db.test.ts \
     apps/server/test/keyword-directory.db.test.ts \
+    apps/server/test/keyword-directory-grid.db.test.ts \
     apps/server/test/keyword-realtime.db.test.ts \
     apps/server/test/keyword-directory-status.db.test.ts \
     apps/server/test/keyword-sync-control.db.test.ts \
@@ -316,6 +317,8 @@ bun test \
     apps/server/test/product-collection-policy.db.test.ts \
     apps/server/test/product-search-document.db.test.ts \
     apps/server/test/product-search.db.test.ts \
+    apps/server/test/product-search-grid.db.test.ts \
+    apps/server/test/product-app-reads.db.test.ts \
     apps/server/test/merch-listing-classification.db.test.ts \
     apps/server/test/product-short-name.db.test.ts \
     apps/server/test/product-cutout-thumbnail.db.test.ts \

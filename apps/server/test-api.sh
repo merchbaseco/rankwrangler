@@ -90,6 +90,21 @@ if [ -n "$RR_CLERK_TOKEN" ]; then
     echo "$app_product_info_response" | jq '.'
 
     echo ""
+    echo "🗝️ Testing api.app.product.keywords..."
+    curl -s -G "$API_BASE/api/api.app.product.keywords" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      --data-urlencode 'input={"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}' | jq '.'
+    echo ""
+    echo "📚 Testing api.app.keywordDirectory (median BSR sort)..."
+    curl -s -G "$API_BASE/api/api.app.keywordDirectory" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" \
+      --data-urlencode 'input={"sort":"medianBsr","limit":5}' | jq '.'
+    echo ""
+    echo "🧮 Testing api.app.stats.summary..."
+    curl -s -G "$API_BASE/api/api.app.stats.summary" \
+      -H "Authorization: Bearer $RR_CLERK_TOKEN" | jq '.'
+
+    echo ""
     echo "📈 Testing api.app.loadProductHistory..."
     curl -s -X POST "$API_BASE/api/api.app.loadProductHistory" \
       -H "Content-Type: application/json" \

@@ -1,13 +1,24 @@
 import { TRPCError } from '@trpc/server';
-import type { ProductSearchInput } from '@/api/product-search-input';
+import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { searchStoredProducts } from '@/db/product-search';
 import { recordProductSearchInterest } from '@/db/product-search-interest';
 import { InvalidProductSearchCursorError } from '@/db/product-search-sort';
 
-export const searchProducts = async (input: ProductSearchInput) => {
+/**
+ * Stored Product search. A first page (no cursor, page 1 or unset) with a term records the phrase
+ * as keyword interest unless the caller opts out (`recordInterest: false`, the dashboard's live
+ * search).
+ */
+export const searchProducts = async (
+    input: StoredProductSearchInput,
+    { recordInterest = true }: { recordInterest?: boolean } = {}
+) => {
     try {
         const results = await searchStoredProducts(input);
-        const coverage = input.cursor ? null : await recordProductSearchInterest(input);
+        const coverage =
+            input.cursor || (input.page ?? 1) > 1 || !recordInterest
+                ? null
+                : await recordProductSearchInterest(input);
         return { ...results, coverage };
     } catch (error) {
         if (error instanceof InvalidProductSearchCursorError) {

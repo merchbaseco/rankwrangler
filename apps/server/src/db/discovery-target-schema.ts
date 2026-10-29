@@ -1,13 +1,13 @@
 import { sql } from 'drizzle-orm';
 import {
     boolean,
-    real,
-    jsonb,
     check,
     index,
     integer,
+    jsonb,
     pgTable,
     primaryKey,
+    real,
     text,
     timestamp,
     uniqueIndex,
@@ -67,6 +67,37 @@ export const discoveryTargets = pgTable(
         or (${table.kind}='brand' and ${table.scopeKey}<>'' and ${table.brandName} is not null
             and length(btrim(${table.brandName}))>0)
     `
+        ),
+    })
+);
+
+/**
+ * One row per recorded standing: every page-one keyword observation, plus stored-rank refreshes
+ * that changed the score. Feeds score deltas and weekly trends; see keyword-mining.md.
+ */
+export const keywordStandingObservations = pgTable(
+    'keyword_standing_observations',
+    {
+        id: uuid('id').primaryKey().defaultRandom(),
+        targetId: uuid('target_id')
+            .notNull()
+            .references(() => discoveryTargets.id, { onDelete: 'cascade' }),
+        queryId: uuid('query_id')
+            .notNull()
+            .references(() => catalogQueries.id, { onDelete: 'cascade' }),
+        observedAt: timestamp('observed_at', { mode: 'date' }).notNull(),
+        popularityScore: real('popularity_score'),
+        standingTier: text('standing_tier').$type<'unrated' | 'hot' | 'warm' | 'cold'>().notNull(),
+        source: text('source').$type<'search' | 'storedRanks'>().notNull(),
+    },
+    table => ({
+        queryObserved: index('keyword_standing_observations_query_observed_idx').on(
+            table.queryId,
+            table.observedAt
+        ),
+        sourceCheck: check(
+            'keyword_standing_observations_source_check',
+            sql`${table.source} in ('search', 'storedRanks')`
         ),
     })
 );

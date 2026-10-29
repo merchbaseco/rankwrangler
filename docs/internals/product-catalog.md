@@ -98,6 +98,63 @@ The dashboard Product drawer remains source-aware. Its tooltips may expose SP-AP
 provenance, last attempt and success, source observation time, supplied categories, and the latest
 error or retry without changing the public Product projection.
 
+## Dashboard Product Reads
+
+`api.app.product.search` adds three fields to the shared search items without changing the
+public contract: the stored short name and cutout URL when their fingerprints match the current
+title and image (null otherwise; reads never start generation), and `bsr30d`, the main BSR value
+in force once per day over the last thirty days, read in one bounded statement per page.
+`api.app.product.get` adds the same stored names, the count of Products sharing the normalized
+brand in the marketplace, and the best main BSR recorded in history with its first time.
+`api.app.product.keywords` lists retained keyword memberships with placement from the newest run
+of each page (1-based page, null when absent from those runs), standing score and tier, and
+membership time; totals count all memberships and page-one placements. `api.app.stats.summary`
+returns footer counts for any signed-in user.
+
+### Explore grid: paging, sidebar filters and facets
+
+`api.app.product.search` also takes Explore's sidebar filters and offset paging, all
+dashboard-only:
+
+- `tiers`: a union of BSR tiers (`elite` ≤2,500, `hot` ≤15,000, `strong` ≤60,000, `steady`
+  ≤250,000, `slow` above). Each tier is its own inclusive range ORed together, so Elite + Steady
+  does not match the tiers between. An unranked Product is `slow`, so the five tiers partition
+  the result. Thresholds live once in `apps/server/src/services/bsr-tiers.ts`, mirroring
+  `apps/website/src/features/bsr/bsr-tier.ts`.
+- `published`: `last60d` or `lastYear` keeps Products first available on or after the start of
+  the UTC day 59 or 364 days ago (60 or 365 calendar days, today included); undated Products only
+  match `any`.
+- `niche`: `has` or `none` asks whether the Product carries any semantic facet. Unclassified
+  Products have none.
+- `page` (1-based) with `pageSize` (default `limit`, max 100) reads by offset and ignores the
+  cursor; `nextCursor` still continues after the page. Deep offsets cost the skipped rows.
+
+The response adds `total` and `totalIsEstimate`. A bounded count stops after 10,001 matches, so
+narrow searches are exact; past that the total is the planner's row estimate for the same WHERE
+clause (`EXPLAIN`, from column statistics), flagged `totalIsEstimate: true`. Totals are memoized
+per filter for a minute so paging does not recount.
+
+`api.app.product.searchFacets` takes the same filters without paging or sort and returns the
+sidebar counts and KPI bands from one scan of the Products matching every non-sidebar filter. The
+scan's inner select carries rank, monthly sold, first-available date and a niche `exists` probe
+per row; the outer aggregate counts with `FILTER` clauses, so there is no grouping, join fan-out
+or per-facet query. Each sidebar group (`tiers`, `published`, `niche`) is counted under the other
+groups' filters but not its own; `total`, the 24-bucket BSR histogram (log-spaced inside each
+tier, bounds aligned to tier edges, last bucket open-ended), median BSR, median monthly sold and
+the 60 daily first-available counts see every filter. Counts are exact (`totalIsEstimate` is
+always false here); the medians are the only sorts, over the filtered rank and sold columns.
+`improving7dShare` samples the first 2,000 matches in UUID order (uniform, since ids are random)
+and compares the main BSR in force now with the one in force seven days ago, two backward probes
+per sampled Product on `product_history_points_marketplace_asin_metric_observed_at_idx`; Products
+without a point on both sides are left out, and it is null when none compare. Results are
+memoized per filter for 60 seconds per process.
+
+Indexes these reads lean on: `products_marketplace_bsr_idx` (tier ranges and rank sorts),
+`products_marketplace_first_available_idx` (published windows and first-available sorts),
+`products_search_document_idx` (text), and the `product_facets` primary key (niche probes). At
+millions of Products the facet scan is a sequential pass over the marketplace's Merch rows,
+bounded by the other filters; the minute cache is what keeps it off the hot path.
+
 ## Lookup Versus Discovery
 
 The dashboard catalog reads stored Products and supports current-state search, pagination, and

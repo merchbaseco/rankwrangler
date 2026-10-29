@@ -1,5 +1,3 @@
-import { writeKeywordEvents } from './keyword-events';
-import { registerKeywordThemes } from './keyword-themes';
 import { and, eq, inArray } from 'drizzle-orm';
 import {
     keywordPopularity,
@@ -7,9 +5,11 @@ import {
     nextKeywordTracking,
 } from '@/services/keyword-standing-policy';
 import { catalogQueries } from './catalog-search-schema';
-import { discoveryTargets } from './discovery-target-schema';
-import { products } from './product-schema';
+import { discoveryTargets, keywordStandingObservations } from './discovery-target-schema';
 import type { db } from './index';
+import { writeKeywordEvents } from './keyword-events';
+import { registerKeywordThemes } from './keyword-themes';
+import { products } from './product-schema';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export const observeKeywordStanding = async (
@@ -22,7 +22,7 @@ export const observeKeywordStanding = async (
     }
 ) => {
     const { target, now } = input;
-    const rows = input.productIds.length
+    const unordered = input.productIds.length
         ? await tx
               .select({
                   id: products.id,
@@ -38,6 +38,11 @@ export const observeKeywordStanding = async (
                   )
               )
         : [];
+    // Head ids keep page-one search order so readers can show the shelf as Amazon ranked it.
+    const position = new Map(input.productIds.map((id, index) => [id, index]));
+    const rows = [...unordered].sort(
+        (a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0)
+    );
     const fresh = rows.filter(
         row => row.fetchedAt && now.getTime() - row.fetchedAt.getTime() <= 7 * 86_400_000
     );
@@ -99,6 +104,14 @@ export const observeKeywordStanding = async (
             [{ queryId: query.id, term: query.normalizedTerm, marketplaceId: query.marketplaceId }],
             now
         );
+    await tx.insert(keywordStandingObservations).values({
+        targetId: target.id,
+        queryId: target.queryId,
+        observedAt: now,
+        popularityScore: popularity.score ?? target.popularityScore,
+        standingTier: cadence.tier,
+        source: 'search',
+    });
     if (tracking !== target.tracking || cadence.tier !== target.standingTier)
         await writeKeywordEvents(tx, [
             {

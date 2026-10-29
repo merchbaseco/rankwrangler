@@ -1,16 +1,21 @@
 import { z } from 'zod';
-import { keywordDirectoryInput, keywordDirectoryCursor } from '@/api/keyword-directory-input';
+import { appKeywordDirectoryInput, keywordDirectoryView } from '@/api/keyword-directory-input';
 import { appProcedure } from '@/api/trpc';
 import { readKeywordDirectory } from '@/db/keyword-directory';
+import { readKeywordDirectoryDetail } from '@/db/keyword-directory-detail';
 
+/**
+ * Re-reads changed rows at a loaded page's view, enriched exactly like `keywordDirectory`, so a
+ * realtime patch replaces a row with the same shape the screen renders.
+ */
 export const keywordDirectoryRows = appProcedure
     .input(
         z.object({
             terms: z.array(z.string().min(1).max(200)).min(1).max(100),
-            view: keywordDirectoryCursor.omit({ key: true }),
+            view: keywordDirectoryView,
         })
     )
     .query(async ({ input }) => {
-        const result = await readKeywordDirectory(keywordDirectoryInput.parse({}), input);
-        return result.items;
+        const result = await readKeywordDirectory(appKeywordDirectoryInput.parse({}), input);
+        return readKeywordDirectoryDetail(result.items, result.view.asOf);
     });
