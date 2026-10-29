@@ -35,7 +35,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         await insert('B000000001');
         await insert('B000000002', { createdAt: new Date('2026-10-02T12:00:00Z') });
         const result = await admitProductHistory({
-            refillRate: 0.002,
+            refillRate: 0.001,
             productCost: 1,
             newAdmissionsPaused: false,
         });

@@ -21,7 +21,7 @@ persistence. `keepaSourceUpdatedAt` is Keepa's own Product update time and does 
 RankWrangler schedule.
 
 Every Product load enforces a strict provider guard: the same marketplace and ASIN cannot invoke
-Keepa again within 24 hours of a successful fetch. Concurrent loads within one server process join
+Keepa again within 12 hours of a successful fetch. Concurrent loads within one server process join
 one in-flight request, and freshness is checked again immediately before provider dispatch.
 
 Import rows retain request, response, error, and token diagnostics. They do not decide when the
@@ -33,7 +33,8 @@ Automatic Keepa collection requires an admitted, active Product classified as Me
 
 | Current root-category BSR | Schedule |
 | --- | --- |
-| Below 300,000 | Stale after 24 hours; automatic daily collection. |
+| Below 50,000 | Stale after 12 hours; automatic collection twice a day. |
+| 50,000 through 299,999 | Stale after 24 hours; automatic daily collection. |
 | 300,000 through 999,999 | Stale after seven days; automatic weekly collection. |
 | 1,000,000 or higher | On demand only. |
 | Missing BSR | No automatic Keepa collection. |
@@ -46,7 +47,8 @@ already in `keepa_history_refresh_queue`. The queue is unique by marketplace and
 
 The queue processor runs every minute. It first checks the indexed queue for due work and does not
 contact Keepa from an idle dispatcher tick. When work is due, it refreshes the in-memory Keepa
-token snapshot when stale, derives a bounded batch size, performs an authoritative due-row
+token snapshot when stale, derives a batch of up to one minute's refill (20 fetches on our plan, at
+one token each), performs an authoritative due-row
 selection, holds those rows, and dispatches one singleton fetch job per ASIN. Work becoming due
 immediately after an empty preflight waits until the next minute. Provider token counts and refill
 timing are internal capacity signals used by operational dashboard surfaces, never part of the
@@ -74,8 +76,9 @@ Migration 0040 locks Product writes, records a baseline receipt and admits every
 including unknown and non-Merch Products. Eligibility still applies at dispatch. New identities
 start `notAdmitted`; receiving incidental history does not create a recurring subscription.
 
-The minute admission job uses measured Product cost and observed refill rate. Forecast daily and
-weekly obligations must stay below 90% of the protected history allocation. Capacity pauses new
+The minute admission job uses measured Product cost and observed refill rate. Forecast 12-hour,
+daily and weekly obligations must stay below 90% of the daily refill; the rest covers live requests,
+first-time history and keyword searches. Capacity pauses new
 admissions without revoking existing admissions. Existing eligible history seven days overdue also
 pauses new admissions; this conservative observation is not proof of a continuous seven-day deficit.
 Explicit history reads remain available outside standing admission.

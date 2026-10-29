@@ -127,6 +127,13 @@ describe('getKeepaEnqueueMinRefreshIntervalMs', () => {
         );
     });
 
+    it('returns a 12-hour interval below 50k', () => {
+        expect(getKeepaEnqueueMinRefreshIntervalMs(true, 49_999)).toBe(12 * 60 * 60 * 1000);
+        expect(getKeepaEnqueueMinRefreshIntervalMs(true, 50_000)).toBe(
+            KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS
+        );
+    });
+
     it('returns a weekly interval for 300k to <1M bucket', () => {
         expect(getKeepaEnqueueMinRefreshIntervalMs(true, 500000)).toBe(
             KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS

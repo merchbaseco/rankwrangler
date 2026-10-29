@@ -1,15 +1,17 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const MINUTE_IN_MS = 60 * 1000;
 
+export const KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD = 50000;
 export const KEEPA_DAILY_AUTO_BSR_THRESHOLD = 300000;
 export const KEEPA_WEEKLY_AUTO_BSR_THRESHOLD = 1000000;
+export const KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = DAY_IN_MS / 2;
 export const KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = DAY_IN_MS;
 export const KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 7 * DAY_IN_MS;
-export const KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS = DAY_IN_MS;
+export const KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS = DAY_IN_MS / 2;
 export const KEEPA_FAILURE_RETRY_BASE_MS = 5 * MINUTE_IN_MS;
 export const KEEPA_FAILURE_RETRY_MAX_MS = DAY_IN_MS;
 export const KEEPA_FETCH_SUCCESS_GUARD_LABEL =
-    'Global fetch guard: never invoke Keepa more than once per ASIN every 24h';
+    'Global fetch guard: never invoke Keepa more than once per ASIN every 12h';
 
 type KeepaRefreshPolicyBucket = {
     key: string;
@@ -22,7 +24,7 @@ export const KEEPA_REFRESH_POLICY_BUCKETS = [
     {
         key: 'daily',
         label: 'Merch BSR <300k',
-        refreshEveryLabel: 'Automatic daily sync',
+        refreshEveryLabel: 'Automatic sync every 12h under 50k BSR, daily otherwise',
         isAutoRefresh: true,
     },
     {
@@ -101,7 +103,9 @@ export const getKeepaEnqueueMinRefreshIntervalMs = (
     const policyBucket = getKeepaRefreshPolicyBucketKey(isMerchListing, rootCategoryBsr);
     switch (policyBucket) {
         case 'daily':
-            return KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
+            return (rootCategoryBsr ?? Number.POSITIVE_INFINITY) < KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD
+                ? KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS
+                : KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
         case 'weekly':
             return KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
         case 'onDemand':

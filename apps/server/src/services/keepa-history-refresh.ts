@@ -15,8 +15,10 @@ const KEEPA_MIN_INCREMENTAL_HISTORY_DAYS = 30;
 const KEEPA_INCREMENTAL_BUFFER_DAYS = 7;
 const KEEPA_DISPATCH_HOLD_MS = 5 * 60 * 1000;
 const KEEPA_MIN_TOKEN_BUFFER = 0;
-const KEEPA_TOKENS_PER_HISTORY_FETCH = 2;
-const KEEPA_PROCESS_MAX_BATCH_SIZE = 10;
+// A history fetch measures one token. The durable reservation enforces the real budget and the
+// live reserve, so dispatch only needs to keep up with the refill: one minute's worth per run.
+const KEEPA_TOKENS_PER_HISTORY_FETCH = 1;
+const KEEPA_DEFAULT_REFILL_PER_MINUTE = 20;
 const keepaProvider = createKeepaProvider();
 
 export type KeepaHistoryRefreshQueueItem = {
@@ -103,7 +105,8 @@ export const getKeepaHistoryRefreshQueueBatchSize = () => {
         tokensAvailableForDispatch / KEEPA_TOKENS_PER_HISTORY_FETCH
     );
 
-    return Math.max(0, Math.min(KEEPA_PROCESS_MAX_BATCH_SIZE, tokenConstrainedBatchSize));
+    const refillPerMinute = tokenState.refillRate ?? KEEPA_DEFAULT_REFILL_PER_MINUTE;
+    return Math.max(0, Math.min(refillPerMinute, tokenConstrainedBatchSize));
 };
 
 export const getKeepaHistoryRefreshQueueBatchSizeWithFreshTokens = async () => {

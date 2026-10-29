@@ -4,6 +4,8 @@ import { keepaHistoryRefreshQueue } from '@/db/schema';
 import {
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
+    KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD,
+    KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
     KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
 } from '@/services/keepa-refresh-policy';
@@ -41,7 +43,18 @@ export const getKeepaScheduledRefreshCandidates = async ({
           )
           AND (
             (
-                p.root_category_bsr < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
+                p.root_category_bsr < ${KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD}
+                AND (
+                    p.keepa_fetched_at IS NULL
+                    OR p.keepa_fetched_at <= now() - (
+                        ${KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
+                    )
+                )
+            )
+            OR
+            (
+                p.root_category_bsr >= ${KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD}
+                AND p.root_category_bsr < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
                 AND (
                     p.keepa_fetched_at IS NULL
                     OR p.keepa_fetched_at <= now() - (

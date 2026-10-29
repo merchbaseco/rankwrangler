@@ -3,6 +3,7 @@ import { db } from '@/db/index';
 import { products } from '@/db/schema';
 import {
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
+    KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
 } from '@/services/keepa-refresh-policy';
 
@@ -13,18 +14,22 @@ type HistoryAdmissionCapacity = Readonly<{
 }>;
 
 export const getHistoryAdmissionForecast = ({
+    twiceDaily,
     daily,
     weekly,
     productCost,
     refillRate,
 }: {
+    twiceDaily: number;
     daily: number;
     weekly: number;
     productCost: number;
     refillRate: number;
 }) => ({
-    projectedDailyTokens: (daily + weekly / 7) * productCost,
-    protectedDailyTokens: refillRate * 60 * 24 * 0.5 * 0.9,
+    projectedDailyTokens: (twiceDaily * 2 + daily + weekly / 7) * productCost,
+    // Scheduled refreshes may plan on 90% of the daily refill; the rest covers live requests,
+    // first-time history and keyword searches.
+    protectedDailyTokens: refillRate * 60 * 24 * 0.9,
 });
 
 export const admitProductHistory = async (capacity: HistoryAdmissionCapacity | null) => {
@@ -43,7 +48,8 @@ export const admitProductHistory = async (capacity: HistoryAdmissionCapacity | n
         );
         const [population] = await tx
             .select({
-                daily: sql<number>`count(*) FILTER (WHERE ${products.rootCategoryBsr} < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD})::int`,
+                twiceDaily: sql<number>`count(*) FILTER (WHERE ${products.rootCategoryBsr} < ${KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD})::int`,
+                daily: sql<number>`count(*) FILTER (WHERE ${products.rootCategoryBsr} >= ${KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD} AND ${products.rootCategoryBsr} < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD})::int`,
                 weekly: sql<number>`count(*) FILTER (WHERE ${products.rootCategoryBsr} >= ${KEEPA_DAILY_AUTO_BSR_THRESHOLD})::int`,
             })
             .from(products)
@@ -74,9 +80,11 @@ export const admitProductHistory = async (capacity: HistoryAdmissionCapacity | n
         let admitted = 0;
         let paused = 0;
         for (const candidate of candidates) {
+            const bsr = candidate.bsr ?? Number.POSITIVE_INFINITY;
             const cost =
-                capacity.productCost /
-                ((candidate.bsr ?? Infinity) < KEEPA_DAILY_AUTO_BSR_THRESHOLD ? 1 : 7);
+                bsr < KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD
+                    ? capacity.productCost * 2
+                    : capacity.productCost / (bsr < KEEPA_DAILY_AUTO_BSR_THRESHOLD ? 1 : 7);
             const canAdmit =
                 !capacity.newAdmissionsPaused &&
                 projectedDailyTokens + cost < forecast.protectedDailyTokens;

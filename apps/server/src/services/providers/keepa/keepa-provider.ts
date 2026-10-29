@@ -19,13 +19,9 @@ const KEEPA_TOKEN_STATE_STALE_MS = 60 * 1000;
 const KEEPA_UPDATE_HOURS = 1;
 
 export class KeepaProvider {
-    private readonly limiter = new Bottleneck({
-        maxConcurrent: 1,
-        minTime: 3000,
-        reservoir: 20,
-        reservoirRefreshAmount: 20,
-        reservoirRefreshInterval: 60 * 1000,
-    });
+    // Pacing only: the durable token reservation decides what may be spent, and live requests jump
+    // the queue. Two calls at a time keep one slow save from stalling the refill.
+    private readonly limiter = new Bottleneck({ maxConcurrent: 2, minTime: 1000 });
     private readonly deps: KeepaProviderDeps;
     private readonly tokenState = {
         tokensConsumed: null as number | null,

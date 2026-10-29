@@ -49,14 +49,15 @@ describe('standing history admission', () => {
             getAutomaticHistoryDecision({ ...product, rootCategoryBsr: 1_000_000 }, now)
         ).toEqual({ shouldRefresh: false, reason: 'not_eligible' });
     });
-    it('forecasts daily and weekly cohorts together against protected history flow', () => {
+    it('forecasts 12-hour, daily and weekly cohorts against 90% of the daily refill', () => {
         expect(
             getHistoryAdmissionForecast({
-                daily: 131,
+                twiceDaily: 10,
+                daily: 121,
                 weekly: 448,
                 productCost: 2,
                 refillRate: 20,
             })
-        ).toEqual({ projectedDailyTokens: 390, protectedDailyTokens: 12960 });
+        ).toEqual({ projectedDailyTokens: 410, protectedDailyTokens: 25920 });
     });
 });
