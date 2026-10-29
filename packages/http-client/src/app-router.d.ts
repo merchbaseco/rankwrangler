@@ -514,7 +514,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							intervalDays: number | null;
 						}[];
 						nextCursor: {
-							sort: "work" | "newest";
+							sort: "fresh" | "work" | "newest" | "score" | "medianBsr" | "merch";
 							asOf: string;
 							key: [
 								number,
@@ -577,7 +577,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						bucket?: "day" | "week" | "auto" | "month" | undefined;
+						bucket?: "week" | "day" | "auto" | "month" | undefined;
 						days?: unknown;
 						endAt?: unknown;
 						limit?: unknown;

@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.13.0 - 2026-10-28
+
+### Added
+
+- Rebuild the website on HeroUI Pro: Explore and Keywords grids with filter sidebars and counts,
+  KPI bands, BSR sparklines, a pager, and a full Product page.
+- Drive keywords from Brand Analytics searches and keyword themes for every Merch product type,
+  with five relevant keywords selected per product and collection run as gated jobs.
+- Detect Merch products by part number and keep scans Merch-only; the Merch re-check can demote
+  false positives.
+- Push keyword, sync and log changes live over the tRPC WebSocket.
+
+### Changed
+
+- Breaking: public keyword reads replace `state`, `status` and `untrackedReason` with `stage`
+  (`graduated`, `trial`, `dropped`, `untracked`) and `freshness` (`live`, `needsSync`, `syncing`),
+  and add `searchFrequencyRank`.
+- Re-check graduated keywords ahead of trials, tune scan rate and depth with daily provider
+  ceilings, and let live searches win Keepa capacity over background work.
+
+### Fixed
+
+- Answer live catalog searches before saving Product history, and record why failed searches
+  failed.
+- Adapt Ads pacing to 429 responses and drop Keepa's no-category sentinel rank.
+
 ## v0.12.0 - 2026-10-26
 
 ### Added
