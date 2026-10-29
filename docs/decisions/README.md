@@ -20,7 +20,7 @@ These pages explain choices that should survive individual implementations.
 | [Background jobs](background-jobs.md) | Understand why background work runs as small entity jobs behind provider-gated queues fed by schedulers. |
 | [Provider telemetry and bridges](provider-telemetry.md) | Understand why raw Provider attempts are short-lived and external calls live behind typed bridges. |
 | [Amazon listing status](amazon-listing-status.md) | Understand why listing existence is active/deleted and separate from offers, inventory, and thumbnails. |
-| [Website visual direction](website-visual-direction.md) | Understand the dense paper style, BSR tier palette, card table and shelf the website redesign targets. |
+| [Website visual direction](website-visual-direction.md) | Understand the Grid layout (banner, filter sidebar, KPI header, paged grid), BSR tier palette and Top 10 shelf the website uses. |
 
 Shipped behavior belongs in [Product](../product/README.md). Exact executable contracts belong in
 [Reference](../reference/README.md).

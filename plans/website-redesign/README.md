@@ -19,6 +19,16 @@ thumbnails, and every number is sample data. Site-wide totals are left as `[N]`.
 | `keywords.dc.html` | The keyword table: search-rank trend, Top 10 shelf, median BSR, fresh sellers, click share and mining state, sortable and filterable by facet. |
 | `product.dc.html` | A Product: art and listing properties, a six-stat strip, log-scale rank history with tier bands, keywords and nearby Products. |
 | `card-anatomy.dc.html` | The Product card's parts, the five BSR tiers and the niche facet chips. |
+| `explore-terminal.dc.html` | Explore under the command bar: a dense ranked table, a detail pane and a risers ticker. |
+| `keywords-terminal.dc.html` | Keywords under the command bar: a dense keyword table and a keyword detail pane. |
+
+## Terminal command bar (October 27, 2026)
+
+The terminal command-bar direction ("4a · Command bar" on the canvas) superseded the card table.
+Every route sits under one 32px bar (mark, `>` search with ⌘K, view tabs with `g` shortcuts in
+place of the mock's F-keys, live status cells, theme, account) and is laid out as hairline panes
+of 24px rows in 13px Geist Mono, with Onest kept for product names. `explore.dc.html`, `keywords.dc.html` and `product.dc.html` remain
+as the record of the card-table direction; the two `*-terminal` mocks are the current target.
 
 ## Competitive research
 

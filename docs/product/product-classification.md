@@ -31,7 +31,7 @@ does not count, because other sellers copy those titles. A new unclassified Prod
 `null`. For a recognized Merch listing, RankWrangler also preserves the seller-authored bullets
 after removing template text.
 
-The dashboard Products page shows Merch listings by default; its Listing Type filter switches to
+The dashboard Explore grid shows Merch listings by default; its Listing type filter switches to
 all listings, known non-Merch, or unknown.
 
 The signal controls workflows such as scheduled Keepa refresh eligibility. It describes listing

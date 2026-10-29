@@ -1,0 +1,237 @@
+/*
+ * The Grid direction's structural classes (Grid J/K Explore, Grid I Keywords,
+ * OptsL row marks): the filter sidebar, the grid card and status bar, the KPI header's column spans and bands, and the grid's own cells
+ * and marks. HeroUI parts are themed in overrides.css; these are product
+ * elements no HeroUI component draws. Sizes come from tokens.css.
+ */
+
+@layer components {
+    /* ---------------------------------------------------------------------------------------------
+     * Screen: sidebar beside the main column
+     * -------------------------------------------------------------------------------------------*/
+    .grid-screen {
+        display: flex;
+        flex: 1 1 0;
+        min-height: 0;
+    }
+
+    /* The 236px filter column (Grid J `.side`), ruled off from the grid; it scrolls if tall. */
+    .grid-sidebar {
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        gap: calc(var(--spacing-base) * 5);
+        width: var(--sidebar-width);
+        padding: calc(var(--spacing-base) * 4) calc(var(--spacing-base) * 4)
+            calc(var(--spacing-base) * 4.5);
+        overflow-y: auto;
+        border-right: 1px solid var(--border);
+    }
+
+    /* In the narrow-window Sheet the same column fills the sheet body instead. */
+    .grid-sidebar--sheet {
+        width: auto;
+        padding: 0;
+        border-right: 0;
+    }
+
+    /*
+     * The KPI header, grid and pager fill the shell right of the sidebar, edge to edge to its top,
+     * right and bottom (the shell's own corner clips them); the grid takes the height and scrolls.
+     */
+    .grid-main {
+        display: flex;
+        flex: 1 1 0;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+    }
+
+    /* A filling hairline grid (and its row-menu trigger) takes the column and scrolls inside it. */
+    .grid-main > [data-slot="context-menu-trigger"],
+    .data-grid.hairline-grid--fill {
+        flex: 1 1 0;
+        min-height: 0;
+    }
+
+    /* An option: dot, label, then its count pushed to the trailing edge. Options read in the
+     * softer muted ink on the low-contrast shell; a chosen one brightens to ink. */
+    .filter-option {
+        color: var(--muted);
+        display: flex;
+        flex: 1 1 0;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 2.5);
+        min-width: 0;
+    }
+
+    :is(.checkbox, .radio)[data-selected="true"] .filter-option {
+        color: var(--foreground);
+    }
+
+    /* The option's tier or heat dot (Grid J `.tdot`). */
+    .filter-option__dot {
+        width: calc(var(--spacing-base) * 2);
+        height: calc(var(--spacing-base) * 2);
+        flex-shrink: 0;
+        border-radius: var(--radius-dot);
+        background-color: var(--tier-sw);
+    }
+
+    /* Counts in the figures face, muted, trailing (Grid J `.ct`). */
+    .filter-count {
+        margin-inline-start: auto;
+        color: var(--muted);
+        font-family: var(--font-mono);
+        /* The 13px counts (mock `.ct`); the sidebar re-points `--text-sm` to 14px. */
+        font-size: var(--text-xs);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * KPI header: each cell spans the width tokens of its column group
+     * -------------------------------------------------------------------------------------------*/
+    /* Explore's template (Grid J `hx`): # · Design · Niche · BSR · 30d · 7d · Sold · Drops · Age · Price. */
+    .grid-kpis--explore {
+        --kpi-columns: var(--col-rank) minmax(0, 1fr) var(--col-niche) var(--col-bsr)
+            var(--col-spark) var(--col-d7) var(--col-sold) var(--col-drops) var(--col-age)
+            var(--col-price);
+    }
+
+    /* Keywords' template (Grid I): # · Keyword · Score · 12 weeks · Shelf · Median · New · Merch · Status. */
+    .grid-kpis--keywords {
+        --kpi-columns: var(--col-rank) minmax(0, 1fr) var(--col-score) var(--col-weeks)
+            var(--col-shelf) var(--col-median) var(--col-new) var(--col-merch) var(--col-status);
+    }
+
+    /* The Product page's figures: seven even cells, four then two across as the window narrows. */
+    .grid-kpis--product {
+        --kpi-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    /* Each cell spans its column group: Results over #, Design, Niche; Published over the rest. */
+    .grid-kpi--results {
+        grid-column: 1 / 4;
+    }
+
+    /* On Keywords the filter cell covers only # and Keyword. */
+    .grid-kpis--keywords > .grid-kpi--results {
+        grid-column: 1 / 3;
+    }
+
+    .grid-kpi:is(.grid-kpi--bsr, .grid-kpi--scores) {
+        grid-column: span 2;
+    }
+
+    .grid-kpi:is(.grid-kpi--published, .grid-kpi--queue) {
+        grid-column: span 3;
+    }
+
+    /* Over the name columns the band row is a hatch; the dot bands sit over their own columns. */
+    .grid-kpi > :is(.dot-band, .grid-kpi__hatch) {
+        display: block;
+        /* Bottom-aligned, so every cell's band shares one row however tall its header runs. */
+        margin-top: auto;
+        height: var(--kpi-band-height);
+        margin-inline: calc(var(--cell-inset) * -1);
+        margin-bottom: calc(var(--cell-inset) * -1);
+        border-top: 1px solid var(--border);
+    }
+
+    /* The dot before a KPI title, in its band's ink (Grid J `.kdot`). */
+    .kpi-dot {
+        width: calc(var(--spacing-base) * 2.5);
+        height: calc(var(--spacing-base) * 2.5);
+        flex-shrink: 0;
+        border-radius: var(--radius-dot);
+        background-color: var(--band-ink);
+    }
+
+    /* The figure's muted unit or context after it. */
+    .grid-kpi__suffix {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Over the name columns there is no figure series: a hatch holds the row (Grid J `.hatch`). */
+    .grid-kpi__hatch {
+        background-image: repeating-linear-gradient(
+            135deg,
+            var(--border) 0 1px,
+            transparent 1px 7px
+        );
+    }
+
+    /* The Product figures run four across below 80rem and two across below 64rem. */
+    @media (width < 80rem) {
+        .grid-kpis--product {
+            --kpi-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    @media (width < 64rem) {
+        .grid-kpis--product {
+            --kpi-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    /* Narrow screens keep the name and rank KPIs; the others' columns have gone. */
+    @media (width < 48rem) {
+        .grid-kpi:is(
+                .grid-kpi--d7,
+                .grid-kpi--sold,
+                .grid-kpi--published,
+                .grid-kpi--scores,
+                .grid-kpi--mined,
+                .grid-kpi--median,
+                .grid-kpi--queue
+            ) {
+            display: none;
+        }
+
+        /* Keywords keeps one cell on a phone; it takes the whole row. */
+        .grid-kpis--keywords > .grid-kpi--results {
+            grid-column: 1 / -1;
+        }
+
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Pager footer
+     * -------------------------------------------------------------------------------------------*/
+    /* The pager's figures in the figures face, in ink against the muted words. */
+    .grid-pager__figure {
+        color: var(--foreground);
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .grid-pager__page {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 1.5);
+        padding-inline: calc(var(--spacing-base) * 2);
+        color: var(--muted);
+        white-space: nowrap;
+    }
+
+    /* The pager footer line (Grid J `.pager`): ruled off from the grid, 46px, on the surface. */
+    .grid-pager {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        height: var(--pager-height);
+        padding-inline: calc(var(--spacing-base) * 4);
+        border-top: 1px solid var(--border);
+    }
+
+    /* Density toggle and page size share the pager's trailing edge. */
+    .grid-pager__end {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 4);
+    }
+}

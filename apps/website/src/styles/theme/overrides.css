@@ -1,0 +1,225 @@
+/*
+ * BEM overrides of HeroUI parts, for what a token cannot express. HeroUI names
+ * every part with a BEM class so a theme can restyle it; its styling guide
+ * prescribes this `@layer components` block, imported after HeroUI's own so
+ * equal specificity wins on order. Rules here re-point tokens or adjust one
+ * property; none redraws a component's appearance. Each carries its reason.
+ */
+
+@layer components {
+    /* Menus and popovers are lists to scan: one token rescales every item. */
+    .context-menu__popover,
+    .dropdown__popover,
+    .menu {
+        --spacing: var(--spacing-dense);
+    }
+
+    /*
+     * Segmented (primary) tabs sit in the sunken well: HeroUI fills the list
+     * with `--default`, which is the hover tone in this palette.
+     */
+    .tabs:not(.tabs--secondary) > .tabs__list-container {
+        background-color: var(--surface-secondary);
+    }
+
+    /* HeroUI leaves menu-item glyphs unsized; one rule sizes the bare <Icon> muted. */
+    .menu-item > svg {
+        width: calc(var(--spacing-base) * 4.5);
+        height: calc(var(--spacing-base) * 4.5);
+        flex-shrink: 0;
+        color: var(--muted);
+    }
+
+    /* A radio is a circle: the dense ×-radius scale (`rounded-lg` is a `--radius` multiple) squares it. */
+    .radio {
+        --radius: var(--radius-dot);
+    }
+
+    /* Danger items keep their own colour on the glyph. */
+    .menu-item--danger > svg {
+        color: currentColor;
+    }
+
+    /* Chip and tab glyphs are unsized in HeroUI too; they match their text. */
+    .chip > svg {
+        width: calc(var(--spacing-base) * 3.5);
+        height: calc(var(--spacing-base) * 3.5);
+        flex-shrink: 0;
+    }
+
+    /* Tab glyphs (the Settings rail) at the menu glyph's size. */
+    .tabs__tab > svg {
+        width: calc(var(--spacing-base) * 4.5);
+        height: calc(var(--spacing-base) * 4.5);
+        flex-shrink: 0;
+    }
+
+    /* A tab may lead with an icon; HeroUI's tab has no gap and may wrap its label. */
+    .tabs__tab {
+        gap: calc(var(--spacing) * 2);
+        white-space: nowrap;
+    }
+
+    /* HeroUI's `break-all` splits ordinary words; `anywhere` keeps the long-token escape. */
+    .tooltip {
+        word-break: normal;
+        overflow-wrap: anywhere;
+    }
+
+    /*
+     * The mouse-following tooltip (components/ui/cursor-tooltip.tsx): the
+     * individual `translate` adds pointer-following motion on top of React
+     * Aria's placement transform, without enter/exit motion that reads as lag.
+     */
+    .tooltip.cursor-tooltip {
+        translate: var(--cursor-tooltip-x, 0) var(--cursor-tooltip-y, 0);
+        transition: none;
+        will-change: translate;
+    }
+
+    /* No enter/exit animation for a tooltip that trails the cursor. */
+    .tooltip.cursor-tooltip[data-entering="true"],
+    .tooltip.cursor-tooltip[data-exiting="true"] {
+        animation: none;
+    }
+
+    /* A cursor tooltip vanishes at once rather than lingering where the pointer left. */
+    .tooltip.cursor-tooltip[data-exiting] {
+        visibility: hidden;
+    }
+
+    /* Key caps are figures: the mono face, at the 18px key density. */
+    .kbd {
+        --spacing: var(--spacing-key);
+        font-family: var(--font-mono);
+    }
+
+    /* Settings on Modal's `cover` size, capped to a sheet that fits its content. */
+    .modal__dialog--cover.settings-modal {
+        width: min(60rem, calc(100vw - 2rem));
+        min-height: 0;
+        max-height: 40rem;
+    }
+
+    /* ItemCard text is `w-fit`, so long lines run under the action; cap it so `truncate` works. */
+    .item-card :is(.item-card__title, .item-card__description) {
+        max-width: 100%;
+    }
+
+    /* The Settings section rail holds a fixed column, wide enough for its longest label. */
+    .settings-modal .tabs[data-orientation="vertical"] > .tabs__list-container {
+        width: calc(var(--spacing-base) * 56);
+        flex-shrink: 0;
+        align-self: flex-start;
+    }
+
+    /* A grid scrolling in its own container keeps its column headers in view. */
+    .table__scroll-container .table__header {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+    }
+
+    /* Breadcrumbs are wayfinding: no hover underline (HeroUI taste rule). */
+    .breadcrumbs .breadcrumbs__link:hover,
+    .breadcrumbs .breadcrumbs__link[data-hovered="true"] {
+        text-decoration: none;
+    }
+
+    /* The current crumb reads in ink, not the link accent. */
+    .breadcrumbs .breadcrumbs__link[data-current="true"] {
+        color: var(--foreground);
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * The banner (features/shell/app-banner.tsx, Grid J/K): a Pro Navbar in the graphite scheme
+     * (its `dark` class) on the near-black ground, in both themes.
+     * -------------------------------------------------------------------------------------------*/
+
+    /* The banner's density and ink (its ground and fills are palette tokens, palette.css). */
+    .navbar.app-banner {
+        /* 3.75px steps put the tabs, buttons and avatar on the mock's 30px (`h-8`). */
+        --spacing: var(--spacing-banner);
+        --navbar-height: var(--banner-height);
+        /* Its own ink: on the light theme the inherited body ink is dark (the menu toggle draws in it). */
+        color: var(--foreground);
+    }
+
+    /* The mark, tabs and search sit closer than the Navbar's 16px default (mock: 14px, 16px inset). */
+    .navbar.app-banner .navbar__header {
+        gap: calc(var(--spacing-base) * 4);
+    }
+
+    /* The segmented view tabs float on the banner: no well behind the list. */
+    .navbar.app-banner .tabs > .tabs__list-container {
+        --surface-secondary: transparent;
+    }
+
+    /* The banner search: the faint white field with a hairline edge (mock `--b-fill`, `--b-line`). */
+    .search-field.banner-search .search-field__group {
+        --search-field-group-bg: var(--banner-fill);
+        --search-field-group-bg-hover: var(--banner-fill);
+        --search-field-group-bg-focus: var(--banner-fill);
+        --field-border: var(--banner-line);
+        --field-border-hover: var(--banner-line);
+    }
+
+    /* The search holds the mock's 440px and gives way before the controls do. */
+    .search-field.banner-search {
+        width: var(--banner-search-width);
+        min-width: 0;
+        flex-shrink: 1;
+    }
+
+    /* The account avatar is a filled circle in the brand orange with white initials (Grid J). */
+    .navbar.app-banner .avatar {
+        /* Its corner steps are `--radius` multiples; a dot radius makes every step a circle. */
+        --radius: var(--radius-dot);
+        --default: var(--avatar);
+        --danger-soft-foreground: var(--avatar-foreground);
+    }
+
+    /* Banner buttons keep their ring inside, so the near-black edge never clips it. */
+    .navbar.app-banner :is(.button, .navbar__menu-toggle) {
+        --tw-ring-inset: inset;
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Pane bars (features/shell/term-pane.tsx): stock `size="sm"` controls fill the 24px line.
+     * -------------------------------------------------------------------------------------------*/
+    .pane-bar :is(.button, .toggle-button, .tag, .segment, .close-button, .chip) {
+        --spacing: var(--spacing-pane-control);
+        /* The focus ring draws inside, so a scroller or the bar's own clip never cuts it. */
+        --tw-ring-inset: inset;
+    }
+
+    .key-value .button {
+        --spacing: var(--spacing-pane);
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Grid pager (features/grid/grid-pager.tsx): stock Pagination as the 46px footer line.
+     * -------------------------------------------------------------------------------------------*/
+
+    /* Summary, page controls and page size spread across the line at every width (mock). */
+    .grid-pager > .pagination {
+        flex-direction: row;
+    }
+
+    /* Counts never break mid-range ("1–50 of 84,310"). */
+    .grid-pager .pagination__summary {
+        white-space: nowrap;
+    }
+
+    /* The admin status pill keeps its label on one line as the banner narrows. */
+    .navbar.app-banner .button {
+        white-space: nowrap;
+    }
+
+    /* The page size's Rows label sits beside its trigger, not above it. */
+    .select.grid-pager__size {
+        flex-direction: row;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 3);
+    }
+}

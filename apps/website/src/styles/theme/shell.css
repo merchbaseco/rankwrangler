@@ -1,0 +1,79 @@
+/*
+ * The app frame (Handmade-style): one near-black page behind the banner, the
+ * page shell that sits on it under the banner, and the banner's own marks
+ * (status dot, ⌘K caps). Structural classes; sizes and colours from tokens.
+ */
+
+@layer components {
+    /* ---------------------------------------------------------------------------------------------
+     * Frame
+     * -------------------------------------------------------------------------------------------*/
+
+    /* The window behind the surface is the banner's near-black in both themes (Grid J/K). */
+    .app-frame {
+        background-color: var(--banner);
+    }
+
+    /* The page shell: one module on the near-black page, edge to edge under the banner with
+     * rounded top corners (Handmade). Screens fill it; the sidebar sits on it directly. */
+    .app-surface {
+        display: flex;
+        flex: 1 1 0;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+        position: relative;
+        border-radius: var(--radius-surface) var(--radius-surface) 0 0;
+        background-color: var(--shell);
+    }
+
+    /*
+     * The shell's faint top edge, drawn above everything inside it (the grid and KPI header
+     * paint their own fill), so it runs unbroken across sidebar and grid and round both corners.
+     */
+    .app-surface::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        border-radius: inherit;
+        box-shadow: inset 0 1px 0 var(--shell-edge);
+        pointer-events: none;
+    }
+
+    /* The banner's status dot: green while sync runs, accent while scanning, amber when paused. */
+    .status-dot {
+        display: inline-block;
+        width: calc(var(--spacing-base) * 2);
+        height: calc(var(--spacing-base) * 2);
+        flex-shrink: 0;
+        border-radius: var(--radius-dot);
+        background-color: var(--tier-steady-fg);
+    }
+
+    .status-dot--scanning {
+        background-color: var(--accent);
+    }
+
+    .status-dot--paused {
+        background-color: var(--warning);
+    }
+
+    /* Keyword status dots (Grid I): live green, needs sync grey, dropped/untracked hollow. */
+    .status-dot--needs-sync {
+        background-color: var(--muted);
+    }
+
+    .status-dot--idle {
+        background-color: transparent;
+        box-shadow: inset 0 0 0 1px var(--border);
+    }
+
+    /* The ⌘ K key caps at the search field's trailing edge. */
+    .banner-search__keys {
+        display: inline-flex;
+        flex-shrink: 0;
+        gap: calc(var(--spacing-base) * 1);
+        padding-inline-end: calc(var(--spacing-base) * 2);
+    }
+}
