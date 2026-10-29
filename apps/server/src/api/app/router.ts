@@ -38,6 +38,7 @@ import { statsSummary } from './stats-summary';
 import { syncControlChanged } from './sync-control-changed';
 import { syncControlGet } from './sync-control-get';
 import { syncControlSet } from './sync-control-set';
+import { systemStatus } from './system-status';
 
 export const appApiRouter = router({
     syncControl: router({ get: syncControlGet, set: syncControlSet, changed: syncControlChanged }),
@@ -79,6 +80,7 @@ export const appApiRouter = router({
     stats: router({
         summary: statsSummary,
     }),
+    system: router({ status: systemStatus }),
     product: router({
         get: productGet,
         keywords: productKeywords,

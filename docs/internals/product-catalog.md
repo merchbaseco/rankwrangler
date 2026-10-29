@@ -75,7 +75,7 @@ Cross-process claims prevent duplicate generation; an expired pending claim can 
 next request. The fingerprint includes title, image URL, and generator version, so unchanged names
 have no time-based refresh while changed inputs regenerate. Settings compares fingerprints with the
 current title and image to count Products needing regeneration. Generation events and physical Gemini
-and TypeSafe attempts feed the admin Settings metrics page. Other Product read paths do not invoke
+and TypeSafe attempts feed the admin System Status page (`/status`). Other Product read paths do not invoke
 these providers.
 Opted-in reads require `RANKWRANGLER_GEMINI_API_KEY` and `RANKWRANGLER_TYPESAFE_API_KEY`.
 The TypeSafe key must be provisioned as a RankWrangler-owned credential in each active lifecycle

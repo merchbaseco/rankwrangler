@@ -252,7 +252,7 @@ budget: autocomplete seeds and prefixes are enqueued whenever they are due, and 
 allowed to grow. Autocomplete keeps its own pacing and daily ceiling, and the scheduler only tops its
 queue up to thirty jobs (about five minutes of starts) so it never floods.
 
-Settings → Metrics → Keyword jobs (`apps/website/src/features/settings/metrics/`) shows pause
+System Status → Pipeline detail → Keyword jobs (`apps/website/src/features/status/metrics/`) shows pause
 state, keywords waiting on a first-page scan (trials never scanned, and observed keywords whose
 recurring check is due with the oldest due time), the Brand Analytics import (last imported week, kept
 terms, new terms in the last import, terms awaiting trial, product-text terms awaiting their prefix
@@ -336,7 +336,8 @@ directory once. See [Realtime events](realtime-events.md).
 
 ## Pause and resume
 
-The Keywords page has one admin-only Pause sync / Resume sync control for the keyword pipeline. It
+System Status (`/status`, Keywords → Freshness) has the one admin-only Pause / Resume control for
+the keyword pipeline. It
 controls refresh work only: the keyword scheduler (due scans and autocomplete seeds) and the gated
 scan and autocomplete queues. The weekly Brand Analytics import and keyword listing always run,
 because they are free and spend no scan capacity; paused, new keywords simply wait in Queued.

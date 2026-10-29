@@ -75,7 +75,7 @@ const databaseHealthProbes: ServiceHealthProbes = {
     },
 };
 
-const spapiCatalogOverdueCondition = (now: Date) => {
+export const spapiCatalogOverdueCondition = (now: Date) => {
     const freshness = or(
         ...SPAPI_REFRESH_POLICY_BUCKETS.map(bucket => {
             const fetchedBefore = dueBefore(
@@ -115,7 +115,7 @@ const spapiCatalogOverdueCondition = (now: Date) => {
     );
 };
 
-const keepaHistoryOverdueCondition = (now: Date) => {
+export const keepaHistoryOverdueCondition = (now: Date) => {
     const eligibleBefore = dueBefore(now, 0, KEEPA_HISTORY_SCHEDULER_LAG_MS);
     const dailyFetchedBefore = dueBefore(
         now,
@@ -149,7 +149,7 @@ const keepaHistoryOverdueCondition = (now: Date) => {
     );
 };
 
-const catalogQueriesOverdueCondition = (now: Date) =>
+export const catalogQueriesOverdueCondition = (now: Date) =>
     and(
         sql`${catalogQueries.tier} <> 'stored'`,
         lte(catalogQueries.nextDueAt, dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS)),

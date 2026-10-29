@@ -109,6 +109,10 @@
      * sw = the saturated swatch a small solid block needs (shelf blocks,
      * legend squares), where the ink is too dark and the fill too pale.
      */
+    /* System Status: overdue history is steady's deeper shade; the banner dot's halo. */
+    --status-due: #2f7d66;
+    --status-halo-ok: rgba(42, 127, 105, 0.22);
+    --status-halo-attention: rgba(154, 101, 18, 0.22);
     --tier-elite-sw: #7b57ef;
     --tier-hot-sw: #ee6a3c;
     --tier-strong-sw: #f0b13d;
@@ -217,6 +221,10 @@
 
     /* Multiplying onto graphite would black the art out; it sits as shot. */
     --art-blend: normal;
+
+    --status-due: #2e7562;
+    --status-halo-ok: rgba(127, 217, 190, 0.22);
+    --status-halo-attention: rgba(240, 198, 117, 0.22);
 
     /* Slow's swatch darkens so an empty-ish shelf stays quiet. */
     --tier-elite-sw: #8f70f5;

@@ -1,4 +1,4 @@
-/** Every admin metrics read polls while Settings is open, and stops in the background. */
+/** Every admin metrics read polls while System Status is open, and stops in the background. */
 export const metricsQueryOptions = {
     refetchInterval: 10_000,
     refetchIntervalInBackground: false,

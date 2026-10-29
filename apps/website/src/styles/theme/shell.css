@@ -41,7 +41,7 @@
         pointer-events: none;
     }
 
-    /* The banner's status dot: green while sync runs, accent while scanning, amber when paused. */
+    /* A status dot: green by default; keyword rows add needs-sync and idle variants below. */
     .status-dot {
         display: inline-block;
         width: calc(var(--spacing-base) * 2);
@@ -49,14 +49,6 @@
         flex-shrink: 0;
         border-radius: var(--radius-dot);
         background-color: var(--tier-steady-fg);
-    }
-
-    .status-dot--scanning {
-        background-color: var(--accent);
-    }
-
-    .status-dot--paused {
-        background-color: var(--warning);
     }
 
     /* Keyword status dots (Grid I): live green, needs sync grey, dropped/untracked hollow. */

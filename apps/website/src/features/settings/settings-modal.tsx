@@ -1,25 +1,15 @@
 import { Modal, Tabs, useMediaQuery } from '@heroui/react';
 import { useState } from 'react';
 import { Icon } from '@/components/ui/icon';
-import { useAdminAccess } from '@/hooks/use-admin-access';
 import { AccessSettings } from './access-settings';
 import { AccountSettings } from './account-settings';
 import { GeneralSettings } from './general-settings';
-import { MetricsSettings } from './metrics/metrics-settings';
 import { NotificationSettings } from './notification-settings';
-import {
-    isMetricsPage,
-    type MetricsPage,
-    type SettingsPage,
-    type SettingsSection,
-    sectionOf,
-    settingsSections,
-} from './settings-navigation';
+import { type SettingsPage, settingsSections } from './settings-navigation';
 
 /**
  * Settings: a stock Modal holding vertical Tabs (a horizontal row on a phone),
- * one tab per section. Metrics
- * is one admin-only section with its own tabs, so the rail stays a short list.
+ * one tab per section. System metrics live on System Status (`/status`), not here.
  * The shell remounts this per open (`key`), so `initialPage` is read once.
  */
 export const SettingsModal = ({
@@ -31,15 +21,9 @@ export const SettingsModal = ({
     onOpenChange: (open: boolean) => void;
     open: boolean;
 }) => {
-    const { isAdmin } = useAdminAccess();
     // A phone has no room for the rail beside the page, so the sections become a scrolling row.
     const isWide = useMediaQuery('(min-width: 48rem)', { initializeWithValue: true });
-    const [section, setSection] = useState<SettingsSection>(sectionOf(initialPage));
-    const [metricsPage, setMetricsPage] = useState<MetricsPage>(
-        isMetricsPage(initialPage) ? initialPage : 'metrics-jobs'
-    );
-    const sections = settingsSections.filter(item => isAdmin || !item.adminOnly);
-    const selectedSection = sections.some(item => item.id === section) ? section : 'general';
+    const [section, setSection] = useState<SettingsPage>(initialPage);
 
     return (
         <Modal.Backdrop isDismissable isOpen={open} onOpenChange={onOpenChange}>
@@ -53,13 +37,13 @@ export const SettingsModal = ({
                         <Tabs
                             align="start"
                             className="h-full min-h-0"
-                            onSelectionChange={key => setSection(key as SettingsSection)}
+                            onSelectionChange={key => setSection(key as SettingsPage)}
                             orientation={isWide ? 'vertical' : 'horizontal'}
-                            selectedKey={selectedSection}
+                            selectedKey={section}
                         >
                             <Tabs.ListContainer className="max-md:overflow-x-auto">
                                 <Tabs.List aria-label="Settings sections">
-                                    {sections.map(item => (
+                                    {settingsSections.map(item => (
                                         <Tabs.Tab id={item.id} key={item.id}>
                                             <Icon icon={item.icon} />
                                             {item.label}
@@ -80,14 +64,6 @@ export const SettingsModal = ({
                             <Tabs.Panel className="min-h-0 overflow-y-auto" id="account">
                                 <AccountSettings />
                             </Tabs.Panel>
-                            {isAdmin ? (
-                                <Tabs.Panel className="min-h-0 overflow-y-auto" id="metrics">
-                                    <MetricsSettings
-                                        onPageChange={setMetricsPage}
-                                        page={metricsPage}
-                                    />
-                                </Tabs.Panel>
-                            ) : null}
                         </Tabs>
                     </Modal.Body>
                 </Modal.Dialog>

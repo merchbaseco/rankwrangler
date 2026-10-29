@@ -16,7 +16,9 @@ magical "find opportunities" score.
   Amazon SP-API and Keepa.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity, provider health, and bounded raw Provider-attempt telemetry through
-  admin surfaces.
+  admin surfaces. Admins get a banner status dot that opens System Status (`/status`): pipeline
+  schedules, indexing progress for Products and keywords, provider usage against allowance, refresh
+  cadence per BSR bucket, and the full event log.
 - Access the public Merchbase-credential surface from `rw` or `@rankwrangler/http-client`.
 - Explore Keepa-backed Catalog searches in the dashboard and retain source-ordered evidence in
   durable Search runs.
