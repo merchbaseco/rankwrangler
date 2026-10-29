@@ -12,7 +12,7 @@ describe('collectDueCatalogQueriesJob', () => {
             everyMs: 60_000,
         });
         expect(collectDueCatalogQueriesJob.startupSummary).toBe(
-            'minute scan for active weekly Catalog keyword refreshes'
+            'minute scan for admitted keyword heads and bounded discovery'
         );
     });
 });

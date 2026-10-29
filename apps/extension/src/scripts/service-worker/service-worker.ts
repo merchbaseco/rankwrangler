@@ -1,3 +1,4 @@
+import { handleRecordKeywordSearch } from "./handlers/record-keyword-search";
 import { browser } from "webextension-polyfill-ts";
 import { log } from "../../utils/logger";
 import type { BackgroundMessage } from "../content/types";
@@ -20,6 +21,8 @@ browser.runtime.onMessage.addListener((message: BackgroundMessage, _sender) => {
 	log.info("Received message:", message);
 
 	switch (message.type) {
+		case "recordKeywordSearch":
+			return handleRecordKeywordSearch(message.term);
 		case "ping":
 			return Promise.resolve(handlePing(message));
 

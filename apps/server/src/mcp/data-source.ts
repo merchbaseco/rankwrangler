@@ -2,7 +2,7 @@ import type { Context } from '@/api/context';
 import { publicAppRouter } from '@/api/router-public';
 import {
     type KeywordGetMcpInput,
-    type KeywordHistoryMcpInput,
+    type KeywordResultsMcpInput,
     type KeywordSearchMcpInput,
     type ProductGetManyMcpInput,
     type ProductGetMcpInput,
@@ -36,6 +36,10 @@ export const createRankWranglerMcpDataSource = (ctx: Context): RankWranglerMcpDa
             }),
         },
         keyword: {
+            results: async (input: KeywordResultsMcpInput) => ({
+                data: await caller.keyword.results(input),
+                operation: 'results',
+            }),
             get: async (input: KeywordGetMcpInput) => ({
                 data: await caller.keyword.get(input),
                 operation: 'get',
@@ -43,10 +47,6 @@ export const createRankWranglerMcpDataSource = (ctx: Context): RankWranglerMcpDa
             search: async (input: KeywordSearchMcpInput) => ({
                 data: await caller.keyword.search(input),
                 operation: 'search',
-            }),
-            history: async (input: KeywordHistoryMcpInput) => ({
-                data: await caller.keyword.history(input),
-                operation: 'history',
             }),
         },
     };

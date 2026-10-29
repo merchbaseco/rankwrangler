@@ -202,6 +202,8 @@ export const keepaCategories = pgTable(
 );
 
 export { accessProjection, accessProjectionEvents } from './access-schema';
+export { automaticSyncControl } from './automatic-sync-schema';
+export { brandAnalyticsImports, brandAnalyticsSearchTerms } from './brand-analytics-schema';
 export {
     catalogQueries,
     catalogSearchResults,
@@ -209,18 +211,31 @@ export {
 } from './catalog-search-schema';
 export { rankwranglerCutoverGate } from './cutover-gate-schema';
 export {
+    brandDiscoveryProducts,
+    discoveryEvidence,
+    discoverySourceScans,
+    discoveryTargets,
+    keywordStandingObservations,
+} from './discovery-target-schema';
+export { historyAdmissionRollouts } from './history-admission-rollout-schema';
+export { keepaCapacityAttempts, keepaCapacityState } from './keepa-capacity-schema';
+export { keywordAutocomplete, keywordProviderCapacity } from './keyword-autocomplete-schema';
+export { keywordThemes } from './keyword-theme-schema';
+export {
+    keywordDiscoveryAttempts,
+    keywordExplorationPasses,
+    keywordProducts,
+} from './keyword-collection-schema';
+export { officialBrands } from './official-brand-schema';
+export {
     eventLogs,
     jobExecutionLogs,
     jobExecutions,
     operations,
 } from './ops-schema';
+export { productCutoutThumbnails } from './product-cutout-thumbnail-schema';
 export { products } from './product-schema';
 export { productShortNames } from './product-short-name-schema';
-export { productCutoutThumbnails } from './product-cutout-thumbnail-schema';
 export { providerAttempts } from './provider-telemetry-schema';
 export { rankwranglerServiceAccounts } from './service-account-schema';
-export {
-    topSearchTermsDatasets,
-    topSearchTermsKeywordDaily,
-    topSearchTermsSnapshots,
-} from './top-search-terms-schema';
+export { spApiCatalogCapacity } from './spapi-capacity-schema';

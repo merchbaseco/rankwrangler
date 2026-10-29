@@ -198,82 +198,17 @@ export interface ContextRequest {
 		host?: string;
 	};
 }
-declare const TOP_SEARCH_TERMS_REPORT_PERIODS: readonly [
-	"DAY",
-	"WEEK"
+declare const keywordStages: readonly [
+	"graduated",
+	"trial",
+	"dropped",
+	"untracked"
 ];
-declare const TOP_SEARCH_TERMS_REFRESH_TRIGGERS: readonly [
-	"requested",
-	"automatic"
+declare const keywordFreshness: readonly [
+	"live",
+	"needsSync",
+	"syncing"
 ];
-export type TopSearchTermsReportPeriod = (typeof TOP_SEARCH_TERMS_REPORT_PERIODS)[number];
-export type TopSearchTermsRefreshTrigger = (typeof TOP_SEARCH_TERMS_REFRESH_TRIGGERS)[number];
-export type SearchTermsTrendDelta = {
-	rankDelta: number | null;
-	clickShareDelta: number | null;
-	conversionShareDelta: number | null;
-};
-export type SearchTermsTrendDeltas = {
-	d1: SearchTermsTrendDelta;
-	d7: SearchTermsTrendDelta;
-	d30: SearchTermsTrendDelta;
-};
-export interface KeywordEvidence {
-	searchFrequencyRank: number;
-	clickShareTop3: number;
-	conversionShareTop3: number;
-	topRowsCount: number;
-	isMerchRelevant: boolean;
-	merchReason: string;
-}
-export interface KeywordCurrent {
-	keyword: string;
-	marketplaceId: string;
-	reportPeriod: TopSearchTermsReportPeriod;
-	dataStartDate: string;
-	dataEndDate: string;
-	observedDate: string;
-	fetchedAt: string;
-	trigger: TopSearchTermsRefreshTrigger;
-	evidence: KeywordEvidence;
-}
-export interface KeywordSearchItem extends KeywordEvidence {
-	keyword: string;
-	observedDate: string;
-	trigger: TopSearchTermsRefreshTrigger;
-}
-export interface KeywordSearchSummary {
-	marketplaceId: string;
-	reportPeriod: TopSearchTermsReportPeriod;
-	dataStartDate: string | null;
-	dataEndDate: string | null;
-	observedDate: string | null;
-	fetchedAt: string | null;
-	totalFiltered: number;
-}
-export interface KeywordSearchResponse {
-	status: "ready" | "empty";
-	items: KeywordSearchItem[];
-	nextCursor: number | null;
-	summary: KeywordSearchSummary;
-}
-export interface KeywordHistoryPoint {
-	observedDate: string;
-	searchFrequencyRank: number;
-	clickShareTop3: number;
-	conversionShareTop3: number;
-	trigger: TopSearchTermsRefreshTrigger;
-}
-export interface KeywordHistoryResponse {
-	keyword: string;
-	marketplaceId: string;
-	reportPeriod: TopSearchTermsReportPeriod;
-	rangeDays: number;
-	status: "ready" | "empty";
-	latestObservedDate: string | null;
-	points: KeywordHistoryPoint[];
-	deltas: SearchTermsTrendDeltas;
-}
 export type PublicCutoutThumbnail = {
 	status: "available";
 	url: string;
@@ -324,7 +259,7 @@ export interface Product {
 		};
 	};
 }
-export interface ProductSearchProduct {
+export interface KeywordResultsProduct {
 	marketplaceId: string;
 	asin: string;
 	title: string | null;
@@ -348,12 +283,12 @@ export interface ProductSearchProduct {
 	} | null;
 	boughtInPastMonth: number | null;
 }
-export interface ProductSearch {
+export interface KeywordResults {
 	keyword: string;
 	searchedAt: string;
 	results: Array<{
 		organicSearchPlacement: number;
-		product: ProductSearchProduct;
+		product: KeywordResultsProduct;
 	}>;
 }
 export interface BasicProduct {
@@ -505,42 +440,93 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				get: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						keyword: string;
-						dataEndDate?: string | undefined;
-						dataStartDate?: string | undefined;
-						marketplaceId?: "ATVPDKIKX0DER" | undefined;
-						reportPeriod?: "DAY" | "WEEK" | undefined;
 					};
 					output: {
 						keyword: string;
-						status: "ready" | "empty";
-						current: KeywordCurrent | null;
+						data: {
+							createdAt: string;
+							lastCheckedAt: string | null;
+							nextCheckAt: string | null;
+							id: string;
+							queryId: string;
+							term: string;
+							stage: (typeof keywordStages)[number];
+							freshness: (typeof keywordFreshness)[number] | null;
+							retryScheduled: boolean;
+							heat: string;
+							score: number | null;
+							searchFrequencyRank: number | null;
+							sources: string[];
+							products: number;
+							merch: number;
+							intervalDays: number | null;
+						};
 					};
 					meta: object;
 				}>;
-				history: import("@trpc/server").TRPCQueryProcedure<{
+				results: import("@trpc/server").TRPCMutationProcedure<{
 					input: {
-						keyword: string;
-						marketplaceId?: "ATVPDKIKX0DER" | undefined;
-						rangeDays?: number | undefined;
-						reportPeriod?: "DAY" | "WEEK" | undefined;
+						term: string;
+						refresh?: boolean | undefined;
 					};
-					output: KeywordHistoryResponse;
+					output: KeywordResults;
 					meta: object;
 				}>;
 				search: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						text: string;
-						cursor?: number | undefined;
+						freshness?: "live" | "needsSync" | "syncing" | "all" | undefined;
+						sort?: "work" | "newest" | undefined;
+						stage?: "trial" | "graduated" | "dropped" | "untracked" | "all" | undefined;
 						limit?: number | undefined;
-						maxRank?: number | undefined;
-						merchOnly?: boolean | undefined;
-						minRank?: number | undefined;
-						dataEndDate?: string | undefined;
-						dataStartDate?: string | undefined;
-						marketplaceId?: "ATVPDKIKX0DER" | undefined;
-						reportPeriod?: "DAY" | "WEEK" | undefined;
+						heat?: "unrated" | "hot" | "warm" | "cold" | "all" | undefined;
+						cursor?: {
+							key: [
+								number,
+								number,
+								number,
+								number,
+								number,
+								number,
+								string
+							];
+							asOf: string;
+							sort: "work" | "newest";
+						} | undefined;
 					};
-					output: KeywordSearchResponse;
+					output: {
+						items: {
+							createdAt: string;
+							lastCheckedAt: string | null;
+							nextCheckAt: string | null;
+							id: string;
+							queryId: string;
+							term: string;
+							stage: (typeof keywordStages)[number];
+							freshness: (typeof keywordFreshness)[number] | null;
+							retryScheduled: boolean;
+							heat: string;
+							score: number | null;
+							searchFrequencyRank: number | null;
+							sources: string[];
+							products: number;
+							merch: number;
+							intervalDays: number | null;
+						}[];
+						nextCursor: {
+							sort: "work" | "newest";
+							asOf: string;
+							key: [
+								number,
+								number,
+								number,
+								number,
+								number,
+								number,
+								string
+							];
+						} | null;
+					};
 					meta: object;
 				}>;
 			}>>;
@@ -591,7 +577,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						bucket?: "auto" | "day" | "week" | "month" | undefined;
+						bucket?: "day" | "week" | "auto" | "month" | undefined;
 						days?: unknown;
 						endAt?: unknown;
 						limit?: unknown;
@@ -601,12 +587,106 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					output: PublicProductHistory;
 					meta: object;
 				}>;
-				search: import("@trpc/server").TRPCMutationProcedure<{
+				search: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
-						term: string;
-						refresh?: boolean | undefined;
+						term?: string | undefined;
+						textFields?: "title" | "all" | undefined;
+						excludeWords?: string[] | undefined;
+						marketplaceIds?: string[] | undefined;
+						isMerchListing?: boolean | "unknown" | "all" | undefined;
+						amazonListingStatus?: "active" | "deleted" | "all" | undefined;
+						brands?: string[] | undefined;
+						excludeBrands?: string[] | undefined;
+						includeOfficialBrands?: boolean | undefined;
+						categoryIds?: number[] | undefined;
+						salesRank?: {
+							min?: number | undefined;
+							max?: number | undefined;
+						} | undefined;
+						price?: {
+							min?: number | undefined;
+							max?: number | undefined;
+						} | undefined;
+						monthlySold?: {
+							min?: number | undefined;
+							max?: number | undefined;
+						} | undefined;
+						firstAvailableAt?: {
+							after?: string | undefined;
+							before?: string | undefined;
+						} | undefined;
+						discoveredAt?: {
+							after?: string | undefined;
+							before?: string | undefined;
+						} | undefined;
+						updatedAt?: {
+							after?: string | undefined;
+							before?: string | undefined;
+						} | undefined;
+						facets?: {
+							facet: string;
+							name: string;
+						}[] | undefined;
+						sort?: "relevance" | "salesRankAsc" | "salesRankDesc" | "firstAvailableAtDesc" | "firstAvailableAtAsc" | "updatedAtAsc" | "updatedAtDesc" | "discoveredAtDesc" | "priceAsc" | "priceDesc" | "monthlySoldDesc" | undefined;
+						cursor?: string | null | undefined;
+						limit?: number | undefined;
 					};
-					output: ProductSearch;
+					output: {
+						coverage: {
+							keyword: string;
+							headCheckedAt: string | null;
+							exploration: {
+								source: "spapi";
+								pages: number;
+								observedAt: string | null;
+								budgetLimited: boolean;
+							} | null;
+						} | null;
+						items: {
+							marketplaceId: string;
+							asin: string;
+							title: string | null;
+							brand: string | null;
+							bullet1: string | null;
+							bullet2: string | null;
+							thumbnail: {
+								status: "available";
+								url: string;
+							} | {
+								status: "unavailable";
+								url?: undefined;
+							};
+							isMerchListing: boolean | null;
+							amazonListingStatus: AmazonListingStatus;
+							categoryId: number | null;
+							salesRank: number | null;
+							price: {
+								amountMinor: number;
+								currencyCode: string;
+							} | null;
+							firstAvailableAt: string | null;
+							discoveredAt: string;
+							updatedAt: string;
+							averages: {
+								last30Days: number | null;
+								last90Days: number | null;
+							};
+							demand: {
+								boughtInPastMonth: number | null;
+								salesRankDrops: {
+									last30Days: number | null;
+									last90Days: number | null;
+									last180Days: number | null;
+									last365Days: number | null;
+								};
+							};
+							facets: {
+								facet: string;
+								name: string;
+							}[];
+						}[];
+						nextCursor: string | null;
+					};
 					meta: object;
 				}>;
 			}>>;

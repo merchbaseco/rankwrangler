@@ -35,7 +35,12 @@ export type DevSeedEntity =
     | 'eventLog'
     | 'jobExecution'
     | 'jobExecutionLog'
-    | 'providerAttempt';
+    | 'providerAttempt'
+    | 'discoveryTarget'
+    | 'standingObservation'
+    | 'shortNameClaim'
+    | 'explorationPass'
+    | 'discoveryAttempt';
 
 const ENTITY_LANES: Record<DevSeedEntity, number> = {
     product: 1,
@@ -54,13 +59,16 @@ const ENTITY_LANES: Record<DevSeedEntity, number> = {
     jobExecution: 14,
     jobExecutionLog: 15,
     providerAttempt: 16,
+    discoveryTarget: 17,
+    standingObservation: 18,
+    shortNameClaim: 19,
+    explorationPass: 20,
+    discoveryAttempt: 21,
 };
 
 const LANE_STRIDE = 100_000_000;
 
-export interface DevSeedIdMinter {
-    (entity: DevSeedEntity): string;
-}
+export type DevSeedIdMinter = (entity: DevSeedEntity) => string;
 
 export const createIdMinter = (): DevSeedIdMinter => {
     const counters = new Map<DevSeedEntity, number>();

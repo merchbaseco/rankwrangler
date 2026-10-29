@@ -1,0 +1,130 @@
+/*
+ * Per-screen structural classes: the Product and Logs panes inside the content
+ * surface, their widths, and the narrow-window rules every screen shares
+ * (Grid columns, the banner). Like product.css, sizes come from tokens and only
+ * hairlines are literal.
+ */
+
+@layer components {
+    /* The banner's search slot: it holds the field at its width and gives way first. */
+    .page-toolbar {
+        display: flex;
+        flex: 0 1 auto;
+        align-items: center;
+        min-width: 0;
+        margin-inline-start: calc(var(--spacing-base) * 4);
+    }
+
+    /* A raw payload on the well (log details); replace with Pro CodeBlock if shiki is added. */
+    .term-code {
+        margin: 0;
+        padding: calc(var(--spacing-base) * 2) calc(var(--spacing-base) * 3);
+        overflow-x: auto;
+        border: 1px solid var(--separator);
+        border-radius: var(--radius-frame);
+        background-color: var(--surface-secondary);
+        font-family: var(--font-mono);
+        line-height: 1.5;
+    }
+
+    /* Product and Logs: a flexing main pane beside a fixed side pane. */
+    .term-pane:is(.log-table, .product-main) {
+        flex: 1 1 0;
+    }
+
+    /* Side panes keep their width while the main pane flexes. */
+    .term-pane:is(.log-detail, .product-rail) {
+        flex-shrink: 0;
+    }
+
+    /* The event pane. */
+    .term-pane.log-detail {
+        width: var(--pane-width-log);
+    }
+
+    /* The Product rail. */
+    .term-pane.product-rail {
+        width: var(--pane-width-product);
+    }
+
+    /* Stacked sections in a pane are ruled apart. */
+    .pane-section + .pane-section {
+        border-top: 1px solid var(--border);
+    }
+
+    /* Below 80rem the banner sheds the unbuilt views and grids their low-priority columns. */
+    @media (width < 80rem) {
+        .view-tabs__soon {
+            display: none;
+        }
+
+        /* Low-priority grid columns go rather than scrolling the grid sideways. */
+        .data-grid.hairline-grid .grid-col--wide {
+            display: none;
+        }
+    }
+
+    /* Below 64rem panes stack and share the height. */
+    @media (width < 64rem) {
+        .term-panes {
+            flex-direction: column;
+        }
+
+        /* Stacked panes share the height; desktop widths no longer apply. */
+        .term-panes > .term-pane {
+            width: auto;
+            flex: 1 1 0;
+        }
+
+        /* Stacked, the Product art stops filling the full window width. */
+        .product-thumb--hero {
+            width: min(100%, var(--thumb-hero-max));
+        }
+
+        /* The Product page scrolls as one column: its panes take their natural height, so the
+         * rail, figures, history and lists never overlap or clip one another. */
+        .term-panes:has(> .product-rail) {
+            overflow-y: auto;
+        }
+
+        .term-panes:has(> .product-rail) > .term-pane {
+            flex: none;
+        }
+    }
+
+    /* Under 40rem the art takes the full width above the listing (no side margin). */
+    @media (width < 40rem) {
+        .product-thumb--hero {
+            width: 100%;
+        }
+    }
+
+    /* On a phone grids keep rank, name and rank figure; the ⌘K hint and pane footers go. */
+    @media (width < 48rem) {
+        /* The search takes the banner's free width; the view tabs moved into the menu. */
+        .page-toolbar {
+            flex: 1 1 auto;
+            margin-inline-start: 0;
+        }
+
+        /* Key hint footers describe a keyboard a phone does not have. */
+        .pane-bar--bottom {
+            display: none;
+        }
+
+        /* The rest would scroll the grid sideways. */
+        .data-grid.hairline-grid .grid-col--secondary {
+            display: none;
+        }
+
+        /* The density toggle and page size go; the pager keeps the range and page turns. */
+        .grid-pager__end {
+            display: none;
+        }
+
+        /* The ⌘K hint goes; the field still answers ⌘K and `/`. */
+        .banner-search__keys {
+            display: none;
+        }
+    }
+}

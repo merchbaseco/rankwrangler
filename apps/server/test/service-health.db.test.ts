@@ -172,6 +172,9 @@ const insertProduct = async ({
     spApiFetchedAt?: Date | null;
 }) => {
     await db.insert(products).values({
+        historyAdmissionState: 'admitted',
+        historyAdmissionReason: 'legacy',
+        historyAdmittedAt: createdAt ?? NOW,
         amazonListingStatus,
         asin,
         createdAt,

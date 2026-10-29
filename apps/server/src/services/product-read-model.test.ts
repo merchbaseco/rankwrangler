@@ -3,7 +3,7 @@ import type { ProductInfo } from '@/types';
 import { PRODUCT_ENRICHMENT_DEADLINE_MS } from './product-enrichment-wait';
 import {
     getProductReadModel,
-    mapProductToCompactProductSearch,
+    mapProductToKeywordResultsProduct,
     mapProductToPublicProduct,
     type ProductReadModelDeps,
 } from './product-read-model';
@@ -350,7 +350,7 @@ describe('public Product read model', () => {
     it('maps a current Product to the compact Search projection', () => {
         const product = mapProductToPublicProduct(createProductInfo());
 
-        expect(mapProductToCompactProductSearch(product)).toEqual({
+        expect(mapProductToKeywordResultsProduct(product)).toEqual({
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B012345678',
             title: 'Garden shirt',

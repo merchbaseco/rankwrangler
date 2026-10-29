@@ -114,15 +114,33 @@ Changing a package means bumping its version in the same PR (patch, minor, or ma
 
 ### UI Component Rules (Website)
 
-- Prefer coss ui components before custom-styled elements.
-- coss registry: `https://coss.com/ui/llms.txt`
-- Component source format: `https://coss.com/ui/r/<component-name>.json`
-- Local component path: `apps/website/src/components/ui/`
-- coss snippets use `@base-ui/react`; this repo uses `@base-ui-components/react`.
-- Use theme token flow: `global.css` tokens -> `components/ui/*` -> feature components.
-- Feature components should not hardcode hex colors when a token exists.
-- Primary theme is dark near-black (`--primary: #141210`); reserve sage green for chart data.
-- If a reusable color is missing, add a token to `global.css`.
+- The UI system is HeroUI v3 (`@heroui/react` + `@heroui-pro/react`). Do not add Base UI, COSS,
+  shadcn, or Radix usage. `components/ui/` holds only product adapters (`icon.tsx`,
+  `cursor-tooltip.tsx`) plus legacy Base UI wrappers that are deleted as screens move over.
+- Use HeroUI components stock: props (`variant`, `size`, states) and compound parts. Read a
+  component's anatomy before wrapping its parts, and never restyle or cancel its padding/gap with a
+  call-site `className` (layout and overflow only). `src/lib/heroui-composition-contract.test.ts`
+  guards this.
+- Customization climbs one ladder and never skips a rung: a **token**
+  (`apps/website/src/styles/theme/tokens.css`, `palette.css`), then a **BEM override** in
+  `theme/overrides.css` or `grid-overrides.css` (`@layer components`, one-line reason each;
+  re-point tokens, never redraw a component), then a **structural class** (`theme/product.css`,
+  `shell.css`, `grid.css`, `grid-cells.css`, `mix.css`, `art.css`, `screens.css`), and only then a
+  **call-site class** for a genuine one-off. `styles/theme/` is the whole design system; do not
+  scatter overrides into feature CSS.
+- Documented exception: HeroUI sizes controls in `--spacing` multiples, so density is set by
+  re-pointing `--spacing` on a few whitelisted scopes only (menus, `.kbd`, the banner, the filter
+  sidebar, pane-bar and key/value controls). `heroui-theme-contract.test.ts` holds the list.
+- Colors are semantic tokens only (`bg-surface`, `text-muted`, `text-accent`, `bg-tier-hot-bg`, …).
+  Add a missing reusable color as a token in the theme file first; no hex or ad hoc mixes in features.
+- Cursor: controls keep the arrow; only links point. Use `cursor-(--cursor-interactive)`, never
+  `cursor-pointer`. Chrome text is not selectable; mark data people copy with `data-selectable-text`.
+- Icons come from `@hugeicons-pro/core-stroke-rounded` through `components/ui/icon.tsx`. Every
+  icon-only button carries a `Tooltip` and an `aria-label`.
+- Before building or reshaping UI, use the `heroui-react-pro` and `heroui-pro-design-taste` skills
+  and the HeroUI Pro MCP (`list_components` → `get_component_docs`, `get_css`). A mismatch you are
+  about to fix with CSS is often a component you have not looked for yet.
+- After changing a browser-runtime dependency, rerun `bun run setup` and restart the dev server.
 
 ## Process Playbook Index
 
@@ -154,8 +172,9 @@ RankWrangler follows the fleet cloud agent contract; set up or repair it with th
 The rest is RankWrangler's:
 
 - `.agents/cloud/install.sh` installs PostgreSQL (port `5433`, matching the schema), the Bun version
-  pinned by `packageManager` whenever the active one differs, resolves the GitHub Packages read
-  token from 1Password, and runs `bun install --frozen-lockfile`. Idempotent.
+  pinned by `packageManager` whenever the active one differs, resolves the install tokens
+  (GitHub Packages, Hugeicons, HeroUI Pro) from 1Password, and runs `scripts/setup-heroui.mjs`
+  (frozen install plus the HeroUI Pro dist). Idempotent.
 - `.agents/cloud/start.sh` starts the loopback cluster as the `postgres` account (Claude runs as
   root), provisions the role and database from the schema, and seeds synthetic development data.
   It returns; it never runs the dev servers.

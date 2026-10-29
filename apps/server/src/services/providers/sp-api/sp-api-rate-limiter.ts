@@ -73,8 +73,9 @@ export const getRateLimitTunedRps = ({
     currentRps: number;
     observedRateLimitRps: number;
 }) => {
-    const smoothed = EWMA_ALPHA * observedRateLimitRps + (1 - EWMA_ALPHA) * currentRps;
-    return Math.max(smoothed * RATE_LIMIT_SAFETY_MARGIN, MIN_RPS);
+    const target = observedRateLimitRps * RATE_LIMIT_SAFETY_MARGIN;
+    const smoothed = EWMA_ALPHA * target + (1 - EWMA_ALPHA) * currentRps;
+    return Math.max(Math.min(target, smoothed), MIN_RPS);
 };
 
 export const shouldApplyLimiterUpdate = ({

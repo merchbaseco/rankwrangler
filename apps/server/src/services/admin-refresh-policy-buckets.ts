@@ -1,53 +1,53 @@
 import { sql } from 'drizzle-orm';
-import { db } from '@/db/index.js';
+import { db } from '@/db/index';
 import {
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_REFRESH_POLICY_BUCKETS,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
     type KeepaRefreshPolicyBucketKey,
-} from '@/services/keepa-refresh-policy.js';
+} from '@/services/keepa-refresh-policy';
 import {
     BSR_THRESHOLD_1M,
-    BSR_THRESHOLD_200K,
     BSR_THRESHOLD_3M,
+    BSR_THRESHOLD_200K,
     BSR_THRESHOLD_500K,
     SPAPI_REFRESH_POLICY_BUCKETS,
     type SpApiRefreshPolicyBucketKey,
-} from '@/services/spapi-refresh-policy.js';
+} from '@/services/spapi-refresh-policy';
 
-type SpApiRefreshPolicyCountRow = {
+interface SpApiRefreshPolicyCountRow extends Record<string, unknown> {
     lt_200k: number;
     range_200k_500k: number;
     range_500k_1m: number;
     range_1m_3m: number;
     gte_3m: number;
     non_auto_refresh: number;
-};
+}
 
-type KeepaRefreshPolicyCountRow = {
+interface KeepaRefreshPolicyCountRow extends Record<string, unknown> {
     daily: number;
     weekly: number;
     on_demand: number;
     merch_missing_bsr: number;
     unknown: number;
     non_merch: number;
-};
+}
 
-export type SpApiRefreshPolicyBucketStat = {
+export interface SpApiRefreshPolicyBucketStat {
     key: SpApiRefreshPolicyBucketKey | 'nonAutoRefresh';
     label: string;
     refreshEveryLabel: string;
     count: number;
     isAutoRefresh: boolean;
-};
+}
 
-export type KeepaRefreshPolicyBucketStat = {
+export interface KeepaRefreshPolicyBucketStat {
     key: KeepaRefreshPolicyBucketKey;
     label: string;
     refreshEveryLabel: string;
     count: number;
     isAutoRefresh: boolean;
-};
+}
 
 export const getSpApiRefreshPolicyBuckets = async (): Promise<SpApiRefreshPolicyBucketStat[]> => {
     const counts = await querySpApiRefreshPolicyBucketCounts();
@@ -60,7 +60,7 @@ export const getSpApiRefreshPolicyBuckets = async (): Promise<SpApiRefreshPolicy
     };
 
     return [
-        ...SPAPI_REFRESH_POLICY_BUCKETS.map((bucket) => ({
+        ...SPAPI_REFRESH_POLICY_BUCKETS.map(bucket => ({
             key: bucket.key,
             label: bucket.label,
             refreshEveryLabel: bucket.refreshEveryLabel,
@@ -69,8 +69,8 @@ export const getSpApiRefreshPolicyBuckets = async (): Promise<SpApiRefreshPolicy
         })),
         {
             key: 'nonAutoRefresh',
-            label: 'Non-merch, unknown, or missing BSR',
-            refreshEveryLabel: 'No automatic refresh',
+            label: 'Outside numeric BSR schedule',
+            refreshEveryLabel: 'Unknown/Merch without BSR: bounded checks; non-Merch: none',
             count: counts.non_auto_refresh,
             isAutoRefresh: false,
         },
@@ -88,7 +88,7 @@ export const getKeepaRefreshPolicyBuckets = async (): Promise<KeepaRefreshPolicy
         nonMerch: counts.non_merch,
     };
 
-    return KEEPA_REFRESH_POLICY_BUCKETS.map((bucket) => ({
+    return KEEPA_REFRESH_POLICY_BUCKETS.map(bucket => ({
         key: bucket.key,
         label: bucket.label,
         refreshEveryLabel: bucket.refreshEveryLabel,
@@ -172,6 +172,8 @@ const queryKeepaRefreshPolicyBucketCounts = async (): Promise<KeepaRefreshPolicy
             coalesce(
                 count(*) FILTER (
                     WHERE is_merch_listing = true
+                    AND amazon_listing_status = 'active'
+                    AND history_admission_state = 'admitted'
                     AND root_category_bsr IS NOT NULL
                     AND root_category_bsr < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
                 ),
@@ -180,6 +182,8 @@ const queryKeepaRefreshPolicyBucketCounts = async (): Promise<KeepaRefreshPolicy
             coalesce(
                 count(*) FILTER (
                     WHERE is_merch_listing = true
+                    AND amazon_listing_status = 'active'
+                    AND history_admission_state = 'admitted'
                     AND root_category_bsr IS NOT NULL
                     AND root_category_bsr >= ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
                     AND root_category_bsr < ${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}

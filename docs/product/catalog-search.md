@@ -1,68 +1,43 @@
 ---
-summary: Defines external Product search, immutable Search-run evidence, and decaying keyword interest.
+summary: Defines dated keyword search observations and their separation from current catalog search.
 read_when:
-  - planning or implementing Catalog queries, Search runs, or keyword refresh
-  - deciding whether a request is stored catalog lookup, external Product search, or rank tracking
+  - interpreting keyword.results or retained Search-run placement
+  - deciding whether a request reads the Product database or collects external keyword evidence
 ---
 
-# Catalog Search
+# Keyword search observations
 
-**Public retrieval status:** The complete Product-search response below is the accepted target.
-Durable Search runs, dashboard history, and decaying keyword interest are current behavior.
+**Implementation status:** The split between `product.search` and `keyword.results` is prepared
+in source. Database migration and production deployment are pending.
 
-Catalog search collects external results and preserves what the source surfaced at a moment in
-time. It complements stored catalog lookup:
+`product.search` searches the current [Product catalog](product-catalog.md). `keyword.results`
+answers a different question, what the external source returned for a keyword when it was checked.
+It preserves the existing external-search capability under a keyword-specific name.
 
-| Capability | Meaning |
-| --- | --- |
-| Catalog lookup | Search RankWrangler's canonical stored Products in their current state. |
-| Product search | Execute a marketplace query, retain its Search run, and reconcile accepted results with canonical Products. |
+## Dated results
 
-## Contract
+Keyword results cover the US first page with up to 20 Products. The response includes the keyword,
+observation time, source-supplied placement, and compact current Product values. A source-supplied
+placement is useful evidence, not a guarantee of Amazon organic rank. Invalid or duplicate rows
+leave gaps. Retained membership and placement never change, while current Product values can.
 
-- Search covers the US marketplace, first page, and up to 20 Products.
-- One provider request supplies result Products and histories; RankWrangler does not make a second
-  history request for every ASIN.
-- The public response contains `keyword`, `searchedAt`, and source-ordered `results`. Each result
-  combines immutable `organicSearchPlacement` with a compact current Product projection: identity,
-  title, brand, resolved thumbnail, Merch classification, category, current sales rank, price, and
-  bought-in-the-past-month evidence.
-- A policy-current successful run can be reused. When no current run exists, the caller starts or
-  joins Search and Product-enrichment work and waits. Equivalent requests deduplicate.
-- Every requested Product search renews keyword interest for 30 days, including cached reuse. This
-  is the only activation event; there is no permanent subscription or manual toggle.
-- Active keywords are eligible for weekly automatic collection. Inactive keywords expire without
-  backfill. Each Search run retains `requested` or `automatic` provenance.
+A successful observation is reused for 24 hours. A missing or expired observation starts or joins
+collection, then waits for the run and Product enrichment. Explicit refresh requests a replacement
+run. Provider failures and caller deadlines preserve the existing retryable error behavior.
 
-Durable Search work is asynchronous internally, but public `product.search` returns final data from
-the caller's perspective. Its compact Product projection intentionally omits bullets, rank averages
-and drop windows, full demand, history, freshness, provider metadata, Operation, polling,
-pending-thumbnail, and status fields. Retryable provider failure or deadline exhaustion is the only
-temporary result.
+The Keywords dashboard shows the stored directory and its collection lifecycle. Dated Amazon
+search results remain available through keyword.results.
 
-The dashboard retains its Operation-driven loading and run-history workflow. It may show a pending
-thumbnail while enriching a retained Search run; public Search waits for that same Product work and
-resolves the thumbnail as available or unavailable.
+## Collection boundaries
 
-## Placement Evidence
+The existing external keyword-results request renews keyword interest for 30 days, including reuse.
+Admitted keywords receive adaptive checks based on demand and observed change. A normal database
+Product search records interest without extending that research lease or dispatching provider work.
 
-Organic search placement is the Product ordinal supplied for one Search run. Invalid or duplicate
-rows leave gaps rather than renumbering later Products. Search-run membership and placement are
-immutable evidence; the included Product projection is independent current state.
+Background exploration follows SP-API continuation tokens under daily request caps, adding Products
+to the same catalog. Search coverage distinguishes first-page keyword evidence from dated exploration.
+Neither source promises exhaustive Amazon coverage or continuous rank tracking. New listings do not
+automatically receive recurring history; history admission protects useful existing work and budget.
+RankWrangler exposes research evidence without scoring niches or recommending designs.
 
-Existing Search runs are opportunistic top-20 evidence under decaying keyword interest. RankWrangler
-does not expose standalone placement history or promise rank-tracking coverage or cadence. A future
-rank tracker requires deliberate multi-page collection, observed-depth semantics, and continuous
-bounded scheduling.
-
-## Boundaries
-
-- Search does not score niches, infer intent, or recommend a design.
-- Automatic collection is never enabled from popularity, Brand Analytics Top Search Terms, or
-  inferred seasonality.
-- Provider capacity, scheduling, and work attempts stay internal.
-- V1 does not include private tenant queries, additional pages or marketplaces, deliberate
-  multi-page rank tracking, arbitrary cadences, or raw provider payload retention.
-
-See [the accepted architecture decision](../decisions/catalog-search.md) for the storage and
-lifecycle tradeoffs.
+See [Public API](../reference/public-api.md#keyword-results) for the request and response contract.

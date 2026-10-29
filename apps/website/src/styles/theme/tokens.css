@@ -1,0 +1,259 @@
+/*
+ * RankWrangler design system, in HeroUI's own theme shape, split by rung of
+ * the customization ladder (AGENTS.md "UI Component Rules"), imported in this
+ * order by global.css:
+ *
+ *   theme/tokens.css     scale: spacing and density, radius, type, layout
+ *   theme/palette.css    light and dark colours mapped onto HeroUI's names, BSR tiers
+ *   theme/overrides.css  BEM overrides of HeroUI parts a token cannot express
+ *   theme/grid-overrides.css  the same for the Grid direction's DataGrid, KPIs, pager, sidebar
+ *   theme/product.css    product structural classes (panes, rows, tier scopes)
+ *   theme/art.css        design art at every size and its hover preview
+ *   theme/shell.css      the page background, the page shell and the banner's marks
+ *   theme/grid.css       the Grid direction's sidebar, grid card, status bar, KPI spans
+ *   theme/grid-cells.css its data marks (dot bands, halftones) and grid cells
+ *   theme/mix.css        the tier and heat mix bar (stock ToggleButtons on tokens)
+ *   theme/screens.css    per-screen widths and the narrow-window rules
+ *
+ * Source of the values: the Grid direction mocks (Grid J/K Explore, Grid I
+ * Keywords, OptsL row marks) and `docs/decisions/website-visual-direction.md`:
+ * a dark banner over one rounded content surface, a filter sidebar, KPI cells
+ * over a hairline grid of 56px rows, Geist Mono figures and Onest names.
+ *
+ * Unlayered on purpose: HeroUI declares its theme inside `@layer base`, so these
+ * win on layer order and HeroUI's calculated tokens (`--*-hover`, `--*-soft`,
+ * `--field-*-focus`) re-derive from the values set here.
+ */
+
+/* -------------------------------------------------------------------------------------------------
+ * Scale (theme-agnostic)
+ * -----------------------------------------------------------------------------------------------*/
+:root {
+    /*
+     * Density. HeroUI sizes controls from spacing multiples (`.button--sm` and
+     * `.tabs__tab` are `h-8`), so 3.5px lands them on the 28px control height
+     * the mocks use. `--spacing` cannot reference itself, so the base is named
+     * and the denser regions derive from it.
+     */
+    --spacing-base: 0.21875rem;
+    --spacing: var(--spacing-base);
+    /* Menu, listbox and popover surfaces — lists to scan, so the tightest step. */
+    --spacing-dense: calc(var(--spacing-base) * 0.8);
+    /*
+     * The pane surfaces' density (Product, Logs), scoped by re-pointing
+     * `--spacing` (overrides.css) so HeroUI parts keep their own multiples:
+     * the 24px pane bars and key/value rows (`h-8` = 20px controls) and the
+     * 18px key caps (`h-6`).
+     */
+    --spacing-pane: 0.15625rem;
+    /* Pane-bar controls at the bar's full 24px (`h-8`), so hover fills the cell edge to edge. */
+    --spacing-pane-control: 0.1875rem;
+    --spacing-key: 0.1875rem;
+    /* The banner: 30px tabs, buttons and avatar (`h-8`), a 34px search field (`h-9`). */
+    --spacing-banner: 0.234375rem;
+    /* The filter sidebar: 36px fields (`h-9`) and 16px check and radio controls (`size-4`). */
+    --spacing-sidebar: 0.25rem;
+
+    /*
+     * Radius. HeroUI shells and pills run at ×3 (`rounded-3xl`), so 2.5px puts
+     * buttons, tabs and cards on the mocks' 7–8px corner. Fields take the same
+     * ×3 step through their own token instead of HeroUI's ×1.5.
+     */
+    --radius: 0.15625rem;
+    --field-radius: calc(var(--radius) * 3);
+    --field-border-width: 1px;
+
+    /*
+     * Type (Grid direction J/K/I, superseding the 13px-only terminal scale):
+     * 14px body and grid cells (`text-base`), 13px secondary lines, brands,
+     * counts and key caps (`text-sm`, `text-xs`), 15px design names
+     * (`text-lg`), 16px BSR figures (`text-xl`) and 20px KPI figures
+     * (`text-2xl`, which HeroUI's KPI value uses). Larger HeroUI steps hold
+     * at 20px: nothing in a dense tool is display type.
+     */
+    --text-base: 0.875rem;
+    --text-base--line-height: 1.35;
+    --text-sm: 0.8125rem;
+    --text-sm--line-height: 1.35;
+    --text-xs: var(--text-sm);
+    --text-xs--line-height: var(--text-sm--line-height);
+    --text-lg: 0.9375rem;
+    --text-lg--line-height: 1.3;
+    --text-xl: 1rem;
+    --text-xl--line-height: 1.25;
+    --text-2xl: 1.25rem;
+    --text-2xl--line-height: 1.2;
+    --text-3xl: var(--text-2xl);
+    --text-3xl--line-height: var(--text-2xl--line-height);
+    --text-4xl: var(--text-2xl);
+    --text-4xl--line-height: var(--text-2xl--line-height);
+    /* The Product page's name heading (mock: 18px Onest, 650). */
+    --text-title: 1.125rem;
+
+    /*
+     * Pane layout (Product, Logs): a 24px line plus its rule for pane bars,
+     * 23px ruled key/value rows, the 24px compact grid line, and the fixed
+     * side-pane widths beside a flexing main pane.
+     */
+    --pane-bar-height: 1.5625rem;
+    --pane-row-height: 1.5rem;
+    --key-value-height: 1.4375rem;
+    --pane-width-log: 26.25rem;
+    --pane-width-product: 25rem;
+    /* The 10px inset pane bars and bodies share. */
+    --pane-inset: 0.625rem;
+    /* Design art: a 20px row thumb, the detail size, the Product page's hero. */
+    --thumb-row: 1.25rem;
+    --thumb-detail-width: 9.375rem;
+    --thumb-detail-height: 9.625rem;
+    --thumb-hero-max: 17.5rem;
+
+    /*
+     * Grid density (comfortable, Grid J: 56px rows led by 40px art; text-only
+     * grids such as Logs at 40px; the compact set is below, and the halftone
+     * sparklines pick their size from the same setting in code).
+     */
+    --grid-row-art: 3.5rem;
+    --grid-row-text: 2.5rem;
+    --grid-header-height: 2.5rem;
+    --thumb-grid-width: 2.5rem;
+    --thumb-grid-height: 2.5rem;
+
+    /*
+     * The app frame (Grid J/K, Handmade-style): a 54px banner over one
+     * rounded content surface inset 6px from the window, a 236px filter
+     * sidebar, the KPI header's 62px dot band under its figure line, and
+     * the 46px pager.
+     */
+    --banner-height: 3.375rem;
+    --banner-search-width: 27.5rem;
+    --sidebar-width: 14.75rem;
+    --kpi-band-height: 3.875rem;
+    --pager-height: 2.875rem;
+    /* The 12px cell gutter every grid cell, KPI cell and sidebar row shares. */
+    --cell-inset: 0.75rem;
+
+    /*
+     * Grid columns (Grid J `hx`, I): fixed widths so the KPI cells above
+     * span exactly their column groups; the name column takes the rest.
+     * Narrow windows zero a dropped column here (screens.css hides it).
+     */
+    --col-rank: 3.5rem;
+    --col-niche: 8rem;
+    --col-bsr: 8.75rem;
+    --col-spark: 7.75rem;
+    --col-d7: 6.25rem;
+    --col-sold: 7rem;
+    --col-drops: 5rem;
+    --col-age: 4.375rem;
+    --col-price: 5rem;
+    --col-score: 9.375rem;
+    --col-weeks: 8.5rem;
+    --col-shelf: 10.125rem;
+    --col-median: 9.375rem;
+    --col-new: 5.3125rem;
+    --col-merch: 5.3125rem;
+    --col-status: 10rem;
+
+    /* The hover preview's full design (user feedback: the print is what sells). */
+    --art-preview-size: 15rem;
+    /* The Product rank chart's frame. */
+    --chart-height: 8rem;
+
+    /*
+     * Desktop cursor convention: controls keep the arrow and only hyperlinks
+     * get the pointer. HeroUI routes every interactive cursor through this
+     * token; product code uses `cursor-(--cursor-interactive)`, never
+     * `cursor-pointer`. The `a[href]` half lives in global.css.
+     */
+    --cursor-interactive: default;
+
+    /*
+     * Tooltip timing, read by HeroUI's Tooltip at runtime. Every icon-only
+     * button carries one, so 1.5s (stock) is too slow for a dense tool.
+     */
+    --tooltip-delay: 600ms;
+    --tooltip-close-delay: 0ms;
+}
+
+@theme {
+    /*
+     * Mark radii. Data marks keep the mocks' absolute corners: the ×-radius
+     * scale at 2.5px rounds a 3px shelf block to ~1px, which reads square.
+     */
+    --radius-mark: 3px;
+    --radius-swatch: 2px;
+    --radius-tick: 1.5px;
+    /* Art wells and chart frames (mock: 6px art, 4px chart edge). */
+    --radius-art: 6px;
+    /* The white-art tile inset in a grid thumbnail (Grid J `.tile-w`). */
+    --radius-tile: 5px;
+    /* The page shell's top corners (Handmade). */
+    --radius-surface: 14px;
+    --radius-frame: 4px;
+    /* The sold-per-month bar's corner (card-anatomy mock's 5px tile corner). */
+    --radius-pill: 5px;
+    /* Status, option and KPI dots are circles. */
+    --radius-dot: 9999px;
+
+    --font-sans:
+        "Onest Variable", "Onest", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, monospace;
+}
+
+/* Compact density (Settings › General or the pager's toggle): every grid on the 24px line. */
+:root[data-density="compact"] {
+    --grid-row-art: var(--pane-row-height);
+    --grid-row-text: var(--pane-row-height);
+    --grid-header-height: var(--pane-row-height);
+    --thumb-grid-width: var(--thumb-row);
+    --thumb-grid-height: var(--thumb-row);
+}
+
+/* Below 80rem the grids drop their low-priority columns (screens.css); their widths go to 0 so
+ * the KPI cells above, which sum these tokens, still span exactly what is left. */
+@media (width < 80rem) {
+    :root {
+        --col-niche: 0px;
+        --col-drops: 0px;
+        --col-weeks: 0px;
+        --col-new: 0px;
+    }
+}
+
+/* Phones keep rank, name and the rank figure; the rest give their width back. */
+@media (width < 48rem) {
+    :root {
+        --col-spark: 0px;
+        --col-d7: 0px;
+        --col-sold: 0px;
+        --col-age: 0px;
+        --col-price: 0px;
+        --col-shelf: 0px;
+        --col-merch: 0px;
+        --col-status: 0px;
+        --col-rank: 2.5rem;
+        --col-bsr: 6.5rem;
+        --col-score: 4.75rem;
+        --col-median: 0px;
+    }
+}
+
+/*
+ * Pane bars (Product, Logs) are square cells (user feedback: a rounded hover
+ * pill in a straight container reads wrong). Every HeroUI corner token is
+ * re-pointed to 0 inside them, so buttons, toggles, segments and their focus
+ * rings render square; overlays portal out and keep their corners.
+ */
+.pane-bar {
+    --radius: 0;
+    --field-radius: 0;
+    --radius-xs: 0;
+    --radius-sm: 0;
+    --radius-md: 0;
+    --radius-lg: 0;
+    --radius-xl: 0;
+    --radius-2xl: 0;
+    --radius-3xl: 0;
+    --radius-4xl: 0;
+}

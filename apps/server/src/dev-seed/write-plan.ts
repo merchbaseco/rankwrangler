@@ -4,22 +4,26 @@ import {
     catalogQueries,
     catalogSearchResults,
     catalogSearchRuns,
+    discoveryTargets,
     eventLogs,
     jobExecutionLogs,
     jobExecutions,
     keepaCategories,
+    keywordAutocomplete,
+    keywordDiscoveryAttempts,
+    keywordExplorationPasses,
+    keywordProducts,
+    keywordStandingObservations,
     operations,
     productFacets,
     productFacetValues,
     productHistoryImports,
     productHistoryPoints,
+    productShortNames,
     products,
     providerAttempts,
-    topSearchTermsDatasets,
-    topSearchTermsKeywordDaily,
-    topSearchTermsSnapshots,
 } from '@/db/schema';
-import { DEV_SEED_UUID_LIKE } from '@/dev-seed/identity';
+import { DEV_SEED_ASIN_LIKE, DEV_SEED_UUID_LIKE } from '@/dev-seed/identity';
 import { DEV_SEED_TABLE_KEYS, type DevSeedPlan, type DevSeedTableKey } from '@/dev-seed/types';
 
 /**
@@ -44,17 +48,24 @@ import { DEV_SEED_TABLE_KEYS, type DevSeedPlan, type DevSeedTableKey } from '@/d
 
 /** Reverse dependency order. Cascades cover the child rows each delete implies. */
 const CLEAR_STEPS = [
+    { column: 'id', table: keywordDiscoveryAttempts },
+    { column: 'id', table: keywordExplorationPasses },
+    { column: 'id', table: keywordStandingObservations },
+    { column: 'id', table: discoveryTargets },
+    { column: 'query_id', table: keywordProducts },
+    { column: 'query_id', table: keywordAutocomplete },
     { column: 'id', table: catalogSearchResults },
     { column: 'id', table: catalogSearchRuns },
     { column: 'id', table: catalogQueries },
     { column: 'id', table: operations },
-    { column: 'id', table: topSearchTermsKeywordDaily },
-    { column: 'id', table: topSearchTermsSnapshots },
-    { column: 'id', table: topSearchTermsDatasets },
+    // Work the app started against a seeded Product (a Keepa history refresh) can never
+    // finish for a synthetic ASIN; a stale pending one would keep its page "syncing".
+    { column: 'target_key', table: operations, like: `%:${DEV_SEED_ASIN_LIKE}` },
     { column: 'id', table: productHistoryPoints },
     { column: 'id', table: productHistoryImports },
     { column: 'product_id', table: productFacets },
     { column: 'id', table: productFacetValues },
+    { column: 'asin', table: productShortNames, like: DEV_SEED_ASIN_LIKE },
     { column: 'id', table: products },
     { column: 'id', table: keepaCategories },
     { column: 'id', table: jobExecutionLogs },
@@ -67,20 +78,24 @@ const INSERT_TABLES: Record<DevSeedTableKey, Parameters<typeof db.insert>[0]> = 
     catalogQueries,
     catalogSearchResults,
     catalogSearchRuns,
+    discoveryTargets,
     eventLogs,
     jobExecutionLogs,
     jobExecutions,
     keepaCategories,
+    keywordAutocomplete,
+    keywordDiscoveryAttempts,
+    keywordExplorationPasses,
+    keywordProducts,
+    keywordStandingObservations,
     operations,
     productFacetValues,
     productFacets,
     productHistoryImports,
     productHistoryPoints,
     products,
+    productShortNames,
     providerAttempts,
-    topSearchTermsDatasets,
-    topSearchTermsKeywordDaily,
-    topSearchTermsSnapshots,
 };
 
 /** Postgres caps a statement at 65535 bindings; history points are the widest rows. */
@@ -99,7 +114,9 @@ export const writeDevSeedPlan = async (plan: DevSeedPlan): Promise<DevSeedWriteR
         for (const step of CLEAR_STEPS) {
             const result = await tx.execute(
                 sql`DELETE FROM ${step.table}
-                    WHERE ${sql.identifier(step.column)}::text LIKE ${DEV_SEED_UUID_LIKE}`
+                    WHERE ${sql.identifier(step.column)}::text LIKE ${
+                        'like' in step ? step.like : DEV_SEED_UUID_LIKE
+                    }`
             );
             cleared += Number(result.count ?? 0);
         }

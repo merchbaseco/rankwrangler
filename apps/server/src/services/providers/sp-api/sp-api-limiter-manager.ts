@@ -1,3 +1,5 @@
+import { CatalogCapacityDeferredError } from '@/services/discovery-types';
+import { type CatalogCapacity, runWithCatalogCapacity } from './sp-api-catalog-capacity';
 import type Bottleneck from 'bottleneck';
 import { captureProviderAttempt } from '@/services/providers/provider-telemetry';
 import { runWithSpApiBackoff } from './sp-api-backoff';
@@ -51,7 +53,11 @@ interface ManagedLimiterConfig {
 export class SpApiLimiterManager {
     private readonly limiterConfigs: Record<SpApiLimiterOperationId, OperationLimiterConfig>;
 
-    constructor(configs: ManagedLimiterConfig[]) {
+    constructor(
+        configs: ManagedLimiterConfig[],
+        private readonly captureAttempt: typeof captureProviderAttempt = captureProviderAttempt,
+        private readonly catalogCapacity?: CatalogCapacity
+    ) {
         this.limiterConfigs = configs.reduce(
             (acc, config) => {
                 acc[config.operationId] = {
@@ -76,37 +82,61 @@ export class SpApiLimiterManager {
         operation,
         operationId,
         run,
+        maxAttempts,
+        priority = 'foreground',
+        attemptId,
     }: {
         ensureAccessTokenFreshness: () => Promise<void>;
         operation: string;
         operationId: SpApiLimiterOperationId;
         run: () => Promise<T>;
+        maxAttempts?: number;
+        priority?: 'foreground' | 'background';
+        attemptId?: string;
     }) => {
         const config = this.limiterConfigs[operationId];
 
         return await runWithSpApiBackoff({
             operation,
+            maxAttempts,
             run: async () => {
                 return await scheduleWithQueueDeadline({
                     limiter: config.limiter,
                     maxQueueWaitMs: config.maxQueueWaitMs,
+                    priority: priority === 'background' ? 8 : 2,
                     onQueueDeadline: () => this.reportQueueDeadline(config),
                     task: async () => {
                         await ensureAccessTokenFreshness();
                         try {
-                            const result = await captureProviderAttempt(
-                                {
-                                    provider: 'spapi',
-                                    operation: mapTelemetryOperation(operationId),
-                                },
-                                run
-                            );
+                            const call = () =>
+                                this.captureAttempt(
+                                    {
+                                        provider: 'spapi',
+                                        operation: mapTelemetryOperation(operationId),
+                                    },
+                                    run
+                                );
+                            const result =
+                                operationId === 'catalog.searchCatalogItems' && this.catalogCapacity
+                                    ? await runWithCatalogCapacity({
+                                          capacity: this.catalogCapacity,
+                                          priority,
+                                          attemptId,
+                                          protectedQueued: config.limiter.queued() > 0,
+                                          run: call,
+                                      })
+                                    : await call();
                             await this.trackOperationSuccess({
                                 operationId,
                                 response: result,
                             });
                             return result;
                         } catch (error) {
+                            if (
+                                error instanceof CatalogCapacityDeferredError ||
+                                error instanceof SpApiLimiterWaitError
+                            )
+                                throw error;
                             await this.trackOperationFailure({
                                 error,
                                 operationId,

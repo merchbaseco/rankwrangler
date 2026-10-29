@@ -7,9 +7,23 @@ saveTextLockfile = true
 # Three days of quarantine on third-party releases, so a compromised upstream
 # publish is caught before it reaches a machine here.
 minimumReleaseAge = 259200
-# One first-party exemption. The quarantine exists to blunt a compromised
-# third-party publish; @merchbaseco/access is published from Merchbase's own
-# private scope, so the threat it guards against does not apply, and without the
-# exemption a coordinated bump across the suite cannot even be resolved into the
-# lockfile for three days after it ships.
-minimumReleaseAgeExcludes = ["@merchbaseco/access"]
+# Exemptions, each named for its reason:
+# - @merchbaseco/access is published from Merchbase's own private scope, so the
+#   threat the quarantine guards against does not apply, and without the
+#   exemption a coordinated bump across the suite cannot even be resolved into
+#   the lockfile for three days after it ships.
+# - @heroui-pro/react is a licensed bootstrap package whose real dist arrives
+#   through the authenticated postinstall (scripts/setup-heroui.mjs); the
+#   HeroUI packages move in lockstep with it, and Haus pins the same set.
+minimumReleaseAgeExcludes = [
+    "@merchbaseco/access",
+    "@heroui-pro/react",
+    # Required peers of @heroui-pro/react 1.0.0-beta.9 (>=3.2.5).
+    "@heroui/react",
+    "@heroui/styles",
+]
+
+# The licensed Hugeicons Pro registry. The key is an @internal schema item that
+# install paths resolve explicitly under RANKWRANGLER_RESOLVE_INSTALL_TOKENS.
+[install.scopes]
+'@hugeicons-pro' = { token = '$MERCHBASE_HUGEICONS_LICENSE_KEY', url = 'https://npm.hugeicons.com/' }

@@ -27,6 +27,8 @@ export type KeepaProductPayload = {
     brand?: string;
     imagesCSV?: string;
     features?: string[] | null;
+    partNumber?: string | null;
+    model?: string | null;
     listedSince?: number;
     rootCategory?: number;
     trackingSince?: number;
@@ -104,10 +106,14 @@ export const normalizeKeepaProduct = ({
         product.stats?.current?.[KEEPA_CSV_INDEX.salesRank],
         product.csv?.[KEEPA_CSV_INDEX.salesRank]
     );
-    const rootCategoryId = normalizePositiveMetric(product.salesRankReference);
-    const listingRootCategoryId =
-        normalizePositiveMetric(product.rootCategory) ?? rootCategoryId;
-    const merchClassification = classifyMerchListing(getKeepaBulletEvidence(product.features));
+    const rootCategoryId = normalizeCategoryId(product.salesRankReference);
+    const listingRootCategoryId = normalizeCategoryId(product.rootCategory) ?? rootCategoryId;
+    const merchClassification = classifyMerchListing({
+        bullets: getKeepaBulletEvidence(product.features),
+        partNumber: product.partNumber ?? null,
+        modelNumber: product.model ?? null,
+        title: product.title ?? null,
+    });
 
     return {
         product: {
@@ -239,6 +245,12 @@ const getCurrentPositiveMetric = (current: number | undefined, series: number[] 
 
 const normalizePositiveMetric = (value: number | undefined) => {
     return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+};
+
+// Keepa sends Long.MAX_VALUE (2^63 - 1) when a listing has no category; it parses past the safe
+// integer range and overflows a bigint column, so only safe positive integers are category ids.
+const normalizeCategoryId = (value: number | undefined) => {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
 };
 
 const normalizeNonNegativeMetric = (value: number | undefined) => {

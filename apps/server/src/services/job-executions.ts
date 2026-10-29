@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/index.js';
 import { jobExecutionLogs, jobExecutions } from '@/db/schema.js';
 import { getErrorMessage, toJsonValue } from '@/services/job-executions-utils.js';
@@ -93,6 +93,7 @@ export const runTrackedJob = async <TResult>({
             return result;
         }
 
+        // A finished job stays finished if its history row cannot be written.
         await persistJobExecution({
             jobName,
             status: 'success',
@@ -102,6 +103,8 @@ export const runTrackedJob = async <TResult>({
             startedAt,
             finishedAt,
             logs,
+        }).catch(error => {
+            console.error(`[Jobs] Could not record ${jobName} run`, error);
         });
 
         return result;
@@ -236,11 +239,8 @@ const persistJobExecution = async ({
             id: jobExecutions.id,
         });
 
-    if (logs.length === 0) {
-        return;
-    }
-
-    await db.insert(jobExecutionLogs).values(
+    if (logs.length > 0)
+        await db.insert(jobExecutionLogs).values(
         logs.map((log) => ({
             executionId: execution.id,
             level: log.level,
@@ -249,6 +249,8 @@ const persistJobExecution = async ({
             createdAt: log.createdAt,
         }))
     );
+    // Sent after the run and its logs are saved; the Jobs screen refreshes on it instead of polling.
+    await db.execute(sql`select pg_notify('job_activity', ${JSON.stringify({ jobName })})`);
 };
 
 const pushLog = (

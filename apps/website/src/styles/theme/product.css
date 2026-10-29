@@ -1,0 +1,274 @@
+/*
+ * Product structural classes: the terminal layout's own elements (panes, bars,
+ * ruled rows, data marks, the ticker), which no HeroUI component draws. Sizes
+ * come from the layout tokens in tokens.css; only 1px hairlines are literal.
+ */
+
+@layer components {
+    /* Tier scope: one hook class per tier points `--tier-fg/bg/bd/sw` at its palette. */
+    .tier-elite {
+        --tier-fg: var(--tier-elite-fg);
+        --tier-bg: var(--tier-elite-bg);
+        --tier-bd: var(--tier-elite-bd);
+        --tier-sw: var(--tier-elite-sw);
+        --tier-ht: var(--tier-elite-ht);
+        --band-ink: var(--tier-elite-ht);
+    }
+
+    /* Hot: ≤15K. */
+    .tier-hot {
+        --tier-fg: var(--tier-hot-fg);
+        --tier-bg: var(--tier-hot-bg);
+        --tier-bd: var(--tier-hot-bd);
+        --tier-sw: var(--tier-hot-sw);
+        --tier-ht: var(--tier-hot-ht);
+        --band-ink: var(--tier-hot-ht);
+    }
+
+    /* Strong: ≤60K. */
+    .tier-strong {
+        --tier-fg: var(--tier-strong-fg);
+        --tier-bg: var(--tier-strong-bg);
+        --tier-bd: var(--tier-strong-bd);
+        --tier-sw: var(--tier-strong-sw);
+        --tier-ht: var(--tier-strong-ht);
+        --band-ink: var(--tier-strong-ht);
+    }
+
+    /* Steady: ≤250K. */
+    .tier-steady {
+        --tier-fg: var(--tier-steady-fg);
+        --tier-bg: var(--tier-steady-bg);
+        --tier-bd: var(--tier-steady-bd);
+        --tier-sw: var(--tier-steady-sw);
+        --tier-ht: var(--tier-steady-ht);
+        --band-ink: var(--tier-steady-ht);
+    }
+
+    /* Slow: above 250K, or no rank. */
+    .tier-slow {
+        --tier-fg: var(--tier-slow-fg);
+        --tier-bg: var(--tier-slow-bg);
+        --tier-bd: var(--tier-slow-bd);
+        --tier-sw: var(--tier-slow-sw);
+        --tier-ht: var(--tier-slow-ht);
+        --band-ink: var(--tier-slow-ht);
+    }
+
+    /* A BSR figure in its tier ink after its swatch (mock BSR cell). */
+    .tier-figure {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 2);
+        min-width: 0;
+        color: var(--tier-fg);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    /* The 7px tier square (mock `.sw`). */
+    .tier-swatch {
+        display: inline-block;
+        width: calc(var(--spacing-base) * 2);
+        height: calc(var(--spacing-base) * 2);
+        flex-shrink: 0;
+        border-radius: var(--radius-swatch);
+        background-color: var(--tier-sw);
+    }
+
+    /* Screens own their scrolling (grids and panes scroll inside), so the main column only clips. */
+    .app-frame .app-layout__main {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* Panes sit on the border colour with 1px gaps: that draws every hairline between them. */
+    .term-screen {
+        display: flex;
+        flex: 1 1 0;
+        flex-direction: column;
+        gap: 1px;
+        min-height: 0;
+        background-color: var(--border);
+    }
+
+    /* The row of panes inside the content surface, hairline-gapped. */
+    .term-panes {
+        display: flex;
+        flex: 1 1 0;
+        gap: 1px;
+        min-height: 0;
+    }
+
+    /* One pane: a column on the content surface whose body scrolls inside it. */
+    .term-pane {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background-color: var(--content);
+    }
+
+    /* A pane's 24px title or footer line plus its rule (mock `.ptitle`). */
+    .pane-bar {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: var(--pane-inset);
+        height: var(--pane-bar-height);
+        padding-inline: var(--pane-inset);
+        overflow: hidden;
+        border-bottom: 1px solid var(--border);
+        background-color: var(--content);
+        color: var(--muted);
+        white-space: nowrap;
+    }
+
+    /* A footer line: the rule moves to the top edge. */
+    .pane-bar--bottom {
+        border-top: 1px solid var(--border);
+        border-bottom: 0;
+    }
+
+    /* The pane's bold name in ink (mock `.ptitle b`). */
+    .pane-bar__title {
+        color: var(--foreground);
+        font-weight: 600;
+    }
+
+    /* The padded column inside a pane's ScrollShadow, and a Product section's body. */
+    .pane-body,
+    .pane-section__body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--pane-inset);
+        padding: var(--pane-inset) calc(var(--spacing-base) * 3.5);
+    }
+
+    /* A detail's sections, stacked on the pane rhythm (side pane and phone sheet alike). */
+    .detail-stack {
+        display: flex;
+        flex-direction: column;
+        gap: var(--pane-inset);
+        min-width: 0;
+    }
+
+    /*
+     * The pane bar's filter Toolbar lays its tokens in one row at its natural
+     * width; its PaneFilters ScrollShadow scrolls it under an edge fade.
+     */
+    .toolbar.pane-filters {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 0.5);
+        width: max-content;
+        min-width: 100%;
+    }
+
+    /* The scrolling filter row centres its toolbar on the bar's line. */
+    .scroll-shadow.pane-filters-scroll {
+        display: flex;
+        align-items: center;
+    }
+
+    /* A key and what it does (`⏎ open`). */
+    .key-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 1.5);
+    }
+
+    /* Detail panes: a label and figure per ruled row (mock `.kv`). */
+    .key-values {
+        display: grid;
+        align-content: start;
+        column-gap: calc(var(--spacing-base) * 4);
+        min-width: 0;
+        margin: 0;
+    }
+
+    /* Two label/figure columns (Explore detail, Product rail). */
+    .key-values--2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* Three columns (Keyword detail). */
+    .key-values--3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    /* One ruled row: label leading, figure trailing. */
+    .key-value {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: calc(var(--spacing-base) * 2);
+        min-width: 0;
+        height: var(--key-value-height);
+        border-bottom: 1px solid var(--separator);
+    }
+
+    /* The label stays whole and muted. */
+    .key-value > dt {
+        flex-shrink: 0;
+        color: var(--muted);
+    }
+
+    /* The figure truncates rather than wrapping the row. */
+    .key-value > dd {
+        display: flex;
+        min-width: 0;
+        justify-content: flex-end;
+        margin: 0;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    /* The product name heading a detail pane: the type scale's one larger size. */
+    .term-title {
+        margin: 0;
+        font-family: var(--font-sans);
+        font-size: var(--text-title);
+        font-weight: 650;
+        letter-spacing: -0.02em;
+        line-height: 1.3;
+    }
+
+    /* A chart inside a pane: a hairline frame. */
+    .term-chart {
+        position: relative;
+        height: var(--chart-height);
+        overflow: hidden;
+        border: 1px solid var(--separator);
+        border-radius: var(--radius-frame);
+    }
+
+
+    /* Rank-chart tier band labels in the figures face. */
+    .product-rank-chart__band-label {
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+        font-weight: 600;
+    }
+
+    /* The latest sample's dot in its tier, ringed off the line. */
+    .product-rank-chart__now {
+        fill: var(--tier-fg);
+        stroke: var(--surface);
+        stroke-width: 2;
+    }
+
+    /* Breadcrumbs in a pane bar clip rather than push the actions off. */
+    .pane-bar .breadcrumbs {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    /* Rank-chart ticks sit at the 13px base in the figures face (the chart sets 10px). */
+    .product-rank-chart .recharts-cartesian-axis-tick-value {
+        font-family: var(--font-mono);
+        font-size: var(--text-base);
+    }
+}

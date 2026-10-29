@@ -1,10 +1,10 @@
-import { and, gte, lt, or } from 'drizzle-orm';
+import { and, asc, gte, isNull, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '@/db/index.js';
-import { products } from '@/db/schema.js';
-import { defineJob } from '@/jobs/job-router.js';
-import { createEventLogSafe } from '@/services/event-logs.js';
-import { getErrorMessage } from '@/services/job-executions-utils.js';
+import { db } from '@/db/index';
+import { products } from '@/db/schema';
+import { defineJob } from '@/jobs/job-router';
+import { createEventLogSafe } from '@/services/event-logs';
+import { getErrorMessage } from '@/services/job-executions-utils';
 import {
     BSR_THRESHOLD_1M,
     BSR_THRESHOLD_3M,
@@ -15,9 +15,13 @@ import {
     REFRESH_AFTER_14_DAYS_MS,
     REFRESH_AFTER_24_HOURS_MS,
     REFRESH_AFTER_30_DAYS_MS,
-} from '@/services/spapi-refresh-policy.js';
-import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection.js';
-import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue.js';
+} from '@/services/spapi-refresh-policy';
+import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection';
+import {
+    buildSpApiBlindspotRefreshCondition,
+    SPAPI_BLINDSPOT_SCAN_LIMIT,
+} from '@/services/spapi-blindspot-selection';
+import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue';
 
 export type ReprocessStaleProductsResult = {
     didWork: boolean;
@@ -38,13 +42,6 @@ export async function reprocessStaleProducts() {
     const threshold14Days = new Date(now.getTime() - REFRESH_AFTER_14_DAYS_MS);
     const threshold30Days = new Date(now.getTime() - REFRESH_AFTER_30_DAYS_MS);
 
-    // Find active stale Merch Products using BSR tiers:
-    // - BSR < 200k: refresh if spApiFetchedAt > 24 hours ago
-    // - BSR < 500k: refresh if spApiFetchedAt > 3 days ago
-    // - BSR < 1M: refresh if spApiFetchedAt > 7 days ago
-    // - BSR < 3M: refresh if spApiFetchedAt > 14 days ago
-    // - BSR >= 3M: refresh if spApiFetchedAt > 30 days ago
-    // - Deleted, non-Merch, or null-BSR Products: never by stale job
     const staleProducts = await db
         .select({
             marketplaceId: products.marketplaceId,
@@ -54,30 +51,26 @@ export async function reprocessStaleProducts() {
         .where(
             buildAvailableMerchRefreshCondition(
                 or(
-                    // BSR < 200k: requeue if spApiFetchedAt > 24 hours ago
+                    isNull(products.spApiFetchedAt),
                     and(
                         lt(products.rootCategoryBsr, BSR_THRESHOLD_200K),
                         lt(products.spApiFetchedAt, threshold24Hours)
                     ),
-                    // 200k <= BSR < 500k: requeue if spApiFetchedAt > 3 days ago
                     and(
                         gte(products.rootCategoryBsr, BSR_THRESHOLD_200K),
                         lt(products.rootCategoryBsr, BSR_THRESHOLD_500K),
                         lt(products.spApiFetchedAt, threshold3Days)
                     ),
-                    // 500k <= BSR < 1M: requeue if spApiFetchedAt > 7 days ago
                     and(
                         gte(products.rootCategoryBsr, BSR_THRESHOLD_500K),
                         lt(products.rootCategoryBsr, BSR_THRESHOLD_1M),
                         lt(products.spApiFetchedAt, threshold7Days)
                     ),
-                    // 1M <= BSR < 3M: requeue if spApiFetchedAt > 14 days ago
                     and(
                         gte(products.rootCategoryBsr, BSR_THRESHOLD_1M),
                         lt(products.rootCategoryBsr, BSR_THRESHOLD_3M),
                         lt(products.spApiFetchedAt, threshold14Days)
                     ),
-                    // BSR >= 3M: requeue if spApiFetchedAt > 30 days ago
                     and(
                         gte(products.rootCategoryBsr, BSR_THRESHOLD_3M),
                         lt(products.spApiFetchedAt, threshold30Days)
@@ -86,7 +79,15 @@ export async function reprocessStaleProducts() {
             )
         );
 
-    if (staleProducts.length === 0) {
+    const blindspotProducts = await db
+        .select({ marketplaceId: products.marketplaceId, asin: products.asin })
+        .from(products)
+        .where(buildSpApiBlindspotRefreshCondition(now))
+        .orderBy(asc(products.spApiFetchedAt), asc(products.createdAt), asc(products.id))
+        .limit(SPAPI_BLINDSPOT_SCAN_LIMIT);
+    const dueProducts = [...staleProducts, ...blindspotProducts];
+
+    if (dueProducts.length === 0) {
         return {
             didWork: false,
             staleProductCount: 0,
@@ -95,10 +96,9 @@ export async function reprocessStaleProducts() {
         } satisfies ReprocessStaleProductsResult;
     }
 
-    // Add stale products to the SP-API sync queue and trigger a wakeup when rows are inserted.
     try {
         const enqueuedCount = await enqueueSpApiSyncQueueItems(
-            staleProducts.map(product => ({
+            dueProducts.map(product => ({
                 marketplaceId: product.marketplaceId,
                 asin: product.asin,
             }))
@@ -106,7 +106,7 @@ export async function reprocessStaleProducts() {
 
         return {
             didWork: true,
-            staleProductCount: staleProducts.length,
+            staleProductCount: dueProducts.length,
             enqueuedCount,
             errorMessage: null,
         } satisfies ReprocessStaleProductsResult;
@@ -115,7 +115,7 @@ export async function reprocessStaleProducts() {
 
         return {
             didWork: true,
-            staleProductCount: staleProducts.length,
+            staleProductCount: dueProducts.length,
             enqueuedCount: 0,
             errorMessage:
                 error instanceof Error ? error.message : 'Failed to enqueue stale products',

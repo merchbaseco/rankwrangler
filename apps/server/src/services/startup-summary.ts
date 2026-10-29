@@ -15,8 +15,6 @@ export interface StartupSummaryInput {
     realtimePath: string;
     shouldStartJobRunner: boolean;
     startupCatalogKeywordRefreshes: number;
-    topSearchTermsRecoveryCount: number;
-    topSearchTermsStatus: string;
 }
 
 export const printStartupSummary = (input: StartupSummaryInput) => {
@@ -51,14 +49,7 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
     console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
     console.log('  • User Event Logs: Enabled (dashboard logs page)');
-    console.log(`  • Top Search Terms: ${input.topSearchTermsStatus}`);
-    console.log(
-        `  • Top Search Terms Startup Recovery: ${
-            input.shouldStartJobRunner
-                ? `${input.topSearchTermsRecoveryCount} stale rows reset`
-                : 'Skipped (job runner disabled)'
-        }`
-    );
+
     console.log(`  • Product History Operations: ${input.productHistoryOperations}`);
     console.log(`  • Catalog Search Operations: ${input.catalogSearchOperations}`);
     console.log(

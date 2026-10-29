@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Terminal · Command bar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;family=Bebas+Neue&amp;family=Shrikhand&amp;family=Archivo+Black&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+.rw{--bg:#efeee9;--dot:#d6d4cc;--surface:#fcfcfa;--well:#f1f0eb;--border:#dadad5;--hair:#e7e7e3;--ink:#1f1f1d;--muted:#66655f;--accent:#3a6df0;--accent-ink:#2f5fd8;--accent-soft:rgba(58,109,240,.10);--glass:rgba(252,252,250,.78);--glass-border:rgba(20,20,18,.08);--shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px rgba(30,28,24,.06),0 18px 34px -18px rgba(30,28,24,.38);--shadow-sm:0 1px 0 rgba(255,255,255,.9) inset,0 1px 2px rgba(30,28,24,.07),0 6px 14px -8px rgba(30,28,24,.22);--plank:#e3dccf;--plank-top:#ece6db;--plank-edge:#cfc6b5;--checker:#dcdad3;
+--elite-fg:#6a45dc;--elite-bg:#f0eaff;--elite-bd:#cfc0f0;--hot-fg:#cf4f25;--hot-bg:#fce5e1;--hot-bd:#efc1bd;--strong-fg:#9a6512;--strong-bg:#fff2d8;--strong-bd:#e6cfa3;--steady-fg:#2a7f69;--steady-bg:#ddf5ef;--steady-bd:#a6dccd;--slow-fg:#75746e;--slow-bg:#efefeb;--slow-bd:#dadad5}
+.rw.dark .tier-slow{--sw:#4a4a46}
+.rw.dark{--bg:#161615;--dot:#2a2a28;--surface:#232322;--well:#1b1b1a;--border:rgba(255,255,255,.08);--hair:rgba(255,255,255,.06);--ink:#efeee9;--muted:#a09f99;--accent:#6f93ff;--accent-ink:#8eaaff;--accent-soft:rgba(111,147,255,.16);--glass:rgba(35,35,34,.78);--glass-border:rgba(255,255,255,.08);--shadow:0 1px 0 rgba(255,255,255,.06) inset,0 22px 40px -18px rgba(0,0,0,.8);--shadow-sm:0 1px 0 rgba(255,255,255,.05) inset,0 8px 18px -10px rgba(0,0,0,.7);--plank:#34302a;--plank-top:#3d3831;--plank-edge:#24211d;--checker:#2c2c2a;
+--elite-fg:#b9a2ff;--elite-bg:#2c2545;--elite-bd:#4a3d78;--hot-fg:#ff9a73;--hot-bg:#3b231b;--hot-bd:#6b3a2a;--strong-fg:#f0c675;--strong-bg:#3a2f1b;--strong-bd:#65522c;--steady-fg:#7fd9be;--steady-bg:#183229;--steady-bd:#2c5a4b;--slow-fg:#9a9993;--slow-bg:#262624;--slow-bd:#3a3a37}
+.tier-elite{--tc:var(--elite-fg);--tb:var(--elite-bg);--tbd:var(--elite-bd);--sw:#7b57ef}
+.tier-hot{--tc:var(--hot-fg);--tb:var(--hot-bg);--tbd:var(--hot-bd);--sw:#ee6a3c}
+.tier-strong{--tc:var(--strong-fg);--tb:var(--strong-bg);--tbd:var(--strong-bd);--sw:#f0b13d}
+.tier-steady{--tc:var(--steady-fg);--tb:var(--steady-bg);--tbd:var(--steady-bd);--sw:#53b99b}
+.tier-slow{--tc:var(--slow-fg);--tb:var(--slow-bg);--tbd:var(--slow-bd);--sw:#d3d2cc}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.chip{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:7px;font:500 13px Onest,system-ui,sans-serif;color:var(--ink);background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(14px);cursor:pointer;white-space:nowrap}
+.chip:hover{background:var(--surface)}
+.chip.on{background:var(--tb);border-color:var(--tbd);color:var(--ink)}
+.chip.sel{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink)}
+.chip .dot{width:8px;height:8px;border-radius:3px;background:var(--tc)}
+.ibtn{all:unset;box-sizing:border-box;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;color:var(--ink);cursor:pointer}
+.ibtn:hover{background:var(--accent-soft)}
+.tab{all:unset;box-sizing:border-box;height:28px;padding:0 11px;display:inline-flex;align-items:center;border-radius:6px;font:500 14px Onest,system-ui,sans-serif;color:var(--muted);cursor:pointer;text-decoration:none}
+.tab:hover{color:var(--ink)}
+.tab.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08),0 0 0 1px var(--border)}
+.search{all:unset;box-sizing:border-box;flex:1;min-width:0;height:32px;font:500 14px Onest,system-ui,sans-serif;color:var(--ink)}
+.search::placeholder{color:var(--muted)}
+.mono{font-family:'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.cta{all:unset;box-sizing:border-box;height:32px;padding:0 12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:7px;font:500 14px Onest,system-ui,sans-serif;cursor:pointer;text-decoration:none;white-space:nowrap}
+.cta.primary{background:var(--accent);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 1px 2px rgba(0,0,0,.2)}
+.cta.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--border)}
+.kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:5px;border:1px solid var(--border);border-bottom-width:2px;background:var(--surface);font:500 13px 'Geist Mono',ui-monospace,monospace;color:var(--ink)}
+.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard{all:unset;box-sizing:border-box;cursor:pointer;font-family:Onest,system-ui,sans-serif;color:var(--ink);background:var(--surface);border-radius:10px;box-shadow:var(--shadow-sm);outline:1px solid var(--border);transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s}
+.pcard:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.pcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tile{border-radius:6px;background:var(--tb);box-shadow:inset 0 0 0 1px var(--tbd)}
+.tchip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 7px;border-radius:5px;background:var(--tb);box-shadow:inset 0 0 0 1px var(--tbd);color:var(--tc);font:600 13px 'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.up{color:var(--steady-fg)}
+.down{color:var(--hot-fg)}
+
+.term{font-family:'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:13px;line-height:1.3}
+.term .sans{font-family:Onest,system-ui,sans-serif}
+.mute{color:var(--muted)}
+.ptitle{height:24px;flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--well);border-bottom:1px solid var(--border);color:var(--muted);font-size:13px;white-space:nowrap}
+.ptitle b{color:var(--ink);font-weight:600}
+.cols,.trow.cols{display:grid;grid-template-columns:30px 40px 20px minmax(0,1fr) 92px 86px 64px 56px 44px 40px 48px 26px 26px;align-items:center;gap:10px;padding:0 10px}
+.colh{height:24px;flex-shrink:0;border-bottom:1px solid var(--border);color:var(--muted);font-size:13px;letter-spacing:.02em}
+.colh .r,.trow .r{text-align:right}
+.trow{all:unset;box-sizing:border-box;height:24px;flex-shrink:0;cursor:pointer;font:13px/1 'Geist Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;color:var(--ink);border-bottom:1px solid var(--hair)}
+.trow:hover{background:var(--well)}
+.trow.on{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.trow:focus-visible{outline:1px solid var(--accent);outline-offset:-1px}
+.sw{width:7px;height:7px;border-radius:2px;background:var(--sw);flex-shrink:0;display:inline-block}
+.kv{display:flex;justify-content:space-between;align-items:center;height:22px;border-bottom:1px solid var(--hair);font-size:13px}
+.kv span:first-child{color:var(--muted)}
+.key{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;border-radius:4px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font:500 13px 'Geist Mono',ui-monospace,monospace}
+.ticker{display:flex;gap:26px;width:max-content;animation:tick 70s linear infinite}
+@keyframes tick{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion: reduce){.ticker{animation:none}}
+.live{width:6px;height:6px;border-radius:50%;background:var(--steady-fg);box-shadow:0 0 0 3px var(--steady-bg);display:inline-block;flex-shrink:0}
+
+</style>
+</helmet>
+<div class="rw term {{themeClass}}" style="position: relative; width: 1440px; height: 900px; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); color: var(--ink)">
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+<defs>
+<linearGradient id="teeShade" x1="0" y1="0" x2="1" y2="0.3"><stop offset="0" stop-color="#ffffff" stop-opacity="0.14"></stop><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"></stop><stop offset="1" stop-color="#000000" stop-opacity="0.16"></stop></linearGradient>
+<path id="teeArc" d="M66 116 A54 54 0 0 1 174 116"></path>
+</defs>
+</svg>
+<header style="height: 32px; flex-shrink: 0; display: flex; align-items: stretch; background: var(--well); border-bottom: 1px solid var(--border); white-space: nowrap">
+<div style="display: flex; align-items: center; gap: 7px; padding: 0 12px 0 9px; border-right: 1px solid var(--border)">
+<img src="/_blob/95ca2ef5306cc2f56217587361b92216" alt="" style="width: 18px; height: 18px; display: block">
+<span style="font-weight: 700; letter-spacing: .02em">RW</span>
+</div>
+<div style="position: relative; width: 360px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 12px; border-right: 1px solid var(--border); background: var(--bg)">
+<span style="color: var(--accent); font-weight: 600" aria-hidden="true">&gt;</span>
+<label for="rw-cmd" class="sr">Command or search</label>
+<input id="rw-cmd" type="search" placeholder="search keyword, asin, brand…" style="all: unset; flex: 1 1 0; min-width: 0; height: 30px; font: 13px 'Geist Mono', ui-monospace, monospace; color: var(--ink); caret-color: var(--accent)">
+<span class="mute">{{cmdCount}}</span>
+<span class="key">⌘K</span>
+</div>
+<nav aria-label="Views" style="display: flex; align-items: stretch; border-right: 1px solid var(--border)">
+<sc-for list="{{fkeys}}" as="f" hint-placeholder-count="4">
+<a href="{{f.href}}" aria-current="{{f.current}}" style="{{f.style}}"><span style="{{f.keyStyle}}">{{f.key}}</span>{{f.label}}</a>
+</sc-for>
+</nav>
+<div style="flex: 1 1 0"></div>
+<div style="display: flex; align-items: center; gap: 6px; padding: 0 12px; border-left: 1px solid var(--border)"><span class="mute">KW 24H</span><span style="font-weight: 600">1,284</span></div>
+<div style="display: flex; align-items: center; gap: 6px; padding: 0 12px; border-left: 1px solid var(--border)"><span class="mute">QUEUE</span><span style="font-weight: 600">37</span></div>
+<div style="display: flex; align-items: center; gap: 6px; padding: 0 12px; border-left: 1px solid var(--border)"><span class="mute">KEEPA</span><span style="font-weight: 600">4,812</span><span class="mute">/6K</span></div>
+<div style="display: flex; align-items: center; gap: 6px; padding: 0 12px; border-left: 1px solid var(--border)"><span style="font-weight: 600">12:43</span><span class="mute">ET</span></div>
+<div style="display: flex; align-items: center; gap: 7px; padding: 0 12px; border-left: 1px solid var(--border)"><span class="live"></span><span class="up" style="font-weight: 600">LIVE</span></div>
+<button type="button" class="ibtn" aria-label="Toggle theme" onClick="{{toggleTheme}}" style="width: 32px; height: 31px; border-radius: 0; border-left: 1px solid var(--border)"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg></button>
+<div aria-label="Zach Knickerbocker" style="display: flex; align-items: center; padding: 0 10px; border-left: 1px solid var(--border)"><span style="height: 20px; padding: 0 5px; display: inline-flex; align-items: center; border-radius: 4px; background: #cf4f25; color: #fff; font-weight: 700">ZK</span></div>
+</header>
+<div style="flex: 1 1 0; min-height: 0; display: flex; gap: 1px; background: var(--border)">
+
+<section aria-label="Ranked designs" style="width: 900px; flex-shrink: 0; display: flex; flex-direction: column; background: var(--surface); min-height: 0">
+<div class="ptitle"><b>{{t.title}}</b><span>{{t.sub}}</span><span style="flex: 1 1 0"></span><span>{{t.right}}</span></div>
+<div class="cols colh">
+<span class="r">#</span><span class="r">Δrk</span><span></span><span>DESIGN</span><span>NICHE</span><span>BSR ↓</span><span>30D</span><span class="r">Δ7D</span><span class="r">/MO</span><span class="r">AGE</span><span class="r">PRICE</span><span class="r">KW</span><span class="r">P1</span>
+</div>
+<div style="flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column">
+<sc-for list="{{t.rows}}" as="r" hint-placeholder-count="30">
+<button type="button" class="trow cols tier-{{r.tier}} {{r.cls}}" onClick="{{r.pick}}" aria-label="{{r.name}}, BSR {{r.bsrLabel}}">
+<span class="r"><span style="color: var(--accent)">{{r.cursor}}</span><span class="mute">{{r.rank}}</span></span>
+<span class="r {{r.dRankClass}}">{{r.dRank}}</span>
+<span style="position: relative; width: 20px; height: 20px; border-radius: 3px; background: var(--well); overflow: hidden">
+<svg viewBox="0 0 240 250" style="position: absolute; left: 0; top: 1px; width: 20px; height: 21px" aria-hidden="true">
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="{{r.shirt}}"></path>
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="url(#teeShade)"></path>
+<path d="M100 8 Q120 28 140 8" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="3"></path>
+<path d="M66 86 L66 112 M174 86 L174 112" fill="none" stroke="#000000" stroke-opacity="0.08" stroke-width="1.5"></path>
+<sc-if value="{{r.isSunset}}" hint-placeholder-val="{{true}}">
+<circle cx="120" cy="124" r="32" fill="{{r.accent}}"></circle>
+<rect x="84" y="128" width="72" height="3" fill="{{r.shirt}}"></rect>
+<rect x="84" y="136" width="72" height="4" fill="{{r.shirt}}"></rect>
+<rect x="84" y="145" width="72" height="5" fill="{{r.shirt}}"></rect>
+<text font-family="Shrikhand" font-size="17" fill="{{r.ink}}" text-anchor="middle"><textPath href="#teeArc" startOffset="50%">{{r.l1}}</textPath></text>
+<text x="120" y="182" font-family="Bebas Neue" font-size="24" letter-spacing="2" fill="{{r.ink}}" text-anchor="middle">{{r.l2}}</text>
+</sc-if>
+<sc-if value="{{r.isStack}}" hint-placeholder-val="{{false}}">
+<text x="120" y="104" font-family="Bebas Neue" font-size="22" letter-spacing="3" fill="{{r.ink}}" text-anchor="middle">{{r.l1}}</text>
+<text x="120" y="140" font-family="Shrikhand" font-size="27" fill="{{r.accent}}" text-anchor="middle">{{r.l2}}</text>
+<text x="120" y="166" font-family="Bebas Neue" font-size="17" letter-spacing="4" fill="{{r.ink}}" text-anchor="middle">{{r.l3}}</text>
+</sc-if>
+<sc-if value="{{r.isIcon}}" hint-placeholder-val="{{false}}">
+<g transform="translate(93 64) scale(2.25)"><path d="{{r.icon}}" fill="none" stroke="{{r.accent}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></g>
+<text x="120" y="152" font-family="Archivo Black" font-size="18" fill="{{r.ink}}" text-anchor="middle">{{r.l1}}</text>
+<text x="120" y="174" font-family="Bebas Neue" font-size="16" letter-spacing="3" fill="{{r.accent}}" text-anchor="middle">{{r.l2}}</text>
+</sc-if>
+</svg>
+</span>
+<span class="ell sans" style="font-weight: 600">{{r.name}}</span>
+<span class="ell mute">{{r.facet}}</span>
+<span style="display: flex; align-items: center; gap: 6px; color: var(--tc); font-weight: 600"><span class="sw"></span>{{r.bsrLabel}}</span>
+<svg width="64" height="16" viewBox="0 0 72 34" preserveAspectRatio="none" aria-hidden="true"><polyline points="{{r.spark}}" fill="none" stroke="var(--tc)" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"></polyline></svg>
+<span class="r {{r.d7Class}}" style="white-space: nowrap">{{r.d7Short}}</span>
+<span class="r">{{r.sold}}</span>
+<span class="r mute">{{r.age}}</span>
+<span class="r mute">{{r.price}}</span>
+<span class="r">{{r.kwN}}</span>
+<span class="r">{{r.p1}}</span>
+</button>
+</sc-for>
+</div>
+<div class="ptitle" style="border-bottom: 0; border-top: 1px solid var(--border)">{{t.foot}}<span style="flex: 1 1 0"></span><span>BSR tiers</span><sc-for list="{{t.legend}}" as="g" hint-placeholder-count="5"><span class="tier-{{g.key}}" style="display: inline-flex; align-items: center; gap: 5px"><span class="sw"></span>{{g.label}}</span></sc-for></div>
+</section>
+
+<section aria-label="Design detail" class="tier-{{d.tier}}" style="flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--surface); overflow: hidden">
+<div class="ptitle"><b>DETAIL</b><span>{{d.asin}}</span><span style="flex: 1 1 0"></span><span style="display: inline-flex; align-items: center; gap: 5px"><span class="key">s</span>save</span><span style="display: inline-flex; align-items: center; gap: 5px"><span class="key">⏎</span>open</span><span style="display: inline-flex; align-items: center; gap: 5px"><span class="key">a</span>amazon</span></div>
+<div style="padding: 10px 12px 0; display: flex; flex-direction: column; gap: 10px; min-height: 0">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span class="mute">{{d.facet}} · {{d.brand}} · ${{d.price}}</span>
+<span class="sans ell" style="font-size: 18px; font-weight: 650; letter-spacing: -0.02em">{{d.name}}</span>
+</div>
+<div style="display: flex; gap: 12px">
+<div style="position: relative; width: 150px; height: 154px; flex-shrink: 0; border-radius: 6px; background: var(--well); box-shadow: inset 0 0 0 1px var(--hair); overflow: hidden">
+<svg viewBox="0 0 240 250" style="position: absolute; left: 5px; top: 6px; width: 140px; height: 146px" aria-hidden="true">
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="{{d.shirt}}"></path>
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="url(#teeShade)"></path>
+<path d="M100 8 Q120 28 140 8" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="3"></path>
+<path d="M66 86 L66 112 M174 86 L174 112" fill="none" stroke="#000000" stroke-opacity="0.08" stroke-width="1.5"></path>
+<sc-if value="{{d.isSunset}}" hint-placeholder-val="{{true}}">
+<circle cx="120" cy="124" r="32" fill="{{d.accent}}"></circle>
+<rect x="84" y="128" width="72" height="3" fill="{{d.shirt}}"></rect>
+<rect x="84" y="136" width="72" height="4" fill="{{d.shirt}}"></rect>
+<rect x="84" y="145" width="72" height="5" fill="{{d.shirt}}"></rect>
+<text font-family="Shrikhand" font-size="17" fill="{{d.ink}}" text-anchor="middle"><textPath href="#teeArc" startOffset="50%">{{d.l1}}</textPath></text>
+<text x="120" y="182" font-family="Bebas Neue" font-size="24" letter-spacing="2" fill="{{d.ink}}" text-anchor="middle">{{d.l2}}</text>
+</sc-if>
+<sc-if value="{{d.isStack}}" hint-placeholder-val="{{false}}">
+<text x="120" y="104" font-family="Bebas Neue" font-size="22" letter-spacing="3" fill="{{d.ink}}" text-anchor="middle">{{d.l1}}</text>
+<text x="120" y="140" font-family="Shrikhand" font-size="27" fill="{{d.accent}}" text-anchor="middle">{{d.l2}}</text>
+<text x="120" y="166" font-family="Bebas Neue" font-size="17" letter-spacing="4" fill="{{d.ink}}" text-anchor="middle">{{d.l3}}</text>
+</sc-if>
+<sc-if value="{{d.isIcon}}" hint-placeholder-val="{{false}}">
+<g transform="translate(93 64) scale(2.25)"><path d="{{d.icon}}" fill="none" stroke="{{d.accent}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></g>
+<text x="120" y="152" font-family="Archivo Black" font-size="18" fill="{{d.ink}}" text-anchor="middle">{{d.l1}}</text>
+<text x="120" y="174" font-family="Bebas Neue" font-size="16" letter-spacing="3" fill="{{d.accent}}" text-anchor="middle">{{d.l2}}</text>
+</sc-if>
+</svg>
+</div>
+<div style="flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; align-content: start">
+<div class="kv"><span>BSR</span><span style="color: var(--tc); font-weight: 600">{{d.bsrLabel}}</span></div>
+<div class="kv"><span>Tier</span><span style="display: inline-flex; align-items: center; gap: 5px; color: var(--tc)"><span class="sw"></span>{{d.tierLabel}}</span></div>
+<div class="kv"><span>Δ 7d</span><span class="{{d.d7Class}}">{{d.d7Label}}</span></div>
+<div class="kv"><span>Rank</span><span>{{d.rank}} <span class="{{d.dRankClass}}">{{d.dRank}}</span></span></div>
+<div class="kv"><span>Sold/mo</span><span>{{d.sold}}</span></div>
+<div class="kv"><span>30d avg</span><span>{{d.avg30}}</span></div>
+<div class="kv"><span>Drops 30d</span><span>{{d.drops}}</span></div>
+<div class="kv"><span>Age</span><span>{{d.days}}d</span></div>
+<div class="kv"><span>Keywords</span><span>{{d.kwN}}</span></div>
+<div class="kv"><span>Page one</span><span>{{d.p1}}</span></div>
+<div class="kv"><span>Price</span><span>${{d.price}}</span></div>
+<div class="kv"><span>Royalty</span><span>${{d.royalty}}</span></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; justify-content: space-between"><span style="font-weight: 600">BSR · 90D</span><span class="mute">log · tier bands</span></div>
+<div style="position: relative; height: 128px; border: 1px solid var(--hair); border-radius: 4px; overflow: hidden">
+<svg viewBox="0 0 500 128" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+<sc-for list="{{d.chart.bands}}" as="b" hint-placeholder-count="3"><rect class="tier-{{b.key}}" x="0" y="{{b.y}}" width="500" height="{{b.h}}" style="fill: var(--tb)"></rect></sc-for>
+<line x1="125" x2="125" y1="0" y2="128" style="stroke: var(--hair)"></line><line x1="250" x2="250" y1="0" y2="128" style="stroke: var(--hair)"></line><line x1="375" x2="375" y1="0" y2="128" style="stroke: var(--hair)"></line>
+<path d="{{d.chart.line}}" fill="none" style="stroke: var(--ink)" stroke-width="1.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+</svg>
+<sc-for list="{{d.chart.bands}}" as="b" hint-placeholder-count="3"><span class="tier-{{b.key}}" style="{{b.labelStyle}}">{{b.label}}</span></sc-for>
+</div>
+<div class="mute" style="display: flex; justify-content: space-between"><span>Jul 29</span><span>Aug 20</span><span>Sep 12</span><span>Oct 5</span><span>Oct 27</span></div>
+</div>
+
+<div style="display: flex; flex-direction: column">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 34px 34px 52px 120px; gap: 10px; height: 22px; align-items: center; border-bottom: 1px solid var(--border)" class="mute"><span>KEYWORD</span><span style="text-align: right">POS</span><span style="text-align: right">Δ</span><span style="text-align: right">VOL</span><span>TOP 10</span></div>
+<sc-for list="{{d.kws}}" as="k" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 34px 34px 52px 120px; gap: 10px; height: 24px; align-items: center; border-bottom: 1px solid var(--hair)">
+<span class="ell">{{k.kw}}</span><span style="text-align: right">#{{k.pos}}</span><span class="{{k.dClass}}" style="text-align: right">{{k.d}}</span><span class="mute" style="text-align: right">{{k.vol}}</span>
+<span style="display: flex; gap: 2px"><sc-for list="{{k.shelf}}" as="s" hint-placeholder-count="10"><span class="tier-{{s}}" style="flex: 1; height: 12px; border-radius: 2px; background: var(--sw)"></span></sc-for></span>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-direction: column">
+<div style="display: grid; grid-template-columns: 18px minmax(0, 1fr) 84px 56px 44px; gap: 10px; height: 22px; align-items: center; border-bottom: 1px solid var(--border)" class="mute"><span></span><span>SAME NICHE · {{d.facetUpper}}</span><span>BSR</span><span style="text-align: right">Δ7D</span><span style="text-align: right">/MO</span></div>
+<sc-for list="{{d.sibs}}" as="g" hint-placeholder-count="4">
+<div class="tier-{{g.tier}}" style="display: grid; grid-template-columns: 18px minmax(0, 1fr) 84px 56px 44px; gap: 10px; height: 24px; align-items: center; border-bottom: 1px solid var(--hair)">
+<span style="position: relative; width: 18px; height: 18px; border-radius: 3px; background: var(--well); overflow: hidden">
+<svg viewBox="0 0 240 250" style="position: absolute; left: 0; top: 1px; width: 18px; height: 19px" aria-hidden="true">
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="{{g.shirt}}"></path>
+<path d="M84 14 L100 8 Q120 28 140 8 L156 14 L214 46 L196 94 L174 86 L174 238 Q120 246 66 238 L66 86 L44 94 L26 46 Z" fill="url(#teeShade)"></path>
+<path d="M100 8 Q120 28 140 8" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="3"></path>
+<path d="M66 86 L66 112 M174 86 L174 112" fill="none" stroke="#000000" stroke-opacity="0.08" stroke-width="1.5"></path>
+<sc-if value="{{g.isSunset}}" hint-placeholder-val="{{true}}">
+<circle cx="120" cy="124" r="32" fill="{{g.accent}}"></circle>
+<rect x="84" y="128" width="72" height="3" fill="{{g.shirt}}"></rect>
+<rect x="84" y="136" width="72" height="4" fill="{{g.shirt}}"></rect>
+<rect x="84" y="145" width="72" height="5" fill="{{g.shirt}}"></rect>
+<text font-family="Shrikhand" font-size="17" fill="{{g.ink}}" text-anchor="middle"><textPath href="#teeArc" startOffset="50%">{{g.l1}}</textPath></text>
+<text x="120" y="182" font-family="Bebas Neue" font-size="24" letter-spacing="2" fill="{{g.ink}}" text-anchor="middle">{{g.l2}}</text>
+</sc-if>
+<sc-if value="{{g.isStack}}" hint-placeholder-val="{{false}}">
+<text x="120" y="104" font-family="Bebas Neue" font-size="22" letter-spacing="3" fill="{{g.ink}}" text-anchor="middle">{{g.l1}}</text>
+<text x="120" y="140" font-family="Shrikhand" font-size="27" fill="{{g.accent}}" text-anchor="middle">{{g.l2}}</text>
+<text x="120" y="166" font-family="Bebas Neue" font-size="17" letter-spacing="4" fill="{{g.ink}}" text-anchor="middle">{{g.l3}}</text>
+</sc-if>
+<sc-if value="{{g.isIcon}}" hint-placeholder-val="{{false}}">
+<g transform="translate(93 64) scale(2.25)"><path d="{{g.icon}}" fill="none" stroke="{{g.accent}}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path></g>
+<text x="120" y="152" font-family="Archivo Black" font-size="18" fill="{{g.ink}}" text-anchor="middle">{{g.l1}}</text>
+<text x="120" y="174" font-family="Bebas Neue" font-size="16" letter-spacing="3" fill="{{g.accent}}" text-anchor="middle">{{g.l2}}</text>
+</sc-if>
+</svg>
+</span>
+<span class="ell sans" style="font-weight: 600">{{g.name}}</span>
+<span style="display: flex; align-items: center; gap: 6px; color: var(--tc)"><span class="sw"></span>{{g.bsrLabel}}</span>
+<span class="{{g.d7Class}}" style="text-align: right">{{g.d7Short}}</span>
+<span style="text-align: right">{{g.sold}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</section>
+</div>
+<div aria-label="Risers, last 7 days" style="height: 24px; flex-shrink: 0; display: flex; align-items: center; background: var(--well); border-top: 1px solid var(--border); overflow: hidden">
+<span style="height: 100%; flex-shrink: 0; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid var(--border); font-weight: 600"><span class="up">▲</span>RISERS 7D</span>
+<div style="flex: 1 1 0; min-width: 0; overflow: hidden; padding-left: 14px">
+<div class="ticker">
+<sc-for list="{{tick}}" as="t" hint-placeholder-count="12">
+<span class="tier-{{t.tier}}" style="display: inline-flex; align-items: center; gap: 7px; white-space: nowrap"><span class="sw"></span><span class="sans" style="font-weight: 600">{{t.name}}</span><span class="mute">{{t.bsrLabel}}</span><span class="up">{{t.d7Short}}</span></span>
+</sc-for>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["paper","graphite"],"default":"graphite"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { dark: null, sel: 0 };
+  }
+  data() {
+    if (this._data) return this._data;
+    const SH = { navy: '#263354', black: '#1e1e20', royal: '#2c4fa3', pink: '#f3bccb', forest: '#2f4a3a', lemon: '#f2e08a', purple: '#4a3a78', olive: '#5f6138', brown: '#5a3f30', asphalt: '#3a3c40', heather: '#c9c7c1', white: '#f7f5f1', kelly: '#2e8a4c', maroon: '#5a2331', orange: '#e27b3c', slate: '#48525c' };
+    const C = '#f6eedd', D = '#1f1f22';
+    const IC = {
+      fish: 'M3 12c3-5 9-6 14-2l4-3v10l-4-3c-5 4-11 3-14-2z M15.5 11.2v.1',
+      cup: 'M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z M17 10h2a2 2 0 0 1 0 4h-2 M8 2.5v3 M12 2.5v3',
+      paw: 'M12 14c-3 0-5 2.5-5 4.5S9 21 12 21s5-.5 5-2.5S15 14 12 14z M4.5 10a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M16.3 10a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M8 5.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0 M12.8 5.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0',
+      tent: 'M3 20L12 4l9 16z M9 20l3-6 3 6',
+      pulse: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z M7 11h3l1-2 2 4 1-2h3',
+      book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 21V5 M8 7h7',
+      ghost: 'M6 20V10a6 6 0 0 1 12 0v10l-2-2-2 2-2-2-2 2-2-2z M10 10v.1 M14 10v.1',
+      gift: 'M4 10h16v10H4z M3 7h18v3H3z M12 7v13 M12 7c-2-4-6-3-5 0 M12 7c2-4 6-3 5 0',
+      cake: 'M4 21h16v-8H4z M4 16c2 1.5 4 1.5 6 0s4-1.5 6 0 2 1 4 0 M12 13V9 M12 5.5v.1',
+      sprout: 'M12 21v-9 M12 12c0-4-3-6-7-6 0 4 3 6 7 6z M12 14c0-3 2.5-5 6-5 0 3-2.5 5-6 5z',
+      pad: 'M6 8h12a4 4 0 0 1 4 4v1a3 3 0 0 1-5.4 1.8L15 13H9l-1.6 1.8A3 3 0 0 1 2 13v-1a4 4 0 0 1 4-4z M7 10.5v3 M5.5 12h3 M16 11v.1 M18 13v.1',
+      sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4',
+      pin: 'M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+      ribbon: 'M12 3a4 4 0 0 0-4 4c0 3 4 7 4 7s4-4 4-7a4 4 0 0 0-4-4z M10 13l-4 8 3-1 1 3 2-6 M14 13l4 8-3-1-1 3-2-6',
+      user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
+      wrench: 'M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z',
+      flag: 'M8 21V3l9 4-9 4 M5 21h8',
+      mountain: 'M3 20l6-10 4 6 2-3 6 7z',
+      paddle: 'M14 3a6 6 0 0 1 0 12h-1l-6 6-3-3 6-6v-1a6 6 0 0 1 4-8z',
+      pumpkin: 'M12 7c-5 0-8 3-8 7s3 7 8 7 8-3 8-7-3-7-8-7z M12 7v14 M8 8c-2 3-2 9 0 12 M16 8c2 3 2 9 0 12 M12 7c0-2 1-4 3-4'
+    };
+    const P = [
+      ['Reel Cool Grandpa', 'Lakeside Tackle Co', 'sunset', ['REEL COOL', 'GRANDPA'], 'navy', C, '#f08a3c', 'Fishing', 'fish', 1840, '19.99', 412, 1, ['fishing grandpa', 'reel cool grandpa', 'bass fishing gifts']],
+      ['First Coffee Then Chaos', 'Brewed Awake', 'stack', ['FIRST', 'COFFEE', 'THEN CHAOS'], 'black', C, '#e8a24a', 'Coffee', 'cup', 6210, '18.99', 96, 0, ['coffee lover', 'funny coffee shirt']],
+      ['Night Shift Nurse Club', 'Scrubs & Grit', 'icon', ['NIGHT SHIFT', 'NURSE CLUB'], 'royal', C, '#ef7aa0', 'Nursing', 'pulse', 3120, '19.99', 58, 1, ['night shift nurse', 'nurse gifts', 'icu nurse']],
+      ['In My Cat Mom Era', 'Purrfect Press', 'stack', ['IN MY', 'CAT MOM', 'ERA'], 'pink', D, '#b2365f', 'Cats', 'paw', 9800, '17.99', 33, 1, ['cat mom', 'in my era', 'cat lover gifts']],
+      ['Happy Camper Retro', 'Trailhead Goods', 'sunset', ['HAPPY', 'CAMPER'], 'forest', C, '#f08a3c', 'Camping', 'tent', 22400, '19.99', 610, 0, ['happy camper', 'camping shirt']],
+      ['Teacher Off Duty', 'Recess Club', 'stack', ['TEACHER', 'OFF DUTY', 'SUMMER MODE'], 'lemon', D, '#2a4fa8', 'Teachers', 'book', 14900, '18.99', 140, 1, ['teacher summer', 'last day of school']],
+      ['Spooky Season Ghost', 'Haunt House Tees', 'icon', ['SPOOKY', 'SEASON'], 'black', C, '#f08a3c', 'Halloween', 'ghost', 980, '19.99', 21, 1, ['spooky season', 'halloween ghost', 'cute ghost']],
+      ['Birthday Squad', 'Party Animal Co', 'sunset', ['BIRTHDAY', 'SQUAD'], 'purple', C, '#f2c14e', 'Birthday', 'cake', 41200, '17.99', 220, -1, ['birthday squad', 'birthday party shirt']],
+      ['Plant Lady', 'Root & Bloom', 'icon', ['PLANT', 'LADY'], 'olive', C, '#b5dc84', 'Gardening', 'sprout', 18800, '18.99', 310, 0, ['plant lady', 'plant mom']],
+      ['Level Up Dad', 'Pixel Pop', 'icon', ['LEVEL UP', 'DAD MODE'], 'asphalt', C, '#4fb3a5', 'Gaming', 'pad', 7400, '19.99', 180, 1, ['gamer dad', 'level up', 'fathers day gamer']],
+      ['Stay Groovy', 'Sunny Days Supply', 'sunset', ['STAY', 'GROOVY'], 'brown', C, '#f2c14e', 'Retro 70s', 'sun', 31800, '18.99', 900, 0, ['stay groovy', '70s retro']],
+      ['Texas Born & Raised', 'Lone Star Thread', 'icon', ['TEXAS', 'BORN & RAISED'], 'heather', D, '#b23a2e', 'Texas', 'pin', 56200, '19.99', 520, -1, ['texas shirt', 'texas pride']],
+      ['Accept Understand Love', 'Spectrum Kind', 'icon', ['ACCEPT', 'UNDERSTAND · LOVE'], 'white', D, '#3a6df0', 'Autism', 'ribbon', 12100, '18.99', 400, 1, ['autism acceptance', 'autism awareness']],
+      ['Dad Joke Loading', 'Pun Intended Co', 'stack', ['DAD JOKE', 'LOADING', 'PLEASE WAIT'], 'heather', D, '#e85d4a', 'Dad', 'user', 4300, '19.99', 760, 0, ['dad joke', 'funny dad shirt']],
+      ['Fore! Golf Club', 'Back Nine', 'icon', ['FORE!', 'GOLF CLUB'], 'kelly', C, '#f6eedd', 'Golf', 'flag', 88000, '19.99', 270, -1, ['golf shirt', 'golf dad']],
+      ['In My Pickleball Era', 'Dink Squad', 'stack', ['IN MY', 'PICKLEBALL', 'ERA'], 'white', D, '#e2793a', 'Pickleball', 'paddle', 2650, '19.99', 64, 1, ['pickleball', 'pickleball era', 'dink responsibly']],
+      ['One More Chapter', 'Spine Crackers', 'icon', ['ONE MORE', 'CHAPTER'], 'maroon', C, '#f2c14e', 'Books', 'book', 16800, '18.99', 330, 0, ['book lover', 'reading shirt']],
+      ['Axolotl Vibes', 'Lil Critters', 'sunset', ['AXOLOTL', 'VIBES'], 'lemon', D, '#ef7aa0', 'Axolotls', 'paw', 27500, '17.99', 190, 1, ['axolotl', 'cute axolotl']],
+      ['Taco Tuesday', 'Salsa Verde Co', 'sunset', ['TACO', 'TUESDAY'], 'orange', D, '#f6eedd', 'Tacos', 'cup', 47800, '17.99', 450, 0, ['taco tuesday', 'taco lover']],
+      ['Grease Monkey', 'Shop Rag Supply', 'icon', ['GREASE', 'MONKEY'], 'slate', C, '#f08a3c', 'Mechanic', 'wrench', 39000, '19.99', 480, 0, ['mechanic shirt', 'grease monkey']],
+      ['Mama Bear', 'North & Nest', 'stack', ['MAMA', 'BEAR', 'EST. 2026'], 'forest', C, '#e8a24a', 'Mom', 'user', 1320, '19.99', 980, 0, ['mama bear', 'mom shirt', 'mothers day']],
+      ['Lucky Squad', 'Shamrock Shop', 'icon', ['LUCKY', 'SQUAD'], 'kelly', C, '#f2c14e', "St. Patrick's", 'sprout', 142000, '17.99', 230, 1, ['st patricks day', 'lucky shirt']],
+      ['Take A Hike', 'Summit Supply', 'sunset', ['TAKE A', 'HIKE'], 'slate', C, '#f08a3c', 'Hiking', 'mountain', 9100, '19.99', 360, 1, ['hiking shirt', 'take a hike']],
+      ['Bass Whisperer', 'Lakeside Tackle Co', 'icon', ['BASS', 'WHISPERER'], 'heather', D, '#2f6f8f', 'Fishing', 'fish', 5600, '19.99', 240, 0, ['bass fishing', 'fishing dad']],
+      ['Espresso Yourself', 'Brewed Awake', 'sunset', ['ESPRESSO', 'YOURSELF'], 'maroon', C, '#e8a24a', 'Coffee', 'cup', 61000, '18.99', 700, -1, ['espresso', 'coffee pun']],
+      ['Dog Dad Club', 'Good Boy Goods', 'stack', ['DOG DAD', 'CLUB', 'EST. WOOF'], 'navy', C, '#f2c14e', 'Dogs', 'paw', 2180, '19.99', 150, 1, ['dog dad', 'dog lover gifts']],
+      ['Merry & Bright', 'North Pole Press', 'sunset', ['MERRY', '& BRIGHT'], 'forest', C, '#e85d4a', 'Christmas', 'gift', 11400, '19.99', 12, 1, ['christmas shirt', 'merry and bright']],
+      ['Powered By Coffee', 'Scrubs & Grit', 'stack', ['POWERED BY', 'COFFEE', '& NURSING'], 'white', D, '#e85d4a', 'Nursing', 'pulse', 3900, '18.99', 88, 1, ['nurse coffee', 'nurse life']],
+      ['Gamer Grandma', 'Pixel Pop', 'icon', ['GAMER', 'GRANDMA'], 'purple', C, '#ef7aa0', 'Gaming', 'pad', 74000, '19.99', 250, 0, ['gamer grandma', 'grandma gifts']],
+      ['Dirt Therapy', 'Root & Bloom', 'stack', ['DIRT', 'THERAPY', 'GROW SLOW'], 'brown', C, '#b5dc84', 'Gardening', 'sprout', 21000, '18.99', 120, 1, ['gardening shirt', 'garden lover']],
+      ['Hooked On Summer', 'Lakeside Tackle Co', 'sunset', ['HOOKED ON', 'SUMMER'], 'royal', C, '#f2c14e', 'Fishing', 'fish', 350000, '17.99', 14, 0, ['fishing kids', 'summer fishing']],
+      ['Caffeinated & Catty', 'Purrfect Press', 'icon', ['CAFFEINATED', '& CATTY'], 'heather', D, '#b2365f', 'Cats', 'paw', 450000, '17.99', 40, -1, ['cat coffee', 'sassy cat']],
+      ['O-Fish-Ally Retired', 'Lakeside Tackle Co', 'stack', ['O-FISH-ALLY', 'RETIRED', 'GONE FISHING'], 'kelly', C, '#f2c14e', 'Fishing', 'fish', 8900, '19.99', 45, 1, ['retired fishing', 'fishing retirement gift']],
+      ['Fishing Is My Therapy', 'Cast Away Co', 'icon', ['FISHING IS', 'MY THERAPY'], 'navy', C, '#4fb3a5', 'Fishing', 'fish', 13200, '18.99', 280, 0, ['fishing therapy', 'funny fishing shirt']],
+      ['Lake Life', 'Dockside Daze', 'sunset', ['LAKE', 'LIFE'], 'slate', C, '#f08a3c', 'Fishing', 'mountain', 24600, '18.99', 520, 0, ['lake life', 'lake shirt']],
+      ['Boo Crew', 'Haunt House Tees', 'icon', ['BOO', 'CREW'], 'orange', D, '#1f1f22', 'Halloween', 'ghost', 2210, '17.99', 18, 1, ['boo crew', 'halloween group shirt']],
+      ['Witch Please', 'Cauldron & Co', 'stack', ['WITCH', 'PLEASE', 'EST. 1692'], 'black', C, '#9b7be0', 'Halloween', 'ghost', 6400, '19.99', 40, 1, ['witch please', 'funny witch shirt']],
+      ['Little Pumpkins Teacher', 'Recess Club', 'sunset', ['LITTLE', 'PUMPKINS'], 'black', C, '#f08a3c', 'Halloween', 'pumpkin', 9900, '18.99', 26, 1, ['teacher halloween', 'little pumpkins']],
+      ['Creep It Real', 'Haunt House Tees', 'icon', ['CREEP IT', 'REAL'], 'purple', C, '#b5dc84', 'Halloween', 'ghost', 18900, '17.99', 380, 1, ['creep it real', 'halloween pun']],
+      ['Candy Corn Club', 'Sugar Rush Press', 'stack', ['CANDY', 'CORN', 'CLUB'], 'white', D, '#e2793a', 'Halloween', 'pumpkin', 71000, '17.99', 400, 1, ['candy corn', 'halloween candy']],
+      ['ER Nurse Squad', 'Scrubs & Grit', 'icon', ['ER NURSE', 'SQUAD'], 'navy', C, '#ef7aa0', 'Nursing', 'pulse', 8200, '19.99', 150, 0, ['er nurse', 'emergency nurse']],
+      ['In My Nurse Era', 'Scrubs & Grit', 'stack', ['IN MY', 'NURSE', 'ERA'], 'pink', D, '#b2365f', 'Nursing', 'pulse', 15800, '18.99', 70, 1, ['nurse era', 'in my nurse era']],
+      ['Nursing School Survivor', 'Clinical Clothing', 'stack', ['NURSING', 'SCHOOL', 'SURVIVOR'], 'maroon', C, '#f2c14e', 'Nursing', 'book', 29000, '18.99', 240, 0, ['nursing student', 'nurse graduation']],
+      ['Scrub Life', 'Clinical Clothing', 'sunset', ['SCRUB', 'LIFE'], 'royal', C, '#4fb3a5', 'Nursing', 'pulse', 112000, '17.99', 610, -1, ['scrub life', 'nurse life']],
+      ['Teacher Superpower', 'Recess Club', 'icon', ['TEACHER', 'SUPERPOWER'], 'royal', C, '#f2c14e', 'Teachers', 'book', 4800, '19.99', 120, 1, ['teacher superpower', 'teacher appreciation']],
+      ['100 Days Smarter', 'Chalk Talk', 'stack', ['100', 'DAYS', 'SMARTER'], 'white', D, '#2a4fa8', 'Teachers', 'book', 11800, '17.99', 300, 0, ['100 days of school', '100th day']],
+      ['Teacher Bestie', 'Chalk Talk', 'sunset', ['TEACHER', 'BESTIE'], 'pink', D, '#b2365f', 'Teachers', 'book', 21500, '18.99', 75, 1, ['teacher bestie', 'teacher friend']],
+      ['Recess Is My Cardio', 'Recess Club', 'stack', ['RECESS', 'IS MY', 'CARDIO'], 'kelly', C, '#f6eedd', 'Teachers', 'book', 38000, '18.99', 410, 0, ['pe teacher', 'recess']],
+      ['Pencil Me In', 'Chalk Talk', 'icon', ['PENCIL', 'ME IN'], 'lemon', D, '#2a4fa8', 'Teachers', 'book', 96000, '17.99', 540, -1, ['teacher pun', 'pencil']],
+      ['Dink Responsibly', 'Dink Squad', 'icon', ['DINK', 'RESPONSIBLY'], 'kelly', C, '#f2e08a', 'Pickleball', 'paddle', 3600, '19.99', 41, 1, ['dink responsibly', 'pickleball pun']],
+      ['Pickleball Grandpa', 'Dink Squad', 'sunset', ['PICKLEBALL', 'GRANDPA'], 'navy', C, '#b5dc84', 'Pickleball', 'paddle', 8800, '19.99', 77, 1, ['pickleball grandpa', 'pickleball gifts']]
+    ];
+    const PREV = { 'Spooky Season Ghost': 3400, 'Dog Dad Club': 3900, 'In My Pickleball Era': 17500, 'Merry & Bright': 19800, 'Espresso Yourself': 52000, 'Caffeinated & Catty': 205000, 'Lucky Squad': 290000 };
+    const TL = { elite: 'Elite', hot: 'Hot', strong: 'Strong', steady: 'Steady', slow: 'Slow' };
+    const RANK = { elite: 0, hot: 1, strong: 2, steady: 3, slow: 4 };
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    this._data = P.map((p, i) => {
+      const bsr = p[9];
+      const tier = this.tierOf(bsr);
+      const raw = [];
+      let v = Math.log(bsr) + p[12] * 0.5;
+      for (let k = 0; k < 90; k++) { v += -p[12] * 0.0055 + (rnd() - 0.5) * 0.16; raw.push(v); }
+      const shift = Math.log(bsr) - raw[89];
+      const s = raw.map((x) => x + shift);
+      const prevBsr = PREV[p[0]] || 0;
+      if (prevBsr) {
+        const a = Math.log(prevBsr), b = Math.log(bsr), d = a - s[81];
+        for (let k = 60; k < 82; k++) s[k] += d * ((k - 60) / 21);
+        for (let k = 82; k < 90; k++) s[k] = a + (b - a) * ((k - 82) / 7) + (k > 82 && k < 89 ? (rnd() - 0.5) * 0.05 : 0);
+      }
+      const old7 = Math.exp(s[82]);
+      const d7 = Math.round(((old7 - bsr) / old7) * 100);
+      const last30 = s.slice(60);
+      const sp = this.spark(last30, 72, 34);
+      const soldN = Math.max(1, Math.round(260000 / Math.pow(bsr, 0.82)));
+      const prevTier = prevBsr ? this.tierOf(prevBsr) : tier;
+      const moveUp = RANK[prevTier] > RANK[tier];
+      return {
+        i, name: p[0], brand: p[1], style: p[2], l1: p[3][0], l2: p[3][1], l3: p[3][2] || '',
+        shirt: SH[p[4]], ink: p[5], accent: p[6], facet: p[7], icon: IC[p[8]], bsr, price: p[10], days: p[11], trend: p[12], kw: p[13],
+        tier, tierLabel: TL[tier], tierRank: RANK[tier],
+        bsrLabel: '#' + this.fmt(bsr), bsrShort: '#' + this.short(bsr),
+        soldN, sold: this.fmt(soldN),
+        avg30: '#' + this.fmt(Math.round(Math.exp(last30.reduce((a, b) => a + b, 0) / 30))),
+        drops: Math.max(1, Math.round(2400 / Math.pow(bsr, 0.45))),
+        asin: 'B0' + (Math.floor(rnd() * 1e8)).toString(36).toUpperCase().padStart(8, 'X').slice(0, 8),
+        spark: sp.pts, sparkEnd: sp.end,
+        series: s,
+        d7, d7Label: (d7 >= 0 ? '▲ ' : '▼ ') + Math.abs(d7) + '%', d7Class: d7 >= 0 ? 'up' : 'down',
+        laneMove: prevTier !== tier, prevTier, prevTierLabel: TL[prevTier], moveUp,
+        moveLabel: (moveUp ? '▲ from ' : '▼ from ') + TL[prevTier],
+        isSunset: p[2] === 'sunset', isStack: p[2] === 'stack', isIcon: p[2] === 'icon',
+        isNew: p[11] <= 60, newLabel: 'NEW · ' + p[11] + 'D'
+      };
+    });
+    return this._data;
+  }
+  tierOf(b) { return b <= 2500 ? 'elite' : b <= 15000 ? 'hot' : b <= 60000 ? 'strong' : b <= 250000 ? 'steady' : 'slow'; }
+  fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  short(b) { return b >= 100000 ? Math.round(b / 1000) + 'K' : b >= 1000 ? (b / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(b); }
+  spark(vals, w, h) {
+    const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals) + 0.0001, n = vals.length;
+    const pts = vals.map((x, k) => [2 + (k * (w - 4)) / (n - 1), 2 + ((x - lo) / (hi - lo)) * (h - 4)]);
+    return { pts: pts.map((q) => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' '), end: pts[n - 1][1].toFixed(1), endX: pts[n - 1][0].toFixed(1) };
+  }
+  themeVals() {
+    const dark = this.state.dark == null ? this.props.theme === 'graphite' : this.state.dark;
+    return { themeClass: dark ? 'dark' : '', toggleTheme: () => this.setState({ dark: !dark }), resultLabel: this.data().length + ' designs' };
+  }
+
+  termVals(limit) {
+    const all = this.data();
+    const ranked = all.slice().sort((a, b) => a.bsr - b.bsr);
+    const before = all.slice().sort((a, b) => a.series[82] - b.series[82]);
+    const rankOf = {}, prevOf = {};
+    ranked.forEach((p, k) => { rankOf[p.i] = k + 1; });
+    before.forEach((p, k) => { prevOf[p.i] = k + 1; });
+    const sel = this.state.sel;
+    const enrich = (p) => {
+      const dr = prevOf[p.i] - rankOf[p.i];
+      const kwN = p.kw.length + 3 + ((p.i * 7) % 17);
+      return Object.assign({}, p, {
+        rank: rankOf[p.i],
+        dRank: dr === 0 ? '·' : (dr > 0 ? '▲' : '▼') + Math.abs(dr),
+        dRankClass: dr > 0 ? 'up' : dr < 0 ? 'down' : 'mute',
+        d7Short: (p.d7 >= 0 ? '+' : '−') + Math.abs(p.d7) + '%',
+        kwN, p1: Math.max(0, Math.min(kwN, Math.round(kwN * (0.72 - p.tierRank * 0.16)))),
+        age: p.days >= 365 ? (p.days / 365).toFixed(1) + 'y' : p.days + 'd',
+        price: '$' + p.price,
+        royalty: (Number(p.price) * 0.2).toFixed(2)
+      });
+    };
+    const rows = ranked.slice(0, limit).map((p) => Object.assign(enrich(p), {
+      cls: p.i === sel ? 'on' : '', cursor: p.i === sel ? '▸ ' : '', pick: () => this.setState({ sel: p.i })
+    }));
+    const p = enrich(all[sel]);
+    const s = p.series;
+    const lo = Math.min.apply(null, s) - 0.25, hi = Math.max.apply(null, s) + 0.25, CH = 128;
+    const yv = (v) => 6 + ((v - lo) / (hi - lo)) * (CH - 12);
+    const ln = Math.log;
+    const B = [['elite', 'ELITE', -99, ln(2500)], ['hot', 'HOT', ln(2500), ln(15000)], ['strong', 'STRONG', ln(15000), ln(60000)], ['steady', 'STEADY', ln(60000), ln(250000)], ['slow', 'SLOW', ln(250000), 99]];
+    const bands = [];
+    B.forEach((b) => {
+      const a = Math.max(lo, b[2]), z = Math.min(hi, b[3]);
+      if (z <= a) return;
+      const y0 = a === lo ? 0 : yv(a), y1 = z === hi ? CH : yv(z);
+      bands.push({
+        key: b[0], label: b[1], y: y0.toFixed(1), h: (y1 - y0).toFixed(1),
+        labelStyle: 'position:absolute;right:6px;top:' + ((y0 + y1) / 2 - 8).toFixed(1) + 'px;font-size:13px;font-weight:600;color:var(--tc);display:' + (y1 - y0 > 18 ? 'block' : 'none')
+      });
+    });
+    let seed = 11 + p.i * 13;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    const order = ['elite', 'hot', 'strong', 'steady', 'slow'];
+    const kws = p.kw.map((kw, k) => {
+      const shelf = [];
+      for (let j = 0; j < 10; j++) shelf.push(Math.min(4, Math.max(0, p.tierRank - 1 + Math.floor(j / 3) + (rnd() < 0.3 ? 1 : 0))));
+      shelf.sort((a, b) => a - b);
+      return { kw, pos: [1, 3, 8][k], d: ['▲2', '·', '▼1'][k], dClass: ['up', 'mute', 'down'][k], vol: ['18.2K', '6.4K', '2.1K'][k], shelf: shelf.map((t) => order[t]) };
+    });
+    const sibs = all.filter((x) => x.facet === p.facet && x.i !== p.i).sort((a, b) => a.bsr - b.bsr).slice(0, 5).map(enrich);
+    const risers = all.filter((x) => x.d7 > 0).sort((a, b) => b.d7 - a.d7).slice(0, 14).map(enrich);
+    const legend = [['elite', 'Elite'], ['hot', 'Hot'], ['strong', 'Strong'], ['steady', 'Steady'], ['slow', 'Slow']].map((t) => ({ key: t[0], label: t[1] }));
+    const idx = order.map((k) => {
+      const n = all.filter((x) => x.tier === k).length;
+      const net = all.filter((x) => x.laneMove && x.tier === k).length - all.filter((x) => x.laneMove && x.prevTier === k).length;
+      return { key: k, label: k.toUpperCase(), n, net: net === 0 ? '·0' : (net > 0 ? '▲' : '▼') + Math.abs(net), netClass: net > 0 ? 'up' : net < 0 ? 'down' : 'mute' };
+    });
+    return {
+      rowsShown: rows.length, total: all.length,
+      t: { rows, legend, title: 'EXPLORE', sub: all.length + ' designs · sort bsr ↑', right: '1–' + rows.length + ' of ' + all.length, foot: '' },
+      d: Object.assign({}, p, { kws, sibs, facetUpper: p.facet.toUpperCase(), chart: { bands, line: 'M' + s.map((v, k) => ((k * 500) / 89).toFixed(1) + ' ' + yv(v).toFixed(1)).join(' L') } }),
+      tick: risers.concat(risers),
+      idx, medBsr: this.fmt(ranked[Math.floor((ranked.length - 1) / 2)].bsr),
+      selCount: 1
+    };
+  }
+  fkeyVals(active) {
+    return [['F1', 'Explore', 'explore-terminal.dc.html'], ['F2', 'Keywords', 'keywords-terminal.dc.html'], ['F3', 'Niches', '#niches'], ['F4', 'Movers', '#movers']].map((f, k) => {
+      const on = k === active;
+      return {
+        key: f[0], label: f[1], href: f[2], current: on ? 'page' : 'false',
+        style: 'display:flex;align-items:center;gap:7px;padding:0 12px;text-decoration:none;font-size:13px;color:' + (on ? 'var(--ink)' : 'var(--muted)') + ';background:' + (on ? 'var(--surface)' : 'transparent') + ';box-shadow:' + (on ? 'inset 0 -2px 0 var(--accent)' : 'none') + (k ? ';border-left:1px solid var(--border)' : ''),
+        keyStyle: 'font-size:13px;font-weight:600;color:' + (on ? 'var(--accent-ink)' : 'var(--muted)')
+      };
+    });
+  }
+
+  renderVals() {
+    const v = this.termVals(32);
+    v.t.sub = 'tier:any · niche:any · published:<1y · sort:bsr↑';
+    v.t.foot = 'j/k move · ⏎ open · s save · x compare · / filter';
+    return Object.assign(this.themeVals(), v, { fkeys: this.fkeyVals(0), cmdCount: v.total + ' designs' });
+  }
+}
+</script>
+</body>
+</html>

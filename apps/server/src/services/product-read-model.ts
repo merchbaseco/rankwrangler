@@ -47,7 +47,7 @@ export interface Product {
     };
 }
 
-export interface ProductSearchProduct {
+export interface KeywordResultsProduct {
     marketplaceId: string;
     asin: string;
     title: string | null;
@@ -61,12 +61,12 @@ export interface ProductSearchProduct {
     boughtInPastMonth: number | null;
 }
 
-export interface ProductSearch {
+export interface KeywordResults {
     keyword: string;
     searchedAt: string;
     results: Array<{
         organicSearchPlacement: number;
-        product: ProductSearchProduct;
+        product: KeywordResultsProduct;
     }>;
 }
 
@@ -253,7 +253,7 @@ export const mapProductToPublicProduct = (
     },
 });
 
-export const mapProductToCompactProductSearch = (product: Product): ProductSearchProduct => ({
+export const mapProductToKeywordResultsProduct = (product: Product): KeywordResultsProduct => ({
     marketplaceId: product.marketplaceId,
     asin: product.asin,
     title: product.listing.title,

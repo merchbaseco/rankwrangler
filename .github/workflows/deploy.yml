@@ -57,12 +57,25 @@ jobs:
       sha: ${{ needs.resolve.outputs.sha }}
       explicit_ref: ${{ needs.resolve.outputs.explicit_ref == 'true' }}
       production_checkout: /Users/zknicker/srv/rankwrangler
-      deploy_command: bun run deploy
-      health_urls: https://rankwrangler.merchbase.co/health/live
+      install_command: "true"
+      deploy_command: >-
+        CI_OP_TOKEN="$DEPLOY_AGENT_PRODUCTION_OP_TOKEN" bun run setup
+        && CI_OP_TOKEN="$DEPLOY_AGENT_PRODUCTION_OP_TOKEN" bun run deploy
+      health_urls: https://rankwrangler.merchbase.co/health/live https://rankwrangler.merchbase.co/api/health
+      health_timeout_seconds: 600
       runner: self-hosted
       published_packages: packages/http-client:@rankwrangler/http-client,packages/cli:@rankwrangler/cli
       publish_provenance: true
       bun_version: "1.4.2"
+      publish_install_command: |
+        set -euo pipefail
+        MERCHBASE_GITHUB_NPM_TOKEN="$(RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true bunx varlock@1.16.1 printenv MERCHBASE_GITHUB_NPM_TOKEN)"
+        MERCHBASE_HUGEICONS_LICENSE_KEY="$(RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true bunx varlock@1.16.1 printenv MERCHBASE_HUGEICONS_LICENSE_KEY)"
+        test -n "$MERCHBASE_GITHUB_NPM_TOKEN"
+        test -n "$MERCHBASE_HUGEICONS_LICENSE_KEY"
+        export MERCHBASE_GITHUB_NPM_TOKEN
+        export MERCHBASE_HUGEICONS_LICENSE_KEY
+        bun install --frozen-lockfile
       prepublish_command: bun run release:check && bun run cli:build && bun run release:check-cli-pack
       release_token_env_name: RELEASE_AGENT_TOOLING_OP_TOKEN
       release_switch_env_name: RANKWRANGLER_RESOLVE_RELEASE_TOKENS

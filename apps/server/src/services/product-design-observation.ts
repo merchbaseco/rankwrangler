@@ -25,7 +25,8 @@ export const observeProductDesign = async (
     fetcher: typeof fetch = fetch,
     capture: typeof captureProviderAttempt = captureProviderAttempt
 ) => {
-    if (!env.RANKWRANGLER_GEMINI_API_KEY) {
+    const apiKey = env.RANKWRANGLER_GEMINI_API_KEY;
+    if (!apiKey) {
         throw new Error('RANKWRANGLER_GEMINI_API_KEY is required for Product short names.');
     }
 
@@ -40,7 +41,7 @@ export const observeProductDesign = async (
             fetcher(GEMINI_ENDPOINT, {
                 method: 'POST',
                 headers: {
-                    'x-goog-api-key': env.RANKWRANGLER_GEMINI_API_KEY,
+                    'x-goog-api-key': apiKey,
                     'content-type': 'application/json',
                 },
                 body: JSON.stringify({

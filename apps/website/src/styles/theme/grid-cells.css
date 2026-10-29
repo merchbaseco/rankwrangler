@@ -1,0 +1,268 @@
+/*
+ * The Grid direction's data marks and cells (Grid J/K/I, OptsL): dot bands,
+ * halftone sparklines, figures, the design, move, sold, score and status
+ * cells and the column width hooks. Product elements no
+ * HeroUI component draws; sizes from tokens.css.
+ */
+
+@layer components {
+    /* ---------------------------------------------------------------------------------------------
+     * Marks: dot bands and halftone sparklines
+     * -------------------------------------------------------------------------------------------*/
+
+    /* Single-series band and halftone inks; tier scopes set `--band-ink` themselves. */
+    .band-ink-accent {
+        --band-ink: var(--delta-up);
+    }
+
+    .band-ink-steady {
+        --band-ink: var(--tier-steady-ht);
+    }
+
+    .band-ink-elite {
+        --band-ink: var(--tier-elite-ht);
+    }
+
+    .band-ink-tier {
+        --band-ink: var(--tier-ht);
+    }
+
+    .dot-band__svg {
+        display: block;
+    }
+
+    .dot-band__off {
+        fill: var(--dot-off);
+    }
+
+    .dot-band__on {
+        fill: var(--band-ink);
+    }
+
+    .halftone-spark {
+        display: block;
+    }
+
+    /* The dotted fill: a 3-unit pattern, its dot radius a theme token (larger on paper). */
+    .halftone-spark__dot {
+        r: var(--halftone-dot);
+        fill: var(--band-ink);
+    }
+
+    .halftone-spark__line {
+        stroke: var(--band-ink);
+    }
+
+    .halftone-spark__end {
+        fill: var(--band-ink);
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Cells
+     * -------------------------------------------------------------------------------------------*/
+
+    /* Every grid figure: Geist Mono, tabular, at the body size (Grid J `.num`). */
+    .grid-figure {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .grid-figure--muted {
+        color: var(--muted);
+    }
+
+    /* The rank as a plain tier-coloured figure (Grid J `.bsrfig`): no ring, pill or bar. */
+    .bsr-figure {
+        color: var(--tier-fg);
+        font-family: var(--font-mono);
+        font-size: var(--text-xl);
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        letter-spacing: -0.04em;
+    }
+
+    /* Art, then the name over the brand (Grid J design cell). */
+    .design-cell {
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 3.5);
+        min-width: 0;
+    }
+
+    .design-cell__text {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+    }
+
+    .design-cell__name {
+        overflow: hidden;
+        font-family: var(--font-sans);
+        font-size: var(--text-lg);
+        font-weight: 500;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .design-cell__brand {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: var(--text-sm);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* The keyword in Onest at the name weight, truncating in its column. */
+    .keyword-cell {
+        overflow: hidden;
+        font-family: var(--font-sans);
+        font-size: var(--text-lg);
+        font-weight: 500;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Sold per month over its Meter (grid-overrides.css), the figure on top (Grid J). */
+    .sold-cell {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: calc(var(--spacing-base) * 9);
+        padding-inline-start: calc(var(--spacing-base) * 1);
+    }
+
+    .sold-cell > .grid-figure {
+        position: relative;
+    }
+
+    /* Grid I's median chip: the Meter under a tier dot and the figure in the tier ink. */
+    .median-cell {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 2.5);
+        width: 100%;
+        height: calc(var(--spacing-base) * 8.5);
+        padding-inline-start: calc(var(--spacing-base) * 2.5);
+    }
+
+    .median-cell__dot {
+        position: relative;
+        width: calc(var(--spacing-base) * 2.25);
+        height: calc(var(--spacing-base) * 2.25);
+        flex-shrink: 0;
+        border-radius: var(--radius-dot);
+        background-color: var(--tier-fg);
+    }
+
+    .median-cell__figure {
+        position: relative;
+        color: var(--tier-fg);
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+    }
+
+    /* A young design's short sparkline sits at the cell's trailing edge (Grid J). */
+    .spark-cell {
+        display: flex;
+        justify-content: flex-end;
+        width: 100%;
+    }
+
+    /* The score ring, its figure and the heat chip in one line (Grid I SCORE). */
+    .score-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 2.5);
+    }
+
+    /* A keyword's status over when it last moved (Grid I Status). */
+    .status-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 2.5);
+        min-width: 0;
+    }
+
+    .status-cell__text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        line-height: 1.2;
+    }
+
+    .status-cell__detail {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: var(--text-sm);
+        text-overflow: ellipsis;
+    }
+
+    /* Column widths: one token per column (tokens.css), shared with the KPI spans above. */
+    .grid-col--rank {
+        width: var(--col-rank);
+    }
+
+    .grid-col--niche {
+        width: var(--col-niche);
+    }
+
+    .grid-col--bsr {
+        width: var(--col-bsr);
+    }
+
+    .grid-col--spark {
+        width: var(--col-spark);
+    }
+
+    .grid-col--d7 {
+        width: var(--col-d7);
+    }
+
+    .grid-col--sold {
+        width: var(--col-sold);
+    }
+
+    .grid-col--drops {
+        width: var(--col-drops);
+    }
+
+    .grid-col--age {
+        width: var(--col-age);
+    }
+
+    .grid-col--price {
+        width: var(--col-price);
+    }
+
+    .grid-col--score {
+        width: var(--col-score);
+    }
+
+    .grid-col--weeks {
+        width: var(--col-weeks);
+    }
+
+    .grid-col--shelf {
+        width: var(--col-shelf);
+    }
+
+    .grid-col--median {
+        width: var(--col-median);
+    }
+
+    .grid-col--new {
+        width: var(--col-new);
+    }
+
+    .grid-col--merch {
+        width: var(--col-merch);
+    }
+
+    .grid-col--status {
+        width: var(--col-status);
+    }
+}

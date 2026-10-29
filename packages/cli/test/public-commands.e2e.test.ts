@@ -21,7 +21,10 @@ afterEach(() => {
 
 describe('final public CLI contract', () => {
     test('routes one or many Product get ASINs to the matching public contract', async () => {
-        const requests: Array<{ procedure: string; input: Record<string, unknown> }> = [];
+        const requests: Array<{
+            procedure: string;
+            input: Record<string, unknown>;
+        }> = [];
         const server = serve({
             port: CLI_TEST_SERVER_PORT,
             async fetch(request) {
@@ -105,7 +108,7 @@ describe('final public CLI contract', () => {
                         },
                     ]);
                 }
-                if (procedure === 'search') {
+                if (procedure === 'results') {
                     return Response.json([
                         {
                             result: {
@@ -157,7 +160,7 @@ describe('final public CLI contract', () => {
                 }
             );
             const searchResult = await spawnCliAsync(
-                ['product', 'search', 'retro', 'gardening', 'shirt', ...searchArgs],
+                ['keyword', 'results', 'retro', 'gardening', 'shirt', ...searchArgs],
                 { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
             );
             const historyResult = await spawnCliAsync(
@@ -215,7 +218,7 @@ describe('final public CLI contract', () => {
                     },
                 },
                 {
-                    procedure: 'search',
+                    procedure: 'results',
                     input: { term: 'retro gardening shirt', refresh: true },
                 },
                 {
@@ -235,13 +238,16 @@ describe('final public CLI contract', () => {
         }
     });
 
-    test('runs keyword get, search, and history with final output data', async () => {
+    test('runs keyword directory get and search with final output data', async () => {
         const requests: string[] = [];
+        const inputs: unknown[] = [];
         const server = serve({
             port: CLI_TEST_SERVER_PORT,
             fetch(request) {
-                const procedure = new URL(request.url).pathname.split('.').at(-1) ?? '';
+                const url = new URL(request.url);
+                const procedure = url.pathname.split('.').at(-1) ?? '';
                 requests.push(procedure);
+                inputs.push(JSON.parse(url.searchParams.get('input') ?? '{}')['0']);
                 let data: Record<string, unknown>;
                 if (procedure === 'get') {
                     data = {
@@ -272,8 +278,7 @@ describe('final public CLI contract', () => {
             const baseArgs = ['--baseUrl', `http://127.0.0.1:${server.port}`];
             for (const args of [
                 ['keyword', 'get', 'garden shirt', ...baseArgs],
-                ['keyword', 'search', 'garden shirt', ...baseArgs],
-                ['keyword', 'history', 'garden shirt', ...baseArgs],
+                ['keyword', 'search', 'garden shirt', '--stage', 'trial', ...baseArgs],
             ]) {
                 const result = await spawnCliAsync(args, {
                     ...workspace,
@@ -281,7 +286,14 @@ describe('final public CLI contract', () => {
                 });
                 expect(result.status).toBe(0);
             }
-            expect(requests).toEqual(['get', 'search', 'history']);
+            expect(requests).toEqual(['get', 'search']);
+            expect(inputs[1]).toMatchObject({ text: 'garden shirt', stage: 'trial' });
+            const invalid = await spawnCliAsync(
+                ['keyword', 'search', 'garden shirt', '--stage', 'queued', ...baseArgs],
+                { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
+            );
+            expect(invalid.status).not.toBe(0);
+            expect(requests).toHaveLength(2);
         } finally {
             server.stop(true);
         }
@@ -293,6 +305,7 @@ describe('final public CLI contract', () => {
             ['product', 'get', 'B012345678', '--refresh'],
             ['product', 'get', 'B012345678', 'B087654321', '--refresh'],
             ['product', 'history', 'B012345678', '--refresh'],
+            ['product', 'search', 'shirt', '--refresh'],
             ['keyword', 'get', 'garden shirt', '--refresh'],
         ];
 

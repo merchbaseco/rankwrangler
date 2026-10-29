@@ -12,9 +12,9 @@ Production is served at `https://rankwrangler.merchbase.co`. Caddy serves the we
 Other website paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-local
 health endpoints.
 
-`GET /api/health` is the external freshness report. Container healthchecks, Caddy's upstream
-probe, and the deploy smoke use `GET /health/live`, which only checks that the process can run
-`SELECT 1`, so stale data cannot hold the stack down. Both URLs return 200
+`GET /api/health` is the external freshness report. Container healthchecks and Caddy's upstream
+probe use `GET /health/live`, which only checks that the process can run `SELECT 1`, so stale data
+cannot fail those probes. Both URLs return 200
 `{"status":"ok","revision":"<sha>"}`, or 503
 `{"status":"degraded","failing":[...],"revision":"<sha>"}` with check names only. `revision` is
 the full commit SHA that `bun run deploy` built the image from. Local runs, tests, and images
@@ -25,8 +25,7 @@ built outside that script report `dev`.
 | `postgres` | `SELECT 1` fails |
 | `spapi-catalog` | At least two active Merch products with a BSR have `sp_api_fetched_at` older than their tier (24 hours, 3 days, 7 days, 14 days, or 30 days) plus 1 hour. One overdue product does not fail the check. A null fetch time is not overdue. |
 | `keepa-history` | At least two Merch products with BSR under 1,000,000 have `keepa_fetched_at` older than 24 hours (BSR under 300,000) or 7 days, plus 3 hours. `sp_api_fetched_at` is null or at least 3 hours old. A never-fetched product counts once `created_at` is older than 3 hours. One overdue product does not fail the check. |
-| `top-search-terms` | The US dataset table is empty, `next_refresh_at` is older than 10 minutes, or a failed dataset's `last_failed_at` is older than 10 minutes. A `queued` or `in_progress` row with a report id does not fail while `report_requested_at` is less than three hours old. That row fails at three hours even when `next_refresh_at` is still in the future. A due row with no report id still fails after 10 minutes. A closed window with a null `next_refresh_at` is not failing. |
-| `catalog-queries` | An active query's `latest_successful_run_at` is older than 7 days plus 15 minutes. A query with no successful run fails once `created_at` is older than 15 minutes. An empty table is not failing. |
+| `catalog-queries` | An admitted keyword tier has `next_due_at` older than 15 minutes. Stored-only candidates do not fail this check. An empty table is not failing. |
 
 ## Topology
 
@@ -41,8 +40,11 @@ built outside that script report `dev`.
 - A push to `main` deploys after the Quality workflow succeeds for that commit. Deploy Stack calls `merchbaseco/workflows/.github/workflows/deploy-service.yml` at `@main`.
 - `workflow_dispatch` redeploys the current tip of `main`. Set `ref` to a SHA on `main` to roll back or redeploy that commit.
 - Production uses Cloudflare-billed PlanetScale through the remote Compose override. Local development uses PostgreSQL in Compose.
-- The runner fast-forwards `/Users/zknicker/srv/rankwrangler` and runs `bun run deploy`. It skips a commit that is not a descendant of the live checkout unless `ref` is set.
-- It polls `/health/live` until that URL returns `"status":"ok"` and `"revision"` of the deployed SHA.
+- The runner fast-forwards `/Users/zknicker/srv/rankwrangler`, runs `bun run setup`, then runs `bun run deploy`. It skips a commit that is not a descendant of the live checkout unless `ref` is set.
+- After images build and the existing cutover gate is verified, it stops the old server before
+  applying migrations. The new container starts only after migration verification. A migration
+  failure leaves the server stopped. Inspect the applied schema before restarting any old image.
+- It polls `/health/live` and `/api/health` for up to 600 seconds. Both must return `"status":"ok"` and the deployed `"revision"`.
 - It publishes `@rankwrangler/http-client` and `@rankwrangler/cli` from a GitHub-hosted runner when that version is not on npm, so provenance is allowed, then pushes `vX.Y.Z` if the tag is missing.
 - A later job fails when a published package changed since its tag without a version bump. That job does not fail the deploy.
 

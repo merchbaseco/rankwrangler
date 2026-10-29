@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.12.0 - 2026-10-26
+
+### Added
+
+- Collect keyword candidates once per Merch ASIN through Amazon Ads and once per tracked keyword
+  through autocomplete, sharing cached Jev decisions and popularity-based discovery scheduling.
+- Add a persistent pause/resume control for the keyword pipeline, initialized paused on rollout.
+- Show the live keyword directory with plain status badges, work-priority ordering, BSR popularity
+  and refresh cadence in a Products-style table. Record keyword lifecycle events in Logs.
+
+### Changed
+
+- Breaking: keyword get/search now read the stored keyword directory; keyword search uses an opaque
+  cursor object. Remove Brand Analytics keyword history and its CLI/MCP operation.
+- Retire Search Terms, Brand Analytics report ingestion, metrics and health checks. Migration drops
+  obsolete report tables and demand fields while retaining canonical keywords and product evidence.
+
+## v0.11.0 - 2026-10-23
+
+### Changed
+
+- Breaking: `product.search` is now a query over the collected catalog, with optional text,
+  structured filters, screening metrics, sorting and cursor pagination. It returns
+  `items`, `nextCursor` and dated keyword coverage without waiting for external collection.
+- Preserve the previous external search capability as `keyword.results`, a mutation accepting
+  `term` and optional `refresh`, with dated Product placements in the existing response shape.
+- Use the same catalog filtering and sorting in the dashboard, CLI and MCP. Dashboard filters
+  apply to the full stored catalog rather than only loaded pages.
+
+### Added
+
+- Prepare native text-search indexes and a verified official-brand registry. Research search hides
+  known registry matches by default while retaining unknown brands. The registry starts empty.
+
+- Add adaptive keyword checks, bounded SP-API pagination and dated collection coverage. General
+  searches record interest and return immediately; collection runs independently in the background.
+- Protect Keepa capacity with durable request reservations, measured costs and separate work budgets.
+  Admit new recurring history selectively while preserving every existing Product's eligibility.
+- Add operator collection status and active/admitted refresh counts.
+
 ## v0.10.0 - 2026-10-20
 
 ### Added

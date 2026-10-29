@@ -1,14 +1,19 @@
+import { mintSeedAsin } from '@/dev-seed/identity';
+import { drawSeedDemand, dropsForRank, monthlySoldForRank } from '@/dev-seed/seed-demand';
+import { buildThumbnailDataUri } from '@/dev-seed/seed-thumbnail';
+import { DAY_MS, HOUR_MS, shiftMs } from '@/dev-seed/time-offsets';
+import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-seed/types';
 import {
     SEED_AUDIENCES,
     SEED_BRANDS,
     SEED_CATEGORIES,
     SEED_DESIGN_BULLETS,
     SEED_GARMENTS,
+    SEED_MERCH_SEARCH_TERMS,
     SEED_SENTIMENTS,
+    type SeedAudience,
+    seedAudienceForTerm,
 } from '@/dev-seed/vocabulary';
-import { DAY_MS, HOUR_MS, shiftMs } from '@/dev-seed/time-offsets';
-import { mintSeedAsin } from '@/dev-seed/identity';
-import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-seed/types';
 
 /**
  * The canonical catalog the dashboard opens onto: Products, the facet values
@@ -29,13 +34,21 @@ import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-s
 const MAX_FETCH_AGE_MS = 44 * HOUR_MS;
 const RECENT_FETCH_SHARE = 0.45;
 
-const LISTING_STATUS_DELETED_RATE = 0.06;
+/** Delisting only touches non-Merch rows, so every Merch count agrees with Explore. */
+const LISTING_STATUS_DELETED_RATE = 0.4;
+/** Most designs belong to a niche the seed also searches, so shelves fill from the niche. */
+const FEATURED_AUDIENCE_SHARE = 0.8;
 const MERCH_KNOWN_RATE = 0.82;
 const MERCH_UNKNOWN_RATE = 0.08;
-/** Most Products carry a history series; the rest exercise the empty chart. */
-const HISTORY_SHARE = 0.85;
+/** Products off the Explore table (non-Merch, delisted, unranked) that still carry history. */
+const OFF_TABLE_HISTORY_SHARE = 0.5;
 const FACETS_READY_RATE = 0.86;
 const FACETS_ERROR_RATE = 0.04;
+/**
+ * Every third Product was first available inside Explore's 60-day window, so its published band
+ * has a shape. Chosen by position, not a draw, so the rest of the seeded stream stays put.
+ */
+const RECENT_LAUNCH_EVERY = 3;
 
 export interface CatalogBuild {
     readonly products: DevSeedPlan['products'];
@@ -44,6 +57,8 @@ export interface CatalogBuild {
     readonly keepaCategories: DevSeedPlan['keepaCategories'];
     /** The same Products in the shape later builders consume. */
     readonly seedProducts: readonly SeedProduct[];
+    /** The search terms Search mines, one per featured niche. */
+    readonly featuredTerms: readonly string[];
 }
 
 export const buildCatalog = (context: BuilderContext): CatalogBuild => {
@@ -73,27 +88,40 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
     const products: PlanRows<'products'> = [];
     const productFacets: PlanRows<'productFacets'> = [];
     const seedProducts: SeedProduct[] = [];
-    const historyTarget = Math.max(1, Math.round(options.productCount * HISTORY_SHARE));
+    const featuredTerms = random.shuffle(SEED_MERCH_SEARCH_TERMS).slice(0, options.queryCount);
+    const featured = featuredTerms
+        .map(seedAudienceForTerm)
+        .filter((audience): audience is SeedAudience => audience !== null);
+    const pickAudience = () =>
+        featured.length > 0 && random.chance(FEATURED_AUDIENCE_SHARE)
+            ? random.pick(featured)
+            : random.pick(SEED_AUDIENCES);
 
     for (let index = 0; index < options.productCount; index += 1) {
         const id = mintId('product');
         const asin = mintSeedAsin(index + 1);
-        const audience = random.pick(SEED_AUDIENCES);
+        const audience = pickAudience();
+        // The secondary niche ranges the whole vocabulary, so every facet stays live.
         const secondaryAudience = random.pick(SEED_AUDIENCES);
         const title = buildTitle(context, audience.nouns);
         const category = random.pick(SEED_CATEGORIES);
 
-        // Long-tailed: a few strong sellers, a wide shoulder, some rank-less.
-        const demand = clamp(random.between(0.02, 1) ** 1.7, 0.01, 1);
-        const isRanked = random.chance(0.92);
-        const rootCategoryBsr = isRanked ? bsrForDemand(demand) : null;
         const isMerchListing = pickMerchListing(context);
-        const listingStatus = random.chance(LISTING_STATUS_DELETED_RATE) ? 'deleted' : 'active';
+        // Every Merch design on the table is ranked and listed; the rank-less
+        // and delisted rows sit off it, where the empty states still need them.
+        const onTable = isMerchListing === true;
+        const { demand, rank: rootCategoryBsr } = drawSeedDemand(
+            context,
+            onTable || random.chance(0.5)
+        );
+        const listingStatus =
+            !onTable && random.chance(LISTING_STATUS_DELETED_RATE) ? 'deleted' : 'active';
         const currentNewPrice = random.int(1499, 3299);
         const keepaFetchedAt = pickFetchedAt(context);
         const spApiFetchedAt = pickFetchedAt(context);
         const createdAt = shiftMs(now, -random.between(0, options.dayCount * DAY_MS));
-        const hasHistory = index < historyTarget;
+        // Every card carries a 30-day sparkline; off-table rows exercise the empty chart.
+        const hasHistory = onTable || random.chance(OFF_TABLE_HISTORY_SHARE);
         const facetsState = pickFacetsState(context, isMerchListing);
 
         products.push({
@@ -108,7 +136,11 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
             bullet1: isMerchListing ? random.pick(SEED_DESIGN_BULLETS) : null,
             bullet2: isMerchListing && random.chance(0.6) ? random.pick(SEED_DESIGN_BULLETS) : null,
             thumbnailUrl: buildThumbnailDataUri(context, title),
-            dateFirstAvailable: shiftMs(now, -random.int(20, 900) * DAY_MS),
+            dateFirstAvailable: shiftMs(
+                now,
+                -(index % RECENT_LAUNCH_EVERY === 0 ? random.int(0, 59) : random.int(60, 900)) *
+                    DAY_MS
+            ),
             rootCategoryId: category.id,
             rootCategoryBsr,
             facetsState,
@@ -122,15 +154,15 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
             keepaRootCategoryId: category.id,
             keepaCurrentBsr: rootCategoryBsr,
             keepaCurrentNewPrice: currentNewPrice,
-            keepaMonthlySold: monthlySoldForDemand(context, demand),
+            keepaMonthlySold: monthlySoldForRank(context, rootCategoryBsr),
             keepaBsrAverage30:
                 rootCategoryBsr === null ? null : jitterRank(context, rootCategoryBsr, 0.18),
             keepaBsrAverage90:
                 rootCategoryBsr === null ? null : jitterRank(context, rootCategoryBsr, 0.32),
-            keepaSalesRankDrops30: dropsForDemand(context, demand, 30),
-            keepaSalesRankDrops90: dropsForDemand(context, demand, 90),
-            keepaSalesRankDrops180: dropsForDemand(context, demand, 180),
-            keepaSalesRankDrops365: dropsForDemand(context, demand, 365),
+            keepaSalesRankDrops30: dropsForRank(context, rootCategoryBsr, 30),
+            keepaSalesRankDrops90: dropsForRank(context, rootCategoryBsr, 90),
+            keepaSalesRankDrops180: dropsForRank(context, rootCategoryBsr, 180),
+            keepaSalesRankDrops365: dropsForRank(context, rootCategoryBsr, 365),
             createdAt,
         });
 
@@ -162,10 +194,18 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
             keepaFetchedAt,
             demand,
             hasHistory,
+            audiences: [audience.name, secondaryAudience.name],
         });
     }
 
-    return { keepaCategories, productFacetValues, productFacets, products, seedProducts };
+    return {
+        featuredTerms,
+        keepaCategories,
+        productFacetValues,
+        productFacets,
+        products,
+        seedProducts,
+    };
 };
 
 /** "Funny Cat Mom Vintage Retro T-Shirt" — the shape Merch titles actually take. */
@@ -177,27 +217,6 @@ const buildTitle = (context: BuilderContext, nouns: readonly string[]) => {
         /\s+/gu,
         ' '
     );
-};
-
-/**
- * A tiny inline SVG rather than an Amazon image URL: the catalog grid renders
- * a real thumbnail, and a seeded dashboard makes no outbound image request.
- */
-const buildThumbnailDataUri = (context: BuilderContext, title: string) => {
-    const hue = context.random.int(0, 359);
-    const initials = title
-        .split(' ')
-        .filter(word => /^[A-Za-z]/u.test(word))
-        .slice(0, 2)
-        .map(word => word[0]?.toUpperCase() ?? '')
-        .join('');
-    const svg =
-        `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160">` +
-        `<rect width="160" height="160" fill="hsl(${hue} 42% 88%)"/>` +
-        `<path d="M40 44h80l14 22-22 12v50H48V78L26 66z" fill="hsl(${hue} 46% 62%)"/>` +
-        `<text x="80" y="112" font-family="sans-serif" font-size="30" font-weight="700" ` +
-        `fill="hsl(${hue} 55% 24%)" text-anchor="middle">${initials}</text></svg>`;
-    return `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
 };
 
 /** Straddles the 24-hour filter boundary while staying inside the freshness window. */
@@ -228,21 +247,5 @@ const pickFacetsState = (context: BuilderContext, isMerchListing: boolean | null
     return roll < FACETS_ERROR_RATE + FACETS_READY_RATE ? 'ready' : 'pending';
 };
 
-/** Demand 1 lands near rank 900; demand 0.05 lands deep in the six figures. */
-const bsrForDemand = (demand: number) => Math.round(900 + (1 - demand) ** 3 * 2_400_000);
-
-const monthlySoldForDemand = (context: BuilderContext, demand: number) => {
-    if (demand < 0.25) {
-        // Keepa reports no monthly-sold figure for slow movers.
-        return null;
-    }
-    return Math.max(50, Math.round(demand ** 2 * 4000 + context.random.between(-40, 60)));
-};
-
-const dropsForDemand = (context: BuilderContext, demand: number, days: number) =>
-    Math.max(0, Math.round(demand * days * context.random.between(0.4, 1.4)));
-
 const jitterRank = (context: BuilderContext, rank: number, spread: number) =>
     Math.max(1, Math.round(rank * (1 + context.random.normal() * spread)));
-
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));

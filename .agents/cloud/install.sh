@@ -84,29 +84,34 @@ fi
 $SUDO ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun
 $SUDO ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bunx
 
-# --- Install-time credential ---
-# The private @merchbaseco/* scope needs a GitHub Packages read token. It is an
-# @internal schema item, so `varlock run` deliberately does not export it; it is
-# fetched explicitly under the install switch, resolved from the Development
-# vault via CLOUD_AGENTS_DEVELOPMENT_OP_TOKEN.
-if [ -z "${MERCHBASE_GITHUB_NPM_TOKEN:-}" ]; then
-    echo "[install] Resolving the GitHub Packages read token from 1Password..."
-    MERCHBASE_GITHUB_NPM_TOKEN="$(
-        RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
-        bunx "varlock@${VARLOCK_VERSION}" printenv MERCHBASE_GITHUB_NPM_TOKEN
-    )"
-    export MERCHBASE_GITHUB_NPM_TOKEN
-fi
-if [ -z "${MERCHBASE_GITHUB_NPM_TOKEN:-}" ]; then
-    echo "[install] ERROR: MERCHBASE_GITHUB_NPM_TOKEN did not resolve; the private" \
-        "@merchbaseco/access package cannot be installed." >&2
-    exit 1
-fi
+# --- Install-time credentials ---
+# The private @merchbaseco/* scope needs a GitHub Packages read token, the
+# licensed @hugeicons-pro scope its license key, and the HeroUI Pro dist
+# download its CI token. All are @internal schema items, so `varlock run`
+# deliberately does not export them; each is fetched explicitly under the
+# install switch, resolved from the Development vault via
+# CLOUD_AGENTS_DEVELOPMENT_OP_TOKEN.
+for name in MERCHBASE_GITHUB_NPM_TOKEN MERCHBASE_HUGEICONS_LICENSE_KEY HEROUI_PRO_CICD_TOKEN; do
+    if [ -z "${!name:-}" ]; then
+        echo "[install] Resolving ${name} from 1Password..."
+        value="$(
+            RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
+            bunx "varlock@${VARLOCK_VERSION}" printenv "$name"
+        )"
+        export "$name=$value"
+    fi
+    if [ -z "${!name:-}" ]; then
+        echo "[install] ERROR: ${name} did not resolve; licensed and private" \
+            "packages cannot be installed." >&2
+        exit 1
+    fi
+done
 
-# A hang (for example lost registry auth behind a proxy) fails loudly instead of
-# stalling the session.
-timeout 900 bun install --frozen-lockfile || {
-    echo "[install] ERROR: bun install failed or timed out" >&2
+# The frozen install plus the HeroUI Pro postinstall that bunfig.toml's
+# `ignoreScripts` suppresses. A hang (for example lost registry auth behind a
+# proxy) fails loudly instead of stalling the session.
+timeout 900 bun scripts/setup-heroui.mjs || {
+    echo "[install] ERROR: dependency setup failed or timed out" >&2
     exit 1
 }
 

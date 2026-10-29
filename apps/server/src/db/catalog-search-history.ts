@@ -121,7 +121,7 @@ export const getCatalogSearchRun = async (
             marketplaceId: first.query.marketplaceId,
             normalizedTerm: first.query.normalizedTerm,
             displayTerm: first.query.displayTerm,
-            page: first.query.page,
+            page: first.run.page,
         },
         results: rows.flatMap(row => {
             if (!row.result) {

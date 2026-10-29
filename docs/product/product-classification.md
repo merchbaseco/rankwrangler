@@ -21,12 +21,18 @@ Product truth is binary, while public knowledge is `isMerchListing: boolean | nu
 
 | Value | Meaning |
 | --- | --- |
-| `true` | Available bullet evidence matches known Merch template language. |
-| `false` | The classifier ran on available bullet evidence and found no known Merch template. |
+| `true` | A bullet matches Merch template language, or the part number is a Merch on Demand design code on a listing with no model number whose title names a Merch product. |
+| `false` | The classifier saw the listing's part number or bullets and found neither Merch signal. |
 | `null` | RankWrangler has no Merch-listing classification knowledge for the Product yet. |
 
-A new unclassified Product starts at `null`. For a recognized Merch listing, RankWrangler also
-preserves the seller-authored bullets after removing template text.
+Recognition covers every Merch on Demand product type, including shirts, hoodies, jerseys, hats,
+PopSockets, phone cases, totes, pillows, posters, drinkware and journals. A Merch-style title alone
+does not count, because other sellers copy those titles. A new unclassified Product starts at
+`null`. For a recognized Merch listing, RankWrangler also preserves the seller-authored bullets
+after removing template text.
+
+The dashboard Explore grid shows Merch listings by default; its Listing type filter switches to
+all listings, known non-Merch, or unknown.
 
 The signal controls workflows such as scheduled Keepa refresh eligibility. It describes listing
 type, not sales quality or intellectual-property safety.

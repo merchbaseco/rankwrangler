@@ -93,3 +93,40 @@ const formatInterval = (everyMs: number) => {
 const isRecord = (value: unknown): value is Record<string, unknown> => {
     return typeof value === 'object' && value !== null;
 };
+
+export const intervalMsToCronExpression = (everyMs: number) => {
+    if (!Number.isFinite(everyMs) || everyMs <= 0 || everyMs % (60 * 1000) !== 0) {
+        throw new Error(
+            `[Jobs] Unsupported interval ${everyMs}ms. Interval scheduling must be in whole minutes.`
+        );
+    }
+
+    const everyMinutes = everyMs / (60 * 1000);
+
+    if (everyMinutes === 1) {
+        return '* * * * *';
+    }
+
+    if (everyMinutes < 60 && 60 % everyMinutes === 0) {
+        return `*/${everyMinutes} * * * *`;
+    }
+
+    if (everyMinutes === 60) {
+        return '0 * * * *';
+    }
+
+    if (everyMinutes < 24 * 60 && everyMinutes % 60 === 0) {
+        const everyHours = everyMinutes / 60;
+        if (24 % everyHours === 0) {
+            return `0 */${everyHours} * * *`;
+        }
+    }
+
+    if (everyMinutes === 24 * 60) {
+        return '0 0 * * *';
+    }
+
+    throw new Error(
+        `[Jobs] Unsupported interval ${everyMs}ms. Use .cron() for non-hourly/minute-compatible schedules.`
+    );
+};

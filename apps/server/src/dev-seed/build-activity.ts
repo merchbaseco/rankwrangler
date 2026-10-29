@@ -21,6 +21,12 @@ import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-s
 
 const EVENT_TEMPLATES = [
     {
+        action: 'keyword.expanded',
+        category: 'keyword',
+        primitiveType: 'keyword',
+        message: 'hawaiian christmas: expanded',
+    },
+    {
         action: 'product.sync',
         category: 'product',
         primitiveType: 'product',
@@ -117,12 +123,15 @@ export const buildActivity = (
                 primitiveType,
                 message: template.message,
                 detailsJson: {
+                    ...(primitiveType === 'keyword'
+                        ? { keyword: 'hawaiian christmas', suggestions: 10 }
+                        : {}),
                     durationMs: random.int(120, 9000),
                     source: template.category === 'history' ? 'keepa' : 'spapi',
                 },
                 primitiveId: primitiveType === 'job' ? jobRunId : product.id,
                 marketplaceId,
-                asin: primitiveType === 'job' ? null : product.asin,
+                asin: primitiveType === 'job' || primitiveType === 'keyword' ? null : product.asin,
                 jobName: random.pick(JOB_NAMES),
                 jobRunId,
                 requestId: `dev-seed-req-${day}-${index}`,

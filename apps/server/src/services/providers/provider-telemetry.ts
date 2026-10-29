@@ -1,7 +1,14 @@
 import { and, asc, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { providerAttempts } from '@/db/provider-telemetry-schema';
 
-export const providerNames = ['keepa', 'spapi', 'gemini', 'typesafe', 'cloudflare'] as const;
+export const providerNames = [
+    'keepa',
+    'spapi',
+    'gemini',
+    'typesafe',
+    'cloudflare',
+    'amazonAutocomplete',
+] as const;
 export type ProviderName = (typeof providerNames)[number];
 
 export const keepaProviderOperations = [
@@ -32,7 +39,10 @@ export type GeminiProviderOperation = (typeof geminiProviderOperations)[number];
 export type TypeSafeProviderOperation = (typeof typeSafeProviderOperations)[number];
 export type CloudflareProviderOperation = (typeof cloudflareProviderOperations)[number];
 
+export const autocompleteOperations = ['amazon.autocomplete'] as const;
+
 export const providerOperations = [
+    ...autocompleteOperations,
     ...keepaProviderOperations,
     ...spApiProviderOperations,
     ...geminiProviderOperations,
@@ -42,6 +52,7 @@ export const providerOperations = [
 export type ProviderOperation = (typeof providerOperations)[number];
 
 export type ProviderAttemptDescriptor =
+    | { provider: 'amazonAutocomplete'; operation: (typeof autocompleteOperations)[number] }
     | { provider: 'keepa'; operation: KeepaProviderOperation }
     | { provider: 'spapi'; operation: SpApiProviderOperation }
     | { provider: 'gemini'; operation: GeminiProviderOperation }

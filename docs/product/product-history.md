@@ -34,7 +34,9 @@ four values are `null`. Price history exposes minor-currency unit, currency code
 Public history responses expose no scale, schema version, status, freshness, provider, Operation,
 or polling fields.
 
-Eligible Merch Products also collect history automatically under BSR-dependent server policy.
+Admitted active Merch Products also collect history automatically under BSR-dependent server policy.
+Discovery and a one-time history request do not automatically enroll every listing in recurring
+collection; explicit history reads remain available.
 Missing BSR, unknown classification, and non-Merch classification remain distinct and do not imply
 automatic collection.
 

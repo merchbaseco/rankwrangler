@@ -1,7 +1,7 @@
 {
     "name": "@rankwrangler/server",
     "private": true,
-    "version": "0.10.0",
+    "version": "0.12.0",
     "description": "Docker-deployable SP-API service for Amazon catalog search",
     "type": "module",
     "main": "dist/index.js",
@@ -17,6 +17,7 @@
         "database:verify": "tsx src/index.ts --verify-migrations",
         "dev": "tsx src/index.ts",
         "dev:jobs": "RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
+        "merch:reclassify": "varlock run -p ../../.env.schema -- bun src/scripts/reclassify-merch-listings.ts",
         "start": "node dist/index.js",
         "test:catalog-db": "VARLOCK_ENV=test varlock run -p ../../.env.schema -- bash test/run-catalog-db-tests.sh",
         "test:short-name-live": "varlock run -p ../../.env.schema -- bun src/scripts/evaluate-product-short-names.ts",

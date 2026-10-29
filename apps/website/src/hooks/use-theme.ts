@@ -1,75 +1,60 @@
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import {
+    applyTheme,
+    type ResolvedTheme,
+    readThemePreference,
+    resolveTheme,
+    subscribeToSystemTheme,
+    type ThemePreference,
+    writeThemePreference,
+} from '@/lib/theme';
 
-type Theme = "light" | "dark" | "system";
+/**
+ * The theme preference is an external store (localStorage plus the system
+ * color scheme), so every caller reads the same value without a provider.
+ */
+export const useTheme = () => {
+    const theme = useSyncExternalStore(subscribe, readThemePreference, serverPreference);
+    const resolvedTheme: ResolvedTheme = useSyncExternalStore(
+        subscribe,
+        () => resolveTheme(readThemePreference()),
+        serverTheme
+    );
 
-const STORAGE_KEY = "rw-theme";
+    useEffect(() => {
+        applyTheme(theme);
+        if (theme !== 'system') {
+            return;
+        }
+        return subscribeToSystemTheme(() => applyTheme('system'));
+    }, [theme]);
 
-const getStoredTheme = (): Theme => {
-	const stored = localStorage.getItem(STORAGE_KEY);
-	if (stored === "light" || stored === "dark" || stored === "system") {
-		return stored;
-	}
-	return "system";
+    const setTheme = useCallback((next: ThemePreference) => {
+        writeThemePreference(next);
+        applyTheme(next);
+        notify();
+    }, []);
+
+    return { resolvedTheme, setTheme, theme };
 };
 
-const isDarkTheme = (theme: Theme) => {
-	if (theme === "dark") {
-		return true;
-	}
-	if (theme === "light") {
-		return false;
-	}
-	return window.matchMedia("(prefers-color-scheme: dark)").matches;
-};
+// Static renders (tests) have no storage or media queries.
+const serverPreference = (): ThemePreference => 'system';
+const serverTheme = (): ResolvedTheme => 'light';
 
-const applyTheme = (theme: Theme) => {
-	document.documentElement.classList.toggle("dark", isDarkTheme(theme));
-};
-
-let listeners: Array<() => void> = [];
+let listeners: ReadonlyArray<() => void> = [];
 
 const subscribe = (listener: () => void) => {
-	listeners = [...listeners, listener];
-	return () => {
-		listeners = listeners.filter((l) => l !== listener);
-	};
+    listeners = [...listeners, listener];
+    const unsubscribeSystem = subscribeToSystemTheme(listener);
+    return () => {
+        listeners = listeners.filter(current => current !== listener);
+        unsubscribeSystem();
+    };
 };
 
 const notify = () => {
-	for (const listener of listeners) {
-		listener();
-	}
-};
-
-const getSnapshot = () => getStoredTheme();
-
-const commitTheme = (next: Theme) => {
-	localStorage.setItem(STORAGE_KEY, next);
-	applyTheme(next);
-	notify();
-};
-
-export const useTheme = () => {
-	const theme = useSyncExternalStore(subscribe, getSnapshot);
-
-	const setTheme = useCallback((next: Theme) => {
-		commitTheme(next);
-	}, []);
-
-	useEffect(() => {
-		applyTheme(theme);
-	}, [theme]);
-
-	useEffect(() => {
-		const mq = window.matchMedia("(prefers-color-scheme: dark)");
-		const handler = () => {
-			if (getStoredTheme() === "system") {
-				applyTheme("system");
-			}
-		};
-		mq.addEventListener("change", handler);
-		return () => mq.removeEventListener("change", handler);
-	}, []);
-
-	return { theme, setTheme };
+    for (const listener of listeners) {
+        listener();
+    }
 };

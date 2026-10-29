@@ -1,0 +1,279 @@
+/*
+ * BEM overrides of HeroUI parts for the Grid direction (Grid J/K/I): the
+ * hairline DataGrid, the flattened KPI header, the pager and the filter
+ * sidebar's option rows. Same rules as overrides.css: tokens first, one
+ * property where a token cannot reach, each with its reason.
+ */
+
+@layer components {
+    /* ---------------------------------------------------------------------------------------------
+     * The hairline grid (Grid J/K/I): a secondary-variant Pro DataGrid drawn as one ruled sheet.
+     * Every cell carries a right and bottom hairline, the header row reads as ink on the content
+     * surface, rows hold the density's height. `--fixed` lays the columns out from their width
+     * tokens (grid.css) so the KPI cells above meet them edge to edge.
+     * -------------------------------------------------------------------------------------------*/
+
+    /* Square sheet: the secondary variant's rounded header pills and body corners go flat. */
+    .data-grid.hairline-grid {
+        --radius-2xl: 0;
+    }
+
+    /* Columns take their width tokens, not their content (KPI cells span exact column groups). */
+    .data-grid.hairline-grid--fixed .table__content {
+        table-layout: fixed;
+    }
+
+    /* Header and body cells share the 12px gutter; the row height sets the line. */
+    .data-grid.hairline-grid :is(.table__column, .table__cell) {
+        padding-block: 0;
+        padding-inline: var(--cell-inset);
+        border-right: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+
+    /* The last column closes on the surface edge, which draws its own line. */
+    .data-grid.hairline-grid :is(.table__column, .table__cell):last-child {
+        border-right: 0;
+    }
+
+    /* Headings read as ink at the body size on the surface (mock `.gh`), not muted fine print. */
+    .data-grid.hairline-grid .table__column {
+        height: var(--grid-header-height);
+        background-color: var(--content);
+        color: var(--foreground);
+        font-size: var(--text-base);
+    }
+
+    /* The hairlines divide the header; the stock short separator tick would double them. */
+    .data-grid.hairline-grid .table__column::after {
+        content: none;
+    }
+
+    /* Rows hold the density's height whatever a cell holds. */
+    .data-grid.hairline-grid .table__body > [role="row"] {
+        height: var(--grid-row-text);
+    }
+
+    /* Art-led grids (Explore, Keywords) use the art row height. */
+    .data-grid.hairline-grid--fixed .table__body > [role="row"] {
+        height: var(--grid-row-art);
+    }
+
+    /* Cell contents sit on the row's middle, so art or a ring never grows the line box. */
+    .data-grid.hairline-grid :is(.table__cell, .table__column) > * {
+        vertical-align: middle;
+    }
+
+    /* Hover is a faint accent tint, apart from the secondary variant's grey. */
+    .data-grid.hairline-grid .table__body .table__row:is(:hover, [data-hovered="true"]) .table__cell {
+        background-color: var(--row-hover);
+    }
+
+    /* The j/k cursor row: accent fill plus a leading bar; focus keeps HeroUI's ring. */
+    .data-grid.hairline-grid .table__row[data-selected="true"] .table__cell {
+        background-color: var(--accent-soft);
+    }
+
+    .data-grid.hairline-grid .table__row[data-selected="true"] .table__cell:first-child {
+        box-shadow: inset 2px 0 0 var(--accent);
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * The KPI header (features/grid/grid-kpi.tsx): a Pro KPIGroup of KPIs flattened into one
+     * ruled row over the grid's column groups (widths in grid.css).
+     * -------------------------------------------------------------------------------------------*/
+
+    /*
+     * Flat on the content surface (the group's card fill, edge shadow and corners go) and laid
+     * out on the grid's own column template, so each cell spans exactly its column group.
+     */
+    .kpi-group.grid-kpis {
+        --surface: var(--content);
+        --surface-shadow: none;
+        --radius-2xl: 0;
+        display: grid;
+        flex-shrink: 0;
+        grid-template-columns: var(--kpi-columns);
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* Each cell pads on the grid's 12px cell gutter and is ruled off on the right, as the cells are. */
+    .kpi-group.grid-kpis > .kpi {
+        min-width: 0;
+        padding: var(--cell-inset);
+        border-right: 1px solid var(--border);
+    }
+
+    /* The last cell closes on the surface's own edge. */
+    .kpi-group.grid-kpis > .kpi:last-child {
+        border-right: 0;
+    }
+
+    /* Wrapped Product figures (four or two across) rule each row off; the cells draw the edge. */
+    .kpi-group.grid-kpis--product {
+        border-bottom: 0;
+    }
+
+    .kpi-group.grid-kpis--product > .kpi {
+        border-bottom: 1px solid var(--border);
+    }
+
+    /* The first cell's active-filter tags wrap onto a second line rather than clip. */
+    .kpi-group.grid-kpis .grid-kpi--results .kpi__header {
+        flex-wrap: wrap;
+    }
+
+    /* Stat labels at the body size and regular weight, muted (Grid J). */
+    .kpi-group.grid-kpis .kpi__title {
+        --text-sm: var(--text-base);
+        font-weight: 400;
+    }
+
+    /* KPI figures are set in the figures face, like every number in a grid (mock `.num`). */
+    .kpi-group.grid-kpis .kpi__value {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Figure and suffix share one baseline, left to right (mock), not KPI's value | trend grid. */
+    .kpi-group.grid-kpis .kpi__content {
+        display: flex;
+        align-items: baseline;
+        gap: calc(var(--spacing-base) * 2);
+    }
+
+    /* The status pill's dot keeps a step from its label inside the stock Chip. */
+    .chip > .status-dot {
+        margin-inline-end: calc(var(--spacing-base) * 1.5);
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Cell meters (Explore Sold/mo, Keywords Median BSR): a stock Meter laid under the cell's
+     * figure as its ground, its track the full cell, its fill in a tier or neutral ink.
+     * -------------------------------------------------------------------------------------------*/
+
+    /* The Meter fills the cell behind the figure; one row (no label or output), a clear track. */
+    :is(.sold-cell, .median-cell) > .meter {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        --default: transparent;
+    }
+
+    /* The track is the cell's ground, so it takes the cell's height; its corner is a token. */
+    :is(.sold-cell, .median-cell) > .meter .meter__track {
+        flex: 1 1 0;
+        height: 100%;
+    }
+
+    /* Sold/mo: ink at a whisper on a 5px corner (Grid J `.dbar`). */
+    .sold-cell > .meter {
+        --meter-fill: var(--figure-bar);
+        --radius-sm: var(--radius-pill);
+    }
+
+    /* Median BSR: the tier's fill on the art corner (Grid I). */
+    .median-cell > .meter {
+        --meter-fill: var(--tier-bg);
+        --radius-sm: var(--radius-art);
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Filter sidebar (features/grid/filter-controls.tsx, Grid J `.side`): stock CheckboxGroup,
+     * RadioGroup, Select and TextField, each under its own Label.
+     * -------------------------------------------------------------------------------------------*/
+
+    /*
+     * The sidebar's density: 4px steps put the stock fields on the mock's 36px (`h-9`) and the
+     * check and radio controls on 16px (`size-4`); its fine print reads at the 14px body size.
+     */
+    .grid-sidebar {
+        --spacing: var(--spacing-sidebar);
+        --text-sm: var(--text-base);
+    }
+
+    /* Every group heading is the mock's 14px semibold (Grid J `.sh`), Brand included. */
+    .grid-sidebar .label {
+        font-weight: 600;
+    }
+
+    /* Groups stack their heading over 32px option rows, with no extra gap between rows. */
+    .filter-options:is(.checkbox-group, .radio-group) {
+        gap: 0;
+    }
+
+    .filter-options > .label {
+        margin-bottom: calc(var(--spacing-base) * 1.5);
+    }
+
+    /* The stock groups space options with `mt-4`; here the 32px rows set the pitch instead. */
+    .filter-options:is(.checkbox-group, .radio-group) :is([data-slot="checkbox"], [data-slot="radio"]) {
+        width: 100%;
+        min-height: 2rem;
+        margin-top: 0;
+        justify-content: center;
+    }
+
+    .filter-options :is(.checkbox__content, .radio__content) {
+        align-self: stretch;
+        min-width: 0;
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Cell meters (Explore Sold/mo, Keywords Median BSR): a stock Meter laid under the cell's
+     * figure as its ground, its track the full cell, its fill in a tier or neutral ink.
+     * -------------------------------------------------------------------------------------------*/
+
+    /* The Meter fills the cell behind the figure; one row (no label or output), a clear track. */
+    :is(.sold-cell, .median-cell) > .meter {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        --default: transparent;
+    }
+
+    /* The track is the cell's ground, so it takes the cell's height; its corner is a token. */
+    :is(.sold-cell, .median-cell) > .meter .meter__track {
+        flex: 1 1 0;
+        height: 100%;
+    }
+
+    /* Sold/mo: ink at a whisper on a 5px corner (Grid J `.dbar`). */
+    .sold-cell > .meter {
+        --meter-fill: var(--figure-bar);
+        --radius-sm: var(--radius-pill);
+    }
+
+    /* Median BSR: the tier's fill on the art corner (Grid I). */
+    .median-cell > .meter {
+        --meter-fill: var(--tier-bg);
+        --radius-sm: var(--radius-art);
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Grid pager (features/grid/grid-pager.tsx): stock Pagination as the 46px footer line.
+     * -------------------------------------------------------------------------------------------*/
+
+    /* Summary, page controls and page size spread across the line at every width (mock). */
+    .grid-pager > .pagination {
+        flex-direction: row;
+    }
+
+    /* Counts never break mid-range ("1–50 of 84,310"). */
+    .grid-pager .pagination__summary {
+        white-space: nowrap;
+    }
+
+    /* The admin status pill keeps its label on one line as the banner narrows. */
+    .navbar.app-banner .button {
+        white-space: nowrap;
+    }
+
+    /* The page size's Rows label sits beside its trigger, not above it. */
+    .select.grid-pager__size {
+        flex-direction: row;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 3);
+    }
+}

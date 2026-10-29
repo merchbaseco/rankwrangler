@@ -134,7 +134,6 @@ const probes = ({
             'catalog-queries': freshnessProbe('catalog-queries'),
             'keepa-history': freshnessProbe('keepa-history'),
             'spapi-catalog': freshnessProbe('spapi-catalog'),
-            'top-search-terms': freshnessProbe('top-search-terms'),
         },
     };
 };

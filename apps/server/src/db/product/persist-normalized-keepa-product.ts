@@ -1,3 +1,4 @@
+import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
 import { and, eq, ne, sql } from 'drizzle-orm';
 import type { db } from '@/db/index';
 import {
@@ -17,7 +18,23 @@ export const persistNormalizedKeepaProduct = async (
     normalized: NormalizedKeepaProduct,
     importDetails: KeepaIngestionImport
 ) => {
+    const productId = await persistKeepaProductRow(transaction, normalized);
+    return await persistKeepaProductHistory(transaction, productId, normalized, importDetails);
+};
+
+// The Product row alone: identity, listing fields and current Keepa metrics. Live keyword results
+// need only this, so they save it first and the history after (persistKeepaProductHistory).
+export const persistKeepaProductRow = async (
+    transaction: DatabaseTransaction,
+    normalized: NormalizedKeepaProduct
+) => {
     const product = normalized.product;
+    const [previous] = await transaction
+        .select({ merch: products.isMerchListing })
+        .from(products)
+        .where(
+            and(eq(products.marketplaceId, product.marketplaceId), eq(products.asin, product.asin))
+        );
     const [storedProduct] = await transaction
         .insert(products)
         .values({
@@ -75,16 +92,31 @@ export const persistNormalizedKeepaProduct = async (
         })
         .returning({
             id: products.id,
+            merch: products.isMerchListing,
         });
 
     if (!storedProduct) {
         throw new Error(`Failed to persist Keepa Product ${product.asin}`);
     }
 
+    if (previous && previous.merch !== storedProduct.merch)
+        await notifyKeywordProductRows(transaction, [storedProduct.id]);
+    return storedProduct.id;
+};
+
+// The Keepa import record and its history points, replacing earlier successful imports. A year of
+// points for a Product is thousands of upserts, the slow part of saving a Keepa payload.
+export const persistKeepaProductHistory = async (
+    transaction: DatabaseTransaction,
+    productId: string,
+    normalized: NormalizedKeepaProduct,
+    importDetails: KeepaIngestionImport
+) => {
+    const product = normalized.product;
     const [insertedImport] = await transaction
         .insert(productHistoryImports)
         .values({
-            productId: storedProduct.id,
+            productId,
             marketplaceId: product.marketplaceId,
             asin: product.asin,
             source: 'keepa',
@@ -113,7 +145,7 @@ export const persistNormalizedKeepaProduct = async (
             .insert(productHistoryPoints)
             .values(
                 points.map(point => ({
-                    productId: storedProduct.id,
+                    productId,
                     marketplaceId: product.marketplaceId,
                     asin: product.asin,
                     source: 'keepa',
@@ -145,7 +177,7 @@ export const persistNormalizedKeepaProduct = async (
         .delete(productHistoryImports)
         .where(
             and(
-                eq(productHistoryImports.productId, storedProduct.id),
+                eq(productHistoryImports.productId, productId),
                 eq(productHistoryImports.source, 'keepa'),
                 eq(productHistoryImports.status, 'success'),
                 ne(productHistoryImports.id, insertedImport.id)
@@ -161,7 +193,7 @@ export const persistNormalizedKeepaProduct = async (
         );
 
     return {
-        productId: storedProduct.id,
+        productId,
         importId: insertedImport.id,
         importedAt: insertedImport.createdAt,
     };

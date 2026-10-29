@@ -4,19 +4,20 @@ import {
     completeOperationWithError,
     releaseOperationWork,
 } from '@/db/operations';
-import { defineJob } from '@/jobs/job-router.js';
+import { defineJob } from '@/jobs/job-router';
 import { evaluateUserOwnedJobAccess } from '@/services/access/job-access';
-import { createEventLogSafe } from '@/services/event-logs.js';
-import { loadKeepaProductHistoryManually } from '@/services/keepa-manual-load.js';
-import { sanitizeOperationError } from '@/services/operations.js';
-import { PRODUCT_HISTORY_OPERATION_JOB_NAME } from '@/services/product-history-operations.js';
+import { createEventLogSafe } from '@/services/event-logs';
+import { loadKeepaProductHistoryManually } from '@/services/keepa-manual-load';
+import { sanitizeOperationError } from '@/services/operations';
+import { PRODUCT_HISTORY_OPERATION_JOB_NAME } from '@/services/product-history-operations';
 import { notifyProductHistoryRefreshCompleted } from '@/services/product-history-refresh-events';
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 
 const refreshProductHistoryOperationInput = z.object({
     operationId: z.string().uuid(),
 });
 
-export type ProductHistoryOperationWorkerDeps = {
+export interface ProductHistoryOperationWorkerDeps {
     claimOperationWork: typeof claimOperationWork;
     loadHistory: typeof loadKeepaProductHistoryManually;
     completeWithError: typeof completeOperationWithError;
@@ -24,7 +25,7 @@ export type ProductHistoryOperationWorkerDeps = {
     evaluateAccess?: typeof evaluateUserOwnedJobAccess;
     createEventLogSafe: typeof createEventLogSafe;
     notifyCompleted: typeof notifyProductHistoryRefreshCompleted;
-};
+}
 
 const defaultDeps: ProductHistoryOperationWorkerDeps = {
     claimOperationWork,
@@ -111,6 +112,10 @@ export const runProductHistoryOperation = async (
 
         return { didWork: true, status: 'completed' } as const;
     } catch (error) {
+        if (error instanceof KeepaCapacityDeferredError) {
+            await deps.releaseOperationWork?.(operationId);
+            return { didWork: false, status: 'deferred_capacity' } as const;
+        }
         await deps.completeWithError({
             operationId,
             error: sanitizeOperationError(error),

@@ -14,7 +14,6 @@ magical "find opportunities" score.
   classified niche in the dashboard.
 - Load the provider-neutral current Product and compact event-based BSR/price history sourced from
   Amazon SP-API and Keepa.
-- Explore Amazon Brand Analytics Top Search Terms across daily, weekly, and custom windows.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity, provider health, and bounded raw Provider-attempt telemetry through
   admin surfaces.
@@ -35,7 +34,9 @@ Catalog runs retain immutable search membership while their current Products res
 cached and fresh runs use the same background path. Dashboard and internal Product records may retain
 `pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to
 `available` or `unavailable`. Product `isMerchListing` is nullable knowledge: `null` means unknown,
-distinct from known non-Merch (`false`).
+distinct from known non-Merch (`false`). A listing is Merch when its part number is a Merch design
+code or a bullet matches Merch template text; keyword scans store only Merch and unknown Products,
+and the dashboard Explore grid defaults to Merch listings (its Listing type filter widens it).
 
 ## Use RankWrangler
 
@@ -54,12 +55,17 @@ rw product search "retro gardening shirt"
 rw product history B0XXXXXXXX --metrics salesRank,price --bucket auto
 rw keyword get "retro gardening shirt"
 rw keyword search "retro gardening"
-rw keyword history "retro gardening shirt"
 ```
 
-Each catalog search request renews the keyword's 30-day active window, including cached reuse.
-Active keywords receive automatic weekly refreshes; expired keywords become inactive without
-backfill. Search history labels Requested search versus Automatic refresh.
+Explicit `keyword.results` requests renew a 30-day research lease, including cached reuse.
+General catalog searches record interest; the dashboard's as-you-type search does not, and records a
+phrase only when it is submitted. Background checks adapt to demand and observed change;
+continuous SP-API acquisition expands through user searches, weekly Amazon Brand Analytics search
+terms and Amazon autocomplete without buying history for every discovery. Shared physical-request capacity protects foreground reads;
+Keepa head/history admission stays separate.
+Capacity-limited keyword checks retain a retry time without recording a provider failure or a
+successful observation. Freshness health allows that retry and its scheduler grace; actual provider
+failures and abandoned retries still report unhealthy collection.
 
 Public Product get/getMany/history and keyword reads return final policy-current data without
 freshness envelopes or refresh controls. Product Search retains its separate search contract. When
@@ -128,3 +134,37 @@ deployment, releases, and recovery live under [operations](docs/operations/READM
 
 For the Cloudflare-billed PlanetScale migration, follow the
 [restore and preservation runbook](docs/operations/planetscale.md). Local development uses PostgreSQL in Compose; production deploys use the PlanetScale Compose override.
+
+## Merch database work
+
+The [research plan](plans/merch-research.md) separates immediate catalog search from scheduled
+keyword collection. The shared database query, dashboard, public API, CLI and MCP changes are
+deployed as the initial research/collection pilot. `keyword.results` preserves dated external
+search evidence. Search directly tracks its exact keyword for background SP-API checks; paid Keepa admission stays separate.
+Adaptive Keepa collection tiers, durable token reservations and explicit history admission are live.
+The [growth completion](plans/merch-growth-completion.md) adds independent continuous SP-API
+acquisition, weekly Brand Analytics keyword sources, once-per-tracked-keyword autocomplete,
+a live keyword directory with separate stage and freshness, processing order, pause/resume and lifecycle logs, and adaptive keyword standing with score history; it is locally verified and
+awaits deployment. Operator settings expose collection
+backlogs and capacity. The [execution record](plans/merch-collection-execution.md) tracks verification.
+The [capacity baseline](plans/merch-capacity-baseline.md) records the initial pilot envelope.
+
+The Keywords table, sync control and Live Logs receive committed changes through separate tRPC
+WebSocket subscriptions. Keyword events reread only changed terms and patch the loaded table cache;
+there is no periodic refresh. Reconnection reconciles missed updates. See
+[realtime events](docs/internals/realtime-events.md).
+
+Autocomplete keeps Amazon’s native keyword variants, including pluralization and inserted words,
+and removes stray trailing commas from search seeds.
+
+Keywords come from Amazon's weekly Brand Analytics search terms report: terms whose top clicked
+products include apparel become trials, most searched first, and a trial is tracked once its first
+SP-API page shows at least three confirmed Merch listings. Every tracked keyword registers its
+theme ("teacher shirts for women" is "teacher"); a theme admits searches that name any other Merch
+product type with the same theme ("teacher blanket"), and is expanded once through autocomplete. Brand Analytics popularity also sets scan
+depth (ten, five or three pages). Collection runs as small jobs (one keyword page, one autocomplete
+call, one report step) behind one queue per provider, fed by a one-minute scheduler that holds back
+new trials and autocomplete seeds while queued scans exceed about two days of capacity. Settings →
+Metrics → Keyword jobs shows queues, the Brand Analytics import, provider readiness and recent runs
+live. See [keyword collection](docs/internals/keyword-mining.md) and
+[background jobs](docs/decisions/background-jobs.md). Not deployed.

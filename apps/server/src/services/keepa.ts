@@ -1,20 +1,22 @@
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
+import { KeepaDispatchDeferredError } from '@/services/keepa-dispatch-deferred';
 import { TRPCError } from '@trpc/server';
 import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
-import { env } from '@/config/env.js';
-import { db } from '@/db/index.js';
+import { env } from '@/config/env';
+import { db } from '@/db/index';
 import {
     keepaCategories,
     productHistoryImports,
     productHistoryPoints,
     products,
-} from '@/db/schema.js';
+} from '@/db/schema';
 import {
     keepaHistoryMetricColumns,
     type KeepaHistoryMetricKey,
-} from '@/services/keepa-history-metrics.js';
+} from '@/services/keepa-history-metrics';
 import { ingestKeepaProduct } from '@/services/keepa-product-ingestion';
 import type { NormalizedKeepaHistoryPoint } from '@/services/keepa-product-normalizer';
-import { KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS } from '@/services/keepa-refresh-policy.js';
+import { KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS } from '@/services/keepa-refresh-policy';
 import { createKeepaProvider } from '@/services/providers/keepa/keepa-provider';
 import {
     KeepaApiError,
@@ -28,6 +30,7 @@ type LoadKeepaProductHistoryParams = {
     days: number;
     queuePriority?: 'manual' | 'background';
     operationId?: string;
+    canDispatch?: () => Promise<boolean>;
 };
 
 type GetProductHistoryPointsParams = {
@@ -85,7 +88,7 @@ const keepaProductLoadsInFlight = new Map<string, Promise<KeepaImportSummary>>()
 const keepaProvider = createKeepaProvider();
 
 export const loadKeepaProductHistory = async (params: LoadKeepaProductHistoryParams) => {
-    const key = `${params.marketplaceId}:${params.asin}`;
+    const key = `${params.marketplaceId}:${params.asin}:${params.canDispatch ? 'automatic' : 'explicit'}`;
     const existingLoad = keepaProductLoadsInFlight.get(key);
     if (existingLoad) {
         return await existingLoad;
@@ -104,6 +107,7 @@ const loadKeepaProductHistoryOnce = async ({
     days,
     queuePriority = 'background',
     operationId,
+    canDispatch,
 }: LoadKeepaProductHistoryParams): Promise<KeepaImportSummary> => {
     const keepaApiKey = env.RANKWRANGLER_KEEPA_API_KEY;
     if (!keepaApiKey) {
@@ -155,6 +159,7 @@ const loadKeepaProductHistoryOnce = async ({
 
     let keepaResponse: KeepaResponse;
     let cachedImportBeforeDispatch: KeepaImportRow | null = null;
+    let eligibilityDeferred = false;
 
     try {
         const dispatchResult = await keepaProvider.getProduct({
@@ -168,10 +173,13 @@ const loadKeepaProductHistoryOnce = async ({
                     productId,
                     keepaFetchedAt
                 );
-                return !cachedImportBeforeDispatch;
+                if (cachedImportBeforeDispatch) return false;
+                eligibilityDeferred = canDispatch ? !(await canDispatch()) : false;
+                return !eligibilityDeferred;
             },
         });
         if (dispatchResult.kind === 'skipped') {
+            if (eligibilityDeferred) throw new KeepaDispatchDeferredError();
             if (!cachedImportBeforeDispatch) {
                 throw new Error('Keepa dispatch was skipped without a fresh import');
             }
@@ -186,6 +194,7 @@ const loadKeepaProductHistoryOnce = async ({
 
         keepaResponse = dispatchResult.payload;
     } catch (error) {
+        if (error instanceof KeepaDispatchDeferredError || error instanceof KeepaCapacityDeferredError) throw error;
         const errorDetails = extractKeepaErrorDetails(error);
 
         await db.insert(productHistoryImports).values({

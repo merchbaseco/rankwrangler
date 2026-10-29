@@ -1,0 +1,1 @@
+CREATE INDEX "product_keyword_mining_due_idx" ON "product_keyword_mining" USING btree ("next_due_at") WHERE "product_keyword_mining"."stage"<>'complete';

@@ -12,6 +12,7 @@ import {
     uuid,
 } from 'drizzle-orm/pg-core';
 import type { AmazonListingStatus } from '@/types';
+import { productSearchDocument } from './product-search-document';
 
 export const products = pgTable(
     'products',
@@ -36,6 +37,12 @@ export const products = pgTable(
         facetsUpdatedAt: timestamp('facets_updated_at', { mode: 'date' }),
         spApiFetchedAt: timestamp('sp_api_fetched_at', { mode: 'date' }),
         spApiResolvedAt: timestamp('sp_api_resolved_at', { mode: 'date' }),
+        historyAdmissionState: text('history_admission_state')
+            .$type<'notAdmitted' | 'admitted' | 'paused'>()
+            .notNull()
+            .default('notAdmitted'),
+        historyAdmissionReason: text('history_admission_reason').$type<'legacy' | 'capacity'>(),
+        historyAdmittedAt: timestamp('history_admitted_at', { mode: 'date' }),
         keepaFetchedAt: timestamp('keepa_fetched_at', { mode: 'date' }),
         keepaSourceUpdatedAt: timestamp('keepa_source_updated_at', { mode: 'date' }),
         keepaFirstTrackedAt: timestamp('keepa_first_tracked_at', { mode: 'date' }),
@@ -63,6 +70,42 @@ export const products = pgTable(
         amazonListingStatusCheck: check(
             'products_amazon_listing_status_check',
             sql`${table.amazonListingStatus} in ('active', 'deleted')`
+        ),
+        historyAdmissionCheck: check(
+            'products_history_admission_check',
+            sql`(
+                (${table.historyAdmissionState} = 'notAdmitted'
+                    AND ${table.historyAdmissionReason} IS NULL
+                    AND ${table.historyAdmittedAt} IS NULL)
+                OR (${table.historyAdmissionState} = 'admitted'
+                    AND ${table.historyAdmissionReason} IN ('legacy', 'capacity')
+                    AND ${table.historyAdmissionReason} IS NOT NULL
+                    AND ${table.historyAdmittedAt} IS NOT NULL)
+                OR (${table.historyAdmissionState} = 'paused'
+                    AND ${table.historyAdmissionReason} = 'capacity'
+                    AND ${table.historyAdmissionReason} IS NOT NULL)
+            )`
+        ),
+        searchDocumentIdx: index('products_search_document_idx').using(
+            'gin',
+            productSearchDocument(table)
+        ),
+        marketplaceCreatedIdx: index('products_marketplace_created_idx').on(
+            table.marketplaceId,
+            table.createdAt.desc(),
+            table.id.asc()
+        ),
+        marketplaceBsrIdx: index('products_marketplace_bsr_idx').on(
+            table.marketplaceId,
+            table.rootCategoryBsr.asc().nullsLast(),
+            table.id.asc()
+        ),
+        // Explore's published windows (last 60 days / year) and first-available sorts range-scan
+        // this instead of sorting or filtering the whole marketplace.
+        marketplaceFirstAvailableIdx: index('products_marketplace_first_available_idx').on(
+            table.marketplaceId,
+            table.dateFirstAvailable.desc().nullsLast(),
+            table.id.asc()
         ),
         keepaRefreshCandidateIdx: index('products_keepa_refresh_candidate_idx').on(
             table.isMerchListing,

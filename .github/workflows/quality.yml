@@ -29,13 +29,29 @@ jobs:
         with:
           bun-version: '1.4.2'
 
+      # Private @merchbaseco/* packages install with the workflow's own
+      # repository-scoped token, and the licensed @hugeicons-pro scope with its
+      # repository secret; no 1Password access is involved. The licensed
+      # HeroUI Pro dist download is deliberately NOT done here: nothing in the
+      # fast lane imports it (the website's tests are static), and the image
+      # build on the Mac mini is the website build's proof.
       - name: Install dependencies
         timeout-minutes: 5
         env:
-          # Private @merchbaseco/* packages install with the workflow's own
-          # repository-scoped token; no 1Password access is involved.
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-        run: bun install --frozen-lockfile
+          CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+        run: |
+          set -euo pipefail
+          MERCHBASE_HUGEICONS_LICENSE_KEY="$(
+            RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
+            bunx varlock@1.16.1 printenv MERCHBASE_HUGEICONS_LICENSE_KEY
+          )"
+          if [ -z "${MERCHBASE_HUGEICONS_LICENSE_KEY}" ]; then
+            echo "MERCHBASE_HUGEICONS_LICENSE_KEY did not resolve; the licensed @hugeicons-pro packages cannot be installed." >&2
+            exit 1
+          fi
+          export MERCHBASE_HUGEICONS_LICENSE_KEY
+          bun install --frozen-lockfile
 
       # `check:fast` pins the schema's `test` lifecycle itself, so CI needs no
       # environment selector and no 1Password access.
@@ -75,7 +91,19 @@ jobs:
         timeout-minutes: 5
         env:
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-        run: bun install --frozen-lockfile
+          CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+        run: |
+          set -euo pipefail
+          MERCHBASE_HUGEICONS_LICENSE_KEY="$(
+            RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
+            bunx varlock@1.16.1 printenv MERCHBASE_HUGEICONS_LICENSE_KEY
+          )"
+          if [ -z "${MERCHBASE_HUGEICONS_LICENSE_KEY}" ]; then
+            echo "MERCHBASE_HUGEICONS_LICENSE_KEY did not resolve; the licensed @hugeicons-pro packages cannot be installed." >&2
+            exit 1
+          fi
+          export MERCHBASE_HUGEICONS_LICENSE_KEY
+          bun install --frozen-lockfile
 
       # The runner image ships PostgreSQL's server binaries but leaves them off
       # PATH, and the script needs `initdb` and `pg_ctl` to build its cluster.

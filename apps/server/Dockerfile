@@ -10,7 +10,7 @@ FROM oven/bun:1.4.2 AS deps
 WORKDIR /app
 
 # Copy only the workspace manifests first for better layer caching.
-COPY package.json bun.lock .npmrc ./
+COPY package.json bun.lock .npmrc bunfig.toml ./
 COPY patches ./patches
 COPY apps/extension/package.json apps/extension/package.json
 COPY apps/server/package.json apps/server/package.json
@@ -19,8 +19,12 @@ COPY packages/cli/package.json packages/cli/package.json
 COPY packages/history-chart/package.json packages/history-chart/package.json
 COPY packages/http-client/package.json packages/http-client/package.json
 
+# The workspace install also resolves the website's licensed @hugeicons-pro
+# scope (bunfig.toml), so it needs that key even though the server never uses it.
 RUN --mount=type=secret,id=github_packages_token,required=true \
+    --mount=type=secret,id=hugeicons_license_key,required=true \
     MERCHBASE_GITHUB_NPM_TOKEN="$(cat /run/secrets/github_packages_token)" \
+    MERCHBASE_HUGEICONS_LICENSE_KEY="$(cat /run/secrets/hugeicons_license_key)" \
     bun install --frozen-lockfile --ignore-scripts
 
 FROM deps AS build
@@ -50,6 +54,9 @@ COPY --from=deps /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=build /app/apps/server/package.json ./apps/server/package.json
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/server/drizzle ./apps/server/drizzle
+
+RUN cd /app/apps/server && node --input-type=module -e \
+    'import sharp from "sharp"; await sharp({create:{width:2,height:2,channels:4,background:"red"}}).png().toBuffer();'
 
 USER nodejs
 

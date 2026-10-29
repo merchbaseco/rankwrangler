@@ -1,183 +1,209 @@
-import { formatInTimeZone } from 'date-fns-tz';
-import { classifyMerchKeyword } from '@/services/spapi/ba-keywords-aggregation';
-import {
-    buildDailyTopSearchTermsWindows,
-    getDefaultTopSearchTermsWindow,
-    getNextRefreshAtAfterSuccess,
-} from '@/services/top-search-terms-dataset-windows';
-import {
-    SEED_AUDIENCES,
-    SEED_BLOCKED_SEARCH_TERMS,
-    SEED_GARMENTS,
-    SEED_MERCH_SEARCH_TERMS,
-} from '@/dev-seed/vocabulary';
 import { DAY_MS, HOUR_MS, shiftMs } from '@/dev-seed/time-offsets';
 import type { BuilderContext, DevSeedPlan, PlanRows } from '@/dev-seed/types';
+import { keywordPopularity } from '@/services/keyword-standing-policy';
+import { getShortNameInputFingerprint } from '@/services/product-short-name-request';
 
 /**
- * Brand Analytics Top Search Terms: one completed daily dataset per day of the
- * generated week plus the current weekly window, each with a snapshot and its
- * keyword rows.
+ * Keyword standing, membership, and score history over the seeded Search runs, plus stored short
+ * names, so the Keywords and Product research reads render populated shelves, trends and names.
  *
- * Two things make this worth generating rather than stubbing. The Keywords page
- * defaults to merch-only, so the rows are classified by the shipped
- * `classifyMerchKeyword` rather than by a flag chosen here — blocked terms are
- * blocked for the real reason and the filter demonstrably removes them. And the
- * trend columns compare a term against itself one, seven, and thirty days back,
- * so ranks drift across consecutive days instead of repeating.
+ * Each Catalog query becomes a tracked keyword target whose head is its newest run's active
+ * Merch Products in placement order, scored by the shipped popularity policy. Twelve weekly
+ * observations walk toward that score so the trend and seven-day delta have a shape. Cutouts are
+ * deliberately not seeded: a stored object key would point at an R2 asset that does not exist.
  */
 
-const PACIFIC_TIME_ZONE = 'America/Los_Angeles';
-/** Enough consecutive days for the one-day and seven-day trend columns. */
-const MIN_DAILY_WINDOWS = 9;
-const KEYWORDS_PER_SNAPSHOT = 70;
-const MAX_BASIS_POINTS = 10_000;
+const TREND_WEEKS = 12;
+const SHORT_NAME_SHARE = 0.75;
 
-export interface KeywordsBuild {
-    readonly topSearchTermsDatasets: DevSeedPlan['topSearchTermsDatasets'];
-    readonly topSearchTermsSnapshots: DevSeedPlan['topSearchTermsSnapshots'];
-    readonly topSearchTermsKeywordDaily: DevSeedPlan['topSearchTermsKeywordDaily'];
+export interface KeywordBuild {
+    readonly discoveryTargets: DevSeedPlan['discoveryTargets'];
+    readonly keywordProducts: DevSeedPlan['keywordProducts'];
+    readonly keywordStandingObservations: DevSeedPlan['keywordStandingObservations'];
+    readonly keywordExplorationPasses: DevSeedPlan['keywordExplorationPasses'];
+    readonly keywordAutocomplete: DevSeedPlan['keywordAutocomplete'];
+    readonly keywordDiscoveryAttempts: DevSeedPlan['keywordDiscoveryAttempts'];
+    readonly productShortNames: DevSeedPlan['productShortNames'];
 }
 
-export const buildKeywords = (context: BuilderContext): KeywordsBuild => {
-    const { random, now, marketplaceId, mintId, options } = context;
-    const today = formatInTimeZone(now, PACIFIC_TIME_ZONE, 'yyyy-MM-dd');
-    const dayCount = Math.max(MIN_DAILY_WINDOWS, options.dayCount);
-    const windows = [
-        ...buildDailyTopSearchTermsWindows({ marketplaceId, today, days: dayCount }),
-        getDefaultTopSearchTermsWindow({ marketplaceId, reportPeriod: 'WEEK', today }),
-    ];
+export const buildKeywords = (
+    context: BuilderContext,
+    catalog: Pick<DevSeedPlan, 'products'>,
+    search: Pick<DevSeedPlan, 'catalogQueries' | 'catalogSearchRuns' | 'catalogSearchResults'>
+): KeywordBuild => {
+    const { random, mintId } = context;
+    const productsById = new Map(catalog.products.map(product => [product.id, product]));
+    const targets: PlanRows<'discoveryTargets'> = [];
+    const memberships: PlanRows<'keywordProducts'> = [];
+    const observations: PlanRows<'keywordStandingObservations'> = [];
+    const passes: PlanRows<'keywordExplorationPasses'> = [];
+    const attempts: PlanRows<'keywordDiscoveryAttempts'> = [];
+    const autocomplete: PlanRows<'keywordAutocomplete'> = [];
 
-    const terms = buildKeywordPool(context).slice(0, KEYWORDS_PER_SNAPSHOT);
-    const datasets: PlanRows<'topSearchTermsDatasets'> = [];
-    const snapshots: PlanRows<'topSearchTermsSnapshots'> = [];
-    const keywords: PlanRows<'topSearchTermsKeywordDaily'> = [];
-
-    windows.forEach((window, windowIndex) => {
-        const datasetId = mintId('dataset');
-        const snapshotId = mintId('snapshot');
-        const reportId = `dev-seed-report-${window.reportPeriod.toLowerCase()}-${window.dataEndDate}`;
-        const sourceJobId = `dev-seed-job-${windowIndex + 1}`;
-        const fetchedAt = shiftMs(now, -(windowIndex + 1) * random.int(2, 5) * HOUR_MS);
-        const dataset = {
-            id: datasetId,
-            marketplaceId,
-            reportPeriod: window.reportPeriod,
-            dataStartDate: window.dataStartDate,
-            dataEndDate: window.dataEndDate,
-            status: 'completed',
-            refreshing: false,
-            activeJobId: null,
-            activeJobRequestedAt: null,
-            fetchStartedAt: shiftMs(fetchedAt, -random.int(40, 300) * 1000),
-            lastCompletedAt: fetchedAt,
-            lastFailedAt: null,
-            lastError: null,
-            reportId,
-            refreshTrigger: 'automatic' as const,
-            nextRefreshAt: getNextRefreshAtAfterSuccess({ dataset: window, now, today }),
-            createdAt: shiftMs(fetchedAt, -DAY_MS),
-            updatedAt: fetchedAt,
-        };
-        datasets.push(dataset);
-
-        snapshots.push({
-            id: snapshotId,
-            datasetId,
-            marketplaceId,
-            reportPeriod: window.reportPeriod,
-            dataStartDate: window.dataStartDate,
-            dataEndDate: window.dataEndDate,
-            observedDate: window.dataEndDate,
-            reportId,
-            sourceJobId,
-            trigger: 'automatic',
-            keywordCount: terms.length,
-            fetchedAt,
-            createdAt: fetchedAt,
-            updatedAt: fetchedAt,
-        });
-
-        // Day index counts backwards from today, so drift accumulates in the
-        // direction the trend columns read it.
-        const dayIndex = window.reportPeriod === 'DAY' ? windowIndex : 0;
-        terms.forEach(term => {
-            const rank = driftRank(term.baseRank, dayIndex, term.momentum);
-            const clickShare = clampBasisPoints(
-                term.baseClickShare + Math.round(term.momentum * dayIndex * -6)
-            );
-            keywords.push({
-                id: mintId('keyword'),
-                snapshotId,
-                datasetId,
-                marketplaceId,
-                reportPeriod: window.reportPeriod,
-                dataStartDate: window.dataStartDate,
-                dataEndDate: window.dataEndDate,
-                observedDate: window.dataEndDate,
-                searchTerm: term.searchTerm,
-                searchFrequencyRank: rank,
-                clickShareTop3SumBasisPoints: clickShare,
-                conversionShareTop3SumBasisPoints: clampBasisPoints(
-                    Math.round(clickShare * random.between(0.35, 0.8))
-                ),
-                topRowsCount: random.int(1, 3),
-                isMerchRelevant: term.isMerchRelevant,
-                merchReason: term.merchReason,
-                createdAt: fetchedAt,
+    for (const query of search.catalogQueries) {
+        const runs = search.catalogSearchRuns
+            .filter(run => run.queryId === query.id)
+            .sort((left, right) => time(left.sourceCompletedAt) - time(right.sourceCompletedAt));
+        const latest = runs.at(-1);
+        if (!latest) continue;
+        const seen = new Map<string, { first: Date; last: Date }>();
+        for (const run of runs) {
+            for (const result of search.catalogSearchResults.filter(row => row.runId === run.id)) {
+                const at = run.sourceCompletedAt as Date;
+                seen.set(result.productId, {
+                    first: seen.get(result.productId)?.first ?? at,
+                    last: at,
+                });
+            }
+        }
+        for (const [productId, observed] of seen) {
+            memberships.push({
+                queryId: query.id as string,
+                productId,
+                firstObservedAt: observed.first,
+                lastObservedAt: observed.last,
             });
+        }
+        const head = search.catalogSearchResults
+            .filter(row => row.runId === latest.id)
+            .sort((left, right) => left.sourcePosition - right.sourcePosition)
+            .map(row => productsById.get(row.productId))
+            .filter(
+                product =>
+                    product?.isMerchListing === true && product.amazonListingStatus !== 'deleted'
+            );
+        // Half the keywords had a page-one check in the last day, so mined-today is not empty.
+        const observedAt =
+            targets.length % 2 === 0
+                ? shiftMs(context.now, -random.int(1, 20) * HOUR_MS)
+                : (latest.sourceCompletedAt as Date);
+        const popularity = keywordPopularity({
+            ranks: head.map(product => product?.rootCategoryBsr ?? null),
+            now: observedAt,
         });
+        const score = popularity.score ?? 0;
+        const tier = tierFor(score);
+        const intervalDays = tier === 'hot' ? 2 : tier === 'warm' ? 10 : 35;
+        const targetId = mintId('discoveryTarget');
+        targets.push({
+            id: targetId,
+            queryId: query.id as string,
+            kind: 'keyword',
+            tracking: 'tracked',
+            standingTier: tier,
+            popularityScore: score,
+            scoreComponents: { best: popularity.best, breadth: popularity.breadth },
+            headProductIds: head.map(product => product?.id as string),
+            headObservedAt: observedAt,
+            firstObservedAt: runs[0].sourceCompletedAt as Date,
+            // Two keywords are due so the queued count and status have something to show.
+            nextCheckAt:
+                targets.length < 2
+                    ? shiftMs(context.now, -random.int(1, 6) * HOUR_MS)
+                    : shiftMs(context.now, random.int(6, intervalDays * 24) * HOUR_MS),
+            intervalDays,
+            enabled: true,
+            createdAt: query.createdAt as Date,
+        });
+        const passId = mintId('explorationPass');
+        passes.push({
+            id: passId,
+            targetId,
+            stopReason: 'sourceEnd',
+            nextPage: 1,
+            contiguousPages: 1,
+            oldestPageAt: observedAt,
+            lastPageAt: observedAt,
+            resumeAt: targets.at(-1)?.nextCheckAt as Date,
+            createdAt: observedAt,
+            updatedAt: observedAt,
+        });
+        attempts.push({
+            id: mintId('discoveryAttempt'),
+            passId,
+            attemptedAt: observedAt,
+            page: 0,
+            status: 'accepted',
+            startedAt: observedAt,
+            finishedAt: observedAt,
+            resultCount: head.length,
+            newProducts: 0,
+            newMerchProducts: 0,
+            knownMerch: head.length,
+            unknownProducts: 0,
+            nonMerchProducts: 0,
+            newMerchMemberships: 0,
+        });
+        // Expansion already ran, so the directory status follows the page-one schedule.
+        autocomplete.push({
+            queryId: query.id as string,
+            stage: 'complete',
+            suggestions: [],
+            suggestedAt: observedAt,
+            completedAt: observedAt,
+            nextDueAt: observedAt,
+        });
+        // Rising and falling keywords: the walk starts away from today's score and closes in.
+        let walk = score - random.int(5, 45);
+        for (let week = TREND_WEEKS - 1; week >= 0; week -= 1) {
+            walk =
+                week === 0 ? score : Math.round(walk + (score - walk) * 0.12 + random.int(-4, 4));
+            const value = Math.max(0, Math.min(100, walk));
+            observations.push({
+                id: mintId('standingObservation'),
+                targetId,
+                queryId: query.id as string,
+                observedAt: shiftMs(observedAt, -week * 7 * DAY_MS),
+                popularityScore: value,
+                standingTier: tierFor(value),
+                source: week === 0 || week % 3 === 0 ? 'search' : 'storedRanks',
+            });
+        }
+    }
+
+    const shortNames: PlanRows<'productShortNames'> = catalog.products.flatMap(product => {
+        const title = product.title;
+        const imageUrl = product.thumbnailUrl;
+        if (
+            product.isMerchListing !== true ||
+            !title ||
+            !imageUrl ||
+            !random.chance(SHORT_NAME_SHARE)
+        )
+            return [];
+        const attemptedAt = shiftMs(context.now, -random.int(1, 20) * DAY_MS);
+        return [
+            {
+                marketplaceId: product.marketplaceId,
+                asin: product.asin,
+                inputFingerprint: getShortNameInputFingerprint(title, imageUrl),
+                state: 'ready' as const,
+                shortName: shortNameFor(title),
+                claimId: mintId('shortNameClaim'),
+                attemptedAt,
+                completedAt: attemptedAt,
+            },
+        ];
     });
 
     return {
-        topSearchTermsDatasets: datasets,
-        topSearchTermsKeywordDaily: keywords,
-        topSearchTermsSnapshots: snapshots,
+        discoveryTargets: targets,
+        keywordProducts: memberships,
+        keywordStandingObservations: observations,
+        keywordExplorationPasses: passes,
+        keywordAutocomplete: autocomplete,
+        keywordDiscoveryAttempts: attempts,
+        productShortNames: shortNames,
     };
 };
 
-interface SeedKeyword {
-    readonly baseClickShare: number;
-    readonly baseRank: number;
-    readonly isMerchRelevant: boolean;
-    readonly merchReason: string;
-    /** Positive climbs the rank list over the week, negative falls. */
-    readonly momentum: number;
-    readonly searchTerm: string;
-}
+const time = (value: Date | undefined) => value?.getTime() ?? 0;
 
-/**
- * The pool deliberately mixes hand-written apparel terms, commodity and brand
- * terms, and generated audience/garment combinations, then labels every one of
- * them with the shipped classifier rather than by construction.
- */
-const buildKeywordPool = (context: BuilderContext): SeedKeyword[] => {
-    const { random } = context;
-    const combos = SEED_AUDIENCES.flatMap(audience =>
-        audience.nouns.map(
-            noun => `${noun.toLowerCase()} ${random.pick(SEED_GARMENTS).toLowerCase()}`
-        )
-    );
-    const unique = [
-        ...new Set([...SEED_MERCH_SEARCH_TERMS, ...SEED_BLOCKED_SEARCH_TERMS, ...combos]),
-    ];
+const tierFor = (score: number) =>
+    score >= 75 ? ('hot' as const) : score >= 35 ? ('warm' as const) : ('cold' as const);
 
-    return random.shuffle(unique).map((searchTerm, index) => {
-        const classification = classifyMerchKeyword(searchTerm);
-        return {
-            baseClickShare: random.int(120, 2600),
-            // Ranks spread over a realistic Brand Analytics range, densest at
-            // the head.
-            baseRank: Math.round(600 + (index + 1) ** 2.1 * random.between(4, 9)),
-            isMerchRelevant: classification.isMerchRelevant,
-            merchReason: classification.merchReason,
-            momentum: random.normal(),
-            searchTerm,
-        };
-    });
+/** Seed titles end in a garment ("... T-Shirt"); the design name is what precedes it. */
+const shortNameFor = (title: string) => {
+    const words = title.split(/\s+/u).filter(Boolean);
+    return words.slice(0, Math.max(1, Math.min(4, words.length - 1))).join(' ');
 };
-
-const driftRank = (baseRank: number, dayIndex: number, momentum: number) =>
-    Math.max(1, Math.round(baseRank * (1 + momentum * dayIndex * 0.035)));
-
-const clampBasisPoints = (value: number) => Math.min(MAX_BASIS_POINTS, Math.max(0, value));

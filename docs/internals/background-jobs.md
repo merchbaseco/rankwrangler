@@ -27,17 +27,25 @@ where a second attempt would be redundant.
 | Product-history Operation | Event-driven worker plus one-minute stale-pending recovery. |
 | Catalog-search Operation | Event-driven first-page Keepa search plus one-minute stale-pending recovery. |
 | Active Catalog keyword | One-minute due scan plus one startup scan; one current run, no backfill. |
-| Top Search Terms dataset sync | Every five minutes with a bounded due-window batch. |
-| Top Search Terms report fetch | Event-driven; one grouped fetch across server instances. |
 | Product facets | One-minute worker definition, currently disabled by policy. |
 | Provider-attempt retention | Daily bounded deletion of attempts older than seven days. |
+| Job-execution retention | Daily bounded deletion of run history older than fourteen days. |
+| Keyword pipeline | One-minute scheduler feeding gated scan and autocomplete queues and the weekly Brand Analytics import. |
+
+New and changed jobs follow [background jobs](../decisions/background-jobs.md): one job per external
+call on one entity, one queue per provider, schedulers that only enqueue. A job definition can declare
+`.queue({ policy })` and `.gate(providerGate)`. A gated queue runs one worker that fetches the next
+job, by priority, only once its gate reports the provider can start; the job may return a `followup`
+to re-send itself for its entity after it completes. Entity queues use the `exclusive` policy keyed by
+entity. The keyword pipeline is the first user; see
+[keyword jobs](keyword-mining.md#keyword-jobs). Retired `process-keyword-sync` and older keyword
+stage schedules are unscheduled at startup.
 
 ## State Ownership
 
 pg-boss owns dispatch and execution. Durable domain tables own recoverable state:
 
 - SP-API and Keepa queue tables own pending Product work;
-- Top Search Terms datasets own report ID, status, retry time, and recovery state;
 - Products own source freshness;
 - Catalog queries own keyword activity leases, refresh-attempt timestamps, and latest successful
   run watermarks;

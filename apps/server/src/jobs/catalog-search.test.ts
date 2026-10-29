@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { TRPCError } from '@trpc/server';
 import type { OperationRecord } from '@/services/operations';
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 
 describe('Catalog search worker', () => {
     it('normalizes one provider response and reconciles accepted Products atomically', async () => {
@@ -79,6 +80,7 @@ describe('Catalog search worker', () => {
         expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
             didWork: true,
             status: 'failed',
+            cause: 'TRPCError BAD_GATEWAY',
         });
         expect(deps.persistSuccess.mock.calls).toHaveLength(0);
         expect(deps.completeWithError.mock.calls[0]?.[0].error).toEqual({
@@ -93,6 +95,47 @@ describe('Catalog search worker', () => {
                 },
             ],
         ]);
+    });
+
+    it('records the database reason behind a wrapped query failure', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
+        const reason = Object.assign(new Error('value too long for type character varying(10)'), {
+            name: 'PostgresError',
+            code: '22001',
+            column_name: 'title',
+        });
+        const deps = createDeps({
+            claimOperationWork: async () => createOperation(),
+            persistSuccess: async () => {
+                throw new Error('Failed query: insert into "products" ...', { cause: reason });
+            },
+        });
+
+        expect(await runCatalogSearchOperation(createOperation().id, deps)).toMatchObject({
+            status: 'failed',
+            cause: 'PostgresError 22001: value too long for type character varying(10) column_name=title',
+        });
+    });
+
+    it('defers budget-limited work without recording a provider failure or fresh observation', async () => {
+        const { runCatalogSearchOperation } = await loadSubject();
+        const deps = createDeps({
+            searchProvider: async () => {
+                throw new KeepaCapacityDeferredError(
+                    'discovery share',
+                    new Date('2026-10-24T20:00:00Z')
+                );
+            },
+        });
+        expect(await runCatalogSearchOperation(createOperation().id, deps)).toEqual({
+            didWork: false,
+            status: 'deferred_capacity',
+        });
+        expect(deps.persistSuccess.mock.calls).toHaveLength(0);
+        expect(deps.completeWithError.mock.calls).toHaveLength(0);
+        expect(deps.releaseOperationWork.mock.calls[0]?.[2]).toEqual(
+            new Date('2026-10-24T20:00:00Z')
+        );
     });
 
     it('persists a visible zero-result run', async () => {
@@ -215,7 +258,9 @@ const createDeps = (overrides: Record<string, unknown> = {}) => ({
     ),
     completeWithError: mock(async () => createOperation()),
     evaluateAccess: mock(async () => ({ kind: 'allowed' as const })),
-    releaseOperationWork: mock(async () => undefined),
+    releaseOperationWork: mock(
+        async (_id: string, _startedAt?: Date, _retryAt?: Date) => undefined
+    ),
     notifyCompleted: mock(() => {
         // Completion delivery is asserted through mock calls.
     }),
@@ -256,11 +301,15 @@ const loadSubject = async () => {
 };
 
 const seedRequiredEnvForTests = () => {
-    process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN = process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN ?? 'test-refresh';
-    process.env.RANKWRANGLER_SPAPI_CLIENT_ID = process.env.RANKWRANGLER_SPAPI_CLIENT_ID ?? 'test-client';
-    process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET = process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
+    process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN =
+        process.env.RANKWRANGLER_SPAPI_REFRESH_TOKEN ?? 'test-refresh';
+    process.env.RANKWRANGLER_SPAPI_CLIENT_ID =
+        process.env.RANKWRANGLER_SPAPI_CLIENT_ID ?? 'test-client';
+    process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET =
+        process.env.RANKWRANGLER_SPAPI_APP_CLIENT_SECRET ?? 'test-secret';
     process.env.MERCHBASE_CLERK_SECRET_KEY = process.env.MERCHBASE_CLERK_SECRET_KEY ?? 'test-clerk';
-    process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY = process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
+    process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY =
+        process.env.MERCHBASE_CLERK_PUBLISHABLE_KEY ?? 'pk_test_rankwrangler';
     process.env.MERCHBASE_CLERK_JWT_KEY = process.env.MERCHBASE_CLERK_JWT_KEY ?? 'test-jwt-key';
     process.env.MERCHBASE_CLERK_ISSUER = process.env.MERCHBASE_CLERK_ISSUER ?? 'https://clerk.test';
     process.env.RANKWRANGLER_CLERK_AUTHORIZED_PARTIES =

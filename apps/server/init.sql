@@ -16,7 +16,7 @@ BEGIN
    IF NOT EXISTS (
       SELECT FROM pg_catalog.pg_roles
       WHERE rolname = 'rankwrangler') THEN
-      
+
       CREATE USER rankwrangler WITH PASSWORD 'SecurePass123';
    END IF;
 END
@@ -50,11 +50,17 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- products.amazon_listing_status records whether the Amazon listing is active or deleted),
 -- product_short_names, product_cutout_thumbnails, product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
--- product_history_points, keepa_categories, top_search_terms_datasets,
--- top_search_terms_snapshots, top_search_terms_keyword_daily,
+-- product_history_points, keepa_categories,
+--
 -- operations, event_logs, job_executions, job_execution_logs, provider_attempts
--- catalog_queries (keyword activity leases), catalog_search_runs (trigger provenance),
--- catalog_search_results
+-- catalog_queries (keyword admission, tiers, demand, due dates and research leases),
+-- keyword_products, keyword_exploration_passes (scoped discovery target and fenced claim),
+-- keyword_discovery_attempts (physical starts and page yield), discovery_targets,
+-- keyword_standing_observations (score history per standing observation), discovery_evidence,
+-- discovery_source_scans, brand_discovery_products, spapi_catalog_capacity,
+-- keepa_capacity_state, keepa_capacity_attempts, history_admission_rollouts,
+-- catalog_search_runs (page and trigger provenance),
+-- catalog_search_results, official_brands (verified marketplace-specific brand exclusions)
 
 -- Log successful initialization
 \echo 'PostgreSQL initialization completed successfully'
@@ -62,3 +68,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 \echo 'User: rankwrangler'
 \echo 'Extensions: uuid-ossp'
 \echo 'Ready for Drizzle migrations...'
+
+-- automatic_sync_control, keyword_autocomplete and keyword_mining_capacity persist the pause
+-- switch, one-time autocomplete expansion and autocomplete pacing.
+-- brand_analytics_search_terms keeps the latest kept weekly Brand Analytics search terms (rank,
+-- apparel clicks, Merch product text, theme, clicked ASINs, first/last week, trial registration);
+-- brand_analytics_imports records each weekly report import's state and counts; keyword_themes
+-- holds one row per tracked-keyword theme and its one-time autocomplete expansion.

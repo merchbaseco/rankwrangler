@@ -9,6 +9,30 @@ import {
 type CliFail = (code: string, message: string, details?: unknown) => never;
 
 export interface CliOptionValues {
+    textFields?: string;
+    excludeWord?: string[];
+    brand?: string[];
+    excludeBrand?: string[];
+    categoryId?: string[];
+    facet?: string[];
+    includeOfficialBrands?: boolean;
+    merch?: string;
+    listingStatus?: string;
+    stage?: string;
+    freshness?: string;
+    sort?: string;
+    minBsr?: string;
+    maxBsr?: string;
+    minPrice?: string;
+    maxPrice?: string;
+    minMonthlySold?: string;
+    maxMonthlySold?: string;
+    updatedAfter?: string;
+    updatedBefore?: string;
+    availableAfter?: string;
+    availableBefore?: string;
+    discoveredAfter?: string;
+    discoveredBefore?: string;
     baseUrl?: string;
     marketplace?: string;
     metrics?: string;

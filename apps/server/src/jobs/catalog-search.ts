@@ -1,6 +1,9 @@
 import { z } from 'zod';
-import { completeCatalogSearchOperationWithError } from '@/db/catalog-search-operations';
-import { claimOperationWork, releaseOperationWork } from '@/db/operations';
+import {
+    completeCatalogSearchOperationWithError,
+    releaseCatalogSearchWork,
+} from '@/db/catalog-search-operations';
+import { claimOperationWork } from '@/db/operations';
 import {
     type CatalogSearchPersistenceResult,
     persistCatalogSearchSuccess,
@@ -11,6 +14,9 @@ import { notifyCatalogSearchCompleted } from '@/services/catalog-search-events';
 import { searchKeepaCatalog } from '@/services/keepa-catalog-search';
 import { normalizeKeepaProduct } from '@/services/keepa-product-normalizer';
 import { type CatalogSearchOperationInput, sanitizeOperationError } from '@/services/operations';
+import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
+import { getErrorMessage } from '@/services/job-executions-utils';
+import { TRPCError } from '@trpc/server';
 import { defineJob } from './job-router';
 
 const catalogSearchJobInput = z.object({
@@ -23,7 +29,7 @@ export interface CatalogSearchWorkerDeps {
     searchProvider: typeof searchKeepaCatalog;
     persistSuccess: typeof persistCatalogSearchSuccess;
     completeWithError: typeof completeCatalogSearchOperationWithError;
-    releaseOperationWork?: typeof releaseOperationWork;
+    releaseOperationWork?: typeof releaseCatalogSearchWork;
     evaluateAccess?: typeof evaluateUserOwnedJobAccess;
     notifyCompleted: typeof notifyCatalogSearchCompleted;
 }
@@ -32,7 +38,7 @@ const defaultDeps: CatalogSearchWorkerDeps = {
     claimOperationWork,
     searchProvider: searchKeepaCatalog,
     persistSuccess: persistCatalogSearchSuccess,
-    releaseOperationWork,
+    releaseOperationWork: releaseCatalogSearchWork,
     evaluateAccess: evaluateUserOwnedJobAccess,
     notifyCompleted: notifyCatalogSearchCompleted,
     completeWithError: completeCatalogSearchOperationWithError,
@@ -53,7 +59,9 @@ export const runCatalogSearchOperation = async (
     const sourceStartedAt = new Date();
 
     if (input.priority === 'interactive' && !input.ownerMerchbaseUserId) {
-        await deps.releaseOperationWork?.(operationId);
+        await (operation.startedAt
+            ? deps.releaseOperationWork?.(operationId, operation.startedAt)
+            : deps.releaseOperationWork?.(operationId));
         return { didWork: false, status: 'skipped_access_unavailable' } as const;
     }
 
@@ -61,12 +69,15 @@ export const runCatalogSearchOperation = async (
         input.ownerMerchbaseUserId
     );
     if (access.kind === 'unavailable') {
-        await deps.releaseOperationWork?.(operationId);
+        await (operation.startedAt
+            ? deps.releaseOperationWork?.(operationId, operation.startedAt)
+            : deps.releaseOperationWork?.(operationId));
         return { didWork: false, status: 'skipped_access_unavailable' } as const;
     }
     if (access.kind === 'denied') {
         await deps.completeWithError({
             operationId,
+            startedAt: operation.startedAt ?? undefined,
             error: {
                 code: 'ACCESS_DENIED',
                 message: 'RankWrangler access is no longer granted.',
@@ -84,6 +95,9 @@ export const runCatalogSearchOperation = async (
             marketplaceId: input.marketplaceId,
             term: input.term,
             priority: input.priority,
+            workClass: input.workClass,
+            keywordId: input.queryId,
+            workId: operationId,
         });
         const sourceCompletedAt = new Date();
         const results = normalizeSearchResults(
@@ -94,6 +108,8 @@ export const runCatalogSearchOperation = async (
         await deps.persistSuccess({
             operationId,
             queryId: input.queryId,
+            page: input.page,
+            startedAt: operation.startedAt ?? undefined,
             sourceStartedAt,
             sourceCompletedAt,
             trigger: input.trigger,
@@ -111,16 +127,30 @@ export const runCatalogSearchOperation = async (
             resultCount: results.length,
         } as const;
     } catch (error) {
+        if (error instanceof KeepaCapacityDeferredError) {
+            await deps.releaseOperationWork?.(
+                operationId,
+                operation.startedAt ?? undefined,
+                error.retryAt
+            );
+            return { didWork: false, status: 'deferred_capacity' } as const;
+        }
         const operationError = sanitizeOperationError(error, 'catalogSearch');
         await deps.completeWithError({
             operationId,
+            startedAt: operation.startedAt ?? undefined,
             error: operationError,
         });
         deps.notifyCompleted({
             operationId,
             queryId: input.queryId,
         });
-        return { didWork: true, status: 'failed' } as const;
+        // The Operation keeps the sanitized public error; the admin-only run record keeps a cause:
+        // provider errors by code only (their text can echo provider payloads), anything else with
+        // its message, so failures such as database timeouts are diagnosable.
+        const cause = failureCause(error);
+        console.error('[Job][catalog-search] Catalog search failed', { operationId, cause });
+        return { didWork: true, status: 'failed', cause } as const;
     }
 };
 
@@ -130,6 +160,9 @@ export const catalogSearchJob = defineJob(CATALOG_SEARCH_JOB_NAME, {
 })
     .input(catalogSearchJobInput)
     .options({ retryLimit: 0, priority: 10 })
+    // A live search must not wait behind a scheduled refresh that is still saving its history;
+    // Keepa calls themselves stay serialized, interactive first, by the provider's limiter.
+    .workOptions({ localConcurrency: 3 })
     .work(async job => {
         return await runCatalogSearchOperation(job.data.operationId);
     });
@@ -165,4 +198,20 @@ const normalizeSearchResults = (
     }
 
     return Array.from(accepted.values());
+};
+
+// A database failure arrives wrapped: its message is the SQL text and the reason (Postgres code,
+// message, constraint) sits on `cause`, so the deepest cause is what gets recorded.
+const failureCause = (error: unknown) => {
+    if (error instanceof TRPCError) return `TRPCError ${error.code}`;
+    let root = error;
+    while (root instanceof Error && root.cause !== undefined) root = root.cause;
+    const name = root instanceof Error ? root.name : typeof root;
+    const fields = root && typeof root === 'object' ? (root as Record<string, unknown>) : {};
+    const code = fields.code === undefined ? '' : ` ${String(fields.code)}`;
+    const detail = ['constraint_name', 'column_name', 'detail']
+        .filter(key => typeof fields[key] === 'string')
+        .map(key => ` ${key}=${String(fields[key])}`)
+        .join('');
+    return `${name}${code}: ${getErrorMessage(root).slice(0, 300)}${detail}`.slice(0, 600);
 };

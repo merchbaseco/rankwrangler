@@ -121,7 +121,6 @@ const printReceipt = ({
     total: number;
 }) => {
     const { dayCount, now } = plan.options;
-    const searchTerms = summary.topSearchTermsSnapshots + summary.topSearchTermsKeywordDaily;
     const logs = summary.eventLogs + summary.jobExecutionLogs + summary.providerAttempts;
 
     console.log('');
@@ -138,7 +137,6 @@ const printReceipt = ({
     console.log(`[Seed]   Products        ${summary.products}`);
     console.log(`[Seed]   Catalog queries ${summary.catalogQueries}`);
     console.log(`[Seed]   History points  ${summary.productHistoryPoints}`);
-    console.log(`[Seed]   Search terms    ${searchTerms}`);
     console.log(`[Seed]   Log rows        ${logs}`);
     console.log(`[Seed]   Total rows      ${total}`);
     console.log('[Seed] ──────────────────────────────────────────────────────────');

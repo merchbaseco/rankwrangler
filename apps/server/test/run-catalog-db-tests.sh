@@ -262,9 +262,17 @@ RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
 RANKWRANGLER_DATABASE_MIGRATION_TARGET=latest \
 MIGRATIONS_FOLDER="$server_dir/drizzle" \
-bun -e "import { runMigrations, verifyCutoverMigration, verifyMigrationTarget } from './src/db/migrate.ts'; await runMigrations(); await verifyCutoverMigration(); await verifyMigrationTarget();"
+COLLECTION_TEST_MIGRATIONS_FOLDER="$test_root/collection-migrations" \
+bun test/upgrade-collection-fixture.ts
+
+"$postgres_bin_dir/psql" \
+    -h 127.0.0.1 -p "$test_port" -U rankwrangler -d "$database_name" \
+    -v ON_ERROR_STOP=1 -f "$server_dir/test/collection-migration-assertions.sql"
 
 "$postgres_bin_dir/pg_restore" --list "$backup_path" >/dev/null
+
+"$postgres_bin_dir/psql" -h 127.0.0.1 -p "$test_port" -U rankwrangler -d "$database_name" \
+    -v ON_ERROR_STOP=1 -c "UPDATE automatic_sync_control SET paused=false WHERE id=1"
 
 cd "$repo_dir"
 RANKWRANGLER_DATABASE_HOST=127.0.0.1 \
@@ -283,11 +291,34 @@ RANKWRANGLER_CLERK_AUTHORIZED_PARTIES=https://app.test \
 RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
 RUN_CATALOG_DB_TESTS=true \
+CATALOG_SSR_FIXTURE_ROOT="$test_root/ssr-startup" \
 bun test \
+    apps/server/test/ssr-startup-build.test.ts \
     apps/server/test/central-auth.db.test.ts \
     apps/server/test/catalog-search-concurrency.db.test.ts \
     apps/server/test/catalog-search-history.db.test.ts \
     apps/server/test/catalog-query-refresh.db.test.ts \
+    apps/server/test/keyword-collection.db.test.ts \
+    apps/server/test/discovery-capacity.db.test.ts \
+    apps/server/test/discovery-sources.db.test.ts \
+    apps/server/test/keyword-jobs.db.test.ts \
+    apps/server/test/keyword-autocomplete.db.test.ts \
+    apps/server/test/keyword-themes.db.test.ts \
+    apps/server/test/keyword-directory.db.test.ts \
+    apps/server/test/keyword-directory-grid.db.test.ts \
+    apps/server/test/keyword-realtime.db.test.ts \
+    apps/server/test/keyword-directory-status.db.test.ts \
+    apps/server/test/keyword-sync-control.db.test.ts \
+    apps/server/test/keyword-standing.db.test.ts \
+    apps/server/test/discovery-agent-research.db.test.ts \
+    apps/server/test/keyword-scheduling-races.db.test.ts \
+    apps/server/test/keepa-capacity.db.test.ts \
+    apps/server/test/collection-status.db.test.ts \
+    apps/server/test/product-collection-policy.db.test.ts \
+    apps/server/test/product-search-document.db.test.ts \
+    apps/server/test/product-search.db.test.ts \
+    apps/server/test/product-search-grid.db.test.ts \
+    apps/server/test/product-app-reads.db.test.ts \
     apps/server/test/merch-listing-classification.db.test.ts \
     apps/server/test/product-short-name.db.test.ts \
     apps/server/test/product-cutout-thumbnail.db.test.ts \

@@ -1,15 +1,17 @@
+import { keywordDirectoryInput } from '@/api/keyword-directory-input';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { productGetIncludes } from '@/api/public/product-input';
 import { rejectFieldsOutsideOperation } from './input-refinements';
+import {
+    productInputSchema,
+    toProductGetInput,
+    toProductGetManyInput,
+    toProductHistoryInput,
+    toProductSearchInput,
+} from './product-input';
 import { readOnlyToolAnnotations, runReadOnlyTool } from './tool-result';
-import type {
-    ProductGetManyMcpInput,
-    ProductGetMcpInput,
-    ProductHistoryMcpInput,
-    RankWranglerMcpDataSource,
-} from './types';
+import type { RankWranglerMcpDataSource } from './types';
 
 export type { RankWranglerMcpDataSource } from './types';
 
@@ -34,99 +36,35 @@ const toolOutputSchema = z.object({
             retryAfterSeconds: z.number().int().positive().optional(),
         })
         .optional(),
-    operation: z.enum(['get', 'getMany', 'search', 'history']).optional(),
+    operation: z.enum(['get', 'getMany', 'search', 'history', 'results']).optional(),
 });
-
-const productIdentitySchema = z
-    .object({
-        asin: z
-            .string()
-            .trim()
-            .regex(/^[A-Z0-9]{10}$/i),
-        marketplaceId: z.string().trim().min(1),
-    })
-    .strict();
-
-const productBatchSchema = z
-    .array(productIdentitySchema)
-    .min(1)
-    .max(200)
-    .superRefine((products, context) => {
-        const identities = new Set<string>();
-        products.forEach((product, index) => {
-            const key = `${product.marketplaceId}:${product.asin.toUpperCase()}`;
-            if (identities.has(key)) {
-                context.addIssue({
-                    code: 'custom',
-                    message: 'Product pairs must be unique',
-                    path: [index],
-                });
-            }
-            identities.add(key);
-        });
-    });
-
-const productInputSchema = z
-    .object({
-        asin: z.string().trim().min(1).max(10).optional(),
-        bucket: z.enum(['auto', 'day', 'week', 'month']).optional(),
-        days: z.number().int().min(30).max(3650).optional(),
-        endAt: z.string().datetime().optional(),
-        include: z.array(z.enum(productGetIncludes)).max(productGetIncludes.length).optional(),
-        limit: z.number().int().min(1).max(10_000).optional(),
-        marketplaceId: z.string().trim().min(1).optional(),
-        metrics: z
-            .array(z.enum(['salesRank', 'price']))
-            .min(1)
-            .max(2)
-            .optional(),
-        operation: z.enum(['get', 'getMany', 'search', 'history']),
-        products: productBatchSchema.optional(),
-        refresh: z.boolean().optional(),
-        startAt: z.string().datetime().optional(),
-        term: z.string().trim().min(1).max(200).optional(),
-    })
-    .strict()
-    .superRefine((input, context) =>
-        rejectFieldsOutsideOperation(input, context, {
-            get: ['asin', 'include', 'marketplaceId'],
-            getMany: ['products'],
-            history: [
-                'asin',
-                'bucket',
-                'days',
-                'endAt',
-                'limit',
-                'marketplaceId',
-                'metrics',
-                'startAt',
-            ],
-            search: ['refresh', 'term'],
-        })
-    );
 
 const keywordInputSchema = z
     .object({
-        cursor: z.number().int().min(0).optional(),
+        cursor: keywordDirectoryInput.shape.cursor,
+        sort: keywordDirectoryInput.shape.sort.removeDefault().optional(),
         keyword: z.string().trim().min(1).max(200).optional(),
         limit: z.number().int().min(1).max(100).optional(),
-        marketplaceId: z.literal('ATVPDKIKX0DER').optional(),
-        operation: z.enum(['get', 'search', 'history']),
-        rangeDays: z.number().int().min(7).max(365).optional(),
+        operation: z.enum(['get', 'search', 'results']),
+        stage: keywordDirectoryInput.shape.stage.removeDefault().optional(),
+        freshness: keywordDirectoryInput.shape.freshness.removeDefault().optional(),
+        heat: keywordDirectoryInput.shape.heat.removeDefault().optional(),
+        term: z.string().trim().min(1).max(200).optional(),
+        refresh: z.boolean().optional(),
         text: z.string().trim().min(1).max(200).optional(),
     })
     .strict()
     .superRefine((input, context) =>
         rejectFieldsOutsideOperation(input, context, {
-            get: ['keyword', 'marketplaceId'],
-            history: ['keyword', 'marketplaceId', 'rangeDays'],
-            search: ['cursor', 'limit', 'marketplaceId', 'text'],
+            get: ['keyword'],
+            results: ['term', 'refresh'],
+            search: ['cursor', 'limit', 'text', 'stage', 'freshness', 'heat', 'sort'],
         })
     );
 
 const statusOutputSchema = z.object({
     capabilities: z.object({
-        keyword: z.array(z.enum(['get', 'search', 'history'])),
+        keyword: z.array(z.enum(['get', 'search', 'results'])),
         product: z.array(z.enum(['get', 'getMany', 'search', 'history'])),
     }),
     service: z.literal('rankwrangler'),
@@ -170,7 +108,13 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 'listing no longer exists for customers in that marketplace; retained title or ' +
                 'thumbnail values are last-known data. An unavailable thumbnail alone does not ' +
                 'mean the Product is deleted. ' +
-                'search uses term; history uses asin plus range options. Responses contain data or ' +
+                'search immediately screens the collected catalog using optional term, textFields, ' +
+                'excludeWords, marketplaceIds, isMerchListing, amazonListingStatus, brands, ' +
+                'excludeBrands, includeOfficialBrands, categoryIds, salesRank, price, monthlySold, ' +
+                'firstAvailableAt, discoveredAt, updatedAt, facets, sort, cursor and limit (1–100). ' +
+                'Price bounds use minor currency units. Search returns items, nextCursor and dated ' +
+                'keyword coverage; it never waits for collection. Use keyword results for dated ' +
+                'Amazon search placements. history uses asin plus range options. Responses contain data or ' +
                 'a standard error.',
             inputSchema: productInputSchema,
             outputSchema: toolOutputSchema,
@@ -188,10 +132,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                     );
                 case 'search':
                     return runReadOnlyTool(async () =>
-                        source.product.search({
-                            refresh: input.refresh ?? false,
-                            term: requireValue(input.term, 'term'),
-                        })
+                        source.product.search(toProductSearchInput(input))
                     );
                 case 'history':
                     return runReadOnlyTool(async () =>
@@ -208,35 +149,36 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler keyword data synchronously. operation=get and history use keyword; search uses text. Responses contain data or a standard error.',
+                'Read RankWrangler keyword data synchronously. operation=get reads a keyword directory entry; search filters our stored keyword directory using text, stage (default graduated; trial, dropped, untracked or all), freshness (live, needsSync, syncing or all), heat, limit and an opaque nextCursor. These reads show each keyword stage, data freshness, popularity and refresh cadence. results uses term and optional refresh to fetch or reuse dated Amazon search evidence, returning keyword, searchedAt and results with placements. It may wait for collection and normally reuses evidence for 24 hours. Responses contain data or a standard error.',
             inputSchema: keywordInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler keyword',
         },
         input => {
             switch (input.operation) {
+                case 'results':
+                    return runReadOnlyTool(async () =>
+                        source.keyword.results({
+                            term: requireValue(input.term, 'term'),
+                            refresh: input.refresh ?? false,
+                        })
+                    );
                 case 'get':
                     return runReadOnlyTool(async () =>
                         source.keyword.get({
                             keyword: requireValue(input.keyword, 'keyword'),
-                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
                         })
                     );
                 case 'search':
                     return runReadOnlyTool(async () =>
                         source.keyword.search({
-                            cursor: input.cursor ?? 0,
+                            cursor: input.cursor,
+                            sort: input.sort,
+                            stage: input.stage,
+                            freshness: input.freshness,
+                            heat: input.heat,
                             limit: input.limit ?? 25,
-                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
                             text: requireValue(input.text, 'text'),
-                        })
-                    );
-                case 'history':
-                    return runReadOnlyTool(async () =>
-                        source.keyword.history({
-                            keyword: requireValue(input.keyword, 'keyword'),
-                            marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
-                            rangeDays: input.rangeDays ?? 90,
                         })
                     );
                 default:
@@ -247,32 +189,6 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
 
     return server;
 };
-
-type ProductInput = z.infer<typeof productInputSchema>;
-
-const toProductGetInput = (input: ProductInput): ProductGetMcpInput => ({
-    asin: requireValue(input.asin, 'asin'),
-    marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
-    ...(input.include ? { include: input.include } : {}),
-});
-
-const toProductGetManyInput = (input: ProductInput): ProductGetManyMcpInput => ({
-    products: requireValue(input.products, 'products').map(product => ({
-        asin: product.asin.toUpperCase(),
-        marketplaceId: product.marketplaceId,
-    })),
-});
-
-const toProductHistoryInput = (input: ProductInput): ProductHistoryMcpInput => ({
-    asin: requireValue(input.asin, 'asin'),
-    bucket: input.bucket ?? 'auto',
-    days: input.days ?? 365,
-    endAt: input.endAt,
-    limit: input.limit ?? 5000,
-    marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
-    metrics: input.metrics ?? ['salesRank', 'price'],
-    startAt: input.startAt,
-});
 
 const requireValue = <Value>(value: Value | undefined, name: string): Value => {
     if (value === undefined) {

@@ -37,6 +37,84 @@ describe('scheduleWithQueueDeadline', () => {
 });
 
 describe('SpApiLimiterManager queue deadline', () => {
+    it('starts a foreground read ahead of queued background discovery', async () => {
+        const limiter = new Bottleneck({ maxConcurrent: 1, reservoir: 0 });
+        const manager = new SpApiLimiterManager(
+            [
+                {
+                    burstCapacity: 2,
+                    configuredRps: 2,
+                    label: 'Catalog Search',
+                    limiter,
+                    maxConcurrent: 1,
+                    maxQueueWaitMs: 1000,
+                    operationId: 'catalog.searchCatalogItems',
+                },
+            ],
+            async (_descriptor, task) => await task()
+        );
+        const order: string[] = [];
+        const call = (priority: 'foreground' | 'background') =>
+            manager.runOperation({
+                ensureAccessTokenFreshness: () => Promise.resolve(),
+                operation: priority,
+                operationId: 'catalog.searchCatalogItems',
+                priority,
+                run: () => {
+                    order.push(priority);
+                    return Promise.resolve(priority);
+                },
+            });
+        try {
+            const discovery = call('background');
+            const read = call('foreground');
+            for (let attempt = 0; attempt < 100 && limiter.queued() < 2; attempt += 1) {
+                await new Promise(resolve => setTimeout(resolve, 2));
+            }
+            expect(limiter.queued()).toBe(2);
+            await limiter.incrementReservoir(2);
+            await Promise.all([discovery, read]);
+            expect(order).toEqual(['foreground', 'background']);
+        } finally {
+            await limiter.stop({ dropWaitingJobs: true });
+        }
+    });
+
+    it('limits durable discovery to one physical attempt while allowing the caller to retry later', async () => {
+        const limiter = new Bottleneck({ maxConcurrent: 1 });
+        const manager = new SpApiLimiterManager(
+            [
+                {
+                    burstCapacity: 2,
+                    configuredRps: 2,
+                    label: 'Catalog Search',
+                    limiter,
+                    maxConcurrent: 1,
+                    maxQueueWaitMs: 1000,
+                    operationId: 'catalog.searchCatalogItems',
+                },
+            ],
+            async (_descriptor, task) => await task()
+        );
+        const run = mock(async () => {
+            throw Object.assign(new Error('upstream unavailable'), { status: 503 });
+        });
+        try {
+            await expect(
+                manager.runOperation({
+                    ensureAccessTokenFreshness: async () => undefined,
+                    operation: 'discovery',
+                    operationId: 'catalog.searchCatalogItems',
+                    maxAttempts: 1,
+                    run,
+                })
+            ).rejects.toThrow('after 1 attempt');
+            expect(run).toHaveBeenCalledTimes(1);
+        } finally {
+            await limiter.stop({ dropWaitingJobs: true });
+        }
+    });
+
     it('fails a wedged Catalog limiter with the named error instead of retrying', async () => {
         const limiter = new Bottleneck({ maxConcurrent: 2, reservoir: 0 });
         const manager = new SpApiLimiterManager([

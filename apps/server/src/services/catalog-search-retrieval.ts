@@ -10,9 +10,9 @@ import {
 } from '@/services/catalog-search';
 import type { OperationRecord } from '@/services/operations';
 import {
-    mapProductToCompactProductSearch,
+    type KeywordResults,
+    mapProductToKeywordResultsProduct,
     mapProductToPublicProduct,
-    type ProductSearch,
 } from '@/services/product-read-model';
 import {
     coordinateRetrieval,
@@ -105,7 +105,7 @@ export const awaitCatalogSearchRetrieval = async (
                 const dispatched = await deps.dispatchOperation(resolution.operation);
                 if (!dispatched) {
                     throw new RetrievalRetryableError(
-                        'Product search is temporarily unavailable. Retry shortly.',
+                        'Keyword results are temporarily unavailable. Retry shortly.',
                         {
                             retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
                             reason: 'capacity',
@@ -122,7 +122,7 @@ export const awaitCatalogSearchRetrieval = async (
     }
     if (prepared.kind === 'cooldown') {
         throw new RetrievalRetryableError(
-            'Product search is temporarily unavailable. Retry shortly.',
+            'Keyword results are temporarily unavailable. Retry shortly.',
             {
                 retryAfterSeconds: prepared.retryAfterSeconds,
                 reason: 'capacity',
@@ -138,7 +138,7 @@ export const awaitCatalogSearchRetrieval = async (
         signal,
         timeoutMs,
         retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
-        retryMessage: 'Product search is temporarily unavailable. Retry shortly.',
+        retryMessage: 'Keyword results are temporarily unavailable. Retry shortly.',
         work: async () => await waitForCatalogSearchRun(prepared.operation.id, deps),
     });
     return await buildSearchResponse(runId, signal, timeoutMs, deps);
@@ -149,7 +149,7 @@ const buildSearchResponse = async (
     signal: AbortSignal | undefined,
     timeoutMs: number,
     deps: CatalogSearchRetrievalDeps
-): Promise<ProductSearch> => {
+): Promise<KeywordResults> => {
     const run = await deps.getRun(runId, {
         fetchPolicy: 'blocking',
         signal,
@@ -157,14 +157,14 @@ const buildSearchResponse = async (
     });
     if (!run) {
         throw new RetrievalRetryableError(
-            'Product search is temporarily unavailable. Retry shortly.',
+            'Keyword results are temporarily unavailable. Retry shortly.',
             { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
         );
     }
     return mapCatalogSearchRun(run);
 };
 
-const mapCatalogSearchRun = (run: CatalogSearchRun): ProductSearch => ({
+const mapCatalogSearchRun = (run: CatalogSearchRun): KeywordResults => ({
     keyword: run.query.displayTerm,
     searchedAt: run.sourceCompletedAt,
     results: run.results.map(result => {
@@ -174,14 +174,14 @@ const mapCatalogSearchRun = (run: CatalogSearchRun): ProductSearch => ({
             result.currentProduct.thumbnail.status === 'pending'
         ) {
             throw new RetrievalRetryableError(
-                'Product search is temporarily unavailable. Retry shortly.',
+                'Keyword results are temporarily unavailable. Retry shortly.',
                 { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
             );
         }
 
         return {
             organicSearchPlacement: result.position.value,
-            product: mapProductToCompactProductSearch(
+            product: mapProductToKeywordResultsProduct(
                 mapProductToPublicProduct(result.currentProduct)
             ),
         };
@@ -195,7 +195,7 @@ const waitForCatalogSearchRun = async (operationId: string, deps: CatalogSearchR
         const operation = await deps.getOperationById(operationId);
         if (!operation || operation.type !== 'catalogSearch') {
             throw new RetrievalRetryableError(
-                'Product search is temporarily unavailable. Retry shortly.',
+                'Keyword results are temporarily unavailable. Retry shortly.',
                 { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
             );
         }
@@ -205,10 +205,13 @@ const waitForCatalogSearchRun = async (operationId: string, deps: CatalogSearchR
         await deps.sleep(CATALOG_SEARCH_POLL_INTERVAL_MS);
     }
 
-    throw new RetrievalRetryableError('Product search is temporarily unavailable. Retry shortly.', {
-        retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
-        reason: 'deadline',
-    });
+    throw new RetrievalRetryableError(
+        'Keyword results are temporarily unavailable. Retry shortly.',
+        {
+            retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
+            reason: 'deadline',
+        }
+    );
 };
 
 const resolveCompletedCatalogSearch = (
@@ -217,10 +220,13 @@ const resolveCompletedCatalogSearch = (
     if (!operation.error && operation.resource?.type === 'catalogSearchRun') {
         return operation.resource.runId;
     }
-    throw new RetrievalRetryableError('Product search is temporarily unavailable. Retry shortly.', {
-        retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
-        reason: 'capacity',
-    });
+    throw new RetrievalRetryableError(
+        'Keyword results are temporarily unavailable. Retry shortly.',
+        {
+            retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
+            reason: 'capacity',
+        }
+    );
 };
 
 const buildCatalogSearchKey = (displayTerm: string) =>

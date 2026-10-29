@@ -4,14 +4,12 @@ const HOUR_MS = 60 * MINUTE_MS;
 export const SPAPI_CATALOG_SCHEDULER_LAG_MS = HOUR_MS;
 export const KEEPA_HISTORY_SCHEDULER_LAG_MS = 3 * HOUR_MS;
 export const PRODUCT_HEALTH_OVERDUE_FLOOR = 2;
-export const TOP_SEARCH_TERMS_SCHEDULER_LAG_MS = 10 * MINUTE_MS;
 export const CATALOG_QUERIES_SCHEDULER_LAG_MS = 15 * MINUTE_MS;
 
 export const SERVICE_HEALTH_CHECKS = [
     'postgres',
     'spapi-catalog',
     'keepa-history',
-    'top-search-terms',
     'catalog-queries',
 ] as const;
 

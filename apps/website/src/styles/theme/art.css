@@ -1,0 +1,124 @@
+/*
+ * Product art: design thumbnails at every size, their print crops, and the
+ * hover preview that shows a whole design from any row. Structural classes,
+ * sized from the art tokens in tokens.css.
+ */
+
+@layer components {
+    /* Design art on the sunken well, contained and never cropped. */
+    .product-thumb {
+        position: relative;
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: var(--thumb-row);
+        height: var(--thumb-row);
+        overflow: hidden;
+        border-radius: var(--radius-mark);
+        background-color: var(--surface-secondary);
+        box-shadow: inset 0 0 0 1px var(--separator);
+    }
+
+    /* Art is contained, never cropped, and multiplies into the well on paper. */
+    .product-thumb > img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        mix-blend-mode: var(--art-blend);
+        pointer-events: none;
+    }
+
+    /* A grid row's art at the global density: 40px comfortable, 20px compact (Grid J `.thumb`). */
+    .product-thumb--grid {
+        width: var(--thumb-grid-width);
+        height: var(--thumb-grid-height);
+        border-radius: var(--radius-art);
+        box-shadow: inset 0 0 0 1px var(--border);
+    }
+
+    /* Amazon's white photo (no cutout yet) on an inset light tile with a hairline (OptsL). */
+    .product-thumb__tile {
+        position: absolute;
+        inset: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: var(--radius-tile);
+        background-color: var(--art-tile);
+        box-shadow: 0 0 0 1px var(--art-tile-edge);
+    }
+
+    /* The tile is white in both themes, so its art never blends into the well. */
+    .product-thumb__tile > img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+    }
+
+    /* Row crops zoom toward the chest print; Amazon photos centre the shirt a little low. */
+    .product-thumb--print > img {
+        transform: scale(1.5);
+        transform-origin: 50% 40%;
+    }
+
+    /* Cutouts fill their frame with the garment, so they zoom further toward the print. */
+    .product-thumb--print-cutout > img {
+        transform: scale(1.7);
+        transform-origin: 50% 36%;
+    }
+
+    .product-thumb--detail,
+    /* The Product rail's full-width square art. */
+    .product-thumb--hero {
+        border-radius: var(--radius-art);
+    }
+
+    /* The detail pane's 150 × 154 art (mock). */
+    .product-thumb--detail {
+        width: var(--thumb-detail-width);
+        height: var(--thumb-detail-height);
+    }
+
+    /* The Product rail's full-width square art. */
+    .product-thumb--hero {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1;
+    }
+
+    /* Large art keeps a margin inside its well. */
+    .product-thumb:is(.product-thumb--detail, .product-thumb--hero) > img {
+        width: 90%;
+        height: 90%;
+    }
+
+    /* The hover preview: the whole design on the well, its name and BSR under it. */
+    .art-preview {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing-base) * 1.5);
+        width: var(--art-preview-size);
+    }
+
+    /* The preview's art: a square well, the design contained, never cropped. */
+    .art-preview__art {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        border-radius: var(--radius-art);
+        background-color: var(--surface-secondary);
+    }
+
+    /* The previewed design, contained with a margin, multiplied into the well on paper. */
+    .art-preview__art > img {
+        width: 92%;
+        height: 92%;
+        object-fit: contain;
+        mix-blend-mode: var(--art-blend);
+    }
+}

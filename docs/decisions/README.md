@@ -15,9 +15,12 @@ These pages explain choices that should survive individual implementations.
 | [Raw product intelligence](raw-product-intelligence.md) | Understand why RankWrangler exposes source evidence instead of opportunity verdicts. |
 | [Merch-listing classification](merch-listing-classification.md) | Understand nullable public knowledge, source-neutral bullet classification, and Product reconciliation. |
 | [Durable catalog search](catalog-search.md) | Understand why queries, runs, results, and asynchronous Operations are persisted separately. |
+| [Unified Merch database](unified-merch-database.md) | Understand the accepted target of immediate database search, independent collection, and accepted early coverage gaps. |
 | [Caller-synchronous public retrieval](public-retrieval.md) | Understand why public reads wait for policy-current data and omit refresh/work/provider state. |
+| [Background jobs](background-jobs.md) | Understand why background work runs as small entity jobs behind provider-gated queues fed by schedulers. |
 | [Provider telemetry and bridges](provider-telemetry.md) | Understand why raw Provider attempts are short-lived and external calls live behind typed bridges. |
 | [Amazon listing status](amazon-listing-status.md) | Understand why listing existence is active/deleted and separate from offers, inventory, and thumbnails. |
+| [Website visual direction](website-visual-direction.md) | Understand the Grid layout (banner, filter sidebar, KPI header, paged grid), BSR tier palette and Top 10 shelf the website uses. |
 
 Shipped behavior belongs in [Product](../product/README.md). Exact executable contracts belong in
 [Reference](../reference/README.md).

@@ -1,0 +1,4 @@
+ALTER TABLE "discovery_targets" ADD COLUMN "empty_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "keyword_discovery_attempts" ADD COLUMN "claim_token" uuid;--> statement-breakpoint
+CREATE UNIQUE INDEX "keyword_discovery_active_page_idx" ON "keyword_discovery_attempts" USING btree ("pass_id","page","claim_token") WHERE "keyword_discovery_attempts"."status" in ('reserved','started','fetched');--> statement-breakpoint
+ALTER TABLE "keyword_exploration_passes" ADD CONSTRAINT "keyword_exploration_claim_check" CHECK (("keyword_exploration_passes"."claim_at" is null) = ("keyword_exploration_passes"."claim_token" is null));

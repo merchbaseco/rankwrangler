@@ -11,31 +11,7 @@ afterEach(() => {
 describe('public client contract', () => {
     test('calls a public Product Search route with an OAuth bearer and composed API URL', async () => {
         let receivedRequest: Request | undefined;
-        const productSearchOutput = {
-            keyword: 'retro gardening shirt',
-            searchedAt: '2026-08-06T12:00:00.000Z',
-            results: [
-                {
-                    organicSearchPlacement: 3,
-                    product: {
-                        marketplaceId: 'ATVPDKIKX0DER',
-                        asin: 'B012345678',
-                        title: 'Garden shirt',
-                        brand: 'Example brand',
-                        thumbnail: {
-                            status: 'available' as const,
-                            url: 'https://example.com/image.jpg',
-                        },
-                        isMerchListing: null,
-                        amazonListingStatus: 'active',
-                        category: null,
-                        salesRank: null,
-                        price: null,
-                        boughtInPastMonth: null,
-                    },
-                },
-            ],
-        };
+        const productSearchOutput = { items: [], nextCursor: null, coverage: null };
         globalThis.fetch = (request, init) => {
             receivedRequest = new Request(request, init);
             return Promise.resolve(Response.json({ result: { data: productSearchOutput } }));
@@ -48,13 +24,13 @@ describe('public client contract', () => {
             batch: false,
         });
 
-        const result = await client.product.search.mutate(productSearchInput);
+        const result = await client.product.search.query(productSearchInput);
 
         expect(result).toEqual(productSearchOutput);
-        expect(receivedRequest?.url).toBe(
-            'https://rankwrangler.merchbase.co/api/api.public.product.search'
-        );
+        const url = new URL(receivedRequest?.url ?? '');
+        expect(url.pathname).toBe('/api/api.public.product.search');
+        expect(receivedRequest?.method).toBe('GET');
+        expect(JSON.parse(url.searchParams.get('input') ?? '')).toEqual(productSearchInput);
         expect(receivedRequest?.headers.get('authorization')).toBe('Bearer clerk_oauth_test');
-        expect(await receivedRequest?.json()).toEqual(productSearchInput);
     });
 });

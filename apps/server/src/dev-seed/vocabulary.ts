@@ -140,3 +140,18 @@ export const SEED_BLOCKED_SEARCH_TERMS: readonly string[] = [
     'dyson vacuum',
     'coffee maker',
 ];
+
+/**
+ * The audience a seeded search term is about ("taco tuesday shirt" → tacos),
+ * so Search places a term's own niche on its shelf. Every audience name word
+ * must lead a term word or be led by one (tacos ↔ taco).
+ */
+export const seedAudienceForTerm = (term: string): SeedAudience | null => {
+    const tokens = term.toLowerCase().split(/\s+/u);
+    const matches = (word: string) =>
+        tokens.some(token => token === word || (token.length >= 4 && word.startsWith(token)));
+    return (
+        SEED_AUDIENCES.find(audience => audience.name.split('-').every(word => matches(word))) ??
+        null
+    );
+};

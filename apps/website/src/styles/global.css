@@ -1,221 +1,100 @@
+@layer theme, base, components, utilities;
+
 @import "tailwindcss";
-@import "tw-animate-css";
+@import "@heroui/styles";
+@import "@heroui-pro/react/css";
+@import "./theme/tokens.css";
+@import "./theme/palette.css";
+@import "./theme/overrides.css";
+@import "./theme/grid-overrides.css";
+@import "./theme/product.css";
+@import "./theme/art.css";
+@import "./theme/shell.css";
+@import "./theme/grid.css";
+@import "./theme/grid-cells.css";
+@import "./theme/mix.css";
+@import "./theme/screens.css";
 
-@custom-variant dark (&:is(.dark *));
-
-@theme inline {
-    --font-sans: 'Space Grotesk', 'Space Grotesk Fallback', sans-serif;
-    --font-mono: 'JetBrains Mono', 'JetBrains Mono Fallback', monospace;
-    --font-display: 'Syne', 'Syne Fallback', sans-serif;
-
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --color-card: var(--card);
-    --color-card-foreground: var(--card-foreground);
-    --color-popover: var(--popover);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-primary: var(--primary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-secondary: var(--secondary);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-muted: var(--muted);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-accent: var(--accent);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-destructive: var(--destructive);
-    --color-destructive-foreground: var(--destructive-foreground);
-    --color-info: var(--info);
-    --color-info-foreground: var(--info-foreground);
-    --color-success: var(--success);
-    --color-success-foreground: var(--success-foreground);
-    --color-warning: var(--warning);
-    --color-warning-foreground: var(--warning-foreground);
-    --color-border: var(--border);
-    --color-input: var(--input);
-    --color-ring: var(--ring);
-
-    --color-sidebar: var(--sidebar);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-ring: var(--sidebar-ring);
-
-    --color-chart-1: var(--chart-1);
-    --color-chart-2: var(--chart-2);
-    --color-chart-3: var(--chart-3);
-    --color-chart-4: var(--chart-4);
-    --color-chart-5: var(--chart-5);
-
-    --radius-sm: calc(var(--radius) - 2px);
-    --radius-md: var(--radius);
-    --radius-lg: calc(var(--radius) + 2px);
-    --radius-xl: calc(var(--radius) + 4px);
-}
-
-:root {
-	--radius: 0.25rem;
-
-	--background: oklch(0.985 0 0);
-	--foreground: oklch(0.145 0 0);
-	--card: oklch(1 0 0);
-	--card-foreground: oklch(0.145 0 0);
-	--popover: oklch(1 0 0);
-	--popover-foreground: oklch(0.145 0 0);
-	--primary: oklch(0.145 0 0);
-	--primary-foreground: oklch(0.985 0 0);
-	--secondary: oklch(0.96 0 0);
-	--secondary-foreground: oklch(0.205 0 0);
-	--muted: oklch(0.96 0.002 250);
-	--muted-foreground: oklch(0.48 0 0);
-	--accent: oklch(0.94 0 0);
-	--accent-foreground: oklch(0.205 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
-	--destructive-foreground: oklch(0.985 0 0);
-	--info: oklch(0.56 0.13 258);
-	--info-foreground: oklch(0.34 0.07 258);
-	--success: oklch(0.65 0.2 147);
-	--success-foreground: oklch(0.39 0.12 147);
-	--warning: oklch(0.77 0.16 78);
-	--warning-foreground: oklch(0.45 0.08 78);
-	--border: oklch(0.9 0 0);
-	--input: oklch(0.9 0 0);
-	--ring: oklch(0.708 0 0);
-
-	--chart-1: oklch(0.45 0.08 250);
-	--chart-2: oklch(0.55 0.14 150);
-	--chart-3: oklch(0.398 0.07 227.392);
-	--chart-4: oklch(0.828 0.189 84.429);
-	--chart-5: oklch(0.769 0.188 70.08);
-
-	--sidebar: oklch(0.975 0 0);
-	--sidebar-foreground: oklch(0.145 0 0);
-	--sidebar-primary: oklch(0.205 0 0);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-accent: oklch(0.94 0 0);
-	--sidebar-accent-foreground: oklch(0.205 0 0);
-	--sidebar-border: oklch(0.9 0 0);
-	--sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-	--background: oklch(0.13 0 0);
-	--foreground: oklch(0.93 0 0);
-	--card: oklch(0.16 0 0);
-	--card-foreground: oklch(0.93 0 0);
-	--popover: oklch(0.16 0 0);
-	--popover-foreground: oklch(0.93 0 0);
-	--primary: oklch(0.93 0 0);
-	--primary-foreground: oklch(0.13 0 0);
-	--secondary: oklch(0.22 0 0);
-	--secondary-foreground: oklch(0.93 0 0);
-	--muted: oklch(0.22 0 0);
-	--muted-foreground: oklch(0.6 0 0);
-	--accent: oklch(0.22 0 0);
-	--accent-foreground: oklch(0.93 0 0);
-	--destructive: oklch(0.396 0.141 25.723);
-	--destructive-foreground: oklch(0.637 0.237 25.331);
-	--info: oklch(0.62 0.17 258);
-	--info-foreground: oklch(0.78 0.1 258);
-	--success: oklch(0.72 0.19 147);
-	--success-foreground: oklch(0.84 0.1 147);
-	--warning: oklch(0.79 0.18 78);
-	--warning-foreground: oklch(0.88 0.1 78);
-	--border: oklch(0.24 0 0);
-	--input: oklch(0.24 0 0);
-	--ring: oklch(0.439 0 0);
-
-	--chart-1: oklch(0.55 0.12 250);
-	--chart-2: oklch(0.65 0.15 150);
-	--chart-3: oklch(0.769 0.188 70.08);
-	--chart-4: oklch(0.627 0.265 303.9);
-	--chart-5: oklch(0.645 0.246 16.439);
-
-	--sidebar: oklch(0.15 0 0);
-	--sidebar-foreground: oklch(0.93 0 0);
-	--sidebar-primary: oklch(0.55 0.12 250);
-	--sidebar-primary-foreground: oklch(0.93 0 0);
-	--sidebar-accent: oklch(0.22 0 0);
-	--sidebar-accent-foreground: oklch(0.93 0 0);
-	--sidebar-border: oklch(0.24 0 0);
-	--sidebar-ring: oklch(0.439 0 0);
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
-	* {
-		@apply border-border outline-ring/50;
-	}
+    /*
+     * The focus fallback. Anything reachable that nobody styled otherwise falls
+     * to the browser's `outline: auto`, colored by the OS accent. This retargets
+     * it to the design system's focus token. HeroUI's rings live in later layers
+     * and already declare `outline-none`, so they win; this only catches what
+     * they never claimed. Never suppress focus here.
+     */
+    :focus-visible {
+        outline: 2px solid var(--focus);
+        outline-offset: 2px;
+    }
 
-	body {
-		@apply bg-background text-foreground;
-	}
-}
+    /* One page background behind everything outside the shell (Handmade): html and body alike. */
+    html {
+        background: var(--banner);
+    }
 
-html,
-body,
-#root {
-	min-height: 100%;
-	overscroll-behavior: none;
-}
+    html,
+    body,
+    #root {
+        min-height: 100vh;
+        overscroll-behavior: none;
+    }
 
-body {
-	margin: 0;
-	font-family: var(--font-sans);
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-}
+    /*
+     * App chrome and decorative text are not selectable: dragging across the
+     * shell should never paint a selection over labels and controls. Data a
+     * person would copy opts back in below.
+     */
+    body {
+        /* The window behind the content surface is the banner's near-black (Grid J/K). */
+        background: var(--banner);
+        color: var(--foreground);
+        /* The UI is set in Onest (Grid direction); figures opt into Geist Mono. */
+        font-family: var(--font-sans);
+        font-size: var(--text-base);
+        line-height: var(--text-base--line-height);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        -webkit-user-select: none;
+        user-select: none;
+    }
 
-.font-mono {
-	font-family: var(--font-mono);
-}
+    input,
+    textarea,
+    pre,
+    code,
+    [contenteditable='true'],
+    [contenteditable='plaintext-only'],
+    [data-selectable-text],
+    [data-selectable-text] *,
+    [data-slot='input'],
+    [data-slot='input-control'],
+    [data-slot='textarea'],
+    [data-slot='textarea-control'] {
+        -webkit-user-select: text;
+        user-select: text;
+    }
 
-.font-display {
-	font-family: var(--font-display);
-}
+    /*
+     * Desktop cursor convention, the hyperlink half: `--cursor-interactive` is
+     * `default` on :root (theme/tokens.css) and only real links point.
+     */
+    a[href] {
+        --cursor-interactive: pointer;
+    }
 
-.stat-value {
-	font-feature-settings: "tnum" 1;
-	letter-spacing: -0.03em;
-}
+    /*
+     * Tooltips are read-only labels: never let one capture the pointer, or
+     * React Aria holds a hovered tooltip open after its trigger has gone.
+     */
+    [role='tooltip'] {
+        pointer-events: none;
+    }
 
-@keyframes fade-up {
-	from {
-		opacity: 0;
-		transform: translateY(10px);
-	}
-
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-.animate-fade-up {
-	animation: fade-up 0.35s ease-out both;
-}
-
-.recharts-wrapper *:focus {
-	outline: none !important;
-	box-shadow: none !important;
-	border: none !important;
-}
-
-::-webkit-scrollbar {
-	width: 6px;
-	height: 6px;
-}
-
-::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-	background: oklch(0.75 0 0);
-	border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-	background: oklch(0.6 0 0);
+    /* Every figure is set in Geist Mono with tabular digits. */
+    .font-mono {
+        font-variant-numeric: tabular-nums;
+    }
 }

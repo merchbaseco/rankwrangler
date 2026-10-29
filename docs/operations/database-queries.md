@@ -63,8 +63,8 @@ Report exactly what changed and how it was verified.
 
 ## Schema Ownership
 
-The primary product/server schema is `apps/server/src/db/schema.ts`; operations and Top Search
-Terms also have subsystem schema modules under `apps/server/src/db`. Generated migrations live in
+The primary product/server schema is `apps/server/src/db/schema.ts`; operations and keyword
+collection also have subsystem schema modules under `apps/server/src/db`. Generated migrations live in
 `apps/server/drizzle/`.
 
 ## Central-auth preservation proof

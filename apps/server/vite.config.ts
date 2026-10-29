@@ -28,6 +28,7 @@ export default defineConfig({
                 '@amazon-sp-api-release/amazon-sp-api-sdk-js',
                 // pg-boss (PostgreSQL job queue, uses native modules)
                 'pg-boss',
+                'sharp',
             ],
             output: {
                 format: 'es',

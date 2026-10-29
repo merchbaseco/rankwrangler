@@ -8,8 +8,11 @@ import {
     TRPC_WEBSOCKET_PATH,
 } from '@/api/trpc-websocket-server';
 
-it('exposes only domain completion subscriptions over WebSockets', () => {
+it('exposes only domain subscriptions over WebSockets', () => {
     expect(Object.keys(realtimeRouter._def.procedures)).toEqual([
+        'api.app.keyword.directory.changed',
+        'api.app.syncControl.changed',
+        'api.app.activity.created',
         'api.app.catalog.search.completed',
         'api.app.product.sync.completed',
         'api.app.product.history.refresh.completed',

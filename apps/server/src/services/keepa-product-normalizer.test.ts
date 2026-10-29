@@ -106,6 +106,20 @@ describe('normalizeKeepaProduct', () => {
         });
     });
 
+    it('drops the no-category Long.MAX_VALUE sentinel instead of overflowing bigint', () => {
+        const result = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-10-28T17:00:00.000Z'),
+            product: {
+                asin: 'B0C7QHJ4BT',
+                rootCategory: 9_223_372_036_854_775_807,
+                salesRankReference: 9_223_372_036_854_775_807,
+            },
+        });
+
+        expect(result.product).toMatchObject({ rootCategoryId: null, keepaRootCategoryId: null });
+    });
+
     it('falls back to the latest history value when current stats are missing', () => {
         const result = normalizeKeepaProduct({
             marketplaceId: 'ATVPDKIKX0DER',
@@ -153,6 +167,31 @@ describe('normalizeKeepaProduct', () => {
             bullet1: null,
             bullet2: null,
         });
+    });
+
+    it('classifies a Merch part number even when no feature matches a template', () => {
+        const merch = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+            product: {
+                asin: 'B0MERCH006',
+                title: 'Funny Cat Lover Graphic T-Shirt',
+                partNumber: 'AFCHRPAT1KY',
+                features: ['Seller bullet one', 'Seller bullet two'],
+            },
+        });
+        const partNumberOnly = normalizeKeepaProduct({
+            marketplaceId: 'ATVPDKIKX0DER',
+            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+            product: { asin: 'B0MERCH007', partNumber: 'GIL1100MDWHTP6-01-White-M' },
+        });
+
+        expect(merch.product).toMatchObject({
+            isMerchListing: true,
+            bullet1: 'Seller bullet one',
+            bullet2: 'Seller bullet two',
+        });
+        expect(partNumberOnly.product).toMatchObject({ isMerchListing: false });
     });
 
     it('classifies Keepa template features and extracts seller bullets before persistence', () => {

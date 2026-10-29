@@ -10,28 +10,56 @@ read_when:
 **Merch-listing status:** Shipped. Semantic facets below describe shipped behavior.
 
 RankWrangler has two distinct Product classifications: deterministic Merch-listing classification
-from source bullet evidence, and model-assisted semantic facets after a Product exists.
+from source part-number and bullet evidence, and model-assisted semantic facets after a Product
+exists.
 
 ## Merch-Listing Classification
 
 The shipped [Merch-listing classification decision](../decisions/merch-listing-classification.md)
-defines binary Product truth and nullable classification knowledge. Adapters own bullet extraction,
-not classification. Each adapter reports either available bullet evidence, including `[]`, or
-unavailable evidence.
+defines binary Product truth and nullable classification knowledge. Adapters own evidence
+extraction, not classification. Each adapter reports the listing part number (SP-API
+`part_number`, Keepa `partNumber`, or `null`) and either available bullet evidence, including `[]`,
+or unavailable evidence.
+
+`classifyMerchListing` (`services/merch-listing-classification.ts`) decides:
+
+1. **Part-number fingerprint.** Merch assigns every listing an 11-character uppercase alphanumeric
+   design code with at least one letter, sometimes followed by a 10-character `B0…` suffix
+   (`AFCHRPAT1KY`, `G816D85AV0HB07535YF3H`). On production samples it matched 60/60 known Merch
+   listings and 0/60 other listings (`GIL1100MDWHTP6-01-White-M`, `105484`, `9781607749707`).
+2. **Template bullets.** Any bullet matching a Merch on Demand product-spec bullet after case and
+   punctuation normalization. `services/merch-template-bullets.ts` groups the templates by product
+   type (shirts, jerseys, sweatshirts, jackets, hats, backpacks, PopSockets, phone cases, totes,
+   laptop sleeves, mouse pads, pillows, posters, drinkware, journals). Generic seller copy such as
+   "Funny design." or size-chart notices is excluded.
+3. Otherwise `false` when a part number or available bullets exist, and no result when neither does.
+
+Titles are not evidence: licensed and other print-on-demand sellers copy Merch title suffixes such as
+"Premium T-Shirt".
 
 SP-API and Keepa feed one source-neutral deterministic classifier. Keepa Catalog search classifies
 immediately from returned bullet evidence before Product persistence and does not wait for SP-API.
 
 | Evidence and result | Persistence reconciliation |
 | --- | --- |
-| Available, `true` | Store `true`; a later result never downgrades it. |
-| Available, `false` | Store or retain `false` unless knowledge is already `true`; later available evidence may revise it to `true`. |
-| Unavailable | No-op. |
+| `true` | Store `true`; a later result never downgrades it. |
+| `false` | Store or retain `false` unless knowledge is already `true`; later evidence may revise it to `true`. |
+| No result | No-op. |
 
 Every new unclassified Product starts with `isMerchListing: null`. Existing `false` rows remain
-`false`; rollout does not reset them to `null`. The public field exposes no provider, freshness, or
-status metadata. For recognized listings, up to two non-template seller bullets are retained as
-`bullet1` and `bullet2`.
+`false` until new evidence says otherwise. The public field exposes no provider, freshness, or
+status metadata. For every recognized listing, whichever signal matched, template bullets are
+dropped and up to two remaining seller bullets are retained as `bullet1` and `bullet2`.
+
+### Reclassification
+
+`bun run merch:reclassify` (from `apps/server`, wrapped in `varlock run`) re-fetches active US
+Products whose stored knowledge is not `true`, 20 ASINs per SP-API `searchCatalogItems` call, and
+writes them through the ordinary Product upsert so reconciliation applies. It spends background
+Catalog capacity, yields to foreground lookups and waits while automatic sync is paused. Flags:
+`--dry-run` prints `before->after` transition counts without writing, `--include-merch` also
+refreshes known Merch rows, `--after <ASIN>` resumes, and `--limit <n>` bounds the run. ASINs the
+provider does not return are counted as `missing` and left untouched.
 
 This classification is deterministic and evidence-derived. It controls workflows such as scheduled
 SP-API and Keepa refresh eligibility; it is not a niche or opportunity judgment.

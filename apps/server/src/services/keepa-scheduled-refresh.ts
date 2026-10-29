@@ -1,12 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { db } from '@/db/index.js';
-import { keepaHistoryRefreshQueue } from '@/db/schema.js';
+import { db } from '@/db/index';
+import { keepaHistoryRefreshQueue } from '@/db/schema';
 import {
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
     KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
-} from '@/services/keepa-refresh-policy.js';
+} from '@/services/keepa-refresh-policy';
 
 export const KEEPA_SCHEDULED_REFRESH_SCAN_LIMIT = 500;
 
@@ -30,6 +30,8 @@ export const getKeepaScheduledRefreshCandidates = async ({
             p.asin AS "asin"
         FROM products p
         WHERE p.is_merch_listing = true
+          AND p.amazon_listing_status = 'active'
+          AND p.history_admission_state = 'admitted'
           AND p.root_category_bsr IS NOT NULL
           AND NOT EXISTS (
             SELECT 1
@@ -77,7 +79,7 @@ export const enqueueKeepaScheduledRefreshCandidates = async (
     const rows = await db
         .insert(keepaHistoryRefreshQueue)
         .values(
-            candidates.map((candidate) => ({
+            candidates.map(candidate => ({
                 marketplaceId: candidate.marketplaceId,
                 asin: candidate.asin,
                 nextAttemptAt: now,
@@ -86,10 +88,7 @@ export const enqueueKeepaScheduledRefreshCandidates = async (
             }))
         )
         .onConflictDoNothing({
-            target: [
-                keepaHistoryRefreshQueue.marketplaceId,
-                keepaHistoryRefreshQueue.asin,
-            ],
+            target: [keepaHistoryRefreshQueue.marketplaceId, keepaHistoryRefreshQueue.asin],
         })
         .returning({
             id: keepaHistoryRefreshQueue.id,

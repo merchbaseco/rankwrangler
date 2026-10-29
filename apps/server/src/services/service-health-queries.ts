@@ -14,15 +14,14 @@ import {
     or,
     sql,
 } from 'drizzle-orm';
-import { db } from '@/db/index.js';
-import { catalogQueries, products, topSearchTermsDatasets } from '@/db/schema.js';
-import { CATALOG_QUERY_REFRESH_INTERVAL_MS } from '@/services/catalog-query-refresh-policy.js';
+import { db } from '@/db/index';
+import { catalogQueries, products } from '@/db/schema';
 import {
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
     KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
-} from '@/services/keepa-refresh-policy.js';
+} from '@/services/keepa-refresh-policy';
 import {
     CATALOG_QUERIES_SCHEDULER_LAG_MS,
     dueBefore,
@@ -32,12 +31,11 @@ import {
     readServiceHealth,
     type ServiceHealthProbes,
     SPAPI_CATALOG_SCHEDULER_LAG_MS,
-    TOP_SEARCH_TERMS_SCHEDULER_LAG_MS,
-} from '@/services/service-health.js';
-import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
-import { SPAPI_REFRESH_POLICY_BUCKETS } from '@/services/spapi-refresh-policy.js';
-import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection.js';
-import { TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS } from '@/services/top-search-terms-report-state-machine.js';
+} from '@/services/service-health';
+import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
+import { buildSpApiBlindspotRefreshCondition } from '@/services/spapi-blindspot-selection';
+import { SPAPI_REFRESH_POLICY_BUCKETS } from '@/services/spapi-refresh-policy';
+import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection';
 
 const probePostgres = async () => {
     await db.execute(sql`SELECT 1`);
@@ -53,14 +51,6 @@ export const probeSpapiCatalog = async (now: Date) => {
 
 export const probeKeepaHistory = async (now: Date) =>
     hasProductOverdueFloor(keepaHistoryOverdueCondition(now));
-
-export const probeTopSearchTerms = async (now: Date) => {
-    const [row] = await db.execute<{ failing: boolean }>(topSearchTermsUnhealthyStatement(now));
-    if (typeof row?.failing !== 'boolean') {
-        throw new Error('Top search terms health probe returned no boolean.');
-    }
-    return row.failing;
-};
 
 export const probeCatalogQueries = async (now: Date) => {
     const [row] = await db
@@ -82,7 +72,6 @@ const databaseHealthProbes: ServiceHealthProbes = {
         'catalog-queries': probeCatalogQueries,
         'keepa-history': probeKeepaHistory,
         'spapi-catalog': probeSpapiCatalog,
-        'top-search-terms': probeTopSearchTerms,
     },
 };
 
@@ -107,7 +96,23 @@ const spapiCatalogOverdueCondition = (now: Date) => {
     if (!freshness) {
         return undefined;
     }
-    return buildAvailableMerchRefreshCondition(freshness);
+    return or(
+        buildAvailableMerchRefreshCondition(
+            or(
+                freshness,
+                and(
+                    isNull(products.spApiFetchedAt),
+                    lte(products.createdAt, dueBefore(now, 0, SPAPI_CATALOG_SCHEDULER_LAG_MS))
+                )
+            )
+        ),
+        and(
+            buildSpApiBlindspotRefreshCondition(
+                new Date(now.getTime() - SPAPI_CATALOG_SCHEDULER_LAG_MS)
+            ),
+            lte(products.createdAt, dueBefore(now, 0, SPAPI_CATALOG_SCHEDULER_LAG_MS))
+        )
+    );
 };
 
 const keepaHistoryOverdueCondition = (now: Date) => {
@@ -125,6 +130,8 @@ const keepaHistoryOverdueCondition = (now: Date) => {
 
     return and(
         eq(products.isMerchListing, true),
+        eq(products.amazonListingStatus, 'active'),
+        eq(products.historyAdmissionState, 'admitted'),
         isNotNull(products.rootCategoryBsr),
         lt(products.rootCategoryBsr, KEEPA_WEEKLY_AUTO_BSR_THRESHOLD),
         spApiWriteOlderThanSchedulerLag(eligibleBefore),
@@ -142,78 +149,19 @@ const keepaHistoryOverdueCondition = (now: Date) => {
     );
 };
 
-const catalogQueriesOverdueCondition = (now: Date) => {
-    const successBefore = dueBefore(
-        now,
-        CATALOG_QUERY_REFRESH_INTERVAL_MS,
-        CATALOG_QUERIES_SCHEDULER_LAG_MS
-    );
-    const createdBefore = dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS);
-    return and(
-        gt(catalogQueries.activeUntil, now),
+const catalogQueriesOverdueCondition = (now: Date) =>
+    and(
+        sql`${catalogQueries.tier} <> 'stored'`,
+        lte(catalogQueries.nextDueAt, dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS)),
         or(
-            lte(catalogQueries.latestSuccessfulRunAt, successBefore),
-            and(
-                isNull(catalogQueries.latestSuccessfulRunAt),
-                lte(catalogQueries.createdAt, createdBefore)
+            gt(catalogQueries.failureCount, 0),
+            isNull(catalogQueries.nextRefreshAttemptAt),
+            lte(
+                catalogQueries.nextRefreshAttemptAt,
+                dueBefore(now, 0, CATALOG_QUERIES_SCHEDULER_LAG_MS)
             )
         )
     );
-};
-
-const topSearchTermsUnhealthyStatement = (now: Date) => {
-    const dueAt = dueBefore(now, 0, TOP_SEARCH_TERMS_SCHEDULER_LAG_MS);
-    const pendingRequestedAfter = new Date(now.getTime() - TOP_SEARCH_TERMS_REPORT_MAX_PENDING_MS);
-    const usDatasets = db
-        .select({ id: topSearchTermsDatasets.id })
-        .from(topSearchTermsDatasets)
-        .where(eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID));
-    const overdueDatasets = db
-        .select({ id: topSearchTermsDatasets.id })
-        .from(topSearchTermsDatasets)
-        .where(
-            and(
-                eq(topSearchTermsDatasets.marketplaceId, SPAPI_US_MARKETPLACE_ID),
-                overdueUsDataset(dueAt, pendingRequestedAfter)
-            )
-        );
-
-    return sql`SELECT (${notExists(usDatasets)} OR ${exists(overdueDatasets)}) AS failing`;
-};
-
-const overdueUsDataset = (dueAt: Date, pendingRequestedAfter: Date) =>
-    or(
-        and(
-            isNotNull(topSearchTermsDatasets.nextRefreshAt),
-            lte(topSearchTermsDatasets.nextRefreshAt, dueAt),
-            refreshIsNotWaitingOnAmazon(pendingRequestedAfter)
-        ),
-        and(
-            eq(topSearchTermsDatasets.status, 'failed'),
-            lte(topSearchTermsDatasets.lastFailedAt, dueAt),
-            or(
-                isNull(topSearchTermsDatasets.lastCompletedAt),
-                lt(topSearchTermsDatasets.lastCompletedAt, topSearchTermsDatasets.lastFailedAt)
-            )
-        ),
-        and(
-            isNotNull(topSearchTermsDatasets.reportId),
-            amazonReportInFlight(),
-            isNotNull(topSearchTermsDatasets.reportRequestedAt),
-            lte(topSearchTermsDatasets.reportRequestedAt, pendingRequestedAfter)
-        )
-    );
-
-const refreshIsNotWaitingOnAmazon = (pendingRequestedAfter: Date) =>
-    or(
-        isNull(topSearchTermsDatasets.reportId),
-        not(amazonReportInFlight()),
-        isNull(topSearchTermsDatasets.reportRequestedAt),
-        lte(topSearchTermsDatasets.reportRequestedAt, pendingRequestedAfter)
-    );
-
-const amazonReportInFlight = () =>
-    inArray(topSearchTermsDatasets.status, ['queued', 'in_progress']);
 
 const hasProductOverdueFloor = async (condition: ReturnType<typeof and>) => {
     if (!condition) {

@@ -35,11 +35,14 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | History import | generated id | One Keepa import attempt, request context, provider accounting, and outcome. |
 | History point | `(productId, source, metric, categoryId, keepaMinutes)` | One source observation at one Keepa timestamp. |
 | Keepa category | `(marketplaceId, categoryId)` | Display name for a Keepa category id. |
-| Top Search Terms dataset | marketplace, period, and report window | Current fetch lifecycle for one Amazon Brand Analytics reporting window. |
-| Top Search Terms snapshot | `(datasetId, observedDate)` | One fetched daily observation of a dataset. |
 | Search-term row | `(snapshotId, searchTerm)` | Rank and top-three click/conversion shares for one term in one snapshot. |
 | Operation | generated id; unique pending `(type, targetKey)` | Durable coordination record and terminal resource or safe error. |
-| Catalog query | `(source, marketplaceId, normalizedTerm, page)` | Shared external-search identity, 30-day activity lease, refresh-attempt timestamps, and latest successful-run watermark. |
+| Catalog query | `(source, marketplaceId, normalizedTerm)` | Term interest, bounded admission, tier, demand evidence, research lease and next check. |
+| Keyword membership | `(queryId, productId)` | First and latest observed membership across sources. |
+| Exploration pass | generated id, at most one active per query | SP-API continuation, claimed execution, dated depth and stop reason. |
+| Discovery attempt | generated id | Durable physical-attempt reservation for SP-API exploration caps. |
+| Keepa capacity attempt | generated id | Work class, reserved and actual token cost independent of ingestion success. |
+| History admission receipt | rollout key | Atomic baseline time and count of grandfathered Product identities. |
 | Search run | generated id | One immutable successful provider execution, including zero-result runs, with `trigger: requested | automatic`. |
 | Search result | `(runId, productId)` | Immutable Search-run membership, Product ordinal, and observed metrics. |
 | Activity event | generated id | Searchable record of a product, history, job, or system action. |
@@ -75,12 +78,12 @@ one pending `catalogSearch` Operation exists per Catalog query. Product
 history, its successful import audit, Product freshness, and successful Operation completion commit
 atomically. A schema migration for the Operations table must be generated before deployment.
 Catalog-search success similarly commits Products, histories, the Search run/results, query
-watermark, and `catalogSearchRun` Operation resource atomically. A product-search request renews
-the query activity lease even when a cached run is reused; automatic refresh only considers active
-queries and never backfills expired interest.
+watermark, and `catalogSearchRun` Operation resource atomically. An explicit `keyword.results`
+request renews the research lease even when reusing a run. General `product.search` records interest
+without extending that lease. Background scheduling uses admitted tiers and persisted due dates.
 
 Catalog run reads never reconstruct observations from Product. Retained membership and placement
-remain independent from current canonical Product state. Public Product search waits for every
+remain independent from current canonical Product state. Public keyword-results retrieval waits for every
 result's compact current Search projection; dashboard run-history reads may expose unresolved
 current state separately.
 
@@ -120,8 +123,9 @@ The public Product is one current provider-neutral projection:
 Public callers never receive a pending thumbnail, provider block or timestamps,
 `trackingStartedAt`, freshness, status, Operations, or `schemaVersion`.
 
-`isMerchListing` is `true` for known Merch evidence, `false` for available evidence with no known
-template match, and `null` when bullet evidence is unavailable or classification has not run.
+`isMerchListing` is `true` when the part number matches the Merch design-code fingerprint or a bullet
+matches a Merch template, `false` when a part number or bullets were observed without either match,
+and `null` when neither was available or classification has not run.
 Public consumers receive only this nullable field; provider, freshness, and status metadata are
 not exposed for the property.
 
@@ -181,11 +185,20 @@ and placement are immutable; projected Product fields remain independent current
 Allowed facet families are `profession`, `hobby`, `animal`, `food`, `cause`, `identity`,
 `culture`, `holiday`, `occasion`, `place`, and `party-theme`.
 
-## Top Search Terms observations
 
-Brand Analytics rows are historical observations, not Products. Each row belongs to one snapshot
-and stores the source search-frequency rank, top-three click and conversion share sums in basis
-points, source-row count, and RankWrangler's Merch-relevance classification with its reason.
+## Keyword collection
 
-Dates in this subsystem are report and observation dates. They are not interchangeable with
-product-fetch timestamps or Keepa observation times.
+Canonical queries and discovery targets own tracked/trial/dormant status, first-page BSR standing,
+intervals and next checks; discovery evidence records each source (`interest`, `brandAnalytics`,
+`autocomplete`, `themeAutocomplete`, and historical `adsRecommendation`). Autocomplete owns a fenced
+once-per-seed ledger with its saved suggestions; keyword themes own their own once-per-theme
+expansion state. Keyword activity shares the event log with Products and jobs.
+
+| Record | Identity | Meaning |
+| --- | --- | --- |
+| Brand Analytics search term | `(marketplaceId, normalizedTerm)` | Latest kept weekly search term: search frequency rank, apparel clicks (0–3), whether the text names a Merch product (at least one of the two holds), its keyword theme, up to three clicked ASINs, first and last seen Sunday week, and trial registration time. No weekly history. |
+| Keyword theme | generated id, unique `(marketplaceId, theme)` | A theme of a tracked keyword (its search text without the Merch product and filler words), the keyword it first came from, and its once-per-theme autocomplete expansion: stage (`pending`, `complete`), saved suggestions, trial count, claim, due time and failure count. |
+| Brand Analytics import | generated id, unique `(marketplaceId, weekStart)` | One weekly report's state (`pending`, `requested`, `ready`, `imported`, `superseded`), report and document ids, Amazon status, retry and claim fields, and row/term/kept/new counts. |
+
+Per-product Ads keyword mining, its candidate judgments and links were removed with the move to
+Brand Analytics sources.

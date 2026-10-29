@@ -18,6 +18,7 @@ describe('database connections', () => {
             port: 6432,
             ssl: 'verify-full',
             prepare: false,
+            connection: { TimeZone: 'UTC' },
         });
     });
 
@@ -26,6 +27,7 @@ describe('database connections', () => {
             port: 5432,
             ssl: 'verify-full',
             prepare: true,
+            connection: { TimeZone: 'UTC' },
         });
     });
 

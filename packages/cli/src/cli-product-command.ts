@@ -1,5 +1,6 @@
 import type { createRankWranglerClient } from '@rankwrangler/http-client';
 import type { CliConfig } from './cli-config';
+import { runProductSearch } from './cli-product-search';
 import {
     type CliOptionValues,
     parseIntegerOption,
@@ -21,8 +22,8 @@ export const runProductCommand = async (
     options: CliOptionValues,
     fail: CliFail
 ): Promise<unknown> => {
-    if (command.verb !== 'search' && options.refresh) {
-        fail('INVALID_INPUT', '--refresh is only supported for product search');
+    if (options.refresh) {
+        fail('INVALID_INPUT', '--refresh is only supported for keyword results');
     }
     if (command.verb !== 'get' && options.shortName) {
         fail('INVALID_INPUT', '--shortName is only supported for product get');
@@ -32,7 +33,7 @@ export const runProductCommand = async (
         return await runProductGet(command.args, client, config, options, fail);
     }
     if (command.verb === 'search') {
-        return await runProductSearch(command.args, client, options, fail);
+        return await runProductSearch(command.args, client, config, options, fail);
     }
     if (command.verb === 'history') {
         return await runProductHistory(command.args, client, config, options, fail);
@@ -66,23 +67,6 @@ const runProductGet = async (
 
     return await client.product.getMany.mutate({
         products: asins.map(asin => ({ marketplaceId, asin })),
-    });
-};
-
-const runProductSearch = async (
-    args: string[],
-    client: CliClient,
-    options: CliOptionValues,
-    fail: CliFail
-) => {
-    const term = args.join(' ').trim();
-    if (!term) {
-        fail('INVALID_INPUT', 'product search requires a keyword');
-    }
-
-    return await client.product.search.mutate({
-        term,
-        refresh: Boolean(options.refresh),
     });
 };
 

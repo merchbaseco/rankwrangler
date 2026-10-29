@@ -3,10 +3,10 @@ import { z } from 'zod';
 
 export const databaseConfigurationSchema = z.object({
     RANKWRANGLER_DATABASE_HOST: z.string().optional(),
-    RANKWRANGLER_DATABASE_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+    RANKWRANGLER_DATABASE_PORT: z.coerce.number().int().min(1).max(65_535).optional(),
     RANKWRANGLER_DATABASE_DIRECT_PORT: z.preprocess(
         value => (value === '' ? undefined : value),
-        z.coerce.number().int().min(1).max(65535).optional()
+        z.coerce.number().int().min(1).max(65_535).optional()
     ),
     RANKWRANGLER_DATABASE_NAME: z.string().optional(),
     RANKWRANGLER_DATABASE_USER: z.string().optional(),
@@ -31,6 +31,7 @@ export const createDatabaseConnectionOptions = (
         password: configuration.RANKWRANGLER_DATABASE_PASSWORD || 'SecurePass123',
         ssl: configuration.RANKWRANGLER_DATABASE_SSL_MODE === 'verify-full' ? 'verify-full' : false,
         prepare: connection === 'direct',
+        connection: { TimeZone: 'UTC' },
     }) satisfies postgres.Options<Record<string, never>>;
 
 export const createDatabaseUrl = (configuration: DatabaseConfiguration) => {

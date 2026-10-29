@@ -1,85 +1,57 @@
-import { ClerkProvider, SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import { App } from "./app";
-import { DevAutoSignIn } from "./components/auth/dev-auto-sign-in";
-import { ToastProvider } from "./components/ui/toast";
-import { TooltipProvider } from "./components/ui/tooltip";
-import { TRPCProvider } from "./lib/trpc-provider";
-import "@fontsource/jetbrains-mono/400.css";
-import "@fontsource/jetbrains-mono/500.css";
-import "@fontsource/space-grotesk/400.css";
-import "@fontsource/space-grotesk/500.css";
-import "@fontsource/space-grotesk/600.css";
-import "@fontsource/space-grotesk/700.css";
-import "@fontsource/syne/700.css";
-import "@fontsource/syne/800.css";
-import "./styles/global.css";
+import { ClerkProvider, SignedIn, SignedOut, SignIn } from '@clerk/clerk-react';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { App } from '@/app';
+import { DevAutoSignIn } from '@/components/auth/dev-auto-sign-in';
+import { applyDensity, readDensity } from '@/lib/density';
+import { applyTheme, readThemePreference } from '@/lib/theme';
+import { TRPCProvider } from '@/lib/trpc-provider';
+import '@fontsource-variable/onest/index.css';
+import '@fontsource-variable/geist-mono/index.css';
+import './styles/global.css';
 
-// Apply saved theme before first paint to prevent flash
-const savedTheme = localStorage.getItem("rw-theme") ?? "system";
-if (
-	savedTheme === "dark" ||
-	(savedTheme === "system" &&
-		window.matchMedia("(prefers-color-scheme: dark)").matches)
-) {
-	document.documentElement.classList.add("dark");
-}
+// Apply the saved theme and density before first paint so nothing flashes or jumps.
+applyTheme(readThemePreference());
+applyDensity(readDensity());
 
 const publishableKey = import.meta.env.VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY;
 
-const rootElement = document.getElementById("root");
+const rootElement = document.getElementById('root');
 if (!rootElement) {
-	throw new Error("Root element not found");
+    throw new Error('Root element not found');
 }
 
-function MissingConfig() {
-	return (
-		<div className="min-h-screen bg-background">
-			<div className="mx-auto flex min-h-screen max-w-xl items-center justify-center p-6">
-				<div className="rounded-lg border bg-white p-6 shadow-sm">
-					<h1 className="text-xl font-semibold">
-						RankWrangler website misconfigured
-					</h1>
-					<p className="mt-2 text-sm text-muted-foreground">
-						Missing{" "}
-						<code className="font-mono">VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY</code>.
-					</p>
-					<p className="mt-2 text-sm text-muted-foreground">
-						Fix: add it to{" "}
-						<code className="font-mono">
-							/Users/zknicker/srv/rankwrangler/.env
-						</code>{" "}
-						and redeploy.
-					</p>
-				</div>
-			</div>
-		</div>
-	);
-}
+const MissingConfig = () => (
+    <main className="flex min-h-screen items-center justify-center p-6">
+        <div className="max-w-xl" data-selectable-text>
+            <h1 className="font-semibold">RankWrangler website misconfigured</h1>
+            <p className="mt-2 text-muted">
+                Missing <code>VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY</code>. The value comes from
+                .env.schema through <code>varlock run</code>; start the website with{' '}
+                <code>bun run dev</code>.
+            </p>
+        </div>
+    </main>
+);
 
 createRoot(rootElement).render(
-	<StrictMode>
-		{publishableKey ? (
-			<ClerkProvider publishableKey={publishableKey}>
-				<SignedIn>
-					<TRPCProvider>
-						<TooltipProvider closeDelay={50} delay={250}>
-							<ToastProvider>
-								<App />
-							</ToastProvider>
-						</TooltipProvider>
-					</TRPCProvider>
-				</SignedIn>
-				<SignedOut>
-					<div className="flex min-h-screen items-center justify-center bg-background">
-						<DevAutoSignIn />
-						<SignIn />
-					</div>
-				</SignedOut>
-			</ClerkProvider>
-		) : (
-			<MissingConfig />
-		)}
-	</StrictMode>,
+    <StrictMode>
+        {publishableKey ? (
+            <ClerkProvider publishableKey={publishableKey}>
+                <SignedIn>
+                    <TRPCProvider>
+                        <App />
+                    </TRPCProvider>
+                </SignedIn>
+                <SignedOut>
+                    <div className="flex min-h-screen items-center justify-center">
+                        <DevAutoSignIn />
+                        <SignIn />
+                    </div>
+                </SignedOut>
+            </ClerkProvider>
+        ) : (
+            <MissingConfig />
+        )}
+    </StrictMode>
 );

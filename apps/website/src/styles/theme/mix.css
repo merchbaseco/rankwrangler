@@ -1,0 +1,110 @@
+/*
+ * The mix bar (features/grid/mix-bar.tsx, HeadO): a stacked bar of the
+ * results by tier or heat over its legend, every segment and legend item a
+ * stock ToggleButton re-pointed through its own tokens to the part's colour.
+ * Structural classes and the few ToggleButton properties a token cannot
+ * reach, each with its reason.
+ */
+
+@layer components {
+    /* The label line before filters are set: the mix's name, the result count trailing. */
+    .mix-summary {
+        display: flex;
+        flex: 1 1 0;
+        align-items: baseline;
+        justify-content: space-between;
+        min-width: 0;
+    }
+
+    .mix-summary__count {
+        color: var(--muted);
+        font-size: var(--text-sm);
+        white-space: nowrap;
+    }
+
+    .mix-bar {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing-base) * 1.5);
+        width: 100%;
+        min-width: 0;
+    }
+
+    /* The bar: segments 2px apart on a 14px line, so a raised segment never shifts the rest. */
+    .mix-bar__track {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: calc(var(--spacing-base) * 4);
+    }
+
+    /* Each slot grows by its share; a non-zero part keeps a segment to point at. */
+    .mix-bar__slot {
+        display: flex;
+        flex: var(--mix-share) 1 0;
+        min-width: calc(var(--spacing-base) * 1.75);
+    }
+
+    /* A segment is the part's swatch in every state (its tokens), with a tick's corner. */
+    .toggle-button.mix-bar__segment {
+        /* The stock corner is `--radius` × 3: a third of the mark radius lands on its 3px. */
+        --radius: calc(var(--radius-mark) / 3);
+        --toggle-button-bg: var(--tier-sw);
+        --toggle-button-bg-hover: var(--tier-sw);
+        --toggle-button-bg-pressed: var(--tier-sw);
+        --toggle-button-bg-selected: var(--tier-sw);
+        --toggle-button-bg-selected-hover: var(--tier-sw);
+        --toggle-button-bg-selected-pressed: var(--tier-sw);
+        width: 100%;
+        min-width: 0;
+        height: calc(var(--spacing-base) * 3);
+        padding: 0;
+    }
+
+    /* Hovered, focused or chosen: the segment rises to the full line inside a ring of its ink. */
+    .toggle-button.mix-bar__segment:is(:hover, [data-hovered="true"], [data-focus-visible="true"]),
+    .toggle-button.mix-bar__segment[data-selected="true"] {
+        height: calc(var(--spacing-base) * 4);
+        box-shadow:
+            0 0 0 2px var(--content),
+            0 0 0 3px var(--tier-sw);
+    }
+
+    /* While one part is pointed at, the others recede (HeadO). */
+    .mix-bar__track:has(.mix-bar__segment:is(:hover, [data-hovered="true"]))
+        .toggle-button.mix-bar__segment:not(:hover, [data-hovered="true"]),
+    .toggle-button.mix-bar__segment.mix-bar__segment--dim {
+        opacity: 0.5;
+    }
+
+    /* The legend: dot, label and count per part, toggles in muted ink, chosen in ink. */
+    .mix-bar__legend {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: calc(var(--spacing-base) * 1);
+        margin-inline-start: calc(var(--spacing-base) * -2);
+    }
+
+    .toggle-button.mix-bar__key {
+        --toggle-button-bg: transparent;
+        --toggle-button-bg-selected: var(--default);
+        --toggle-button-fg: var(--muted);
+        --toggle-button-fg-selected: var(--foreground);
+        gap: calc(var(--spacing-base) * 1.5);
+    }
+
+    .mix-bar__dot {
+        width: calc(var(--spacing-base) * 2);
+        height: calc(var(--spacing-base) * 2);
+        flex-shrink: 0;
+        border-radius: var(--radius-dot);
+        background-color: var(--tier-sw);
+    }
+
+    .mix-bar__count {
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
+}
