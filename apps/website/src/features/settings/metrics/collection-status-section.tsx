@@ -159,5 +159,5 @@ const sourceLabels: Readonly<Record<string, string>> = {
     catalogFacet: 'Catalog topics',
     interest: 'Research interest',
     legacy: 'Imported',
-    themeAutocomplete: 'Theme autocomplete',
+    prefixAutocomplete: 'Prefix autocomplete',
 };

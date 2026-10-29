@@ -1,9 +1,9 @@
 ---
-summary: Keyword-driven collection from weekly Brand Analytics search terms, keyword themes, admission by a real first-page SP-API search, autocomplete expansion and popularity-driven keyword checks.
+summary: Keyword-driven collection from weekly Brand Analytics search terms, keyword prefixes, admission by a real first-page SP-API search, autocomplete expansion and popularity-driven keyword checks.
 read_when:
   - changing keyword sources, the Brand Analytics import, trial admission or tracked-keyword registration
-  - changing keyword themes, theme extraction or theme autocomplete
-  - changing keyword popularity, cadence, scan depth, dormancy, backlog bounds or provider pacing
+  - changing keyword prefixes, prefix extraction or prefix autocomplete
+  - changing keyword popularity, cadence, scan depth, dormancy, autocomplete top-up or provider pacing
 ---
 
 # Keyword collection
@@ -64,14 +64,14 @@ either of two reasons:
   volume, and correctly dropped terms such as "halloween makeup" and "christmas lights". These terms
   become trials directly.
 - **Merch product text.** The search text itself ends with a Merch product name
-  (`merchProductTermKind`, see [Keyword themes](#keyword-themes)), such as "teacher blanket" or
-  "christmas mugs". These terms become trials only once their theme is a registered theme.
+  (`merchProductTermKind`, see [Keyword prefixes](#keyword-prefixes)), such as "teacher blanket" or
+  "christmas mugs". These terms become trials only once their prefix is a registered prefix.
 
 Widening the clicked-title pattern to every Merch product type was tried and measured on a real
 week: ordinary brands sell mugs, cases, bags and pens, so it admitted searches such as "diamond
 tester", "glp1", "iphone 16 case", "umbrella" and "storage bin". Titles cannot tell a Merch blanket
 from any other blanket, so the clicked-title filter stays apparel-only and other product types come
-through themes. Product-text terms add roughly as many kept terms again (generic searches ending in
+through prefixes. Product-text terms add roughly as many kept terms again (generic searches ending in
 "case", "bag", "cup" or "bottle" are common); only kept terms are held in memory and they are
 upserted 1,000 per statement. There is no
 keyword-level official-brand filter: the verified official-brand registry applies to Product
@@ -79,7 +79,7 @@ brands, not search phrases.
 
 `brand_analytics_search_terms` keeps one row per marketplace and normalized term (normalized like
 canonical keywords): latest search frequency rank, apparel clicks (0–3), whether the text names a
-Merch product (`merch_product_text`), its theme, up to three clicked ASINs, first and last seen
+Merch product (`merch_product_text`), its prefix, up to three clicked ASINs, first and last seen
 week (the rank is from the last seen week) and when it was registered as a trial. A row has an
 apparel click or product text, or both.
 Imports upsert; no weekly snapshot history is stored (the retired design kept about 10M rows and
@@ -89,10 +89,10 @@ Imports upsert; no weekly snapshot history is stored (the retired design kept ab
 
 After a week is saved, `register-brand-analytics-keywords` lists unregistered kept terms as trial
 keywords, 2,000 per job, most searched first, queueing itself until none remain. A term with an
-apparel click always qualifies; a product-text term qualifies when its stored theme has a
-`keyword_themes` row (a join on the theme, indexed over unregistered product-text rows). Product-text
-terms whose theme is not known yet simply wait: the six-hourly nudge lists them as soon as a keyword
-of that theme is tracked. Listing ignores
+apparel click always qualifies; a product-text term qualifies when its stored prefix has a
+`keyword_prefixes` row (a join on the prefix, indexed over unregistered product-text rows). Product-text
+terms whose prefix is not known yet simply wait: the six-hourly nudge lists them as soon as a keyword
+of that prefix is tracked. Listing ignores
 Pause sync, so new searches appear in the Keywords directory as Queued soon after an import.
 Registration goes through the canonical keyword and discovery-evidence path with
 eligible `brandAnalytics` evidence (`week:<sunday>`). Existing keywords only gain the evidence: a
@@ -124,13 +124,14 @@ minutes) and waits the longer of Retry-After and a backoff of one minute doublin
 success clears the streak and eases spacing 10% toward base. 403 pauses it for an hour. A daily
 ceiling (`daily_limit`, 1,000 by default, UTC day) applies. Failures back off per seed.
 
-## Keyword themes
+## Keyword prefixes
 
-A theme is what a search is about once its Merch product and its audience or filler words are
-removed (`extractKeywordTheme`, deterministic, no model): "teacher shirts for women" and "teacher
-blanket" are both "teacher"; "funny pickleball dad shirt" is "pickleball dad". A tracked keyword
-proves its theme sells as Merch, so the theme vouches for searches of the same theme on any of the
-41 Merch product types.
+A prefix broadens a keyword's specificity: it is the search with its Merch product and its audience
+or filler words removed (`extractKeywordPrefix`, deterministic, no model). "teacher shirts for
+women" and "teacher blanket" are both "teacher"; "funny pickleball dad shirt" is "pickleball dad".
+Autocomplete then expands the prefix back out into specific searches on other Merch products. A
+tracked keyword proves its prefix sells as Merch, so the prefix vouches for searches of the same
+prefix on any of the 41 Merch product types.
 
 Extraction lowercases the term, turns hyphens and other punctuation into spaces (keeping internal
 apostrophes, and reading "1/4" as "quarter"), then:
@@ -139,8 +140,8 @@ apostrophes, and reading "1/4" as "quarter"), then:
 2. drops at most one Merch product phrase at the end, longest first;
 3. drops filler words at either end.
 
-The theme is null when fewer than two characters remain or what remains is itself a product phrase.
-A product word inside a theme survives ("hat trick hockey shirt" is "hat trick hockey", "cat in the
+The prefix is null when fewer than two characters remain or what remains is itself a product phrase.
+A product word inside a prefix survives ("hat trick hockey shirt" is "hat trick hockey", "cat in the
 hat shirt" is "cat in the hat"). `merchProductTermKind` uses the same steps and reports which
 product family the trailing phrase names (apparel, headwear, bag, phone accessory, home, drinkware,
 stationery), or null.
@@ -159,23 +160,23 @@ stationery), or null.
   ladies, kids, kid, kid's, boys, boy's, girls, girl's, toddler(s), youth, adult(s), unisex, funny,
   cute, cool, gift(s), idea(s), novelty, graphic. Style words such as "vintage" and "retro" stay.
 
-`keyword_themes` holds one row per US theme with the tracked keyword it first came from. A theme is
+`keyword_prefixes` holds one row per US prefix with the tracked keyword it first came from. A prefix is
 registered in the same transaction that makes a keyword tracked: a trial graduating on its first
-page, or user interest tracking it. Keywords tracked before themes existed are backfilled by the
+page, or user interest tracking it. Keywords tracked before prefixes existed are backfilled by the
 keyword scheduler, 2,000 tracked targets per minute by a creation-order cursor (`discovery_source_scans`
-key `keyword-themes`); once caught up it looks again daily. The backfill is database-only and runs
+key `keyword-prefixes`); once caught up it looks again daily. The backfill is database-only and runs
 even while sync is paused.
 
-### Theme autocomplete
+### Prefix autocomplete
 
-Each theme is expanded once through the same Amazon autocomplete call, with the theme text as the
-seed. A suggestion is kept when it names a Merch product and its own theme equals or contains the
-seed theme as whole words ("teacher" keeps "teacher tumbler" and "teacher bags for women", not
-"teacher gifts" or "preacher shirt"). Kept suggestions become trials with `themeAutocomplete`
-evidence whose source key is the theme, in the transaction that saves all suggestions and completes
-the theme. Theme expansion shares the `autocomplete-keyword` queue, its gate, pacing and daily
+Each prefix is expanded once through the same Amazon autocomplete call, with the prefix text as the
+seed. A suggestion is kept when it names a Merch product and its own prefix equals or contains the
+seed prefix as whole words ("teacher" keeps "teacher tumbler" and "teacher bags for women", not
+"teacher gifts" or "preacher shirt"). Kept suggestions become trials with `prefixAutocomplete`
+evidence whose source key is the prefix, in the transaction that saves all suggestions and completes
+the prefix. Prefix expansion shares the `autocomplete-keyword` queue, its gate, pacing and daily
 ceiling, and Pause sync; the scheduler fills its thirty-job top-up alternately with tracked-keyword
-seeds and themes under the same scan-backlog bound.
+seeds and prefixes.
 
 ## Keyword popularity
 
@@ -226,9 +227,9 @@ one queue per provider, at most one queued-or-running job per entity.
 | Job | Entity | Provider gate | What it does next |
 | --- | --- | --- | --- |
 | `schedule-brand-analytics` | none, every six hours | none | Starts the newest week's import when due and nudges keyword listing; ignores Pause sync |
-| `schedule-keyword-work` | none, every minute | none | Backfills keyword themes; while sync runs, enqueues due scans and tops up autocomplete seeds and themes while backlog allows |
+| `schedule-keyword-work` | none, every minute | none | Backfills keyword prefixes; while sync runs, enqueues due scans and tops up autocomplete seeds and prefixes |
 | `scan-keyword` | keyword target | SP-API background capacity | Fetches one page; queues the next page of a continuing pass at depth priority |
-| `autocomplete-keyword` | tracked seed or theme | autocomplete spacing | Saves up to ten suggestions (for a theme, those naming a Merch product) as trials and completes the seed or theme |
+| `autocomplete-keyword` | tracked seed or prefix | autocomplete spacing | Saves up to ten suggestions (for a prefix, those naming a Merch product) as trials and completes the seed or prefix |
 | `import-brand-analytics` | weekly import | always open | Requests, checks (every two minutes) or downloads and saves one week's report; queues its own next step, then keyword listing |
 | `register-brand-analytics-keywords` | none (one chain) | always open | Lists 2,000 kept terms as trial keywords; queues itself while a full batch was listed |
 
@@ -246,17 +247,16 @@ Background keyword scans may use 75% of the measured SP-API Catalog rate, up to
 without a deploy.
 
 Listed Brand Analytics trials are the main source of due scans; scans themselves run at the
-background SP-API rate in work order. Autocomplete seeds are admitted only while the estimated scan
-backlog is within two days of productive background SP-API capacity; autocomplete is topped up to thirty queued seeds (about five minutes of starts). The
-backlog estimate counts five pages for a keyword with no first head, the remaining planned depth of
-a continuing pass (at least one page) and one page per due recurring head. Capacity is the current
-background rate times 86,400 times 0.7. The 70% share, five-page allowance and two-day threshold are
-planning assumptions, not measured throughput.
+background SP-API rate in work order. Expansion is not held back by scan load or a compute-time
+budget: autocomplete seeds and prefixes are enqueued whenever they are due, and the scan queue is
+allowed to grow. Autocomplete keeps its own pacing and daily ceiling, and the scheduler only tops its
+queue up to thirty jobs (about five minutes of starts) so it never floods.
 
 Settings → Metrics → Keyword jobs (`apps/website/src/features/settings/metrics/`) shows pause
-state, scan backlog against its allowance, the Brand Analytics import (last imported week, kept
-terms, new terms in the last import, terms awaiting trial, product-text terms awaiting their theme
-and the latest report state), keyword themes (total, expanded, awaiting autocomplete), each queue's
+state, keywords waiting on a first-page scan (trials never scanned, and observed keywords whose
+recurring check is due with the oldest due time), the Brand Analytics import (last imported week, kept
+terms, new terms in the last import, terms awaiting trial, product-text terms awaiting their prefix
+and the latest report state), keyword prefixes (total, expanded, awaiting autocomplete), each queue's
 waiting, scheduled and running jobs with its provider's readiness, and recent runs. It refreshes
 when a job run is recorded (`job_activity` over the existing WebSocket), never on an interval. Runs
 are recorded when they did work or failed.

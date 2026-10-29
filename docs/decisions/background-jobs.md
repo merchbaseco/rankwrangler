@@ -20,7 +20,7 @@ A background system answers three separate questions, and RankWrangler gives eac
 
 ## Primitives
 
-- **Entity.** A Product, keyword target, autocomplete seed, keyword theme or weekly Brand Analytics import. Due times, stages, claims and
+- **Entity.** A Product, keyword target, autocomplete seed, keyword prefix or weekly Brand Analytics import. Due times, stages, claims and
   failure counts stay in its tables. The database remains the source of truth; a lost or duplicate
   job never loses or repeats durable work, because jobs re-check and fence that state.
 - **Job.** One unit of work on one entity: at most one external call, save what came back, then
@@ -44,8 +44,9 @@ A background system answers three separate questions, and RankWrangler gives eac
 - **Priority is coarse.** Higher priority for work that keeps existing data fresh (due keyword
   heads) over work that extends it (deeper pages, backfill). Within a priority, oldest first. Lower
   priority work that waits too long is raised by its scheduler, so it cannot starve.
-- **Backpressure reads queue depth.** Producers (Brand Analytics trials, autocomplete) are admitted
-  only while queued scan work is within its allowance.
+- **No load gates on producers.** Producers (Brand Analytics trials, autocomplete) are not held back
+  by scan load or compute-time budgets; queues may grow, and each provider's gate paces its own
+  work. A scheduler only keeps a short queue topped up where a deep one would crowd the queue.
 - **Pause stops admission.** Paused schedulers enqueue nothing and gated workers fetch nothing;
   a job already running finishes saving.
 - **Records stay small.** Successful runs are kept when they did work; failures always. Executions

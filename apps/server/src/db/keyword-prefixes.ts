@@ -1,53 +1,54 @@
 import { and, asc, eq, sql } from 'drizzle-orm';
-import { extractKeywordTheme } from '@/services/keyword-theme';
+import { extractKeywordPrefix } from '@/services/keyword-prefix';
 import { catalogQueries } from './catalog-search-schema';
 import { discoverySourceScans, discoveryTargets } from './discovery-target-schema';
 import { db } from './index';
-import { keywordThemes } from './keyword-theme-schema';
+import { keywordPrefixes } from './keyword-prefix-schema';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const marketplaceId = 'ATVPDKIKX0DER';
-const backfillKey = 'keyword-themes';
+const backfillKey = 'keyword-prefixes';
 // Once the backfill reaches the newest tracked keyword it only re-checks daily; graduation and
-// user tracking register themes as they happen.
+// user tracking register prefixes as they happen.
 const backfillIdleMs = 86_400_000;
 
-// Registers the themes of newly tracked US keywords. One row per theme; known themes are ignored.
-export const registerKeywordThemes = async (
+// Registers the prefixes of newly tracked US keywords. One row per prefix; known prefixes are
+// ignored.
+export const registerKeywordPrefixes = async (
     tx: Transaction,
     keywords: readonly { queryId: string; term: string; marketplaceId: string }[],
     now = new Date()
 ) => {
-    const themes = new Map<string, string>();
+    const prefixes = new Map<string, string>();
     for (const keyword of keywords) {
         if (keyword.marketplaceId !== marketplaceId) continue;
-        const theme = extractKeywordTheme(keyword.term);
-        if (theme && !themes.has(theme)) themes.set(theme, keyword.queryId);
+        const prefix = extractKeywordPrefix(keyword.term);
+        if (prefix && !prefixes.has(prefix)) prefixes.set(prefix, keyword.queryId);
     }
-    if (!themes.size) return 0;
+    if (!prefixes.size) return 0;
     const inserted = await tx
-        .insert(keywordThemes)
+        .insert(keywordPrefixes)
         .values(
-            [...themes]
+            [...prefixes]
                 .sort(([a], [b]) => a.localeCompare(b))
-                .map(([theme, firstQueryId]) => ({
+                .map(([prefix, firstQueryId]) => ({
                     marketplaceId,
-                    theme,
+                    prefix,
                     firstQueryId,
                     nextDueAt: now,
                     createdAt: now,
                 }))
         )
         .onConflictDoNothing()
-        .returning({ id: keywordThemes.id });
+        .returning({ id: keywordPrefixes.id });
     return inserted.length;
 };
 
-// Registers the themes of keywords that were already tracked before themes existed, one bounded
+// Registers the prefixes of keywords that were already tracked before prefixes existed, one bounded
 // batch per call, by a cursor over tracked keyword targets in creation order.
-export const backfillKeywordThemes = async (limit: number, now = new Date()) =>
+export const backfillKeywordPrefixes = async (limit: number, now = new Date()) =>
     db.transaction(async tx => {
-        await tx.execute(sql`select pg_advisory_xact_lock(hashtext('keyword-themes-backfill'))`);
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext('keyword-prefixes-backfill'))`);
         await tx
             .insert(discoverySourceScans)
             .values({ key: backfillKey, nextDueAt: now })
@@ -80,7 +81,7 @@ export const backfillKeywordThemes = async (limit: number, now = new Date()) =>
             )
             .orderBy(asc(discoveryTargets.createdAt), asc(discoveryTargets.id))
             .limit(limit);
-        const registered = await registerKeywordThemes(tx, rows, now);
+        const registered = await registerKeywordPrefixes(tx, rows, now);
         const last = rows.at(-1);
         await tx
             .update(discoverySourceScans)
@@ -99,15 +100,15 @@ export const backfillKeywordThemes = async (limit: number, now = new Date()) =>
         return { scanned: rows.length, registered };
     });
 
-// Operator counts: all themes, those expanded through autocomplete and those still waiting.
-export const readKeywordThemeCounts = async () => {
+// Operator counts: all prefixes, those expanded through autocomplete and those still waiting.
+export const readKeywordPrefixCounts = async () => {
     const [counts] = await db
         .select({
             total: sql<number>`count(*)::int`,
-            expanded: sql<number>`count(*) filter (where ${keywordThemes.stage}='complete')::int`,
+            expanded: sql<number>`count(*) filter (where ${keywordPrefixes.stage}='complete')::int`,
         })
-        .from(keywordThemes)
-        .where(eq(keywordThemes.marketplaceId, marketplaceId));
+        .from(keywordPrefixes)
+        .where(eq(keywordPrefixes.marketplaceId, marketplaceId));
     const total = counts?.total ?? 0;
     const expanded = counts?.expanded ?? 0;
     return { total, expanded, pending: total - expanded };

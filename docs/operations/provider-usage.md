@@ -15,7 +15,7 @@ only to authorized admins in dashboard settings.
 | Keepa | Token capacity, queue pressure, refresh-policy coverage, and recent history jobs. |
 | SP-API | Request/error health, refresh-policy coverage, and recent sync jobs. |
 | Facets | Classification throughput, cost/usage summaries, and assigned-value distribution. |
-| Keyword Jobs | Pause state, scan backlog against its two-day allowance, the weekly Brand Analytics import (last week, kept and new terms, terms awaiting trial, report state), and each keyword queue's depth and provider readiness. |
+| Keyword Jobs | Pause state, trials awaiting their first scan and recurring checks due, the weekly Brand Analytics import (last week, kept and new terms, terms awaiting trial or their prefix, report state), keyword prefixes, and each keyword queue's depth and provider readiness. |
 | Short Names | Eligible/ready/needs-regeneration/pending/failed coverage, hourly generation outcomes, and Gemini/Jev request and error counts. |
 
 Loading, empty, and failed states belong to each panel. A missing metric does not by itself mean

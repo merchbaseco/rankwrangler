@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { PgBoss } from 'pg-boss';
 import { buildDatabaseUrl } from '@/config/database-url';
 import { db } from '@/db/index';
@@ -95,6 +96,21 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword pipeline j
             });
             expect(status.brandAnalytics).toMatchObject({ keptTerms: 1, awaitingTrial: 0 });
             expect(status.brandAnalytics.latestWeek?.status).toBe('pending');
+            expect(status.scanDue).toEqual({
+                awaitingFirstScan: 2,
+                checksDue: 0,
+                oldestCheckDueAt: null,
+            });
+            const checkAt = new Date(Date.now() - 60_000);
+            await db
+                .update(discoveryTargets)
+                .set({ headObservedAt: checkAt, nextCheckAt: checkAt })
+                .where(eq(discoveryTargets.tracking, 'tracked'));
+            expect((await readKeywordJobsStatus()).scanDue).toEqual({
+                awaitingFirstScan: 1,
+                checksDue: 1,
+                oldestCheckDueAt: checkAt.toISOString(),
+            });
         } finally {
             await boss.stop({ graceful: false });
         }

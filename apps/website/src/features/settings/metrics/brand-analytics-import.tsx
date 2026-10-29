@@ -8,11 +8,11 @@ type BrandAnalytics = KeywordJobsStatus['brandAnalytics'];
 
 /**
  * The weekly Brand Analytics import that feeds keyword trials: the last imported week, the kept
- * search terms, how many the last import added, how many still await a trial or their theme,
+ * search terms, how many the last import added, how many still await a trial or their prefix,
  * and the latest report's state with its last error.
  */
 export const BrandAnalyticsImport = ({ status }: { status: BrandAnalytics }) => {
-    const { awaitingTheme, awaitingTrial, keptTerms, lastImported, latestWeek } = status;
+    const { awaitingPrefix, awaitingTrial, keptTerms, lastImported, latestWeek } = status;
     return (
         <ItemCardGroup variant="transparent">
             <ItemCardGroup.Header>
@@ -47,9 +47,9 @@ export const BrandAnalyticsImport = ({ status }: { status: BrandAnalytics }) => 
                         value: awaitingTrial,
                     },
                     {
-                        help: 'Product-text terms waiting for their keyword theme.',
-                        label: 'Awaiting theme',
-                        value: awaitingTheme,
+                        help: 'Product-text terms waiting for their keyword prefix.',
+                        label: 'Awaiting prefix',
+                        value: awaitingPrefix,
                     },
                 ]}
             />

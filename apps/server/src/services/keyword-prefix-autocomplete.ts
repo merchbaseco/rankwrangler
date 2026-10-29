@@ -1,32 +1,32 @@
 import { AutocompleteDeferred } from '@/db/keyword-autocomplete-capacity';
 import {
-    claimThemeAutocomplete,
-    finishThemeAutocomplete,
-    releaseThemeAutocomplete,
-} from '@/db/keyword-theme-autocomplete-work';
+    claimPrefixAutocomplete,
+    finishPrefixAutocomplete,
+    releasePrefixAutocomplete,
+} from '@/db/keyword-prefix-autocomplete-work';
 import { fetchKeywordAutocomplete } from './keyword-autocomplete-provider';
-import { themeTrialTerms } from './keyword-theme';
+import { prefixTrialTerms } from './keyword-prefix';
 
 const defaults = {
-    claim: claimThemeAutocomplete,
+    claim: claimPrefixAutocomplete,
     suggest: fetchKeywordAutocomplete,
-    finish: finishThemeAutocomplete,
-    release: releaseThemeAutocomplete,
+    finish: finishPrefixAutocomplete,
+    release: releasePrefixAutocomplete,
 };
 
-// One Amazon autocomplete call with a theme as the seed. Suggestions that name a Merch product and
-// keep the theme ("teacher" -> "teacher tumbler") become keyword trials.
-export const expandThemeAutocomplete = async (themeId?: string, deps = defaults) => {
-    const work = await deps.claim(new Date(), themeId);
+// One Amazon autocomplete call with a prefix as the seed. Suggestions that name a Merch product and
+// keep the prefix ("teacher" -> "teacher tumbler") become keyword trials.
+export const expandPrefixAutocomplete = async (prefixId?: string, deps = defaults) => {
+    const work = await deps.claim(new Date(), prefixId);
     if (!work) return { didWork: false, kind: 'idle' as const, nextWakeAt: null };
     try {
-        const suggestions = await deps.suggest(work.theme);
-        const trials = themeTrialTerms(work.theme, suggestions);
+        const suggestions = await deps.suggest(work.prefix);
+        const trials = prefixTrialTerms(work.prefix, suggestions);
         await deps.finish(work, suggestions, trials);
         return {
             didWork: true,
             kind: 'complete' as const,
-            theme: work.theme,
+            prefix: work.prefix,
             suggestions: suggestions.length,
             trials: trials.length,
             nextWakeAt: null,
@@ -37,7 +37,7 @@ export const expandThemeAutocomplete = async (themeId?: string, deps = defaults)
             return {
                 didWork: false,
                 kind: 'deferred' as const,
-                theme: work.theme,
+                prefix: work.prefix,
                 nextWakeAt: error.retryAt,
             };
         }

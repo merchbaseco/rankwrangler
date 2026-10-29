@@ -2,12 +2,11 @@ import { z } from 'zod';
 import { scheduleKeywordWork } from '@/services/keyword-work-scheduler';
 import { defineJob } from './job-router';
 
-// Every minute while sync runs: enqueue due keyword scans and, while scan backlog allows, top up
-// autocomplete. Calls no provider.
+// Every minute while sync runs: enqueue due keyword scans and top up autocomplete. Calls no
+// provider.
 export const scheduleKeywordWorkJob = defineJob('schedule-keyword-work', {
     persistSuccess: 'didWork',
-    startupSummary:
-        'every minute; enqueues due keyword scans and autocomplete',
+    startupSummary: 'every minute; enqueues due keyword scans and autocomplete',
 })
     .input(z.object({}))
     .queue({ policy: 'singleton' })

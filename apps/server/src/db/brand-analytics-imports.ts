@@ -118,7 +118,7 @@ export const saveBrandAnalyticsImport = async (
                         searchFrequencyRank: term.rank,
                         apparelClicks: term.apparelClicks,
                         merchProductText: term.merchProductText,
-                        theme: term.theme,
+                        prefix: term.prefix,
                         clickedAsins: term.clickedAsins,
                         firstSeenWeek: work.weekStart,
                         lastSeenWeek: work.weekStart,
@@ -139,7 +139,7 @@ export const saveBrandAnalyticsImport = async (
                         apparelClicks: newer(sql`excluded.apparel_clicks`, 'apparel_clicks'),
                         // Both follow from the term text alone, so the latest rules apply.
                         merchProductText: sql`excluded.merch_product_text`,
-                        theme: sql`excluded.theme`,
+                        prefix: sql`excluded.prefix`,
                         clickedAsins: newer(sql`excluded.clicked_asins`, 'clicked_asins'),
                         firstSeenWeek: sql`least(brand_analytics_search_terms.first_seen_week,excluded.first_seen_week)`,
                         lastSeenWeek: sql`greatest(brand_analytics_search_terms.last_seen_week,excluded.last_seen_week)`,
@@ -169,7 +169,7 @@ export const saveBrandAnalyticsImport = async (
     });
 
 // Operator status: the latest import, how many kept terms can become trials now, and how many
-// product-text terms wait for their theme.
+// product-text terms wait for their prefix.
 export const readBrandAnalyticsStatus = async () => {
     const [[latest], [lastImported], [terms]] = await Promise.all([
         db
@@ -183,14 +183,14 @@ export const readBrandAnalyticsStatus = async () => {
             .where(eq(brandAnalyticsImports.status, 'imported'))
             .orderBy(desc(brandAnalyticsImports.weekStart))
             .limit(1),
-        db.execute<{ kept: number; unregistered: number; awaiting_theme: number }>(sql`
+        db.execute<{ kept: number; unregistered: number; awaiting_prefix: number }>(sql`
             select count(*)::int kept,
                 count(*) filter (where t.registered_at is null
                     and (t.apparel_clicks>=1 or k.id is not null))::int unregistered,
                 count(*) filter (where t.registered_at is null and t.apparel_clicks=0
-                    and k.id is null)::int awaiting_theme
+                    and k.id is null)::int awaiting_prefix
             from brand_analytics_search_terms t
-            left join keyword_themes k on k.marketplace_id=t.marketplace_id and k.theme=t.theme`),
+            left join keyword_prefixes k on k.marketplace_id=t.marketplace_id and k.prefix=t.prefix`),
     ]);
     return { latest: latest ?? null, lastImported: lastImported ?? null, terms };
 };

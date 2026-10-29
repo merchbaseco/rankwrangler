@@ -2,11 +2,10 @@ import { readAutomaticSync } from '@/db/automatic-sync';
 import { readBrandAnalyticsStatus } from '@/db/brand-analytics-imports';
 import { readJobQueueCounts } from '@/db/job-queue-status';
 import { readAutocompleteUsage } from '@/db/keyword-autocomplete-capacity';
-import { readKeywordThemeCounts } from '@/db/keyword-themes';
-import { readScanBacklog } from '@/db/keyword-scan-backlog';
+import { readKeywordPrefixCounts } from '@/db/keyword-prefixes';
+import { readKeywordScanDue } from '@/db/keyword-scan-due';
 import { autocompleteGate, type ProviderGate, spApiBackgroundGate } from '@/db/provider-gates';
 import { keywordQueues } from '@/jobs/keyword-job-queues';
-import { SCAN_BACKLOG_DAYS } from './keyword-scan-backpressure';
 
 const queues: readonly {
     name: string;
@@ -25,26 +24,24 @@ const queues: readonly {
     { name: keywordQueues.brandAnalytics, provider: 'SP-API Reports', gate: null },
 ];
 
-// One operator read: pause state, scan backlog against its allowance, the weekly Brand Analytics
-// import, keyword theme counts, and for each keyword queue its live counts and whether its provider can start now.
+// One operator read: pause state, keywords waiting on a first-page scan, the weekly Brand Analytics
+// import, keyword prefix counts, and for each keyword queue its live counts and whether its
+// provider can start now.
 export const readKeywordJobsStatus = async () => {
     const now = new Date();
-    const [control, backlog, counts, readiness, usage, brandAnalytics, themes] = await Promise.all([
-        readAutomaticSync(),
-        readScanBacklog(now),
-        readJobQueueCounts(queues.map(queue => queue.name)),
-        Promise.all(queues.map(queue => queue.gate?.(now) ?? Promise.resolve(now))),
-        readAutocompleteUsage(now),
-        readBrandAnalyticsStatus(),
-        readKeywordThemeCounts(),
-    ]);
+    const [control, scanDue, counts, readiness, usage, brandAnalytics, prefixes] =
+        await Promise.all([
+            readAutomaticSync(),
+            readKeywordScanDue(now),
+            readJobQueueCounts(queues.map(queue => queue.name)),
+            Promise.all(queues.map(queue => queue.gate?.(now) ?? Promise.resolve(now))),
+            readAutocompleteUsage(now),
+            readBrandAnalyticsStatus(),
+            readKeywordPrefixCounts(),
+        ]);
     return {
         paused: control.paused,
-        backlog: {
-            ...backlog,
-            allowancePages: backlog.pagesPerDay * SCAN_BACKLOG_DAYS,
-            oldestDueHeadAt: iso(backlog.oldestDueHeadAt),
-        },
+        scanDue: { ...scanDue, oldestCheckDueAt: iso(scanDue.oldestCheckDueAt) },
         brandAnalytics: {
             latestWeek: brandAnalytics.latest
                 ? {
@@ -69,9 +66,9 @@ export const readKeywordJobsStatus = async () => {
                 : null,
             keptTerms: brandAnalytics.terms?.kept ?? 0,
             awaitingTrial: brandAnalytics.terms?.unregistered ?? 0,
-            awaitingTheme: brandAnalytics.terms?.awaiting_theme ?? 0,
+            awaitingPrefix: brandAnalytics.terms?.awaiting_prefix ?? 0,
         },
-        themes,
+        prefixes,
         queues: queues.map((queue, index) => {
             const row = counts.find(count => count.name === queue.name);
             const readyAt = readiness[index];

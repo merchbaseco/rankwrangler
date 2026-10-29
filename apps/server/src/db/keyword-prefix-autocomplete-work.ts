@@ -4,68 +4,70 @@ import { keywordRetryAt } from '@/services/keyword-collection-policy';
 import { isAutomaticSyncPaused } from './automatic-sync';
 import { recordDiscoveryCandidates } from './discovery-candidates';
 import { db } from './index';
-import { keywordThemes as themes } from './keyword-theme-schema';
+import { keywordPrefixes as prefixes } from './keyword-prefix-schema';
 
 const leaseMs = 300_000;
 
-// Claims a theme whose one-time autocomplete expansion is due. With a themeId, only that theme.
+// Claims a prefix whose one-time autocomplete expansion is due. With a prefixId, only that prefix.
 // Shares the keyword autocomplete lock, pacing and daily ceiling, and waits while sync is paused.
-export const claimThemeAutocomplete = async (now = new Date(), themeId?: string) =>
+export const claimPrefixAutocomplete = async (now = new Date(), prefixId?: string) =>
     db.transaction(async tx => {
         if (await isAutomaticSyncPaused(tx)) return null;
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext('keyword-autocomplete'))`);
         const [due] = await tx
             .select()
-            .from(themes)
+            .from(prefixes)
             .where(
                 and(
-                    eq(themes.marketplaceId, 'ATVPDKIKX0DER'),
-                    themeId ? eq(themes.id, themeId) : undefined,
-                    sql`${themes.stage}<>'complete' and ${themes.nextDueAt}<=${now.toISOString()}::timestamp
-                and (${themes.claimAt} is null or ${themes.claimAt}<${new Date(now.getTime() - leaseMs).toISOString()}::timestamp)`
+                    eq(prefixes.marketplaceId, 'ATVPDKIKX0DER'),
+                    prefixId ? eq(prefixes.id, prefixId) : undefined,
+                    sql`${prefixes.stage}<>'complete' and ${prefixes.nextDueAt}<=${now.toISOString()}::timestamp
+                and (${prefixes.claimAt} is null or ${prefixes.claimAt}<${new Date(now.getTime() - leaseMs).toISOString()}::timestamp)`
                 )
             )
-            .orderBy(themes.nextDueAt, themes.createdAt, themes.id)
+            .orderBy(prefixes.nextDueAt, prefixes.createdAt, prefixes.id)
             .limit(1)
             .for('update', { skipLocked: true });
         if (!due) return null;
         const [owned] = await tx
-            .update(themes)
+            .update(prefixes)
             .set({ claimToken: randomUUID(), claimAt: now })
-            .where(eq(themes.id, due.id))
+            .where(eq(prefixes.id, due.id))
             .returning();
         return { ...owned, claimToken: owned.claimToken! };
     });
-export type ThemeAutocompleteWork = NonNullable<Awaited<ReturnType<typeof claimThemeAutocomplete>>>;
+export type PrefixAutocompleteWork = NonNullable<
+    Awaited<ReturnType<typeof claimPrefixAutocomplete>>
+>;
 
-// Saves the theme's suggestions, registers the kept ones as keyword trials with
-// `themeAutocomplete` evidence naming the theme, and completes the theme in one transaction.
-export const finishThemeAutocomplete = async (
-    work: ThemeAutocompleteWork,
+// Saves the prefix's suggestions, registers the kept ones as keyword trials with
+// `prefixAutocomplete` evidence naming the prefix, and completes the prefix in one transaction.
+export const finishPrefixAutocomplete = async (
+    work: PrefixAutocompleteWork,
     suggestions: readonly string[],
     trials: readonly string[],
     now = new Date()
 ) =>
     db.transaction(async tx => {
         const [owned] = await tx
-            .select({ id: themes.id })
-            .from(themes)
+            .select({ id: prefixes.id })
+            .from(prefixes)
             .where(ownedBy(work))
             .for('update');
-        if (!owned) throw new Error('Theme autocomplete claim expired');
+        if (!owned) throw new Error('Prefix autocomplete claim expired');
         await recordDiscoveryCandidates(
             tx,
             trials.map(term => ({
                 scope: { kind: 'keyword' as const, term },
                 evidence: {
-                    kind: 'themeAutocomplete' as const,
-                    sourceKey: work.theme,
+                    kind: 'prefixAutocomplete' as const,
+                    sourceKey: work.prefix,
                     observedAt: now,
                 },
             }))
         );
         await tx
-            .update(themes)
+            .update(prefixes)
             .set({
                 stage: 'complete',
                 suggestions: [...suggestions],
@@ -75,16 +77,16 @@ export const finishThemeAutocomplete = async (
                 claimAt: null,
                 failureCount: 0,
             })
-            .where(eq(themes.id, work.id));
+            .where(eq(prefixes.id, work.id));
     });
 
-export const releaseThemeAutocomplete = async (
-    work: ThemeAutocompleteWork,
+export const releasePrefixAutocomplete = async (
+    work: PrefixAutocompleteWork,
     input: { retryAt?: Date; failed?: boolean; now?: Date } = {}
 ) => {
     const now = input.now ?? new Date();
     await db
-        .update(themes)
+        .update(prefixes)
         .set({
             claimToken: null,
             claimAt: null,
@@ -95,5 +97,5 @@ export const releaseThemeAutocomplete = async (
         .where(ownedBy(work));
 };
 
-const ownedBy = (work: ThemeAutocompleteWork) =>
-    and(eq(themes.id, work.id), eq(themes.claimToken, work.claimToken));
+const ownedBy = (work: PrefixAutocompleteWork) =>
+    and(eq(prefixes.id, work.id), eq(prefixes.claimToken, work.claimToken));

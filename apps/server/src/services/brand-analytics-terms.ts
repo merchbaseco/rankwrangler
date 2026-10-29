@@ -1,15 +1,15 @@
 import { normalizeDiscoveryKeyword } from './discovery-candidate-policy';
-import { extractKeywordTheme, merchProductTermKind } from './keyword-theme';
+import { extractKeywordPrefix, merchProductTermKind } from './keyword-prefix';
 
 export const BRAND_ANALYTICS_MARKETPLACE_ID = 'ATVPDKIKX0DER';
 
 // A clicked product counts as apparel when its title names a shirt-like garment. A search term is
 // kept when at least one of its top-3 clicked products does: in the October eval this kept about
 // 197k of 2.95M weekly terms and 83% of the owner's real clicked-search volume, while dropping
-// terms such as "halloween makeup" or "christmas lights". Widening the titles to every Merch product
-// type was measured on a real week and rejected: clicked mugs, cases and bags come from ordinary
-// brands, so it admitted "diamond tester", "glp1", "iphone 16 case", "umbrella" and "storage bin".
-// Other Merch product types arrive through themes instead (see keyword-theme.ts).
+// terms such as "halloween makeup" or "christmas lights". Widening the titles to every Merch
+// product type was measured on a real week and rejected: clicked mugs, cases and bags come from
+// ordinary brands, so it admitted "diamond tester", "glp1", "iphone 16 case", "umbrella" and
+// "storage bin". Other Merch product types arrive through prefixes instead (see keyword-prefix.ts).
 export const APPAREL_TITLE_PATTERN =
     /\b(t-?shirts?|tees?|shirts?|hoodies?|sweatshirts?|tank tops?|raglans?|pullovers?|crewnecks?|v-necks?)\b/i;
 export const MIN_APPAREL_CLICKS = 1;
@@ -26,9 +26,9 @@ export type BrandAnalyticsTerm = {
     clickedAsins: string[];
     apparelClicks: number;
     // The search text itself names a Merch product ("teacher blanket"). Such a term is kept even
-    // without apparel clicks, and becomes a trial only once its theme is a registered theme.
+    // without apparel clicks, and becomes a trial only once its prefix is a registered prefix.
     merchProductText: boolean;
-    theme: string | null;
+    prefix: string | null;
 };
 
 export const normalizeBrandAnalyticsTerm = (value: string) =>
@@ -134,5 +134,5 @@ const toTerm = (entry: Entry): BrandAnalyticsTerm => ({
     clickedAsins: topClicks(entry).map(click => click.asin),
     apparelClicks: apparelClicks(entry),
     merchProductText: merchProductTermKind(entry.term) !== null,
-    theme: extractKeywordTheme(entry.term),
+    prefix: extractKeywordPrefix(entry.term),
 });

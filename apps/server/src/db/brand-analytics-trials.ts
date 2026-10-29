@@ -3,13 +3,13 @@ import { BRAND_ANALYTICS_MARKETPLACE_ID } from '@/services/brand-analytics-terms
 import { brandAnalyticsSearchTerms as terms } from './brand-analytics-schema';
 import { recordDiscoveryCandidates } from './discovery-candidates';
 import { db } from './index';
-import { keywordThemes } from './keyword-theme-schema';
+import { keywordPrefixes } from './keyword-prefix-schema';
 
 // Registers the most searched kept Brand Analytics terms that are not yet keywords as trials, with
 // eligible `brandAnalytics` evidence naming the report week. A term with an apparel click always
-// qualifies; a term kept only because its text names a Merch product qualifies once its theme is a
-// registered keyword theme, so it is picked up whenever that theme appears. Existing keywords keep
-// their tracking (a dormant keyword stays dormant); they only gain the evidence.
+// qualifies; a term kept only because its text names a Merch product qualifies once its prefix is a
+// registered keyword prefix, so it is picked up whenever that prefix appears. Existing keywords
+// keep their tracking (a dormant keyword stays dormant); they only gain the evidence.
 export const registerBrandAnalyticsTrials = async (limit: number, now = new Date()) =>
     db.transaction(async tx => {
         if (limit <= 0) return 0;
@@ -29,21 +29,21 @@ export const registerBrandAnalyticsTrials = async (limit: number, now = new Date
             .orderBy(asc(terms.searchFrequencyRank), asc(terms.normalizedTerm))
             .limit(limit)
             .for('update', { skipLocked: true });
-        const themed = await tx
+        const prefixed = await tx
             .select(selection)
             .from(terms)
             .innerJoin(
-                keywordThemes,
+                keywordPrefixes,
                 and(
-                    eq(keywordThemes.marketplaceId, terms.marketplaceId),
-                    eq(keywordThemes.theme, terms.theme)
+                    eq(keywordPrefixes.marketplaceId, terms.marketplaceId),
+                    eq(keywordPrefixes.prefix, terms.prefix)
                 )
             )
             .where(and(unregistered, eq(terms.apparelClicks, 0)))
             .orderBy(asc(terms.searchFrequencyRank), asc(terms.normalizedTerm))
             .limit(limit)
             .for('update', { of: terms, skipLocked: true });
-        const rows = [...apparel, ...themed]
+        const rows = [...apparel, ...prefixed]
             .sort((a, b) => a.rank - b.rank || a.term.localeCompare(b.term))
             .slice(0, limit);
         if (!rows.length) return 0;

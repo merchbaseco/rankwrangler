@@ -8,7 +8,7 @@ import { catalogQueries } from './catalog-search-schema';
 import { discoveryTargets, keywordStandingObservations } from './discovery-target-schema';
 import type { db } from './index';
 import { writeKeywordEvents } from './keyword-events';
-import { registerKeywordThemes } from './keyword-themes';
+import { registerKeywordPrefixes } from './keyword-prefixes';
 import { products } from './product-schema';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -99,7 +99,7 @@ export const observeKeywordStanding = async (
         })
         .where(eq(discoveryTargets.id, target.id));
     if (target.kind === 'keyword' && target.tracking !== 'tracked' && tracking === 'tracked')
-        await registerKeywordThemes(
+        await registerKeywordPrefixes(
             tx,
             [{ queryId: query.id, term: query.normalizedTerm, marketplaceId: query.marketplaceId }],
             now

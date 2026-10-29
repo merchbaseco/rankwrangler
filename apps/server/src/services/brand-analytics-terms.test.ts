@@ -66,7 +66,7 @@ describe('Brand Analytics accumulator', () => {
                     clickedAsins: ['B0NURSE001', 'B0NURSE002', 'B0NURSE003'],
                     apparelClicks: 2,
                     merchProductText: true,
-                    theme: 'nurse',
+                    prefix: 'nurse',
                 },
                 {
                     term: 'teacher blanket',
@@ -74,7 +74,7 @@ describe('Brand Analytics accumulator', () => {
                     clickedAsins: ['B0BLANKET1'],
                     apparelClicks: 0,
                     merchProductText: true,
-                    theme: 'teacher',
+                    prefix: 'teacher',
                 },
             ],
         });
@@ -93,7 +93,7 @@ describe('Brand Analytics accumulator', () => {
                 clickedAsins: ['B0DOGMOM01', 'B0DOGMOM02', 'B0DOGMOM03'],
                 apparelClicks: 1,
                 merchProductText: false,
-                theme: 'dog mom',
+                prefix: 'dog mom',
             },
             {
                 term: 'cat dad',
@@ -101,7 +101,7 @@ describe('Brand Analytics accumulator', () => {
                 clickedAsins: ['B0CATDAD01'],
                 apparelClicks: 1,
                 merchProductText: false,
-                theme: 'cat dad',
+                prefix: 'cat dad',
             },
         ]);
     });

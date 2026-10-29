@@ -23,10 +23,10 @@ export const brandAnalyticsSearchTerms = pgTable(
         searchFrequencyRank: integer('search_frequency_rank').notNull(),
         apparelClicks: integer('apparel_clicks').notNull(),
         // The term itself names a Merch product ("teacher blanket"). Kept even without an apparel
-        // click, but registered only once its theme is a registered keyword theme.
+        // click, but registered only once its prefix is a registered keyword prefix.
         merchProductText: boolean('merch_product_text').notNull().default(false),
-        // extractKeywordTheme(normalizedTerm), matched against keyword_themes at registration.
-        theme: text('theme'),
+        // extractKeywordPrefix(normalizedTerm), matched against keyword_prefixes at registration.
+        prefix: text('prefix'),
         clickedAsins: jsonb('clicked_asins').$type<string[]>().notNull(),
         firstSeenWeek: text('first_seen_week').notNull(),
         lastSeenWeek: text('last_seen_week').notNull(),
@@ -41,9 +41,9 @@ export const brandAnalyticsSearchTerms = pgTable(
         unregistered: index('brand_analytics_search_terms_unregistered_idx')
             .on(table.searchFrequencyRank)
             .where(sql`${table.registeredAt} is null and ${table.apparelClicks} >= 1`),
-        // Product-text terms waiting for their theme to be registered.
-        unregisteredTheme: index('brand_analytics_search_terms_theme_idx')
-            .on(table.theme)
+        // Product-text terms waiting for their prefix to be registered.
+        unregisteredPrefix: index('brand_analytics_search_terms_prefix_idx')
+            .on(table.prefix)
             .where(sql`${table.registeredAt} is null and ${table.apparelClicks} = 0`),
         rank: check(
             'brand_analytics_search_terms_rank_check',

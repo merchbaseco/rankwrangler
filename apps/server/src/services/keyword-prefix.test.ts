@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import {
-    extractKeywordTheme,
+    extractKeywordPrefix,
     merchProductTermKind,
-    themeContains,
-    themeTrialTerms,
-} from './keyword-theme';
+    prefixContains,
+    prefixTrialTerms,
+} from './keyword-prefix';
 
-describe('keyword theme', () => {
+describe('keyword prefix', () => {
     it.each([
         ['teacher shirts for women', 'teacher'],
         ['funny pickleball dad shirt', 'pickleball dad'],
@@ -42,8 +42,8 @@ describe('keyword theme', () => {
         ['a shirt for kids', null],
         ['x shirt', null],
         ['   ', null],
-    ])('extracts the theme of %p', (term: string, theme: string | null) => {
-        expect(extractKeywordTheme(term)).toBe(theme);
+    ])('extracts the prefix of %p', (term: string, prefix: string | null) => {
+        expect(extractKeywordPrefix(term)).toBe(prefix);
     });
 
     it.each([
@@ -65,16 +65,16 @@ describe('keyword theme', () => {
         expect(merchProductTermKind(term)).toBe(kind as never);
     });
 
-    it('matches themes on whole words', () => {
-        expect(themeContains('teacher', 'teacher')).toBe(true);
-        expect(themeContains('funny teacher life', 'teacher')).toBe(true);
-        expect(themeContains('teachers', 'teacher')).toBe(false);
-        expect(themeContains('preschool teacher', 'school teacher')).toBe(false);
+    it('matches prefixes on whole words', () => {
+        expect(prefixContains('teacher', 'teacher')).toBe(true);
+        expect(prefixContains('funny teacher life', 'teacher')).toBe(true);
+        expect(prefixContains('teachers', 'teacher')).toBe(false);
+        expect(prefixContains('preschool teacher', 'school teacher')).toBe(false);
     });
 
-    it('keeps theme autocomplete suggestions that name a product and keep the theme', () => {
+    it('keeps prefix autocomplete suggestions that name a product and keep the prefix', () => {
         expect(
-            themeTrialTerms('teacher', [
+            prefixTrialTerms('teacher', [
                 'teacher shirts',
                 'teacher gifts',
                 'teacher appreciation tumbler',

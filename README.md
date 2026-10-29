@@ -160,11 +160,11 @@ and removes stray trailing commas from search seeds.
 Keywords come from Amazon's weekly Brand Analytics search terms report: terms whose top clicked
 products include apparel become trials, most searched first, and a trial is tracked once its first
 SP-API page shows at least three confirmed Merch listings. Every tracked keyword registers its
-theme ("teacher shirts for women" is "teacher"); a theme admits searches that name any other Merch
-product type with the same theme ("teacher blanket"), and is expanded once through autocomplete. Brand Analytics popularity also sets scan
+prefix ("teacher shirts for women" is "teacher"); a prefix admits searches that name any other Merch
+product type with the same prefix ("teacher blanket"), and is expanded once through autocomplete. Brand Analytics popularity also sets scan
 depth (ten, five or three pages). Collection runs as small jobs (one keyword page, one autocomplete
-call, one report step) behind one queue per provider, fed by a one-minute scheduler that holds back
-new trials and autocomplete seeds while queued scans exceed about two days of capacity. Settings →
+call, one report step) behind one queue per provider, fed by a one-minute scheduler that enqueues
+due scans and keeps a short autocomplete queue topped up; expansion is never held back by scan load. Settings →
 Metrics → Keyword jobs shows queues, the Brand Analytics import, provider readiness and recent runs
 live. See [keyword collection](docs/internals/keyword-mining.md) and
 [background jobs](docs/decisions/background-jobs.md). Not deployed.

@@ -220,7 +220,7 @@ export {
 export { historyAdmissionRollouts } from './history-admission-rollout-schema';
 export { keepaCapacityAttempts, keepaCapacityState } from './keepa-capacity-schema';
 export { keywordAutocomplete, keywordProviderCapacity } from './keyword-autocomplete-schema';
-export { keywordThemes } from './keyword-theme-schema';
+export { keywordPrefixes } from './keyword-prefix-schema';
 export {
     keywordDiscoveryAttempts,
     keywordExplorationPasses,

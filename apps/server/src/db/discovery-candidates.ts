@@ -1,6 +1,6 @@
 import { notifyKeywordDirectoryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
-import { registerKeywordThemes } from './keyword-themes';
+import { registerKeywordPrefixes } from './keyword-prefixes';
 import { and, eq, inArray, sql, getTableColumns } from 'drizzle-orm';
 import {
     normalizeDiscoveryBrand,
@@ -205,8 +205,8 @@ export const recordDiscoveryCandidates = async (
                 },
             }))
     );
-    // A keyword that becomes tracked here (user interest) registers its theme, as graduation does.
-    await registerKeywordThemes(
+    // A keyword that becomes tracked here (user interest) registers its prefix, as graduation does.
+    await registerKeywordPrefixes(
         tx,
         targets
             .filter(

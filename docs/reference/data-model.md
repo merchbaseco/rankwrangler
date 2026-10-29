@@ -190,14 +190,14 @@ Allowed facet families are `profession`, `hobby`, `animal`, `food`, `cause`, `id
 
 Canonical queries and discovery targets own tracked/trial/dormant status, first-page BSR standing,
 intervals and next checks; discovery evidence records each source (`interest`, `brandAnalytics`,
-`autocomplete`, `themeAutocomplete`, and historical `adsRecommendation`). Autocomplete owns a fenced
-once-per-seed ledger with its saved suggestions; keyword themes own their own once-per-theme
+`autocomplete`, `prefixAutocomplete`, and historical `adsRecommendation`). Autocomplete owns a fenced
+once-per-seed ledger with its saved suggestions; keyword prefixes own their own once-per-prefix
 expansion state. Keyword activity shares the event log with Products and jobs.
 
 | Record | Identity | Meaning |
 | --- | --- | --- |
-| Brand Analytics search term | `(marketplaceId, normalizedTerm)` | Latest kept weekly search term: search frequency rank, apparel clicks (0–3), whether the text names a Merch product (at least one of the two holds), its keyword theme, up to three clicked ASINs, first and last seen Sunday week, and trial registration time. No weekly history. |
-| Keyword theme | generated id, unique `(marketplaceId, theme)` | A theme of a tracked keyword (its search text without the Merch product and filler words), the keyword it first came from, and its once-per-theme autocomplete expansion: stage (`pending`, `complete`), saved suggestions, trial count, claim, due time and failure count. |
+| Brand Analytics search term | `(marketplaceId, normalizedTerm)` | Latest kept weekly search term: search frequency rank, apparel clicks (0–3), whether the text names a Merch product (at least one of the two holds), its keyword prefix, up to three clicked ASINs, first and last seen Sunday week, and trial registration time. No weekly history. |
+| Keyword prefix | generated id, unique `(marketplaceId, prefix)` | A prefix of a tracked keyword (its search text without the Merch product and filler words), the keyword it first came from, and its once-per-prefix autocomplete expansion: stage (`pending`, `complete`), saved suggestions, trial count, claim, due time and failure count. |
 | Brand Analytics import | generated id, unique `(marketplaceId, weekStart)` | One weekly report's state (`pending`, `requested`, `ready`, `imported`, `superseded`), report and document ids, Amazon status, retry and claim fields, and row/term/kept/new counts. |
 
 Per-product Ads keyword mining, its candidate judgments and links were removed with the move to

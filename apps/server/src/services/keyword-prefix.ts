@@ -1,7 +1,8 @@
-// Deterministic keyword themes. A theme is what a search is about once the Merch product it names
-// and its audience or filler words are removed: "funny pickleball dad shirts for women" and
-// "pickleball dad mug" share the theme "pickleball dad". Themes let a Merch-proven search
-// vouch for searches of the same theme on other Merch product types, which title rules cannot do.
+// Deterministic keyword prefixes. A prefix broadens a keyword by dropping the Merch product it
+// names and its audience or filler words: "funny pickleball dad shirts for women" and "pickleball
+// dad mug" share the prefix "pickleball dad". Autocomplete expands a prefix back out to other Merch
+// product types, and a Merch-proven prefix vouches for searches of it on them, which title rules
+// cannot do.
 
 export type MerchProductKind =
     | 'apparel'
@@ -53,7 +54,7 @@ export const MERCH_PRODUCT_PHRASES: Readonly<Record<MerchProductKind, readonly s
 
 // Audience and filler words dropped from either end of a term. Style words such as "vintage" and
 // "retro" stay: they are part of what a design is about.
-export const THEME_FILLER_WORDS: ReadonlySet<string> = new Set([
+export const PREFIX_FILLER_WORDS: ReadonlySet<string> = new Set([
     'a',
     'an',
     'and',
@@ -93,25 +94,27 @@ export const THEME_FILLER_WORDS: ReadonlySet<string> = new Set([
     'graphic',
 ]);
 
-// The theme of a search, or null when nothing meaningful remains. Trailing filler is dropped, then
+// The prefix of a search, or null when nothing meaningful remains. Trailing filler is dropped, then
 // at most one product phrase at the end (longest first), then filler at either end. A product word
-// inside the theme survives ("hat trick hockey shirt" is "hat trick hockey").
-export const extractKeywordTheme = (term: string) => parseTerm(term).theme;
+// inside the prefix survives ("hat trick hockey shirt" is "hat trick hockey").
+export const extractKeywordPrefix = (term: string) => parseTerm(term).prefix;
 
 // Which Merch product type the search text itself names, judged by the product phrase at its end
 // once trailing filler is dropped ("teacher shirts for women" names apparel), or null.
 export const merchProductTermKind = (term: string) => parseTerm(term).kind;
 
-// Whether a theme is the seed theme or contains it as whole words ("teacher life" contains
+// Whether a prefix is the seed prefix or contains it as whole words ("teacher life" contains
 // "teacher", "teachers" does not).
-export const themeContains = (theme: string, seed: string) => ` ${theme} `.includes(` ${seed} `);
+export const prefixContains = (prefix: string, seed: string) => ` ${prefix} `.includes(` ${seed} `);
 
-// Autocomplete suggestions for a theme worth trying as keywords: each names a Merch product and
-// keeps the seed theme.
-export const themeTrialTerms = (seed: string, suggestions: readonly string[]) =>
+// Autocomplete suggestions for a prefix worth trying as keywords: each names a Merch product and
+// keeps the seed prefix.
+export const prefixTrialTerms = (seed: string, suggestions: readonly string[]) =>
     suggestions.filter(suggestion => {
         const parsed = parseTerm(suggestion);
-        return parsed.kind !== null && parsed.theme !== null && themeContains(parsed.theme, seed);
+        return (
+            parsed.kind !== null && parsed.prefix !== null && prefixContains(parsed.prefix, seed)
+        );
     });
 
 type Phrase = { tokens: readonly string[]; kind: MerchProductKind };
@@ -129,11 +132,11 @@ const parseTerm = (term: string) => {
     const product = phrases.find(phrase => endsWith(tokens, phrase.tokens)) ?? null;
     if (product) tokens.splice(tokens.length - product.tokens.length);
     dropTrailingFiller(tokens);
-    while (tokens.length && THEME_FILLER_WORDS.has(tokens[0])) tokens.shift();
-    const theme = tokens.join(' ');
+    while (tokens.length && PREFIX_FILLER_WORDS.has(tokens[0])) tokens.shift();
+    const prefix = tokens.join(' ');
     return {
         kind: product?.kind ?? null,
-        theme: theme.length < 2 || phraseKeys.has(theme) ? null : theme,
+        prefix: prefix.length < 2 || phraseKeys.has(prefix) ? null : prefix,
     };
 };
 
@@ -148,7 +151,7 @@ const normalizeTokens = (term: string) =>
         .filter(Boolean);
 
 const dropTrailingFiller = (tokens: string[]) => {
-    while (tokens.length && THEME_FILLER_WORDS.has(tokens[tokens.length - 1])) tokens.pop();
+    while (tokens.length && PREFIX_FILLER_WORDS.has(tokens[tokens.length - 1])) tokens.pop();
 };
 
 const endsWith = (tokens: readonly string[], suffix: readonly string[]) =>

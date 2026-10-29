@@ -39,10 +39,10 @@ export const listDueAutocomplete = async (now: Date, limit: number) =>
         order by a.next_due_at asc nulls last, t.popularity_score desc nulls last, q.id
         limit ${limit}`);
 
-// Keyword themes whose one-time autocomplete expansion has not completed.
-export const listDueThemeAutocomplete = async (now: Date, limit: number) =>
+// Keyword prefixes whose one-time autocomplete expansion has not completed.
+export const listDuePrefixAutocomplete = async (now: Date, limit: number) =>
     db.execute<{ id: string }>(sql`
-        select id from keyword_themes
+        select id from keyword_prefixes
         where marketplace_id='ATVPDKIKX0DER' and stage<>'complete'
             and next_due_at<=${now.toISOString()}::timestamp
             and (claim_at is null or claim_at<=${now.toISOString()}::timestamp-${lease})
