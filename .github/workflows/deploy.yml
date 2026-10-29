@@ -76,19 +76,24 @@ jobs:
           test "$(git rev-parse HEAD)" = "$TARGET_SHA"
           printf 'decision=deploy\ndeployed=true\nsha=%s\n' "$TARGET_SHA" >> "$GITHUB_OUTPUT"
 
+      # `bun run setup` is the frozen install plus the licensed HeroUI Pro dist
+      # download; every token arrives as process env, so it never asks 1Password.
       - name: Install dependencies
         if: steps.sync.outputs.decision != 'skip'
         working-directory: ${{ env.PRODUCTION_CHECKOUT }}
         env:
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-        run: bun install --frozen-lockfile
+          CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+        run: bun run setup
 
+      # The image builds mount the same install tokens as BuildKit secrets.
       - name: Deploy
         if: steps.sync.outputs.decision != 'skip'
         working-directory: ${{ env.PRODUCTION_CHECKOUT }}
         env:
           DEPLOY_AGENT_PRODUCTION_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
+          CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
         run: ${{ env.DEPLOY_COMMAND }}
 
       - name: Verify health
@@ -169,7 +174,19 @@ jobs:
         timeout-minutes: 5
         env:
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-        run: bun install --frozen-lockfile
+          CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+        run: |
+          set -euo pipefail
+          MERCHBASE_HUGEICONS_LICENSE_KEY="$(
+            RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
+            bunx varlock@1.16.1 printenv MERCHBASE_HUGEICONS_LICENSE_KEY
+          )"
+          if [ -z "${MERCHBASE_HUGEICONS_LICENSE_KEY}" ]; then
+            echo "MERCHBASE_HUGEICONS_LICENSE_KEY did not resolve; the licensed @hugeicons-pro packages cannot be installed." >&2
+            exit 1
+          fi
+          export MERCHBASE_HUGEICONS_LICENSE_KEY
+          bun install --frozen-lockfile
 
       - name: Publish packages that are not on npm
         if: steps.pending.outputs.publish == 'true'

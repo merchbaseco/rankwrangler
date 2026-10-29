@@ -25,7 +25,14 @@ import { requireBakedRevision, requireDeployRevision } from "./deploy-revision";
 const bootstrapName = "DEPLOY_AGENT_PRODUCTION_OP_TOKEN";
 const operatorIdentity =
     "op://Automation/Production Varlock - Mac Mini/credential";
-const installTokenName = "MERCHBASE_GITHUB_NPM_TOKEN";
+// Install credentials the image builds mount as BuildKit secrets: private
+// @merchbaseco/* packages, the licensed @hugeicons-pro scope, and the licensed
+// HeroUI Pro dist download (website image).
+const installTokenNames = [
+    "MERCHBASE_GITHUB_NPM_TOKEN",
+    "MERCHBASE_HUGEICONS_LICENSE_KEY",
+    "HEROUI_PRO_CICD_TOKEN",
+] as const;
 const composeFile = "apps/server/compose.yml";
 const projectName = "rankwrangler";
 
@@ -89,35 +96,37 @@ const printenv = (name: string, extraEnv: NodeJS.ProcessEnv = {}) => {
     return fetched.status === 0 ? (fetched.stdout ?? "").trim() : "";
 };
 
-// The Docker build installs private @merchbaseco/* packages through a BuildKit
-// secret mount, which Compose reads from the process environment. On the
-// Actions runner the workflow supplies the token from `github.token`, which is
-// the preferred path and needs no 1Password access at all.
+// The Docker builds install private and licensed packages through BuildKit
+// secret mounts, which Compose reads from the process environment. On the
+// Actions runner the workflow supplies them (`github.token` and repository
+// secrets), which is the preferred path and needs no 1Password access at all.
 //
 // The operator fallback resolves it from the Development vault, NOT the
 // production lifecycle: install credentials belong to the development
 // lifecycle, and under VARLOCK_ENV=production the development 1Password client
 // has no usable authentication (its bootstrap is empty and `allowAppAuth` is
 // false), so an op(development, ...) reference cannot resolve there.
-if (!environment[installTokenName]) {
-    const token = printenv(installTokenName, {
-        VARLOCK_ENV: "development",
-        RANKWRANGLER_RESOLVE_INSTALL_TOKENS: "true",
-    });
-    if (token) {
-        environment[installTokenName] = token;
+for (const installTokenName of installTokenNames) {
+    if (!environment[installTokenName]) {
+        const token = printenv(installTokenName, {
+            VARLOCK_ENV: "development",
+            RANKWRANGLER_RESOLVE_INSTALL_TOKENS: "true",
+        });
+        if (token) {
+            environment[installTokenName] = token;
+        }
     }
-}
-if (!environment[installTokenName]) {
-    console.error(
-        `${installTokenName} did not resolve; the image build cannot install private packages.`
-    );
-    process.exit(1);
+    if (!environment[installTokenName]) {
+        console.error(
+            `${installTokenName} did not resolve; the image build cannot install private or licensed packages.`
+        );
+        process.exit(1);
+    }
 }
 
 // `varlock run` strips @internal items from the child environment, so the
-// image build cannot run under it: Compose would see an empty BuildKit secret
-// and the private-package install would fail. Build with an explicit
+// image build cannot run under it: Compose would see empty BuildKit secrets
+// and the private and licensed installs would fail. Build with an explicit
 // environment instead. Every website build argument is @public, and the ARG
 // list in Dockerfile.caddy is the single source for which ones exist — the
 // contract check keeps it in step with compose.
@@ -168,11 +177,11 @@ const revision = requireDeployRevision();
 
 // Compose parses the whole file and will warn that the server's runtime
 // variables are "not set" during the build. That is expected and harmless:
-// the build only needs the website build arguments and the install token, and
+// the build only needs the website build arguments and the install tokens, and
 // the runtime values are supplied under `varlock run` at `up` time. Say so in
 // the log so the warnings are not misread as a blank deploy.
 console.log(
-    "Building images. Compose warnings about unset runtime variables are expected here — the build only consumes build arguments and the install token."
+    "Building images. Compose warnings about unset runtime variables are expected here — the build only consumes build arguments and the install tokens."
 );
 
 const build = spawnSync(

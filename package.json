@@ -13,7 +13,7 @@
         "build:content": "varlock run -- bun run --filter rankwrangler-extension build:content",
         "build:popup": "varlock run -- bun run --filter rankwrangler-extension build:popup",
         "build:safari": "varlock run -- bun run --filter rankwrangler-extension build:safari",
-        "check": "bun run check:fast && bun run server:build",
+        "check": "bun run check:fast && bun run typecheck:website && bun run server:build",
         "check:fast": "bun run env:check && bun run env:contract && bun run test",
         "cli:build": "bun run http-client:build && bun run --filter @rankwrangler/cli build",
         "cli:test:e2e": "bun run cli:build && bun run --filter @rankwrangler/cli test:e2e",
@@ -58,10 +58,13 @@
         "server:dev": "varlock run -- bun run --filter @rankwrangler/server dev",
         "server:dev:jobs": "varlock run -- bun run --filter @rankwrangler/server dev:jobs",
         "server:start": "varlock run -- bun run --filter @rankwrangler/server start",
+        "setup": "bun scripts/setup-heroui.mjs",
         "tailwind": "bun run --filter rankwrangler-extension tailwind",
-        "test": "bun run http-client:test && bun run extension:test:auth && bun run test:server && bun run test:release",
+        "typecheck:website": "bun run --filter @rankwrangler/website typecheck",
+        "test": "bun run http-client:test && bun run extension:test:auth && bun run test:server && bun run test:release && bun run test:website",
         "test:release": "VARLOCK_ENV=test bun test scripts/release --pass-with-no-tests",
         "test:server": "VARLOCK_ENV=test varlock run --no-redact-stdout -- bun test apps/server/src apps/server/test --pass-with-no-tests",
+        "test:website": "bun run --filter @rankwrangler/website test",
         "website:build": "varlock run -- bun run --filter @rankwrangler/website build",
         "website:dev": "varlock run -- bun run --filter @rankwrangler/website dev",
         "website:preview": "bun run --filter @rankwrangler/website preview"
@@ -91,5 +94,9 @@
     },
     "patchedDependencies": {
         "bottleneck@2.19.5": "patches/bottleneck@2.19.5.patch"
-    }
+    },
+    "trustedDependencies": [
+        "heroui-pro",
+        "@heroui-pro/react"
+    ]
 }

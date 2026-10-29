@@ -47,3 +47,6 @@ stack.env
 .claude/*
 !.claude/commands/
 !.claude/settings.json
+
+# Design skill renders (render.sh output)
+.design/renders/

@@ -30,6 +30,7 @@ services:
       dockerfile: apps/server/Dockerfile
       secrets:
         - github_packages_token
+        - hugeicons_license_key
     image: rankwrangler-server:local
     container_name: rankwrangler-server
     # Prevent crash-looping forever if the app fails fast (e.g. missing env vars).
@@ -90,6 +91,8 @@ services:
       dockerfile: apps/server/Dockerfile.caddy
       secrets:
         - github_packages_token
+        - hugeicons_license_key
+        - heroui_pro_token
       # Every VITE_ value the website bundle reads must be listed here AND
       # declared as an ARG in Dockerfile.caddy — the image never sees the
       # host's environment. `bun run env:contract` enforces both halves.
@@ -127,6 +130,10 @@ volumes:
 secrets:
   github_packages_token:
     environment: MERCHBASE_GITHUB_NPM_TOKEN
+  hugeicons_license_key:
+    environment: MERCHBASE_HUGEICONS_LICENSE_KEY
+  heroui_pro_token:
+    environment: HEROUI_PRO_CICD_TOKEN
 
 networks:
   rankwrangler:

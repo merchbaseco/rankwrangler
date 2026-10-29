@@ -12,8 +12,19 @@ read_when:
 ## Setup
 
 ```bash
-bun install --frozen-lockfile
+bun run setup
 ```
+
+`bun run setup` (`scripts/setup-heroui.mjs`) is the frozen install plus the licensed HeroUI Pro
+download. Three install credentials gate it, all `@internal` schema items resolved under
+`RANKWRANGLER_RESOLVE_INSTALL_TOKENS`: `MERCHBASE_GITHUB_NPM_TOKEN` (`@merchbaseco/*`),
+`MERCHBASE_HUGEICONS_LICENSE_KEY` (the `@hugeicons-pro` scope in `bunfig.toml`), and
+`HEROUI_PRO_CICD_TOKEN`, which the script bridges onto the vendor installer's `HEROUI_AUTH_TOKEN`.
+`bunfig.toml` sets `ignoreScripts`, so a plain `bun install` leaves `@heroui-pro/react` as a bootstrap
+stub with no `dist/`; rerun `bun run setup` after any dependency change, then restart the website dev
+server so Vite rebuilds its optimized dependencies. CI and the deploy runner hold no per-token
+secrets: they put the fleet deploy identity (`GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN`) in the schema's
+`CI_OP_TOKEN` slot, and varlock resolves the licensed tokens from the Development vault.
 
 There is no `.env` step. The committed `.env.schema` is the environment contract: it declares every
 variable's canonical name, type, and sensitivity, and resolves values per lifecycle from 1Password.
@@ -142,7 +153,13 @@ CPU, well under a second all together). It is what the Quality workflow's
 `Check` job runs on every push and pull request. `bun run check` is
 `check:fast` plus `bun run server:build`. Total coverage is unchanged; the
 build simply stops running on every commit, because the Deploy workflow builds
-the image for real on the Mac mini and is the build's proof.
+the image for real on the Mac mini and is the build's proof. `check` also runs
+`bun run typecheck:website` (`tsc --noEmit` over the website, about four
+seconds): it needs the licensed HeroUI Pro dist from `bun run setup`, which the
+`Check` job deliberately does not download. The website tsconfig maps `@/*` to
+its own `src/` first and the server's `src/` second, which is how the tRPC
+`AppRouter` type resolves; keep website and server module paths from
+colliding.
 
 `bun run test:server` runs the server suite the way the gate does, under
 `varlock run` on the schema's `test` lifecycle. That matters: the suite loads
@@ -201,12 +218,14 @@ From the repository root:
 bunx varlock run -- docker compose -p rankwrangler -f apps/server/compose.yml up --build
 ```
 
-`varlock run` supplies every `${VAR}` Compose interpolates. The private-package install token is an
-internal schema item, so `varlock run` does not export it; fetch it explicitly when building by hand:
+`varlock run` supplies every `${VAR}` Compose interpolates. The install tokens the image builds mount
+as BuildKit secrets are internal schema items, so `varlock run` does not export them; fetch them
+explicitly when building by hand:
 
 ```bash
-export MERCHBASE_GITHUB_NPM_TOKEN=$(RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
-  bunx varlock printenv MERCHBASE_GITHUB_NPM_TOKEN)
+for name in MERCHBASE_GITHUB_NPM_TOKEN MERCHBASE_HUGEICONS_LICENSE_KEY HEROUI_PRO_CICD_TOKEN; do
+  export "$name=$(RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true bunx varlock printenv "$name")"
+done
 ```
 
 The Caddy entrypoint is `http://localhost:8090`; PostgreSQL binds to `127.0.0.1:5433`. Images

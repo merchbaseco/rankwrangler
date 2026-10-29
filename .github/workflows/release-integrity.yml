@@ -28,7 +28,20 @@ jobs:
             - name: Install dependencies
               env:
                   MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-              run: bun install --frozen-lockfile
+                  # The workspace install resolves the website's licensed scope.
+                  CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+              run: |
+                set -euo pipefail
+                MERCHBASE_HUGEICONS_LICENSE_KEY="$(
+                  RANKWRANGLER_RESOLVE_INSTALL_TOKENS=true \
+                  bunx varlock@1.16.1 printenv MERCHBASE_HUGEICONS_LICENSE_KEY
+                )"
+                if [ -z "${MERCHBASE_HUGEICONS_LICENSE_KEY}" ]; then
+                  echo "MERCHBASE_HUGEICONS_LICENSE_KEY did not resolve; the licensed @hugeicons-pro packages cannot be installed." >&2
+                  exit 1
+                fi
+                export MERCHBASE_HUGEICONS_LICENSE_KEY
+                bun install --frozen-lockfile
 
             - name: Validate release metadata
               run: bun run release:check
