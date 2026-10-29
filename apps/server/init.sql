@@ -50,7 +50,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- products.amazon_listing_status records whether the Amazon listing is active or deleted),
 -- product_short_names, product_cutout_thumbnails, product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
--- product_history_points, keepa_categories,
+-- product_history_series (compact Keepa series), product_history_points (legacy, until dropped),
+-- keepa_categories,
 --
 -- operations, event_logs, job_executions, job_execution_logs, provider_attempts
 -- catalog_queries (keyword admission, tiers, demand, due dates and research leases),

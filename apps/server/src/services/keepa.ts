@@ -1,21 +1,24 @@
 import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 import { KeepaDispatchDeferredError } from '@/services/keepa-dispatch-deferred';
 import { TRPCError } from '@trpc/server';
-import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { env } from '@/config/env';
 import { db } from '@/db/index';
 import {
-    keepaCategories,
-    productHistoryImports,
-    productHistoryPoints,
-    products,
-} from '@/db/schema';
+    countProductHistoryPoints,
+    readProductHistorySeries,
+} from '@/db/product/product-history-series';
+import { keepaCategories, productHistoryImports, products } from '@/db/schema';
 import {
     keepaHistoryMetricColumns,
     type KeepaHistoryMetricKey,
 } from '@/services/keepa-history-metrics';
 import { ingestKeepaProduct } from '@/services/keepa-product-ingestion';
-import type { NormalizedKeepaHistoryPoint } from '@/services/keepa-product-normalizer';
+import {
+    decodeKeepaHistorySeriesList,
+    type KeepaHistorySeries,
+    selectKeepaHistoryWindow,
+} from '@/services/keepa-history-series';
 import { KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS } from '@/services/keepa-refresh-policy';
 import { createKeepaProvider } from '@/services/providers/keepa/keepa-provider';
 import {
@@ -194,7 +197,11 @@ const loadKeepaProductHistoryOnce = async ({
 
         keepaResponse = dispatchResult.payload;
     } catch (error) {
-        if (error instanceof KeepaDispatchDeferredError || error instanceof KeepaCapacityDeferredError) throw error;
+        if (
+            error instanceof KeepaDispatchDeferredError ||
+            error instanceof KeepaCapacityDeferredError
+        )
+            throw error;
         const errorDetails = extractKeepaErrorDetails(error);
 
         await db.insert(productHistoryImports).values({
@@ -263,11 +270,11 @@ const loadKeepaProductHistoryOnce = async ({
             refillRate: keepaResponse.refillRate ?? null,
         },
     });
-    const parsedPoints = ingestion.normalized.historyPoints;
-    const pointCounts = getPointCountsByMetric(parsedPoints);
+    const parsedSeries = ingestion.normalized.historySeries;
+    const pointCounts = getPointCountsByMetric(parsedSeries);
     await resolveCategoryNames({
         marketplaceId,
-        categoryIds: parsedPoints.map(point => point.categoryId),
+        categoryIds: parsedSeries.map(series => series.categoryId),
     });
 
     return {
@@ -275,7 +282,7 @@ const loadKeepaProductHistoryOnce = async ({
         marketplaceId,
         asin,
         days,
-        pointsStored: parsedPoints.length,
+        pointsStored: Object.values(pointCounts).reduce((sum, value) => sum + value, 0),
         pointCounts,
         tokensConsumed: keepaResponse.tokensConsumed ?? null,
         tokensLeft: keepaResponse.tokensLeft ?? null,
@@ -299,70 +306,24 @@ export const getProductHistoryPoints = async ({
     endAt,
     limit,
 }: GetProductHistoryPointsParams) => {
-    const dbMetric = keepaHistoryMetricColumns[metric];
-    const baseWhereConditions = [
-        eq(productHistoryPoints.marketplaceId, marketplaceId),
-        eq(productHistoryPoints.asin, asin),
-        eq(productHistoryPoints.source, KEEPA_SOURCE),
-        eq(productHistoryPoints.metric, dbMetric),
-    ];
-    const whereConditions = [...baseWhereConditions];
-
+    // Price metrics are not category-scoped; writers store them only under the -1 sentinel.
     const isPriceMetric =
         metric === 'priceAmazon' || metric === 'priceNew' || metric === 'priceNewFba';
-    if (isPriceMetric) {
-        whereConditions.push(eq(productHistoryPoints.categoryId, -1));
-        baseWhereConditions.push(eq(productHistoryPoints.categoryId, -1));
-    }
-
-    if (typeof categoryId === 'number') {
-        whereConditions.push(eq(productHistoryPoints.categoryId, categoryId));
-        baseWhereConditions.push(eq(productHistoryPoints.categoryId, categoryId));
-    }
-
-    if (startAt) {
-        whereConditions.push(gte(productHistoryPoints.observedAt, startAt));
-    }
-
-    if (endAt) {
-        whereConditions.push(lte(productHistoryPoints.observedAt, endAt));
-    }
-
-    const pointsQuery = db
-        .select({
-            categoryId: productHistoryPoints.categoryId,
-            observedAt: productHistoryPoints.observedAt,
-            keepaMinutes: productHistoryPoints.keepaMinutes,
-            valueInt: productHistoryPoints.valueInt,
-            isMissing: productHistoryPoints.isMissing,
-        })
-        .from(productHistoryPoints)
-        .where(and(...whereConditions))
-        .orderBy(desc(productHistoryPoints.observedAt));
-
-    const isRangeBound = Boolean(startAt || endAt);
-    const latestPointsPromise = isRangeBound ? pointsQuery : pointsQuery.limit(limit);
-    const carryPointBeforeStartPromise = startAt
-        ? db
-              .select({
-                  categoryId: productHistoryPoints.categoryId,
-                  observedAt: productHistoryPoints.observedAt,
-                  keepaMinutes: productHistoryPoints.keepaMinutes,
-                  valueInt: productHistoryPoints.valueInt,
-                  isMissing: productHistoryPoints.isMissing,
-              })
-              .from(productHistoryPoints)
-              .where(and(...baseWhereConditions, lt(productHistoryPoints.observedAt, startAt)))
-              .orderBy(desc(productHistoryPoints.observedAt))
-              .limit(1)
-        : Promise.resolve([]);
-
-    const [latestPoints, carryPointBeforeStart, latestImportAt] = await Promise.all([
-        latestPointsPromise,
-        carryPointBeforeStartPromise,
+    const [series, latestImportAt] = await Promise.all([
+        readProductHistorySeries({
+            marketplaceId,
+            asin,
+            source: KEEPA_SOURCE,
+            metric: keepaHistoryMetricColumns[metric],
+            categoryId: categoryId ?? (isPriceMetric ? -1 : undefined),
+        }),
         getLatestSuccessfulKeepaImportAt({ marketplaceId, asin }),
     ]);
-    const points = [...latestPoints, ...carryPointBeforeStart].reverse();
+    const points = selectKeepaHistoryWindow(decodeKeepaHistorySeriesList(series), {
+        startAt,
+        endAt,
+        limit,
+    });
 
     const categoryNames = await resolveCategoryNames({
         marketplaceId,
@@ -492,9 +453,9 @@ const resolveCategoryNames = async ({
     return categoryNames;
 };
 
-const getPointCountsByMetric = (points: NormalizedKeepaHistoryPoint[]) => {
-    return points.reduce<PointCountSummary>((counts, point) => {
-        counts[point.metric] = (counts[point.metric] ?? 0) + 1;
+const getPointCountsByMetric = (seriesList: readonly KeepaHistorySeries[]) => {
+    return seriesList.reduce<PointCountSummary>((counts, series) => {
+        counts[series.metric] = (counts[series.metric] ?? 0) + series.keepaMinutes.length;
         return counts;
     }, {});
 };
@@ -667,7 +628,9 @@ const buildKeepaImportSummaryFromCachedImport = async ({
     importRow: KeepaImportRow;
 }): Promise<KeepaImportSummary> => {
     const pointCounts =
-        importRow.status === 'success' ? await getStoredPointCountsByMetric(productId) : {};
+        importRow.status === 'success'
+            ? await countProductHistoryPoints(productId, KEEPA_SOURCE)
+            : {};
     const pointsStored = Object.values(pointCounts).reduce((sum, value) => sum + value, 0);
 
     return {
@@ -688,29 +651,6 @@ const buildKeepaImportSummaryFromCachedImport = async ({
         errorMessage: importRow.errorMessage,
         responsePayload: importRow.responsePayload,
     };
-};
-
-const getStoredPointCountsByMetric = async (productId: string): Promise<PointCountSummary> => {
-    const rows = await db
-        .select({
-            metric: productHistoryPoints.metric,
-            count: sql<number>`count(*)::int`,
-        })
-        .from(productHistoryPoints)
-        .where(
-            and(
-                eq(productHistoryPoints.productId, productId),
-                eq(productHistoryPoints.source, KEEPA_SOURCE)
-            )
-        )
-        .groupBy(productHistoryPoints.metric);
-
-    const pointCounts: PointCountSummary = {};
-    for (const row of rows) {
-        pointCounts[row.metric] = row.count;
-    }
-
-    return pointCounts;
 };
 
 const getDaysFromRequestParams = (requestParams: Record<string, unknown>, fallbackDays: number) => {

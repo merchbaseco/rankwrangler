@@ -5,7 +5,9 @@ import { db } from '@/db/index';
 import { searchStoredProducts } from '@/db/product-search';
 import { readProductSearchFacets } from '@/db/product-search-facets';
 import { countStoredProducts, EXACT_TOTAL_LIMIT } from '@/db/product-search-total';
-import { productFacets, productFacetValues, productHistoryPoints, products } from '@/db/schema';
+import { writeProductHistorySeries } from '@/db/product/product-history-series';
+import { productFacets, productFacetValues, products } from '@/db/schema';
+import { buildKeepaHistorySeries, dateToKeepaMinute } from '@/services/keepa-history-series';
 
 const market = 'ATVPDKIKX0DER';
 const now = new Date('2026-10-28T15:00:00Z');
@@ -178,12 +180,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Explore grid searc
         const rising = await insertProduct('B0RISING01');
         const falling = await insertProduct('B0FALLING1');
         const fresh = await insertProduct('B0FRESH001');
-        await insertRank(rising.id, rising.asin, daysAgo(10), 50_000);
-        await insertRank(rising.id, rising.asin, daysAgo(1), 20_000);
-        await insertRank(falling.id, falling.asin, daysAgo(9), 20_000);
-        await insertRank(falling.id, falling.asin, daysAgo(2), 40_000);
+        await insertRank(rising.id, daysAgo(10), 50_000);
+        await insertRank(rising.id, daysAgo(1), 20_000);
+        await insertRank(falling.id, daysAgo(9), 20_000);
+        await insertRank(falling.id, daysAgo(2), 40_000);
         // History that starts inside the week has nothing to compare against.
-        await insertRank(fresh.id, fresh.asin, daysAgo(3), 1_000);
+        await insertRank(fresh.id, daysAgo(3), 1_000);
         expect((await facets({})).improving7dShare).toBe(0.5);
     });
 });
@@ -224,16 +226,11 @@ const attachFacet = async (asin: string, facet: string, name: string) => {
     await db.insert(productFacets).values({ productId: product.id, facetValueId: value.id });
 };
 
-const insertRank = async (productId: string, asin: string, at: Date, value: number) => {
-    await db.insert(productHistoryPoints).values({
-        productId,
-        marketplaceId: market,
-        asin,
+const insertRank = async (productId: string, at: Date, value: number) => {
+    const series = buildKeepaHistorySeries('bsr_main', -1, [[dateToKeepaMinute(at), value]]);
+    if (!series) throw new Error('Invalid test rank');
+    await writeProductHistorySeries(db, productId, [series], {
         source: 'keepa',
-        metric: 'bsr_main',
-        categoryId: -1,
-        observedAt: at,
-        keepaMinutes: Math.floor(at.getTime() / 60_000),
-        valueInt: value,
+        prefer: 'incoming',
     });
 };

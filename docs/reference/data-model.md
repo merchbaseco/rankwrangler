@@ -33,7 +33,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Product facet value | `(facet, name)` | Reusable normalized classification value. |
 | Product facet assignment | `(productId, facetValueId)` | Current product-to-facet membership. |
 | History import | generated id | One Keepa import attempt, request context, provider accounting, and outcome. |
-| History point | `(productId, source, metric, categoryId, keepaMinutes)` | One source observation at one Keepa timestamp. |
+| History series | `(productId, source, metric, categoryId)` | Every source observation for one metric and category, as parallel Keepa-minute and value arrays. |
 | Keepa category | `(marketplaceId, categoryId)` | Display name for a Keepa category id. |
 | Search-term row | `(snapshotId, searchTerm)` | Rank and top-three click/conversion shares for one term in one snapshot. |
 | Operation | generated id; unique pending `(type, targetKey)` | Durable coordination record and terminal resource or safe error. |
@@ -143,17 +143,21 @@ Price uses integer minor units: `amountMinor: 1999` with `currencyCode: "USD"` m
 
 The public projection below is the accepted target. Stored source observations remain current.
 
-History points retain source-level observations rather than one daily row. Important fields:
+History retains source-level observations rather than one daily row. Each stored series holds
+every observation of one metric for one Product and category; reads decode it into points:
 
 | Field | Meaning |
 | --- | --- |
 | `source` | Provider that produced the observation; currently Keepa. |
 | `metric` | Provider metric such as `bsrMain`, `bsrCategory`, or `priceNew`. |
 | `categoryId` | BSR category; `-1` is the sentinel for metrics without a category. |
-| `observedAt` | Normal timestamp used by RankWrangler queries. |
-| `keepaMinutes` | Original Keepa time coordinate used for idempotent storage. |
-| `valueInt` | Integer value: rank for BSR, minor currency units for price. |
-| `isMissing` | Provider explicitly represented the value as missing. |
+| `keepaMinutes` | Stored, ascending: the original Keepa time coordinate of each point. |
+| `keepaValues` | Stored, parallel: rank for BSR, minor currency units for price; `-1` when missing. |
+| `observedAt` | Decoded from `keepaMinutes`; the timestamp RankWrangler queries use. |
+| `valueInt` | Decoded: the value, or null when missing. |
+| `isMissing` | Decoded: the provider explicitly represented the value as missing. |
+
+See [Product history](../internals/product-history.md#storage-format) for the encoding and merge.
 
 Public responses project those observations under `series.salesRank` and `series.price`, with the
 requested range and a resolved `day`, `week`, or `month` `interval`. A point is

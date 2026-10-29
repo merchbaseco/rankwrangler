@@ -4,7 +4,11 @@ import {
     KEEPA_MAIN_CATEGORY_ID,
     keepaHistoryMetricColumns,
 } from '@/services/keepa-history-metrics';
-import { dateToKeepaMinute } from '@/services/keepa-product-normalizer';
+import {
+    buildKeepaHistorySeries,
+    dateToKeepaMinute,
+    KEEPA_MISSING_VALUE,
+} from '@/services/keepa-history-series';
 
 /**
  * Keepa change points for the Products the catalog marks as having history, so
@@ -28,7 +32,7 @@ const PRICE_CHANGE_RATE = 0.12;
 const CATEGORY_SERIES_PRODUCTS = 1;
 
 export interface HistoryBuild {
-    readonly productHistoryPoints: DevSeedPlan['productHistoryPoints'];
+    readonly productHistorySeries: DevSeedPlan['productHistorySeries'];
     readonly productHistoryImports: DevSeedPlan['productHistoryImports'];
 }
 
@@ -36,8 +40,8 @@ export const buildHistory = (
     context: BuilderContext,
     seedProducts: readonly SeedProduct[]
 ): HistoryBuild => {
-    const { random, now, marketplaceId, mintId, options } = context;
-    const points: PlanRows<'productHistoryPoints'> = [];
+    const { random, now, options } = context;
+    const series: PlanRows<'productHistorySeries'> = [];
     const imports: PlanRows<'productHistoryImports'> = [];
     const tracked = seedProducts.filter(product => product.hasHistory);
 
@@ -46,32 +50,23 @@ export const buildHistory = (
         const baseRank = product.rootCategoryBsr ?? 400_000;
         let rank = Math.max(1, Math.round(baseRank * random.between(1.05, 1.4)));
         let price = product.currentNewPrice + random.int(-400, 400);
-        const rankPoint = (observedAt: Date, valueInt: number) => ({
-            id: mintId('historyPoint'),
-            productId: product.id,
-            marketplaceId,
-            asin: product.asin,
-            source: 'keepa',
-            metric: keepaHistoryMetricColumns.bsrMain,
-            categoryId: KEEPA_MAIN_CATEGORY_ID,
-            observedAt,
-            keepaMinutes: dateToKeepaMinute(observedAt),
-            valueInt,
-            isMissing: false,
-        });
-        points.push(
-            rankPoint(
-                shiftMs(now, -PEAK_DAYS_AGO * DAY_MS),
-                Math.max(1, Math.round(baseRank * random.between(0.25, 0.5)))
-            )
+        const rankPairs: [number, number][] = [];
+        const categoryPairs: [number, number][] = [];
+        const pricePairs: [number, number][] = [];
+        const rankPoint = (observedAt: Date, value: number) => {
+            rankPairs.push([dateToKeepaMinute(observedAt), value]);
+        };
+        rankPoint(
+            shiftMs(now, -PEAK_DAYS_AGO * DAY_MS),
+            Math.max(1, Math.round(baseRank * random.between(0.25, 0.5)))
         );
         for (let day = QUARTER_DAYS; day > SPARKLINE_DAYS; day -= QUARTER_STEP_DAYS) {
             rank = Math.max(1, Math.round(rank * random.between(0.88, 1.12)));
-            points.push(rankPoint(shiftMs(now, -day * DAY_MS), rank));
+            rankPoint(shiftMs(now, -day * DAY_MS), rank);
         }
         for (let day = SPARKLINE_DAYS; day > options.dayCount; day -= 1) {
             rank = Math.max(1, Math.round(rank * random.between(0.85, 1.15)));
-            points.push(rankPoint(shiftMs(now, -day * DAY_MS), rank));
+            rankPoint(shiftMs(now, -day * DAY_MS), rank);
         }
 
         for (let step = pointCount; step >= 0; step -= 1) {
@@ -80,43 +75,52 @@ export const buildHistory = (
             // the catalog row says it should.
             const pull = (baseRank - rank) * 0.12;
             rank = Math.max(1, Math.round(rank + pull + random.normal() * baseRank * 0.06));
-            points.push(rankPoint(observedAt, rank));
+            rankPoint(observedAt, rank);
 
             if (productIndex < CATEGORY_SERIES_PRODUCTS) {
-                points.push({
-                    id: mintId('historyPoint'),
-                    productId: product.id,
-                    marketplaceId,
-                    asin: product.asin,
-                    source: 'keepa',
-                    metric: keepaHistoryMetricColumns.bsrCategory,
-                    categoryId: product.rootCategoryId,
-                    observedAt,
-                    keepaMinutes: dateToKeepaMinute(observedAt),
-                    valueInt: Math.max(1, Math.round(rank * 0.22)),
-                    isMissing: false,
-                });
+                categoryPairs.push([
+                    dateToKeepaMinute(observedAt),
+                    Math.max(1, Math.round(rank * 0.22)),
+                ]);
             }
 
             if (step === pointCount || random.chance(PRICE_CHANGE_RATE)) {
                 const outOfStock = random.chance(0.04);
                 price = Math.max(999, price + random.int(-250, 250));
-                points.push({
-                    id: mintId('historyPoint'),
-                    productId: product.id,
-                    marketplaceId,
-                    asin: product.asin,
-                    source: 'keepa',
-                    metric: keepaHistoryMetricColumns.priceNew,
-                    categoryId: KEEPA_MAIN_CATEGORY_ID,
-                    observedAt,
-                    keepaMinutes: dateToKeepaMinute(observedAt),
-                    // A missing point is Keepa's "no offer", and the chart has
-                    // to survive one.
-                    valueInt: outOfStock ? null : price,
-                    isMissing: outOfStock,
-                });
+                // A missing point is Keepa's "no offer", and the chart has to survive one.
+                pricePairs.push([
+                    dateToKeepaMinute(observedAt),
+                    outOfStock ? KEEPA_MISSING_VALUE : price,
+                ]);
             }
+        }
+
+        for (const built of [
+            buildKeepaHistorySeries(
+                keepaHistoryMetricColumns.bsrMain,
+                KEEPA_MAIN_CATEGORY_ID,
+                rankPairs
+            ),
+            buildKeepaHistorySeries(
+                keepaHistoryMetricColumns.bsrCategory,
+                product.rootCategoryId,
+                categoryPairs
+            ),
+            buildKeepaHistorySeries(
+                keepaHistoryMetricColumns.priceNew,
+                KEEPA_MAIN_CATEGORY_ID,
+                pricePairs
+            ),
+        ]) {
+            if (!built) continue;
+            series.push({
+                productId: product.id,
+                source: 'keepa',
+                metric: built.metric,
+                categoryId: built.categoryId,
+                keepaMinutes: [...built.keepaMinutes],
+                keepaValues: [...built.values],
+            });
         }
 
         imports.push(
@@ -158,7 +162,7 @@ export const buildHistory = (
         );
     }
 
-    return { productHistoryImports: imports, productHistoryPoints: points };
+    return { productHistoryImports: imports, productHistorySeries: series };
 };
 
 const buildImport = ({

@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { appProductSearchInput, productSearchInput } from '@/api/product-search-input';
 import { db } from '@/db/index';
 import { getProductAppDetail } from '@/db/product/product-app-detail';
+import { writeProductHistorySeries } from '@/db/product/product-history-series';
 import { readBsrSparklines } from '@/db/product/product-bsr-sparklines';
 import { listProductKeywords } from '@/db/product-keywords';
 import {
@@ -12,11 +13,15 @@ import {
     catalogSearchRuns,
     keywordProducts,
     operations,
-    productHistoryPoints,
     productShortNames,
     products,
 } from '@/db/schema';
 import { readStatsSummary } from '@/db/stats-summary';
+import {
+    buildKeepaHistorySeries,
+    dateToKeepaMinute,
+    KEEPA_MISSING_VALUE,
+} from '@/services/keepa-history-series';
 import { searchAppProducts } from '@/services/product-app-search';
 import { getShortNameInputFingerprint } from '@/services/product-short-name-request';
 import type { ProductInfo } from '@/types';
@@ -39,8 +44,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('dashboard Product 
     it('samples a daily BSR sparkline with carry-in and omits days before history', async () => {
         const product = await insertProduct('B0APP00001');
         await insertRank(product, now.getTime() - 40 * DAY, 9_000);
-        await insertRank(product, now.getTime() - 3 * DAY - 1000, 4_000);
-        await insertRank(product, now.getTime() - 3 * DAY + 1000, 0, true);
+        // Keepa time resolves to the minute, so the two points straddle the sample by one.
+        await insertRank(product, now.getTime() - 3 * DAY - 60_000, 4_000);
+        await insertRank(product, now.getTime() - 3 * DAY + 60_000, 0, true);
         const fresh = await insertProduct('B0APP00002');
         await insertRank(fresh, now.getTime() - 1.5 * DAY, 700);
         const lines = await readBsrSparklines(
@@ -169,20 +175,13 @@ const insertProduct = async (asin: string, extra: Partial<typeof products.$infer
 };
 
 const insertRank = async (productId: string, at: number, value: number, missing = false) => {
-    const [product] = await db.execute<{ asin: string }>(
-        sql`select asin from products where id=${productId}`
-    );
-    await db.insert(productHistoryPoints).values({
-        productId,
-        marketplaceId: market,
-        asin: product.asin,
+    const series = buildKeepaHistorySeries('bsr_main', -1, [
+        [dateToKeepaMinute(new Date(at)), missing ? KEEPA_MISSING_VALUE : value],
+    ]);
+    if (!series) throw new Error('Invalid test rank');
+    await writeProductHistorySeries(db, productId, [series], {
         source: 'keepa',
-        metric: 'bsr_main',
-        categoryId: -1,
-        observedAt: new Date(at),
-        keepaMinutes: Math.floor(at / 60_000),
-        valueInt: missing ? null : value,
-        isMissing: missing,
+        prefer: 'incoming',
     });
 };
 

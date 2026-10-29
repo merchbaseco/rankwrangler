@@ -2,6 +2,7 @@ import { type SQL, sql } from 'drizzle-orm';
 import type { ProductSearchFacetsInput } from '@/api/product-search-input';
 import { type BsrTier, bsrHistogramBuckets, bsrTierKeys } from '@/services/bsr-tiers';
 import { keepaHistoryMetricColumns } from '@/services/keepa-history-metrics';
+import { lastKeepaMinuteAt } from '@/services/keepa-history-series';
 import { db } from './index';
 import { products } from './product-schema';
 import { productSearchFilters } from './product-search-filters';
@@ -15,6 +16,8 @@ import {
 /** Products sampled (uniformly, by random UUID order) for the seven-day improvement share. */
 export const IMPROVING_SAMPLE_SIZE = 2_000;
 const DAY_MS = 86_400_000;
+/** Latest points read first for the improvement share; a week of rank changes rarely exceeds it. */
+const SERIES_TAIL = 256;
 
 /**
  * Explore's sidebar counts and KPI bands in one scan of the Products matching every non-sidebar
@@ -134,28 +137,35 @@ export const readProductSearchFacets = async (
  */
 const readImprovingShare = async (input: ProductSearchFacetsInput, now: Date) => {
     const { where } = productSearchFilters(input, now);
-    const at = now.toISOString();
-    const weekAgo = new Date(now.getTime() - 7 * DAY_MS).toISOString();
+    const current = lastKeepaMinuteAt(now);
+    const weekAgo = lastKeepaMinuteAt(new Date(now.getTime() - 7 * DAY_MS));
     const metric = keepaHistoryMetricColumns.bsrMain;
+    // Series are sorted, so only the tail matters: when its first point is at or before a week
+    // ago, the whole answer is inside it, and only longer weeks scan the full series.
+    // max(array[minute, value]) then picks the latest point at or before each instant in one pass.
     const [row] = await db.execute<{ improved: number; compared: number }>(sql`
-        select count(*) filter (where current.value_int < previous.value_int)::int improved,
+        select count(*) filter (where history.current_value < history.previous_value)::int improved,
             count(*)::int compared
         from (
-            select ${products.marketplaceId} marketplace_id, ${products.asin} asin from ${products}
+            select ${products.id} id from ${products}
             where ${where} order by ${products.id} limit ${IMPROVING_SAMPLE_SIZE}
         ) sample
         cross join lateral (
-            select h.value_int from product_history_points h
-            where h.marketplace_id = sample.marketplace_id and h.asin = sample.asin
-                and h.metric = ${metric} and h.observed_at <= ${at}::timestamp
-            order by h.observed_at desc limit 1
-        ) current
-        cross join lateral (
-            select h.value_int from product_history_points h
-            where h.marketplace_id = sample.marketplace_id and h.asin = sample.asin
-                and h.metric = ${metric} and h.observed_at <= ${weekAgo}::timestamp
-            order by h.observed_at desc limit 1
-        ) previous
-        where current.value_int is not null and previous.value_int is not null`);
+            select (max(array[h.m, h.v]) filter (where h.m <= ${current}))[2] current_value,
+                (max(array[h.m, h.v]) filter (where h.m <= ${weekAgo}))[2] previous_value
+            from product_history_series s
+            cross join lateral (
+                select greatest(cardinality(s.keepa_minutes) - ${SERIES_TAIL - 1}, 1) as tail_start
+            ) tail
+            cross join lateral unnest(
+                case when s.keepa_minutes[tail.tail_start] <= ${weekAgo}
+                    then s.keepa_minutes[tail.tail_start:] else s.keepa_minutes end,
+                case when s.keepa_minutes[tail.tail_start] <= ${weekAgo}
+                    then s.keepa_values[tail.tail_start:] else s.keepa_values end
+            ) h(m, v)
+            where s.product_id = sample.id and s.source = 'keepa' and s.metric = ${metric}
+                and h.m <= ${current}
+        ) history
+        where history.current_value >= 0 and history.previous_value >= 0`);
     return row?.compared ? row.improved / row.compared : null;
 };

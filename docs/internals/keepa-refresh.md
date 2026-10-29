@@ -11,7 +11,7 @@ read_when:
 implemented. The migration must be applied before deployment.
 
 All Keepa Product loads use one normalization and persistence path. A successful payload updates
-current Product metrics, deduplicated history points, import provenance, Product freshness, and
+current Product metrics, merged history series, import provenance, Product freshness, and
 obsolete pending Keepa queue work atomically.
 
 ## Freshness Contract

@@ -18,7 +18,7 @@ import {
     productFacets,
     productFacetValues,
     productHistoryImports,
-    productHistoryPoints,
+    productHistorySeries,
     productShortNames,
     products,
     providerAttempts,
@@ -61,7 +61,7 @@ const CLEAR_STEPS = [
     // Work the app started against a seeded Product (a Keepa history refresh) can never
     // finish for a synthetic ASIN; a stale pending one would keep its page "syncing".
     { column: 'target_key', table: operations, like: `%:${DEV_SEED_ASIN_LIKE}` },
-    { column: 'id', table: productHistoryPoints },
+    { column: 'product_id', table: productHistorySeries },
     { column: 'id', table: productHistoryImports },
     { column: 'product_id', table: productFacets },
     { column: 'id', table: productFacetValues },
@@ -92,13 +92,13 @@ const INSERT_TABLES: Record<DevSeedTableKey, Parameters<typeof db.insert>[0]> = 
     productFacetValues,
     productFacets,
     productHistoryImports,
-    productHistoryPoints,
+    productHistorySeries,
     products,
     productShortNames,
     providerAttempts,
 };
 
-/** Postgres caps a statement at 65535 bindings; history points are the widest rows. */
+/** Postgres caps a statement at 65535 bindings; chunks keep the widest rows well under it. */
 const INSERT_CHUNK_SIZE = 500;
 
 export interface DevSeedWriteReport {

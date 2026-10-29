@@ -319,6 +319,7 @@ bun test \
     apps/server/test/product-search.db.test.ts \
     apps/server/test/product-search-grid.db.test.ts \
     apps/server/test/product-app-reads.db.test.ts \
+    apps/server/test/product-history-series.db.test.ts \
     apps/server/test/merch-listing-classification.db.test.ts \
     apps/server/test/product-short-name.db.test.ts \
     apps/server/test/product-cutout-thumbnail.db.test.ts \

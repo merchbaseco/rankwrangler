@@ -1,14 +1,10 @@
 import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
 import { and, eq, ne, sql } from 'drizzle-orm';
 import type { db } from '@/db/index';
-import {
-    keepaHistoryRefreshQueue,
-    productHistoryImports,
-    productHistoryPoints,
-    products,
-} from '@/db/schema';
+import { keepaHistoryRefreshQueue, productHistoryImports, products } from '@/db/schema';
 import type { NormalizedKeepaProduct } from '@/services/keepa-product-normalizer';
 import type { KeepaIngestionImport } from './persist-keepa-product-ingestion';
+import { writeProductHistorySeries } from './product-history-series';
 import { reconcileMerchListing, reconcileSellerBullet } from './reconcile-merch-listing';
 
 export type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -104,8 +100,8 @@ export const persistKeepaProductRow = async (
     return storedProduct.id;
 };
 
-// The Keepa import record and its history points, replacing earlier successful imports. A year of
-// points for a Product is thousands of upserts, the slow part of saving a Keepa payload.
+// The Keepa import record and its history series, replacing earlier successful imports. Each
+// metric's series merges into the stored one in a single upsert per Product.
 export const persistKeepaProductHistory = async (
     transaction: DatabaseTransaction,
     productId: string,
@@ -139,39 +135,10 @@ export const persistKeepaProductHistory = async (
         throw new Error(`Failed to record Keepa import for ${product.asin}`);
     }
 
-    for (let index = 0; index < normalized.historyPoints.length; index += 500) {
-        const points = normalized.historyPoints.slice(index, index + 500);
-        await transaction
-            .insert(productHistoryPoints)
-            .values(
-                points.map(point => ({
-                    productId,
-                    marketplaceId: product.marketplaceId,
-                    asin: product.asin,
-                    source: 'keepa',
-                    metric: point.metric,
-                    categoryId: point.categoryId,
-                    observedAt: point.observedAt,
-                    keepaMinutes: point.keepaMinutes,
-                    valueInt: point.valueInt,
-                    isMissing: point.isMissing,
-                }))
-            )
-            .onConflictDoUpdate({
-                target: [
-                    productHistoryPoints.productId,
-                    productHistoryPoints.source,
-                    productHistoryPoints.metric,
-                    productHistoryPoints.categoryId,
-                    productHistoryPoints.keepaMinutes,
-                ],
-                set: {
-                    observedAt: sql`excluded.observed_at`,
-                    valueInt: sql`excluded.value_int`,
-                    isMissing: sql`excluded.is_missing`,
-                },
-            });
-    }
+    await writeProductHistorySeries(transaction, productId, normalized.historySeries, {
+        source: 'keepa',
+        prefer: 'incoming',
+    });
 
     await transaction
         .delete(productHistoryImports)

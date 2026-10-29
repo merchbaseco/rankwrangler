@@ -58,12 +58,20 @@ describe('normalizeKeepaProduct', () => {
             keepaSourceUpdatedAt: new Date('2020-07-04T22:00:00.000Z'),
             keepaFetchedAt: fetchedAt,
         });
-        expect(result.historyPoints).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ metric: 'bsr_main', valueInt: 54_321 }),
-                expect.objectContaining({ metric: 'price_new', valueInt: 1_999 }),
-            ])
-        );
+        expect(result.historySeries).toEqual([
+            {
+                metric: 'bsr_main',
+                categoryId: 12_345,
+                keepaMinutes: [5_000_900, 5_001_000],
+                values: [60_000, 54_321],
+            },
+            {
+                metric: 'price_new',
+                categoryId: -1,
+                keepaMinutes: [5_000_900, 5_001_000],
+                values: [2_099, 1_999],
+            },
+        ]);
     });
 
     it('does not turn Keepa missing-value sentinels into product metrics', () => {
@@ -129,12 +137,7 @@ describe('normalizeKeepaProduct', () => {
                 stats: {
                     current: [-1, -1, -1, -1],
                 },
-                csv: [
-                    [],
-                    [5_001_000, 1_999],
-                    [],
-                    [5_001_000, 54_321],
-                ],
+                csv: [[], [5_001_000, 1_999], [], [5_001_000, 54_321]],
             },
         });
 

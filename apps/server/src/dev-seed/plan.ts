@@ -69,7 +69,7 @@ export const buildDevSeedPlan = (overrides: Partial<DevSeedOptions> = {}): DevSe
         productFacetValues: catalog.productFacetValues,
         productFacets: catalog.productFacets,
         productHistoryImports: history.productHistoryImports,
-        productHistoryPoints: history.productHistoryPoints,
+        productHistorySeries: history.productHistorySeries,
         products: catalog.products,
         productShortNames: keywords.productShortNames,
         providerAttempts: activity.providerAttempts,

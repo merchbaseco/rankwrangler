@@ -23,7 +23,6 @@ export type DevSeedEntity =
     | 'product'
     | 'facetValue'
     | 'category'
-    | 'historyPoint'
     | 'historyImport'
     | 'catalogQuery'
     | 'catalogRun'
@@ -46,7 +45,6 @@ const ENTITY_LANES: Record<DevSeedEntity, number> = {
     product: 1,
     facetValue: 2,
     category: 3,
-    historyPoint: 4,
     historyImport: 5,
     catalogQuery: 6,
     catalogRun: 7,

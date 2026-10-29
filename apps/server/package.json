@@ -17,6 +17,7 @@
         "database:verify": "tsx src/index.ts --verify-migrations",
         "dev": "tsx src/index.ts",
         "dev:jobs": "RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=false tsx src/index.ts",
+        "history:backfill-series": "varlock run -p ../../.env.schema -- bun src/scripts/backfill-product-history-series.ts",
         "merch:reclassify": "varlock run -p ../../.env.schema -- bun src/scripts/reclassify-merch-listings.ts",
         "start": "node dist/index.js",
         "test:catalog-db": "VARLOCK_ENV=test varlock run -p ../../.env.schema -- bash test/run-catalog-db-tests.sh",

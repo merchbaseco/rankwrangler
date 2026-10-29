@@ -134,9 +134,8 @@ export const persistCatalogSearchSuccess = async ({
 
         return { runId: run.id, productIds };
     });
-    // History points are thousands of upserts per Product. Saving them inside the transaction above
-    // held the keyword lock and the caller for tens of seconds while sync loaded the database, so
-    // the results are committed first and each Product's history follows in its own transaction.
+    // History is saved after the results commit, each Product in its own transaction, so the keyword
+    // lock and the caller never wait on it and a failed history save cannot fail the search.
     for (const [index, result] of orderedResults.entries()) {
         const productId = saved.productIds[index];
         if (!productId) continue;

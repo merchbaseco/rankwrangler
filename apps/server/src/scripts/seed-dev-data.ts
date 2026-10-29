@@ -136,7 +136,7 @@ const printReceipt = ({
     );
     console.log(`[Seed]   Products        ${summary.products}`);
     console.log(`[Seed]   Catalog queries ${summary.catalogQueries}`);
-    console.log(`[Seed]   History points  ${summary.productHistoryPoints}`);
+    console.log(`[Seed]   History series  ${summary.productHistorySeries}`);
     console.log(`[Seed]   Log rows        ${logs}`);
     console.log(`[Seed]   Total rows      ${total}`);
     console.log('[Seed] ──────────────────────────────────────────────────────────');

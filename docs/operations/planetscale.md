@@ -9,8 +9,9 @@ read_when:
 # Move RankWrangler to PlanetScale
 
 Run a disposable restore before changing production connections. Keep the current tables and exact
-Keepa change points for the hosting move. Evaluate compact history separately on a restored copy.
-Daily bucketing is a read projection and does not preserve every original observation.
+Keepa change points for the hosting move. History is already compact: `product_history_series`
+keeps every original observation as per-metric arrays. Daily bucketing is a read projection and
+does not preserve every original observation.
 
 ## Configure connections
 

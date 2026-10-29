@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { keepaHistoryMetricColumns } from '@/services/keepa-history-metrics';
+import { keepaMinuteToDate } from '@/services/keepa-history-series';
 import type { ProductInfo } from '@/types';
 import { enrichmentKey, readStoredProductEnrichments } from './product-stored-enrichment';
 
@@ -58,15 +59,13 @@ const countBrandDesigns = async (product: ProductInfo) => {
 };
 
 const readBestEverBsr = async (product: ProductInfo) => {
-    const [row] = await db.execute<{ value: number; at: string }>(sql`
-        select value_int value,observed_at at from product_history_points
-        where marketplace_id=${product.marketplaceId} and asin=${product.asin}
-            and metric=${keepaHistoryMetricColumns.bsrMain} and value_int is not null
-        order by value_int asc,observed_at asc limit 1`);
-    return row ? { value: row.value, at: utcTimestamp(row.at) } : null;
+    const [row] = await db.execute<{ value: number; keepaMinutes: number }>(sql`
+        select h.v value, h.m "keepaMinutes"
+        from products p
+        join product_history_series s on s.product_id=p.id and s.source='keepa'
+            and s.metric=${keepaHistoryMetricColumns.bsrMain}
+        cross join lateral unnest(s.keepa_minutes, s.keepa_values) h(m,v)
+        where p.marketplace_id=${product.marketplaceId} and p.asin=${product.asin} and h.v>=0
+        order by h.v asc, h.m asc limit 1`);
+    return row ? { value: row.value, at: keepaMinuteToDate(row.keepaMinutes).toISOString() } : null;
 };
-
-const utcTimestamp = (value: string | Date) =>
-    value instanceof Date
-        ? value.toISOString()
-        : new Date(`${value.replace(' ', 'T')}Z`).toISOString();

@@ -99,10 +99,10 @@ will authenticate as, the day the week runs through, and the row counts behind e
 [Seed]   Through day     2026-08-26 (7 days from 2026-08-20)
 [Seed]   Products        64
 [Seed]   Catalog queries 10
-[Seed]   History points  1829
+[Seed]   History series  117
 [Seed]   Search terms    710
 [Seed]   Log rows        245
-[Seed]   Total rows      3389
+[Seed]   Total rows      1677
 ```
 
 Two properties are load-bearing.

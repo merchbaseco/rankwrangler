@@ -58,9 +58,8 @@ not issue a follow-up Keepa request for every ASIN. Available bullet evidence in
 classified immediately through the shared Merch classifier; the workflow does not wait for SP-API.
 One transaction persists the Product rows and current Keepa metrics, writes the immutable run and
 ordered results, advances query freshness, and completes the Operation. Each Product's Keepa import
-record and history points follow in their own transactions after that commit: a year of points is
-thousands of upserts, and holding them in the first transaction kept callers and the keyword lock
-waiting tens of seconds while keyword sync loaded the database. A failed history save is logged and
+record and history series follow in their own transactions after that commit, so the keyword lock
+and the caller never wait on history writes. A failed history save is logged and
 does not fail the search. The worker runs three searches at once, so a live search never waits
 behind a scheduled refresh still saving history; Keepa calls stay serialized, interactive first.
 Public keyword-results retrieval then passes retained canonical identities through shared Product retrieval and waits

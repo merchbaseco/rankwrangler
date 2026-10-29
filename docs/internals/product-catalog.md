@@ -144,9 +144,9 @@ tier, bounds aligned to tier edges, last bucket open-ended), median BSR, median 
 the 60 daily first-available counts see every filter. Counts are exact (`totalIsEstimate` is
 always false here); the medians are the only sorts, over the filtered rank and sold columns.
 `improving7dShare` samples the first 2,000 matches in UUID order (uniform, since ids are random)
-and compares the main BSR in force now with the one in force seven days ago, two backward probes
-per sampled Product on `product_history_points_marketplace_asin_metric_observed_at_idx`; Products
-without a point on both sides are left out, and it is null when none compare. Results are
+and compares the main BSR in force now with the one in force seven days ago, read in one pass over
+the tail of each sampled Product's `bsr_main` series (the full series only when the last 256 points
+do not reach back a week); Products without a point on both sides are left out, and it is null when none compare. Results are
 memoized per filter for 60 seconds per process.
 
 Indexes these reads lean on: `products_marketplace_bsr_idx` (tier ranges and rank sorts),

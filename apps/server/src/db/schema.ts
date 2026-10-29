@@ -147,6 +147,36 @@ export const productHistoryImports = pgTable(
     })
 );
 
+/**
+ * Keepa history, one row per Product, source, metric and category: the whole series as two parallel
+ * integer arrays in Keepa's own coordinates, minutes ascending (decoded by
+ * `services/keepa-history-series.ts`). Writers merge a fetched series into the stored one, so
+ * history older than a fetch's window survives it.
+ */
+export const productHistorySeries = pgTable(
+    'product_history_series',
+    {
+        productId: uuid('product_id')
+            .references(() => products.id, { onDelete: 'cascade' })
+            .notNull(),
+        source: text('source').notNull(),
+        metric: text('metric').notNull(),
+        categoryId: bigint('category_id', { mode: 'number' }).notNull().default(-1),
+        keepaMinutes: integer('keepa_minutes').array().notNull(),
+        keepaValues: integer('keepa_values').array().notNull(),
+        updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+    },
+    table => ({
+        pk: primaryKey({
+            columns: [table.productId, table.source, table.metric, table.categoryId],
+        }),
+    })
+);
+
+/**
+ * Superseded by `productHistorySeries`. Kept only so `scripts/backfill-product-history-series.ts`
+ * can convert production rows; remove it (and that script) in the migration that drops the table.
+ */
 export const productHistoryPoints = pgTable(
     'product_history_points',
     {

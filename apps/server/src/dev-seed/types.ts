@@ -16,7 +16,7 @@ import type {
     productFacets,
     productFacetValues,
     productHistoryImports,
-    productHistoryPoints,
+    productHistorySeries,
     productShortNames,
     products,
     providerAttempts,
@@ -61,7 +61,7 @@ export interface DevSeedPlan {
     readonly productFacetValues: readonly (typeof productFacetValues.$inferInsert)[];
     readonly productFacets: readonly (typeof productFacets.$inferInsert)[];
     readonly productHistoryImports: readonly (typeof productHistoryImports.$inferInsert)[];
-    readonly productHistoryPoints: readonly (typeof productHistoryPoints.$inferInsert)[];
+    readonly productHistorySeries: readonly (typeof productHistorySeries.$inferInsert)[];
     readonly products: readonly (typeof products.$inferInsert)[];
     readonly productShortNames: readonly (typeof productShortNames.$inferInsert)[];
     readonly providerAttempts: readonly (typeof providerAttempts.$inferInsert)[];
@@ -75,7 +75,7 @@ export const DEV_SEED_TABLE_KEYS = [
     'productFacetValues',
     'productFacets',
     'productHistoryImports',
-    'productHistoryPoints',
+    'productHistorySeries',
     'catalogQueries',
     'operations',
     'catalogSearchRuns',

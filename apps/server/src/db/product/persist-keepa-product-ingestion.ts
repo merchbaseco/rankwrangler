@@ -27,7 +27,7 @@ export const persistAcceptedKeepaProductIngestion = async (
             transaction,
             {
                 product: ingestion.product,
-                historyPoints: ingestion.historyPoints,
+                historySeries: ingestion.historySeries,
             },
             ingestion.import
         );

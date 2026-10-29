@@ -15,9 +15,37 @@ snapshot per calendar day.
 Supported source metrics are main-category BSR, category BSR, Amazon price, new price, and new FBA
 price. Each point is unique by Product, source, metric, category, and Keepa timestamp.
 
-Keepa series use repeating timestamp/value pairs. A negative price value means no offer at that
-time and is stored as `isMissing = true` with a null numeric value. Sparse points mean the observed
+Keepa series use repeating timestamp/value pairs. A negative value means no offer or no rank at
+that time and reads as `isMissing = true` with a null numeric value. Sparse points mean the observed
 value did not change frequently; they do not imply that RankWrangler stopped collecting data.
+
+## Storage Format
+
+`product_history_series` holds one row per Product, source, metric and category. The row keeps the
+whole series as two parallel `integer[]` columns: `keepa_minutes`, strictly ascending Keepa
+minutes, and `keepa_values`, the value at each minute. A missing point keeps Keepa's negative
+marker (`-1`; the backfill writes `-1` for every old missing point).
+`observedAt` is derived from the Keepa minute and is not stored. The composite primary key is the
+only index; every read starts from a Product id, joined from `(marketplace_id, asin)` on
+`products`.
+
+`apps/server/src/services/keepa-history-series.ts` owns the encoding: building series from Keepa
+pairs, decoding them to points, the bounded-window selection and the value-in-force lookup. The
+history API, the sparkline sampler and the seed decode through it. Three aggregate reads stay in SQL
+over `unnest(keepa_minutes, keepa_values)`, treating a negative value as missing: the improvement
+share, the sparkline window, and best-ever rank.
+
+A write merges each incoming series into the stored one inside `ON CONFLICT DO UPDATE`: the union of
+points by minute, the incoming value winning a shared minute. A fetch with a shorter window never
+erases older history, which matches the point-level upserts this table replaced, and the row lock
+serializes concurrent writers. Saving a Product is one statement instead of thousands of upserts.
+
+The format replaced `product_history_points`, one row per point with a UUID and three indexes:
+about 2.4 MB per Product (20 GB for 8,647 Products in production). Two arrays cost 8 bytes per
+point plus a small row; a synthetic Product with 6,600 points measured 63 KB with uniformly random
+values against 2.9 MB exploded, about 46 times smaller; real values may compress further under
+TOAST, which is unmeasured. Parallel arrays were chosen over Keepa's interleaved layout because SQL readers
+`unnest(keepa_minutes, keepa_values)` directly and a merge needs no stride arithmetic.
 
 ## Range Semantics
 

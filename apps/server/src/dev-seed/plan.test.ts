@@ -13,6 +13,7 @@ import {
     eventLogStatuses,
 } from '@/services/event-log-enums';
 import { keepaHistoryMetricColumns } from '@/services/keepa-history-metrics';
+import { decodeKeepaHistorySeries } from '@/services/keepa-history-series';
 import { productFacetKeys } from '@/services/product-facet-taxonomy';
 import { PRODUCT_DEFAULT_MAX_AGE_MS } from '@/services/product-freshness-policy';
 
@@ -50,7 +51,8 @@ describe('dev seed coverage contract: shape and reproducibility', () => {
 
     it('promises a small, fast dataset rather than a load test', () => {
         const total = Object.values(summary).reduce((sum, count) => sum + count, 0);
-        expect(total).toBeGreaterThan(1500);
+        // History is a few series rows per Product, not one row per point.
+        expect(total).toBeGreaterThan(800);
         expect(total).toBeLessThan(6000);
     });
 
@@ -178,7 +180,15 @@ describe('dev seed coverage contract: the Product catalog', () => {
 });
 
 describe('dev seed coverage contract: Product history', () => {
-    const points = plan.productHistoryPoints;
+    // Decoded the way every reader decodes them, so the contract is about what the chart sees.
+    const points = plan.productHistorySeries.flatMap(row =>
+        decodeKeepaHistorySeries({
+            metric: row.metric,
+            categoryId: row.categoryId ?? -1,
+            keepaMinutes: row.keepaMinutes,
+            values: row.keepaValues,
+        }).map(point => ({ ...point, productId: row.productId }))
+    );
 
     it('promises the chart has both a rank series and a price series', () => {
         const metrics = new Set(points.map(point => point.metric));
@@ -213,7 +223,7 @@ describe('dev seed coverage contract: Product history', () => {
 
         expect(missing.length).toBeGreaterThan(0);
         for (const point of missing) {
-            expect(point.valueInt ?? null).toBeNull();
+            expect(point.valueInt).toBeNull();
         }
     });
 

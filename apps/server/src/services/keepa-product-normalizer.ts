@@ -1,18 +1,9 @@
+import { classifyMerchListing, type BulletEvidence } from '@/services/merch-listing-classification';
 import {
-    classifyMerchListing,
-    type BulletEvidence,
-} from '@/services/merch-listing-classification';
-
-const KEEPA_MINUTE_EPOCH_OFFSET = 21_564_000;
-
-/**
- * Keepa timestamps count minutes from its own epoch, and `product_history_points`
- * stores that number rather than the instant. Anything that writes a history
- * point without a Keepa payload — the development seed — needs the same
- * conversion the normalizer applies on the way in.
- */
-export const dateToKeepaMinute = (date: Date) =>
-    Math.round(date.getTime() / (60 * 1000)) - KEEPA_MINUTE_EPOCH_OFFSET;
+    type KeepaHistorySeries,
+    keepaMinuteToDate,
+    parseKeepaInterleavedSeries,
+} from '@/services/keepa-history-series';
 
 const KEEPA_CSV_INDEX = {
     amazonPrice: 0,
@@ -75,18 +66,9 @@ export type NormalizedKeepaProductState = {
     keepaFetchedAt: Date;
 };
 
-export type NormalizedKeepaHistoryPoint = {
-    metric: string;
-    categoryId: number;
-    observedAt: Date;
-    keepaMinutes: number;
-    valueInt: number | null;
-    isMissing: boolean;
-};
-
 export type NormalizedKeepaProduct = {
     product: NormalizedKeepaProductState;
-    historyPoints: NormalizedKeepaHistoryPoint[];
+    historySeries: KeepaHistorySeries[];
 };
 
 export const normalizeKeepaProduct = ({
@@ -141,29 +123,19 @@ export const normalizeKeepaProduct = ({
             keepaBsrAverage90: normalizePositiveMetric(
                 product.stats?.avg90?.[KEEPA_CSV_INDEX.salesRank]
             ),
-            keepaSalesRankDrops30: normalizeNonNegativeMetric(
-                product.stats?.salesRankDrops30
-            ),
-            keepaSalesRankDrops90: normalizeNonNegativeMetric(
-                product.stats?.salesRankDrops90
-            ),
-            keepaSalesRankDrops180: normalizeNonNegativeMetric(
-                product.stats?.salesRankDrops180
-            ),
-            keepaSalesRankDrops365: normalizeNonNegativeMetric(
-                product.stats?.salesRankDrops365
-            ),
+            keepaSalesRankDrops30: normalizeNonNegativeMetric(product.stats?.salesRankDrops30),
+            keepaSalesRankDrops90: normalizeNonNegativeMetric(product.stats?.salesRankDrops90),
+            keepaSalesRankDrops180: normalizeNonNegativeMetric(product.stats?.salesRankDrops180),
+            keepaSalesRankDrops365: normalizeNonNegativeMetric(product.stats?.salesRankDrops365),
             keepaFirstTrackedAt: keepaMinuteToOptionalDate(product.trackingSince),
             keepaSourceUpdatedAt: keepaMinuteToOptionalDate(product.lastUpdate),
             keepaFetchedAt: fetchedAt,
         },
-        historyPoints: parseKeepaHistoryPoints(product),
+        historySeries: parseKeepaHistorySeries(product),
     };
 };
 
-const getKeepaBulletEvidence = (
-    features: string[] | null | undefined
-): BulletEvidence => {
+const getKeepaBulletEvidence = (features: string[] | null | undefined): BulletEvidence => {
     if (features === null || features === undefined) {
         return { kind: 'unavailable' };
     }
@@ -171,64 +143,23 @@ const getKeepaBulletEvidence = (
     return { kind: 'available', bullets: features };
 };
 
-const parseKeepaHistoryPoints = (product: KeepaProductPayload) => {
-    const points: NormalizedKeepaHistoryPoint[] = [];
+const parseKeepaHistorySeries = (product: KeepaProductPayload) => {
     const csv = product.csv ?? [];
     const mainCategoryId = normalizePositiveMetric(product.salesRankReference) ?? -1;
-
-    points.push(
-        ...parseKeepaPairSeries(csv[KEEPA_CSV_INDEX.salesRank], 'bsr_main', mainCategoryId),
-        ...parseKeepaPairSeries(csv[KEEPA_CSV_INDEX.amazonPrice], 'price_amazon', -1),
-        ...parseKeepaPairSeries(csv[KEEPA_CSV_INDEX.newPrice], 'price_new', -1),
-        ...parseKeepaPairSeries(csv[KEEPA_CSV_INDEX.newFbaPrice], 'price_new_fba', -1)
-    );
-
-    for (const [categoryIdKey, series] of Object.entries(product.salesRanks ?? {})) {
+    const series = [
+        parseKeepaInterleavedSeries('bsr_main', mainCategoryId, csv[KEEPA_CSV_INDEX.salesRank]),
+        parseKeepaInterleavedSeries('price_amazon', -1, csv[KEEPA_CSV_INDEX.amazonPrice]),
+        parseKeepaInterleavedSeries('price_new', -1, csv[KEEPA_CSV_INDEX.newPrice]),
+        parseKeepaInterleavedSeries('price_new_fba', -1, csv[KEEPA_CSV_INDEX.newFbaPrice]),
+    ];
+    for (const [categoryIdKey, categorySeries] of Object.entries(product.salesRanks ?? {})) {
         const categoryId = Number(categoryIdKey);
         if (Number.isFinite(categoryId)) {
-            points.push(...parseKeepaPairSeries(series, 'bsr_category', categoryId));
+            series.push(parseKeepaInterleavedSeries('bsr_category', categoryId, categorySeries));
         }
     }
 
-    const deduped = new Map<string, NormalizedKeepaHistoryPoint>();
-    for (const point of points) {
-        deduped.set(`${point.metric}:${point.categoryId}:${point.keepaMinutes}`, point);
-    }
-
-    return Array.from(deduped.values()).sort((left, right) => {
-        return left.keepaMinutes - right.keepaMinutes;
-    });
-};
-
-const parseKeepaPairSeries = (
-    series: number[] | undefined,
-    metric: string,
-    categoryId: number
-) => {
-    if (!series || series.length < 2) {
-        return [] as NormalizedKeepaHistoryPoint[];
-    }
-
-    const points: NormalizedKeepaHistoryPoint[] = [];
-    for (let index = 0; index + 1 < series.length; index += 2) {
-        const keepaMinutes = series[index];
-        const value = series[index + 1];
-        if (!Number.isFinite(keepaMinutes) || !Number.isFinite(value)) {
-            continue;
-        }
-
-        const isMissing = value < 0;
-        points.push({
-            metric,
-            categoryId,
-            observedAt: keepaMinuteToDate(keepaMinutes),
-            keepaMinutes,
-            valueInt: isMissing ? null : value,
-            isMissing,
-        });
-    }
-
-    return points;
+    return series.filter((entry): entry is KeepaHistorySeries => entry !== null);
 };
 
 const getLatestSeriesValue = (series: number[] | undefined) => {
@@ -240,7 +171,9 @@ const getLatestSeriesValue = (series: number[] | undefined) => {
 };
 
 const getCurrentPositiveMetric = (current: number | undefined, series: number[] | undefined) => {
-    return normalizePositiveMetric(current) ?? normalizePositiveMetric(getLatestSeriesValue(series));
+    return (
+        normalizePositiveMetric(current) ?? normalizePositiveMetric(getLatestSeriesValue(series))
+    );
 };
 
 const normalizePositiveMetric = (value: number | undefined) => {
@@ -264,15 +197,9 @@ const normalizeText = (value: string | undefined) => {
 
 const normalizeKeepaImage = (imagesCsv: string | undefined) => {
     const imageName = imagesCsv?.split(',')[0]?.trim();
-    return imageName
-        ? `https://images-na.ssl-images-amazon.com/images/I/${imageName}`
-        : null;
+    return imageName ? `https://images-na.ssl-images-amazon.com/images/I/${imageName}` : null;
 };
 
 const keepaMinuteToOptionalDate = (keepaMinutes: number | undefined) => {
     return normalizePositiveMetric(keepaMinutes) === null ? null : keepaMinuteToDate(keepaMinutes!);
-};
-
-const keepaMinuteToDate = (keepaMinutes: number) => {
-    return new Date((keepaMinutes + KEEPA_MINUTE_EPOCH_OFFSET) * 60 * 1000);
 };
