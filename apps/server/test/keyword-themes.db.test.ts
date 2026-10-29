@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq, sql } from 'drizzle-orm';
 import { setAutomaticSyncPaused } from '@/db/automatic-sync';
+import { readBrandAnalyticsStatus } from '@/db/brand-analytics-imports';
 import { brandAnalyticsSearchTerms } from '@/db/brand-analytics-schema';
 import { registerBrandAnalyticsTrials } from '@/db/brand-analytics-trials';
 import { catalogQueries } from '@/db/catalog-search-schema';
@@ -14,15 +15,14 @@ import {
     releaseThemeAutocomplete,
 } from '@/db/keyword-theme-autocomplete-work';
 import { keywordThemes } from '@/db/keyword-theme-schema';
-import { backfillKeywordThemes } from '@/db/keyword-themes';
+import { backfillKeywordThemes, readKeywordThemeCounts } from '@/db/keyword-themes';
 import { listDueThemeAutocomplete } from '@/db/keyword-work-due';
 import { products } from '@/db/product-schema';
 import { expandThemeAutocomplete } from '@/services/keyword-theme-autocomplete';
-import { readKeywordJobsStatus } from '@/services/keyword-jobs-status';
 import {
+    discoveryNow as now,
     resetDiscoveryFixture,
     seedDiscoveryTarget,
-    discoveryNow as now,
 } from './discovery-fixture';
 
 const market = 'ATVPDKIKX0DER';
@@ -138,11 +138,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword themes', (
         await addTerm('nurse shirt', 10, 1, 'nurse');
         await addTerm('teacher blanket', 20, 0, 'teacher');
         await addTerm('iphone 16 case', 5, 0, 'iphone 16');
-        const before = await readKeywordJobsStatus();
-        expect(before.brandAnalytics).toMatchObject({
-            keptTerms: 3,
-            awaitingTrial: 1,
-            awaitingTheme: 2,
+        // The term and theme readers directly: the full jobs status also reads pg-boss queues,
+        // which this suite never starts.
+        expect((await readBrandAnalyticsStatus()).terms).toMatchObject({
+            kept: 3,
+            unregistered: 1,
+            awaiting_theme: 2,
         });
         expect(await registerBrandAnalyticsTrials(10, now)).toBe(1);
         expect(await registerBrandAnalyticsTrials(10, now)).toBe(0);
@@ -155,8 +156,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword themes', (
             'nurse shirt',
             'teacher blanket',
         ]);
-        const after = await readKeywordJobsStatus();
-        expect(after.brandAnalytics).toMatchObject({ awaitingTrial: 0, awaitingTheme: 1 });
-        expect(after.themes).toEqual({ total: 1, expanded: 0, pending: 1 });
+        expect((await readBrandAnalyticsStatus()).terms).toMatchObject({
+            unregistered: 0,
+            awaiting_theme: 1,
+        });
+        expect(await readKeywordThemeCounts()).toEqual({ total: 1, expanded: 0, pending: 1 });
     });
 });

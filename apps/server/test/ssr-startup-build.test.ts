@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { mkdir, readFile, writeFile, symlink } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { spawn } from 'bun';
 
@@ -124,5 +124,6 @@ describe.skipIf(!process.env.CATALOG_SSR_FIXTURE_ROOT)('packaged server startup'
         }
         expect(await stdout).toContain('Job runner disabled');
         expect(await stderr).not.toContain('ReferenceError');
-    });
+        // The Vite build plus a boot of up to 10s outlasts bun's 5s default on a CI runner.
+    }, 60_000);
 });
