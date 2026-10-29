@@ -61,7 +61,7 @@ jobs:
       deploy_command: >-
         CI_OP_TOKEN="$DEPLOY_AGENT_PRODUCTION_OP_TOKEN" bun run setup
         && CI_OP_TOKEN="$DEPLOY_AGENT_PRODUCTION_OP_TOKEN" bun run deploy
-      health_urls: https://rankwrangler.merchbase.co/health/live https://rankwrangler.merchbase.co/api/health
+      health_urls: https://rankwrangler.merchbase.co/health/live
       health_timeout_seconds: 600
       runner: self-hosted
       published_packages: packages/http-client:@rankwrangler/http-client,packages/cli:@rankwrangler/cli

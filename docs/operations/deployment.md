@@ -12,9 +12,9 @@ Production is served at `https://rankwrangler.merchbase.co`. Caddy serves the we
 Other website paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-local
 health endpoints.
 
-`GET /api/health` is the external freshness report. Container healthchecks and Caddy's upstream
-probe use `GET /health/live`, which only checks that the process can run `SELECT 1`, so stale data
-cannot fail those probes. Both URLs return 200
+`GET /api/health` is the external freshness report. Container healthchecks, Caddy's upstream
+probe, and the deploy smoke use `GET /health/live`, which only checks that the process can run
+`SELECT 1`, so stale data cannot hold the stack down. Both URLs return 200
 `{"status":"ok","revision":"<sha>"}`, or 503
 `{"status":"degraded","failing":[...],"revision":"<sha>"}` with check names only. `revision` is
 the full commit SHA that `bun run deploy` built the image from. Local runs, tests, and images
@@ -44,7 +44,7 @@ built outside that script report `dev`.
 - After images build and the existing cutover gate is verified, it stops the old server before
   applying migrations. The new container starts only after migration verification. A migration
   failure leaves the server stopped. Inspect the applied schema before restarting any old image.
-- It polls `/health/live` and `/api/health` for up to 600 seconds. Both must return `"status":"ok"` and the deployed `"revision"`.
+- It polls `/health/live` for up to 600 seconds until that URL returns `"status":"ok"` and `"revision"` of the deployed SHA. A stale `/api/health` report does not fail the deploy.
 - It publishes `@rankwrangler/http-client` and `@rankwrangler/cli` from a GitHub-hosted runner when that version is not on npm, so provenance is allowed, then pushes `vX.Y.Z` if the tag is missing.
 - A later job fails when a published package changed since its tag without a version bump. That job does not fail the deploy.
 
