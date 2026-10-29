@@ -26,7 +26,7 @@ bullet evidence with an explicit availability distinction:
 
 The classifier returns `true` when any bullet matches a known Merch on Demand template bullet, or
 when the part number matches the Merch design-code fingerprint (11 uppercase alphanumeric
-characters with at least one letter and never five digits in a row, optionally followed by a
+characters with at least one letter and never six digits in a row, optionally followed by a
 10-character `B0…` suffix) on a listing with no model number whose title names a Merch product. It
 returns `false` when there is a part number or available bullets and neither rule holds, and no
 result when there is neither a part number nor available bullets; persistence treats that

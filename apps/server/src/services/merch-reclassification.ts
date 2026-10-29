@@ -58,6 +58,7 @@ export const reclassifyMerchListings = async (
             transitions.set(key, (transitions.get(key) ?? 0) + 1);
         }
         if (!input.dryRun && fetched.length) await deps.writeProducts(fetched);
+        if (demoted.length) deps.log(`${input.dryRun ? 'would demote' : 'demoted'} ${demoted.join(',')}`);
         if (!input.dryRun && demoted.length) await deps.demoteProducts(demoted);
         checked += stored.length;
         afterAsin = stored[stored.length - 1].asin;

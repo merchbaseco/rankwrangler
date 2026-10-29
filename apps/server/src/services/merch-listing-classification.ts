@@ -5,12 +5,13 @@ const MAX_SELLER_BULLETS_TO_PERSIST = 2;
 /**
  * Merch on Demand assigns every listing an 11-character uppercase alphanumeric design code as its
  * part number, sometimes followed by a 10-character `B0…` ASIN-like suffix. The code is a random mix
- * of letters and digits: it has at least one letter and never five digits in a row. Other sellers'
+ * of letters and digits: it has at least one letter and never six digits in a row (real codes such as
+ * `J1CRFA43350` end in five). Other sellers'
  * 11-character codes are structured prefixes plus serial numbers (`YES33194325`, `PARD345624D`,
  * `PPAX1364775`, `83344X08001`), which the digit-run rule keeps out.
  */
 const MERCH_PART_NUMBER_PATTERN =
-    /^(?=[A-Z0-9]{0,10}[A-Z])(?![A-Z0-9]{0,6}\d{5})[A-Z0-9]{11}(?:B0[A-Z0-9]{8})?$/;
+    /^(?=[A-Z0-9]{0,10}[A-Z])(?![A-Z0-9]{0,5}\d{6})[A-Z0-9]{11}(?:B0[A-Z0-9]{8})?$/;
 
 export type BulletEvidence =
     | { kind: 'available'; bullets: readonly string[] }

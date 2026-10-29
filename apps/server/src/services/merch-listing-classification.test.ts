@@ -4,6 +4,8 @@ import { MERCH_TEMPLATE_BULLETS_BY_PRODUCT_TYPE } from '@/services/merch-templat
 
 // Part numbers observed on production US listings (Merch designs vs. other sellers).
 const MERCH_PART_NUMBERS = [
+    'J1CRFA43350',
+    'JWY5GR47076',
     'AFCHRPAT1KY',
     '28KSGP99PGP',
     'YBQAYMK17BV',
