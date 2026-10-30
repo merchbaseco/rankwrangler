@@ -6,6 +6,7 @@ import { enrichmentKey } from './product-stored-enrichment';
 
 export const SPARKLINE_DAYS = 30;
 const DAY_MS = 86_400_000;
+const DAY_MINUTES = 1_440;
 /** Latest points read first; thirty days of rank changes rarely exceed it. */
 const SERIES_TAIL = 256;
 
@@ -15,7 +16,8 @@ const SERIES_TAIL = 256;
  * from before the window when needed. One statement serves the whole page and returns only the
  * points inside the window plus the one in force at its start, never a Product's whole series.
  * Series are sorted, so each reads only its tail when the tail already reaches back past the
- * window start, and the carry-in is found per series instead of by sorting the whole page.
+ * window start, and the carry-in is found per series instead of by sorting the whole page. Points
+ * superseded before the next daily sample never reach a sparkline and are not returned.
  * Samples before a Product's first point, and samples where Keepa recorded no rank, are omitted.
  */
 export const readBsrSparklines = async (
@@ -53,7 +55,8 @@ export const readBsrSparklines = async (
             select h.m, h.v, lead(h.m) over (order by h.ord) next_m
             from unnest(w.minutes, w.vals) with ordinality h(m,v,ord)
         ) h
-        where h.m<=${end} and (h.m>${start} or h.next_m is null or h.next_m>${start})`);
+        where h.m<=${end} and (h.m>${start} or h.next_m is null or h.next_m>${start})
+            and ${sampledPoint(start)}`);
     const byProduct = new Map<string, { keepaMinutes: number; value: number }[]>();
     for (const row of rows) {
         const key = enrichmentKey(row);
@@ -79,3 +82,14 @@ export interface BsrSparklinePoint {
     at: string;
     salesRank: number;
 }
+
+/**
+ * Samples fall every day (1,440 Keepa minutes) from `start`, so a point matters only if a sample
+ * falls between it and the next point: the last sample before `next_m` is at or after `m`.
+ */
+const sampledPoint = (start: number) => {
+    const day = sql.raw(String(DAY_MINUTES));
+    return sql`(h.next_m is null or (h.next_m>${start}
+        and least(${sql.raw(String(SPARKLINE_DAYS - 1))},(h.next_m-1-${start})/${day})
+            >= greatest(0,(h.m-${start}+${sql.raw(String(DAY_MINUTES - 1))})/${day})))`;
+};
