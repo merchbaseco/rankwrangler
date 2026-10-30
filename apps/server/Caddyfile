@@ -56,8 +56,11 @@
         file_server
     }
 
-    # API routes to RankWrangler server
+    # API routes to RankWrangler server. JSON is compressed here because the tunnel to Cloudflare
+    # runs over the Mac mini's home uplink; the tRPC WebSocket path is left unencoded.
+    @compressibleApi not path /api/trpc
     handle /api/* {
+        encode @compressibleApi zstd gzip
         reverse_proxy server:8080 {
             # Health checks
             health_uri /health/live
