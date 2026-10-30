@@ -34,7 +34,9 @@ export const registerServerTiming = (fastify: FastifyInstance) => {
             'Server-Timing',
             [
                 auth === undefined ? null : `auth;dur=${auth.toFixed(1)}`,
-                ...(spans.get(request.raw) ?? []).map(span => `${span.name};dur=${span.ms.toFixed(1)}`),
+                ...(spans.get(request.raw) ?? []).map(
+                    span => `${span.name};dur=${span.ms.toFixed(1)}`
+                ),
                 `busy;dur=${loopBusyPercent(loopAt.get(request.raw))}`,
                 `lag;dur=${(loopDelay.max / 1e6).toFixed(1)}`,
                 `total;dur=${(performance.now() - started).toFixed(1)}`,
@@ -47,7 +49,10 @@ export const registerServerTiming = (fastify: FastifyInstance) => {
 };
 
 /** Runs a request's authorization and records how long it took for `Server-Timing`. */
-export const timeAuthorization = async <T>(request: FastifyRequest, authorize: () => Promise<T>) => {
+export const timeAuthorization = async <T>(
+    request: FastifyRequest,
+    authorize: () => Promise<T>
+) => {
     const started = performance.now();
     try {
         return await authorize();

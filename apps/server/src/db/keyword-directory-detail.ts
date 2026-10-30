@@ -5,15 +5,15 @@ import {
     KEYWORD_FRESH_DAYS,
     KEYWORD_SHELF_SIZE,
 } from './keyword-directory-sort';
-import { enrichmentKey, readStoredProductEnrichments } from './product/product-stored-enrichment';
+import { storedShortName } from './product/product-stored-enrichment';
 
 export const SCORE_TREND_WEEKS = 12;
 const DAY_MS = 86_400_000;
 
 /**
  * Research detail for one directory page: the top-ten Merch shelf in page-one order, its median
- * BSR and fresh count, the dominant facet, and score history from keyword_standing_observations.
- * One statement for the page plus one stored-enrichment read for shelf short names.
+ * BSR and fresh count, the dominant facet, and score history from keyword_standing_observations,
+ * with each shelf Product's stored short name, in one statement for the page.
  */
 export const readKeywordDirectoryDetail = async <
     T extends { queryId: string | null; score: number | null },
@@ -28,10 +28,13 @@ export const readKeywordDirectoryDetail = async <
             coalesce((select jsonb_agg(s order by s.ord) from (
                 select h.ord,pr.marketplace_id "marketplaceId",pr.asin,pr.title,
                     pr.root_category_bsr "salesRank",pr.thumbnail_url "thumbnailUrl",
-                    pr.date_first_available "firstAvailableAt"
+                    pr.date_first_available "firstAvailableAt",sn.state "shortNameState",
+                    sn.short_name "shortName",sn.input_fingerprint "shortNameFingerprint"
                 from discovery_targets t
                 cross join jsonb_array_elements_text(t.head_product_ids) with ordinality h(id,ord)
                 join products pr on pr.id=h.id::uuid
+                left join product_short_names sn on sn.marketplace_id=pr.marketplace_id
+                    and sn.asin=pr.asin
                 where t.query_id=q.id and t.kind='keyword'
                     and pr.is_merch_listing=true and pr.amazon_listing_status='active'
                 order by h.ord limit ${KEYWORD_SHELF_SIZE}) s),'[]'::jsonb) shelf,
@@ -50,8 +53,6 @@ export const readKeywordDirectoryDetail = async <
         )})`)
         : [];
     const byQuery = new Map(rows.map(row => [row.queryId, row]));
-    const shelfProducts = rows.flatMap(row => row.shelf);
-    const stored = await readStoredProductEnrichments(shelfProducts);
     const asOfMs = new Date(asOf).getTime();
     const freshAfter = asOfMs - KEYWORD_FRESH_DAYS * DAY_MS;
     return items.map(item => {
@@ -60,7 +61,7 @@ export const readKeywordDirectoryDetail = async <
             asin: product.asin,
             salesRank: product.salesRank,
             thumbnailUrl: product.thumbnailUrl,
-            shortName: stored.get(enrichmentKey(product))?.shortName ?? null,
+            shortName: storedShortName(product, product),
             title: product.title,
             firstAvailableAt: product.firstAvailableAt
                 ? utcTimestamp(product.firstAvailableAt)
@@ -94,6 +95,9 @@ interface ShelfRow {
     salesRank: number | null;
     thumbnailUrl: string | null;
     firstAvailableAt: string | null;
+    shortNameState: string | null;
+    shortName: string | null;
+    shortNameFingerprint: string | null;
 }
 
 interface DetailRow extends Record<string, unknown> {

@@ -26,7 +26,7 @@ export const readStoredProductEnrichments = async (
     for (const item of items) {
         const row = stored.get(enrichmentKey(item));
         result.set(enrichmentKey(item), {
-            shortName: currentShortName(item, row),
+            shortName: storedShortName(item, row),
             cutoutThumbnailUrl: currentCutoutUrl(item, row),
         });
     }
@@ -59,7 +59,11 @@ interface StoredEnrichmentRow extends Record<string, unknown> {
     cutoutFingerprint: string | null;
 }
 
-const currentShortName = (item: StoredEnrichmentSource, row?: StoredEnrichmentRow) =>
+/** A stored short name counts only while its fingerprint matches the Product's title and image. */
+export const storedShortName = (
+    item: Pick<StoredEnrichmentSource, 'title' | 'thumbnailUrl'>,
+    row?: Pick<StoredEnrichmentRow, 'shortNameState' | 'shortName' | 'shortNameFingerprint'>
+) =>
     row?.shortNameState === 'ready' &&
     row.shortName &&
     item.title &&

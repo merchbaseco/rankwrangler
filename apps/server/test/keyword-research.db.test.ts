@@ -8,7 +8,8 @@ import { listKeywordDirectory } from '@/db/keyword-directory';
 import { readKeywordDirectoryDetail } from '@/db/keyword-directory-detail';
 import { products } from '@/db/product-schema';
 import { refreshKeywordStandings } from '@/db/refresh-keyword-standings';
-import { productFacets, productFacetValues } from '@/db/schema';
+import { productFacets, productFacetValues, productShortNames } from '@/db/schema';
+import { getShortNameInputFingerprint } from '@/services/product-short-name-request';
 import {
     acceptDiscoveryFixture,
     claimDiscoveryFixture,
@@ -97,6 +98,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword research r
         await attachFacet('B0RSH00021', 'hobby', 'fishing');
         await attachFacet('B0RSH00022', 'hobby', 'fishing');
         await attachFacet('B0RSH00023', 'animal', 'bass');
+        await storeShortName('B0RSH00021', 'Bass Grandpa', true);
+        await storeShortName('B0RSH00022', 'Stale Name', false);
         const [detail] = await readKeywordDirectoryDetail(
             [{ queryId: target.queryId, score: 88 }],
             now.toISOString()
@@ -106,6 +109,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword research r
             'B0RSH00022',
             'B0RSH00023',
             'B0RSH00024',
+        ]);
+        expect(detail.shelf.map(product => product.shortName)).toEqual([
+            'Bass Grandpa',
+            null,
+            null,
+            null,
         ]);
         expect(detail.medianBsr).toBe(50_000);
         expect(detail.freshCount).toBe(1);
@@ -184,4 +193,19 @@ const attachFacet = async (asin: string, facet: string, name: string) => {
         .returning();
     const [product] = await db.select().from(products).where(eq(products.asin, asin));
     await db.insert(productFacets).values({ productId: product.id, facetValueId: value.id });
+};
+
+/** A ready short name, fingerprinted to the Product's title and image unless `current` is false. */
+const storeShortName = async (asin: string, shortName: string, current: boolean) => {
+    const [product] = await db.select().from(products).where(eq(products.asin, asin));
+    await db.insert(productShortNames).values({
+        marketplaceId: product.marketplaceId,
+        asin,
+        inputFingerprint: getShortNameInputFingerprint(
+            current ? (product.title ?? '') : 'an older title',
+            product.thumbnailUrl ?? ''
+        ),
+        state: 'ready',
+        shortName,
+    });
 };
