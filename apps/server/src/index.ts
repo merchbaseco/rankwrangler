@@ -36,6 +36,7 @@ import {
     createRankWranglerAccess,
 } from '@/services/access/rankwrangler-access';
 import { collectDueCatalogQueries } from '@/services/catalog-query-refresh';
+import { warmDashboard } from '@/services/dashboard-warmup';
 import {
     recoverStaleCatalogSearchOperations,
     registerCatalogSearchWakeups,
@@ -248,6 +249,7 @@ const startServer = async () => {
 
     try {
         await fastify.listen({ port, host: '0.0.0.0' });
+        warmDashboard().catch(error => console.error('[Server] Dashboard warm-up failed:', error));
 
         printStartupSummary({
             authSummary: 'Merchbase centralized access (session, OAuth, API key)',
