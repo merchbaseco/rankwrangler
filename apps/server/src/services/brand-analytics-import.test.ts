@@ -103,5 +103,6 @@ describe('Brand Analytics import steps', () => {
 
 const followupDelay = (result: unknown) => {
     const at = (result as { followup?: { at: Date } }).followup?.at;
-    return at ? Math.round((at.getTime() - Date.now()) / 1000) * 1000 : null;
+    // A due-now follow-up lands a few ms in the past by the time it is read; never report -0.
+    return at ? Math.max(0, Math.round((at.getTime() - Date.now()) / 1000) * 1000) : null;
 };
