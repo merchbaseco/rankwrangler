@@ -87,6 +87,20 @@
     }
 
     /*
+     * A grid row that opens something is a link in all but markup: it points, and
+     * its data stops being a drag-select target (copy lives in the row menu and the
+     * detail view). React Aria marks a row hovered only when it has an action.
+     */
+    .table__body .table__row[data-hovered='true'] {
+        cursor: pointer;
+    }
+
+    .table__body .table__row[data-hovered='true'] [data-selectable-text] {
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    /*
      * Tooltips are read-only labels: never let one capture the pointer, or
      * React Aria holds a hovered tooltip open after its trigger has gone.
      */

@@ -133,8 +133,9 @@ Changing a package means bumping its version in the same PR (patch, minor, or ma
   sidebar, pane-bar and key/value controls). `heroui-theme-contract.test.ts` holds the list.
 - Colors are semantic tokens only (`bg-surface`, `text-muted`, `text-accent`, `bg-tier-hot-bg`, …).
   Add a missing reusable color as a token in the theme file first; no hex or ad hoc mixes in features.
-- Cursor: controls keep the arrow; only links point. Use `cursor-(--cursor-interactive)`, never
-  `cursor-pointer`. Chrome text is not selectable; mark data people copy with `data-selectable-text`.
+- Cursor: controls keep the arrow; only links and grid rows that open something point. Use
+  `cursor-(--cursor-interactive)`, never `cursor-pointer`. Chrome text is not selectable; mark data
+  people copy with `data-selectable-text` (it goes unselectable inside a row that opens something).
 - Icons come from `@hugeicons-pro/core-stroke-rounded` through `components/ui/icon.tsx`. Every
   icon-only button carries a `Tooltip` and an `aria-label`.
 - Before building or reshaping UI, use the `heroui-react-pro` and `heroui-pro-design-taste` skills

@@ -162,7 +162,7 @@
 
     /*
      * Desktop cursor convention: controls keep the arrow and only hyperlinks
-     * get the pointer. HeroUI routes every interactive cursor through this
+     * (and grid rows that open something) get the pointer. HeroUI routes every interactive cursor through this
      * token; product code uses `cursor-(--cursor-interactive)`, never
      * `cursor-pointer`. The `a[href]` half lives in global.css.
      */
