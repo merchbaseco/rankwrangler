@@ -9,6 +9,7 @@ import { keywordDirectoryWhereSql, keywordStageSql } from './keyword-directory-s
  * `search` and `terms` narrow the scan up front. The page read and the facet aggregate both
  * select from it, so a stage, freshness or filter means the same thing in both. The per-keyword
  * measures are the expensive part (one lateral per row), so callers name the rows that need them.
+ * Display-only columns (discovery sources) are read for the returned page instead.
  */
 export const directorySource = (input: {
     asOf: string;
@@ -25,7 +26,7 @@ export const directorySource = (input: {
         with directory as (
             select q.id,q.id "queryId",q.normalized_term term,q.created_at "createdAt",
                 ${keywordStageSql} stage,coalesce(t.standing_tier,'unrated') heat,
-                t.popularity_score score,ba.search_frequency_rank "searchFrequencyRank",coalesce(s.sources,'{}'::text[]) sources,
+                t.popularity_score score,ba.search_frequency_rank "searchFrequencyRank",
                 case when a.stage='complete' then 'complete' when a.claim_at>${asOf}::timestamp-interval '5 minutes' then 'running'
                     when a.failure_count>0 then 'retrying' when t.tracking='tracked' and t.enabled then 'queued' else 'not eligible' end expansion,
                 case when p.claim_at>${asOf}::timestamp-interval '5 minutes' then 'running'
@@ -39,7 +40,6 @@ export const directorySource = (input: {
             left join discovery_targets t on t.query_id=q.id and t.kind='keyword'
             left join keyword_autocomplete a on a.query_id=q.id
             left join brand_analytics_search_terms ba on ba.marketplace_id=q.marketplace_id and ba.normalized_term=q.normalized_term
-            left join lateral (select array_agg(distinct e.kind) sources from discovery_evidence e where e.target_id=t.id and e.eligible) s on true
             left join lateral (select claim_at,stop_reason,resume_at,last_page_at,failure_count from keyword_exploration_passes where target_id=t.id order by created_at desc,id desc limit 1) p on true
             where ${keywordDirectoryWhereSql({ search, heat: 'all' }, terms)}
         ), classified as (

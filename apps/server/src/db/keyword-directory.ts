@@ -67,8 +67,8 @@ export const readKeywordDirectory = async (
     const where = terms ? sql`true` : directoryWhere(filters, ['search']);
     const rows = await db.execute<DirectoryRow>(sql`
         ${source}
-        select page.*${measuresFirst ? sql`` : sql`,m.products,m.merch`} from (
-            select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,"searchFrequencyRank",sources,${measuresFirst ? sql`products,merch,` : sql``}"lastCheckedAt","sortKey",total,
+        select page.*,coalesce(s.sources,'{}'::text[]) sources${measuresFirst ? sql`` : sql`,m.products,m.merch`} from (
+            select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,"searchFrequencyRank",${measuresFirst ? sql`products,merch,` : sql``}"lastCheckedAt","sortKey",total,
                 case when freshness is null then null else "nextCheckAt" end "nextCheckAt",
                 case when freshness is null then null else "intervalDays" end "intervalDays"
             from (select *,count(*) over()::int total from ordered where ${where}) matched
@@ -76,6 +76,9 @@ export const readKeywordDirectory = async (
             order by "sortKey" asc limit ${size + 1} offset ${!terms && input.page ? (input.page - 1) * size : 0}
         ) page
         ${measuresFirst ? sql`` : sql`left join lateral (${directoryProductCounts(sql`page."queryId"`)}) m on true`}
+        left join lateral (select array_agg(distinct e.kind) sources from discovery_targets t
+            join discovery_evidence e on e.target_id=t.id and e.eligible
+            where t.query_id=page."queryId" and t.kind='keyword') s on true
         order by page."sortKey" asc`);
     const items = rows.slice(0, size).map(({ total: _total, ...row }) => ({
         ...row,
