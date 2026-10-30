@@ -13,6 +13,7 @@ read_when:
 | Filling a local database with synthetic development data | [Development](development.md#synthetic-development-data) |
 | Docker stack, production deployment, and health checks | [Deployment](deployment.md) |
 | Safe production inspection | [Database queries](database-queries.md) |
+| Dashboard API and view-switch latency | [Dashboard latency](dashboard-latency.md) |
 | PlanetScale restore rehearsal and remote-database cutover | [PlanetScale](planetscale.md) |
 | GitHub Actions failures | [CI troubleshooting](ci-troubleshooting.md) |
 | Version bump, changelog, tag, and GitHub release | [Releases](releases.md) |
