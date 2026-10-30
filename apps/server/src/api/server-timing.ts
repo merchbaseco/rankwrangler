@@ -1,15 +1,21 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { collectRequestTiming } from '@/utils/request-timing';
 
 const startedAt = new WeakMap<object, number>();
 const authMs = new WeakMap<object, number>();
+const spans = new WeakMap<object, { name: string; ms: number }[]>();
 
 /**
- * Adds `Server-Timing: auth;dur=…, total;dur=…` to `/api/*` responses so browser timings split
- * request authorization from procedure work. Durations only; nothing about the caller.
+ * Adds `Server-Timing: auth;dur=…, <phase>;dur=…, total;dur=…` to `/api/*` responses so browser
+ * timings split request authorization and measured phases from the rest. Durations only.
  */
 export const registerServerTiming = (fastify: FastifyInstance) => {
-    fastify.addHook('onRequest', async request => {
+    fastify.addHook('onRequest', (request, _reply, done) => {
         startedAt.set(request.raw, performance.now());
+        if (!request.url.startsWith('/api/')) return done();
+        const collected: { name: string; ms: number }[] = [];
+        spans.set(request.raw, collected);
+        collectRequestTiming(collected, done);
     });
     fastify.addHook('onSend', async (request, reply, payload) => {
         const started = startedAt.get(request.raw);
@@ -19,6 +25,7 @@ export const registerServerTiming = (fastify: FastifyInstance) => {
             'Server-Timing',
             [
                 auth === undefined ? null : `auth;dur=${auth.toFixed(1)}`,
+                ...(spans.get(request.raw) ?? []).map(span => `${span.name};dur=${span.ms.toFixed(1)}`),
                 `total;dur=${(performance.now() - started).toFixed(1)}`,
             ]
                 .filter(Boolean)

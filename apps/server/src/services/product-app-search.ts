@@ -5,6 +5,7 @@ import {
     readStoredProductEnrichments,
 } from '@/db/product/product-stored-enrichment';
 import { countStoredProducts } from '@/db/product-search-total';
+import { measure } from '@/utils/request-timing';
 import { createSwrCache } from '@/utils/swr-cache';
 import { searchProducts } from './product-search';
 
@@ -27,8 +28,10 @@ export const searchAppProducts = async (
     const { recordInterest = true, ...search } = input;
     const { cursor: _c, limit: _l, sort: _s, page: _p, pageSize: _z, ...filters } = search;
     const [result, total] = await Promise.all([
-        searchProducts(search, { recordInterest }),
-        cachedTotal(JSON.stringify(filters), () => countStoredProducts(filters)),
+        measure('search', () => searchProducts(search, { recordInterest })),
+        measure('total', () =>
+            cachedTotal(JSON.stringify(filters), () => countStoredProducts(filters))
+        ),
     ]);
     const sources = result.items.map(item => ({
         marketplaceId: item.marketplaceId,
@@ -37,8 +40,8 @@ export const searchAppProducts = async (
         thumbnailUrl: item.thumbnail.status === 'available' ? item.thumbnail.url : null,
     }));
     const [stored, sparklines] = await Promise.all([
-        readStoredProductEnrichments(sources),
-        readBsrSparklines(sources),
+        measure('enrich', () => readStoredProductEnrichments(sources)),
+        measure('sparklines', () => readBsrSparklines(sources)),
     ]);
     return {
         ...result,
