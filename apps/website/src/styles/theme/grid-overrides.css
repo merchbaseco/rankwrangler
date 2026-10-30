@@ -23,6 +23,11 @@
         table-layout: fixed;
     }
 
+    /* A short page drops the scrollbar; reserving its gutter keeps the columns from widening. */
+    .data-grid.hairline-grid--fixed .table__scroll-container {
+        scrollbar-gutter: stable;
+    }
+
     /* Header and body cells share the 12px gutter; the row height sets the line. */
     .data-grid.hairline-grid :is(.table__column, .table__cell) {
         padding-block: 0;
