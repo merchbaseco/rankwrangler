@@ -1,5 +1,6 @@
 import { productSearchFacetsInput } from '@/api/product-search-input';
 import { appProcedure } from '@/api/trpc';
+import { runBackground } from '@/db/index';
 import { readProductSearchFacets } from '@/db/product-search-facets';
 import { createSwrCache } from '@/utils/swr-cache';
 
@@ -11,6 +12,7 @@ const cached = createSwrCache<Awaited<ReturnType<typeof readProductSearchFacets>
     freshMs: 60_000,
     staleMs: 30 * 60_000,
     maxEntries: 200,
+    runRefresh: runBackground,
 });
 
 export const productSearchFacets = appProcedure

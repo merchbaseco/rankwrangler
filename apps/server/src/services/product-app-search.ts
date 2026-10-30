@@ -1,4 +1,5 @@
 import type { StoredProductSearchInput } from '@/api/product-search-input';
+import { runBackground } from '@/db/index';
 import { readBsrSparklines } from '@/db/product/product-bsr-sparklines';
 import {
     enrichmentKey,
@@ -13,6 +14,7 @@ const cachedTotal = createSwrCache<Awaited<ReturnType<typeof countStoredProducts
     freshMs: 60_000,
     staleMs: 30 * 60_000,
     maxEntries: 500,
+    runRefresh: runBackground,
 });
 
 /**

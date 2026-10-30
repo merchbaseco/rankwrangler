@@ -1,5 +1,6 @@
 import { keywordDirectoryFacetsInput } from '@/api/keyword-directory-input';
 import { appProcedure } from '@/api/trpc';
+import { runBackground } from '@/db/index';
 import { readKeywordDirectoryFacets } from '@/db/keyword-directory-facets';
 import { createSwrCache } from '@/utils/swr-cache';
 
@@ -12,6 +13,7 @@ const cached = createSwrCache<Awaited<ReturnType<typeof readKeywordDirectoryFace
     freshMs: 15_000,
     staleMs: 10 * 60_000,
     maxEntries: 100,
+    runRefresh: runBackground,
 });
 
 export const keywordDirectoryFacets = appProcedure

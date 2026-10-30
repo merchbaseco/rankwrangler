@@ -10,7 +10,8 @@ import * as schema from './schema';
 // jobs holding multi-statement transactions delayed dashboard reads. Interactive requests get their
 // own pool and only wait for each other. Unprepared, postgres.js describes every parameterized
 // query before running it, a second round trip; the interactive pool prepares statements instead
-// (the pooler supports protocol-level prepared statements), so a repeated read costs one.
+// (the pooler supports protocol-level prepared statements), so a repeated read costs one. It is
+// small because postgres.js rotates through every idle connection and prepares per connection.
 const connect = (max: number, prepare: boolean) =>
     drizzle(
         postgres({
@@ -24,7 +25,7 @@ const connect = (max: number, prepare: boolean) =>
         { schema, logger: process.env.NODE_ENV === 'development' }
     );
 const background = connect(10, false);
-const interactive = connect(10, true);
+const interactive = connect(5, true);
 const interactiveScope = new AsyncLocalStorage<true>();
 
 /**
@@ -32,6 +33,9 @@ const interactiveScope = new AsyncLocalStorage<true>();
  * requests in it; jobs and anything outside a request use the background pool.
  */
 export const runInteractive = <T>(work: () => T) => interactiveScope.run(true, work);
+
+/** Runs `work` on the background pool even inside a request, for work nobody is waiting on. */
+export const runBackground = <T>(work: () => T) => interactiveScope.exit(work);
 
 /** The database for the current context: the interactive pool inside a request, else background. */
 export const db: typeof background = new Proxy(background, {

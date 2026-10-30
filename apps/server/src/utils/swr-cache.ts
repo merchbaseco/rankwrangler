@@ -3,16 +3,19 @@
  * for `freshMs`; after that, and until `staleMs` more have passed, callers get the stored value at
  * once while one background load replaces it. Older values are reloaded in line. One in-flight
  * load per key; a failed load keeps the previous value (or is dropped so the next caller retries).
- * At most `maxEntries` keys, least recently written evicted first.
+ * At most `maxEntries` keys, least recently written evicted first. `runRefresh` wraps background
+ * loads, so work no caller waits on can run apart from the requests that are waiting.
  */
 export const createSwrCache = <T>({
     freshMs,
     staleMs,
     maxEntries,
+    runRefresh = work => work(),
 }: {
     freshMs: number;
     staleMs: number;
     maxEntries: number;
+    runRefresh?: (work: () => Promise<T>) => Promise<T>;
 }) => {
     const entries = new Map<string, { loadedAt: number; value: Promise<T>; refreshing: boolean }>();
     const store = (key: string, load: () => Promise<T>, now: number, previous?: Promise<T>) => {
@@ -43,7 +46,9 @@ export const createSwrCache = <T>({
         const cached = entries.get(key);
         const age = cached ? now - cached.loadedAt : Number.POSITIVE_INFINITY;
         if (cached && (age < freshMs || cached.refreshing)) return cached.value;
-        if (cached && age < freshMs + staleMs) return store(key, load, now, cached.value);
+        if (cached && age < freshMs + staleMs) {
+            return store(key, () => runRefresh(load), now, cached.value);
+        }
         return store(key, load, now);
     };
 };

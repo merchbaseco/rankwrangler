@@ -34,6 +34,23 @@ describe('createSwrCache', () => {
         expect(await cache('k', load, 220)).toBe(2);
     });
 
+    it('runs background refreshes through runRefresh and first loads in line', async () => {
+        const wrapped: string[] = [];
+        const cache = createSwrCache<number>({
+            freshMs: 100,
+            staleMs: 1_000,
+            maxEntries: 10,
+            runRefresh: work => {
+                wrapped.push('refresh');
+                return work();
+            },
+        });
+        await cache('k', async () => 1, 0);
+        expect(wrapped).toEqual([]);
+        await cache('k', async () => 2, 200);
+        expect(wrapped).toEqual(['refresh']);
+    });
+
     it('reloads in line once a value is older than the stale window', async () => {
         const cache = createSwrCache<number>({ freshMs: 100, staleMs: 100, maxEntries: 10 });
         let loads = 0;
