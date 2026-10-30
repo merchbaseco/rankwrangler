@@ -3,6 +3,7 @@ import { DataGrid, type DataGridColumn } from '@heroui-pro/react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { gridColumn } from '@/features/grid/grid-column';
+import { GridRowLinks } from '@/features/grid/grid-row-links';
 import {
     BsrCell,
     DesignCell,
@@ -37,30 +38,36 @@ export const NicheNeighbours = ({
     const rows = useMemo(() => toExploreRows(products, { now }), [products, now]);
     const openFilter = (filter: ProductRowFilter) =>
         navigate(`/explore?${new URLSearchParams(filter)}`);
-    const open = (asin: string) => {
+    const hrefOf = (asin: string) => {
         const row = rows.find(candidate => candidate.asin === asin);
-        if (row) {
-            navigate(productHref(row));
+        return row ? productHref(row) : undefined;
+    };
+    const open = (asin: string) => {
+        const href = hrefOf(asin);
+        if (href) {
+            navigate(href);
         }
     };
     return (
         <ProductRowMenu attribute={exploreRowAttribute} onFilter={openFilter} rows={rows}>
-            <DataGrid
-                aria-label={`Same niche: ${nicheLabel}`}
-                className="hairline-grid"
-                columns={columns}
-                data={rows}
-                getRowId={row => row.asin}
-                onRowAction={key => open(String(key))}
-                renderEmptyState={() =>
-                    isLoading ? (
-                        <Skeleton className="h-3 w-full rounded-xl" />
-                    ) : (
-                        <span className="text-muted">Nothing else in this niche yet.</span>
-                    )
-                }
-                variant="secondary"
-            />
+            <GridRowLinks hrefOf={hrefOf}>
+                <DataGrid
+                    aria-label={`Same niche: ${nicheLabel}`}
+                    className="hairline-grid"
+                    columns={columns}
+                    data={rows}
+                    getRowId={row => row.asin}
+                    onRowAction={key => open(String(key))}
+                    renderEmptyState={() =>
+                        isLoading ? (
+                            <Skeleton className="h-3 w-full rounded-xl" />
+                        ) : (
+                            <span className="text-muted">Nothing else in this niche yet.</span>
+                        )
+                    }
+                    variant="secondary"
+                />
+            </GridRowLinks>
         </ProductRowMenu>
     );
 };

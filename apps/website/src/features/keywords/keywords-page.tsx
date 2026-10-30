@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/ui/icon';
 import { GridDensityToggle } from '@/features/grid/grid-density-toggle';
 import { GridPager } from '@/features/grid/grid-pager';
+import { GridRowLinks } from '@/features/grid/grid-row-links';
 import { GridScreen } from '@/features/grid/grid-screen';
 import { exploreKeywordHref } from '@/features/product/product-keyword-links';
 import { ShellSearch } from '@/features/shell/shell-search';
@@ -56,10 +57,14 @@ export const KeywordsPage = () => {
             tracking.track(submitted);
         }
     };
-    const openResults = (id: string) => {
+    const hrefOf = (id: string) => {
         const row = rows.find(candidate => candidate.id === id);
-        if (row) {
-            navigate(exploreKeywordHref(row.term));
+        return row ? exploreKeywordHref(row.term) : undefined;
+    };
+    const openResults = (id: string) => {
+        const href = hrefOf(id);
+        if (href) {
+            navigate(href);
         }
     };
     const trackRow = (id: string) => {
@@ -126,39 +131,41 @@ export const KeywordsPage = () => {
                 }
             />
             <KeywordRowMenu onTrack={tracking.track} rows={rows}>
-                <DataGrid
-                    aria-label="Keyword directory"
-                    className="hairline-grid hairline-grid--fixed hairline-grid--fill"
-                    columns={keywordColumns}
-                    data={rows}
-                    getRowId={row => row.id}
-                    onRowAction={key => openResults(String(key))}
-                    onSelectionChange={handleSelectionChange}
-                    onSortChange={handleSortChange}
-                    renderEmptyState={() => (
-                        <KeywordEmptyState
-                            hasError={Boolean(directory.error)}
-                            hasFacet={isKeywordFiltered({ ...filters, q: '' })}
-                            isLoading={directory.isLoading}
-                            isTracking={tracking.isPending}
-                            onRetry={() => {
-                                directory.refetch().catch((error: unknown) => {
-                                    console.error('Reloading keywords failed', error);
-                                });
-                            }}
-                            onTrack={canTrack ? trackTerm : null}
-                            search={filters.q.trim()}
-                            trackError={trackError}
-                        />
-                    )}
-                    scrollContainerClassName="overflow-y-auto"
-                    selectedKeys={cursor ? new Set([cursor]) : new Set()}
-                    // Toggle behaviour: a click (or ⏎) is the row action; j/k set the cursor.
-                    selectionBehavior="toggle"
-                    selectionMode="single"
-                    sortDescriptor={keywordSortDescriptor(filters.sort)}
-                    variant="secondary"
-                />
+                <GridRowLinks hrefOf={hrefOf}>
+                    <DataGrid
+                        aria-label="Keyword directory"
+                        className="hairline-grid hairline-grid--fixed hairline-grid--fill"
+                        columns={keywordColumns}
+                        data={rows}
+                        getRowId={row => row.id}
+                        onRowAction={key => openResults(String(key))}
+                        onSelectionChange={handleSelectionChange}
+                        onSortChange={handleSortChange}
+                        renderEmptyState={() => (
+                            <KeywordEmptyState
+                                hasError={Boolean(directory.error)}
+                                hasFacet={isKeywordFiltered({ ...filters, q: '' })}
+                                isLoading={directory.isLoading}
+                                isTracking={tracking.isPending}
+                                onRetry={() => {
+                                    directory.refetch().catch((error: unknown) => {
+                                        console.error('Reloading keywords failed', error);
+                                    });
+                                }}
+                                onTrack={canTrack ? trackTerm : null}
+                                search={filters.q.trim()}
+                                trackError={trackError}
+                            />
+                        )}
+                        scrollContainerClassName="overflow-y-auto"
+                        selectedKeys={cursor ? new Set([cursor]) : new Set()}
+                        // Toggle behaviour: a click (or ⏎) is the row action; j/k set the cursor.
+                        selectionBehavior="toggle"
+                        selectionMode="single"
+                        sortDescriptor={keywordSortDescriptor(filters.sort)}
+                        variant="secondary"
+                    />
+                </GridRowLinks>
             </KeywordRowMenu>
             <GridPager
                 extra={<GridDensityToggle />}

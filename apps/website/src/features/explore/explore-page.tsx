@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GridDensityToggle } from '@/features/grid/grid-density-toggle';
 import { GridPager } from '@/features/grid/grid-pager';
+import { GridRowLinks } from '@/features/grid/grid-row-links';
 import { GridScreen } from '@/features/grid/grid-screen';
 import { useRowCursor } from '@/features/shell/use-row-cursor';
 import { exploreRowAttribute } from './explore-cells';
@@ -44,14 +45,21 @@ export const ExplorePage = () => {
     const ids = useMemo(() => rows.map(row => row.asin), [rows]);
     const cursor = rows.some(row => row.asin === cursorAsin) ? cursorAsin : null;
 
-    const open = useCallback(
+    const hrefOf = useCallback(
         (asin: string) => {
             const row = rows.find(candidate => candidate.asin === asin);
-            if (row) {
-                navigate(productHref(row));
+            return row ? productHref(row) : undefined;
+        },
+        [rows]
+    );
+    const open = useCallback(
+        (asin: string) => {
+            const href = hrefOf(asin);
+            if (href) {
+                navigate(href);
             }
         },
-        [navigate, rows]
+        [hrefOf, navigate]
     );
     const openAmazon = useCallback(
         (asin: string) => {
@@ -99,33 +107,37 @@ export const ExplorePage = () => {
                 onFilter={handleFilter}
                 rows={rows}
             >
-                <DataGrid
-                    aria-label="Ranked designs"
-                    className="hairline-grid hairline-grid--fixed hairline-grid--fill"
-                    columns={exploreColumns}
-                    data={rows}
-                    getRowId={row => row.asin}
-                    onRowAction={key => open(String(key))}
-                    onSelectionChange={handleSelectionChange}
-                    onSortChange={handleSortChange}
-                    renderEmptyState={() =>
-                        products.isLoading ? (
-                            <ExploreLoading />
-                        ) : (
-                            <ExploreEmpty
-                                error={products.error}
-                                onClear={isFiltered ? () => update(clearedExploreFilters) : null}
-                            />
-                        )
-                    }
-                    scrollContainerClassName="overflow-y-auto"
-                    selectedKeys={cursor ? new Set([cursor]) : new Set()}
-                    // Toggle behaviour: a click (or ⏎) is the row action; j/k set the cursor.
-                    selectionBehavior="toggle"
-                    selectionMode="single"
-                    sortDescriptor={exploreSortDescriptor(filters.sort)}
-                    variant="secondary"
-                />
+                <GridRowLinks hrefOf={hrefOf}>
+                        <DataGrid
+                        aria-label="Ranked designs"
+                        className="hairline-grid hairline-grid--fixed hairline-grid--fill"
+                        columns={exploreColumns}
+                        data={rows}
+                        getRowId={row => row.asin}
+                        onRowAction={key => open(String(key))}
+                        onSelectionChange={handleSelectionChange}
+                        onSortChange={handleSortChange}
+                        renderEmptyState={() =>
+                            products.isLoading ? (
+                                <ExploreLoading />
+                            ) : (
+                                <ExploreEmpty
+                                    error={products.error}
+                                    onClear={
+                                        isFiltered ? () => update(clearedExploreFilters) : null
+                                    }
+                                />
+                            )
+                        }
+                        scrollContainerClassName="overflow-y-auto"
+                        selectedKeys={cursor ? new Set([cursor]) : new Set()}
+                        // Toggle behaviour: a click (or ⏎) is the row action; j/k set the cursor.
+                        selectionBehavior="toggle"
+                        selectionMode="single"
+                        sortDescriptor={exploreSortDescriptor(filters.sort)}
+                        variant="secondary"
+                    />
+                </GridRowLinks>
             </ProductRowMenu>
             <GridPager
                 extra={<GridDensityToggle />}
