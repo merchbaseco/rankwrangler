@@ -3,7 +3,7 @@ import { db } from '@/db/index';
 import { keepaHistoryMetricColumns } from '@/services/keepa-history-metrics';
 import { keepaMinuteToDate } from '@/services/keepa-history-series';
 import type { ProductInfo } from '@/types';
-import { enrichmentKey, readStoredProductEnrichments } from './product-stored-enrichment';
+import { readStoredEnrichment } from './product-stored-enrichment';
 
 /**
  * Dashboard-only Product detail beyond the shared retrieval: stored short name and cutout (no
@@ -21,13 +21,13 @@ export const getProductAppDetail = async (
         thumbnailUrl: product.thumbnail.status === 'available' ? product.thumbnail.url : null,
     };
     const [stored, brandDesignCount, bestEverBsr] = await Promise.all([
-        readStoredProductEnrichments([source]),
+        readStoredEnrichment(source),
         countBrandDesigns(product),
         readBestEverBsr(product),
     ]);
     return {
-        shortName: stored.get(enrichmentKey(source))?.shortName ?? null,
-        cutoutThumbnailUrl: stored.get(enrichmentKey(source))?.cutoutThumbnailUrl ?? null,
+        shortName: stored.shortName,
+        cutoutThumbnailUrl: stored.cutoutThumbnailUrl,
         brandDesignCount,
         bestEverBsr,
     };

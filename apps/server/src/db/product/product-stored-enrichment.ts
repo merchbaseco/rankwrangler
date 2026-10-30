@@ -1,36 +1,43 @@
-import { sql } from 'drizzle-orm';
+import { type SQL, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { getCutoutInputFingerprint } from '@/services/product-cutout-thumbnail';
 import { getCutoutPublicUrl } from '@/services/product-cutout-thumbnail-media';
 import { getShortNameInputFingerprint } from '@/services/product-short-name-request';
 
 /**
- * Reads already-generated short names and cutouts for many Products in one query, without
- * starting generation. A stored row counts only while its fingerprint matches the Product's
- * current title and image, the same rule the generating read path applies.
+ * A Product's already-generated short name and cutout rows as one jsonb object, for selecting
+ * beside the Product itself; `storedEnrichment` decides whether they still count. Reading them
+ * never starts generation.
  */
-export const readStoredProductEnrichments = async (
-    items: readonly StoredEnrichmentSource[]
-): Promise<Map<string, StoredEnrichment>> => {
-    const result = new Map<string, StoredEnrichment>();
-    if (!items.length) return result;
-    const identities = JSON.stringify(items.map(item => ({ m: item.marketplaceId, a: item.asin })));
-    const rows = await db.execute<StoredEnrichmentRow>(sql`
-        select i.m "marketplaceId",i.a asin,
-            sn.state "shortNameState",sn.short_name "shortName",sn.input_fingerprint "shortNameFingerprint",
-            ct.state "cutoutState",ct.object_key "cutoutObjectKey",ct.input_fingerprint "cutoutFingerprint"
-        from jsonb_to_recordset(${identities}::jsonb) as i(m text,a text)
-        left join product_short_names sn on sn.marketplace_id=i.m and sn.asin=i.a
-        left join product_cutout_thumbnails ct on ct.marketplace_id=i.m and ct.asin=i.a`);
-    const stored = new Map(rows.map(row => [enrichmentKey(row), row]));
-    for (const item of items) {
-        const row = stored.get(enrichmentKey(item));
-        result.set(enrichmentKey(item), {
-            shortName: storedShortName(item, row),
-            cutoutThumbnailUrl: currentCutoutUrl(item, row),
-        });
-    }
-    return result;
+export const storedEnrichmentColumn = (marketplaceId: SQL, asin: SQL) => sql`(
+    select to_jsonb(x) from (
+        select sn.state "shortNameState",sn.short_name "shortName",
+            sn.input_fingerprint "shortNameFingerprint",ct.state "cutoutState",
+            ct.object_key "cutoutObjectKey",ct.input_fingerprint "cutoutFingerprint"
+        from (select 1) one
+        left join product_short_names sn on sn.marketplace_id=${marketplaceId} and sn.asin=${asin}
+        left join product_cutout_thumbnails ct on ct.marketplace_id=${marketplaceId}
+            and ct.asin=${asin}
+    ) x)`;
+
+/**
+ * A stored row counts only while its fingerprint matches the Product's current title and image,
+ * the same rule the generating read path applies.
+ */
+export const storedEnrichment = (
+    item: StoredEnrichmentSource,
+    row: StoredEnrichmentRow | null
+): StoredEnrichment => ({
+    shortName: storedShortName(item, row ?? undefined),
+    cutoutThumbnailUrl: currentCutoutUrl(item, row ?? undefined),
+});
+
+/** One Product's stored short name and cutout. */
+export const readStoredEnrichment = async (item: StoredEnrichmentSource) => {
+    const [row] = await db.execute<{ stored: StoredEnrichmentRow | null }>(
+        sql`select ${storedEnrichmentColumn(sql`${item.marketplaceId}`, sql`${item.asin}`)} stored`
+    );
+    return storedEnrichment(item, row?.stored ?? null);
 };
 
 export const enrichmentKey = (identity: { marketplaceId: string; asin: string }) =>
@@ -48,9 +55,7 @@ export interface StoredEnrichment {
     cutoutThumbnailUrl: string | null;
 }
 
-interface StoredEnrichmentRow extends Record<string, unknown> {
-    marketplaceId: string;
-    asin: string;
+export interface StoredEnrichmentRow {
     shortNameState: string | null;
     shortName: string | null;
     shortNameFingerprint: string | null;

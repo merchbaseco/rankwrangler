@@ -1,4 +1,4 @@
-import { and, sql } from 'drizzle-orm';
+import { and, type SQL, sql } from 'drizzle-orm';
 import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { db } from './index';
 import { getMarketplaceCurrencyCode } from './product/marketplace-currency';
@@ -7,11 +7,21 @@ import { productSearchFilters } from './product-search-filters';
 import { productSearchSort, productSearchUpdatedAt } from './product-search-sort';
 
 /**
+ * A caller-specific column selected for each returned Product in the same statement, from the
+ * Product's qualified columns (a single-table select renders them bare).
+ */
+export type ProductExtraColumn<T> = (product: { id: SQL; marketplaceId: SQL; asin: SQL }) => SQL<T>;
+
+/**
  * One page of stored Products. `page` reads by offset (deep pages cost the skipped rows) and
  * ignores the cursor; otherwise keyset paging continues from `cursor`. Either way `nextCursor`
  * continues after the returned page.
  */
-export const searchStoredProducts = async (input: StoredProductSearchInput, now = new Date()) => {
+export const searchStoredProducts = async <Extra = never>(
+    input: StoredProductSearchInput,
+    now = new Date(),
+    extra?: ProductExtraColumn<Extra>
+) => {
     const size = input.pageSize ?? input.limit;
     const filters = productSearchFilters(input, now);
     const sort = productSearchSort(
@@ -51,6 +61,7 @@ export const searchStoredProducts = async (input: StoredProductSearchInput, now 
             from product_facets pf join product_facet_values pfv on pfv.id = pf.facet_value_id
             where pf.product_id = ${products}.${sql.identifier(products.id.name)}
         ), '[]'::jsonb)`,
+            extra: extra ? extra(qualifiedColumns) : sql<null>`null`,
         })
         .from(products)
         .where(and(filters.where, sort.after))
@@ -95,7 +106,14 @@ export const searchStoredProducts = async (input: StoredProductSearchInput, now 
                 },
             },
             facets: row.facets,
+            ...(extra ? { extra: row.extra as Extra } : {}),
         })),
         nextCursor: rows.length > size && last ? sort.encode(last) : null,
     };
+};
+
+const qualifiedColumns = {
+    id: sql`${products}.${sql.identifier(products.id.name)}`,
+    marketplaceId: sql`${products}.${sql.identifier(products.marketplaceId.name)}`,
+    asin: sql`${products}.${sql.identifier(products.asin.name)}`,
 };
