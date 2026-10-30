@@ -1,6 +1,11 @@
 import { Button, Tooltip } from '@heroui/react';
-import { Navbar } from '@heroui-pro/react';
-import { Bookmark02Icon, Settings01Icon } from '@hugeicons-pro/core-stroke-rounded';
+import { Navbar, useNavbar } from '@heroui-pro/react';
+import {
+    Bookmark02Icon,
+    Cancel01Icon,
+    Menu01Icon,
+    Settings01Icon,
+} from '@hugeicons-pro/core-stroke-rounded';
 import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '@/components/ui/icon';
 import type { SettingsPage } from '@/features/settings/settings-navigation';
@@ -25,7 +30,9 @@ export const AppBanner = ({ onOpenSettings }: { onOpenSettings: (page: SettingsP
     return (
         <Navbar className="dark app-banner" height="3.375rem" maxWidth="full">
             <Navbar.Header>
-                <Navbar.MenuToggle className="md:hidden" srLabel="Views" />
+                <Navbar.MenuToggle className="md:hidden" srLabel="Views">
+                    <MenuToggleIcon />
+                </Navbar.MenuToggle>
                 <Navbar.Brand>
                     {/* The hat alone is the mark; it names the product and leads home. */}
                     <Link className="flex items-center" to="/explore">
@@ -91,4 +98,10 @@ export const AppBanner = ({ onOpenSettings }: { onOpenSettings: (page: SettingsP
             </Navbar.Menu>
         </Navbar>
     );
+};
+
+/** The phone menu's toggle in the product's icon set: a menu glyph, a cross while open. */
+const MenuToggleIcon = () => {
+    const { isMenuOpen } = useNavbar();
+    return <Icon icon={isMenuOpen ? Cancel01Icon : Menu01Icon} />;
 };
