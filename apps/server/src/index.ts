@@ -250,6 +250,11 @@ const startServer = async () => {
     try {
         await fastify.listen({ port, host: '0.0.0.0' });
         warmDashboard().catch(error => console.error('[Server] Dashboard warm-up failed:', error));
+        if (process.env.NODE_ENV !== 'development') {
+            rankwranglerAccess
+                .warmSigningKeys()
+                .catch(error => console.error('[Server] Signing key warm-up failed:', error));
+        }
 
         printStartupSummary({
             authSummary: 'Merchbase centralized access (session, OAuth, API key)',

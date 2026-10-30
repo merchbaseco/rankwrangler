@@ -31,7 +31,11 @@ through local aliases and a canonical grant. Their source revisions must match.
 Credentials never create grants or change service-account ownership.
 
 Cold identities may load one authenticated snapshot. Normal requests and jobs
-read local state and expiry. Internal snapshots apply monotonically and close
+read local state and expiry. The server reuses identity and grant lookups for up
+to five minutes and forgets them on every projection write, so only an
+out-of-process write waits that long; expiry is still checked per request.
+Cloudflare signing keys are fetched at startup and refreshed in the background,
+and fetched in line only for an unknown key id. Internal snapshots apply monotonically and close
 affected dashboard connections. Daily repair refreshes known users. Denial
 retains product data, metering, and connected provider credentials.
 

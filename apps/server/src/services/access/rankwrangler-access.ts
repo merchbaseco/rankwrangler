@@ -12,6 +12,7 @@ import { rankwranglerServiceAccounts } from '@/db/service-account-schema';
 import { memoizeIdentityLookups, memoizePrincipals } from './access-lookup-memo';
 import { createRankWranglerAccessProjectionStore } from './access-projection-store';
 import { createInternalAccess } from './internal-access';
+import { createCloudflareSigningKeys } from './cloudflare-signing-keys';
 import { createLocalGrantDeadline } from './local-grant';
 import { createRankWranglerRequestAccess } from './request-access';
 
@@ -49,6 +50,7 @@ export const createRankWranglerAccess = async ({
                 : options.authorityOrigin
         )
     );
+    const signingKeys = createCloudflareSigningKeys({ issuer: options.issuer });
     const common = {
         projections,
         resolveServicePrincipal: memoizePrincipals((input: { merchbaseUserId: string }) =>
@@ -77,16 +79,22 @@ export const createRankWranglerAccess = async ({
         createCloudflareServiceAccess({
             ...shared,
             acceptedPrincipalKinds: ['person'],
-            verifier: createCloudflareAssertionVerifier({
-                issuer: options.issuer,
-                audience: options.interactiveAudience,
-            }),
+            verifier: createCloudflareAssertionVerifier(
+                {
+                    issuer: options.issuer,
+                    audience: options.interactiveAudience,
+                },
+                signingKeys.resolve
+            ),
         });
-    const apiVerifier = createCloudflareAssertionVerifier({
-        issuer: options.issuer,
-        audience: options.apiAudience,
-        maxMachineLifetimeSeconds: 600,
-    });
+    const apiVerifier = createCloudflareAssertionVerifier(
+        {
+            issuer: options.issuer,
+            audience: options.apiAudience,
+            maxMachineLifetimeSeconds: 600,
+        },
+        signingKeys.resolve
+    );
     const oauthAccess =
         development ??
         createCloudflareServiceAccess({
@@ -118,6 +126,7 @@ export const createRankWranglerAccess = async ({
 
     return {
         projections,
+        warmSigningKeys: signingKeys.warm,
         sessionAccess,
         oauthAccess,
         apiKeyAccess,
@@ -133,11 +142,14 @@ export const createRankWranglerAccess = async ({
                       bidbeaconClientId: options.bidbeaconClientId,
                       access: publicAccess,
                       grantDeadline,
-                      internalVerifier: createCloudflareAssertionVerifier({
-                          issuer: options.issuer,
-                          audience: options.internalAudience,
-                          maxLifetimeSeconds: 600,
-                      }),
+                      internalVerifier: createCloudflareAssertionVerifier(
+                          {
+                              issuer: options.issuer,
+                              audience: options.internalAudience,
+                              maxLifetimeSeconds: 600,
+                          },
+                          signingKeys.resolve
+                      ),
                   })
                 : undefined,
         }),
@@ -147,11 +159,14 @@ export const createRankWranglerAccess = async ({
                 issuer: options.issuer,
                 authorityOrigin: options.authorityOrigin,
                 authorityClientId: options.authorityClientId,
-                verifier: createCloudflareAssertionVerifier({
-                    issuer: options.issuer,
-                    audience: options.internalAudience,
-                    maxLifetimeSeconds: 600,
-                }),
+                verifier: createCloudflareAssertionVerifier(
+                    {
+                        issuer: options.issuer,
+                        audience: options.internalAudience,
+                        maxLifetimeSeconds: 600,
+                    },
+                    signingKeys.resolve
+                ),
                 onChanged,
             }),
     };

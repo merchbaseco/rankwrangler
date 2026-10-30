@@ -1,7 +1,7 @@
 import type { AccessProjectionStore } from '@merchbaseco/access';
 
 /** How long an identity lookup is reused; projection writes through `apply` clear it at once. */
-export const IDENTITY_LOOKUP_MS = 30_000;
+export const IDENTITY_LOOKUP_MS = 5 * 60_000;
 const MAX_ENTRIES = 1_000;
 
 type IdentityLookup = Awaited<ReturnType<AccessProjectionStore['findByIdentity']>>;
