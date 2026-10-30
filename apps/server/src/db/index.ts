@@ -4,10 +4,12 @@ import { createDatabaseConnectionOptions } from '@/config/database-connection';
 import { env } from '@/config/env';
 import * as schema from './schema';
 
-// Create postgres connection
+// Pooled through PlanetScale's transaction-mode PgBouncer, so client connections are cheap. Jobs
+// hold connections through multi-statement transactions over a WAN round trip; a small pool left
+// dashboard reads queued behind them.
 const queryClient = postgres({
     ...createDatabaseConnectionOptions(env, 'application'),
-    max: 5,
+    max: 20,
     idle_timeout: 10000,
     max_lifetime: 30000,
     onnotice: process.env.NODE_ENV === 'development' ? console.log : undefined,
