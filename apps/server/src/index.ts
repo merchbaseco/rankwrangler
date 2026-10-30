@@ -36,7 +36,7 @@ import {
     createRankWranglerAccess,
 } from '@/services/access/rankwrangler-access';
 import { collectDueCatalogQueries } from '@/services/catalog-query-refresh';
-import { warmDashboard } from '@/services/dashboard-warmup';
+import { scheduleStartupWarmup } from '@/services/dashboard-warmup';
 import {
     recoverStaleCatalogSearchOperations,
     registerCatalogSearchWakeups,
@@ -105,6 +105,9 @@ const startServer = async () => {
         disableServerJobRunner: env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER,
     });
     const boss = new PgBoss({ connectionString: databaseUrl });
+    // pg-boss re-emits pool and maintenance failures; unheard, one refused connection ends
+    // the process.
+    boss.on('error', error => console.error('[pg-boss] Error:', error));
     await boss.start();
     console.log('[Server] pg-boss initialized');
     registerSpApiSyncQueueWakeups(boss);
@@ -249,12 +252,7 @@ const startServer = async () => {
 
     try {
         await fastify.listen({ port, host: '0.0.0.0' });
-        warmDashboard().catch(error => console.error('[Server] Dashboard warm-up failed:', error));
-        if (process.env.NODE_ENV !== 'development') {
-            rankwranglerAccess
-                .warmSigningKeys()
-                .catch(error => console.error('[Server] Signing key warm-up failed:', error));
-        }
+        scheduleStartupWarmup(rankwranglerAccess.warmSigningKeys);
 
         printStartupSummary({
             authSummary: 'Merchbase centralized access (session, OAuth, API key)',
