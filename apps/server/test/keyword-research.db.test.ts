@@ -4,8 +4,7 @@ import { appKeywordDirectoryInput } from '@/api/keyword-directory-input';
 import { discoveryTargets, keywordStandingObservations } from '@/db/discovery-target-schema';
 import { stopDiscoveryWork } from '@/db/discovery-work';
 import { db } from '@/db/index';
-import { listKeywordDirectory } from '@/db/keyword-directory';
-import { readKeywordDirectoryDetail } from '@/db/keyword-directory-detail';
+import { listKeywordDirectory, readKeywordDirectoryWithDetail } from '@/db/keyword-directory';
 import { products } from '@/db/product-schema';
 import { refreshKeywordStandings } from '@/db/refresh-keyword-standings';
 import { productFacets, productFacetValues, productShortNames } from '@/db/schema';
@@ -100,10 +99,13 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword research r
         await attachFacet('B0RSH00023', 'animal', 'bass');
         await storeShortName('B0RSH00021', 'Bass Grandpa', true);
         await storeShortName('B0RSH00022', 'Stale Name', false);
-        const [detail] = await readKeywordDirectoryDetail(
-            [{ queryId: target.queryId, score: 88 }],
-            now.toISOString()
-        );
+        const {
+            items: [detail],
+        } = await readKeywordDirectoryWithDetail(appKeywordDirectoryInput.parse({}), {
+            terms: ['bass fishing gifts'],
+            view: { asOf: now.toISOString(), sort: 'score' },
+        });
+        expect(detail.score).toBe(88);
         expect(detail.shelf.map(product => product.asin)).toEqual([
             'B0RSH00021',
             'B0RSH00022',

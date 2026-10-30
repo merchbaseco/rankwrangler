@@ -1,5 +1,4 @@
-import { sql } from 'drizzle-orm';
-import { db } from './index';
+import { type SQL, sql } from 'drizzle-orm';
 import {
     dominantFacetQuery,
     KEYWORD_FRESH_DAYS,
@@ -11,81 +10,78 @@ export const SCORE_TREND_WEEKS = 12;
 const DAY_MS = 86_400_000;
 
 /**
- * Research detail for one directory page: the top-ten Merch shelf in page-one order, its median
- * BSR and fresh count, the dominant facet, and score history from keyword_standing_observations,
- * with each shelf Product's stored short name, in one statement for the page.
+ * Research detail columns for directory rows, as correlated subqueries over `queryId`: the top-ten
+ * Merch shelf in page-one order with each Product's stored short name, the dominant facet, and
+ * score history from keyword_standing_observations. The page read selects them for its returned
+ * rows only, so detail costs no extra round trip; `withKeywordDetail` shapes them.
  */
-export const readKeywordDirectoryDetail = async <
-    T extends { queryId: string | null; score: number | null },
->(
-    items: readonly T[],
+export const keywordDetailColumns = (queryId: SQL, asOf: string) => sql`
+    coalesce((select jsonb_agg(s order by s.ord) from (
+        select h.ord,pr.marketplace_id "marketplaceId",pr.asin,pr.title,
+            pr.root_category_bsr "salesRank",pr.thumbnail_url "thumbnailUrl",
+            pr.date_first_available "firstAvailableAt",sn.state "shortNameState",
+            sn.short_name "shortName",sn.input_fingerprint "shortNameFingerprint"
+        from discovery_targets t
+        cross join jsonb_array_elements_text(t.head_product_ids) with ordinality h(id,ord)
+        join products pr on pr.id=h.id::uuid
+        left join product_short_names sn on sn.marketplace_id=pr.marketplace_id and sn.asin=pr.asin
+        where t.query_id=${queryId} and t.kind='keyword'
+            and pr.is_merch_listing=true and pr.amazon_listing_status='active'
+        order by h.ord limit ${KEYWORD_SHELF_SIZE}) s),'[]'::jsonb) "detailShelf",
+    (select to_jsonb(f) from (${dominantFacetQuery(queryId)}) f) "detailFacet",
+    (select o.popularity_score from keyword_standing_observations o
+        where o.query_id=${queryId} and o.observed_at<=${asOf}::timestamp-interval '7 days'
+        order by o.observed_at desc limit 1) "detailScore7d",
+    coalesce((select jsonb_agg(jsonb_build_array(w.back,o.popularity_score) order by w.back desc)
+        from generate_series(${SCORE_TREND_WEEKS - 1}::int,0,-1) w(back)
+        cross join lateral (select popularity_score from keyword_standing_observations
+            where query_id=${queryId} and observed_at<=${asOf}::timestamp-w.back*interval '7 days'
+            order by observed_at desc limit 1) o),'[]'::jsonb) "detailTrend"`;
+
+/**
+ * Shapes `keywordDetailColumns` for one row: the shelf with current short names, its median BSR
+ * and fresh count, the dominant facet, the seven-day score change and the weekly trend.
+ */
+export const withKeywordDetail = <T extends DetailColumns & { score: number | null }>(
+    row: T,
     asOf: string
 ) => {
-    const queryIds = items.flatMap(item => (item.queryId ? [item.queryId] : []));
-    const rows = queryIds.length
-        ? await db.execute<DetailRow>(sql`
-        select q.id "queryId",
-            coalesce((select jsonb_agg(s order by s.ord) from (
-                select h.ord,pr.marketplace_id "marketplaceId",pr.asin,pr.title,
-                    pr.root_category_bsr "salesRank",pr.thumbnail_url "thumbnailUrl",
-                    pr.date_first_available "firstAvailableAt",sn.state "shortNameState",
-                    sn.short_name "shortName",sn.input_fingerprint "shortNameFingerprint"
-                from discovery_targets t
-                cross join jsonb_array_elements_text(t.head_product_ids) with ordinality h(id,ord)
-                join products pr on pr.id=h.id::uuid
-                left join product_short_names sn on sn.marketplace_id=pr.marketplace_id
-                    and sn.asin=pr.asin
-                where t.query_id=q.id and t.kind='keyword'
-                    and pr.is_merch_listing=true and pr.amazon_listing_status='active'
-                order by h.ord limit ${KEYWORD_SHELF_SIZE}) s),'[]'::jsonb) shelf,
-            (select to_jsonb(f) from (${dominantFacetQuery(sql`q.id`)}) f) facet,
-            (select o.popularity_score from keyword_standing_observations o
-                where o.query_id=q.id and o.observed_at<=${asOf}::timestamp-interval '7 days'
-                order by o.observed_at desc limit 1) "score7d",
-            coalesce((select jsonb_agg(jsonb_build_array(w.back,o.popularity_score) order by w.back desc)
-                from generate_series(${SCORE_TREND_WEEKS - 1}::int,0,-1) w(back)
-                cross join lateral (select popularity_score from keyword_standing_observations
-                    where query_id=q.id and observed_at<=${asOf}::timestamp-w.back*interval '7 days'
-                    order by observed_at desc limit 1) o),'[]'::jsonb) trend
-        from catalog_queries q where q.id in (${sql.join(
-            queryIds.map(id => sql`${id}::uuid`),
-            sql`,`
-        )})`)
-        : [];
-    const byQuery = new Map(rows.map(row => [row.queryId, row]));
+    const { detailShelf, detailFacet, detailScore7d, detailTrend, ...item } = row;
     const asOfMs = new Date(asOf).getTime();
     const freshAfter = asOfMs - KEYWORD_FRESH_DAYS * DAY_MS;
-    return items.map(item => {
-        const row = item.queryId ? byQuery.get(item.queryId) : undefined;
-        const shelf = (row?.shelf ?? []).map(product => ({
-            asin: product.asin,
-            salesRank: product.salesRank,
-            thumbnailUrl: product.thumbnailUrl,
-            shortName: storedShortName(product, product),
-            title: product.title,
-            firstAvailableAt: product.firstAvailableAt
-                ? utcTimestamp(product.firstAvailableAt)
-                : null,
-        }));
-        return {
-            ...item,
-            shelf,
-            medianBsr: median(shelf.flatMap(product => product.salesRank ?? [])),
-            freshCount: shelf.filter(
-                product =>
-                    product.firstAvailableAt &&
-                    new Date(product.firstAvailableAt).getTime() >= freshAfter
-            ).length,
-            facet: row?.facet ?? null,
-            scoreDelta7d:
-                item.score === null || row?.score7d == null ? null : item.score - row.score7d,
-            scoreTrend12w: (row?.trend ?? []).flatMap(([back, score]) =>
-                score === null
-                    ? []
-                    : [{ at: new Date(asOfMs - back * 7 * DAY_MS).toISOString(), score }]
-            ),
-        };
-    });
+    const shelf = detailShelf.map(product => ({
+        asin: product.asin,
+        salesRank: product.salesRank,
+        thumbnailUrl: product.thumbnailUrl,
+        shortName: storedShortName(product, product),
+        title: product.title,
+        firstAvailableAt: product.firstAvailableAt ? utcTimestamp(product.firstAvailableAt) : null,
+    }));
+    return {
+        ...item,
+        shelf,
+        medianBsr: median(shelf.flatMap(product => product.salesRank ?? [])),
+        freshCount: shelf.filter(
+            product =>
+                product.firstAvailableAt &&
+                new Date(product.firstAvailableAt).getTime() >= freshAfter
+        ).length,
+        facet: detailFacet,
+        scoreDelta7d:
+            item.score === null || detailScore7d === null ? null : item.score - detailScore7d,
+        scoreTrend12w: detailTrend.flatMap(([back, score]) =>
+            score === null
+                ? []
+                : [{ at: new Date(asOfMs - back * 7 * DAY_MS).toISOString(), score }]
+        ),
+    };
+};
+
+export type DetailColumns = {
+    detailShelf: ShelfRow[];
+    detailFacet: { facet: string; name: string } | null;
+    detailScore7d: number | null;
+    detailTrend: [number, number | null][];
 };
 
 interface ShelfRow {
@@ -98,14 +94,6 @@ interface ShelfRow {
     shortNameState: string | null;
     shortName: string | null;
     shortNameFingerprint: string | null;
-}
-
-interface DetailRow extends Record<string, unknown> {
-    queryId: string;
-    shelf: ShelfRow[];
-    facet: { facet: string; name: string } | null;
-    score7d: number | null;
-    trend: [number, number | null][];
 }
 
 /** Matches the directory sort: middle value, or the rounded mean of the two middle values. */

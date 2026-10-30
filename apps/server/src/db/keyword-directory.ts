@@ -7,6 +7,11 @@ import type {
     keywordStages,
 } from '@/api/keyword-directory-input';
 import { db } from './index';
+import {
+    type DetailColumns,
+    keywordDetailColumns,
+    withKeywordDetail,
+} from './keyword-directory-detail';
 import { directoryFilters, directoryWhere, measuredStages } from './keyword-directory-filters';
 import { directoryProductCounts } from './keyword-directory-sort';
 import { directorySource } from './keyword-directory-source';
@@ -37,9 +42,36 @@ type DirectoryRow = {
  * ignores the cursor; otherwise keyset paging continues from `cursor`. Reading specific `terms`
  * ignores the stage, freshness and sidebar filters so callers can re-evaluate a row.
  */
-export const readKeywordDirectory = async (
+export const readKeywordDirectory = (input: KeywordDirectoryReadInput, options?: ReadOptions) =>
+    readDirectory<DirectoryRow>(input, options, false);
+
+/**
+ * A directory page with each row's research detail (`keywordDetailColumns`), read in the same
+ * statement as the page.
+ */
+export const readKeywordDirectoryWithDetail = async (
     input: KeywordDirectoryReadInput,
-    options?: { terms?: readonly string[]; view?: KeywordDirectoryView }
+    options?: ReadOptions
+) => {
+    const result = await readDirectory<DirectoryRow & DetailColumns>(input, options, true);
+    const items = result.items.map(item => withKeywordDetail(item, result.view.asOf));
+    return { ...result, items };
+};
+
+export const listKeywordDirectory = async (
+    input: KeywordDirectoryReadInput,
+    options?: { terms?: readonly string[] }
+) => {
+    const result = await readKeywordDirectory(input, options);
+    return { items: result.items.map(({ sortKey, ...row }) => row), nextCursor: result.nextCursor };
+};
+
+type ReadOptions = { terms?: readonly string[]; view?: KeywordDirectoryView };
+
+const readDirectory = async <Row extends DirectoryRow>(
+    input: KeywordDirectoryReadInput,
+    options: ReadOptions | undefined,
+    detail: boolean
 ) => {
     const asOf = options?.view?.asOf ?? input.cursor?.asOf ?? new Date().toISOString();
     const sort = options?.view?.sort ?? input.cursor?.sort ?? input.sort;
@@ -66,9 +98,10 @@ export const readKeywordDirectory = async (
         stage: terms ? undefined : input.stage,
     });
     const where = terms ? sql`true` : directoryWhere(filters, ['search']);
-    const rows = await db.execute<DirectoryRow>(sql`
+    const rows = await db.execute<Row>(sql`
         ${source}
-        select page.*,coalesce(s.sources,'{}'::text[]) sources${measuresFirst ? sql`` : sql`,m.products,m.merch`} from (
+        select page.*,coalesce(s.sources,'{}'::text[]) sources${measuresFirst ? sql`` : sql`,m.products,m.merch`}
+            ${detail ? sql`,${keywordDetailColumns(sql`page."queryId"`, asOf)}` : sql``} from (
             select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,"searchFrequencyRank",${measuresFirst ? sql`products,merch,` : sql``}"lastCheckedAt","sortKey",total,
                 case when freshness is null then null else "nextCheckAt" end "nextCheckAt",
                 case when freshness is null then null else "intervalDays" end "intervalDays"
@@ -104,14 +137,6 @@ export const readKeywordDirectory = async (
         view,
         nextCursor: !terms && rows.length > size && last ? { key: last.sortKey, ...view } : null,
     };
-};
-
-export const listKeywordDirectory = async (
-    input: KeywordDirectoryReadInput,
-    options?: { terms?: readonly string[] }
-) => {
-    const result = await readKeywordDirectory(input, options);
-    return { items: result.items.map(({ sortKey, ...row }) => row), nextCursor: result.nextCursor };
 };
 
 const utcTimestamp = (value: string | null) =>

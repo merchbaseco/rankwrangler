@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { appKeywordDirectoryInput, keywordDirectoryView } from '@/api/keyword-directory-input';
 import { appProcedure } from '@/api/trpc';
-import { readKeywordDirectory } from '@/db/keyword-directory';
-import { readKeywordDirectoryDetail } from '@/db/keyword-directory-detail';
+import { readKeywordDirectoryWithDetail } from '@/db/keyword-directory';
 
 /**
  * Re-reads changed rows at a loaded page's view, enriched exactly like `keywordDirectory`, so a
@@ -16,6 +15,6 @@ export const keywordDirectoryRows = appProcedure
         })
     )
     .query(async ({ input }) => {
-        const result = await readKeywordDirectory(appKeywordDirectoryInput.parse({}), input);
-        return readKeywordDirectoryDetail(result.items, result.view.asOf);
+        const empty = appKeywordDirectoryInput.parse({});
+        return (await readKeywordDirectoryWithDetail(empty, input)).items;
     });

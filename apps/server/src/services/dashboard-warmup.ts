@@ -10,8 +10,7 @@ import {
 } from '@/api/keyword-directory-input';
 import { appProductSearchInput, productSearchFacetsInput } from '@/api/product-search-input';
 import { runInteractive } from '@/db/index';
-import { readKeywordDirectory } from '@/db/keyword-directory';
-import { readKeywordDirectoryDetail } from '@/db/keyword-directory-detail';
+import { readKeywordDirectoryWithDetail } from '@/db/keyword-directory';
 import {
     readCachedKeywordDirectoryFacets,
     readCachedProductSearchFacets,
@@ -30,9 +29,7 @@ export const warmDashboard = () =>
         const grids = () =>
             Promise.all([
                 searchAppProducts(appProductSearchInput.parse(defaultExplorePage)),
-                readKeywordDirectory(appKeywordDirectoryInput.parse(defaultKeywordPage)).then(
-                    page => readKeywordDirectoryDetail(page.items, page.view.asOf)
-                ),
+                readKeywordDirectoryWithDetail(appKeywordDirectoryInput.parse(defaultKeywordPage)),
             ]);
         await Promise.all([
             readCachedProductSearchFacets(productSearchFacetsInput.parse(defaultExploreFilters)),
