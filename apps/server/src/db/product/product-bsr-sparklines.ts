@@ -6,12 +6,16 @@ import { enrichmentKey } from './product-stored-enrichment';
 
 export const SPARKLINE_DAYS = 30;
 const DAY_MS = 86_400_000;
+/** Latest points read first; thirty days of rank changes rarely exceed it. */
+const SERIES_TAIL = 256;
 
 /**
  * Samples main-category BSR once per day over the last thirty days for a page of Products.
  * History is a step function, so each sample is the value in force at that instant, carried in
  * from before the window when needed. One statement serves the whole page and returns only the
  * points inside the window plus the one in force at its start, never a Product's whole series.
+ * Series are sorted, so each reads only its tail when the tail already reaches back past the
+ * window start, and the carry-in is found per series instead of by sorting the whole page.
  * Samples before a Product's first point, and samples where Keepa recorded no rank, are omitted.
  */
 export const readBsrSparklines = async (
@@ -35,22 +39,21 @@ export const readBsrSparklines = async (
         keepaMinutes: number;
         value: number;
     }>(sql`
-        with points as (
-            select i.m, i.a, h.m keepa_minute, h.v value
-            from jsonb_to_recordset(${ids}::jsonb) as i(m text,a text)
-            join products p on p.marketplace_id=i.m and p.asin=i.a
-            join product_history_series s on s.product_id=p.id and s.source='keepa'
-                and s.metric=${keepaHistoryMetricColumns.bsrMain}
-            cross join lateral unnest(s.keepa_minutes, s.keepa_values) h(m,v)
-            where h.m<=${end}
-        )
-        select m "marketplaceId", a asin, keepa_minute "keepaMinutes", value
-        from points where keepa_minute>${start}
-        union all
-        select * from (
-            select distinct on (m, a) m, a, keepa_minute, value from points
-            where keepa_minute<=${start} order by m, a, keepa_minute desc
-        ) carry`);
+        select i.m "marketplaceId", i.a asin, h.m "keepaMinutes", h.v value
+        from jsonb_to_recordset(${ids}::jsonb) as i(m text,a text)
+        join products p on p.marketplace_id=i.m and p.asin=i.a
+        join product_history_series s on s.product_id=p.id and s.source='keepa'
+            and s.metric=${keepaHistoryMetricColumns.bsrMain}
+        cross join lateral (
+            select case when s.keepa_minutes[t.i]<=${start} then s.keepa_minutes[t.i:] else s.keepa_minutes end minutes,
+                case when s.keepa_minutes[t.i]<=${start} then s.keepa_values[t.i:] else s.keepa_values end vals
+            from (select greatest(cardinality(s.keepa_minutes)-${SERIES_TAIL - 1},1) i) t
+        ) w
+        cross join lateral (
+            select h.m, h.v, lead(h.m) over (order by h.ord) next_m
+            from unnest(w.minutes, w.vals) with ordinality h(m,v,ord)
+        ) h
+        where h.m<=${end} and (h.m>${start} or h.next_m is null or h.next_m>${start})`);
     const byProduct = new Map<string, { keepaMinutes: number; value: number }[]>();
     for (const row of rows) {
         const key = enrichmentKey(row);
