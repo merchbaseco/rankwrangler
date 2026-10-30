@@ -7,6 +7,7 @@ import Fastify from 'fastify';
 import { PgBoss } from 'pg-boss';
 import { createContext } from '@/api/context.js';
 import { registerHealthRoutes } from '@/api/health-routes.js';
+import { registerInteractiveRequests } from '@/api/interactive-requests';
 import { registerServerTiming, timeAuthorization } from '@/api/server-timing';
 import { appRouter } from '@/api/router.js';
 import { registerTrpcWebsocketServer, TRPC_WEBSOCKET_PATH } from '@/api/trpc-websocket-server';
@@ -152,6 +153,7 @@ const startServer = async () => {
         origin: createCorsOriginHandler({ isProduction: process.env.NODE_ENV === 'production' }),
         credentials: true,
     });
+    registerInteractiveRequests(fastify);
     const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess);
     const handleSnapshot = rankwranglerAccess.projectionHandler(uid => {
         trpcWebsocketServer.disconnectUser(uid);
