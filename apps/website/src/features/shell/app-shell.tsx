@@ -6,6 +6,7 @@ import { SettingsModal } from '@/features/settings/settings-modal';
 import type { SettingsPage } from '@/features/settings/settings-navigation';
 import { AppBanner } from './app-banner';
 import { PageToolbarProvider } from './page-toolbar';
+import { usePrefetchViews } from './use-prefetch-views';
 import { useViewShortcuts } from './use-view-shortcuts';
 
 /**
@@ -18,6 +19,7 @@ import { useViewShortcuts } from './use-view-shortcuts';
 export const AppShell = () => {
     const navigate = useNavigate();
     useViewShortcuts();
+    usePrefetchViews();
     const [settings, setSettings] = useState<SettingsRequest | null>(null);
 
     const openSettings = useCallback((page: SettingsPage) => {

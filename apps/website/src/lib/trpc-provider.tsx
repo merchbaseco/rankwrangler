@@ -23,7 +23,11 @@ const RealtimeConnectionContext =
 export function TRPCProvider({ children }: PropsWithChildren) {
 	const [queryClient] = useState(
 		() =>
-			new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } }),
+			// Views keep their last data for half an hour, so returning to one renders at
+			// once while a stale read refreshes in the background.
+			new QueryClient({
+				defaultOptions: { queries: { gcTime: 30 * 60_000, staleTime: 30_000 } },
+			}),
 	);
 	const [{ trpcClient, wsClient }] = useState(() =>
 		createWebsiteTrpcRuntime({

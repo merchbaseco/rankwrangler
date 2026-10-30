@@ -9,8 +9,11 @@ import { useKeywordDirectoryDueRefresh } from './use-keyword-directory-due-refre
 /**
  * One page of the keyword directory grid: `keywordDirectory` with offset
  * paging and the sidebar's filters. It never polls; realtime directory events
- * patch the page in place, and one timer re-reads it when a row's next check
- * comes due. Rows carry their 1-based place in the whole ordering.
+ * patch the page in place while it is shown, and one timer re-reads it when a
+ * row's next check comes due. A cached page (prefetched, or left earlier)
+ * missed events while hidden, so it renders at once and re-reads in the
+ * background when older than 30 seconds. Rows carry their 1-based place in the
+ * whole ordering.
  */
 export const useKeywordDirectory = (filters: KeywordFilters) => {
     const input = useMemo(() => keywordDirectoryInput(filters), [filters]);
@@ -19,7 +22,7 @@ export const useKeywordDirectory = (filters: KeywordFilters) => {
         // Keep rows on screen while a new filter, sort or page loads instead of flashing empty.
         placeholderData: keepPreviousData,
         refetchOnWindowFocus: false,
-        staleTime: Number.POSITIVE_INFINITY,
+        staleTime: 30_000,
     });
     const items = query.data?.items ?? emptyRows;
     useKeywordDirectoryDueRefresh(input, items);
