@@ -1,3 +1,4 @@
+import { keepaRequestAsin } from '@/db/product/keepa-request-asin';
 import { KeepaCapacityDeferredError } from '@/services/providers/keepa/keepa-capacity-types';
 import { KeepaDispatchDeferredError } from '@/services/keepa-dispatch-deferred';
 import { TRPCError } from '@trpc/server';
@@ -122,6 +123,7 @@ const loadKeepaProductHistoryOnce = async ({
         .select({
             id: products.id,
             keepaFetchedAt: products.keepaFetchedAt,
+            keepaAsin: keepaRequestAsin,
         })
         .from(products)
         .where(and(eq(products.marketplaceId, marketplaceId), eq(products.asin, asin)))
@@ -135,6 +137,8 @@ const loadKeepaProductHistoryOnce = async ({
     }
 
     const productId = productRow[0].id;
+    // A family is asked for through one variant: only a buyable ASIN carries price and monthly sales.
+    const requestAsin = productRow[0].keepaAsin;
     const recentImport = await getRecentSuccessfulKeepaImport(
         productId,
         productRow[0].keepaFetchedAt
@@ -165,7 +169,7 @@ const loadKeepaProductHistoryOnce = async ({
     try {
         const dispatchResult = await keepaProvider.getProduct({
             marketplaceId,
-            asin,
+            asin: requestAsin,
             days,
             canDispatch: async () => {
                 const keepaFetchedAt = await getProductKeepaFetchedAt(productId);
@@ -223,7 +227,7 @@ const loadKeepaProductHistoryOnce = async ({
         });
     }
 
-    const keepaProduct = keepaResponse.products?.find(product => product.asin === asin);
+    const keepaProduct = keepaResponse.products?.find(product => product.asin === requestAsin);
 
     if (!keepaProduct) {
         const errorCode = keepaResponse.error?.code ?? 'NO_PRODUCT';
@@ -254,7 +258,7 @@ const loadKeepaProductHistoryOnce = async ({
     const fetchedAt = new Date();
     const ingestion = await ingestKeepaProduct({
         marketplaceId,
-        asin,
+        asin: requestAsin,
         product: keepaProduct,
         fetchedAt,
         operationId,

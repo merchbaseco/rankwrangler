@@ -69,8 +69,20 @@ const ItemSummariesByMarketplaceSchema = z.object({
     brandName: z.string().optional(),
 });
 
+const ItemRelationshipsByMarketplaceSchema = z.object({
+    marketplaceId: z.string(),
+    relationships: z.array(
+        z.object({
+            type: z.string(),
+            parentAsins: z.array(z.string()).optional(),
+            childAsins: z.array(z.string()).optional(),
+        })
+    ),
+});
+
 export const ItemSchema = z.object({
     asin: z.string(),
+    relationships: z.array(ItemRelationshipsByMarketplaceSchema).optional(),
     attributes: ItemAttributesSchema.optional(),
     salesRanks: z.array(ItemSalesRanksByMarketplaceSchema).optional(),
     images: z.array(ItemImagesByMarketplaceSchema).optional(),

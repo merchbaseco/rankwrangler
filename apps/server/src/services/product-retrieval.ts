@@ -6,12 +6,19 @@ import {
     type ProductIdentity,
     type StoredProductRead,
 } from '@/db/product/get-products';
+import { db } from '@/db/index';
+import { familyIdentityKey, resolveFamilyIdentities } from '@/db/product/product-family';
 import { mapStoredProductInfo } from '@/db/product/product-info-mapper';
 import { upsertProductInfo } from '@/db/product/upsert-product';
 import { deleteSpApiSyncQueueItemsForIdentities } from '@/db/spapi-sync-queue/delete-queue-items';
 import { searchCatalogItemsByAsins } from '@/services/spapi/search-catalog-items-by-asins';
 import type { ProductInfo, SpApiProduct } from '@/types';
 import { PRODUCT_DEFAULT_MAX_AGE_MS } from './product-freshness-policy';
+import {
+    getAmazonListingStatus,
+    hasKnownListing,
+    shouldResolve,
+} from './product-retrieval-state';
 import {
     enqueueBackgroundProducts,
     resolveProduct,
@@ -75,6 +82,7 @@ export interface ProductRetrievalDeps {
     searchCatalogItemsByAsins: typeof searchCatalogItemsByAsins;
     persistProductSyncResults: typeof persistProductSyncResults;
     deleteSpApiSyncQueueItemsForIdentities?: typeof deleteSpApiSyncQueueItemsForIdentities;
+    resolveFamilies?: (identities: ProductIdentity[]) => Promise<Map<string, ProductIdentity>>;
 }
 
 const defaultDeps: ProductRetrievalDeps = {
@@ -84,6 +92,7 @@ const defaultDeps: ProductRetrievalDeps = {
     searchCatalogItemsByAsins,
     persistProductSyncResults,
     deleteSpApiSyncQueueItemsForIdentities,
+    resolveFamilies: identities => resolveFamilyIdentities(db, identities),
 };
 
 export const getProducts = async (
@@ -104,10 +113,13 @@ export const getProducts = async (
     },
     deps: ProductRetrievalDeps = defaultDeps
 ): Promise<ProductRetrieval[]> => {
-    const identities = normalizeIdentities(requestedProducts);
-    if (identities.length === 0) {
+    const requested = normalizeIdentities(requestedProducts);
+    if (requested.length === 0) {
         return [];
     }
+    // A variant ASIN reads and refreshes its family; nothing is fetched for the variant itself.
+    let families = await resolveFamilies(deps, requested);
+    const identities = familiesOf(requested, families);
 
     const cutoff = new Date(Date.now() - Math.max(0, maxAgeMs));
     let stored = await deps.getStoredProducts(identities);
@@ -118,7 +130,10 @@ export const getProducts = async (
 
     if (fetchPolicy === 'blocking') {
         await resolveProducts(needsResolution, deps, signal, timeoutMs);
-        stored = needsResolution.length > 0 ? await deps.getStoredProducts(identities) : stored;
+        if (needsResolution.length > 0) {
+            families = await resolveFamilies(deps, requested);
+            stored = await deps.getStoredProducts(familiesOf(requested, families));
+        }
     } else if (fetchPolicy === 'last-known') {
         const known = needsResolution.filter(identity =>
             hasKnownListing(storedByKey.get(productKey(identity)))
@@ -132,15 +147,18 @@ export const getProducts = async (
             });
         }
         await resolveProducts(unknown, deps, signal, timeoutMs);
-        stored = unknown.length > 0 ? await deps.getStoredProducts(identities) : stored;
+        if (unknown.length > 0) {
+            families = await resolveFamilies(deps, requested);
+            stored = await deps.getStoredProducts(familiesOf(requested, families));
+        }
     } else if (needsResolution.length > 0) {
         await enqueueBackgroundProducts(needsResolution, storedByKey, deps);
         stored = await deps.getStoredProducts(identities);
     }
 
     const finalByKey = indexStoredProducts(stored);
-    return identities.map(identity =>
-        mapProductRetrieval(identity, finalByKey.get(productKey(identity)))
+    return requested.map(identity =>
+        mapProductRetrieval(identity, finalByKey.get(productKey(familyOf(identity, families))))
     );
 };
 
@@ -160,9 +178,10 @@ export const getProductDetails = async (
     },
     deps: ProductRetrievalDeps = defaultDeps
 ): Promise<ProductRetrieval> => {
-    const [identity] = normalizeIdentities([{ marketplaceId, asin }]);
+    const [requested] = normalizeIdentities([{ marketplaceId, asin }]);
+    const identity = familyOf(requested, await resolveFamilies(deps, [requested]));
     const [stored] = await deps.getStoredProducts([identity]);
-    const result = mapProductRetrieval(identity, stored);
+    const result = mapProductRetrieval(requested, stored);
     const cutoff = new Date(Date.now() - Math.max(0, maxAgeMs));
 
     if (!(refresh || shouldResolve(stored, cutoff))) {
@@ -179,8 +198,9 @@ export const getProductDetails = async (
     }
 
     await resolveProduct(identity, deps, signal, timeoutMs);
-    const [refreshed] = await deps.getStoredProducts([identity]);
-    return mapProductRetrieval(identity, refreshed);
+    const family = familyOf(requested, await resolveFamilies(deps, [requested]));
+    const [refreshed] = await deps.getStoredProducts([family]);
+    return mapProductRetrieval(requested, refreshed);
 };
 
 export const getRequiredProduct = async (
@@ -219,60 +239,6 @@ const mapProductRetrieval = (
     };
 };
 
-const getAmazonListingStatus = (
-    stored: StoredProductRead | undefined
-): AmazonListingResolutionStatus => {
-    if (!stored) {
-        return 'pending';
-    }
-    if (stored.product.amazonListingStatus === 'deleted') {
-        return 'deleted';
-    }
-    if (stored.product.spApiFetchedAt) {
-        return 'active';
-    }
-    if (stored.queuePending) {
-        return 'pending';
-    }
-    return 'pending';
-};
-
-const hasKnownListing = (stored: StoredProductRead | undefined) =>
-    getAmazonListingStatus(stored) !== 'pending';
-
-const shouldResolve = (
-    stored: StoredProductRead | undefined,
-    cutoff: Date,
-    rediscoveredAt?: Date
-) => {
-    if (!stored) {
-        return true;
-    }
-
-    if (stored.product.amazonListingStatus === 'deleted') {
-        return Boolean(
-            rediscoveredAt &&
-                (!stored.product.spApiResolvedAt || stored.product.spApiResolvedAt < rediscoveredAt)
-        );
-    }
-
-    const resolvedAt = getLatestSpApiTimestamp(stored.product);
-    return !resolvedAt || resolvedAt < cutoff;
-};
-
-const getLatestSpApiTimestamp = (product: StoredProductRead['product']) => {
-    if (!product.spApiFetchedAt) {
-        return product.spApiResolvedAt;
-    }
-    if (!product.spApiResolvedAt) {
-        return product.spApiFetchedAt;
-    }
-
-    return product.spApiFetchedAt >= product.spApiResolvedAt
-        ? product.spApiFetchedAt
-        : product.spApiResolvedAt;
-};
-
 const normalizeIdentities = (identities: ProductIdentity[]) => {
     const unique = new Map<string, ProductIdentity>();
     for (const identity of identities) {
@@ -291,3 +257,13 @@ const indexStoredProducts = (stored: StoredProductRead[]) => {
 
 const productKey = (identity: Pick<ProductIdentity, 'marketplaceId' | 'asin'>) =>
     `${identity.marketplaceId}:${identity.asin}`;
+
+// Without a resolver (unit tests) every ASIN is its own family.
+const resolveFamilies = async (deps: ProductRetrievalDeps, identities: ProductIdentity[]) =>
+    deps.resolveFamilies ? await deps.resolveFamilies(identities) : new Map<string, ProductIdentity>();
+
+const familyOf = (identity: ProductIdentity, families: Map<string, ProductIdentity>) =>
+    families.get(familyIdentityKey(identity)) ?? identity;
+
+const familiesOf = (identities: ProductIdentity[], families: Map<string, ProductIdentity>) =>
+    normalizeIdentities(identities.map(identity => familyOf(identity, families)));

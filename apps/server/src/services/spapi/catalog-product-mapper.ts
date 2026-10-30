@@ -54,6 +54,7 @@ export const mapSpApiCatalogItem = (
 
     const productInfo: SpApiProduct = {
         asin,
+        ...readVariationFamily(item, marketplaceId),
         marketplaceId,
         dateFirstAvailable,
         title,
@@ -68,4 +69,20 @@ export const mapSpApiCatalogItem = (
         fetchedAt,
     };
     return productInfo;
+};
+
+// A variant names its parent; a parent lists its variants. Either way the family shares one rank.
+export const readVariationFamily = (
+    item: Pick<z.infer<typeof ItemSchema>, 'asin' | 'relationships'>,
+    marketplaceId: string
+) => {
+    const variations = (
+        item.relationships?.find(entry => entry.marketplaceId === marketplaceId)?.relationships ?? []
+    ).filter(relationship => relationship.type === 'VARIATION');
+    const parentAsin = variations.flatMap(relationship => relationship.parentAsins ?? [])[0];
+    const childAsin = variations.flatMap(relationship => relationship.childAsins ?? [])[0];
+    return {
+        parentAsin: parentAsin && parentAsin !== item.asin ? parentAsin.toUpperCase() : null,
+        childAsin: childAsin ? childAsin.toUpperCase() : null,
+    };
 };

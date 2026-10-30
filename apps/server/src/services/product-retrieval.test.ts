@@ -122,6 +122,8 @@ describe('Product retrieval', () => {
             rootCategoryBsr: null,
             thumbnailUrl: 'https://example.com/thumbnail.jpg',
             keepa: null,
+            parentAsin: null,
+            childAsin: null,
             fetchedAt: new Date().toISOString(),
         };
         const enqueueSpApiSyncQueueItems = mock(() => Promise.resolve(0));
@@ -353,5 +355,7 @@ const createSpApiProduct = ({ marketplaceId, asin }: { marketplaceId: string; as
     rootCategoryBsr: null,
     thumbnailUrl: null,
     keepa: null,
+    parentAsin: null,
+    childAsin: null,
     fetchedAt: '2026-08-08T12:00:00.000Z',
 });

@@ -1,6 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { productHistoryImports, products } from '@/db/schema';
+import { keepaRequestAsin } from '@/db/product/keepa-request-asin';
 import { extractKeepaErrorDetails, resolveCategoryNames } from '@/services/keepa';
 import { ingestKeepaProduct } from '@/services/keepa-product-ingestion';
 import { getErrorMessage } from '@/services/job-executions-utils';
@@ -26,15 +27,22 @@ export const loadKeepaHistoryBatch = async ({
     days: number;
 }): Promise<KeepaHistoryBatchOutcome[]> => {
     const productRows = await db
-        .select({ id: products.id, asin: products.asin })
+        .select({ id: products.id, asin: products.asin, keepaAsin: keepaRequestAsin })
         .from(products)
         .where(and(eq(products.marketplaceId, marketplaceId), inArray(products.asin, [...asins])));
     const productIds = new Map(productRows.map(row => [row.asin, row.id]));
+    // A family is asked for through one variant: only a buyable ASIN carries price and monthly sales.
+    const requestAsins = new Map(productRows.map(row => [row.asin, row.keepaAsin]));
+    const requestAsin = (asin: string) => requestAsins.get(asin) ?? asin;
     const requestParams = { marketplaceId, batchSize: asins.length, history: 1, update: 1, days, stats: 365 };
 
     let response: KeepaResponse;
     try {
-        response = await keepaProvider.getProducts({ marketplaceId, asins, days });
+        response = await keepaProvider.getProducts({
+            marketplaceId,
+            asins: asins.map(requestAsin),
+            days,
+        });
     } catch (error) {
         if (error instanceof KeepaCapacityDeferredError) {
             throw error;
@@ -73,7 +81,7 @@ export const loadKeepaHistoryBatch = async ({
     const outcomes: KeepaHistoryBatchOutcome[] = [];
     for (const asin of asins) {
         const productId = productIds.get(asin);
-        const product = payloads.get(asin);
+        const product = payloads.get(requestAsin(asin));
         if (!productId) {
             outcomes.push({ asin, status: 'failed', message: 'Product not found in cache' });
             continue;
@@ -96,7 +104,7 @@ export const loadKeepaHistoryBatch = async ({
         try {
             const ingestion = await ingestKeepaProduct({
                 marketplaceId,
-                asin,
+                asin: requestAsin(asin),
                 product,
                 fetchedAt: new Date(),
                 import: {

@@ -145,7 +145,7 @@ export class SpApiProvider {
                 await this.catalogApi.searchCatalogItems([marketplaceId], {
                     identifiers: asins,
                     identifiersType: 'ASIN',
-                    includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
+                    includedData: ['summaries', 'salesRanks', 'attributes', 'images', 'relationships'],
                     pageSize: 20,
                 }),
         });
@@ -173,7 +173,7 @@ export class SpApiProvider {
                 await this.catalogApi.searchCatalogItems([marketplaceId], {
                     keywords: [keyword],
                     ...(brandNames?.length ? { brandNames } : {}),
-                    includedData: ['summaries', 'salesRanks', 'attributes', 'images'],
+                    includedData: ['summaries', 'salesRanks', 'attributes', 'images', 'relationships'],
                     pageSize,
                     pageToken,
                 }),

@@ -19,7 +19,9 @@ export const productShortNames = pgTable(
         productFk: foreignKey({
             columns: [table.marketplaceId, table.asin],
             foreignColumns: [products.marketplaceId, products.asin],
-        }).onDelete('cascade'),
+        })
+            .onDelete('cascade')
+            .onUpdate('cascade'),
         stateCheck: check(
             'product_short_names_state_check',
             sql`${table.state} in ('pending', 'ready', 'error')`

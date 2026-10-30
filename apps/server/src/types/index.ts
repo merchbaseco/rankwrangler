@@ -60,4 +60,8 @@ export type SpApiProduct = Omit<
 > & {
     fetchedAt: string;
     thumbnailUrl: string | null;
+    // The variation parent this listing belongs to; null when it is its own family.
+    parentAsin: string | null;
+    // One of this listing's variants when it is a parent; null otherwise.
+    childAsin: string | null;
 };

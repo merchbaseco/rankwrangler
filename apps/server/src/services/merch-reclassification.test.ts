@@ -27,6 +27,8 @@ const fetched = (asin: string, isMerchListing: boolean | null): SpApiProduct => 
     rootCategoryBsr: null,
     thumbnailUrl: null,
     keepa: null,
+    parentAsin: null,
+    childAsin: null,
     fetchedAt: '2026-10-28T12:00:00.000Z',
 });
 

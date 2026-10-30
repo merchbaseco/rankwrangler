@@ -84,7 +84,10 @@ export const persistCatalogSearchSuccess = async ({
 
         for (const result of orderedResults) {
             const productId = await persistKeepaProductRow(transaction, result.normalized);
+            // Variants of one family on a page count once, at the family's first position.
+            const repeated = productIds.includes(productId);
             productIds.push(productId);
+            if (repeated) continue;
             const observed = result.normalized.product;
             await transaction.insert(catalogSearchResults).values({
                 runId: run.id,
@@ -109,7 +112,7 @@ export const persistCatalogSearchSuccess = async ({
             page,
             completedAt: sourceCompletedAt,
             resultCount: results.length,
-            productIds,
+            productIds: [...new Set(productIds)],
         });
 
         const [completedOperation] = await transaction
@@ -138,7 +141,7 @@ export const persistCatalogSearchSuccess = async ({
     // lock and the caller never wait on it and a failed history save cannot fail the search.
     for (const [index, result] of orderedResults.entries()) {
         const productId = saved.productIds[index];
-        if (!productId) continue;
+        if (!productId || saved.productIds.indexOf(productId) !== index) continue;
         try {
             await db.transaction(tx =>
                 persistKeepaProductHistory(tx, productId, result.normalized, {

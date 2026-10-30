@@ -5,6 +5,12 @@ import { keepaHistoryRefreshQueue, productHistoryImports, products } from '@/db/
 import type { NormalizedKeepaProduct } from '@/services/keepa-product-normalizer';
 import type { KeepaIngestionImport } from './persist-keepa-product-ingestion';
 import { writeProductHistorySeries } from './product-history-series';
+import {
+    claimProductFamily,
+    familyIdentityKey,
+    recordVariantAliases,
+    resolveFamilyIdentities,
+} from './product-family';
 import { reconcileMerchListing, reconcileSellerBullet } from './reconcile-merch-listing';
 
 export type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -25,17 +31,17 @@ export const persistKeepaProductRow = async (
     normalized: NormalizedKeepaProduct
 ) => {
     const product = normalized.product;
+    const asin = await keepaFamilyAsin(transaction, product);
     const [previous] = await transaction
         .select({ merch: products.isMerchListing })
         .from(products)
-        .where(
-            and(eq(products.marketplaceId, product.marketplaceId), eq(products.asin, product.asin))
-        );
+        .where(and(eq(products.marketplaceId, product.marketplaceId), eq(products.asin, asin)));
     const [storedProduct] = await transaction
         .insert(products)
         .values({
             marketplaceId: product.marketplaceId,
-            asin: product.asin,
+            asin,
+            representativeAsin: asin === product.asin ? null : product.asin,
             title: product.title,
             brand: product.brand,
             thumbnailUrl: product.thumbnailUrl,
@@ -62,6 +68,7 @@ export const persistKeepaProductRow = async (
         .onConflictDoUpdate({
             target: [products.marketplaceId, products.asin],
             set: {
+                representativeAsin: fillMissingCanonicalValue(products.representativeAsin),
                 isMerchListing: reconcileMerchListing(products.isMerchListing),
                 title: fillMissingCanonicalValue(products.title),
                 brand: fillMissingCanonicalValue(products.brand),
@@ -94,6 +101,9 @@ export const persistKeepaProductRow = async (
     if (!storedProduct) {
         throw new Error(`Failed to persist Keepa Product ${product.asin}`);
     }
+    await recordVariantAliases(transaction, product.marketplaceId, [
+        { asin: product.asin, familyAsin: asin },
+    ]);
 
     if (previous && previous.merch !== storedProduct.merch)
         await notifyKeywordProductRows(transaction, [storedProduct.id]);
@@ -109,12 +119,17 @@ export const persistKeepaProductHistory = async (
     importDetails: KeepaIngestionImport
 ) => {
     const product = normalized.product;
+    const [family] = await transaction
+        .select({ asin: products.asin })
+        .from(products)
+        .where(eq(products.id, productId));
+    const asin = family?.asin ?? product.asin;
     const [insertedImport] = await transaction
         .insert(productHistoryImports)
         .values({
             productId,
             marketplaceId: product.marketplaceId,
-            asin: product.asin,
+            asin,
             source: 'keepa',
             status: 'success',
             requestParams: importDetails.requestParams,
@@ -155,7 +170,7 @@ export const persistKeepaProductHistory = async (
         .where(
             and(
                 eq(keepaHistoryRefreshQueue.marketplaceId, product.marketplaceId),
-                eq(keepaHistoryRefreshQueue.asin, product.asin)
+                eq(keepaHistoryRefreshQueue.asin, asin)
             )
         );
 
@@ -164,6 +179,16 @@ export const persistKeepaProductHistory = async (
         importId: insertedImport.id,
         importedAt: insertedImport.createdAt,
     };
+};
+
+// Keepa answers for a variant: write under its parent, or under a family the variant already maps to.
+const keepaFamilyAsin = async (
+    transaction: DatabaseTransaction,
+    product: NormalizedKeepaProduct['product']
+) => {
+    if (product.parentAsin) return await claimProductFamily(transaction, product);
+    const families = await resolveFamilyIdentities(transaction, [product]);
+    return families.get(familyIdentityKey(product))?.asin ?? product.asin;
 };
 
 const preserveExistingOnNull = (column: { name: string }) => {

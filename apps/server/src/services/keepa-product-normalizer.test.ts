@@ -35,6 +35,7 @@ describe('normalizeKeepaProduct', () => {
         expect(result.product).toEqual({
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B0MERCH001',
+            parentAsin: null,
             title: null,
             brand: null,
             thumbnailUrl: null,

@@ -61,6 +61,8 @@ describe('Product detail retrieval', () => {
             rootCategoryBsr: null,
             thumbnailUrl: 'https://example.com/refreshed.jpg',
             keepa: null,
+            parentAsin: null,
+            childAsin: null,
             fetchedAt: new Date().toISOString(),
         };
         const searchCatalogItemsByAsins = mock(async () => {

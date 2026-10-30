@@ -61,6 +61,12 @@ The public Product shape exposes no Merch-classification provider, freshness, or
 The nullable field is the complete public knowledge contract; Top Search Terms' separate
 `isMerchRelevant` classifier is outside this decision.
 
+Products are variation families (see [Product catalog](../internals/product-catalog.md)). A
+variation parent carries the bare 11-character design code as its part number and seller bullets but
+no template bullets, so it classifies through the part-number path; a variant carries the template
+bullets and the design code with a `B0…` suffix. Both write to the family row, and `true` stays
+sticky whichever arrives first.
+
 ## Consequences
 
 - Consumers distinguish known non-Merch (`false`) from not-yet-classified (`null`).

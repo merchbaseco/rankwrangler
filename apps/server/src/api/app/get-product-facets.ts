@@ -1,3 +1,4 @@
+import { resolveProductIdentity } from '@/services/resolve-product-identity';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
@@ -15,7 +16,8 @@ const getProductFacetsInput = z.object({
 
 export const getProductFacets = appProcedure
     .input(getProductFacetsInput)
-    .query(async ({ input }) => {
+    .query(async ({ input: requested }) => {
+        const input = await resolveProductIdentity(requested);
         const rows = await db
             .select({
                 facet: productFacetValues.facet,

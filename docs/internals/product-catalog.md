@@ -14,6 +14,29 @@ The Product catalog is RankWrangler's canonical current-state store. One Product
 `marketplaceId + asin`, regardless of whether it was discovered by the extension, an ASIN lookup,
 an Amazon keyword search, or Keepa.
 
+## Variation Families
+
+A Product is a variation family. Amazon gives every size and color its own ASIN, but all variants of
+a listing share the parent's sales rank (checked across clothing, phone cases, PopSockets, mugs,
+tumblers, yoga mats, pillow covers and backpacks), so RankWrangler stores one Product per parent:
+
+- `asin` is the family ASIN: the variation parent, or the listing itself when it has no variants.
+- `product_asin_aliases` maps each variant ASIN seen to its family. Lookups (API, MCP, extension)
+  and keyword scans resolve a variant through it with no provider call; a known variant never gets
+  a row, a refresh or a Keepa request of its own.
+- Every SP-API Catalog call asks for `relationships`. A variant observation is written under its
+  parent: its rank and Merch evidence apply, but its title (which names the size and color) only
+  fills gaps, and a family first met through a variant queues the parent for an SP-API fetch so its
+  own title replaces it. SP-API refreshes ask for the parent ASIN.
+- `representativeAsin` is one variant of the family. Keepa is asked through it, because Keepa
+  answers a parent with rank history only; a buyable variant also carries price and monthly sales.
+  One Keepa token covers the family.
+- When an observation reveals that two stored rows are one family (rows stored before variations
+  were known), the row Keepa has tracked longest survives, the other row's keyword memberships,
+  search results, history series, facets, short name and cutout move to it, and it takes the
+  parent ASIN. `variationsCheckedAt` records the last SP-API answer; `backfill-product-variations`
+  re-reads unchecked Products at background priority (100 a minute) until none remain.
+
 ## Current State
 
 The persisted Product model combines normalized fields with explicit source boundaries:
@@ -167,6 +190,7 @@ not persist query identity, result placement, or run history; that belongs to th
 ## Update Invariants
 
 - Provider ingestion updates the same Product key instead of creating source-specific Products.
+- A variant ASIN never becomes a Product of its own; it resolves to its family through an alias.
 - Keepa persistence updates Product state, history, import diagnostics, freshness, and obsolete
   Keepa queue work in one transaction.
 - A failed Keepa transaction never advances `keepaFetchedAt`.

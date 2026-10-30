@@ -1,3 +1,4 @@
+import { resolveProductIdentity } from '@/services/resolve-product-identity';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { adminProcedure } from '@/api/trpc.js';
@@ -18,7 +19,8 @@ const classifyProductFacetsInput = z.object({
 
 export const classifyProductFacets = adminProcedure
     .input(classifyProductFacetsInput)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input: requested }) => {
+        const input = await resolveProductIdentity(requested);
         if (!env.RANKWRANGLER_GEMINI_API_KEY) {
             throw new TRPCError({
                 code: 'PRECONDITION_FAILED',

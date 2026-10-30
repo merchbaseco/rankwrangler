@@ -143,6 +143,8 @@ export const discoveryProduct = (
     rootCategoryBsr: 200_000,
     thumbnailUrl: null,
     keepa: null,
+    parentAsin: null,
+    childAsin: null,
     fetchedAt: discoveryNow.toISOString(),
     ...extra,
 });

@@ -82,8 +82,8 @@ const capture = async (sql: postgres.Sql, options: Options): Promise<Preservatio
             sql,
             'products',
             options.phase === 'before'
-                ? "((to_jsonb(products) - ARRAY['sp_api_resolved_at', 'history_admission_state', 'history_admission_reason', 'history_admitted_at']) || jsonb_build_object('amazon_listing_status', 'active'))::text"
-                : "(to_jsonb(products) - ARRAY['sp_api_resolved_at', 'history_admission_state', 'history_admission_reason', 'history_admitted_at'])::text"
+                ? "((to_jsonb(products) - ARRAY['sp_api_resolved_at', 'history_admission_state', 'history_admission_reason', 'history_admitted_at', 'representative_asin', 'variations_checked_at']) || jsonb_build_object('amazon_listing_status', 'active'))::text"
+                : "(to_jsonb(products) - ARRAY['sp_api_resolved_at', 'history_admission_state', 'history_admission_reason', 'history_admitted_at', 'representative_asin', 'variations_checked_at'])::text"
         ),
     };
 
