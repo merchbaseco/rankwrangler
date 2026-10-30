@@ -15,7 +15,7 @@ describe('Server-Timing', () => {
         fastify.get('/health/live', async () => ({ ok: true }));
         const api = await fastify.inject({ url: '/api/read' });
         expect(String(api.headers['server-timing'])).toMatch(
-            /^auth;dur=[\d.]+, page;dur=[\d.]+, total;dur=[\d.]+$/
+            /^auth;dur=[\d.]+, page;dur=[\d.]+, busy;dur=\d+, lag;dur=[\d.]+, total;dur=[\d.]+$/
         );
         expect((await fastify.inject({ url: '/health/live' })).headers['server-timing']).toBe(
             undefined
