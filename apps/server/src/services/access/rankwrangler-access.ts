@@ -9,14 +9,16 @@ import { createDevCloudflareAccess, DEV_ACCESS_AUTHORITY_ORIGIN } from '@merchba
 import { and, eq } from 'drizzle-orm';
 import { type Database, db } from '@/db/index';
 import { rankwranglerServiceAccounts } from '@/db/service-account-schema';
+import { memoizeIdentityLookups, memoizePrincipals } from './access-lookup-memo';
 import { createRankWranglerAccessProjectionStore } from './access-projection-store';
 import { createInternalAccess } from './internal-access';
 import { createLocalGrantDeadline } from './local-grant';
 import { createRankWranglerRequestAccess } from './request-access';
 
-export type RankWranglerServicePrincipal = Omit<
+/** The immutable identity of a user's service account; usage is read fresh where it is metered. */
+export type RankWranglerServicePrincipal = Pick<
     typeof rankwranglerServiceAccounts.$inferSelect,
-    'merchbaseUserId'
+    'id' | 'service'
 > & {
     merchbaseUserId: string;
 };
@@ -39,16 +41,19 @@ export const createRankWranglerAccess = async ({
     database = db,
     ...options
 }: CreateRankWranglerAccessOptions) => {
-    const projections = createRankWranglerAccessProjectionStore(
-        database,
-        process.env.NODE_ENV === 'development'
-            ? DEV_ACCESS_AUTHORITY_ORIGIN
-            : options.authorityOrigin
+    const projections = memoizeIdentityLookups(
+        createRankWranglerAccessProjectionStore(
+            database,
+            process.env.NODE_ENV === 'development'
+                ? DEV_ACCESS_AUTHORITY_ORIGIN
+                : options.authorityOrigin
+        )
     );
     const common = {
         projections,
-        resolveServicePrincipal: (input: { merchbaseUserId: string }) =>
-            resolveRankWranglerServicePrincipal(database, input),
+        resolveServicePrincipal: memoizePrincipals((input: { merchbaseUserId: string }) =>
+            resolveRankWranglerServicePrincipal(database, input)
+        ),
         service: 'rankwrangler' as const,
     };
     const development =
@@ -173,7 +178,7 @@ export const resolveRankWranglerServicePrincipal = async (
     }
 
     let rows = await database
-        .select()
+        .select(principalColumns)
         .from(rankwranglerServiceAccounts)
         .where(
             and(
@@ -192,7 +197,7 @@ export const resolveRankWranglerServicePrincipal = async (
             })
             .onConflictDoNothing();
         rows = await database
-            .select()
+            .select(principalColumns)
             .from(rankwranglerServiceAccounts)
             .where(
                 and(
@@ -208,4 +213,9 @@ export const resolveRankWranglerServicePrincipal = async (
     }
 
     return { ...rows[0], merchbaseUserId };
+};
+
+const principalColumns = {
+    id: rankwranglerServiceAccounts.id,
+    service: rankwranglerServiceAccounts.service,
 };

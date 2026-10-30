@@ -10,13 +10,6 @@ const principal: RankWranglerServicePrincipal = {
     id: '11111111-1111-4111-8111-111111111111',
     service: 'rankwrangler',
     merchbaseUserId: 'mbu_test',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    lastUsedAt: null,
-    lastResetAt: new Date(),
-    usageCount: 0,
-    usageToday: 0,
-    usageLimit: -1,
 };
 for (const credentialKind of [null, 'oauth', 'session'] as const) {
     test(`WebSocket upgrade ${credentialKind ?? 'anonymous'} is checked before accepting the connection`, async () => {

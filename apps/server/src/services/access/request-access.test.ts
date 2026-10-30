@@ -8,13 +8,6 @@ const principal: RankWranglerServicePrincipal = {
     id: '11111111-1111-4111-8111-111111111111',
     service: 'rankwrangler',
     merchbaseUserId: 'mbu_test',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    lastUsedAt: null,
-    lastResetAt: new Date(),
-    usageToday: 0,
-    usageCount: 0,
-    usageLimit: -1,
 };
 const setup = (kind: 'person' | 'api_key' = 'person') => {
     const result = {
