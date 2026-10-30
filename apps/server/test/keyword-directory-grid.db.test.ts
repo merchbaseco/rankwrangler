@@ -87,6 +87,18 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Keywords grid dire
         expect(filtered.items).toHaveLength(1);
     });
 
+    it('measures a page the same whether it orders by the measures or measures it after', async () => {
+        const counts = async (sort: 'newest' | 'merch') =>
+            new Map(
+                (await readKeywordDirectory(appKeywordDirectoryInput.parse({ sort, stage: [] }), {
+                    view: { asOf, sort },
+                })).items.map(item => [item.term, [item.products, item.merch]])
+            );
+        const late = await counts('newest');
+        expect(late).toEqual(await counts('merch'));
+        expect(late.get('hot niche')).toEqual([5, 5]);
+    });
+
     it('counts each sidebar group without its own filter', async () => {
         const open = await facets({});
         expect(open).toMatchObject({

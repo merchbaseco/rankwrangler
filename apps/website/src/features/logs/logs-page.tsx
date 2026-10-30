@@ -1,5 +1,5 @@
-import { type Selection, Spinner } from '@heroui/react';
-import { DataGrid, EmptyState } from '@heroui-pro/react';
+import { Spinner } from '@heroui/react';
+import { EmptyState } from '@heroui-pro/react';
 import { useState } from 'react';
 import { useDetailSheet } from '@/features/shell/detail-sheet';
 import { ShellSearch } from '@/features/shell/shell-search';
@@ -12,7 +12,7 @@ import {
     TermScreen,
 } from '@/features/shell/term-pane';
 import { useRowCursor } from '@/features/shell/use-row-cursor';
-import { logColumns } from './log-columns';
+import { EventLogGrid } from './event-log-grid';
 import { LogDetailSheet, LogDetails } from './log-details';
 import type { EventLogLevel, EventLogStatus, EventLogTypeFilter } from './log-model';
 import { LogRowContextMenu } from './log-row-context-menu';
@@ -59,10 +59,9 @@ export const LogsPage = () => {
         selectedId,
     });
 
-    const handleSelectionChange = (keys: Selection) => {
-        const [first] = keys === 'all' ? [] : [...keys];
-        setSelectedId(first === undefined ? null : String(first));
-        if (first !== undefined && sheet.isPhone) {
+    const handleSelect = (id: string | null) => {
+        setSelectedId(id);
+        if (id !== null && sheet.isPhone) {
             sheet.open();
         }
     };
@@ -101,28 +100,16 @@ export const LogsPage = () => {
                         </PaneFilters>
                     </PaneBar>
                     <LogRowContextMenu logs={logs} onShowDetails={setSelectedId}>
-                        <DataGrid
-                            aria-label="Event log"
-                            // Resize mode applies the column widths (fixed layout), so Message
-                            // takes the rest; no column is resizable.
-                            allowsColumnResize
-                            className="hairline-grid hairline-grid--fill"
-                            variant="secondary"
-                            columns={logColumns}
-                            data={logs}
-                            getRowId={log => log.id}
+                        <EventLogGrid
+                            hasMore={Boolean(query.hasNextPage)}
                             isLoadingMore={query.isFetchingNextPage}
-                            loadMoreContent={<Spinner size="sm" />}
-                            onLoadMore={
-                                query.hasNextPage
-                                    ? () => {
-                                          query.fetchNextPage().catch((error: unknown) => {
-                                              console.error('Loading older logs failed', error);
-                                          });
-                                      }
-                                    : undefined
-                            }
-                            onSelectionChange={handleSelectionChange}
+                            logs={logs}
+                            onLoadMore={() => {
+                                query.fetchNextPage().catch((error: unknown) => {
+                                    console.error('Loading older logs failed', error);
+                                });
+                            }}
+                            onSelect={handleSelect}
                             renderEmptyState={() => (
                                 <LogsEmptyState
                                     hasError={Boolean(query.error)}
@@ -130,10 +117,7 @@ export const LogsPage = () => {
                                     isLoading={query.isLoading}
                                 />
                             )}
-                            scrollContainerClassName="overflow-y-auto"
-                            selectedKeys={selectedId ? new Set([selectedId]) : new Set()}
-                            selectionBehavior="replace"
-                            selectionMode="single"
+                            selectedId={selectedId}
                         />
                     </LogRowContextMenu>
                     <PaneBar edge="bottom">

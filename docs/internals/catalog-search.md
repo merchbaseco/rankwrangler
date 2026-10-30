@@ -101,13 +101,13 @@ visible to callers or recovery and a concurrently completed reusable run does no
   five or three pages by Brand Analytics popularity), stop a pass; repeated pages, provider exhaustion and stale continuation each
   have bounded handling. These facts do not claim complete Amazon coverage or organic placement.
 
-Acquisition targets own tracked/trial/dormant state, the latest page-one Merch membership,
+Acquisition targets own tracked/trial/dropped state, the latest page-one Merch membership,
 explainable popularity score, cadence and next check. This is separate from Keepa admission.
 User searches directly track the exact phrase through API/MCP or the extension's Amazon search
 context; no synthetic apparel companion or product tags are added. Brand Analytics search terms
 and autocomplete suggestions enter trials; a trial graduates when its first page shows at least
-three confirmed Merch listings. Two failed trials become dormant; explicit user research
-reactivates them immediately.
+three confirmed Merch listings and is dropped otherwise; explicit user research reactivates a
+dropped keyword immediately.
 
 Score the latest first page using fresh current Merch BSRs, rewarding both strong leaders and
 breadth. Hot checks use 1–7 days,

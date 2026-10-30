@@ -24,28 +24,28 @@ describe('service health', () => {
     });
 
     it('reports failing checks in check-list order', () => {
-        expect(serviceHealthFromFailures(['catalog-queries', 'spapi-catalog'])).toEqual({
+        expect(serviceHealthFromFailures(['spapi', 'keepa'])).toEqual({
             status: 'degraded',
-            failing: ['spapi-catalog', 'catalog-queries'],
+            failing: ['keepa', 'spapi'],
         });
     });
 
-    it('returns only postgres and skips freshness when the postgres probe throws', async () => {
-        let freshnessCalls = 0;
+    it('returns only postgres and skips providers when the postgres probe throws', async () => {
+        let providerCalls = 0;
         const result = await readServiceHealth(
             probes({
                 postgres: () => Promise.reject(new Error('database unavailable')),
-                onFreshness: () => {
-                    freshnessCalls += 1;
+                onProvider: () => {
+                    providerCalls += 1;
                 },
             })
         );
 
         expect(result).toEqual({ status: 'degraded', failing: ['postgres'] });
-        expect(freshnessCalls).toBe(0);
+        expect(providerCalls).toBe(0);
     });
 
-    it('reports a freshness check when its probe throws and SELECT 1 still works', async () => {
+    it('reports a provider check when its probe throws and SELECT 1 still works', async () => {
         let postgresCalls = 0;
         const result = await readServiceHealth(
             probes({
@@ -53,17 +53,17 @@ describe('service health', () => {
                     postgresCalls += 1;
                     return Promise.resolve();
                 },
-                throwing: 'keepa-history',
+                throwing: 'keepa',
             })
         );
 
-        expect(result).toEqual({ status: 'degraded', failing: ['keepa-history'] });
+        expect(result).toEqual({ status: 'degraded', failing: ['keepa'] });
         expect(postgresCalls).toBe(2);
     });
 
-    it('returns only postgres when a freshness probe throws and SELECT 1 fails again', async () => {
+    it('returns only postgres when a provider probe throws and SELECT 1 fails again', async () => {
         let postgresCalls = 0;
-        let laterFreshnessCalls = 0;
+        let laterProviderCalls = 0;
         const result = await readServiceHealth(
             probes({
                 postgres: () => {
@@ -73,29 +73,29 @@ describe('service health', () => {
                     }
                     return Promise.resolve();
                 },
-                throwing: 'spapi-catalog',
-                onFreshness: name => {
-                    if (name !== 'spapi-catalog') {
-                        laterFreshnessCalls += 1;
+                throwing: 'keepa',
+                onProvider: name => {
+                    if (name !== 'keepa') {
+                        laterProviderCalls += 1;
                     }
                 },
             })
         );
 
         expect(result).toEqual({ status: 'degraded', failing: ['postgres'] });
-        expect(laterFreshnessCalls).toBe(0);
+        expect(laterProviderCalls).toBe(0);
     });
 
-    it('does not run freshness for liveness', async () => {
-        let freshnessCalls = 0;
+    it('does not probe providers for liveness', async () => {
+        let providerCalls = 0;
         const healthProbes = probes({
-            onFreshness: () => {
-                freshnessCalls += 1;
+            onProvider: () => {
+                providerCalls += 1;
             },
         });
 
         expect(await readLiveness(healthProbes)).toEqual({ status: 'ok' });
-        expect(freshnessCalls).toBe(0);
+        expect(providerCalls).toBe(0);
     });
 
     it('reports only postgres when liveness cannot run SELECT 1', async () => {
@@ -111,17 +111,17 @@ const probes = ({
     failing = [],
     throwing,
     postgres,
-    onFreshness,
+    onProvider,
 }: {
     failing?: readonly string[];
     throwing?: string;
     postgres?: () => Promise<void>;
-    onFreshness?: (name: string) => void;
+    onProvider?: (name: string) => void;
 } = {}): ServiceHealthProbes => {
-    const freshnessProbe =
+    const providerProbe =
         (name: string): HealthFailingProbe =>
         () => {
-            onFreshness?.(name);
+            onProvider?.(name);
             if (throwing === name) {
                 return Promise.reject(new Error(`${name} probe failed`));
             }
@@ -130,10 +130,9 @@ const probes = ({
 
     return {
         postgres: postgres ?? (() => Promise.resolve()),
-        freshness: {
-            'catalog-queries': freshnessProbe('catalog-queries'),
-            'keepa-history': freshnessProbe('keepa-history'),
-            'spapi-catalog': freshnessProbe('spapi-catalog'),
+        providers: {
+            keepa: providerProbe('keepa'),
+            spapi: providerProbe('spapi'),
         },
     };
 };

@@ -169,13 +169,41 @@ describe('Keepa physical attempt guard', () => {
             },
         });
         await expect(
-            provider.getProduct({
+            provider.getProducts({
                 marketplaceId: 'ATVPDKIKX0DER',
-                asin: 'B09CP2LR25',
+                asins: ['B09CP2LR25'],
                 days: 365,
-                priority: 'scheduledProduct',
             })
         ).rejects.toThrow('deferred');
         expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
+    it('requests a history batch in one call reserved for every product', async () => {
+        const requests: unknown[] = [];
+        const urls: URL[] = [];
+        const provider = new KeepaProvider({
+            apiKey: 'test',
+            capture: (async (_descriptor, run) => await run()) as typeof captureProviderAttempt,
+            capacity: {
+                ...capacity,
+                enqueue: request => {
+                    requests.push(request);
+                    return Promise.resolve('id');
+                },
+            },
+            fetchImpl: mock(async (input: Parameters<typeof fetch>[0]) => {
+                urls.push(new URL(String(input)));
+                return Response.json({ products: [], tokensLeft: 1200, refillRate: 20, refillIn: 60_000 });
+            }),
+        });
+        await provider.getProducts({
+            marketplaceId: 'ATVPDKIKX0DER',
+            asins: ['B09CP2LR25', 'B09CP2LR26', 'B09CP2LR27'],
+            days: 30,
+        });
+        expect(requests[0]).toEqual({ operation: 'product', workClass: 'history', itemCount: 3 });
+        const productCalls = urls.filter(url => url.pathname === '/product');
+        expect(productCalls).toHaveLength(1);
+        expect(productCalls[0].searchParams.get('asin')).toBe('B09CP2LR25,B09CP2LR26,B09CP2LR27');
+        expect(productCalls[0].searchParams.get('days')).toBe('30');
     });
 });

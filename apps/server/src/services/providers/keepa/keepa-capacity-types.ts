@@ -7,6 +7,8 @@ export interface KeepaAttemptRequest {
     workClass: KeepaWorkClass;
     keywordId?: string;
     workId?: string;
+    // Products in one product request; the reservation costs the measured per-product cost each.
+    itemCount?: number;
 }
 export interface KeepaCapacity {
     enqueue(request: KeepaAttemptRequest): Promise<string>;

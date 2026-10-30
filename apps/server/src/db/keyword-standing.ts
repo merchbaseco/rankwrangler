@@ -69,17 +69,15 @@ export const observeKeywordStanding = async (
         demotionCount: target.demotionCount,
         now,
     });
-    const { tracking, trialFailures } = nextKeywordTracking({
+    const tracking = nextKeywordTracking({
         tracking: target.tracking,
-        trialFailures: target.trialFailures,
         merchOnFirstPage: rows.length,
     });
     await tx
         .update(discoveryTargets)
         .set({
             tracking,
-            enabled: tracking !== 'dormant',
-            trialFailures,
+            enabled: tracking !== 'dropped',
             standingTier: cadence.tier,
             intervalDays: cadence.intervalDays,
             demotionCount: cadence.demotionCount,

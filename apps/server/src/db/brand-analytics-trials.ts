@@ -9,7 +9,7 @@ import { keywordPrefixes } from './keyword-prefix-schema';
 // eligible `brandAnalytics` evidence naming the report week. A term with an apparel click always
 // qualifies; a term kept only because its text names a Merch product qualifies once its prefix is a
 // registered keyword prefix, so it is picked up whenever that prefix appears. Existing keywords
-// keep their tracking (a dormant keyword stays dormant); they only gain the evidence.
+// keep their tracking (a dropped keyword stays dropped); they only gain the evidence.
 export const registerBrandAnalyticsTrials = async (limit: number, now = new Date()) =>
     db.transaction(async tx => {
         if (limit <= 0) return 0;

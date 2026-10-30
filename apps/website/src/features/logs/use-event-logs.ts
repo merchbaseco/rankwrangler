@@ -9,6 +9,8 @@ const pageSize = 100;
 export interface EventLogFilters {
     readonly levels: readonly EventLogLevel[];
     readonly search: string;
+    /** Only events at or after this instant (ISO); omitted reads back to the first event. */
+    readonly since?: string;
     readonly statuses: readonly EventLogStatus[];
     readonly type: EventLogTypeFilter;
 }
@@ -19,16 +21,17 @@ export interface EventLogFilters {
  * second), so new events land at the top while a person watches.
  */
 export const useEventLogs = (filters: EventLogFilters, isLive: boolean) => {
-    const { levels, search, statuses, type } = filters;
+    const { levels, search, since, statuses, type } = filters;
     const input = useMemo(
         () => ({
             levels: levels.length > 0 ? [...levels] : undefined,
             limit: pageSize,
             primitiveTypes: type === 'all' ? undefined : [type],
             search: search.length > 0 ? search : undefined,
+            since,
             statuses: statuses.length > 0 ? [...statuses] : undefined,
         }),
-        [levels, search, statuses, type]
+        [levels, search, since, statuses, type]
     );
 
     useEventLogCreated(isLive);

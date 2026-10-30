@@ -96,13 +96,14 @@ of that prefix is tracked. Listing ignores
 Pause sync, so new searches appear in the Keywords directory as Queued soon after an import.
 Registration goes through the canonical keyword and discovery-evidence path with
 eligible `brandAnalytics` evidence (`week:<sunday>`). Existing keywords only gain the evidence: a
-tracked keyword stays tracked and a dormant one stays dormant. Due trial heads are listed most
+tracked keyword stays tracked and a dropped one stays dropped. Due trial heads are listed most
 searched first.
 
 A trial's first-page head scan decides admission. At least `MIN_MERCH_ON_FIRST_PAGE` (3) confirmed
-active Merch listings on page one graduates it to tracked; otherwise it counts a failure, and two
-heads without enough Merch make it dormant. Three is a starting point, to be calibrated from real
-first-page scans. No model judges keyword fit.
+active Merch listings on page one graduates it to tracked; anything less drops it. One check decides:
+a keyword with real Merch demand shows it right away, so a dropped keyword is never re-checked on a
+schedule. Three is a starting point, to be calibrated from real first-page scans. No model judges
+keyword fit.
 
 ## Autocomplete
 
@@ -252,14 +253,7 @@ budget: autocomplete seeds and prefixes are enqueued whenever they are due, and 
 allowed to grow. Autocomplete keeps its own pacing and daily ceiling, and the scheduler only tops its
 queue up to thirty jobs (about five minutes of starts) so it never floods.
 
-Settings → Metrics → Keyword jobs (`apps/website/src/features/settings/metrics/`) shows pause
-state, keywords waiting on a first-page scan (trials never scanned, and observed keywords whose
-recurring check is due with the oldest due time), the Brand Analytics import (last imported week, kept
-terms, new terms in the last import, terms awaiting trial, product-text terms awaiting their prefix
-and the latest report state), keyword prefixes (total, expanded, awaiting autocomplete), each queue's
-waiting, scheduled and running jobs with its provider's readiness, and recent runs. It refreshes
-when a job run is recorded (`job_activity` over the existing WebSocket), never on an interval. Runs
-are recorded when they did work or failed.
+Job runs are recorded in `job_executions` when they did work or failed.
 
 ## Keyword directory and activity
 
@@ -269,8 +263,8 @@ Each keyword shows two separate dimensions, both derived from durable state with
 
 - **Stage** says whether the keyword is worth tracking. `trial` awaits or is undergoing its
   first-page qualification check; `graduated` is tracked (it passed, or a user asked for it);
-  `dropped` is dormant after failed trials (shown as not enough Merch on page 1); `untracked` is a
-  stored query with no enabled keyword target, such as a brand-only scope.
+  `dropped` is a trial whose first page had too little Merch (shown as not enough Merch on page 1);
+  `untracked` is a stored query with no enabled keyword target, such as a brand-only scope.
 - **Freshness** says whether our data is current. `live` means the first page is fresh: deeper
   pages of a continuing pass and the one-time autocomplete expansion run in the background without
   holding it back. `needsSync` means the next check is due or the head was never observed.
@@ -336,7 +330,8 @@ directory once. See [Realtime events](realtime-events.md).
 
 ## Pause and resume
 
-The Keywords page has one admin-only Pause sync / Resume sync control for the keyword pipeline. It
+System Status (`/status`, the Keywords section) has the one admin-only Pause / Resume control for
+the keyword pipeline. It
 controls refresh work only: the keyword scheduler (due scans and autocomplete seeds) and the gated
 scan and autocomplete queues. The weekly Brand Analytics import and keyword listing always run,
 because they are free and spend no scan capacity; paused, new keywords simply wait in Queued.

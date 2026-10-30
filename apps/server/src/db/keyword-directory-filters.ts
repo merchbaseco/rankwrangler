@@ -15,9 +15,9 @@ type FilterInput = Pick<
 export const directoryFilters = (input: FilterInput) =>
     ({
         search: input.search ? sql`position(${input.search.toLowerCase()} in term)>0` : sql`true`,
-        stage: anyOf('stage', input.stage),
-        freshness: anyOf('freshness', input.freshness),
-        heat: anyOf('heat', input.heat),
+        stage: anyOf(sql`${sql.identifier('stage')}`, input.stage),
+        freshness: anyOf(sql`${sql.identifier('freshness')}`, input.freshness),
+        heat: anyOf(sql`${sql.identifier('heat')}`, input.heat),
         facet: input.facet ? sql`facet=${input.facet}` : sql`true`,
         shelfElite:
             input.shelfElite === 'has'
@@ -47,10 +47,17 @@ export const directoryWhere = (
         sql` and `
     );
 
-const anyOf = (column: 'stage' | 'freshness' | 'heat', value: string | readonly string[]) => {
+/**
+ * The rows a read must measure (`directoryMeasures`): those its stage selection keeps, over the
+ * measured row alias `r`. Stage is the one filter known before the measures, and the expensive
+ * shelf and Product counts then skip the trial backlog unless the request shows trials.
+ */
+export const measuredStages = (stage: FilterInput['stage']) => anyOf(sql`r.stage`, stage);
+
+const anyOf = (column: SQL, value: string | readonly string[]) => {
     const values = typeof value === 'string' ? (value === 'all' ? [] : [value]) : value;
     return values.length
-        ? sql`${sql.identifier(column)} in (${sql.join(
+        ? sql`${column} in (${sql.join(
               values.map(item => sql`${item}`),
               sql`,`
           )})`

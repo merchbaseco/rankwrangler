@@ -21,7 +21,7 @@ export const readStatsSummary = async (now = new Date()) => {
                 where a.status='accepted' and a.attempted_at>=${at}::timestamp-interval '24 hours'
                     and a.finished_at>=${at}::timestamp-interval '24 hours')::int "keywordsMinedLastDay",
             (select count(*) from discovery_targets
-                where kind='keyword' and enabled and tracking<>'dormant'
+                where kind='keyword' and enabled and tracking<>'dropped'
                     and (head_observed_at is null or next_check_at<=${at}::timestamp))::int "keywordsQueued"`);
     return row;
 };

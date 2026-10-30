@@ -1,0 +1,1 @@
+ALTER TABLE "keepa_capacity_attempts" ADD COLUMN "item_count" integer DEFAULT 1 NOT NULL;

@@ -5,8 +5,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { Icon } from '@/components/ui/icon';
 import type { SettingsPage } from '@/features/settings/settings-navigation';
 import { AccountMenu } from './account-menu';
-import { BannerStatus } from './banner-status';
 import { PageToolbarSlot } from './page-toolbar';
+import { SystemStatusIndicator } from './system-status-indicator';
 import { ThemeToggle } from './theme-toggle';
 import { ViewTabs } from './view-tabs';
 import { resolveSelectedView, views } from './view-tabs-model';
@@ -14,7 +14,7 @@ import { resolveSelectedView, views } from './view-tabs-model';
 /**
  * The full-width banner on every route (Grid J/K, Handmade-style): the hat,
  * the view tabs, the page's ⌘K search (portalled in through PageToolbarSlot),
- * then the sync status, saved (not built), theme, settings and account. It is
+ * then the admin system status, saved (not built), theme, settings and account. It is
  * the graphite scheme in both themes: the `dark` class re-points every HeroUI
  * token inside it (palette.css), and `.app-banner` sets its near-black ground.
  * On a phone the view tabs move into the stock Navbar menu.
@@ -36,7 +36,7 @@ export const AppBanner = ({ onOpenSettings }: { onOpenSettings: (page: SettingsP
                 <PageToolbarSlot />
                 <Navbar.Spacer />
                 <Navbar.Content>
-                    <BannerStatus />
+                    <SystemStatusIndicator />
                     <Tooltip>
                         {/* A disabled button takes no pointer, so the span carries the tooltip. */}
                         <Tooltip.Trigger<'span'>

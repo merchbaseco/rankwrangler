@@ -4,6 +4,7 @@ import type { KeepaAttemptRequest, KeepaWorkClass } from './keepa-capacity-types
 import { fetchKeepaJson } from './keepa-fetch';
 import { reserveKeepaCapacity } from './keepa-interactive-reserve';
 import { getKeepaProviderPriority, requireKeepaDomainId } from './keepa-marketplaces';
+import { keepaProductParams } from './keepa-product-params';
 import { lazyPersistedCapacity } from './keepa-persisted-capacity';
 import type {
     KeepaCategoryResponse,
@@ -16,7 +17,6 @@ import type {
 import { estimateTokensLeft } from './keepa-runtime-state';
 
 const KEEPA_TOKEN_STATE_STALE_MS = 60 * 1000;
-const KEEPA_UPDATE_HOURS = 1;
 
 export class KeepaProvider {
     // Pacing only: the durable token reservation decides what may be spent, and live requests jump
@@ -44,49 +44,57 @@ export class KeepaProvider {
 
     isConfigured = () => Boolean(this.deps.apiKey);
 
+    // Someone is waiting on this product, so it is interactive work.
     getProduct = async ({
         marketplaceId,
         asin,
         days,
-        priority,
         canDispatch,
     }: {
         marketplaceId: string;
         asin: string;
         days: number;
-        priority: 'manualProduct' | 'scheduledProduct';
         canDispatch?: () => Promise<boolean>;
     }) => {
-        const domainId = requireKeepaDomainId(marketplaceId);
-        return await this.schedule(
-            priority,
-            {
-                operation: 'product',
-                workClass: priority === 'manualProduct' ? 'interactive' : 'history',
-            },
-            async attemptId => {
-                if (canDispatch && !(await canDispatch())) {
-                    return { kind: 'skipped' } as const;
-                }
-                const payload = await this.fetchJson<KeepaResponse>({
-                    operation: 'keepa.product',
-                    attemptId,
-                    request: {
-                        operation: 'product',
-                        workClass: priority === 'manualProduct' ? 'interactive' : 'history',
-                    },
-                    path: 'product',
-                    params: {
-                        domain: String(domainId),
-                        asin,
-                        history: '1',
-                        update: String(KEEPA_UPDATE_HOURS),
-                        days: String(days),
-                        stats: '365',
-                    },
-                });
-                return { kind: 'fetched', payload } as const;
+        const request: KeepaAttemptRequest = { operation: 'product', workClass: 'interactive' };
+        return await this.schedule('manualProduct', request, async attemptId => {
+            if (canDispatch && !(await canDispatch())) {
+                return { kind: 'skipped' } as const;
             }
+            const payload = await this.fetchJson<KeepaResponse>({
+                operation: 'keepa.product',
+                attemptId,
+                request,
+                path: 'product',
+                params: keepaProductParams({ marketplaceId, asins: [asin], days }),
+            });
+            return { kind: 'fetched', payload } as const;
+        });
+    };
+
+    // Background history: one request for up to 100 products, reserved at the per-product cost each.
+    getProducts = async ({
+        marketplaceId,
+        asins,
+        days,
+    }: {
+        marketplaceId: string;
+        asins: readonly string[];
+        days: number;
+    }) => {
+        const request: KeepaAttemptRequest = {
+            operation: 'product',
+            workClass: 'history',
+            itemCount: asins.length,
+        };
+        return await this.schedule('scheduledProduct', request, attemptId =>
+            this.fetchJson<KeepaResponse>({
+                operation: 'keepa.product',
+                attemptId,
+                request,
+                path: 'product',
+                params: keepaProductParams({ marketplaceId, asins, days }),
+            })
         );
     };
 

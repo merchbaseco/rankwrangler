@@ -21,7 +21,8 @@ export const readKeepaMeasuredCosts = async (database: Pick<typeof db, 'execute'
                 tokens_consumed as cost
             from product_history_imports where source = 'keepa' and tokens_consumed > 0
             union all
-            select operation, actual_tokens as cost from keepa_capacity_attempts
+            select operation, ceil(actual_tokens::numeric / item_count)::integer as cost
+            from keepa_capacity_attempts
             where actual_tokens > 0 and operation in ('product', 'search')
         ) select operation, percentile_disc(0.95) within group (order by cost)::integer as cost
         from measurements group by operation

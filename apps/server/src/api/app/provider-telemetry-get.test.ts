@@ -5,7 +5,5 @@ it('exposes raw Provider attempts only through the admin app surface', () => {
     const procedures = Object.keys(appRouter._def.procedures);
 
     expect(procedures).toContain('api.app.providerTelemetry.get');
-    expect(procedures).toContain('api.app.getProductShortNameMetricsSummary');
-    expect(procedures).toContain('api.app.getProductCutoutThumbnailMetricsSummary');
     expect(procedures).not.toContain('api.public.providerTelemetry.get');
 });

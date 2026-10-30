@@ -1,5 +1,5 @@
 import { notifyEventLogCreated } from '@/db/event-log-notifications';
-import { and, desc, eq, ilike, inArray, lt, or, type SQL } from 'drizzle-orm';
+import { and, desc, eq, lt, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { eventLogs } from '@/db/schema.js';
@@ -8,6 +8,7 @@ import {
     eventLogPrimitiveTypes,
     eventLogStatuses,
 } from '@/services/event-log-enums.js';
+import { eventLogFilterConditions, eventLogFiltersSchema } from '@/services/event-log-filters';
 
 const eventLogLevelSchema = z.enum(eventLogLevels);
 const eventLogStatusSchema = z.enum(eventLogStatuses);
@@ -31,7 +32,7 @@ const eventLogCreateInputSchema = z.object({
     requestId: z.string().min(1).optional(),
 });
 
-const eventLogsListInputSchema = z.object({
+const eventLogsListInputSchema = eventLogFiltersSchema.extend({
     accountId: z.string().min(1).default('global'),
     limit: z.number().int().min(1).max(200).default(100),
     cursor: z
@@ -40,17 +41,6 @@ const eventLogsListInputSchema = z.object({
             occurredAt: z.string().datetime(),
         })
         .optional(),
-    levels: z.array(eventLogLevelSchema).max(eventLogLevels.length).optional(),
-    statuses: z.array(eventLogStatusSchema).max(eventLogStatuses.length).optional(),
-    primitiveTypes: z
-        .array(eventLogPrimitiveTypeSchema)
-        .max(eventLogPrimitiveTypes.length)
-        .optional(),
-    actions: z.array(z.string().min(1)).max(25).optional(),
-    asin: z.string().min(1).optional(),
-    marketplaceId: z.string().min(1).optional(),
-    jobRunId: z.string().min(1).optional(),
-    search: z.string().min(1).max(200).optional(),
 });
 
 export type EventLogCreateInput = z.input<typeof eventLogCreateInputSchema>;
@@ -124,61 +114,13 @@ export const createEventLogsSafe = async (inputs: EventLogCreateInput[]) => {
 
 export const listEventLogs = async (input: EventLogListInput) => {
     const parsedInput = eventLogsListInputSchema.parse(input);
-    const whereConditions: SQL[] = [eq(eventLogs.accountId, parsedInput.accountId)];
+    const whereConditions = eventLogFilterConditions(parsedInput.accountId, parsedInput);
     const cursorDate = parsedInput.cursor ? new Date(parsedInput.cursor.occurredAt) : null;
-
-    if (parsedInput.levels && parsedInput.levels.length > 0) {
-        whereConditions.push(inArray(eventLogs.level, parsedInput.levels));
-    }
-
-    if (parsedInput.statuses && parsedInput.statuses.length > 0) {
-        whereConditions.push(inArray(eventLogs.status, parsedInput.statuses));
-    }
-
-    if (parsedInput.primitiveTypes && parsedInput.primitiveTypes.length > 0) {
-        whereConditions.push(inArray(eventLogs.primitiveType, parsedInput.primitiveTypes));
-    }
-
-    if (parsedInput.actions && parsedInput.actions.length > 0) {
-        whereConditions.push(inArray(eventLogs.action, parsedInput.actions));
-    }
-
-    if (parsedInput.asin) {
-        whereConditions.push(eq(eventLogs.asin, parsedInput.asin.toUpperCase()));
-    }
-
-    if (parsedInput.marketplaceId) {
-        whereConditions.push(eq(eventLogs.marketplaceId, parsedInput.marketplaceId));
-    }
-
-    if (parsedInput.jobRunId) {
-        whereConditions.push(eq(eventLogs.jobRunId, parsedInput.jobRunId));
-    }
-
     if (cursorDate && !Number.isNaN(cursorDate.getTime()) && parsedInput.cursor) {
         whereConditions.push(
             or(
                 lt(eventLogs.occurredAt, cursorDate),
                 and(eq(eventLogs.occurredAt, cursorDate), lt(eventLogs.id, parsedInput.cursor.id))
-            ) as SQL
-        );
-    }
-
-    if (parsedInput.search) {
-        const searchToken = parsedInput.search.trim();
-        const likePattern = `%${searchToken}%`;
-        const uppercaseToken = searchToken.toUpperCase();
-
-        whereConditions.push(
-            or(
-                ilike(eventLogs.message, likePattern),
-                ilike(eventLogs.action, likePattern),
-                ilike(eventLogs.category, likePattern),
-                ilike(eventLogs.asin, likePattern),
-                eq(eventLogs.asin, uppercaseToken),
-                eq(eventLogs.marketplaceId, searchToken),
-                eq(eventLogs.jobRunId, searchToken),
-                eq(eventLogs.requestId, searchToken)
             ) as SQL
         );
     }

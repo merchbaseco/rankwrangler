@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq, sql } from 'drizzle-orm';
 import { setAutomaticSyncPaused } from '@/db/automatic-sync';
-import { readBrandAnalyticsStatus } from '@/db/brand-analytics-imports';
 import { brandAnalyticsSearchTerms } from '@/db/brand-analytics-schema';
 import { registerBrandAnalyticsTrials } from '@/db/brand-analytics-trials';
 import { catalogQueries } from '@/db/catalog-search-schema';
@@ -15,7 +14,7 @@ import {
     releasePrefixAutocomplete,
 } from '@/db/keyword-prefix-autocomplete-work';
 import { keywordPrefixes } from '@/db/keyword-prefix-schema';
-import { backfillKeywordPrefixes, readKeywordPrefixCounts } from '@/db/keyword-prefixes';
+import { backfillKeywordPrefixes } from '@/db/keyword-prefixes';
 import { listDuePrefixAutocomplete } from '@/db/keyword-work-due';
 import { products } from '@/db/product-schema';
 import { expandPrefixAutocomplete } from '@/services/keyword-prefix-autocomplete';
@@ -148,13 +147,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword prefixes',
         await addTerm('iphone 16 case', 5, 0, 'iphone 16');
         // Imported before prefixes were stored: never listed until a later import fills its prefix.
         await addTerm('teacher mug', 15, 0, null);
-        // The term and prefix readers directly: the full jobs status also reads pg-boss queues,
-        // which this suite never starts.
-        expect((await readBrandAnalyticsStatus()).terms).toMatchObject({
-            kept: 4,
-            unregistered: 1,
-            awaiting_prefix: 3,
-        });
         expect(await registerBrandAnalyticsTrials(10, now)).toBe(1);
         expect(await registerBrandAnalyticsTrials(10, now)).toBe(0);
         await seedDiscoveryTarget({ kind: 'keyword', term: 'teacher shirt' });
@@ -166,10 +158,5 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword prefixes',
             'nurse shirt',
             'teacher blanket',
         ]);
-        expect((await readBrandAnalyticsStatus()).terms).toMatchObject({
-            unregistered: 0,
-            awaiting_prefix: 2,
-        });
-        expect(await readKeywordPrefixCounts()).toEqual({ total: 1, expanded: 0, pending: 1 });
     });
 });

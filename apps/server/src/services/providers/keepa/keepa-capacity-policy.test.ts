@@ -28,6 +28,13 @@ describe('Keepa capacity policy', () => {
             getKeepaReservation(history, { ...facts, tokensLeft: 150, reservedCost: 50 })
         ).toEqual({ reason: 'live-reserve' });
     });
+    it('reserves a product batch at the per-product cost for each product', () => {
+        const batch = { ...history, itemCount: 100 };
+        expect(getKeepaReservation(batch, { ...facts, tokensLeft: 200 })).toEqual({ cost: 100 });
+        expect(getKeepaReservation(batch, { ...facts, tokensLeft: 199 })).toEqual({
+            reason: 'live-reserve',
+        });
+    });
     it('does not ration background by the hour while the bucket is above the reserve', () => {
         expect(getKeepaReservation({ operation: 'search', workClass: 'head' }, facts)).toEqual({
             cost: 10,

@@ -26,6 +26,3 @@ export const getKeepaAdmissionCapacity = async (
         headCost: costs.headCost,
     };
 };
-
-export const getKeepaCapacitySnapshot = async () =>
-    (await import('@/db/keepa-capacity-snapshot')).readKeepaCapacitySnapshot();

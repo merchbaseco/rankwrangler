@@ -1,7 +1,9 @@
 import type { PgBoss } from 'pg-boss';
 import { z } from 'zod';
 import { defineJob } from '@/jobs/job-router.js';
+import { KEEPA_HISTORY_BATCH_JOB_NAME } from '@/jobs/fetch-keepa-history-batch';
 import { createEventLogSafe } from '@/services/event-logs.js';
+import { KEEPA_HISTORY_REQUEST_BATCH_SIZE } from '@/services/keepa-history-dispatch';
 import { getErrorMessage } from '@/services/job-executions-utils.js';
 import {
     getDueKeepaHistoryRefreshQueueItems,
@@ -72,18 +74,8 @@ export async function processKeepaHistoryRefreshQueue(
 
     await deps.holdKeepaHistoryRefreshQueueItems(queueItems.map(item => item.id));
 
-    for (const queueItem of queueItems) {
-        await boss.send(
-            'fetch-keepa-history-for-asin',
-            {
-                marketplaceId: queueItem.marketplaceId,
-                asin: queueItem.asin,
-            },
-            {
-                singletonKey: `fetch-keepa-history-for-asin:${queueItem.marketplaceId}:${queueItem.asin}`,
-                retryLimit: 0,
-            }
-        );
+    for (const batch of toRequestBatches(queueItems)) {
+        await boss.send(KEEPA_HISTORY_BATCH_JOB_NAME, batch, { retryLimit: 0 });
     }
 
     return {
@@ -148,3 +140,18 @@ export const processKeepaHistoryRefreshQueueJob = defineJob(
             });
         }
     });
+
+const toRequestBatches = (items: readonly { marketplaceId: string; asin: string }[]) => {
+    const batches: { marketplaceId: string; asins: string[] }[] = [];
+    const openBatches = new Map<string, { marketplaceId: string; asins: string[] }>();
+    for (const { marketplaceId, asin } of items) {
+        let batch = openBatches.get(marketplaceId);
+        if (!batch || batch.asins.length >= KEEPA_HISTORY_REQUEST_BATCH_SIZE) {
+            batch = { marketplaceId, asins: [] };
+            openBatches.set(marketplaceId, batch);
+            batches.push(batch);
+        }
+        batch.asins.push(asin);
+    }
+    return batches;
+};

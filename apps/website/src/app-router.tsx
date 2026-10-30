@@ -4,6 +4,7 @@ import { KeywordsPage } from '@/features/keywords/keywords-page';
 import { LogsPage } from '@/features/logs/logs-page';
 import { ProductPage } from '@/features/product/product-page';
 import { AppShell } from '@/features/shell/app-shell';
+import { StatusPage } from '@/features/status/status-page';
 
 /**
  * Client routes. The static host (apps/server/Caddyfile) falls back to
@@ -19,6 +20,7 @@ export const createAppRouter = () =>
                 { path: 'keywords', element: <KeywordsPage /> },
                 { path: 'products/:asin', element: <ProductPage /> },
                 { path: 'logs', element: <LogsPage /> },
+                { path: 'status', element: <StatusPage /> },
                 { path: '*', element: <Navigate replace to="/explore" /> },
             ],
         },

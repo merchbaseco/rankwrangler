@@ -79,15 +79,6 @@ export const retryAfterMs = (header: string | null, now = Date.now()) => {
     return Number.isFinite(wait) && wait > 0 ? wait : null;
 };
 
-// Today's admitted starts against the ceiling, for operators.
-export const readAutocompleteUsage = async (now = new Date()) => {
-    const [state] = await db.select().from(capacity).where(eq(capacity.provider, provider));
-    return {
-        startsToday: state?.day === utcDay(now) ? state.dayStarts : 0,
-        dailyLimit: state?.dailyLimit ?? defaultDailyLimit,
-    };
-};
-
 // When autocomplete can next start: its spacing, or tomorrow (UTC) once today's ceiling is used.
 export const autocompleteReadyAt = (state: State | undefined, now: Date) => {
     if (!state) return now;

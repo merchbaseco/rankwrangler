@@ -192,7 +192,7 @@ Allowed facet families are `profession`, `hobby`, `animal`, `food`, `cause`, `id
 
 ## Keyword collection
 
-Canonical queries and discovery targets own tracked/trial/dormant status, first-page BSR standing,
+Canonical queries and discovery targets own tracked/trial/dropped status, first-page BSR standing,
 intervals and next checks; discovery evidence records each source (`interest`, `brandAnalytics`,
 `autocomplete`, `prefixAutocomplete`, and historical `adsRecommendation`). Autocomplete owns a fenced
 once-per-seed ledger with its saved suggestions; keyword prefixes own their own once-per-prefix

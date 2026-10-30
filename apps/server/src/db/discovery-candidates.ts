@@ -113,7 +113,7 @@ export const recordDiscoveryCandidates = async (
             set: {
                 enabled: sql`case when excluded.tracking='tracked' then true else discovery_targets.enabled end`,
                 tracking: sql`case when excluded.tracking='tracked' then 'tracked' else discovery_targets.tracking end`,
-                nextCheckAt: sql`case when discovery_targets.tracking='dormant' and excluded.tracking='tracked' then timezone('UTC',now()) else discovery_targets.next_check_at end`,
+                nextCheckAt: sql`case when discovery_targets.tracking='dropped' and excluded.tracking='tracked' then timezone('UTC',now()) else discovery_targets.next_check_at end`,
             },
         })
         .returning({ ...getTableColumns(discoveryTargets), inserted: sql<boolean>`(xmax=0)` });

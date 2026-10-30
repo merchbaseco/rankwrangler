@@ -17,7 +17,7 @@ import {
  * coloured words rather than chips. The target and message are data a person
  * copies, so they opt back into text selection.
  */
-export const logColumns: DataGridColumn<EventLogRow>[] = [
+const logColumns: DataGridColumn<EventLogRow>[] = [
     {
         cell: log => (
             <span className="whitespace-nowrap text-muted" data-log-row-id={log.id}>
@@ -96,3 +96,29 @@ export const logColumns: DataGridColumn<EventLogRow>[] = [
         width: 88,
     },
 ];
+
+/**
+ * The columns a viewport shows. A virtualized grid lays its columns out in JS, so a column hidden
+ * with CSS would leave its cells behind; narrow screens drop the low-priority columns here
+ * instead (below 80rem the wide ones, below 48rem the secondary ones too, and the time column
+ * narrows to the clock).
+ */
+export const responsiveLogColumns = ({
+    isPhone,
+    isWide,
+}: {
+    isPhone: boolean;
+    isWide: boolean;
+}): DataGridColumn<EventLogRow>[] =>
+    logColumns
+        .filter(column => isWide || !column.cellClassName?.includes('grid-col--wide'))
+        .filter(column => !isPhone || !column.cellClassName?.includes('grid-col--secondary'))
+        .map(column => {
+            if (isPhone && column.id === 'occurredAt') {
+                return { ...column, width: 64 };
+            }
+            if (isPhone && column.id === 'message') {
+                return { ...column, minWidth: 120 };
+            }
+            return column;
+        });

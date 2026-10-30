@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { eq } from 'drizzle-orm';
 import { PgBoss } from 'pg-boss';
 import { buildDatabaseUrl } from '@/config/database-url';
 import { db } from '@/db/index';
@@ -10,7 +9,6 @@ import { discoveryEvidence, discoveryTargets } from '@/db/discovery-target-schem
 import { listDueKeywordScans } from '@/db/keyword-work-due';
 import { prepareJobQueues } from '@/jobs/index';
 import { keywordQueues } from '@/jobs/keyword-job-queues';
-import { readKeywordJobsStatus } from '@/services/keyword-jobs-status';
 import { scheduleBrandAnalytics } from '@/services/brand-analytics-scheduler';
 import { scheduleKeywordWork } from '@/services/keyword-work-scheduler';
 import { resetDiscoveryFixture, seedDiscoveryTarget } from './discovery-fixture';
@@ -89,28 +87,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword pipeline j
             const second = await scheduleKeywordWork(queues);
             expect(second.paused ? null : second.enqueued).toMatchObject({ scanHeads: 0 });
             expect((await boss.getQueueStats(keywordQueues.scan)).queuedCount).toBe(2);
-            const status = await readKeywordJobsStatus();
-            expect(status.queues.find(queue => queue.name === keywordQueues.scan)).toMatchObject({
-                waiting: 2,
-                running: 0,
-            });
-            expect(status.brandAnalytics).toMatchObject({ keptTerms: 1, awaitingTrial: 0 });
-            expect(status.brandAnalytics.latestWeek?.status).toBe('pending');
-            expect(status.scanDue).toEqual({
-                awaitingFirstScan: 2,
-                checksDue: 0,
-                oldestCheckDueAt: null,
-            });
-            const checkAt = new Date(Date.now() - 60_000);
-            await db
-                .update(discoveryTargets)
-                .set({ headObservedAt: checkAt, nextCheckAt: checkAt })
-                .where(eq(discoveryTargets.tracking, 'tracked'));
-            expect((await readKeywordJobsStatus()).scanDue).toEqual({
-                awaitingFirstScan: 1,
-                checksDue: 1,
-                oldestCheckDueAt: checkAt.toISOString(),
-            });
         } finally {
             await boss.stop({ graceful: false });
         }

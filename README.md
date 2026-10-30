@@ -16,7 +16,10 @@ magical "find opportunities" score.
   Amazon SP-API and Keepa.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity, provider health, and bounded raw Provider-attempt telemetry through
-  admin surfaces.
+  admin surfaces. Admins get a banner "Live" pill that opens System Status (`/status`): Products
+  by sales-history sync status, keywords by stage and freshness, Keepa and SP-API usage against
+  their limits (throttles counted apart from errors) above each provider's refresh tiers, and an
+  event log explorer with a histogram, time range and filters.
 - Access the public Merchbase-credential surface from `rw` or `@rankwrangler/http-client`.
 - Explore Keepa-backed Catalog searches in the dashboard and retain source-ordered evidence in
   durable Search runs.
@@ -167,7 +170,6 @@ prefix ("teacher shirts for women" is "teacher"); a prefix admits searches that 
 product type with the same prefix ("teacher blanket"), and is expanded once through autocomplete. Brand Analytics popularity also sets scan
 depth (ten, five or three pages). Collection runs as small jobs (one keyword page, one autocomplete
 call, one report step) behind one queue per provider, fed by a one-minute scheduler that enqueues
-due scans and keeps a short autocomplete queue topped up; expansion is never held back by scan load. Settings →
-Metrics → Keyword jobs shows queues, the Brand Analytics import, provider readiness and recent runs
-live. See [keyword collection](docs/internals/keyword-mining.md) and
+due scans and keeps a short autocomplete queue topped up; expansion is never held back by scan load.
+See [keyword collection](docs/internals/keyword-mining.md) and
 [background jobs](docs/decisions/background-jobs.md). Not deployed.

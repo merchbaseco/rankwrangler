@@ -65,21 +65,16 @@ describe('keyword importance and cadence', () => {
     });
 });
 describe('trial admission', () => {
-    const trial = (merchOnFirstPage: number, trialFailures = 0) =>
-        nextKeywordTracking({ tracking: 'trial', trialFailures, merchOnFirstPage });
-    it('graduates a trial only with enough Merch on its first page', () => {
+    const trial = (merchOnFirstPage: number) =>
+        nextKeywordTracking({ tracking: 'trial', merchOnFirstPage });
+    it('graduates a trial with enough Merch on its first page and drops it otherwise', () => {
         expect(MIN_MERCH_ON_FIRST_PAGE).toBe(3);
-        expect(trial(3)).toEqual({ tracking: 'tracked', trialFailures: 0 });
-        expect(trial(2)).toEqual({ tracking: 'trial', trialFailures: 1 });
-        expect(trial(0)).toEqual({ tracking: 'trial', trialFailures: 1 });
+        expect(trial(3)).toBe('tracked');
+        expect(trial(2)).toBe('dropped');
+        expect(trial(0)).toBe('dropped');
     });
-    it('makes a trial dormant after two heads without enough Merch', () => {
-        expect(trial(2, 1)).toEqual({ tracking: 'dormant', trialFailures: 2 });
-        expect(trial(5, 1)).toEqual({ tracking: 'tracked', trialFailures: 0 });
-    });
-    it('keeps tracked keywords tracked whatever the first page shows', () => {
-        expect(
-            nextKeywordTracking({ tracking: 'tracked', trialFailures: 0, merchOnFirstPage: 0 })
-        ).toEqual({ tracking: 'tracked', trialFailures: 0 });
+    it('keeps tracked and dropped keywords as they are whatever the first page shows', () => {
+        expect(nextKeywordTracking({ tracking: 'tracked', merchOnFirstPage: 0 })).toBe('tracked');
+        expect(nextKeywordTracking({ tracking: 'dropped', merchOnFirstPage: 9 })).toBe('dropped');
     });
 });

@@ -7,7 +7,8 @@ import type {
     keywordStages,
 } from '@/api/keyword-directory-input';
 import { db } from './index';
-import { directoryFilters, directoryWhere } from './keyword-directory-filters';
+import { directoryFilters, directoryWhere, measuredStages } from './keyword-directory-filters';
+import { directoryProductCounts } from './keyword-directory-sort';
 import { directorySource } from './keyword-directory-source';
 
 type DirectoryRow = {
@@ -46,6 +47,14 @@ export const readKeywordDirectory = async (
     const size = terms ? terms.length : (input.pageSize ?? input.limit);
     const filters = directoryFilters(input);
     const cursor = !terms && input.cursor && !input.page ? input.cursor : undefined;
+    // Measures feed the order or the filter only for these; otherwise the page alone is measured.
+    const measuresFirst =
+        sort === 'merch' ||
+        sort === 'medianBsr' ||
+        sort === 'fresh' ||
+        input.merch !== undefined ||
+        input.shelfElite !== undefined ||
+        input.facet !== undefined;
     const source = directorySource({
         asOf,
         sort,
@@ -53,16 +62,21 @@ export const readKeywordDirectory = async (
         terms,
         facet: input.facet,
         shelf: input.shelfElite !== undefined,
+        measured: measuresFirst ? (terms ? sql`true` : measuredStages(input.stage)) : null,
     });
     const where = terms ? sql`true` : directoryWhere(filters, ['search']);
     const rows = await db.execute<DirectoryRow>(sql`
         ${source}
-        select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,"searchFrequencyRank",sources,products,merch,"lastCheckedAt","sortKey",total,
-            case when freshness is null then null else "nextCheckAt" end "nextCheckAt",
-            case when freshness is null then null else "intervalDays" end "intervalDays"
-        from (select *,count(*) over()::int total from ordered where ${where}) matched
-        where ${cursor ? sql`"sortKey">${JSON.stringify(cursor.key)}::jsonb` : sql`true`}
-        order by "sortKey" asc limit ${size + 1} offset ${!terms && input.page ? (input.page - 1) * size : 0}`);
+        select page.*${measuresFirst ? sql`` : sql`,m.products,m.merch`} from (
+            select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,"searchFrequencyRank",sources,${measuresFirst ? sql`products,merch,` : sql``}"lastCheckedAt","sortKey",total,
+                case when freshness is null then null else "nextCheckAt" end "nextCheckAt",
+                case when freshness is null then null else "intervalDays" end "intervalDays"
+            from (select *,count(*) over()::int total from ordered where ${where}) matched
+            where ${cursor ? sql`"sortKey">${JSON.stringify(cursor.key)}::jsonb` : sql`true`}
+            order by "sortKey" asc limit ${size + 1} offset ${!terms && input.page ? (input.page - 1) * size : 0}
+        ) page
+        ${measuresFirst ? sql`` : sql`left join lateral (${directoryProductCounts(sql`page."queryId"`)}) m on true`}
+        order by page."sortKey" asc`);
     const items = rows.slice(0, size).map(({ total: _total, ...row }) => ({
         ...row,
         createdAt: utcTimestamp(row.createdAt)!,

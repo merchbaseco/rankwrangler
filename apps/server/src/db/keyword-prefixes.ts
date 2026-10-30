@@ -99,17 +99,3 @@ export const backfillKeywordPrefixes = async (limit: number, now = new Date()) =
             .where(eq(discoverySourceScans.key, backfillKey));
         return { scanned: rows.length, registered };
     });
-
-// Operator counts: all prefixes, those expanded through autocomplete and those still waiting.
-export const readKeywordPrefixCounts = async () => {
-    const [counts] = await db
-        .select({
-            total: sql<number>`count(*)::int`,
-            expanded: sql<number>`count(*) filter (where ${keywordPrefixes.stage}='complete')::int`,
-        })
-        .from(keywordPrefixes)
-        .where(eq(keywordPrefixes.marketplaceId, marketplaceId));
-    const total = counts?.total ?? 0;
-    const expanded = counts?.expanded ?? 0;
-    return { total, expanded, pending: total - expanded };
-};

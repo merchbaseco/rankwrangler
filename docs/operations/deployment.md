@@ -1,5 +1,5 @@
 ---
-summary: Defines the RankWrangler Docker topology, production deployment path, service ports, the external freshness report, and container liveness checks.
+summary: Defines the RankWrangler Docker topology, production deployment path, service ports, the external health report, and container liveness checks.
 read_when:
   - deploying RankWrangler or checking production container health
   - debugging differences between the direct server, Caddy entrypoint, and PostgreSQL ports
@@ -12,20 +12,20 @@ Production is served at `https://rankwrangler.merchbase.co`. Caddy serves the we
 Other website paths are owned by the SPA; `/nginx-health` and `/caddy-health` remain Caddy-local
 health endpoints.
 
-`GET /api/health` is the external freshness report. Container healthchecks, Caddy's upstream
-probe, and the deploy smoke use `GET /health/live`, which only checks that the process can run
-`SELECT 1`, so stale data cannot hold the stack down. Both URLs return 200
-`{"status":"ok","revision":"<sha>"}`, or 503
-`{"status":"degraded","failing":[...],"revision":"<sha>"}` with check names only. `revision` is
+`GET /api/health` reports whether the stack can do its work: the database answers and Keepa and
+SP-API are reachable. It is not a backlog report. Work is a queue drained as fast as the providers
+allow, so a backlog while a backfill drains is never a failing check. Container
+healthchecks, Caddy's upstream probe, and the deploy smoke use `GET /health/live`, which only checks
+that the process can run `SELECT 1`. Both URLs return 200 `{"status":"ok","revision":"<sha>"}`, or
+503 `{"status":"degraded","failing":[...],"revision":"<sha>"}` with check names only. `revision` is
 the full commit SHA that `bun run deploy` built the image from. Local runs, tests, and images
 built outside that script report `dev`.
 
 | Check | Failing when |
 | --- | --- |
 | `postgres` | `SELECT 1` fails |
-| `spapi-catalog` | At least two active Merch products with a BSR have `sp_api_fetched_at` older than their tier (24 hours, 3 days, 7 days, 14 days, or 30 days) plus 1 hour. One overdue product does not fail the check. A null fetch time is not overdue. |
-| `keepa-history` | At least two Merch products with BSR under 1,000,000 have `keepa_fetched_at` older than 24 hours (BSR under 300,000) or 7 days, plus 3 hours. `sp_api_fetched_at` is null or at least 3 hours old. A never-fetched product counts once `created_at` is older than 3 hours. One overdue product does not fail the check. |
-| `catalog-queries` | An admitted keyword tier has `next_due_at` older than 15 minutes. Stored-only candidates do not fail this check. An empty table is not failing. |
+| `keepa` | The last 15 minutes hold at least three Keepa calls and none was answered. A 429 (out of tokens or throttled) counts as an answer. No recent calls is not failing. |
+| `spapi` | The same rule for SP-API calls. |
 
 ## Topology
 

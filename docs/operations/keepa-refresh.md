@@ -61,10 +61,9 @@ and does not create another Product-history request.
 Do not expose Keepa token accounting through public RankWrangler APIs. It is an internal provider
 budget.
 
-The admin-only collection status reports rolling allocations, unknown reserved spend, measured
-costs, the interactive floor, history-admission pauses and keyword/exploration backlogs. A budget
-deferral is not a provider failure and does not mark data fresh. See the protected-capacity policy
-in the internals reference. Keepa retains its pilot ceilings; SP-API acquisition uses the separate
+Admin System Status (`/status`) reports the Keepa token allowance: tokens left, refill rate, live
+reserve and the last hour's spend per work class. A budget deferral is not a provider failure and
+does not mark data fresh. See the protected-capacity policy in the internals reference. Keepa retains its pilot ceilings; SP-API acquisition uses the separate
 measured-rate budget described in [catalog search internals](../internals/catalog-search.md).
 
 See [Keepa refresh internals](../internals/keepa-refresh.md) for data semantics and ownership.

@@ -313,7 +313,7 @@ bun test \
     apps/server/test/discovery-agent-research.db.test.ts \
     apps/server/test/keyword-scheduling-races.db.test.ts \
     apps/server/test/keepa-capacity.db.test.ts \
-    apps/server/test/collection-status.db.test.ts \
+    apps/server/test/refresh-tiers.db.test.ts \
     apps/server/test/product-collection-policy.db.test.ts \
     apps/server/test/product-search-document.db.test.ts \
     apps/server/test/product-search.db.test.ts \
@@ -323,5 +323,6 @@ bun test \
     apps/server/test/merch-listing-classification.db.test.ts \
     apps/server/test/product-short-name.db.test.ts \
     apps/server/test/product-cutout-thumbnail.db.test.ts \
-    apps/server/test/service-health.db.test.ts \
-    apps/server/test/service-health-schedules.db.test.ts
+    apps/server/test/provider-health.db.test.ts \
+    apps/server/test/system-status.db.test.ts \
+    apps/server/test/event-log-histogram.db.test.ts

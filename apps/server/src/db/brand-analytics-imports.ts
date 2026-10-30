@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import {
     BRAND_ANALYTICS_MARKETPLACE_ID,
     type BrandAnalyticsTerm,
@@ -167,33 +167,6 @@ export const saveBrandAnalyticsImport = async (
             .where(eq(brandAnalyticsImports.id, work.id));
         return { newTerms };
     });
-
-// Operator status: the latest import, how many kept terms can become trials now, and how many
-// product-text terms wait for their prefix.
-export const readBrandAnalyticsStatus = async () => {
-    const [[latest], [lastImported], [terms]] = await Promise.all([
-        db
-            .select()
-            .from(brandAnalyticsImports)
-            .orderBy(desc(brandAnalyticsImports.weekStart))
-            .limit(1),
-        db
-            .select()
-            .from(brandAnalyticsImports)
-            .where(eq(brandAnalyticsImports.status, 'imported'))
-            .orderBy(desc(brandAnalyticsImports.weekStart))
-            .limit(1),
-        db.execute<{ kept: number; unregistered: number; awaiting_prefix: number }>(sql`
-            select count(*)::int kept,
-                count(*) filter (where t.registered_at is null
-                    and (t.apparel_clicks>=1 or k.id is not null))::int unregistered,
-                count(*) filter (where t.registered_at is null and t.apparel_clicks=0
-                    and k.id is null)::int awaiting_prefix
-            from brand_analytics_search_terms t
-            left join keyword_prefixes k on k.marketplace_id=t.marketplace_id and k.prefix=t.prefix`),
-    ]);
-    return { latest: latest ?? null, lastImported: lastImported ?? null, terms };
-};
 
 const unclaimed = (now: Date) =>
     or(

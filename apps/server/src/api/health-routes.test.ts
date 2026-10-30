@@ -9,9 +9,9 @@ const ROUTES = [
     {
         url: '/api/health',
         reader: 'readServiceHealth',
-        failing: ['spapi-catalog', 'catalog-queries'],
+        failing: ['keepa', 'spapi'],
         degradedBody:
-            '{"status":"degraded","failing":["spapi-catalog","catalog-queries"],"revision":"dev"}',
+            '{"status":"degraded","failing":["keepa","spapi"],"revision":"dev"}',
     },
     {
         url: '/health/live',

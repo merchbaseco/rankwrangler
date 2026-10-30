@@ -7,7 +7,7 @@ import {
 } from '@/api/keyword-directory-input';
 import { KEYWORD_HOT_SCORE, KEYWORD_WARM_SCORE } from '@/services/keyword-standing-policy';
 import { db } from './index';
-import { directoryFilters, directoryWhere } from './keyword-directory-filters';
+import { directoryFilters, directoryWhere, measuredStages } from './keyword-directory-filters';
 import { directorySource } from './keyword-directory-source';
 
 const SCORE_BUCKETS = 20;
@@ -36,6 +36,9 @@ export const readKeywordDirectoryFacets = async (
             search: input.search,
             facet: input.facet,
             shelf: true,
+            // Stage counts ignore the stage filter but honour the shelf and Merch ones, so only
+            // those filters make every stage need measures.
+            measured: input.shelfElite || input.merch ? sql`true` : measuredStages(input.stage),
         })}
         select ${count('total', all)},
             ${count('heat_hot', sql`${without('heat')} and heat='hot'`)},
@@ -74,7 +77,9 @@ export const readKeywordDirectoryFacets = async (
             ${count('mined_last_24h', sql`${all} and "lastCheckedAt">=${asOf}::timestamp-interval '24 hours'`)},
             round(percentile_cont(0.5) within group (order by median_bsr)
                 filter (where ${all} and median_bsr is not null))::int median_shelf_bsr
-        from ordered`);
+        -- OFFSET 0 evaluates each row's stage and freshness once; inlined, every FILTER above
+        -- would recompute those CASE expressions per keyword.
+        from (select * from ordered offset 0) ordered`);
     const value = (name: string) => Number(row?.[name] ?? 0);
     return {
         total: value('total'),

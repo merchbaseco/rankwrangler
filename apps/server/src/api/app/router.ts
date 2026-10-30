@@ -4,25 +4,17 @@ import { adminStatus } from './admin-status.js';
 import { amazonRouter } from './amazon-router.js';
 import { catalogRouter } from './catalog-router';
 import { classifyProductFacets } from './classify-product-facets.js';
-import { collectionStatus } from './collection-status';
 import { eventLogCreated } from './event-log-created';
-import { eventLogsList } from './event-logs.js';
-import { getAdminStats } from './get-admin-stats.js';
-import { getKeepaStatus } from './get-keepa-status.js';
-import { getProductCutoutThumbnailMetricsSummary } from './get-product-cutout-thumbnail-metrics';
-import { getProductFacetMetricsSummary } from './get-product-facet-metrics.js';
+import { eventLogHistogram } from './event-log-histogram';
+import { eventLogsList } from './event-logs';
 import { getProductFacets } from './get-product-facets.js';
 import { getProductHistory } from './get-product-history.js';
-import { getProductShortNameMetricsSummary } from './get-product-short-name-metrics';
-import { jobActivity } from './job-activity';
-import { jobExecutions } from './job-executions.js';
 import { keepaLog } from './keepa-log.js';
 import { keywordDirectory } from './keyword-directory';
 import { keywordDirectoryChanged } from './keyword-directory-changed';
 import { keywordDirectoryCounts } from './keyword-directory-counts';
 import { keywordDirectoryFacets } from './keyword-directory-facets';
 import { keywordDirectoryRows } from './keyword-directory-rows';
-import { keywordJobsStatus } from './keyword-jobs-status';
 import { keywordTrack } from './keyword-track';
 import { loadProductHistory } from './load-product-history.js';
 import { operationGet } from './operation-get.js';
@@ -38,6 +30,8 @@ import { statsSummary } from './stats-summary';
 import { syncControlChanged } from './sync-control-changed';
 import { syncControlGet } from './sync-control-get';
 import { syncControlSet } from './sync-control-set';
+import { systemRefreshTiers } from './system-refresh-tiers';
+import { systemStatus } from './system-status';
 
 export const appApiRouter = router({
     syncControl: router({ get: syncControlGet, set: syncControlSet, changed: syncControlChanged }),
@@ -54,21 +48,14 @@ export const appApiRouter = router({
         usage: accessUsage,
     }),
     adminStatus,
-    collectionStatus,
     amazon: amazonRouter,
     classifyProductFacets,
     catalog: catalogRouter,
     eventLogs: eventLogsList,
-    getAdminStats,
+    eventLogHistogram,
     keepaLog,
-    getKeepaStatus,
-    getProductFacetMetricsSummary,
     getProductFacets,
-    jobExecutions,
-    jobs: router({ keywordStatus: keywordJobsStatus, activity: jobActivity }),
     getProductHistory,
-    getProductShortNameMetricsSummary,
-    getProductCutoutThumbnailMetricsSummary,
     loadProductHistory,
     operation: router({
         get: operationGet,
@@ -79,6 +66,7 @@ export const appApiRouter = router({
     stats: router({
         summary: statsSummary,
     }),
+    system: router({ status: systemStatus, refreshTiers: systemRefreshTiers }),
     product: router({
         get: productGet,
         keywords: productKeywords,

@@ -15,7 +15,11 @@ export interface KeepaCapacityFacts {
     interactiveWaiting: boolean;
 }
 export const getKeepaReservation = (
-    request: { operation: 'product' | 'search' | 'category' | 'token'; workClass: KeepaWorkClass },
+    request: {
+        operation: 'product' | 'search' | 'category' | 'token';
+        workClass: KeepaWorkClass;
+        itemCount?: number;
+    },
     facts: KeepaCapacityFacts
 ): { cost: number; reason?: never } | { reason: string; cost?: never } => {
     if (request.operation === 'token') {
@@ -28,7 +32,7 @@ export const getKeepaReservation = (
     if (measured === null && request.workClass !== 'interactive') {
         return { reason: 'unmeasured-cost' };
     }
-    const cost = measured ?? Math.max(10, facts.headCost ?? 10);
+    const cost = (measured ?? Math.max(10, facts.headCost ?? 10)) * (request.itemCount ?? 1);
     const available = facts.tokensLeft - facts.reservedCost;
     if (available < cost) {
         return { reason: 'bucket' };
