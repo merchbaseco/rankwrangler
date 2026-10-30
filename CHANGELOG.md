@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.14.0 - 2026-10-29
+
+### Changed
+
+- Breaking: move API and MCP connections to `https://rankwrangler-api.merchbase.co`. Sign in through Cloudflare Access or create a replacement Merchbase API key; old Clerk credentials stop working at cutover.
+- Chrome and Safari extensions use the same account permissions while keeping credentials out of request URLs.
+- Account revocations and API-key retirement reach running connections without recurring Clerk verification calls.
+
 ## v0.13.0 - 2026-10-28
 
 ### Added

@@ -17,7 +17,7 @@ export async function handleFetchProductInfo(
 
 		if (!sessionToken) {
 			log.warn(
-				"Attempting to fetch product info without an active Clerk session",
+				"Attempting to fetch product info without an active Merchbase sign-in",
 				{
 					asin: message.asin,
 				}

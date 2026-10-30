@@ -1,4 +1,3 @@
-import { useClerk, useUser } from '@clerk/clerk-react';
 import { Avatar, Button, Dropdown, Label, Separator, Tooltip } from '@heroui/react';
 import {
     Key01Icon,
@@ -21,9 +20,7 @@ export const AccountMenu = ({
 }: {
     onOpenSettings: (page: SettingsPage) => void;
 }) => {
-    const { user } = useUser();
-    const { signOut } = useClerk();
-    const name = user?.fullName ?? user?.firstName ?? 'Account';
+    const name = 'Merchbase account';
 
     const handleAction = (key: Key) => {
         switch (key) {
@@ -37,9 +34,7 @@ export const AccountMenu = ({
                 onOpenSettings('api');
                 return;
             case 'sign-out':
-                signOut().catch((error: unknown) => {
-                    console.error('Sign out failed', error);
-                });
+                window.location.assign('/cdn-cgi/access/logout');
                 return;
             default:
                 return;

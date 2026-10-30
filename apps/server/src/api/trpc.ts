@@ -40,7 +40,7 @@ export const appProcedure = apiProcedure.use(({ ctx, next, path }) => {
         logAppAuthFailure(path, 'UNAUTHORIZED', ctx.accessError);
         throw new TRPCError({
             code: 'UNAUTHORIZED',
-            message: 'Clerk session authentication required',
+            message: 'Interactive authentication required',
         });
     }
 

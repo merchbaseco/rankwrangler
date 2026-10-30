@@ -88,6 +88,7 @@ describe.skipIf(!process.env.CATALOG_SSR_FIXTURE_ROOT)('packaged server startup'
             cwd: join(import.meta.dir, '..'),
             env: {
                 ...process.env,
+                NODE_ENV: 'production',
                 RANKWRANGLER_PORT: String(port),
                 RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER: 'true',
                 RANKWRANGLER_DATABASE_MIGRATION_TARGET: 'latest',

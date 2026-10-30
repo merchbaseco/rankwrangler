@@ -1,14 +1,5 @@
 import { sql } from 'drizzle-orm';
-import {
-    bigint,
-    check,
-    index,
-    pgTable,
-    primaryKey,
-    text,
-    timestamp,
-    uniqueIndex,
-} from 'drizzle-orm/pg-core';
+import { bigint, check, index, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 
 export const accessProjection = pgTable(
     'access_projection',
@@ -28,7 +19,7 @@ export const accessProjection = pgTable(
             columns: [table.issuer, table.subject],
             name: 'access_projection_identity_pk',
         }),
-        mappedUserUniqueIdx: uniqueIndex('access_projection_merchbase_user_unique')
+        mappedUserIdx: index('access_projection_merchbase_user_idx')
             .on(table.merchbaseUserId)
             .where(sql`${table.state} = 'active' and ${table.merchbaseUserId} is not null`),
         stateCheck: check(

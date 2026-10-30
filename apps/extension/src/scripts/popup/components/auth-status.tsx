@@ -18,7 +18,7 @@ const readAuthState = async () => {
 export const AuthStatus = () => {
 	const [isOpening, setIsOpening] = useState(false);
 	const [openError, setOpenError] = useState<string | null>(null);
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, error, refetch } = useQuery({
 		queryKey: ["extension-auth"],
 		queryFn: readAuthState,
 	});
@@ -40,6 +40,27 @@ export const AuthStatus = () => {
 		}
 	};
 
+	const signOut = async () => {
+		setIsOpening(true);
+		try {
+			const response: unknown = await browser.runtime.sendMessage({
+				type: "signOut",
+			});
+			if (
+				!response ||
+				typeof response !== "object" ||
+				!("success" in response) ||
+				response.success !== true
+			) {
+				throw new Error("Sign-out could not be completed.");
+			}
+			await refetch();
+		} catch {
+			setOpenError("Sign-out could not be fully completed.");
+		} finally {
+			setIsOpening(false);
+		}
+	};
 	return (
 		<div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 			<div className="flex items-center gap-2 border-slate-100 border-b bg-slate-50 px-3 py-2">
@@ -73,12 +94,21 @@ export const AuthStatus = () => {
 						>
 							Manage account <ExternalLink className="size-3" />
 						</Button>
+						<Button
+							className="h-7 w-full text-xs"
+							disabled={isOpening}
+							onClick={signOut}
+							size="sm"
+							variant="outline"
+						>
+							Sign out
+						</Button>
 					</>
 				) : null}
 				{data?.status === "signed-out" ? (
 					<>
 						<p className="text-slate-600 text-xs">
-							Sign in through the Merchbase account page to enable RankWrangler.
+							Sign in with Cloudflare Access to enable RankWrangler.
 						</p>
 						<Button
 							className="h-7 w-full text-xs"

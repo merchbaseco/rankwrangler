@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/icon';
 import { useAccessUsage } from '@/hooks/use-access-usage';
 import { SettingsPageHeader } from './settings-page-header';
 
-const accountUrl = import.meta.env.VITE_MERCHBASE_CLERK_SYNC_HOST ?? 'https://clerk.merchbase.co';
+const accountUrl = 'https://merchbase.co/account';
 
 export const AccessSettings = () => {
     const { isLoading, usage } = useAccessUsage();

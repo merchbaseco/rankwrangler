@@ -1,8 +1,9 @@
+const whitespace = /\s/u;
+
 import { ServiceAccessError, type ServiceAccessErrorCode } from '@merchbaseco/access';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
-export const RANKWRANGLER_MCP_SCOPES = ['openid', 'email', 'profile'] as const;
-const BEARER_TOKEN_PATTERN = /^Bearer\s+(.+)$/i;
+export const RANKWRANGLER_MCP_SCOPES = [] as const;
 
 export interface McpAuthDependencies<Principal = unknown> {
     authorize(token: string): Promise<{
@@ -46,7 +47,7 @@ export const authenticateMcpRequest = async <Principal = unknown>(
         const authorized = await dependencies.authorize(token);
         return {
             authInfo: {
-                clientId: 'clerk',
+                clientId: 'cloudflare',
                 extra: {
                     merchbaseUserId: authorized.merchbaseUserId,
                 },
@@ -83,6 +84,5 @@ const toAccessErrorCode = (error: unknown): ServiceAccessErrorCode | undefined =
 
 const getBearerToken = (authorization: string | string[] | undefined) => {
     const value = Array.isArray(authorization) ? authorization[0] : authorization;
-    const match = BEARER_TOKEN_PATTERN.exec(value?.trim() ?? '');
-    return match?.[1]?.trim() || null;
+    return typeof value === 'string' && value.length > 0 && !whitespace.test(value) ? value : null;
 };

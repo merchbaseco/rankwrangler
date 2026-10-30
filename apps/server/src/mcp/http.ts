@@ -1,17 +1,13 @@
 import type { IncomingMessage } from 'node:http';
-import {
-    fetchClerkAuthorizationServerMetadata,
-    generateClerkProtectedResourceMetadata,
-} from '@clerk/mcp-tools/server';
 import { createOAuthBearerChallenge } from '@merchbaseco/access';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { authenticateMcpRequest, type McpAuthDependencies, RANKWRANGLER_MCP_SCOPES } from './auth';
+import { authenticateMcpRequest, type McpAuthDependencies } from './auth';
 import { createRankWranglerMcpServer } from './server';
 import type { RankWranglerMcpDataSource } from './types';
 
-export const RANKWRANGLER_MCP_RESOURCE_URL = 'https://rankwrangler.merchbase.co/mcp';
+export const RANKWRANGLER_MCP_RESOURCE_URL = 'https://rankwrangler-api.merchbase.co/mcp';
 
 interface RegisterMcpRoutesOptions<Principal> {
     auth: McpAuthDependencies<Principal> | null;
@@ -19,7 +15,7 @@ interface RegisterMcpRoutesOptions<Principal> {
         merchbaseUserId: string;
         principal: Principal;
     }): Promise<RankWranglerMcpDataSource> | RankWranglerMcpDataSource;
-    publishableKey?: string;
+    issuer: string;
     resourceUrl: string;
 }
 
@@ -47,35 +43,12 @@ export const registerRankWranglerMcpRoutes = <Principal>(
         '/.well-known/oauth-protected-resource/mcp',
     ]) {
         fastify.get(url, { config: { cors: MCP_CORS } }, (_, reply) => {
-            if (!options.publishableKey) {
-                return reply.code(503).send({ error: 'MCP OAuth is not configured.' });
-            }
-
             reply.header('Cache-Control', 'public, max-age=300');
-            return generateClerkProtectedResourceMetadata({
-                properties: {
-                    resource_name: 'RankWrangler',
-                    scopes_supported: RANKWRANGLER_MCP_SCOPES,
-                },
-                publishableKey: options.publishableKey,
-                resourceUrl: options.resourceUrl,
-            });
-        });
-    }
-
-    for (const url of [
-        '/.well-known/oauth-authorization-server',
-        '/.well-known/oauth-authorization-server/mcp',
-    ]) {
-        fastify.get(url, { config: { cors: MCP_CORS } }, (_, reply) => {
-            if (!options.publishableKey) {
-                return reply.code(503).send({ error: 'MCP OAuth is not configured.' });
-            }
-
-            reply.header('Cache-Control', 'public, max-age=300');
-            return fetchClerkAuthorizationServerMetadata({
-                publishableKey: options.publishableKey,
-            });
+            return {
+                resource: options.resourceUrl,
+                authorization_servers: [options.issuer],
+                bearer_methods_supported: ['header'],
+            };
         });
     }
 
@@ -87,7 +60,17 @@ export const registerRankWranglerMcpRoutes = <Principal>(
                 return;
             }
 
-            const auth = await authenticateMcpRequest(request.headers.authorization, options.auth);
+            if (
+                request.headers.host !== 'rankwrangler-api.merchbase.co' ||
+                request.headers['x-merchbase-user-id'] !== undefined
+            ) {
+                await reply.code(401).send({ error: 'Unauthorized' });
+                return;
+            }
+            const auth = await authenticateMcpRequest(
+                request.headers['cf-access-jwt-assertion'],
+                options.auth
+            );
             if (auth.status === 'unavailable') {
                 await reply
                     .code(503)

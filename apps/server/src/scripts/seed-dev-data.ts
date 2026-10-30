@@ -1,5 +1,6 @@
 import {
-    bootstrapDevAccessProjection,
+    createDevCloudflareAccess,
+    DEV_ACCESS_AUTHORITY_ORIGIN,
     DEV_SIGN_IN_MERCHBASE_USER_ID,
 } from '@merchbaseco/access/dev';
 import { buildDatabaseUrl } from '@/config/database-url';
@@ -27,12 +28,8 @@ import { resolveRankWranglerServicePrincipal } from '@/services/access/rankwrang
  *    schema the application actually queries, so a freshly created development
  *    database cannot serve the catalog at all. The seed brings it current
  *    itself rather than leaving a developer to discover a missing column.
- * 3. Grant the Dev Sign-In user access, before any product row exists. A
- *    product authorizes `api.app.*` against a webhook-synced Access Projection
- *    held in its own database, and a development database receives no Clerk
- *    webhooks — so without this every request 401s and a perfectly seeded
- *    catalog is invisible. It is the first thing that touches the database
- *    because a seeded week nobody can read is worth nothing.
+ * 3. Seed the guarded development principal and local canonical grant before
+ *    creating product data. No identity-provider call is needed.
  * 4. Clear the previous synthetic week and write the new one in one transaction.
  *
  * Every step prints what it did. A seed that quietly half-worked is the failure
@@ -72,39 +69,21 @@ const main = async () => {
     printReceipt({ access, plan, summary, target: describeTarget(target), total });
 };
 
-/**
- * Writes the Access Projection the Clerk webhook would have written, through
- * the same store the webhook handler uses. `@merchbaseco/access` owns the Clerk
- * metadata, the event identity, and the refusals; this repository owns only the
- * issuer and the store, so no projection SQL is written by hand anywhere here.
- *
- * The issuer must be the one `createClerkAuthenticator` is configured with, or
- * the projection lands under an identity no session will ever match.
- *
- * The RankWrangler Service Account is minted here too. Nothing in the Product
- * catalog is owned per user — the synthetic week belongs to the database, not to
- * a seller — so the Service Account is the one row the seed can attach to the
- * signed-in user, and minting it now means the usage and API-access surfaces
- * open on a real account instead of one created by the first request.
- */
 const bootstrapAccess = async () => {
-    const result = await bootstrapDevAccessProjection({
+    await createDevCloudflareAccess({
         databaseUrl: buildDatabaseUrl(),
-        issuer: env.MERCHBASE_CLERK_ISSUER,
         service: 'rankwrangler',
-        store: createRankWranglerAccessProjectionStore(db),
+        projections: createRankWranglerAccessProjectionStore(db, DEV_ACCESS_AUTHORITY_ORIGIN),
+        resolveServicePrincipal: input => resolveRankWranglerServicePrincipal(db, input),
     });
-
-    console.log(
-        `[Seed] Access projection: ${result.clerkSubject} @ ${result.issuer} -> ${result.merchbaseUserId} (granted)`
-    );
+    console.log('[Seed] Guarded local development access configured');
 
     await resolveRankWranglerServicePrincipal(db, {
         merchbaseUserId: DEV_SIGN_IN_MERCHBASE_USER_ID,
     });
     console.log(`[Seed] Service account: ${DEV_SIGN_IN_MERCHBASE_USER_ID}`);
 
-    return result;
+    return { merchbaseUserId: DEV_SIGN_IN_MERCHBASE_USER_ID };
 };
 
 const printReceipt = ({
@@ -114,7 +93,7 @@ const printReceipt = ({
     target,
     total,
 }: {
-    access: { clerkSubject: string; issuer: string; merchbaseUserId: string };
+    access: { merchbaseUserId: string };
     plan: ReturnType<typeof buildDevSeedPlan>;
     summary: ReturnType<typeof summarizePlan>;
     target: string;
@@ -126,9 +105,7 @@ const printReceipt = ({
     console.log('');
     console.log('[Seed] ─── Development seed receipt ───────────────────────────');
     console.log(`[Seed]   Database        ${target}`);
-    console.log(
-        `[Seed]   Signed-in user  ${access.merchbaseUserId} (Clerk ${access.clerkSubject} @ ${access.issuer})`
-    );
+    console.log(`[Seed]   Signed-in user  ${access.merchbaseUserId} (guarded local development)`);
     console.log(
         `[Seed]   Through day     ${toDayLabel(now)} (${dayCount} days from ${toDayLabel(
             shiftDays(now, -(dayCount - 1))

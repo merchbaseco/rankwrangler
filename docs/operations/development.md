@@ -80,7 +80,7 @@ to the moment the command runs, so the dashboard opens on the current week rathe
 fixture. The generator is seeded, so the same seed always produces the same catalog.
 
 Before it writes a single Product it grants the shared Dev Sign-In user access to this database,
-because a seeded week nobody can read is worth nothing. Development receives no Clerk webhooks, so a
+because the development principal requires a canonical local grant. No external identity webhook is required, so a
 freshly migrated database has no Access Projection and every `api.app.*` call fails before any of
 this data is reachable. `bootstrapDevAccessProjection` from `@merchbaseco/access/dev` writes the
 projection the webhook would have written, and the seed also mints the RankWrangler Service Account
@@ -89,13 +89,13 @@ catalog belongs to the database, not to a seller, so the Service Account is the 
 to attach to anybody. [Authentication](../internals/authentication.md) owns the details, including
 what to do about `DevAccessBootstrapError`.
 
-Every run ends with a receipt — database target, the Clerk subject and Merchbase User the session
+Every run ends with a receipt — database target, the stable development Merchbase User the session
 will authenticate as, the day the week runs through, and the row counts behind each page:
 
 ```
 [Seed] ─── Development seed receipt ───────────────────────────
 [Seed]   Database        127.0.0.1:5433/rankwrangler
-[Seed]   Signed-in user  mbu_… (Clerk user_… @ https://tolerant-roughy-27.clerk.accounts.dev)
+[Seed]   Signed-in user  mbu_… (guarded local development)
 [Seed]   Through day     2026-08-26 (7 days from 2026-08-20)
 [Seed]   Products        64
 [Seed]   Catalog queries 10
@@ -163,7 +163,7 @@ colliding.
 
 `bun run test:server` runs the server suite the way the gate does, under
 `varlock run` on the schema's `test` lifecycle. That matters: the suite loads
-`apps/server/src/config/env.ts`, which throws when Clerk and SP-API values are
+`apps/server/src/config/env.ts`, which throws when Cloudflare and SP-API values are
 absent, and a single module that throws while loading poisons every later
 import of it in the same Bun process. Run the suite bare and you get a cascade
 of `Cannot access 'appRouter' before initialization` from files that are

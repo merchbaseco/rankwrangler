@@ -1,16 +1,8 @@
-import { createClerkClient } from "@clerk/chrome-extension/background";
 import { browser } from "webextension-polyfill-ts";
-import { createClerkTokenProvider } from "./clerk-token-cache";
+import { createChromeOAuth } from "./oauth-client";
 
 const extensionAuthMode =
 	import.meta.env.VITE_RANKWRANGLER_EXTENSION_AUTH_MODE?.trim() ?? "chrome";
-const publishableKey =
-	import.meta.env.VITE_MERCHBASE_CLERK_PUBLISHABLE_KEY?.trim();
-const syncHost =
-	import.meta.env.VITE_MERCHBASE_CLERK_SYNC_HOST?.trim() ??
-	"https://clerk.merchbase.co";
-const accountUrl =
-	import.meta.env.VITE_MERCHBASE_CLERK_ACCOUNT_URL?.trim() || syncHost;
 const safariNativeApplicationId =
 	import.meta.env.VITE_RANKWRANGLER_SAFARI_NATIVE_APPLICATION_ID?.trim() ??
 	"merchbase.rankwrangler";
@@ -32,71 +24,61 @@ export type ExtensionAuthState =
 	| { status: "signed-in"; email: string | null; error?: undefined }
 	| { status: "denied"; email: null; error: string };
 
-let clerkPromise: Promise<
-	Awaited<ReturnType<typeof createClerkClient>>
-> | null = null;
-const chromeTokenProvider = createClerkTokenProvider();
-
-const getClerk = () => {
-	if (!publishableKey) {
-		throw new Error("Clerk extension authentication is not configured.");
-	}
-
-	clerkPromise ??= createClerkClient({ publishableKey, syncHost });
-	return clerkPromise;
-};
+const STORAGE_KEY = "merchbase-cloudflare-oauth";
+const storageReady =
+	extensionAuthMode === "chrome"
+		? globalThis.chrome.storage.local.setAccessLevel({
+				accessLevel: "TRUSTED_CONTEXTS",
+			})
+		: Promise.resolve();
+const chromeAuth =
+	extensionAuthMode === "chrome"
+		? createChromeOAuth({
+				issuer: safariOAuthConfiguration.issuer,
+				resource: "https://rankwrangler-api.merchbase.co/",
+				redirectUri: browser.identity.getRedirectURL("oauth/callback"),
+				fetch,
+				launch: (url) =>
+					browser.identity.launchWebAuthFlow({ url, interactive: true }),
+				read: async () => {
+					await storageReady;
+					return (await browser.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
+				},
+				write: async (credential) => {
+					await storageReady;
+					await browser.storage.local.set({ [STORAGE_KEY]: credential });
+				},
+				clear: () => browser.storage.local.remove(STORAGE_KEY),
+			})
+		: null;
 
 const sendSafariNativeMessage = async (message: Record<string, string>) => {
-	const response = (await browser.runtime.sendNativeMessage(
+	const response: unknown = await browser.runtime.sendNativeMessage(
 		safariNativeApplicationId,
-		message,
-	)) as SafariNativeResponse;
-
-	if ("error" in response) {
-		throw new Error(response.error);
+		message
+	);
+	if (
+		!response ||
+		typeof response !== "object" ||
+		!("success" in response) ||
+		response.success !== true
+	) {
+		throw new Error("Native sign-in unavailable.");
 	}
-
-	return response;
+	return "accessToken" in response && typeof response.accessToken === "string"
+		? response.accessToken
+		: null;
 };
-
-export const getExtensionToken = async () => {
-	if (extensionAuthMode === "safari") {
-		const response = await sendSafariNativeMessage({ type: "getAccessToken" });
-		return response.accessToken ?? null;
-	}
-
-	const clerk = await getClerk();
-	const session = clerk.session;
-	if (!session) {
-		chromeTokenProvider.clear();
-		return null;
-	}
-
-	return chromeTokenProvider.getToken(session);
-};
-
+export const getExtensionToken = async () =>
+	chromeAuth
+		? chromeAuth.getAccessToken()
+		: sendSafariNativeMessage({ type: "getAccessToken" });
 export const getExtensionAuthState = async (): Promise<ExtensionAuthState> => {
 	try {
-		if (extensionAuthMode === "safari") {
-			const response = await sendSafariNativeMessage({
-				type: "getAccessToken",
-			});
-			return response.accessToken
-				? { status: "signed-in", email: null }
-				: { status: "signed-out", email: null };
-		}
-
-		const clerk = await getClerk();
-		if (!clerk.session) {
-			chromeTokenProvider.clear();
-			return { status: "signed-out", email: null };
-		}
-
-		return {
-			status: "signed-in",
-			email: clerk.user?.primaryEmailAddress?.emailAddress ?? null,
-		};
-	} catch (_error) {
+		return (await getExtensionToken())
+			? { status: "signed-in", email: null }
+			: { status: "signed-out", email: null };
+	} catch {
 		return {
 			status: "denied",
 			email: null,
@@ -105,19 +87,24 @@ export const getExtensionAuthState = async (): Promise<ExtensionAuthState> => {
 		};
 	}
 };
-
 export const openExtensionAccount = async () => {
-	if (extensionAuthMode === "safari") {
+	if (chromeAuth) {
+		if (await chromeAuth.getAccessToken()) {
+			await browser.tabs.create({ url: "https://merchbase.co/account" });
+		} else {
+			await chromeAuth.signIn();
+		}
+	} else {
 		await sendSafariNativeMessage({
 			type: "beginOAuth",
 			...safariOAuthConfiguration,
 		});
-		return;
 	}
-
-	await browser.tabs.create({ url: accountUrl });
 };
-
-type SafariNativeResponse =
-	| { success: true; accessToken?: string }
-	| { success: false; error: string };
+export const signOutExtension = async () => {
+	if (chromeAuth) {
+		await chromeAuth.signOut();
+	} else {
+		await sendSafariNativeMessage({ type: "signOut" });
+	}
+};

@@ -18,15 +18,12 @@ export type WebsiteTrpcRuntime = {
 
 export const createWebsiteTrpcRuntime = ({
 	baseUrl,
-	getToken,
 }: {
 	baseUrl: string;
-	getToken: () => Promise<string | null>;
 }): WebsiteTrpcRuntime => {
 	const normalizedBaseUrl = baseUrl.replace(/\/+$/, "");
 	const wsClient = createWSClient({
 		url: resolveTrpcWebsocketUrl(normalizedBaseUrl),
-		connectionParams: async () => await createClerkConnectionParams(getToken),
 		lazy: {
 			enabled: true,
 			closeMs: 1_000,
@@ -48,10 +45,11 @@ export const createWebsiteTrpcRuntime = ({
 				true: wsLink({ client: wsClient }),
 				false: httpBatchLink({
 					url: `${normalizedBaseUrl}/api`,
-					headers: async () => {
-						const token = await getToken();
-						return token ? { Authorization: `Bearer ${token}` } : {};
-					},
+                    fetch: (url, init) => {
+                        const headers = new Headers(init?.headers);
+                        headers.set('X-Requested-With', 'XMLHttpRequest');
+                        return fetch(url, { ...init, headers, credentials: 'include', redirect: 'manual' });
+                    },
 				}),
 			}),
 		],
@@ -72,13 +70,6 @@ export const resolveWebsiteApiBaseUrl = () => {
 	return typeof window === "undefined"
 		? "http://localhost:8080"
 		: window.location.origin;
-};
-
-export const createClerkConnectionParams = async (
-	getToken: () => Promise<string | null>,
-) => {
-	const token = await getToken();
-	return token ? { token } : {};
 };
 
 export const isSubscriptionOperation = (operation: { type: string }) =>

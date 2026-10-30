@@ -44,6 +44,8 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO rankwrangler
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Note: Table schemas are created by Drizzle migrations (see drizzle/ directory)
+-- Access projection aliases share a user with its canonical grant; migrations
+-- preserve issuer-and-subject uniqueness rather than one-row-per-user uniqueness.
 -- Key tables: access_projection, rankwrangler_service_accounts, products
 -- (includes source-aware SP-API/Keepa freshness, Keepa metrics, and nullable
 -- products.is_merch_listing; NULL means classification knowledge is unavailable, and
@@ -76,3 +78,5 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- apparel clicks, Merch product text, prefix, clicked ASINs, first/last week, trial registration);
 -- brand_analytics_imports records each weekly report import's state and counts; keyword_prefixes
 -- holds one row per tracked-keyword prefix and its one-time autocomplete expansion.
+
+-- Delegated internal requests are audited by access_delegation_audit (Drizzle-owned).

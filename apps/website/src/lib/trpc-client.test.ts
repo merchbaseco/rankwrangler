@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 import {
-	createClerkConnectionParams,
 	createWebsiteTrpcRuntime,
 	isSubscriptionOperation,
 	resolveTrpcWebsocketUrl,
@@ -11,13 +10,6 @@ describe("website tRPC transport", () => {
 		expect(isSubscriptionOperation({ type: "subscription" })).toBe(true);
 		expect(isSubscriptionOperation({ type: "query" })).toBe(false);
 		expect(isSubscriptionOperation({ type: "mutation" })).toBe(false);
-	});
-
-	it("authenticates the WebSocket connection with the current Clerk token", async () => {
-		expect(await createClerkConnectionParams(async () => "clerk_jwt")).toEqual({
-			token: "clerk_jwt",
-		});
-		expect(await createClerkConnectionParams(async () => null)).toEqual({});
 	});
 
 	it("uses the tRPC WebSocket endpoint for HTTP and HTTPS origins", () => {
@@ -32,7 +24,6 @@ describe("website tRPC transport", () => {
 	it("constructs the client without opening a Strict Mode orphan socket", async () => {
 		const runtime = createWebsiteTrpcRuntime({
 			baseUrl: "http://localhost:8080",
-			getToken: async () => "clerk_jwt",
 		});
 
 		expect(runtime.wsClient.connectionState.get().state).toBe("idle");

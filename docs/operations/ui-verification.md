@@ -17,32 +17,20 @@ state; do not turn every change into a broad manual regression pass.
    Dev Sign-In user access to this database; without it every `api.app.*` read returns
    `UNAUTHORIZED` and the dashboard looks empty rather than forbidden.
 2. Start the server and website with `bun run dev`, or run them in separate terminals.
-3. Open `http://localhost:5173`. Sign-in is automatic outside production — the page requests a
-   short-lived Clerk ticket from `api.dev.createClerkSignInToken` and activates the session itself.
-   Use `localhost`, not the LAN address: the authorized party the schema declares for development is
-   `http://localhost:5173`.
+3. Open the website at its allocated `dev-port` URL. The explicit development
+   runtime and local database grant sign in as the shared development principal.
+   No provider ticket or browser authentication is needed.
 4. Exercise the changed path and one meaningful loading, empty, error, or permission state.
 5. Check the browser console and server output for related errors. A rejected `api.app` read prints
    `[Auth] <code> <path>` on the server.
 6. Remove any smoke data created by the check.
 
-### When auto sign-in does not fire
+### When development access is refused
 
-Confirm the server printed `Dev Clerk Sign-In Token: Configured (user_…)` at startup; if it says
-disabled, the flow is off and the line names why. Otherwise mint and consume a ticket by hand:
-
-```bash
-curl -s -X POST http://localhost:8080/api/api.dev.createClerkSignInToken \
-  -H 'Content-Type: application/json' -d '{"json":null}'
-```
-
-Open `http://localhost:5173/?__clerk_ticket=<ticket>` within sixty seconds. The ticket must be
-consumed on the app origin, where Clerk's `<SignIn />` component picks it up. The Clerk Account
-Portal's default redirect does not work for this instance, so a `*.accounts.dev` sign-in URL will
-strand the ticket.
-
-Do not infer that a loading spinner proves completion. Verify the resulting table, panel, toast,
-URL, or persisted state that owns success.
+Check the explicit development runtime, loopback database target, completed
+migrations, and canonical development grant. The startup guard rejects an
+ambiguous or remote target before migrations. A newer revocation must be
+resolved deliberately rather than overwritten by seeding.
 
 ## Extension
 

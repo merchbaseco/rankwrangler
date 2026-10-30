@@ -1,13 +1,18 @@
 import {
-    type ClerkAuthenticatorOptions,
-    createClerkAuthenticator,
-    createServiceAccess,
+    createAccessSnapshotClient,
+    createCloudflareAssertionVerifier,
+    createCloudflareProjectionHandler,
+    createCloudflareServiceAccess,
     ServiceAccessError,
 } from '@merchbaseco/access';
+import { createDevCloudflareAccess, DEV_ACCESS_AUTHORITY_ORIGIN } from '@merchbaseco/access/dev';
 import { and, eq } from 'drizzle-orm';
 import { type Database, db } from '@/db/index';
 import { rankwranglerServiceAccounts } from '@/db/service-account-schema';
 import { createRankWranglerAccessProjectionStore } from './access-projection-store';
+import { createInternalAccess } from './internal-access';
+import { createLocalGrantDeadline } from './local-grant';
+import { createRankWranglerRequestAccess } from './request-access';
 
 export type RankWranglerServicePrincipal = Omit<
     typeof rankwranglerServiceAccounts.$inferSelect,
@@ -16,50 +21,142 @@ export type RankWranglerServicePrincipal = Omit<
     merchbaseUserId: string;
 };
 
-export interface CreateRankWranglerAccessOptions extends ClerkAuthenticatorOptions {
+export interface CreateRankWranglerAccessOptions {
     database?: Database;
+    databaseUrl: string;
+    issuer: string;
+    authorityOrigin: string;
+    interactiveAudience: string;
+    apiAudience: string;
+    internalAudience: string;
+    serviceClientId: string;
+    serviceClientSecret: string;
+    authorityClientId: string;
+    bidbeaconClientId?: string;
 }
 
-export const createRankWranglerAccess = ({
+export const createRankWranglerAccess = async ({
     database = db,
-    ...authenticatorOptions
+    ...options
 }: CreateRankWranglerAccessOptions) => {
-    const authenticator = createClerkAuthenticator(authenticatorOptions);
-    const projections = createRankWranglerAccessProjectionStore(database);
+    const projections = createRankWranglerAccessProjectionStore(
+        database,
+        process.env.NODE_ENV === 'development'
+            ? DEV_ACCESS_AUTHORITY_ORIGIN
+            : options.authorityOrigin
+    );
     const common = {
-        authenticator,
         projections,
         resolveServicePrincipal: (input: { merchbaseUserId: string }) =>
             resolveRankWranglerServicePrincipal(database, input),
         service: 'rankwrangler' as const,
     };
+    const development =
+        process.env.NODE_ENV === 'development'
+            ? await createDevCloudflareAccess({ ...common, databaseUrl: options.databaseUrl })
+            : null;
+    const shared = {
+        ...common,
+        issuer: options.issuer,
+        authorityOrigin: options.authorityOrigin,
+        loadSnapshot: createAccessSnapshotClient({
+            service: 'rankwrangler',
+            issuer: options.issuer,
+            authorityOrigin: options.authorityOrigin,
+            clientId: options.serviceClientId,
+            clientSecret: options.serviceClientSecret,
+        }),
+    };
+    const sessionAccess =
+        development ??
+        createCloudflareServiceAccess({
+            ...shared,
+            acceptedPrincipalKinds: ['person'],
+            verifier: createCloudflareAssertionVerifier({
+                issuer: options.issuer,
+                audience: options.interactiveAudience,
+            }),
+        });
+    const apiVerifier = createCloudflareAssertionVerifier({
+        issuer: options.issuer,
+        audience: options.apiAudience,
+        maxMachineLifetimeSeconds: 600,
+    });
+    const oauthAccess =
+        development ??
+        createCloudflareServiceAccess({
+            ...shared,
+            maxConnectionLifetimeSeconds: 300,
+            acceptedPrincipalKinds: ['person'],
+            verifier: apiVerifier,
+        });
+    const apiKeyAccess =
+        development ??
+        createCloudflareServiceAccess({
+            ...shared,
+            maxConnectionLifetimeSeconds: 300,
+            acceptedPrincipalKinds: ['api_key'],
+            verifier: apiVerifier,
+        });
+    const publicAccess =
+        development ??
+        createCloudflareServiceAccess({
+            ...shared,
+            maxConnectionLifetimeSeconds: 300,
+            acceptedPrincipalKinds: ['person', 'api_key'],
+            verifier: apiVerifier,
+        });
+    const grantDeadline = createLocalGrantDeadline(
+        projections,
+        development ? DEV_ACCESS_AUTHORITY_ORIGIN : options.authorityOrigin
+    );
 
     return {
-        apiKeyAccess: createServiceAccess({
-            ...common,
-            acceptedCredentialKinds: ['api_key'],
-        }),
-        authenticator,
-        oauthAccess: createServiceAccess({
-            ...common,
-            acceptedCredentialKinds: ['oauth'],
-        }),
         projections,
-        sessionAccess: createServiceAccess({
-            ...common,
-            acceptedCredentialKinds: ['session'],
+        sessionAccess,
+        oauthAccess,
+        apiKeyAccess,
+        grantDeadline,
+        authorizeRequest: createRankWranglerRequestAccess({
+            sessionAccess,
+            publicAccess,
+            development,
+            internal: options.bidbeaconClientId
+                ? createInternalAccess({
+                      database,
+                      issuer: options.issuer,
+                      bidbeaconClientId: options.bidbeaconClientId,
+                      access: publicAccess,
+                      grantDeadline,
+                      internalVerifier: createCloudflareAssertionVerifier({
+                          issuer: options.issuer,
+                          audience: options.internalAudience,
+                          maxLifetimeSeconds: 600,
+                      }),
+                  })
+                : undefined,
         }),
+        projectionHandler: (onChanged: (uid: string) => Promise<void> | void) =>
+            createCloudflareProjectionHandler({
+                ...common,
+                issuer: options.issuer,
+                authorityOrigin: options.authorityOrigin,
+                authorityClientId: options.authorityClientId,
+                verifier: createCloudflareAssertionVerifier({
+                    issuer: options.issuer,
+                    audience: options.internalAudience,
+                    maxLifetimeSeconds: 600,
+                }),
+                onChanged,
+            }),
     };
 };
 
-export type RankWranglerAccess = ReturnType<typeof createRankWranglerAccess>;
-
+export type RankWranglerAccess = Awaited<ReturnType<typeof createRankWranglerAccess>>;
 let runtimeAccess: RankWranglerAccess | null = null;
-
 export const configureRankWranglerAccess = (access: RankWranglerAccess) => {
     runtimeAccess = access;
 };
-
 export const getConfiguredRankWranglerAccess = () => {
     if (!runtimeAccess) {
         throw new Error('RankWrangler access has not been configured.');
@@ -110,5 +207,5 @@ export const resolveRankWranglerServicePrincipal = async (
         throw new ServiceAccessError('access_unavailable');
     }
 
-    return rows[0] as RankWranglerServicePrincipal;
+    return { ...rows[0], merchbaseUserId };
 };

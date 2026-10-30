@@ -2,16 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import readline from 'node:readline';
-import {
-    MERCHBASE_API_KEY_ENV,
-    MERCHBASE_API_KEY_KEYCHAIN_ACCOUNT,
-    MERCHBASE_API_KEY_KEYCHAIN_SERVICE,
-} from '@merchbaseco/access';
 import { CliAuthError } from './cli-auth-error';
 
-export const API_KEY_ENV_VAR = MERCHBASE_API_KEY_ENV;
-export const AUTH_SERVICE_NAME = MERCHBASE_API_KEY_KEYCHAIN_SERVICE;
-export const AUTH_ACCOUNT_NAME = MERCHBASE_API_KEY_KEYCHAIN_ACCOUNT;
+export const API_KEY_ENV_VAR = 'MERCHBASE_API_KEY';
+export const AUTH_SERVICE_NAME = 'co.merchbase.cli';
+export const AUTH_ACCOUNT_NAME = 'api-key';
 
 const INTERNAL_SECRET_STORE_DIR_ENV_VAR = 'RW_INTERNAL_CLI_SECRET_STORE_DIR';
 

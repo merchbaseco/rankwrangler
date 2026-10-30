@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from 'bun:test';
 import Fastify from 'fastify';
 import { registerRankWranglerMcpRoutes } from './http';
 
-const resourceUrl = 'https://rankwrangler.merchbase.co/mcp';
-const publishableKey = `pk_test_${Buffer.from('clerk.rankwrangler.test$').toString('base64url')}`;
+const resourceUrl = 'https://rankwrangler-api.merchbase.co/mcp';
+const issuer = 'https://thearcade.cloudflareaccess.com';
 
 describe('RankWrangler hosted MCP HTTP routes', () => {
     const apps: ReturnType<typeof Fastify>[] = [];
@@ -21,16 +21,15 @@ describe('RankWrangler hosted MCP HTTP routes', () => {
 
         expect(response.statusCode).toBe(200);
         expect(response.json()).toMatchObject({
-            authorization_servers: ['https://clerk.rankwrangler.test'],
+            authorization_servers: [issuer],
             resource: resourceUrl,
-            resource_name: 'RankWrangler',
-            scopes_supported: ['openid', 'email', 'profile'],
         });
     });
 
     it('returns OAuth discovery metadata when the MCP caller is unauthenticated', async () => {
         const app = await createApp();
         const response = await app.inject({
+            headers: { host: 'rankwrangler-api.merchbase.co' },
             method: 'POST',
             payload: initializePayload(),
             url: '/mcp',
@@ -38,14 +37,17 @@ describe('RankWrangler hosted MCP HTTP routes', () => {
 
         expect(response.statusCode).toBe(401);
         expect(response.headers['www-authenticate']).toBe(
-            'Bearer realm="RankWrangler", resource_metadata="https://rankwrangler.merchbase.co/.well-known/oauth-protected-resource/mcp"'
+            'Bearer realm="RankWrangler", resource_metadata="https://rankwrangler-api.merchbase.co/.well-known/oauth-protected-resource/mcp"'
         );
     });
 
     it('returns neutral temporary unavailability when the OAuth backend fails', async () => {
         const app = await createApp();
         const response = await app.inject({
-            headers: { authorization: 'Bearer oauth-token' },
+            headers: {
+                host: 'rankwrangler-api.merchbase.co',
+                'cf-access-jwt-assertion': 'origin-assertion',
+            },
             method: 'POST',
             payload: initializePayload(),
             url: '/mcp',
@@ -80,7 +82,7 @@ describe('RankWrangler hosted MCP HTTP routes', () => {
             },
             createDataSource: () =>
                 Promise.reject(new Error('Authentication should stop before data access.')),
-            publishableKey,
+            issuer,
             resourceUrl,
         });
         return app;

@@ -17,7 +17,7 @@ describe('RankWrangler MCP authentication', () => {
 
     it('maps shared access failures to MCP auth outcomes', async () => {
         await expect(
-            authenticateMcpRequest('Bearer oauth-token', {
+            authenticateMcpRequest('origin-assertion', {
                 authorize: mock(() => {
                     throw new ServiceAccessError('access_unavailable');
                 }),
@@ -25,7 +25,7 @@ describe('RankWrangler MCP authentication', () => {
         ).resolves.toEqual({ status: 'unavailable' });
 
         await expect(
-            authenticateMcpRequest('Bearer oauth-token', {
+            authenticateMcpRequest('origin-assertion', {
                 authorize: mock(() => {
                     throw new ServiceAccessError('access_denied');
                 }),
@@ -33,7 +33,7 @@ describe('RankWrangler MCP authentication', () => {
         ).resolves.toEqual({ missingScopes: [], status: 'forbidden' });
 
         await expect(
-            authenticateMcpRequest('Bearer oauth-token', {
+            authenticateMcpRequest('origin-assertion', {
                 authorize: mock(() => {
                     throw new ServiceAccessError('unauthenticated');
                 }),
@@ -43,7 +43,7 @@ describe('RankWrangler MCP authentication', () => {
 
     it('maps unexpected authorization backend failures to temporary unavailability', async () => {
         await expect(
-            authenticateMcpRequest('Bearer oauth-token', {
+            authenticateMcpRequest('origin-assertion', {
                 authorize: mock(() => {
                     throw new Error('database unavailable');
                 }),
@@ -53,7 +53,7 @@ describe('RankWrangler MCP authentication', () => {
 
     it('returns stable MCP auth info for an authorized OAuth caller', async () => {
         await expect(
-            authenticateMcpRequest('Bearer oauth-token', {
+            authenticateMcpRequest('origin-assertion', {
                 authorize: mock(async () => ({
                     merchbaseUserId: 'mbu_test',
                     principal: { id: 'principal_test' },
@@ -61,10 +61,10 @@ describe('RankWrangler MCP authentication', () => {
             })
         ).resolves.toMatchObject({
             authInfo: {
-                clientId: 'clerk',
+                clientId: 'cloudflare',
                 extra: { merchbaseUserId: 'mbu_test' },
-                scopes: ['openid', 'email', 'profile'],
-                token: 'oauth-token',
+                scopes: [],
+                token: 'origin-assertion',
             },
             merchbaseUserId: 'mbu_test',
             status: 'authenticated',

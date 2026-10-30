@@ -1,7 +1,6 @@
-import { readAutomaticSync } from '@/db/automatic-sync';
-import { syncOfficialBrandRegistry } from '@/db/official-brand-registry';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import { assertDevCloudflareAccessTarget } from '@merchbaseco/access/dev';
 import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify from 'fastify';
@@ -9,7 +8,6 @@ import { PgBoss } from 'pg-boss';
 import { createContext } from '@/api/context.js';
 import { registerHealthRoutes } from '@/api/health-routes.js';
 import { appRouter } from '@/api/router.js';
-import { closeRealtimeConnection } from '@/db/realtime-connection';
 import { registerTrpcWebsocketServer, TRPC_WEBSOCKET_PATH } from '@/api/trpc-websocket-server';
 import { createCorsOriginHandler } from '@/config/cors-origin';
 import { buildDatabaseUrl } from '@/config/database-url';
@@ -18,6 +16,7 @@ import {
     getProductHistoryOperationsStatus,
     getServerRuntimeFlags,
 } from '@/config/server-runtime.js';
+import { readAutomaticSync } from '@/db/automatic-sync';
 import { testConnection } from '@/db/index.js';
 import {
     resolveMigrationTargetForCommand,
@@ -25,13 +24,11 @@ import {
     verifyCutoverMigration,
     verifyMigrationTarget,
 } from '@/db/migrate.js';
+import { syncOfficialBrandRegistry } from '@/db/official-brand-registry';
+import { closeRealtimeConnection } from '@/db/realtime-connection';
 import { prepareJobQueues, startJobs } from '@/jobs/index.js';
 import { registerRankWranglerMcp } from '@/mcp/register';
-import {
-    bootstrapAccessProjection,
-    parseProjectionBootstrapOptions,
-} from '@/scripts/central-auth-projection-bootstrap';
-import { registerClerkAccessWebhookRoute } from '@/services/access/clerk-webhook-route';
+import { registerInternalRouteBoundary } from '@/services/access/internal-access';
 import {
     configureRankWranglerAccess,
     createRankWranglerAccess,
@@ -46,12 +43,12 @@ import {
     registerProductHistoryOperationWakeups,
 } from '@/services/product-history-operations.js';
 import { createDatabaseHealthReaders } from '@/services/service-health-queries.js';
-import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces.js';
 import {
     registerSpApiSyncQueueWakeups,
     sendProcessSpApiSyncQueueJob,
 } from '@/services/spapi-sync-queue.js';
-import { describeDevClerkSignInStatus, printStartupSummary } from '@/services/startup-summary';
+import { printStartupSummary } from '@/services/startup-summary';
+
 type JobsRuntime = Awaited<ReturnType<typeof startJobs>>;
 const createDisabledJobsRuntime = (): JobsRuntime => {
     return {
@@ -68,7 +65,10 @@ const startServer = async () => {
             : verifyMigrationTarget());
         process.exit(0);
     }
-    const shouldBootstrapAccessProjection = process.argv.includes('--bootstrap-access-projection');
+
+    if (process.env.NODE_ENV !== 'production') {
+        assertDevCloudflareAccessTarget({ databaseUrl: buildDatabaseUrl() });
+    }
 
     await runMigrations(
         process.env.MIGRATIONS_FOLDER ?? './drizzle',
@@ -83,29 +83,19 @@ const startServer = async () => {
     await testConnection();
     console.log('[Server] Verified official-brand registry:', await syncOfficialBrandRegistry());
 
-    const rankwranglerAccess = createRankWranglerAccess({
-        authorizedParties: env.RANKWRANGLER_CLERK_AUTHORIZED_PARTIES.split(',')
-            .map(value => value.trim())
-            .filter(Boolean),
-        issuer: env.MERCHBASE_CLERK_ISSUER,
-        jwtKey: env.MERCHBASE_CLERK_JWT_KEY,
-        publishableKey: env.MERCHBASE_CLERK_PUBLISHABLE_KEY,
-        secretKey: env.MERCHBASE_CLERK_SECRET_KEY,
+    const rankwranglerAccess = await createRankWranglerAccess({
+        databaseUrl: buildDatabaseUrl(),
+        issuer: env.MERCHBASE_ACCESS_ISSUER,
+        authorityOrigin: env.MERCHBASE_ACCESS_AUTHORITY_ORIGIN,
+        interactiveAudience: env.MERCHBASE_ACCESS_INTERACTIVE_AUDIENCE,
+        apiAudience: env.MERCHBASE_ACCESS_API_AUDIENCE,
+        internalAudience: env.MERCHBASE_ACCESS_RANKWRANGLER_INTERNAL_AUDIENCE,
+        serviceClientId: env.MERCHBASE_ACCESS_RANKWRANGLER_CLIENT_ID,
+        serviceClientSecret: env.MERCHBASE_ACCESS_RANKWRANGLER_CLIENT_SECRET,
+        authorityClientId: env.MERCHBASE_ACCESS_AUTHORITY_CLIENT_ID,
+        bidbeaconClientId: env.MERCHBASE_ACCESS_BIDBEACON_CLIENT_ID,
     });
     configureRankWranglerAccess(rankwranglerAccess);
-
-    if (shouldBootstrapAccessProjection) {
-        const options = parseProjectionBootstrapOptions(
-            process.argv.slice(2).filter(argument => argument !== '--bootstrap-access-projection')
-        );
-        const result = await bootstrapAccessProjection(options, {
-            authenticator: rankwranglerAccess.authenticator,
-            issuer: env.MERCHBASE_CLERK_ISSUER,
-            store: rankwranglerAccess.projections,
-        });
-        console.log(JSON.stringify({ mode: 'projection-bootstrap', ...result }, null, 2));
-        process.exit(0);
-    }
 
     const databaseUrl = buildDatabaseUrl();
     const serverRuntimeFlags = getServerRuntimeFlags({
@@ -153,25 +143,42 @@ const startServer = async () => {
         maxParamLength: 1000,
     });
 
+    registerInternalRouteBoundary(fastify);
+
     // Register Fastify plugins
     await fastify.register(helmet);
     await fastify.register(cors, {
         origin: createCorsOriginHandler({ isProduction: process.env.NODE_ENV === 'production' }),
         credentials: true,
     });
-    await registerClerkAccessWebhookRoute(fastify, {
-        issuer: env.MERCHBASE_CLERK_ISSUER,
-        onIdentityChanged: identity => rankwranglerAccess.authenticator.invalidateApiKeys(identity),
-        signingSecret: env.RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET,
-        store: rankwranglerAccess.projections,
-    });
     const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess);
+    const handleSnapshot = rankwranglerAccess.projectionHandler(uid => {
+        trpcWebsocketServer.disconnectUser(uid);
+    });
+    fastify.post('/api/internal/access-snapshot', async (request, reply) => {
+        if (request.headers.host !== 'rankwrangler-internal.merchbase.co') {
+            return reply.code(404).send();
+        }
+        const headers = new Headers({ 'content-type': request.headers['content-type'] ?? '' });
+        const assertion = request.headers['cf-access-jwt-assertion'];
+        if (typeof assertion === 'string') {
+            headers.set('cf-access-jwt-assertion', assertion);
+        }
+        const response = await handleSnapshot(
+            new Request(`https://rankwrangler-internal.merchbase.co${request.url}`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(request.body),
+            })
+        );
+        return reply.code(response.status).send();
+    });
 
     registerRankWranglerMcp({
         access: rankwranglerAccess,
         adminMerchbaseUserId: env.RANKWRANGLER_ADMIN_MERCHBASE_USER_ID,
         fastify,
-        publishableKey: env.MERCHBASE_CLERK_PUBLISHABLE_KEY,
+        issuer: env.MERCHBASE_ACCESS_ISSUER,
     });
 
     registerHealthRoutes(fastify, createDatabaseHealthReaders());
@@ -244,17 +251,15 @@ const startServer = async () => {
                 ? `Enabled (${recoveredCatalogSearchOperationsCount} recovered at startup)`
                 : 'Disabled at runtime (job runner disabled)',
             databaseConnected: true,
-            devClerkSignInStatus: describeDevClerkSignInStatus({
-                devSignInUserId: env.RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID,
-                isProduction: process.env.NODE_ENV === 'production',
-            }),
+            developmentIdentityStatus:
+                process.env.NODE_ENV === 'development'
+                    ? 'Local development principal'
+                    : 'Disabled (production)',
             disableServerJobRunner: env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER,
             jobRunnerStatus: serverRuntimeFlags.jobRunnerStatus,
             jobStartupSummary: jobsRuntime.startupSummary,
             keepaConfigured: Boolean(env.RANKWRANGLER_KEEPA_API_KEY),
-            mcpStatus: env.MERCHBASE_CLERK_PUBLISHABLE_KEY
-                ? 'Enabled (/mcp, OAuth bearer)'
-                : 'Disabled (MERCHBASE_CLERK_PUBLISHABLE_KEY not set)',
+            mcpStatus: 'Cloudflare Managed OAuth /mcp',
             migrationsComplete: true,
             port,
             productFacetSummary: env.RANKWRANGLER_GEMINI_API_KEY

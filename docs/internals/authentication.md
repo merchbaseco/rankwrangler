@@ -1,103 +1,82 @@
 ---
-summary: Defines centralized Merchbase bearer-token resolution, Clerk projections, metering, and admin tRPC boundaries.
+summary: Defines Cloudflare assertions, local Merchbase grants, client OAuth, and dashboard boundaries.
 read_when:
-  - changing authentication middleware, centralized usage, Clerk sessions, admin gating, or local sign-in automation
-  - diagnosing UNAUTHORIZED api.app calls, a missing local Access Projection, or the Clerk issuer a lifecycle authenticates against
-  - deciding which API surface should own a procedure
+  - changing authentication, admin access, local development, or client sign-in
+  - diagnosing rejected dashboard, public API, MCP, or extension requests
 ---
 
 # Authentication
 
-RankWrangler mounts tRPC at `/api` and uses one bearer-token slot. Credentials are authenticated by
-`@merchbaseco/access`, then resolved through a local Access Projection and the fixed `rankwrangler`
-Service Account. A missing projection is cold-loaded from Clerk; webhook events keep the projection
-and API-key cache current, and the daily repair job refreshes every explicitly mapped Service
-Account.
+Cloudflare Access authenticates requests. RankWrangler verifies its signed origin
+assertion against the configured issuer and the application selected by the raw
+request host. Bearer prefixes and forwarded-host headers never select dashboard
+privileges.
 
-Clerk OAuth JWTs are suite-wide credentials and do not contain a protected-resource audience.
-RankWrangler does not request or verify an OAuth audience; the fixed service name and local Access
-Projection are the product authorization boundary.
+- `rankwrangler.merchbase.co` accepts the interactive audience for the dashboard
+  and its same-origin APIs. Only these requests become sessions.
+- `rankwrangler-api.merchbase.co` accepts the suite Managed OAuth audience for
+  customer keys, Chrome and Safari OAuth, CLI calls, and `/mcp`. Human OAuth
+  cannot use dashboard or admin procedures.
+- `rankwrangler-internal.merchbase.co/api/internal/access-snapshot` accepts only
+  the configured authority service identity and receiver audience.
 
-## Procedure Boundaries
+Unknown hosts and customer delegation headers fail closed. Liveness and OAuth
+discovery retain exact public routes. Safari's association file and HTTPS
+callback stay public; callback query values are excluded from access logs.
 
-| Surface | Credential | Intended consumer |
-| --- | --- | --- |
-| `api.public.*` | Merchbase API key, OAuth bearer, or extension Clerk session | CLI, typed client, automation, and extension data calls. |
-| `api.app.*` | Clerk JWT | Authenticated dashboard. |
-| Admin app procedures | Clerk session plus configured Merchbase User id | Operational dashboard controls. |
+## Local grants and ownership
 
-Public Product reads, Product history work, and Catalog-search work debit the mapped Service Account
-atomically. Lifetime usage, daily usage, daily limit, reset time, and last-use time all live on that
-account; limits reset at midnight UTC and a breach maps to tRPC `TOO_MANY_REQUESTS`. Catalog search
-debits before durable external work is dispatched, so cached and joined work is not charged twice.
+The shared Access package maps verified identities to stable Merchbase Users
+through local aliases and a canonical grant. Their source revisions must match.
+Credentials never create grants or change service-account ownership.
 
-The website obtains a Clerk session token and sends it through the tRPC HTTP batch link. Its
-subscription transport sends the same token in WebSocket connection parameters; the server verifies
-it before allowing Product-history and Catalog-search app subscriptions, then closes the connection
-when that verified credential expires. The published HTTP client scopes its proxy to `api.public.*`
-and sends a Merchbase API key or explicit Authorization header. Authentication belongs at the
-procedure boundary; shared Product and history services do not branch on caller type.
+Cold identities may load one authenticated snapshot. Normal requests and jobs
+read local state and expiry. Internal snapshots apply monotonically and close
+affected dashboard connections. Daily repair refreshes known users. Denial
+retains product data, metering, and connected provider credentials.
 
-## Admin Boundary
+Dashboard WebSockets use the verified upgrade assertion. Their deadline is the
+earlier of assertion and local grant expiry. Snapshot delivery closes existing
+connections so changed grants are checked on reconnect. Connection parameters
+contain no credentials.
 
-Admin status is derived from the verified stable Merchbase User id and `RANKWRANGLER_ADMIN_MERCHBASE_USER_ID`.
-Admin procedures own job history, Keepa diagnostics, provider statistics, and manual Product facet
-classification. Hiding a dashboard route is not authorization.
+## Clients
 
-## Local Automation
+The dashboard uses same-origin cookies and Cloudflare's local logout endpoint.
+Account and key management live at `merchbase.co/account`.
 
-`api.dev.createClerkSignInToken` exists only for localhost automation. It requires
-`RANKWRANGLER_DEV_CLERK_SIGN_IN_USER_ID`, is disabled in production, and returns a short-lived Clerk
-ticket. The website's dev auto-sign-in consumes that path and is on outside production, so a fresh
-worktree or cloud VM opens on the dashboard rather than a sign-in form. See
-[UI verification](../operations/ui-verification.md) for the manual fallback.
+Chrome uses `identity.launchWebAuthFlow`, public dynamic registration, S256 PKCE,
+state, and the permanent extension HTTPS callback. Renewable context stays in
+storage restricted to trusted extension contexts. Refresh is serialized;
+logout clears storage and revokes late rotated results. Content scripts never
+receive renewable credentials. Safari keeps native OAuth and Keychain storage.
 
-Two things have to line up for that session to be worth anything, and both used to be wrong.
+Public clients send opaque OAuth bearers to Cloudflare. Versioned `mbk_v1`
+credentials from `MERCHBASE_API_KEY` or the common CLI keychain become native
+Cloudflare client ID and secret headers. The public npm client has no private
+package dependency.
 
-**The issuer is per-instance.** `createClerkAuthenticator` rejects any credential whose `iss` is not
-byte-equal to `MERCHBASE_CLERK_ISSUER`, and development authenticates against the Clerk development
-instance, not the production one. The schema resolves the development instance's own
-`*.clerk.accounts.dev` origin outside production. Pointing development at
-`https://clerk.merchbase.co` fails every `api.app.*` call with `UNAUTHORIZED` while the credentials
-themselves are perfectly valid — the symptom looks like a data problem and is not one.
+## Development and release
 
-**The projection has to exist locally.** Authorization is decided against the Access Projection in
-this database, and a development database receives no Clerk webhooks, so a freshly migrated one
-grants nobody anything. `bun run db:seed:dev` calls `bootstrapDevAccessProjection` from
-`@merchbaseco/access/dev`, which writes the projection the webhook would have written through the
-same `AccessProjectionStore.apply` the webhook handler uses. There is no projection SQL in this
-repository outside that store, and no override: the bootstrap refuses production, a non-loopback
-database, and the production issuer. Its event claims the development Clerk User's creation instant
-as `sourceUpdatedAt`, which is older than any real Clerk `updated_at`, so a real webhook or cold
-load always wins and the bootstrap can never mask a revocation.
+An explicit development runtime uses the shared offline principal. Its target
+guard runs before migrations and refuses remote databases or production
+lifecycle markers. The projection adapter seeds the stable development user;
+newer local revocation and expiry remain effective. No fake JWT or Clerk ticket
+is needed.
 
-If the bootstrap raises `DevAccessBootstrapError` saying a newer event already owns the subject, the
-local projection is ahead of the bootstrap. Delete this database's Access Projection rows and seed
-again:
+The source migration still needs the final published shared package, Cloudflare
+configuration, matching Safari provisioning, and live client proof before cutover.
 
-```sql
-DELETE FROM access_projection_event;
-DELETE FROM access_projection;
-```
+## BidBeacon product lookup
 
-## Observability
+Only `POST /api/api.public.product.getMany` on
+`rankwrangler-internal.merchbase.co` accepts BidBeacon's own Cloudflare service
+credential and `x-merchbase-user-id`. The origin verifies the RankWrangler
+internal audience, exact BidBeacon client ID, canonical local user grant, and
+writes a durable `access_delegation_audit` record before running the existing
+metered public procedure. Audit failure denies the request. This identity is
+`service_delegated` and cannot enter interactive or admin procedures.
 
-`api.app.*` credential rejections are logged as one `[Auth] <code> <path>` line, with the
-`ServiceAccessError` code when there is one. Fastify runs with `logger: false`, so without that line
-a rejected dashboard read left no server-side trace at all. Bearer credentials and request headers
-are never part of it.
-
-## Invariants
-
-- API keys, OAuth tokens, and Clerk session tokens are bearer credentials and must not be logged.
-- Chrome uses Clerk Sync Host interactive authentication. Safari uses native Authorization Code +
-  PKCE and Keychain storage; the extension never stores a suite API key.
-- Background user-owned work evaluates the owner's current projection once at job start. Denied
-  access completes safely; unavailable access releases work for retry.
-- Final legacy cleanup is gated by one approved mapping per legacy license, plan digests, backup
-  fingerprints, preservation proofs, and operator approval. Migration `0028` refuses to drop
-  `licenses` without that gate.
-- Public and app routers share services, not procedures.
-- Admin authorization is enforced server-side.
-- Realtime app procedures require Clerk authentication; see
-  [Realtime events](realtime-events.md).
+The client uses the internal origin, native Cloudflare headers, and
+`batch: false`; all other internal methods, paths, query strings, and tRPC
+batches are rejected. Customer hosts continue to reject the delegation header.

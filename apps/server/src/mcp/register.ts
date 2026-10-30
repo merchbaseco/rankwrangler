@@ -8,14 +8,14 @@ interface RegisterRankWranglerMcpOptions {
     adminMerchbaseUserId?: string;
     fastify: FastifyInstance;
     access: RankWranglerAccess;
-    publishableKey?: string;
+    issuer: string;
 }
 
 export const registerRankWranglerMcp = ({
     access,
     adminMerchbaseUserId,
     fastify,
-    publishableKey,
+    issuer,
 }: RegisterRankWranglerMcpOptions) => {
     registerRankWranglerMcpRoutes(fastify, {
         auth: {
@@ -32,7 +32,7 @@ export const registerRankWranglerMcp = ({
                 accessError: null,
                 request: { headers: {} },
             } as Context),
-        publishableKey,
+        issuer,
         resourceUrl: RANKWRANGLER_MCP_RESOURCE_URL,
     });
 };

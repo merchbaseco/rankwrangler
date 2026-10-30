@@ -10,8 +10,8 @@ const isDedicatedCatalogTestDatabase =
     process.env.RUN_CATALOG_DB_TESTS === 'true' &&
     process.env.RANKWRANGLER_DATABASE_NAME === 'rankwrangler_catalog_test';
 const describeCatalogDb = isDedicatedCatalogTestDatabase ? describe : describe.skip;
-const ISSUER = 'https://clerk.test';
-const SUBJECT = 'user_projection_test';
+const ISSUER = 'https://access-internal.merchbase.co';
+const SUBJECT = 'mbu_projection_test';
 const MERCHBASE_USER_ID = 'mbu_projection_test';
 const SERVICE_ACCOUNT_ID = '44444444-4444-4444-8444-444444444444';
 
@@ -89,29 +89,117 @@ describeCatalogDb('Centralized access persistence', () => {
         ).toHaveLength(3);
     });
 
-    it('rejects two active identities mapped to one Merchbase user', async () => {
+    it('stores canonical access with a person and two keys, preserving retirement and ownership', async () => {
         await clearAccessTables();
+        const { applyAccessSnapshot, createCloudflareServiceAccess } = await import(
+            '@merchbaseco/access'
+        );
         const store = createRankWranglerAccessProjectionStore(db);
-        const projection = {
+        await db.insert(rankwranglerServiceAccounts).values({
+            id: SERVICE_ACCOUNT_ID,
+            merchbaseUserId: MERCHBASE_USER_ID,
+            usageToday: 1,
+            usageCount: 10,
+            usageLimit: 100,
+        });
+        const snapshot = {
+            issuer: 'https://example.cloudflareaccess.com',
+            service: 'rankwrangler' as const,
+            merchbaseUserId: MERCHBASE_USER_ID,
             access: 'granted' as const,
             accessValidUntil: null,
-            issuer: ISSUER,
-            merchbaseUserId: MERCHBASE_USER_ID,
-            sourceUpdatedAt: 1000,
+            sourceUpdatedAt: 100,
+            eventId: 'cloudflare-initial',
+            identities: [
+                { kind: 'person' as const, subject: 'person-one', state: 'active' as const },
+                {
+                    kind: 'api_key' as const,
+                    subject: 'key-one.access',
+                    state: 'active' as const,
+                    expiresAt: null,
+                },
+                {
+                    kind: 'api_key' as const,
+                    subject: 'key-two.access',
+                    state: 'active' as const,
+                    expiresAt: null,
+                },
+            ],
         };
-
-        await store.apply({
-            eventId: 'mapping-one',
-            projection: { ...projection, subject: 'user_mapping_one' },
-            type: 'upsert',
+        const apply = (value: unknown) =>
+            applyAccessSnapshot({
+                authorityOrigin: ISSUER,
+                issuer: snapshot.issuer,
+                service: 'rankwrangler',
+                projections: store,
+                snapshot: value,
+            });
+        await apply(snapshot);
+        expect(await db.select().from(accessProjection)).toHaveLength(4);
+        expect((await store.findByMerchbaseUserId(MERCHBASE_USER_ID))?.access).toBe('granted');
+        const access = createCloudflareServiceAccess({
+            issuer: snapshot.issuer,
+            authorityOrigin: ISSUER,
+            service: 'rankwrangler',
+            acceptedPrincipalKinds: ['person', 'api_key'],
+            projections: store,
+            loadSnapshot: () =>
+                Promise.reject(new Error('Warm identities cannot call the authority')),
+            resolveServicePrincipal: input => resolveRankWranglerServicePrincipal(db, input),
+            verifier: {
+                verify: token =>
+                    Promise.resolve(
+                        token === 'person-one'
+                            ? {
+                                  kind: 'person' as const,
+                                  subject: token,
+                                  issuer: snapshot.issuer,
+                                  issuedAt: Date.now() - 1000,
+                                  expiresAt: Date.now() + 300_000,
+                              }
+                            : {
+                                  kind: 'machine' as const,
+                                  clientId: token,
+                                  issuer: snapshot.issuer,
+                                  issuedAt: Date.now() - 1000,
+                                  expiresAt: Date.now() + 300_000,
+                              }
+                    ),
+            },
         });
-        await expect(
-            store.apply({
-                eventId: 'mapping-two',
-                projection: { ...projection, subject: 'user_mapping_two' },
-                type: 'upsert',
-            })
-        ).rejects.toThrow();
+        for (const token of ['person-one', 'key-one.access', 'key-two.access']) {
+            expect((await access.authorize(token)).principal.id).toBe(SERVICE_ACCOUNT_ID);
+        }
+        await apply({
+            ...snapshot,
+            sourceUpdatedAt: 200,
+            eventId: 'cloudflare-key-retired',
+            identities: snapshot.identities.map(identity =>
+                identity.subject === 'key-one.access' ? { ...identity, state: 'retired' } : identity
+            ),
+        });
+        await expect(access.authorize('key-one.access')).rejects.toMatchObject({
+            code: 'access_denied',
+        });
+        expect((await access.authorize('key-two.access')).merchbaseUserId).toBe(MERCHBASE_USER_ID);
+        await apply({
+            ...snapshot,
+            sourceUpdatedAt: 300,
+            eventId: 'cloudflare-revoked',
+            access: 'not_granted',
+        });
+        await apply({ ...snapshot, eventId: 'cloudflare-delayed-initial' });
+        await expect(access.authorize('key-two.access')).rejects.toMatchObject({
+            code: 'access_denied',
+        });
+        expect(await db.select().from(rankwranglerServiceAccounts)).toMatchObject([
+            {
+                id: SERVICE_ACCOUNT_ID,
+                merchbaseUserId: MERCHBASE_USER_ID,
+                usageToday: 1,
+                usageCount: 10,
+            },
+        ]);
     });
 
     it('debits the fixed service account atomically and resets only the daily counter', async () => {

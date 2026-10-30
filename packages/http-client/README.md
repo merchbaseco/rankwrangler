@@ -13,7 +13,7 @@ npm install @rankwrangler/http-client
 import { createRankWranglerClient } from '@rankwrangler/http-client';
 
 const client = createRankWranglerClient({
-    baseUrl: 'https://rankwrangler.merchbase.co',
+    baseUrl: 'https://rankwrangler-api.merchbase.co',
     apiKey: process.env.MERCHBASE_API_KEY,
 });
 

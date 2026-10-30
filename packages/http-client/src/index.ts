@@ -1,10 +1,11 @@
+import { credentialHeaders } from './credential-headers';
 import { createTRPCProxyClient, httpBatchLink, httpLink } from '@trpc/client';
 import type { inferRouterInputs, inferRouterOutputs } from '@trpc/server';
 import type { PublicAppRouter } from './app-router';
 
 const TRAILING_SLASHES_REGEX = /\/+$/;
 
-export const DEFAULT_API_BASE_URL = 'https://rankwrangler.merchbase.co';
+export const DEFAULT_API_BASE_URL = 'https://rankwrangler-api.merchbase.co';
 
 export type AppRouter = PublicAppRouter;
 
@@ -33,7 +34,7 @@ export const createRankWranglerClient = ({
 }: RankWranglerClientOptions): RankWranglerClient => {
     const url = `${normalizeBaseUrl(baseUrl)}/api`;
     const resolveHeaders = () => ({
-        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        ...(apiKey ? credentialHeaders(apiKey) : {}),
         ...(headers ?? {}),
     });
 
@@ -42,6 +43,7 @@ export const createRankWranglerClient = ({
             links: [
                 httpBatchLink({
                     url,
+                    fetch: (input, init) => fetch(input, { ...init, redirect: 'manual' }),
                     headers: resolveHeaders,
                 }),
             ],
@@ -53,6 +55,7 @@ export const createRankWranglerClient = ({
         links: [
             httpLink({
                 url,
+                fetch: (input, init) => fetch(input, { ...init, redirect: 'manual' }),
                 headers: resolveHeaders,
             }),
         ],

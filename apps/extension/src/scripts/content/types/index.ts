@@ -118,6 +118,7 @@ export interface CacheClearedNotification {
 
 export type BackgroundMessage =
 	| { type: "recordKeywordSearch"; term: string }
+	| { type: "signOut" }
 	| FetchProductInfoMessage
 	| FetchProductHistoryMessage
 	| { type: "ping" }

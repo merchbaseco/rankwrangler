@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'bun:test';
-import { appRouter } from '@/api/router';
 import { publicAppRouter } from '@/api/router-public';
 
 describe('public agent surface', () => {
@@ -19,12 +18,4 @@ describe('public agent surface', () => {
         );
     });
 
-    it('keeps localhost sign-in automation outside the publishable router', () => {
-        const appProcedures = Object.keys(appRouter._def.procedures);
-        const publicProcedures = Object.keys(publicAppRouter._def.procedures);
-
-        expect(appProcedures).toContain('api.dev.createClerkSignInToken');
-        expect(publicProcedures).not.toContain('api.dev.createClerkSignInToken');
-        expect(publicProcedures).not.toContain('api.public.dev.createClerkSignInToken');
-    });
 });

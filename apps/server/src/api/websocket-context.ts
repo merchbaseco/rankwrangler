@@ -2,50 +2,39 @@ import type { CreateWSSContextFnOptions } from '@trpc/server/adapters/ws';
 import { type ContextRequest, createRequestContext } from '@/api/context';
 import type { RankWranglerAccess } from '@/services/access/rankwrangler-access';
 
-const BEARER_PREFIX = 'Bearer ';
-
-export const resolveWebSocketAuthorization = ({
-    headerAuthorization,
-    connectionParams,
-}: {
-    headerAuthorization?: string;
-    connectionParams: unknown;
-}) => {
-    if (headerAuthorization?.startsWith(BEARER_PREFIX)) {
-        return headerAuthorization;
-    }
-
-    const token = getConnectionToken(connectionParams);
-    return token ? `${BEARER_PREFIX}${token}` : undefined;
-};
-
 export const createWebSocketContext = async (
-    { req, res, info }: CreateWSSContextFnOptions,
-    access: RankWranglerAccess | null
+    { req, res }: CreateWSSContextFnOptions,
+    access: Pick<RankWranglerAccess, 'authorizeRequest' | 'grantDeadline'> | null,
+    onAuthenticated?: (uid: string) => void
 ) => {
-    const headerAuthorization = Array.isArray(req.headers.authorization)
-        ? req.headers.authorization[0]
-        : req.headers.authorization;
-
     const request: ContextRequest = {
         headers: {
-            authorization: resolveWebSocketAuthorization({
-                headerAuthorization,
-                connectionParams: info.connectionParams,
-            }),
             host: req.headers.host,
+            'cf-access-jwt-assertion':
+                typeof req.headers['cf-access-jwt-assertion'] === 'string'
+                    ? req.headers['cf-access-jwt-assertion']
+                    : undefined,
+            'x-merchbase-user-id': req.headers['x-merchbase-user-id'],
         },
     };
     const context = await createRequestContext(request, access);
-    if (
-        context.authType === 'access' &&
-        context.credentialKind === 'session' &&
-        context.authExpiresAtMs
-    ) {
-        scheduleWebSocketCredentialExpiry({
-            client: res,
-            expiresAtMs: context.authExpiresAtMs,
-        });
+    if (context.authType === 'access' && context.accessPrincipal && access) {
+        onAuthenticated?.(context.accessPrincipal.merchbaseUserId);
+        try {
+            const grantDeadline = await access.grantDeadline(
+                context.accessPrincipal.merchbaseUserId
+            );
+            const deadline = Math.min(
+                context.authExpiresAtMs ?? Number.POSITIVE_INFINITY,
+                grantDeadline ?? Number.POSITIVE_INFINITY
+            );
+            if (Number.isFinite(deadline)) {
+                scheduleWebSocketCredentialExpiry({ client: res, expiresAtMs: deadline });
+            }
+        } catch (error) {
+            res.close(4403, 'Access revoked');
+            throw error;
+        }
     }
 
     return context;
@@ -68,29 +57,8 @@ export const scheduleWebSocketCredentialExpiry = ({
     clearTimer?: (timer: unknown) => void;
 }) => {
     const timer = setTimer(
-        () => client.close(4401, 'Clerk credential expired'),
+        () => client.close(4401, 'Access credential expired'),
         Math.max(0, expiresAtMs - nowMs)
     );
     client.once('close', () => clearTimer(timer));
-};
-
-const getConnectionToken = (connectionParams: unknown) => {
-    if (!connectionParams || typeof connectionParams !== 'object') {
-        return null;
-    }
-
-    const params = connectionParams as Record<string, unknown>;
-    const rawToken = [params.Authorization, params.authorization, params.token].find(
-        value => typeof value === 'string'
-    );
-    if (typeof rawToken !== 'string') {
-        return null;
-    }
-
-    const token = rawToken.trim();
-    if (!token) {
-        return null;
-    }
-
-    return token.startsWith(BEARER_PREFIX) ? token.slice(BEARER_PREFIX.length).trim() : token;
 };

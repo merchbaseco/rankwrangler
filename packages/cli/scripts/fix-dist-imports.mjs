@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const distDir = path.join(__dirname, '..', 'dist');
+const distDir = process.argv[2]
+    ? path.resolve(process.argv[2])
+    : path.join(__dirname, '..', 'dist');
 
 function appendJsExtension(specifier) {
     if (specifier.endsWith('.js')) {

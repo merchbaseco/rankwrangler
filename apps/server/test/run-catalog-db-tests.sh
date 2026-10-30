@@ -75,6 +75,7 @@ MERCHBASE_CLERK_ISSUER=https://clerk.test \
 RANKWRANGLER_CLERK_AUTHORIZED_PARTIES=https://app.test \
 RANKWRANGLER_CLERK_WEBHOOK_SIGNING_SECRET=test-webhook-secret \
 RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=true \
+RANKWRANGLER_DATABASE_MIGRATION_TARGET=pre-cutover \
 MIGRATIONS_FOLDER="$server_dir/drizzle" \
 bun -e "import { runMigrations, verifyCutoverMigration, verifyMigrationTarget } from './src/db/migrate.ts'; await runMigrations(); await verifyMigrationTarget(); try { await verifyCutoverMigration(); throw new Error('Cutover guard accepted pre-cutover schema'); } catch (error) { if (!String(error).includes('not applied through')) throw error; }"
 

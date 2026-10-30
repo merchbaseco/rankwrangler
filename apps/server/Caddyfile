@@ -8,7 +8,13 @@
     # Enable JSON logging
     log {
         output stdout
-        format json
+        format filter {
+            wrap json
+            fields {
+                request>headers>Cf-Access-Client-Secret delete
+                request>headers>Cf-Access-Jwt-Assertion delete
+            }
+        }
     }
     
     # Auto HTTPS off (SSL handled at server level)
@@ -20,9 +26,36 @@
     # Enable access logs
     log {
         output stdout
-        format json
+        format filter {
+            wrap json
+            fields {
+                request>headers>Cf-Access-Client-Secret delete
+                request>headers>Cf-Access-Jwt-Assertion delete
+            }
+        }
     }
     
+    @internalDenied {
+        host rankwrangler-internal.merchbase.co
+        not path /api/api.public.product.getMany /api/internal/access-snapshot
+    }
+    handle @internalDenied {
+        respond 404
+    }
+
+    @safariCallback path /oauth/safari/callback
+    handle @safariCallback {
+        log_skip
+        header Cache-Control no-store
+        header Referrer-Policy no-referrer
+        respond "Return to RankWrangler Safari." 200
+    }
+    handle /.well-known/apple-app-site-association {
+        root * /srv
+        header Content-Type application/json
+        file_server
+    }
+
     # API routes to RankWrangler server
     handle /api/* {
         reverse_proxy server:8080 {
@@ -46,7 +79,7 @@
 
     # Hosted MCP and OAuth discovery routes to the Fastify MCP handler.
     # Keep this list exact; all other paths belong to the website SPA below.
-    @mcp path /mcp /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/mcp /.well-known/oauth-authorization-server /.well-known/oauth-authorization-server/mcp
+    @mcp path /mcp /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/mcp
     handle @mcp {
         reverse_proxy server:8080 {
             header_up Host {http.request.host}
@@ -76,6 +109,11 @@
             header_up X-Forwarded-Proto {http.request.scheme}
             header_up X-Forwarded-Host {http.request.host}
         }
+    }
+
+    @apiOnlyHost host rankwrangler-api.merchbase.co rankwrangler-internal.merchbase.co
+    handle @apiOnlyHost {
+        respond "Not found" 404
     }
 
     # Website (SPA) for all non-API routes

@@ -1,4 +1,3 @@
-import { useClerk, useUser } from '@clerk/clerk-react';
 import { Avatar, Button } from '@heroui/react';
 import { ItemCard, ItemCardGroup } from '@heroui-pro/react';
 import { Logout01Icon } from '@hugeicons-pro/core-stroke-rounded';
@@ -7,14 +6,8 @@ import { initials } from '@/lib/initials';
 import { SettingsPageHeader } from './settings-page-header';
 
 export const AccountSettings = () => {
-    const { user } = useUser();
-    const { signOut } = useClerk();
-    const name = user?.fullName ?? user?.firstName ?? 'User';
-    const email = user?.primaryEmailAddress?.emailAddress;
-    const provider = user?.externalAccounts?.[0]?.provider;
-    const details = [email, provider ? `via ${capitalize(provider)}` : null]
-        .filter(Boolean)
-        .join(' · ');
+    const name = 'Merchbase account';
+    const details = 'Sign-in is managed by Cloudflare Access.';
 
     return (
         <div className="flex flex-col gap-4">
@@ -29,9 +22,6 @@ export const AccountSettings = () => {
                 <ItemCardGroup className="overflow-hidden">
                     <ItemCard>
                         <Avatar size="sm">
-                            {user?.imageUrl ? (
-                                <Avatar.Image alt={name} src={user.imageUrl} />
-                            ) : null}
                             <Avatar.Fallback>{initials(name)}</Avatar.Fallback>
                         </Avatar>
                         <ItemCard.Content>
@@ -60,9 +50,7 @@ export const AccountSettings = () => {
                         <ItemCard.Action>
                             <Button
                                 onPress={() => {
-                                    signOut().catch((error: unknown) => {
-                                        console.error('Sign out failed', error);
-                                    });
+                                    window.location.assign('/cdn-cgi/access/logout');
                                 }}
                                 size="sm"
                                 variant="danger-soft"
@@ -77,5 +65,3 @@ export const AccountSettings = () => {
         </div>
     );
 };
-
-const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);

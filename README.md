@@ -76,7 +76,7 @@ collection is needed, Product get/getMany return a known Product's last-known li
 background refresh runs; otherwise the shared server retrieval service waits transparently for policy-compliant
 data or returns a provider-neutral retryable error with a hint. Public callers never receive
 Operation identifiers or polling state. The dashboard retains its app-specific workflow and
-Clerk-authenticated completion subscriptions for internal Product history, Catalog search, and
+Cloudflare-authenticated completion subscriptions for internal Product history, Catalog search, and
 per-ASIN SP-API Product synchronization.
 
 Single-Product `get` accepts `include: ['marketData', 'shortName', 'cutoutThumbnail']`. Its default includes
@@ -89,14 +89,14 @@ while generation continues for the next request. `getMany` returns basic listing
 accepts no `include`. Batch reads and the extension do not trigger image analysis.
 
 For programmatic access, use [`@rankwrangler/http-client`](packages/http-client/README.md). The
-public API uses Merchbase API keys or OAuth credentials; dashboard procedures use Clerk sessions.
+public API uses Merchbase API keys or OAuth credentials; dashboard procedures use the separate Cloudflare interactive audience.
 
 ## Repository
 
 | Path | Ownership |
 | --- | --- |
 | `apps/server` | Fastify/tRPC API, PostgreSQL/Drizzle persistence, providers, jobs, and events. |
-| `apps/website` | Clerk-authenticated catalog and operator dashboard. |
+| `apps/website` | Cloudflare-authenticated catalog and operator dashboard. |
 | `apps/extension` | Chrome and Safari Amazon-page observation and Product UI. |
 | `packages/cli` | Agent- and automation-friendly `rw` commands. |
 | `packages/http-client` | Typed public tRPC client and API types. |
@@ -173,3 +173,7 @@ call, one report step) behind one queue per provider, fed by a one-minute schedu
 due scans and keeps a short autocomplete queue topped up; expansion is never held back by scan load.
 See [keyword collection](docs/internals/keyword-mining.md) and
 [background jobs](docs/decisions/background-jobs.md). Not deployed.
+
+Cloudflare authentication and verification gates are documented in [Authentication](docs/internals/authentication.md). Public APIs use `https://rankwrangler-api.merchbase.co`.
+
+BidBeacon uses one metered, audited internal product lookup; see [authentication](docs/internals/authentication.md#bidbeacon-product-lookup).

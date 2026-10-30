@@ -1,4 +1,3 @@
-import { useAuth } from "@clerk/clerk-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { TRPCWebSocketClient } from "@trpc/client";
 import {
@@ -22,7 +21,6 @@ const RealtimeConnectionContext =
 	createContext<RealtimeConnectionState>("reconnecting");
 
 export function TRPCProvider({ children }: PropsWithChildren) {
-	const { getToken } = useAuth();
 	const [queryClient] = useState(
 		() =>
 			new QueryClient({ defaultOptions: { queries: { staleTime: 30_000 } } }),
@@ -30,7 +28,6 @@ export function TRPCProvider({ children }: PropsWithChildren) {
 	const [{ trpcClient, wsClient }] = useState(() =>
 		createWebsiteTrpcRuntime({
 			baseUrl: resolveWebsiteApiBaseUrl(),
-			getToken,
 		}),
 	);
 	const realtimeConnection = useRealtimeConnection(wsClient);

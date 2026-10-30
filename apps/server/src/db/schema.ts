@@ -233,3 +233,5 @@ export { productShortNames } from './product-short-name-schema';
 export { providerAttempts } from './provider-telemetry-schema';
 export { rankwranglerServiceAccounts } from './service-account-schema';
 export { spApiCatalogCapacity } from './spapi-capacity-schema';
+
+export { accessDelegationAudit } from './access-delegation-audit-schema';

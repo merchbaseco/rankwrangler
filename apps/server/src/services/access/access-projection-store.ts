@@ -2,18 +2,20 @@ import type {
     AccessProjection,
     AccessProjectionEvent,
     AccessProjectionStore,
-    ClerkIdentity,
 } from '@merchbaseco/access';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
+import { env } from '@/config/env';
 import { accessProjection, accessProjectionEvents } from '@/db/access-schema';
 import { type Database, db } from '@/db/index';
 
 export const createRankWranglerAccessProjectionStore = (
-    database: Database = db
+    database: Database = db,
+    authorityOrigin = env.MERCHBASE_ACCESS_AUTHORITY_ORIGIN
 ): AccessProjectionStore => ({
     apply: event => applyProjectionEvent(database, event),
     findByIdentity: identity => findByIdentity(database, identity),
-    findByMerchbaseUserId: merchbaseUserId => findByMerchbaseUserId(database, merchbaseUserId),
+    findByMerchbaseUserId: merchbaseUserId =>
+        findByMerchbaseUserId(database, merchbaseUserId, authorityOrigin),
 });
 
 const applyProjectionEvent = async (database: Database, event: AccessProjectionEvent) => {
@@ -66,7 +68,10 @@ const applyProjectionEvent = async (database: Database, event: AccessProjectionE
     });
 };
 
-const findByIdentity = async (database: Database, identity: ClerkIdentity) => {
+const findByIdentity = async (
+    database: Database,
+    identity: Parameters<AccessProjectionStore['findByIdentity']>[0]
+) => {
     const rows = await database
         .select()
         .from(accessProjection)
@@ -94,7 +99,8 @@ const findByIdentity = async (database: Database, identity: ClerkIdentity) => {
 
 const findByMerchbaseUserId = async (
     database: Database,
-    merchbaseUserId: string
+    merchbaseUserId: string,
+    authorityOrigin: string
 ): Promise<AccessProjection | null> => {
     const rows = await database
         .select()
@@ -102,13 +108,10 @@ const findByMerchbaseUserId = async (
         .where(
             and(
                 eq(accessProjection.state, 'active'),
+                eq(accessProjection.issuer, authorityOrigin),
+                eq(accessProjection.subject, merchbaseUserId),
                 eq(accessProjection.merchbaseUserId, merchbaseUserId)
             )
-        )
-        .orderBy(
-            desc(accessProjection.sourceUpdatedAt),
-            desc(accessProjection.issuer),
-            desc(accessProjection.subject)
         )
         .limit(1);
 

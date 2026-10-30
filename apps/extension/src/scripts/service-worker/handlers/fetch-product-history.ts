@@ -17,7 +17,7 @@ export async function handleFetchProductHistory(
 
 		if (!sessionToken) {
 			log.warn(
-				"Attempting to fetch product history without an active Clerk session",
+				"Attempting to fetch product history without an active Merchbase sign-in",
 				{
 					asin: message.asin,
 				}

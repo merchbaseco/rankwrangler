@@ -48,7 +48,7 @@ export const ChromePreview = () => {
 								<span className="font-semibold text-sm">Merchbase account</span>
 							</div>
 							<p className="text-muted-foreground text-xs">
-								Sign in through the Clerk Sync Host. No API key is stored in the
+								Sign in through Cloudflare Access. No API key is stored in the
 								extension.
 							</p>
 							<Button className="mt-3 w-full" size="sm">
