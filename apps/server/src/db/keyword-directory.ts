@@ -63,6 +63,7 @@ export const readKeywordDirectory = async (
         facet: input.facet,
         shelf: input.shelfElite !== undefined,
         measured: measuresFirst ? (terms ? sql`true` : measuredStages(input.stage)) : null,
+        stage: terms ? undefined : input.stage,
     });
     const where = terms ? sql`true` : directoryWhere(filters, ['search']);
     const rows = await db.execute<DirectoryRow>(sql`

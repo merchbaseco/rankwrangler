@@ -1,7 +1,11 @@
 import { type SQL, sql } from 'drizzle-orm';
 import type { AppKeywordDirectoryInput } from '@/api/keyword-directory-input';
 import { directoryMeasures, directorySortKey } from './keyword-directory-sort';
-import { keywordDirectoryWhereSql, keywordStageSql } from './keyword-directory-stage';
+import {
+    keywordDirectoryWhereSql,
+    keywordStageSql,
+    keywordStageTargetSql,
+} from './keyword-directory-stage';
 
 /**
  * The directory's row source as CTEs ending in `ordered`: every Catalog query keyword with its
@@ -20,8 +24,10 @@ export const directorySource = (input: {
     shelf?: boolean;
     /** Rows that get Product, Merch, shelf and facet measures; `null` skips them (see `directoryMeasures`). */
     measured: SQL | null;
+    /** The page's stage filter, applied to keyword targets before the join; omit to scan all. */
+    stage?: string | readonly string[];
 }) => {
-    const { asOf, sort, search, terms, facet, shelf, measured } = input;
+    const { asOf, sort, search, terms, facet, shelf, measured, stage } = input;
     return sql`
         with directory as (
             select q.id,q.id "queryId",q.normalized_term term,q.created_at "createdAt",
@@ -42,6 +48,7 @@ export const directorySource = (input: {
             left join brand_analytics_search_terms ba on ba.marketplace_id=q.marketplace_id and ba.normalized_term=q.normalized_term
             left join lateral (select claim_at,stop_reason,resume_at,last_page_at,failure_count from keyword_exploration_passes where target_id=t.id order by created_at desc,id desc limit 1) p on true
             where ${keywordDirectoryWhereSql({ search, heat: 'all' }, terms)}
+                and ${stage === undefined ? sql`true` : keywordStageTargetSql(stage)}
         ), classified as (
             select *,case when stage in ('dropped','untracked') then null
                     when expansion='running' or discovery='running' then 'syncing'
