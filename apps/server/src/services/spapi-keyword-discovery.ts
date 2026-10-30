@@ -1,5 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import type { db } from '@/db/index';
+import { familyIdentityKey, resolveFamilyIdentities } from '@/db/product/product-family';
 import { upsertProductsInfo } from '@/db/product/upsert-product';
 import { products as productTable } from '@/db/product-schema';
 import {
@@ -73,36 +74,54 @@ export const persistDiscoveredSpApiProducts = async (
     }
     const marketplaceId = products[0].marketplaceId;
     const pageAsins = [...new Set(products.map(product => product.asin))];
+    const families = await resolveFamilyIdentities(
+        transaction,
+        pageAsins.map(asin => ({ marketplaceId, asin }))
+    );
+    const familyAsin = (product: SpApiProduct) =>
+        product.parentAsin ??
+        families.get(familyIdentityKey({ marketplaceId, asin: product.asin }))?.asin ??
+        product.asin;
     const existingAsins = new Set(
         (
             await transaction
                 .select({ asin: productTable.asin })
                 .from(productTable)
-                .where(productIdentities(marketplaceId, pageAsins))
+                .where(
+                    productIdentities(marketplaceId, [
+                        ...new Set([...pageAsins, ...products.map(familyAsin)]),
+                    ])
+                )
         ).map(row => row.asin)
     );
     const stored = products.filter(
-        product => product.isMerchListing !== false || existingAsins.has(product.asin)
+        product =>
+            product.isMerchListing !== false ||
+            existingAsins.has(product.asin) ||
+            existingAsins.has(familyAsin(product))
     );
     const storedAsins = new Set(stored.map(product => product.asin));
     const skippedNonMerchCount = pageAsins.filter(asin => !storedAsins.has(asin)).length;
-    const newProductIds = (await upsertProductsInfo(stored, transaction))
-        .filter(identity => identity.inserted)
-        .map(identity => identity.id);
-    // Keep provider page order: keyword standing stores the head in search-rank order.
+    const identities = await upsertProductsInfo(stored, transaction);
+    const newProductIds = [
+        ...new Set(identities.filter(identity => identity.inserted).map(identity => identity.id)),
+    ];
+    // Keep provider page order: keyword standing stores the head in search-rank order. Variants of
+    // one family on the same page count once, at the family's best position.
     const order = new Map(products.map((product, index) => [product.asin, index]));
+    const position = new Map<string, number>();
+    for (const identity of identities) {
+        const index = order.get(identity.sourceAsin) ?? 0;
+        position.set(identity.id, Math.min(position.get(identity.id) ?? index, index));
+    }
     const rows = (
-        stored.length
+        position.size
             ? await transaction
-                  .select({
-                      id: productTable.id,
-                      asin: productTable.asin,
-                      isMerchListing: productTable.isMerchListing,
-                  })
+                  .select({ id: productTable.id, isMerchListing: productTable.isMerchListing })
                   .from(productTable)
-                  .where(productIdentities(marketplaceId, [...storedAsins]))
+                  .where(inArray(productTable.id, [...position.keys()]))
             : []
-    ).sort((left, right) => (order.get(left.asin) ?? 0) - (order.get(right.asin) ?? 0));
+    ).sort((left, right) => (position.get(left.id) ?? 0) - (position.get(right.id) ?? 0));
     return {
         pageAsins,
         newProductIds,

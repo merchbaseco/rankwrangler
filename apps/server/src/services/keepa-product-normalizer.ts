@@ -14,6 +14,7 @@ const KEEPA_CSV_INDEX = {
 
 export type KeepaProductPayload = {
     asin?: string;
+    parentAsin?: string | null;
     title?: string;
     brand?: string;
     imagesCSV?: string;
@@ -42,6 +43,8 @@ export type KeepaProductPayload = {
 export type NormalizedKeepaProductState = {
     marketplaceId: string;
     asin: string;
+    // The variation parent Keepa reports; null for a listing without variants (or a parent itself).
+    parentAsin: string | null;
     title: string | null;
     brand: string | null;
     thumbnailUrl: string | null;
@@ -101,6 +104,10 @@ export const normalizeKeepaProduct = ({
         product: {
             marketplaceId,
             asin: product.asin,
+            parentAsin:
+                product.parentAsin && product.parentAsin !== product.asin
+                    ? product.parentAsin.toUpperCase()
+                    : null,
             title: normalizeText(product.title),
             brand: normalizeText(product.brand),
             thumbnailUrl: normalizeKeepaImage(product.imagesCSV),

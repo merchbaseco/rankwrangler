@@ -2,6 +2,7 @@ import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
 import { and, eq, or } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { products, spApiSyncQueue } from '@/db/schema';
+import { familyIdentityKey, resolveFamilyIdentities } from './product-family';
 
 export type ProductIdentity = {
     marketplaceId: string;
@@ -60,9 +61,18 @@ export const ensureProductIdentities = async (identities: ProductIdentity[]) => 
         return 0;
     }
 
+    // A known variant ASIN already has its family row; never give it a row of its own.
+    const families = await resolveFamilyIdentities(db, identities);
+    const unaliased = identities.filter(
+        identity => families.get(familyIdentityKey(identity))?.asin === identity.asin
+    );
+    if (unaliased.length === 0) {
+        return 0;
+    }
+
     const inserted = await db
         .insert(products)
-        .values(identities)
+        .values(unaliased)
         .onConflictDoNothing()
         .returning({ id: products.id });
 

@@ -1,66 +1,9 @@
 {
-  "id": "fccb0bf1-8564-4727-ab9c-fb9c93e274f8",
+  "id": "1c28e44e-9862-4c9c-8793-6f2d5fdad349",
   "prevId": "c9788d66-ddf3-4d37-973c-aea368cc3695",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.access_delegation_audit": {
-      "name": "access_delegation_audit",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "caller": {
-          "name": "caller",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "receiver": {
-          "name": "receiver",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "merchbase_user_id": {
-          "name": "merchbase_user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "route": {
-          "name": "route",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "outcome": {
-          "name": "outcome",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "received_at": {
-          "name": "received_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.access_projection": {
       "name": "access_projection",
       "schema": "",
@@ -122,8 +65,8 @@
         }
       },
       "indexes": {
-        "access_projection_merchbase_user_idx": {
-          "name": "access_projection_merchbase_user_idx",
+        "access_projection_merchbase_user_unique": {
+          "name": "access_projection_merchbase_user_unique",
           "columns": [
             {
               "expression": "merchbase_user_id",
@@ -132,7 +75,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"access_projection\".\"state\" = 'active' and \"access_projection\".\"merchbase_user_id\" is not null",
           "concurrently": false,
           "method": "btree",
@@ -3604,6 +3547,82 @@
       },
       "isRLSEnabled": false
     },
+    "public.product_asin_aliases": {
+      "name": "product_asin_aliases",
+      "schema": "",
+      "columns": {
+        "marketplace_id": {
+          "name": "marketplace_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asin": {
+          "name": "asin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "product_asin_aliases_product_idx": {
+          "name": "product_asin_aliases_product_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "product_asin_aliases_product_id_products_id_fk": {
+          "name": "product_asin_aliases_product_id_products_id_fk",
+          "tableFrom": "product_asin_aliases",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "product_asin_aliases_marketplace_id_asin_pk": {
+          "name": "product_asin_aliases_marketplace_id_asin_pk",
+          "columns": [
+            "marketplace_id",
+            "asin"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.product_cutout_thumbnails": {
       "name": "product_cutout_thumbnails",
       "schema": "",
@@ -3672,7 +3691,7 @@
             "asin"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -4181,7 +4200,7 @@
             "asin"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -4225,6 +4244,18 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "representative_asin": {
+          "name": "representative_asin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "variations_checked_at": {
+          "name": "variations_checked_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         },
         "date_first_available": {
           "name": "date_first_available",
@@ -4531,6 +4562,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "products_variations_unchecked_idx": {
+          "name": "products_variations_unchecked_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"products\".\"variations_checked_at\" IS NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}

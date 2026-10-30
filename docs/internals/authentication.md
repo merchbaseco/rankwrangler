@@ -64,8 +64,9 @@ lifecycle markers. The projection adapter seeds the stable development user;
 newer local revocation and expiry remain effective. No fake JWT or Clerk ticket
 is needed.
 
-The source migration still needs the final published shared package, Cloudflare
-configuration, matching Safari provisioning, and live client proof before cutover.
+These access changes use generated migration `0065_cloudflare_access.sql`. Cutover still requires
+the final published shared package, Cloudflare configuration, matching Safari provisioning, and
+live client proof.
 
 ## BidBeacon product lookup
 

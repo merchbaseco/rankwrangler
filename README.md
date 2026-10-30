@@ -40,6 +40,9 @@ cached and fresh runs use the same background path. Dashboard and internal Produ
 distinct from known non-Merch (`false`). A listing is Merch when its part number is a Merch design
 code or a bullet matches Merch template text; keyword scans store only Merch and unknown Products,
 and the dashboard Explore grid defaults to Merch listings (its Listing type filter widens it).
+A Product is a variation family: sizes and colors share their parent's rank, so the catalog stores
+one Product per parent ASIN, and any variant ASIN (in a lookup, scan or extension page) resolves to
+that family without a provider call.
 
 ## Use RankWrangler
 

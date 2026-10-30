@@ -11,14 +11,18 @@ read_when:
 listing-resolution timestamp and nullable `products.is_merch_listing`. Generated migration
 `0034_flowery_winter_soldier.sql` adds short-lived Provider attempts. Generated migration
 `0035_numerous_william_stryker.sql` replaces the Product availability boolean with canonical
-`active | deleted` Amazon listing status. Apply these migrations before deploying dependent code.
-Generated migration `0036_melodic_jack_flag.sql` adds the sparse Product short-name table.
+`active | deleted` Amazon listing status. Generated migration `0036_melodic_jack_flag.sql` adds
+the sparse Product short-name table.
+Generated migration `0064_product_variation_families.sql` adds Product ASIN aliases and variation
+state. Generated migration `0065_cloudflare_access.sql` adds delegation audit records and allows
+multiple active Access Projections for one Merchbase user. Apply these migrations before deploying
+dependent code.
 
 ## Canonical identity
 
-A **Product** is one Amazon listing identified by `(marketplaceId, asin)`. Discovery source does
-not create a second kind of product: extension sightings, Amazon search results, SP-API sync, and
-Keepa enrichment all reconcile into that identity.
+A **Product** is one Amazon listing family identified by `(marketplaceId, asin)`. The ASIN is the
+variation parent when Amazon returns one, or the listing ASIN when it has no variations. The
+`product_asin_aliases` table maps observed variant ASINs to their family Product.
 
 An ASIN alone is insufficient because the same ASIN can have marketplace-specific listing state.
 ASIN inputs are normalized to uppercase at public boundaries.
@@ -28,6 +32,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | State | Identity | Purpose |
 | --- | --- | --- |
 | Product | `(marketplaceId, asin)` | Current listing fields plus latest SP-API and Keepa observations. |
+| Product ASIN alias | `(marketplaceId, asin)` | Variant ASIN mapped to its canonical Product family. |
 | Product short name | `(marketplaceId, asin)` when requested | Nullable generated name, source fingerprint, and claim state; no row for never-requested Products. |
 | Product cutout thumbnail | `(marketplaceId, asin)` when requested | R2 object key, source fingerprint, and claim state; no row for never-requested Products. |
 | Product facet value | `(facet, name)` | Reusable normalized classification value. |
@@ -50,6 +55,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Provider attempt | generated id | One physical Keepa, SP-API, Gemini, or TypeSafe request with typed operation, attempt time, status/error, and latency; retained for seven days. |
 | Access Projection | `(issuer, subject)` | Local provider identity projection, access state, stable Merchbase User, source watermark, and tombstone. |
 | Service Account | fixed `rankwrangler` service plus stable Merchbase User | One mapped principal with lifetime/daily usage, limit, and reset state. |
+| Access delegation audit | generated id | One internal delegated request, its caller, receiver, user, route, outcome, and receive time. |
 
 The active schema is split by responsibility:
 

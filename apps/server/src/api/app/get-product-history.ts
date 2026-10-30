@@ -1,3 +1,4 @@
+import { resolveProductIdentity } from '@/services/resolve-product-identity';
 import { z } from 'zod';
 import { appProcedure } from '@/api/trpc.js';
 import { keepaHistoryMetricKeys } from '@/services/keepa-history-metrics.js';
@@ -38,7 +39,8 @@ const getProductHistoryInput = z
 
 export const getProductHistory = appProcedure
     .input(getProductHistoryInput)
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input: requested, ctx }) => {
+        const input = await resolveProductIdentity(requested);
         return await getProductHistoryOperationSurface({
             ...input,
             format: 'points',

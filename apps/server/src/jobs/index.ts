@@ -6,6 +6,7 @@ import { scheduleBrandAnalyticsJob } from './schedule-brand-analytics';
 import { scheduleKeywordWorkJob } from './schedule-keyword-work';
 import type { PgBoss } from 'pg-boss';
 import { reconcileHistoryAdmissionJob } from '@/jobs/reconcile-history-admission';
+import { backfillProductVariationsJob } from '@/jobs/backfill-product-variations';
 import { catalogSearchJob } from '@/jobs/catalog-search';
 import { collectDueCatalogQueriesJob } from '@/jobs/collect-due-catalog-queries';
 import { enqueueScheduledKeepaHistoryRefreshJob } from '@/jobs/enqueue-scheduled-keepa-history-refresh.js';
@@ -37,6 +38,7 @@ const registeredJobs = [
     processKeepaHistoryRefreshQueueJob,
     processProductFacetClassificationJob,
     processSpApiSyncQueueJob,
+    backfillProductVariationsJob,
     pruneProviderAttemptsJob,
     pruneJobExecutionsJob,
     reprocessStaleProductsJob,

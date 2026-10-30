@@ -1,3 +1,4 @@
+import { resolveProductIdentity } from '@/services/resolve-product-identity';
 import { publicApiProcedure } from '@/api/trpc';
 import {
     getPublicProductHistory,
@@ -10,11 +11,14 @@ import { productHistoryInput } from './product-input';
 export interface ProductHistoryDeps {
     getPublicProductHistory: typeof getPublicProductHistory;
     consumeServiceAccountUsageForRequest: typeof consumeServiceAccountUsageForRequest;
+    // A variant ASIN reads its family's history.
+    resolveProductIdentity?: typeof resolveProductIdentity;
 }
 
 const defaultDeps: ProductHistoryDeps = {
     getPublicProductHistory,
     consumeServiceAccountUsageForRequest,
+    resolveProductIdentity,
 };
 
 export const createProductHistoryProcedure = (deps: ProductHistoryDeps = defaultDeps) =>
@@ -23,7 +27,9 @@ export const createProductHistoryProcedure = (deps: ProductHistoryDeps = default
 
         try {
             return await deps.getPublicProductHistory({
-                ...input,
+                ...(deps.resolveProductIdentity
+                    ? await deps.resolveProductIdentity(input)
+                    : input),
                 ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
                 signal,
             } satisfies PublicProductHistoryInput);

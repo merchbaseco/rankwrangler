@@ -37,7 +37,8 @@ export const requestManualProductHistorySync = async ({
     signal?: AbortSignal;
     deps?: LoadProductHistoryDeps;
 }) => {
-    await deps.getRequiredProduct({
+    // A variant ASIN refreshes its family's history.
+    const product = await deps.getRequiredProduct({
         marketplaceId: input.marketplaceId,
         asin: input.asin,
         signal,
@@ -45,7 +46,7 @@ export const requestManualProductHistorySync = async ({
 
     return await deps.requestProductHistoryRefresh({
         marketplaceId: input.marketplaceId,
-        asin: input.asin,
+        asin: product.asin,
         ownerMerchbaseUserId,
     });
 };

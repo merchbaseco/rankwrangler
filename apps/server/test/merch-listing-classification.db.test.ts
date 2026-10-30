@@ -136,6 +136,8 @@ const createSpApiProduct = (
     rootCategoryBsr: null,
     thumbnailUrl: null,
     keepa: null,
+    parentAsin: null,
+    childAsin: null,
     fetchedAt: '2026-08-07T12:00:00.000Z',
 });
 

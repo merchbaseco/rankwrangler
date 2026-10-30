@@ -19,7 +19,14 @@ export const products = pgTable(
     {
         id: uuid('id').primaryKey().defaultRandom(),
         marketplaceId: text('marketplace_id').notNull(),
+        // The family ASIN: the variation parent when the listing has size/color variants (they all
+        // share its rank), else the listing itself. Variant ASINs resolve through product_asin_aliases.
         asin: text('asin').notNull(),
+        // One variant of the family, used where only a buyable ASIN answers (Keepa price and
+        // monthly sales). Null for a listing without variants.
+        representativeAsin: text('representative_asin'),
+        // When SP-API last reported this listing's variation relationships.
+        variationsCheckedAt: timestamp('variations_checked_at', { mode: 'date' }),
         dateFirstAvailable: timestamp('date_first_available', { mode: 'date' }),
         thumbnailUrl: text('thumbnail_url'),
         title: text('title'),
@@ -107,6 +114,9 @@ export const products = pgTable(
             table.dateFirstAvailable.desc().nullsLast(),
             table.id.asc()
         ),
+        variationsUncheckedIdx: index('products_variations_unchecked_idx')
+            .on(table.createdAt)
+            .where(sql`${table.variationsCheckedAt} IS NULL`),
         keepaRefreshCandidateIdx: index('products_keepa_refresh_candidate_idx').on(
             table.isMerchListing,
             table.rootCategoryBsr,
