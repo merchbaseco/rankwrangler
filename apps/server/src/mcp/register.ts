@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Context } from '@/api/context';
 import type { RankWranglerAccess } from '@/services/access/rankwrangler-access';
 import { createRankWranglerMcpDataSource } from './data-source';
-import { RANKWRANGLER_MCP_RESOURCE_URL, registerRankWranglerMcpRoutes } from './http';
+import { registerRankWranglerMcpRoutes } from './http';
 
 interface RegisterRankWranglerMcpOptions {
     adminMerchbaseUserId?: string;
@@ -33,6 +33,5 @@ export const registerRankWranglerMcp = ({
                 request: { headers: {} },
             } as Context),
         issuer,
-        resourceUrl: RANKWRANGLER_MCP_RESOURCE_URL,
     });
 };

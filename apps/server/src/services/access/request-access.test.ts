@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'bun:test';
 import { ServiceAccessError } from '@merchbaseco/access';
 import type { RankWranglerServicePrincipal } from './rankwrangler-access';
-import { createRankWranglerRequestAccess } from './request-access';
+import { createRankWranglerRequestAccess, resolveRankWranglerMcpHost } from './request-access';
 
 const assertion = `header.${Buffer.from(JSON.stringify({ exp: 1_900_000_000 })).toString('base64url')}.signature`;
 const principal: RankWranglerServicePrincipal = {
@@ -90,7 +90,32 @@ test('a credential rejected by its route verifier never falls back to another au
     expect(api).not.toHaveBeenCalled();
 });
 
+test('MCP admission matches only exact endpoint paths on the canonical or API host', () => {
+    for (const host of ['rankwrangler.merchbase.co', 'rankwrangler-api.merchbase.co']) {
+        for (const url of [
+            '/mcp',
+            '/mcp?transport=streamable-http',
+            '/.well-known/oauth-protected-resource',
+            '/.well-known/oauth-protected-resource/mcp',
+        ]) {
+            expect(resolveRankWranglerMcpHost({ host, url })).toBe(host);
+        }
+    }
+
+    for (const input of [
+        { host: 'rankwrangler.merchbase.co', url: '/mcp/extra' },
+        { host: 'attacker.example', url: '/mcp' },
+        { host: 'rankwrangler.merchbase.co:443', url: '/mcp' },
+        { host: undefined, url: '/mcp' },
+        { host: 'rankwrangler-api.merchbase.co', url: '/.well-known/other' },
+    ]) {
+        expect(resolveRankWranglerMcpHost(input)).toBeNull();
+    }
+});
+
 test('a connection preserves the earlier authorized key deadline', async () => {
     const { authorize } = setup('api_key');
-    expect((await authorize({ host: 'rankwrangler-api.merchbase.co', assertion })).expiresAtMs).toBe(1_899_999_990_000);
+    expect(
+        (await authorize({ host: 'rankwrangler-api.merchbase.co', assertion })).expiresAtMs
+    ).toBe(1_899_999_990_000);
 });

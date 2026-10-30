@@ -13,10 +13,11 @@ request host. Bearer prefixes and forwarded-host headers never select dashboard
 privileges.
 
 - `rankwrangler.merchbase.co` accepts the interactive audience for the dashboard
-  and its same-origin APIs. Only these requests become sessions.
+  and its same-origin APIs. Exact MCP endpoint and protected-resource metadata
+  paths on this host use the suite Managed OAuth audience instead.
 - `rankwrangler-api.merchbase.co` accepts the suite Managed OAuth audience for
-  customer keys, Chrome and Safari OAuth, CLI calls, and `/mcp`. Human OAuth
-  cannot use dashboard or admin procedures.
+  customer keys, Chrome and Safari OAuth, CLI calls, and the MCP alias. Human
+  OAuth cannot use dashboard or admin procedures.
 - `rankwrangler-internal.merchbase.co/api/internal/access-snapshot` accepts only
   the configured authority service identity and receiver audience.
 

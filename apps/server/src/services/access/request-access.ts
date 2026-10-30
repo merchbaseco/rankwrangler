@@ -7,8 +7,36 @@ import type { createDevCloudflareAccess } from '@merchbaseco/access/dev';
 import { INTERNAL_HOST, INTERNAL_PRODUCT_PATH, INTERNAL_PRODUCT_ROUTE } from './internal-access';
 import type { RankWranglerServicePrincipal } from './rankwrangler-access';
 
-type DevAccess = Awaited<ReturnType<typeof createDevCloudflareAccess<RankWranglerServicePrincipal>>>;
-type Access = Pick<ReturnType<typeof createCloudflareServiceAccess<RankWranglerServicePrincipal>> | DevAccess, 'authorize'>;
+const mcpPaths = new Set([
+    '/mcp',
+    '/.well-known/oauth-protected-resource',
+    '/.well-known/oauth-protected-resource/mcp',
+]);
+
+export const resolveRankWranglerMcpHost = (input: {
+    host: string | undefined;
+    url: string | undefined;
+}) => {
+    const [path] = input.url?.split('?') ?? [];
+    if (!(path && mcpPaths.has(path))) {
+        return null;
+    }
+    if (
+        input.host === 'rankwrangler.merchbase.co' ||
+        input.host === 'rankwrangler-api.merchbase.co'
+    ) {
+        return input.host;
+    }
+    return null;
+};
+
+type DevAccess = Awaited<
+    ReturnType<typeof createDevCloudflareAccess<RankWranglerServicePrincipal>>
+>;
+type Access = Pick<
+    ReturnType<typeof createCloudflareServiceAccess<RankWranglerServicePrincipal>> | DevAccess,
+    'authorize'
+>;
 export const createRankWranglerRequestAccess =
     ({
         sessionAccess,

@@ -10,13 +10,15 @@ read_when:
 **Status:** Endpoint, OAuth, and tool families are shipped. Retrieval inputs and outputs below are
 the accepted public target.
 
-The hosted Model Context Protocol endpoint is `https://rankwrangler-api.merchbase.co/mcp`. It exposes
-three tools and requires an OAuth bearer token authorized through the suite Cloudflare API
-boundary. Clients discover Managed OAuth without requesting Clerk identity scopes.
+The hosted Model Context Protocol endpoint is `https://rankwrangler.merchbase.co/mcp`; the API host
+remains an alias at `https://rankwrangler-api.merchbase.co/mcp`. Both hosts expose three tools and
+require a person OAuth bearer token authorized through the suite Cloudflare API boundary. Clients
+discover Managed OAuth without requesting Clerk identity scopes. Protected-resource metadata and
+OAuth challenges name the exact admitted host receiving the request.
 
-Caddy forwards `/mcp` and these exact OAuth discovery paths to Fastify: the protected-resource
-metadata paths with and without `/mcp`, and the authorization-server metadata paths with and
-without `/mcp`. Other website paths are not MCP routes.
+Caddy forwards `/mcp` and the two exact protected-resource metadata paths to Fastify. Cloudflare
+Access serves authorization-server metadata at the configured issuer, which the protected-resource
+metadata advertises. Other website paths are not MCP routes.
 
 The `initialize` server info advertises `websiteUrl` `https://rankwrangler.merchbase.co` and a
 128px PNG icon at `https://rankwrangler.merchbase.co/icon.png`. The website serves that icon and

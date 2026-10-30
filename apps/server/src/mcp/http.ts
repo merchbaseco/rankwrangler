@@ -3,11 +3,12 @@ import { createOAuthBearerChallenge } from '@merchbaseco/access';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { resolveRankWranglerMcpHost } from '../services/access/request-access';
 import { authenticateMcpRequest, type McpAuthDependencies } from './auth';
 import { createRankWranglerMcpServer } from './server';
 import type { RankWranglerMcpDataSource } from './types';
 
-export const RANKWRANGLER_MCP_RESOURCE_URL = 'https://rankwrangler-api.merchbase.co/mcp';
+export const RANKWRANGLER_MCP_RESOURCE_URL = 'https://rankwrangler.merchbase.co/mcp';
 
 interface RegisterMcpRoutesOptions<Principal> {
     auth: McpAuthDependencies<Principal> | null;
@@ -16,7 +17,6 @@ interface RegisterMcpRoutesOptions<Principal> {
         principal: Principal;
     }): Promise<RankWranglerMcpDataSource> | RankWranglerMcpDataSource;
     issuer: string;
-    resourceUrl: string;
 }
 
 const MCP_CORS = {
@@ -36,16 +36,21 @@ export const registerRankWranglerMcpRoutes = <Principal>(
     fastify: FastifyInstance,
     options: RegisterMcpRoutesOptions<Principal>
 ) => {
-    const protectedResourceUrl = getProtectedResourceUrl(options.resourceUrl);
-
     for (const url of [
         '/.well-known/oauth-protected-resource',
         '/.well-known/oauth-protected-resource/mcp',
     ]) {
-        fastify.get(url, { config: { cors: MCP_CORS } }, (_, reply) => {
+        fastify.get(url, { config: { cors: MCP_CORS } }, (request, reply) => {
+            const host = resolveRankWranglerMcpHost({
+                host: request.headers.host,
+                url: request.url,
+            });
+            if (!host) {
+                return reply.code(401).send({ error: 'Unauthorized' });
+            }
             reply.header('Cache-Control', 'public, max-age=300');
             return {
-                resource: options.resourceUrl,
+                resource: getMcpResourceUrl(host),
                 authorization_servers: [options.issuer],
                 bearer_methods_supported: ['header'],
             };
@@ -55,18 +60,20 @@ export const registerRankWranglerMcpRoutes = <Principal>(
     fastify.route({
         config: { cors: MCP_CORS },
         handler: async (request, reply) => {
+            const host = resolveRankWranglerMcpHost({
+                host: request.headers.host,
+                url: request.url,
+            });
+            if (!host || request.headers['x-merchbase-user-id'] !== undefined) {
+                await reply.code(401).send({ error: 'Unauthorized' });
+                return;
+            }
             if (!isAllowedMcpOrigin(request.headers.origin)) {
                 await reply.code(403).send({ error: 'Invalid Origin' });
                 return;
             }
 
-            if (
-                request.headers.host !== 'rankwrangler-api.merchbase.co' ||
-                request.headers['x-merchbase-user-id'] !== undefined
-            ) {
-                await reply.code(401).send({ error: 'Unauthorized' });
-                return;
-            }
+            const protectedResourceUrl = getProtectedResourceUrl(getMcpResourceUrl(host));
             const auth = await authenticateMcpRequest(
                 request.headers['cf-access-jwt-assertion'],
                 options.auth
@@ -145,6 +152,11 @@ const handleMcpRequest = async (
         }
     }
 };
+
+type RankWranglerMcpHost = Exclude<ReturnType<typeof resolveRankWranglerMcpHost>, null>;
+
+const getMcpResourceUrl = (host: RankWranglerMcpHost) =>
+    host === 'rankwrangler.merchbase.co' ? RANKWRANGLER_MCP_RESOURCE_URL : `https://${host}/mcp`;
 
 const getProtectedResourceUrl = (resourceUrl: string) => {
     const url = new URL(resourceUrl);
