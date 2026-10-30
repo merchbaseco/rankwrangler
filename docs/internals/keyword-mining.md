@@ -310,8 +310,10 @@ sidebar counts and KPI band in one aggregate over the same directory source: eac
 under the other filters but not its own, a 20-bucket score histogram (bucket heat follows the
 75/35 score thresholds), keywords checked within 24 hours, the median of shelf median BSRs, and
 the needing-sync and syncing counts (freshness counts, so they hold under a freshness filter). It computes
-the shelf lateral for every keyword (at most ten head Products each, by primary key) and is
-memoized per filter for 15 seconds.
+the shelf lateral for every keyword (at most ten head Products each, by primary key). A result is
+fresh per filter for 15 seconds; for ten minutes after that it is served at once while one
+background read replaces it. Discovery sources are display-only, so the page read fetches them for
+its returned rows only.
 
 Track keyword explicitly records user interest; typing in the filter does not schedule work.
 The public directory get/search share stage, freshness and ordering with the dashboard; get reads

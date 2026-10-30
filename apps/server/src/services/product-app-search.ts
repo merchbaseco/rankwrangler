@@ -5,20 +5,21 @@ import {
     readStoredProductEnrichments,
 } from '@/db/product/product-stored-enrichment';
 import { countStoredProducts } from '@/db/product-search-total';
-import { createTtlCache } from '@/utils/ttl-cache';
+import { createSwrCache } from '@/utils/swr-cache';
 import { searchProducts } from './product-search';
 
-const cachedTotal = createTtlCache<Awaited<ReturnType<typeof countStoredProducts>>>({
-    ttlMs: 60_000,
+const cachedTotal = createSwrCache<Awaited<ReturnType<typeof countStoredProducts>>>({
+    freshMs: 60_000,
+    staleMs: 30 * 60_000,
     maxEntries: 500,
 });
 
 /**
  * The dashboard's Product search: the shared stored search plus already-generated short names,
  * cutouts, a 30-day BSR sparkline per item, and the result total (exact up to a bound, then a
- * planner estimate; memoized per filter for a minute so paging does not recount). Enrichment is
- * two bounded batch reads for the page and never starts generation; the public search contract
- * is unchanged.
+ * planner estimate; fresh per filter for a minute, then served while a background count
+ * replaces it). Enrichment is two bounded batch reads for the page and never starts generation;
+ * the public search contract is unchanged.
  */
 export const searchAppProducts = async (
     input: StoredProductSearchInput & { recordInterest?: boolean }

@@ -22,8 +22,9 @@ const SERIES_TAIL = 256;
 /**
  * Explore's sidebar counts and KPI bands in one scan of the Products matching every non-sidebar
  * filter. Each sidebar group is counted under the other groups' filters but not its own (faceted
- * exclusion), and every KPI aggregate sees all filters. A second bounded read samples history for
- * the seven-day improvement share. Counts are exact; see docs/internals/product-catalog.md.
+ * exclusion), and every KPI aggregate sees all filters. A second bounded read, run alongside,
+ * samples history for the seven-day improvement share. Counts are exact; see
+ * docs/internals/product-catalog.md.
  */
 export const readProductSearchFacets = async (
     input: ProductSearchFacetsInput,
@@ -46,7 +47,9 @@ export const readProductSearchFacets = async (
     const yearStart = utcDayStart(now, 364).toISOString();
     const count = (name: string, condition: SQL) =>
         sql`count(*) filter (where ${condition})::int ${sql.identifier(name)}`;
-    const [row] = await db.execute<Record<string, number | null>>(sql`
+    // The improvement sample is independent of the aggregate, so both reads run at once.
+    const [[row], improving] = await Promise.all([
+        db.execute<Record<string, number | null>>(sql`
         select
             ${count('total', all)},
             ${sql.join(
@@ -95,7 +98,9 @@ export const readProductSearchFacets = async (
                 ${products.dateFirstAvailable} first_available,
                 exists (select 1 from product_facets pf where pf.product_id = ${products.id}) has_niche
             from ${products} where ${base}
-        ) matched`);
+        ) matched`),
+        readImprovingShare(input, now),
+    ]);
     const value = (name: string) => Number(row?.[name] ?? 0);
     const total = value('total');
     const publishedPerDay60d = days.map((day, index) => ({
@@ -122,7 +127,7 @@ export const readProductSearchFacets = async (
             tier: bucket.tier,
         })),
         medianBsr: row?.median_bsr ?? null,
-        improving7dShare: total ? await readImprovingShare(input, now) : null,
+        improving7dShare: total ? improving : null,
         medianSoldPerMonth: row?.median_sold ?? null,
         publishedPerDay60d,
         publishedPerDayAvg: total ? recent / PUBLISHED_RECENT_DAYS : null,

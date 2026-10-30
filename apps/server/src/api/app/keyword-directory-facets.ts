@@ -1,14 +1,16 @@
 import { keywordDirectoryFacetsInput } from '@/api/keyword-directory-input';
 import { appProcedure } from '@/api/trpc';
 import { readKeywordDirectoryFacets } from '@/db/keyword-directory-facets';
-import { createTtlCache } from '@/utils/ttl-cache';
+import { createSwrCache } from '@/utils/swr-cache';
 
 /**
- * The Keywords sidebar counts and KPI band. Memoized per filter for fifteen seconds: directory
- * status moves with live work, so the cache only absorbs bursts of identical reads.
+ * The Keywords sidebar counts and KPI band. Directory status moves with live work, so a value is
+ * fresh for fifteen seconds; for ten minutes after that it is served at once while a background
+ * read replaces it, and the next read (realtime events invalidate the client) sees the new counts.
  */
-const cached = createTtlCache<Awaited<ReturnType<typeof readKeywordDirectoryFacets>>>({
-    ttlMs: 15_000,
+const cached = createSwrCache<Awaited<ReturnType<typeof readKeywordDirectoryFacets>>>({
+    freshMs: 15_000,
+    staleMs: 10 * 60_000,
     maxEntries: 100,
 });
 

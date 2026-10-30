@@ -153,8 +153,9 @@ dashboard-only:
 
 The response adds `total` and `totalIsEstimate`. A bounded count stops after 10,001 matches, so
 narrow searches are exact; past that the total is the planner's row estimate for the same WHERE
-clause (`EXPLAIN`, from column statistics), flagged `totalIsEstimate: true`. Totals are memoized
-per filter for a minute so paging does not recount.
+clause (`EXPLAIN`, from column statistics), flagged `totalIsEstimate: true`. Totals are fresh per
+filter for a minute, then served for up to 30 minutes while a background count replaces them, so
+paging does not recount.
 
 `api.app.product.searchFacets` takes the same filters without paging or sort and returns the
 sidebar counts and KPI bands from one scan of the Products matching every non-sidebar filter. The
@@ -168,14 +169,15 @@ always false here); the medians are the only sorts, over the filtered rank and s
 `improving7dShare` samples the first 2,000 matches in UUID order (uniform, since ids are random)
 and compares the main BSR in force now with the one in force seven days ago, read in one pass over
 the tail of each sampled Product's `bsr_main` series (the full series only when the last 256 points
-do not reach back a week); Products without a point on both sides are left out, and it is null when none compare. Results are
-memoized per filter for 60 seconds per process.
+do not reach back a week); Products without a point on both sides are left out, and it is null
+when none compare. The sample runs alongside the aggregate. Results are fresh per filter for 60
+seconds per process, then served for up to 30 minutes while a background read replaces them.
 
 Indexes these reads lean on: `products_marketplace_bsr_idx` (tier ranges and rank sorts),
 `products_marketplace_first_available_idx` (published windows and first-available sorts),
 `products_search_document_idx` (text), and the `product_facets` primary key (niche probes). At
 millions of Products the facet scan is a sequential pass over the marketplace's Merch rows,
-bounded by the other filters; the minute cache is what keeps it off the hot path.
+bounded by the other filters; the stale-while-revalidate cache is what keeps it off the hot path.
 
 ## Lookup Versus Discovery
 
