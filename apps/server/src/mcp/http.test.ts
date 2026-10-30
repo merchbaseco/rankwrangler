@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import Fastify from 'fastify';
 import type { McpAuthDependencies } from './auth';
 import { registerRankWranglerMcpRoutes } from './http';
@@ -88,6 +90,39 @@ describe('RankWrangler hosted MCP HTTP routes', () => {
                 url: '/mcp',
             });
             expect(response.statusCode).toBe(200);
+        }
+    });
+
+    it('serves a real sessionless MCP client through initialize, tools/list, and close', async () => {
+        const app = await createApp({
+            authorize: async () => ({
+                merchbaseUserId: 'mbu_test',
+                principal: { id: 'principal_test' },
+            }),
+        });
+        const address = await app.listen({ host: '127.0.0.1', port: 0 });
+        const client = new Client({ name: 'rankwrangler-http-test', version: '1.0.0' });
+        const transport = new StreamableHTTPClientTransport(new URL('/mcp', address), {
+            requestInit: {
+                headers: {
+                    'cf-access-jwt-assertion': 'origin-assertion',
+                    host: 'rankwrangler.merchbase.co',
+                },
+            },
+        });
+
+        try {
+            await client.connect(transport);
+            const result = await client.listTools();
+
+            expect(transport.sessionId).toBeUndefined();
+            expect(result.tools.map(tool => tool.name).sort()).toEqual([
+                'rankwrangler_keyword',
+                'rankwrangler_product',
+                'rankwrangler_status',
+            ]);
+        } finally {
+            await client.close();
         }
     });
 

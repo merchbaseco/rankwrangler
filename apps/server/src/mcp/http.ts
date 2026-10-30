@@ -1,7 +1,6 @@
-import type { IncomingMessage } from 'node:http';
 import { createOAuthBearerChallenge } from '@merchbaseco/access';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { resolveRankWranglerMcpHost } from '../services/access/request-access';
 import { authenticateMcpRequest, type McpAuthDependencies } from './auth';
@@ -102,7 +101,7 @@ export const registerRankWranglerMcpRoutes = <Principal>(
                 merchbaseUserId: auth.merchbaseUserId,
                 principal: auth.principal,
             });
-            await handleMcpRequest(request, reply, source, auth.authInfo);
+            return handleMcpRequest(request, reply, source, auth.authInfo);
         },
         method: ['GET', 'POST', 'DELETE'],
         url: '/mcp',
@@ -116,41 +115,56 @@ const handleMcpRequest = async (
     authInfo: AuthInfo
 ) => {
     const server = createRankWranglerMcpServer(source);
-    const transport = new StreamableHTTPServerTransport({
+    const transport = new WebStandardStreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
     });
-    const rawRequest = request.raw as IncomingMessage & { auth?: AuthInfo };
-    rawRequest.auth = authInfo;
-    reply.hijack();
 
     const close = async () => {
         await transport.close();
         await server.close();
     };
     reply.raw.once('close', () => {
-        close().catch(() => undefined);
+        close().catch(() => {
+            request.log.error('Failed to close RankWrangler MCP request');
+        });
     });
 
     try {
         await server.connect(transport);
-        await transport.handleRequest(rawRequest, reply.raw, request.body);
+        const response = await transport.handleRequest(createMcpWebRequest(request), {
+            authInfo,
+            parsedBody: request.body,
+        });
+        return reply.send(response);
     } catch {
+        request.log.error('Failed to handle RankWrangler MCP request');
         if (!reply.raw.headersSent) {
-            reply.raw.writeHead(500, {
-                'Content-Type': 'application/json',
+            return reply.code(500).send({
+                error: {
+                    code: -32_603,
+                    message: 'Internal server error',
+                },
+                id: null,
+                jsonrpc: '2.0',
             });
-            reply.raw.end(
-                JSON.stringify({
-                    error: {
-                        code: -32_603,
-                        message: 'Internal server error',
-                    },
-                    id: null,
-                    jsonrpc: '2.0',
-                })
-            );
         }
     }
+};
+
+const createMcpWebRequest = (request: FastifyRequest) => {
+    const headers = new Headers();
+    for (const [name, value] of Object.entries(request.headers)) {
+        if (typeof value === 'string') {
+            headers.set(name, value);
+        } else if (Array.isArray(value)) {
+            headers.set(name, value.join(', '));
+        }
+    }
+
+    return new Request(new URL(request.url, `http://${request.headers.host}`), {
+        headers,
+        method: request.method,
+    });
 };
 
 type RankWranglerMcpHost = Exclude<ReturnType<typeof resolveRankWranglerMcpHost>, null>;
