@@ -70,6 +70,8 @@ const herouiStyleAllowlist: Record<string, string> = {
         "the banner's graphite ink; the body's light-theme ink would vanish on it",
     'grid-overrides.css .data-grid.hairline-grid--fixed .table__content table-layout':
         'columns take their width tokens, so the KPI cells above span exact column groups',
+    'grid-overrides.css .data-grid.hairline-grid--fixed .table__scroll-container scrollbar-gutter':
+        'a short page drops the scrollbar, and the columns would widen by its width',
     'grid-overrides.css .data-grid.hairline-grid :is(.table__column, .table__cell) padding-block':
         'the fixed row height sets the line',
     'grid-overrides.css .data-grid.hairline-grid :is(.table__column, .table__cell) padding-inline':
