@@ -125,6 +125,19 @@
     handle * {
         root * /srv
         encode zstd gzip
+        # Vite names built assets by content hash, so a cached copy never goes stale; other
+        # public files keep a day; the HTML document (every route falls back to it) is always
+        # revalidated so a deploy reaches the next load. Cloudflare's 4-hour default applies
+        # only when no header is sent.
+        @hashedAsset path /assets/*
+        header @hashedAsset Cache-Control "public, max-age=31536000, immutable"
+        @publicFile {
+            not path /assets/*
+            path *.png *.ico *.svg *.webmanifest *.txt *.json
+        }
+        header @publicFile Cache-Control "public, max-age=86400"
+        @document not path /assets/* *.png *.ico *.svg *.webmanifest *.txt *.json
+        header @document Cache-Control "no-cache"
         try_files {path} /index.html
         file_server
     }
