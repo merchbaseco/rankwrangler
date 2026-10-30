@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type PointerEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CursorTooltip } from '@/components/ui/cursor-tooltip';
 import { productHref } from '@/features/explore/product-links';
@@ -73,6 +73,7 @@ export const TopTenShelf = ({
                                     tierClassName(classifyBsr(product.salesRank)),
                                     'flex-1 rounded-swatch bg-tier-sw'
                                 )}
+                                onPointerDown={keepFromRowPress}
                                 // Slots are hover targets in a dense table; keyboard users open
                                 // products from the row's context menu instead of 10 tab stops.
                                 tabIndex={-1}
@@ -117,6 +118,12 @@ const ShelfTooltip = ({
         </span>
     );
 };
+
+/**
+ * The shelf sits in a grid row whose action opens the keyword, and the row's
+ * press starts on pointer down, so a swatch would open the keyword, not its product.
+ */
+const keepFromRowPress = (event: PointerEvent) => event.stopPropagation();
 
 const shelfWidth = { lg: 'w-full', sm: 'w-[9.375rem]', xs: 'w-[7.5rem]' } as const;
 const blockHeight = { lg: 'h-[1.125rem]', sm: 'h-3.5', xs: 'h-3' } as const;
