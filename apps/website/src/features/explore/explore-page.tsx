@@ -4,6 +4,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GridDensityToggle } from '@/features/grid/grid-density-toggle';
 import { GridPager } from '@/features/grid/grid-pager';
+import {
+    gridPlaceholderRows,
+    isGridPlaceholder,
+    withGridPlaceholders,
+} from '@/features/grid/grid-placeholders';
 import { GridRowLinks } from '@/features/grid/grid-row-links';
 import { GridScreen } from '@/features/grid/grid-screen';
 import { useRowCursor } from '@/features/shell/use-row-cursor';
@@ -11,7 +16,7 @@ import { exploreRowAttribute } from './explore-cells';
 import { exploreColumns, exploreSortDescriptor, exploreSortForColumn } from './explore-columns';
 import { clearedExploreFilters, isExploreFiltered, pageSizes } from './explore-filters';
 import { ExploreKpis } from './explore-kpis';
-import { ExploreEmpty, ExploreLoading } from './explore-placeholders';
+import { ExploreEmpty } from './explore-placeholders';
 import { toExploreRows } from './explore-rows';
 import { ExploreSearch } from './explore-search';
 import { ExploreSidebar } from './explore-sidebar';
@@ -108,27 +113,21 @@ export const ExplorePage = () => {
                 rows={rows}
             >
                 <GridRowLinks hrefOf={hrefOf}>
-                        <DataGrid
+                    <DataGrid
                         aria-label="Ranked designs"
                         className="hairline-grid hairline-grid--fixed hairline-grid--fill"
-                        columns={exploreColumns}
-                        data={rows}
-                        getRowId={row => row.asin}
+                        columns={columns}
+                        data={products.isLoading ? gridPlaceholderRows(filters.pageSize) : rows}
+                        getRowId={row => (isGridPlaceholder(row) ? row.placeholderId : row.asin)}
                         onRowAction={key => open(String(key))}
                         onSelectionChange={handleSelectionChange}
                         onSortChange={handleSortChange}
-                        renderEmptyState={() =>
-                            products.isLoading ? (
-                                <ExploreLoading />
-                            ) : (
-                                <ExploreEmpty
-                                    error={products.error}
-                                    onClear={
-                                        isFiltered ? () => update(clearedExploreFilters) : null
-                                    }
-                                />
-                            )
-                        }
+                        renderEmptyState={() => (
+                            <ExploreEmpty
+                                error={products.error}
+                                onClear={isFiltered ? () => update(clearedExploreFilters) : null}
+                            />
+                        )}
                         scrollContainerClassName="overflow-y-auto"
                         selectedKeys={cursor ? new Set([cursor]) : new Set()}
                         // Toggle behaviour: a click (or ⏎) is the row action; j/k set the cursor.
@@ -153,3 +152,5 @@ export const ExplorePage = () => {
         </GridScreen>
     );
 };
+
+const columns = withGridPlaceholders(exploreColumns);

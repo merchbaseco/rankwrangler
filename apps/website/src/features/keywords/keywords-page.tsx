@@ -6,6 +6,11 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '@/components/ui/icon';
 import { GridDensityToggle } from '@/features/grid/grid-density-toggle';
 import { GridPager } from '@/features/grid/grid-pager';
+import {
+    gridPlaceholderRows,
+    isGridPlaceholder,
+    withGridPlaceholders,
+} from '@/features/grid/grid-placeholders';
 import { GridRowLinks } from '@/features/grid/grid-row-links';
 import { GridScreen } from '@/features/grid/grid-screen';
 import { exploreKeywordHref } from '@/features/product/product-keyword-links';
@@ -135,9 +140,9 @@ export const KeywordsPage = () => {
                     <DataGrid
                         aria-label="Keyword directory"
                         className="hairline-grid hairline-grid--fixed hairline-grid--fill"
-                        columns={keywordColumns}
-                        data={rows}
-                        getRowId={row => row.id}
+                        columns={columns}
+                        data={directory.isLoading ? gridPlaceholderRows(filters.pageSize) : rows}
+                        getRowId={row => (isGridPlaceholder(row) ? row.placeholderId : row.id)}
                         onRowAction={key => openResults(String(key))}
                         onSelectionChange={handleSelectionChange}
                         onSortChange={handleSortChange}
@@ -145,7 +150,6 @@ export const KeywordsPage = () => {
                             <KeywordEmptyState
                                 hasError={Boolean(directory.error)}
                                 hasFacet={isKeywordFiltered({ ...filters, q: '' })}
-                                isLoading={directory.isLoading}
                                 isTracking={tracking.isPending}
                                 onRetry={() => {
                                     directory.refetch().catch((error: unknown) => {
@@ -180,3 +184,5 @@ export const KeywordsPage = () => {
         </GridScreen>
     );
 };
+
+const columns = withGridPlaceholders(keywordColumns);

@@ -201,6 +201,12 @@
         text-overflow: ellipsis;
     }
 
+    /* A placeholder row's bar (grid-placeholders.tsx): a text line's height on the row's middle. */
+    .grid-placeholder {
+        width: 60%;
+        height: 0.625rem;
+    }
+
     /* Column widths: one token per column (tokens.css), shared with the KPI spans above. */
     .grid-col--rank {
         width: var(--col-rank);

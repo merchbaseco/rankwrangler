@@ -58,29 +58,28 @@ export const KeywordKpis = ({
                 onClear={() => onChange(clearedKeywordFilters)}
                 onRemove={ids => onChange(withoutKeywordFilters(filters, ids))}
                 mix={
-                    facets ? (
-                        <MixBar
-                            label="Heat mix"
-                            noun={['keyword', 'keywords']}
-                            onToggle={heat =>
-                                onChange({
-                                    heat: filters.heat.includes(heat)
-                                        ? filters.heat.filter(entry => entry !== heat)
-                                        : keywordHeats.filter(
-                                              entry =>
-                                                  entry === heat || filters.heat.includes(entry)
-                                          ),
-                                })
-                            }
-                            parts={keywordHeats.map(heat => ({
-                                count: facets.heat[heat],
-                                key: heat,
-                                label: heatDisplay[heat].label,
-                                scope: tierClassName(heatDisplay[heat].tier),
-                            }))}
-                            selected={new Set(filters.heat)}
-                        />
-                    ) : null
+                    // Rendered before the counts load so the band keeps its height.
+                    <MixBar
+                        label="Heat mix"
+                        noun={['keyword', 'keywords']}
+                        onToggle={heat =>
+                            onChange({
+                                heat: filters.heat.includes(heat)
+                                    ? filters.heat.filter(entry => entry !== heat)
+                                    : keywordHeats.filter(
+                                          entry =>
+                                              entry === heat || filters.heat.includes(entry)
+                                      ),
+                            })
+                        }
+                        parts={keywordHeats.map(heat => ({
+                            count: facets?.heat[heat] ?? null,
+                            key: heat,
+                            label: heatDisplay[heat].label,
+                            scope: tierClassName(heatDisplay[heat].tier),
+                        }))}
+                        selected={new Set(filters.heat)}
+                    />
                 }
                 summary={<MixSummary count={total} label="Heat mix" noun="keywords" />}
             />

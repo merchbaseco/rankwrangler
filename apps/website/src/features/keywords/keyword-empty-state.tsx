@@ -1,4 +1,4 @@
-import { Button, Spinner } from '@heroui/react';
+import { Button } from '@heroui/react';
 import { EmptyState } from '@heroui-pro/react';
 import { Add01Icon, Search01Icon } from '@hugeicons-pro/core-stroke-rounded';
 import { Icon } from '@/components/ui/icon';
@@ -10,7 +10,6 @@ import { Icon } from '@/components/ui/icon';
 export const KeywordEmptyState = ({
     hasError,
     hasFacet,
-    isLoading,
     isTracking,
     onRetry,
     onTrack,
@@ -19,16 +18,12 @@ export const KeywordEmptyState = ({
 }: {
     hasError: boolean;
     hasFacet: boolean;
-    isLoading: boolean;
     isTracking: boolean;
     onRetry: () => void;
     onTrack: (() => void) | null;
     search: string;
     trackError: string | null;
 }) => {
-    if (isLoading) {
-        return <Spinner size="sm" />;
-    }
     if (hasError) {
         return (
             <EmptyState size="sm">

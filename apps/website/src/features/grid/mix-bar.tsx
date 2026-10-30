@@ -5,11 +5,14 @@ import { formatCount } from '@/features/bsr/bsr-format';
 import { mixShares } from '@/features/bsr/mix-geometry';
 import { cn } from '@/lib/utils';
 
-/** One part of a mix: its filter key, label, count and colour scope (`tier-hot`). */
+/**
+ * One part of a mix: its filter key, label, count and colour scope (`tier-hot`). A null count is
+ * not loaded yet: the bar keeps its layout with an empty track.
+ */
 export interface MixPart<K extends string> {
     readonly key: K;
     readonly label: string;
-    readonly count: number;
+    readonly count: number | null;
     readonly scope: string;
 }
 
@@ -35,7 +38,7 @@ export const MixBar = <K extends string>({
     parts: readonly MixPart<K>[];
     selected: ReadonlySet<K>;
 }) => {
-    const shares = mixShares(parts.map(part => part.count));
+    const shares = mixShares(parts.map(part => part.count ?? 0));
     const describe = (part: MixPart<K>) =>
         `${part.label} · ${formatCount(part.count)} ${part.count === 1 ? noun[0] : noun[1]} · ${
             selected.has(part.key) ? 'click to remove' : 'click to filter'

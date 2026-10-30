@@ -1,10 +1,7 @@
-import { Button, Spinner } from '@heroui/react';
+import { Button } from '@heroui/react';
 import { EmptyState } from '@heroui-pro/react';
 import { Search01Icon } from '@hugeicons-pro/core-stroke-rounded';
 import { Icon } from '@/components/ui/icon';
-
-/** Loading: one spinner where the rows will be; the table keeps its header. */
-export const ExploreLoading = () => <Spinner size="sm" />;
 
 /**
  * Nothing matched: say why in one line and offer the one fix that always

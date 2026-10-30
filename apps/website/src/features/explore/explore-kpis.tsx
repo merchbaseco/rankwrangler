@@ -61,20 +61,19 @@ export const ExploreKpis = ({
                 onClear={() => onChange(clearedExploreFilters)}
                 onRemove={ids => onChange(withoutExploreFilters(filters, ids))}
                 mix={
-                    facets ? (
-                        <MixBar
-                            label="Tier mix"
-                            noun={['design', 'designs']}
-                            onToggle={tier => onChange({ tiers: toggled(filters.tiers, tier) })}
-                            parts={bsrTiers.map(tier => ({
-                                count: facets.tiers[tier],
-                                key: tier,
-                                label: bsrTierDefinitions[tier].label,
-                                scope: tierClassName(tier),
-                            }))}
-                            selected={filters.tiers}
-                        />
-                    ) : null
+                    // Rendered before the counts load so the band keeps its height.
+                    <MixBar
+                        label="Tier mix"
+                        noun={['design', 'designs']}
+                        onToggle={tier => onChange({ tiers: toggled(filters.tiers, tier) })}
+                        parts={bsrTiers.map(tier => ({
+                            count: facets?.tiers[tier] ?? null,
+                            key: tier,
+                            label: bsrTierDefinitions[tier].label,
+                            scope: tierClassName(tier),
+                        }))}
+                        selected={filters.tiers}
+                    />
                 }
                 summary={
                     <MixSummary count={facets?.total ?? null} label="Tier mix" noun="results" />
