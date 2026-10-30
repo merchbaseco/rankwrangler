@@ -7,6 +7,7 @@ import Fastify from 'fastify';
 import { PgBoss } from 'pg-boss';
 import { createContext } from '@/api/context.js';
 import { registerHealthRoutes } from '@/api/health-routes.js';
+import { registerServerTiming, timeAuthorization } from '@/api/server-timing';
 import { appRouter } from '@/api/router.js';
 import { registerTrpcWebsocketServer, TRPC_WEBSOCKET_PATH } from '@/api/trpc-websocket-server';
 import { createCorsOriginHandler } from '@/config/cors-origin';
@@ -183,12 +184,13 @@ const startServer = async () => {
 
     registerHealthRoutes(fastify, createDatabaseHealthReaders());
 
+    registerServerTiming(fastify);
     await fastify.register(fastifyTRPCPlugin, {
         prefix: '/api',
         trpcOptions: {
             router: appRouter,
             createContext: (options: CreateFastifyContextOptions) =>
-                createContext(options, rankwranglerAccess),
+                timeAuthorization(options.req, () => createContext(options, rankwranglerAccess)),
         },
     });
 
