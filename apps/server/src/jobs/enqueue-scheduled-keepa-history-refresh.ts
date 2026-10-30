@@ -4,77 +4,82 @@ import { defineJob } from '@/jobs/job-router.js';
 import { createEventLogSafe as createEventLogSafeService } from '@/services/event-logs.js';
 import { getErrorMessage } from '@/services/job-executions-utils.js';
 import {
+    countQueuedKeepaRefreshes as countQueuedKeepaRefreshesService,
     enqueueKeepaScheduledRefreshCandidates as enqueueKeepaScheduledRefreshCandidatesService,
+    getKeepaRefreshQueueTarget as getKeepaRefreshQueueTargetService,
     getKeepaScheduledRefreshCandidates as getKeepaScheduledRefreshCandidatesService,
+    getKeepaSpareRefreshCandidates as getKeepaSpareRefreshCandidatesService,
 } from '@/services/keepa-scheduled-refresh.js';
 
-const KEEPA_SCHEDULED_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+// Frequent short top-ups keep the queue near its target, so the per-minute dispatcher always has
+// work for every token above the live reserve without a long backlog in front of new due work.
+const KEEPA_SCHEDULED_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export type EnqueueScheduledKeepaHistoryRefreshResult = {
     didWork: boolean;
-    candidateCount: number;
-    enqueuedCount: number;
-    reason: 'enqueued' | 'already_queued' | 'no_candidates' | 'keepa_not_configured';
+    queuedBefore: number;
+    target: number;
+    dueCount: number;
+    spareCount: number;
+    reason: 'enqueued' | 'queue_full' | 'no_candidates' | 'keepa_not_configured';
 };
 
 type EnqueueScheduledKeepaHistoryRefreshDeps = {
     createEventLogSafe: typeof createEventLogSafeService;
+    countQueuedKeepaRefreshes: typeof countQueuedKeepaRefreshesService;
+    getKeepaRefreshQueueTarget: typeof getKeepaRefreshQueueTargetService;
     getKeepaScheduledRefreshCandidates: typeof getKeepaScheduledRefreshCandidatesService;
+    getKeepaSpareRefreshCandidates: typeof getKeepaSpareRefreshCandidatesService;
     enqueueKeepaScheduledRefreshCandidates: typeof enqueueKeepaScheduledRefreshCandidatesService;
     isKeepaConfigured: () => boolean;
 };
 
 const enqueueScheduledKeepaHistoryRefreshJobDeps: EnqueueScheduledKeepaHistoryRefreshDeps = {
     createEventLogSafe: createEventLogSafeService,
+    countQueuedKeepaRefreshes: countQueuedKeepaRefreshesService,
+    getKeepaRefreshQueueTarget: getKeepaRefreshQueueTargetService,
     getKeepaScheduledRefreshCandidates: getKeepaScheduledRefreshCandidatesService,
+    getKeepaSpareRefreshCandidates: getKeepaSpareRefreshCandidatesService,
     enqueueKeepaScheduledRefreshCandidates: enqueueKeepaScheduledRefreshCandidatesService,
     isKeepaConfigured: () => Boolean(env.RANKWRANGLER_KEEPA_API_KEY),
 };
 
+/**
+ * Tops the Keepa history queue up to about half an hour of refill: tier-due Products first, then
+ * spare refreshes of admitted Merch fetched over a day ago. The dispatcher spends only tokens above
+ * the live reserve, so live requests keep their headroom however full the queue is.
+ */
 export const enqueueScheduledKeepaHistoryRefresh = async (
     deps: EnqueueScheduledKeepaHistoryRefreshDeps = enqueueScheduledKeepaHistoryRefreshJobDeps
 ): Promise<EnqueueScheduledKeepaHistoryRefreshResult> => {
     if (!deps.isKeepaConfigured()) {
-        return {
-            didWork: false,
-            candidateCount: 0,
-            enqueuedCount: 0,
-            reason: 'keepa_not_configured',
-        } as const;
+        return result('keepa_not_configured', { queuedBefore: 0, target: 0 });
     }
 
-    const candidates = await deps.getKeepaScheduledRefreshCandidates();
-    if (candidates.length === 0) {
-        return {
-            didWork: false,
-            candidateCount: 0,
-            enqueuedCount: 0,
-            reason: 'no_candidates',
-        } as const;
+    const [queuedBefore, target] = await Promise.all([
+        deps.countQueuedKeepaRefreshes(),
+        deps.getKeepaRefreshQueueTarget(),
+    ]);
+    const room = target - queuedBefore;
+    if (room <= 0) {
+        return result('queue_full', { queuedBefore, target });
     }
 
-    const enqueuedCount = await deps.enqueueKeepaScheduledRefreshCandidates(candidates);
-    if (enqueuedCount === 0) {
-        return {
-            didWork: false,
-            candidateCount: candidates.length,
-            enqueuedCount,
-            reason: 'already_queued',
-        } as const;
+    const due = await deps.getKeepaScheduledRefreshCandidates({ limit: room });
+    const dueCount = due.length ? await deps.enqueueKeepaScheduledRefreshCandidates(due) : 0;
+    const spare = await deps.getKeepaSpareRefreshCandidates({ limit: room - dueCount });
+    const spareCount = spare.length ? await deps.enqueueKeepaScheduledRefreshCandidates(spare) : 0;
+    if (dueCount + spareCount === 0) {
+        return result('no_candidates', { queuedBefore, target });
     }
-
-    return {
-        didWork: true,
-        candidateCount: candidates.length,
-        enqueuedCount,
-        reason: 'enqueued',
-    } as const;
+    return { didWork: true, queuedBefore, target, dueCount, spareCount, reason: 'enqueued' };
 };
 
 export const enqueueScheduledKeepaHistoryRefreshJob = defineJob(
     'enqueue-scheduled-keepa-history-refresh',
     {
-        startupSummary: 'hourly scan (<300k daily, <1M weekly)',
+        startupSummary:
+            'every 5 min top-up to ~30 min of refill (tier-due first, then daily spare refresh)',
         persistSuccess: 'always',
     }
 )
@@ -94,14 +99,16 @@ export const enqueueScheduledKeepaHistoryRefreshJob = defineJob(
             const result = await enqueueScheduledKeepaHistoryRefresh();
             if (result.didWork) {
                 log('Queued scheduled Keepa refresh candidates', {
-                    candidateCount: result.candidateCount,
-                    enqueuedCount: result.enqueuedCount,
+                    dueCount: result.dueCount,
+                    spareCount: result.spareCount,
+                    queuedBefore: result.queuedBefore,
+                    target: result.target,
                 });
             } else {
                 log('Scheduled Keepa enqueue scan completed with no enqueues', {
                     reason: result.reason,
-                    candidateCount: result.candidateCount,
-                    enqueuedCount: result.enqueuedCount,
+                    queuedBefore: result.queuedBefore,
+                    target: result.target,
                 });
             }
 
@@ -132,3 +139,14 @@ export const enqueueScheduledKeepaHistoryRefreshJob = defineJob(
             });
         }
     });
+
+const result = (
+    reason: Exclude<EnqueueScheduledKeepaHistoryRefreshResult['reason'], 'enqueued'>,
+    counts: { queuedBefore: number; target: number }
+): EnqueueScheduledKeepaHistoryRefreshResult => ({
+    didWork: false,
+    ...counts,
+    dueCount: 0,
+    spareCount: 0,
+    reason,
+});

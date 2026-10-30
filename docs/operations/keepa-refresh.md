@@ -18,8 +18,8 @@ import rows provide provenance and diagnostics but do not schedule refreshes.
 | Product state | Scheduled cadence |
 | --- | --- |
 | Merch, root BSR below `300,000` | Daily |
-| Merch, root BSR `300,000` through `999,999` | Weekly |
-| Merch, root BSR at least `1,000,000` | On demand |
+| Merch, root BSR `300,000` through `999,999` | Weekly, daily with spare tokens |
+| Merch, root BSR at least `1,000,000` | Daily with spare tokens when admitted, else on demand |
 | Unknown classification or non-merch | Not scheduled |
 | Merch with missing numeric BSR | Not scheduled |
 
@@ -29,8 +29,11 @@ Public Product-history callers wait through the shared retrieval service and do 
 Operation identifiers or provider-capacity details. The dashboard app keeps its existing
 Operation-based refresh workflow.
 
-The hourly cadence scan enqueues stale eligible Products. The queue dispatcher runs every minute,
-checks for due work before refreshing provider capacity, and caps each batch. An idle dispatcher
+Every five minutes the cadence scan tops the queue up to about half an hour of refill: stale
+tier-due Products first, then spare refreshes of admitted Merch not fetched in a day, best BSR
+first, so the plan's refill is spent rather than left to expire. The queue dispatcher runs every
+minute, checks for due work before refreshing provider capacity, and spends only tokens above the
+live reserve, so live requests keep their headroom however full the queue is. An idle dispatcher
 tick makes no Keepa request; work becoming due after the preflight waits at most one dispatcher
 interval. A queue row is unique by marketplace/ASIN. Failed work remains queued with bounded
 exponential backoff.

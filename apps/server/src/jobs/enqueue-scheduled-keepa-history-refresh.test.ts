@@ -18,54 +18,49 @@ describe('enqueueScheduledKeepaHistoryRefresh', () => {
 
     it('skips when Keepa is not configured', async () => {
         const { enqueueScheduledKeepaHistoryRefresh } = await loadSubject();
-        const { deps, calls } = createDeps({
-            isKeepaConfigured: () => false,
-        });
+        const { deps, calls } = createDeps({ isKeepaConfigured: () => false });
 
         const result = await enqueueScheduledKeepaHistoryRefresh(deps);
 
-        expect(result).toEqual({
-            didWork: false,
-            candidateCount: 0,
-            enqueuedCount: 0,
-            reason: 'keepa_not_configured',
-        });
+        expect(result).toMatchObject({ didWork: false, reason: 'keepa_not_configured' });
         expect(calls.getKeepaScheduledRefreshCandidates.mock.calls).toHaveLength(0);
         expect(calls.enqueueKeepaScheduledRefreshCandidates.mock.calls).toHaveLength(0);
     });
 
-    it('returns no_candidates when scan finds no stale products', async () => {
+    it('leaves a queue already at its target alone', async () => {
         const { enqueueScheduledKeepaHistoryRefresh } = await loadSubject();
         const { deps, calls } = createDeps({
-            getKeepaScheduledRefreshCandidates: async () => [],
+            countQueuedKeepaRefreshes: async () => 600,
+            getKeepaRefreshQueueTarget: async () => 600,
         });
 
         const result = await enqueueScheduledKeepaHistoryRefresh(deps);
 
         expect(result).toEqual({
             didWork: false,
-            candidateCount: 0,
-            enqueuedCount: 0,
-            reason: 'no_candidates',
+            queuedBefore: 600,
+            target: 600,
+            dueCount: 0,
+            spareCount: 0,
+            reason: 'queue_full',
         });
-        expect(calls.enqueueKeepaScheduledRefreshCandidates.mock.calls).toHaveLength(0);
+        expect(calls.getKeepaScheduledRefreshCandidates.mock.calls).toHaveLength(0);
     });
 
-    it('enqueues stale candidates when found', async () => {
+    it('fills the room with tier-due work first, then spare refreshes', async () => {
         const { enqueueScheduledKeepaHistoryRefresh } = await loadSubject();
-        const candidates = [
-            {
-                marketplaceId: 'ATVPDKIKX0DER',
-                asin: 'B000000001',
-            },
-            {
-                marketplaceId: 'ATVPDKIKX0DER',
-                asin: 'B000000002',
-            },
-        ];
-        const enqueueKeepaScheduledRefreshCandidates = mock(async () => candidates.length);
-        const { deps, calls } = createDeps({
-            getKeepaScheduledRefreshCandidates: async () => candidates,
+        const due = [candidate('B000000001'), candidate('B000000002')];
+        const spare = [candidate('B000000003')];
+        const getKeepaScheduledRefreshCandidates = mock(async () => due);
+        const getKeepaSpareRefreshCandidates = mock(async () => spare);
+        const enqueueKeepaScheduledRefreshCandidates = mock(
+            async (items: readonly unknown[]) => items.length
+        );
+        const { deps } = createDeps({
+            countQueuedKeepaRefreshes: async () => 590,
+            getKeepaRefreshQueueTarget: async () => 600,
+            getKeepaScheduledRefreshCandidates,
+            getKeepaSpareRefreshCandidates,
             enqueueKeepaScheduledRefreshCandidates,
         });
 
@@ -73,42 +68,40 @@ describe('enqueueScheduledKeepaHistoryRefresh', () => {
 
         expect(result).toEqual({
             didWork: true,
-            candidateCount: 2,
-            enqueuedCount: 2,
+            queuedBefore: 590,
+            target: 600,
+            dueCount: 2,
+            spareCount: 1,
             reason: 'enqueued',
         });
-        expect(enqueueKeepaScheduledRefreshCandidates.mock.calls).toHaveLength(1);
-        expect(enqueueKeepaScheduledRefreshCandidates.mock.calls[0][0]).toEqual(candidates);
+        expect(getKeepaScheduledRefreshCandidates.mock.calls[0]).toEqual([{ limit: 10 }]);
+        expect(getKeepaSpareRefreshCandidates.mock.calls[0]).toEqual([{ limit: 8 }]);
+        expect(enqueueKeepaScheduledRefreshCandidates.mock.calls.map(call => call[0])).toEqual([
+            due,
+            spare,
+        ]);
     });
 
-    it('returns already_queued when all candidates already exist in queue', async () => {
+    it('reports no candidates when nothing is due or stale', async () => {
         const { enqueueScheduledKeepaHistoryRefresh } = await loadSubject();
-        const candidates = [
-            {
-                marketplaceId: 'ATVPDKIKX0DER',
-                asin: 'B000000001',
-            },
-        ];
-        const { deps } = createDeps({
-            getKeepaScheduledRefreshCandidates: async () => candidates,
-            enqueueKeepaScheduledRefreshCandidates: async () => 0,
-        });
+        const { deps, calls } = createDeps();
 
         const result = await enqueueScheduledKeepaHistoryRefresh(deps);
 
-        expect(result).toEqual({
-            didWork: false,
-            candidateCount: 1,
-            enqueuedCount: 0,
-            reason: 'already_queued',
-        });
+        expect(result).toMatchObject({ didWork: false, reason: 'no_candidates' });
+        expect(calls.enqueueKeepaScheduledRefreshCandidates.mock.calls).toHaveLength(0);
     });
 });
+
+const candidate = (asin: string) => ({ marketplaceId: 'ATVPDKIKX0DER', asin });
 
 const createDeps = (overrides: Partial<EnqueueScheduledKeepaHistoryRefreshDeps> = {}) => {
     const calls = {
         createEventLogSafe: mock(async () => {}),
+        countQueuedKeepaRefreshes: mock(async () => 0),
+        getKeepaRefreshQueueTarget: mock(async () => 600),
         getKeepaScheduledRefreshCandidates: mock(async () => []),
+        getKeepaSpareRefreshCandidates: mock(async () => []),
         enqueueKeepaScheduledRefreshCandidates: mock(async () => 0),
         isKeepaConfigured: mock(() => true),
     };

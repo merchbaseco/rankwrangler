@@ -316,6 +316,7 @@ bun test \
     apps/server/test/keyword-scheduling-races.db.test.ts \
     apps/server/test/keepa-capacity.db.test.ts \
     apps/server/test/refresh-tiers.db.test.ts \
+    apps/server/test/keepa-spare-refresh.db.test.ts \
     apps/server/test/product-collection-policy.db.test.ts \
     apps/server/test/product-search-document.db.test.ts \
     apps/server/test/product-search.db.test.ts \

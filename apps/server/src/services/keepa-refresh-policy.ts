@@ -10,6 +10,13 @@ export const KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 7 * DAY_IN_MS;
 export const KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS = DAY_IN_MS / 2;
 export const KEEPA_FAILURE_RETRY_BASE_MS = 5 * MINUTE_IN_MS;
 export const KEEPA_FAILURE_RETRY_MAX_MS = DAY_IN_MS;
+// Tokens left after tier-due work refresh admitted Merch Products again once they are this stale,
+// best BSR first, so the plan's refill is spent instead of expiring in a full bucket.
+export const KEEPA_SPARE_REFRESH_MIN_INTERVAL_MS = DAY_IN_MS;
+// The scheduled top-up keeps about this much refill queued: enough that the bucket drains between
+// scans, short enough that newly due tier work never waits long behind spare work.
+export const KEEPA_REFRESH_QUEUE_TARGET_MINUTES = 30;
+export const KEEPA_REFRESH_QUEUE_FALLBACK_TARGET = 600;
 
 type KeepaRefreshPolicyBucket = {
     key: string;
@@ -31,14 +38,14 @@ export const KEEPA_REFRESH_POLICY_BUCKETS = [
         key: 'weekly',
         label: '300k – 1M',
         refreshEveryLabel: 'Weekly',
-        hint: null,
+        hint: 'At least weekly; refreshed daily with spare tokens.',
         isAutoRefresh: true,
     },
     {
         key: 'onDemand',
         label: '≥ 1M',
-        refreshEveryLabel: 'On demand',
-        hint: 'Synced only when someone opens the Product.',
+        refreshEveryLabel: 'Spare tokens',
+        hint: 'Admitted Products refresh daily with spare tokens, best BSR first; others when opened.',
         isAutoRefresh: false,
     },
     {

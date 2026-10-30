@@ -35,13 +35,20 @@ Automatic Keepa collection requires an admitted, active Product classified as Me
 | --- | --- |
 | Below 50,000 | Stale after 12 hours; automatic collection twice a day. |
 | 50,000 through 299,999 | Stale after 24 hours; automatic daily collection. |
-| 300,000 through 999,999 | Stale after seven days; automatic weekly collection. |
-| 1,000,000 or higher | On demand only. |
+| 300,000 through 999,999 | Stale after seven days; automatic weekly collection, daily with spare tokens. |
+| 1,000,000 or higher | No schedule; daily with spare tokens when admitted, otherwise on demand. |
 | Missing BSR | No automatic Keepa collection. |
 | Classification unknown or non-Merch | No automatic Keepa collection; unknown remains distinct from known non-Merch. |
 
-The hourly candidate scan reads BSR and `keepaFetchedAt` directly from Products and excludes work
-already in `keepa_history_refresh_queue`. The queue is unique by marketplace and ASIN.
+Every five minutes the scheduled scan tops `keepa_history_refresh_queue` up to about half an hour
+of refill (`KEEPA_REFRESH_QUEUE_TARGET_MINUTES` × the observed refill rate, 600 when unknown),
+counting what is already queued. Tier-due Products fill the room first, best BSR first. Whatever
+room remains goes to spare refreshes: admitted, active Merch Products with a BSR in any tier that
+were never fetched or not fetched in the last day (`KEEPA_SPARE_REFRESH_MIN_INTERVAL_MS`), best
+BSR first. Tiers are a floor, not a budget: spare work spends the refill that would otherwise
+expire in a full bucket, and the short queue keeps newly due tier work from waiting behind it. Both
+reads take BSR and `keepaFetchedAt` directly from Products and exclude work already queued. The
+queue is unique by marketplace and ASIN.
 
 ## Dispatch And Retry
 
