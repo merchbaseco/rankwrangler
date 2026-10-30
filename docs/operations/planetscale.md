@@ -35,8 +35,11 @@ the isolated rehearsal process, with background workers disabled:
 | `RANKWRANGLER_DATABASE_PASSWORD` | Password supplied by PlanetScale |
 | `RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER` | `true` |
 
-Application connections disable prepared statements for transaction pooling. Administrative clients
-and pg-boss use the direct endpoint. The initial role needs ownership and schema creation privileges
+The background application pool disables prepared statements for transaction pooling. The
+interactive pool that serves API and MCP requests prepares them: the pooler supports protocol-level
+prepared statements, and an unprepared parameterized query costs postgres.js an extra describe round
+trip. Administrative clients and pg-boss use the direct endpoint, which has few connections to spare
+(`max_connections` is 25). The initial role needs ownership and schema creation privileges
 for restore, Drizzle, and pg-boss initialization. Test narrower roles before adopting them.
 
 ## Rehearse a consistent restore

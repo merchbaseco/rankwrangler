@@ -8,11 +8,14 @@ import * as schema from './schema';
 // Both pools go through PlanetScale's transaction-mode PgBouncer over a WAN round trip. When every
 // connection is busy, postgres.js pipelines a query behind another connection's in-flight work, so
 // jobs holding multi-statement transactions delayed dashboard reads. Interactive requests get their
-// own pool and only wait for each other.
-const connect = (max: number) =>
+// own pool and only wait for each other. Unprepared, postgres.js describes every parameterized
+// query before running it, a second round trip; the interactive pool prepares statements instead
+// (the pooler supports protocol-level prepared statements), so a repeated read costs one.
+const connect = (max: number, prepare: boolean) =>
     drizzle(
         postgres({
             ...createDatabaseConnectionOptions(env, 'application'),
+            prepare,
             max,
             idle_timeout: 10000,
             max_lifetime: 30000,
@@ -20,8 +23,8 @@ const connect = (max: number) =>
         }),
         { schema, logger: process.env.NODE_ENV === 'development' }
     );
-const background = connect(10);
-const interactive = connect(10);
+const background = connect(10, false);
+const interactive = connect(10, true);
 const interactiveScope = new AsyncLocalStorage<true>();
 
 /**
