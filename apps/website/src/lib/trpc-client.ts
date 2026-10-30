@@ -1,6 +1,6 @@
 import {
 	createWSClient,
-	httpBatchLink,
+	httpLink,
 	loggerLink,
 	splitLink,
 	type TRPCWebSocketClient,
@@ -43,7 +43,9 @@ export const createWebsiteTrpcRuntime = ({
 			splitLink({
 				condition: isSubscriptionOperation,
 				true: wsLink({ client: wsClient }),
-				false: httpBatchLink({
+				// Unbatched: each read resolves on its own, so a page's grid never waits for
+				// a slower aggregate requested in the same tick.
+				false: httpLink({
 					url: `${normalizedBaseUrl}/api`,
                     fetch: (url, init) => {
                         const headers = new Headers(init?.headers);
