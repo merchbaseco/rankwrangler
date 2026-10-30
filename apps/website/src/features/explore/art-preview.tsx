@@ -3,6 +3,7 @@ import { CursorTooltip } from '@/components/ui/cursor-tooltip';
 import { formatBsr } from '@/features/bsr/bsr-format';
 import { classifyBsr, tierClassName } from '@/features/bsr/bsr-tier';
 import { cn } from '@/lib/utils';
+import { artUrl } from './art-url';
 
 /**
  * A row thumbnail that opens a 240px mouse-following preview of the whole
@@ -26,7 +27,7 @@ export const ArtPreview = ({
             content={
                 <span className="art-preview">
                     <span className="art-preview__art">
-                        <img alt="" draggable={false} src={src} />
+                        <img alt="" decoding="async" draggable={false} src={artUrl(src, 'large')} />
                     </span>
                     <span className="truncate font-sans font-semibold">{name}</span>
                     <span className={cn('tier-figure', tierClassName(classifyBsr(salesRank)))}>

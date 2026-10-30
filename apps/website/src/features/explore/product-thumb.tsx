@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { artUrl } from './art-url';
 
 /**
  * A design's art on the sunken well, at row size (20px), a grid row's density
@@ -24,7 +25,16 @@ export const ProductThumb = ({
     src: string | null;
 }) => {
     const resolvedCrop = crop ?? (size === 'row' ? 'print' : 'garment');
-    const image = src ? <img alt={alt} draggable={false} loading="lazy" src={src} /> : null;
+    const rendition = size === 'row' || size === 'grid' ? 'thumb' : 'large';
+    const image = src ? (
+        <img
+            alt={alt}
+            decoding="async"
+            draggable={false}
+            loading="lazy"
+            src={artUrl(src, rendition)}
+        />
+    ) : null;
     return (
         <span
             className={cn(
