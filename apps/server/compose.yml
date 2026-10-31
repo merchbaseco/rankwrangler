@@ -33,9 +33,8 @@ services:
         - hugeicons_license_key
     image: rankwrangler-server:local
     container_name: rankwrangler-server
-    # Prevent crash-looping forever if the app fails fast (e.g. missing env vars).
-    # This will retry a few times and then stop.
-    restart: "on-failure:5"
+    # The server exits 0 on SIGTERM, so on-failure left it stopped after a Colima restart.
+    restart: unless-stopped
     # Every value is interpolated from the process environment that
     # `varlock run` supplies; the schema is the only owner of defaults.
     environment:

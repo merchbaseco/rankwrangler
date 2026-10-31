@@ -102,6 +102,11 @@ replays the values captured by the most recent deploy. That baked copy is the pl
 runtime copy, exactly like a Worker secret. Rotating a credential therefore requires a redeploy, not
 just a restart.
 
+The server and Caddy both restart `unless-stopped`, so they come back after a Colima restart or a
+mini reboot. After a router or network change, Colima's DNS can go stale: the server logs
+`getaddrinfo ENOTFOUND` for the database host while the mini itself resolves it. `colima restart`
+on the mini fixes it.
+
 ## Authentication migration
 
 The older license-to-canonical-user cutover through migration `0028` is historical.
