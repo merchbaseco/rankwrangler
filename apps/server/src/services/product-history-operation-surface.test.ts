@@ -44,6 +44,51 @@ describe('dashboard Product-history compatibility surface', () => {
             },
         });
     });
+
+    it('reads a no-refresh history alongside the Product check and still rejects a missing one', async () => {
+        const order: string[] = [];
+        let releaseProduct = () => undefined as void;
+        const productChecked = new Promise<void>(resolve => {
+            releaseProduct = resolve;
+        });
+        const read = getProductHistoryOperationSurface(
+            {
+                marketplaceId: 'ATVPDKIKX0DER',
+                asin: 'B012345678',
+                metric: 'bsrMain',
+                limit: 5000,
+                days: 365,
+                format: 'points',
+                bucket: 'auto',
+                refresh: 'none',
+                ownerMerchbaseUserId: 'mbu_test',
+            },
+            {
+                getRequiredProduct: mock(async () => {
+                    await productChecked;
+                    order.push('product');
+                    throw new Error('Product info not available from Amazon catalog.');
+                }),
+                getProductHistoryPoints: mock(async () => {
+                    order.push('points');
+                    return { latestImportAt: null, categoryNames: {}, points: [] };
+                }),
+                hasRecentSuccessfulKeepaImportForAsin: mock(async () => true),
+                requestProductHistoryRefresh: mock(async () => {
+                    throw new Error('refresh none must not start work');
+                }),
+                getLatestProductHistoryOperation: mock(async () => {
+                    order.push('operation');
+                    return null;
+                }),
+            }
+        );
+        await Promise.resolve();
+        releaseProduct();
+        await expect(read).rejects.toThrow('Product info not available');
+        expect(order.indexOf('points')).toBeLessThan(order.indexOf('product'));
+        expect(order.indexOf('operation')).toBeLessThan(order.indexOf('product'));
+    });
 });
 
 const createPendingOperation = (): Extract<OperationRecord, { type: 'productHistoryRefresh' }> => ({

@@ -60,15 +60,23 @@ export const getProductHistoryOperationSurface = async (
     input: ProductHistoryOperationSurfaceInput,
     deps: ProductHistoryOperationSurfaceDeps = defaultDeps
 ) => {
-    await deps.getRequiredProduct({
-        marketplaceId: input.marketplaceId,
-        asin: input.asin,
-        maxAgeMs: PRODUCT_HISTORY_PRODUCT_CACHE_MAX_AGE_MS,
-    });
+    const requireProduct = () =>
+        deps.getRequiredProduct({
+            marketplaceId: input.marketplaceId,
+            asin: input.asin,
+            maxAgeMs: PRODUCT_HISTORY_PRODUCT_CACHE_MAX_AGE_MS,
+        });
+    const readHistory = () =>
+        input.format === 'points' ? getPointsHistory(input, deps) : getMetricHistory(input, deps);
 
-    return input.format === 'points'
-        ? await getPointsHistory(input, deps)
-        : await getMetricHistory(input, deps);
+    // A read that requests no refresh starts no work, so it need not wait for the Product check:
+    // both go out together and a missing Product still rejects the read (the dashboard's case).
+    if (input.refresh === 'none') {
+        const [, history] = await Promise.all([requireProduct(), readHistory()]);
+        return history;
+    }
+    await requireProduct();
+    return await readHistory();
 };
 
 const getPointsHistory = async (
@@ -82,17 +90,21 @@ const getPointsHistory = async (
         });
     }
 
-    const result = await deps.getProductHistoryPoints({
-        marketplaceId: input.marketplaceId,
-        asin: input.asin,
-        metric: input.metric,
-        categoryId: input.categoryId,
-        startAt: input.startAt,
-        endAt: input.endAt,
-        limit: input.limit,
-    });
+    // The pending Operation is read alongside the points; a refresh this read starts replaces it.
+    const [result, pending] = await Promise.all([
+        deps.getProductHistoryPoints({
+            marketplaceId: input.marketplaceId,
+            asin: input.asin,
+            metric: input.metric,
+            categoryId: input.categoryId,
+            startAt: input.startAt,
+            endAt: input.endAt,
+            limit: input.limit,
+        }),
+        getPendingOperation(input, deps),
+    ]);
     const requested = await requestRefreshIfNeeded(input, result.points, deps);
-    const operation = requested?.operation ?? (await getPendingOperation(input, deps));
+    const operation = requested?.operation ?? pending;
 
     return {
         ...result,

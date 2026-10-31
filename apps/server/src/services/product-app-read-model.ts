@@ -54,7 +54,8 @@ export const getProductAppReadModel = async (
     const provenance = includeProvenance
         ? await getProvenance({
               marketplaceId: input.marketplaceId,
-              asin: input.asin,
+              // The family's own ASIN when a variant was asked for.
+              asin: result.product?.asin ?? input.asin,
           })
         : null;
     return { ...result, provenance };
