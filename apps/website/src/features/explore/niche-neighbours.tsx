@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { gridColumn } from '@/features/grid/grid-column';
 import { GridRowLinks } from '@/features/grid/grid-row-links';
+import { usePrefetchProduct } from '@/features/product/use-prefetch-product';
 import {
     BsrCell,
     DesignCell,
@@ -20,7 +21,8 @@ import type { ExploreProduct } from './use-explore-products';
 /**
  * The best-ranked designs sharing a niche, on the Product page: Explore's
  * own cells (art and name, tier figure, 30-day halftone, seven-day move,
- * sold a month) in the same hairline grid. A row opens its Product page;
+ * sold a month) in the same hairline grid. A row opens its Product page (and
+ * prefetches it while the pointer rests on it);
  * right-click gives the product menu, whose filters open Explore narrowed to
  * the niche or brand.
  */
@@ -42,6 +44,13 @@ export const NicheNeighbours = ({
         const row = rows.find(candidate => candidate.asin === asin);
         return row ? productHref(row) : undefined;
     };
+    const prefetchProduct = usePrefetchProduct();
+    const prefetchRow = (asin: string) => {
+        const row = rows.find(candidate => candidate.asin === asin);
+        if (row) {
+            prefetchProduct({ asin: row.asin, marketplaceId: row.marketplaceId });
+        }
+    };
     const open = (asin: string) => {
         const href = hrefOf(asin);
         if (href) {
@@ -50,7 +59,7 @@ export const NicheNeighbours = ({
     };
     return (
         <ProductRowMenu attribute={exploreRowAttribute} onFilter={openFilter} rows={rows}>
-            <GridRowLinks hrefOf={hrefOf}>
+            <GridRowLinks hrefOf={hrefOf} onRowIntent={prefetchRow}>
                 <DataGrid
                     aria-label={`Same niche: ${nicheLabel}`}
                     className="hairline-grid"

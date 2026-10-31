@@ -1,7 +1,8 @@
-import { type PointerEvent, useState } from 'react';
+import { type PointerEvent, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CursorTooltip } from '@/components/ui/cursor-tooltip';
 import { productHref } from '@/features/explore/product-links';
+import { usePrefetchProduct } from '@/features/product/use-prefetch-product';
 import { cn } from '@/lib/utils';
 import { formatBsr } from './bsr-format';
 import { bsrTierDefinitions, classifyBsr, tierClassName } from './bsr-tier';
@@ -24,7 +25,8 @@ export const shelfProductName = (product: ShelfProduct) =>
  * order, one block per slot coloured by its BSR tier, so a strong search reads
  * as a run of violet and red and a soft one as grey. Fewer than ten Merch
  * results leave hollow slots. Hovering a block names it in a cursor tooltip
- * (placement, short name, BSR, tier); clicking opens the product page.
+ * (placement, short name, BSR, tier); resting on it prefetches the product
+ * page and clicking opens it.
  *
  * One tooltip serves the whole shelf, re-pointed at the hovered block, so a
  * table of shelves does not mount ten tooltips per row.
@@ -50,6 +52,15 @@ export const TopTenShelf = ({
     size?: 'lg' | 'sm' | 'xs';
 }) => {
     const [hovered, setHovered] = useState(0);
+    const prefetchProduct = usePrefetchProduct();
+    const intent = useRef<number | null>(null);
+    const clearIntent = () => {
+        if (intent.current !== null) {
+            window.clearTimeout(intent.current);
+            intent.current = null;
+        }
+    };
+    useEffect(() => clearIntent, []);
     const slots = Array.from({ length: SHELF_SIZE }, (_, index) => shelf[index] ?? null);
     const hoveredProduct = slots[hovered] ?? null;
 
@@ -73,7 +84,21 @@ export const TopTenShelf = ({
                         className={cn('flex flex-1', blockHeight[size])}
                         // biome-ignore lint/suspicious/noArrayIndexKey: shelf slots are positional.
                         key={index}
-                        onPointerEnter={() => setHovered(index)}
+                        onPointerEnter={() => {
+                            setHovered(index);
+                            clearIntent();
+                            if (product) {
+                                intent.current = window.setTimeout(
+                                    () =>
+                                        prefetchProduct({
+                                            asin: product.asin,
+                                            marketplaceId: usMarketplace,
+                                        }),
+                                    BLOCK_INTENT_MS
+                                );
+                            }
+                        }}
+                        onPointerLeave={clearIntent}
                     >
                         {product ? (
                             <Link
@@ -139,6 +164,9 @@ const keepFromRowPress = (event: PointerEvent) => event.stopPropagation();
 
 const shelfWidth = { lg: 'w-full', sm: 'w-[9.375rem]', xs: 'w-[7.5rem]' } as const;
 const blockHeight = { lg: 'h-[1.125rem]', sm: 'h-3.5', xs: 'h-3' } as const;
+
+/** How long the pointer rests on a block before its product page is prefetched. */
+const BLOCK_INTENT_MS = 120;
 
 /** The keyword directory covers amazon.com only. */
 const usMarketplace = 'ATVPDKIKX0DER';

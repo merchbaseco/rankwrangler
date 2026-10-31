@@ -31,6 +31,10 @@ a few minutes after a deploy (a fresh process has cold aggregate caches).
   transactions. A growing `authP50` or `serverP50` with unchanged query plans means pool waits.
 - Explore and Keywords facets are whole-set aggregates (seconds when cold). They are served
   stale-while-revalidate and fetched on their own requests, so they never hold up the grid.
+- The Product page opens on five reads that start together; each resolves the variant family inside
+  its own statement or alongside its other reads, so none runs more than three sequential round
+  trips. A row or Top 10 block the pointer rests on prefetches them, so a page opened from Explore
+  renders from cache, and the same-niche search waits until the page's own reads have landed.
 
 ## Profiling a query
 

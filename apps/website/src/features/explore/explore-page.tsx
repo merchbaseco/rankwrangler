@@ -11,6 +11,7 @@ import {
 } from '@/features/grid/grid-placeholders';
 import { GridRowLinks } from '@/features/grid/grid-row-links';
 import { GridScreen } from '@/features/grid/grid-screen';
+import { usePrefetchProduct } from '@/features/product/use-prefetch-product';
 import { useRowCursor } from '@/features/shell/use-row-cursor';
 import { exploreRowAttribute } from './explore-cells';
 import { exploreColumns, exploreSortDescriptor, exploreSortForColumn } from './explore-columns';
@@ -31,7 +32,8 @@ import { useExploreProducts } from './use-explore-products';
  * its column groups, and one flat ranked page of `product.search` with a
  * pager. Filters, sort and page live in the URL. A click or ⏎ opens the
  * Product page; j/k move the row cursor, `a` opens Amazon, right-click opens
- * the row menu (open, Amazon, copy ASIN, filter to niche or brand).
+ * the row menu (open, Amazon, copy ASIN, filter to niche or brand). A row the
+ * pointer or cursor rests on prefetches its Product page.
  */
 export const ExplorePage = () => {
     const navigate = useNavigate();
@@ -75,13 +77,33 @@ export const ExplorePage = () => {
         },
         [rows]
     );
+    const prefetchProduct = usePrefetchProduct();
+    const prefetchRow = useCallback(
+        (asin: string) => {
+            const row = rows.find(candidate => candidate.asin === asin);
+            if (row) {
+                prefetchProduct({ asin: row.asin, marketplaceId: row.marketplaceId });
+            }
+        },
+        [prefetchProduct, rows]
+    );
+    // The j/k cursor is intent too: ⏎ opens it next.
+    const selectRow = useCallback(
+        (asin: string | null) => {
+            setCursorAsin(asin);
+            if (asin) {
+                prefetchRow(asin);
+            }
+        },
+        [prefetchRow]
+    );
     const keys = useMemo(() => ({ a: openAmazon }), [openAmazon]);
     useRowCursor({
         attribute: exploreRowAttribute,
         ids,
         keys,
         onOpen: open,
-        onSelect: setCursorAsin,
+        onSelect: selectRow,
         selectedId: cursor,
     });
 
@@ -112,7 +134,7 @@ export const ExplorePage = () => {
                 onFilter={handleFilter}
                 rows={rows}
             >
-                <GridRowLinks hrefOf={hrefOf}>
+                <GridRowLinks hrefOf={hrefOf} onRowIntent={prefetchRow}>
                     <DataGrid
                         aria-label="Ranked designs"
                         className="hairline-grid hairline-grid--fixed hairline-grid--fill"
