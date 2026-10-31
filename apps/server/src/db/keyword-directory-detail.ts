@@ -11,11 +11,23 @@ const DAY_MS = 86_400_000;
 
 /**
  * Research detail columns for directory rows, as correlated subqueries over `queryId`: the top-ten
- * Merch shelf in page-one order with each Product's stored short name, the dominant facet, and
- * score history from keyword_standing_observations. The page read selects them for its returned
- * rows only, so detail costs no extra round trip; `withKeywordDetail` shapes them.
+ * Merch shelf, the dominant facet, and score history from keyword_standing_observations. The page
+ * read selects them for its returned rows only, so detail costs no extra round trip;
+ * `withKeywordDetail` shapes them.
  */
 export const keywordDetailColumns = (queryId: SQL, asOf: string) => sql`
+    ${keywordShelfColumns(queryId, asOf)},
+    (select to_jsonb(f) from (${dominantFacetQuery(queryId)}) f) "detailFacet",
+    (select o.popularity_score from keyword_standing_observations o
+        where o.query_id=${queryId} and o.observed_at<=${asOf}::timestamp-interval '7 days'
+        order by o.observed_at desc limit 1) "detailScore7d"`;
+
+/**
+ * The shelf and weekly score trend alone, for reads that list a keyword without its facet or
+ * seven-day change (a Product's keywords): the top-ten Merch shelf in page-one order with each
+ * Product's stored short name, and twelve weekly scores. `withShelfDetail` shapes them.
+ */
+export const keywordShelfColumns = (queryId: SQL, asOf: string) => sql`
     coalesce((select jsonb_agg(s order by s.ord) from (
         select h.ord,pr.marketplace_id "marketplaceId",pr.asin,pr.title,
             pr.root_category_bsr "salesRank",pr.thumbnail_url "thumbnailUrl",
@@ -28,10 +40,6 @@ export const keywordDetailColumns = (queryId: SQL, asOf: string) => sql`
         where t.query_id=${queryId} and t.kind='keyword'
             and pr.is_merch_listing=true and pr.amazon_listing_status='active'
         order by h.ord limit ${KEYWORD_SHELF_SIZE}) s),'[]'::jsonb) "detailShelf",
-    (select to_jsonb(f) from (${dominantFacetQuery(queryId)}) f) "detailFacet",
-    (select o.popularity_score from keyword_standing_observations o
-        where o.query_id=${queryId} and o.observed_at<=${asOf}::timestamp-interval '7 days'
-        order by o.observed_at desc limit 1) "detailScore7d",
     coalesce((select jsonb_agg(jsonb_build_array(w.back,o.popularity_score) order by w.back desc)
         from generate_series(${SCORE_TREND_WEEKS - 1}::int,0,-1) w(back)
         cross join lateral (select popularity_score from keyword_standing_observations
@@ -39,14 +47,29 @@ export const keywordDetailColumns = (queryId: SQL, asOf: string) => sql`
             order by observed_at desc limit 1) o),'[]'::jsonb) "detailTrend"`;
 
 /**
- * Shapes `keywordDetailColumns` for one row: the shelf with current short names, its median BSR
- * and fresh count, the dominant facet, the seven-day score change and the weekly trend.
+ * Shapes `keywordDetailColumns` for one row: the shelf detail (`withShelfDetail`), the dominant
+ * facet and the seven-day score change.
  */
 export const withKeywordDetail = <T extends DetailColumns & { score: number | null }>(
     row: T,
     asOf: string
 ) => {
-    const { detailShelf, detailFacet, detailScore7d, detailTrend, ...item } = row;
+    const { detailFacet, detailScore7d, ...rest } = row;
+    const item = withShelfDetail(rest, asOf);
+    return {
+        ...item,
+        facet: detailFacet,
+        scoreDelta7d:
+            item.score === null || detailScore7d === null ? null : item.score - detailScore7d,
+    };
+};
+
+/**
+ * Shapes `keywordShelfColumns` for one row: the shelf with current short names, its median BSR
+ * and fresh count, and the weekly trend.
+ */
+export const withShelfDetail = <T extends ShelfColumns>(row: T, asOf: string) => {
+    const { detailShelf, detailTrend, ...item } = row;
     const asOfMs = new Date(asOf).getTime();
     const freshAfter = asOfMs - KEYWORD_FRESH_DAYS * DAY_MS;
     const shelf = detailShelf.map(product => ({
@@ -66,9 +89,6 @@ export const withKeywordDetail = <T extends DetailColumns & { score: number | nu
                 product.firstAvailableAt &&
                 new Date(product.firstAvailableAt).getTime() >= freshAfter
         ).length,
-        facet: detailFacet,
-        scoreDelta7d:
-            item.score === null || detailScore7d === null ? null : item.score - detailScore7d,
         scoreTrend12w: detailTrend.flatMap(([back, score]) =>
             score === null
                 ? []
@@ -77,11 +97,14 @@ export const withKeywordDetail = <T extends DetailColumns & { score: number | nu
     };
 };
 
-export type DetailColumns = {
+export type ShelfColumns = {
     detailShelf: ShelfRow[];
+    detailTrend: [number, number | null][];
+};
+
+export type DetailColumns = ShelfColumns & {
     detailFacet: { facet: string; name: string } | null;
     detailScore7d: number | null;
-    detailTrend: [number, number | null][];
 };
 
 interface ShelfRow {

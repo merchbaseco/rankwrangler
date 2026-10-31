@@ -11,8 +11,10 @@ import {
     catalogQueries,
     catalogSearchResults,
     catalogSearchRuns,
+    discoveryTargets,
     keywordProducts,
     operations,
+    productAsinAliases,
     productShortNames,
     products,
 } from '@/db/schema';
@@ -117,7 +119,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('dashboard Product 
 
     it('lists keywords by latest organic placement with page-one totals', async () => {
         const product = await insertProduct('B0APP00031');
-        const other = await insertProduct('B0APP00032');
+        const other = await insertProduct('B0APP00032', { rootCategoryBsr: 9_000 });
         const placed = await insertQuery('fishing grandpa');
         const unplaced = await insertQuery('grandpa gifts');
         const dropped = await insertQuery('retro fishing');
@@ -132,16 +134,49 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('dashboard Product 
         await insertRun(placed, now.getTime() - DAY, [other, product]);
         await insertRun(dropped, now.getTime() - 3 * DAY, [product]);
         await insertRun(dropped, now.getTime() - DAY, [other]);
-        const result = await listProductKeywords({ marketplaceId: market, asin: 'B0APP00031' });
+        await db.insert(discoveryTargets).values({
+            queryId: placed,
+            kind: 'keyword',
+            tracking: 'tracked',
+            standingTier: 'hot',
+            popularityScore: 91,
+            headProductIds: [other, product],
+        });
+        const result = await listProductKeywords(
+            { marketplaceId: market, asin: 'B0APP00031' },
+            now.toISOString()
+        );
         expect(result.totals).toEqual({ keywords: 3, pageOne: 1 });
         expect(result.keywords[0]).toMatchObject({
             keyword: 'fishing grandpa',
             position: 2,
             page: 1,
-            tier: 'unrated',
+            score: 91,
+            tier: 'hot',
             lastObservedAt: now.toISOString(),
+            medianBsr: 7_000,
+            freshCount: 0,
+            scoreTrend12w: [],
         });
+        expect(result.keywords[0]?.shelf.map(entry => entry.asin)).toEqual([
+            'B0APP00032',
+            'B0APP00031',
+        ]);
         expect(result.keywords.slice(1).map(row => row.position)).toEqual([null, null]);
+        expect(result.keywords.slice(1).map(row => row.shelf)).toEqual([[], []]);
+
+        // A variant ASIN reads its family's keywords, resolved inside the statement.
+        await db
+            .insert(productAsinAliases)
+            .values({ marketplaceId: market, asin: 'B0APPVAR01', productId: product });
+        const variant = await listProductKeywords(
+            { marketplaceId: market, asin: 'B0APPVAR01' },
+            now.toISOString()
+        );
+        expect(variant.totals).toEqual(result.totals);
+        expect(
+            (await listProductKeywords({ marketplaceId: market, asin: 'B0APPNONE0' })).totals
+        ).toEqual({ keywords: 0, pageOne: 0 });
     });
 
     it('summarizes catalog and keyword totals', async () => {

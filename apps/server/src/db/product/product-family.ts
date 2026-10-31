@@ -48,6 +48,17 @@ export const resolveFamilyIdentities = async <T extends Identity>(
 };
 
 /**
+ * The stored family's Product id for one identity, as a scalar subquery: the aliased family when the
+ * ASIN is a known variant, else the Product stored under the ASIN (null when there is none). Lets a
+ * read resolve the family in its own statement instead of a `resolveFamilyIdentities` round trip.
+ */
+export const familyProductId = (identity: Identity) => sql`coalesce(
+    (select a.product_id from product_asin_aliases a
+        where a.marketplace_id=${identity.marketplaceId} and a.asin=${identity.asin}),
+    (select p.id from products p
+        where p.marketplace_id=${identity.marketplaceId} and p.asin=${identity.asin}))`;
+
+/**
  * Folds a variant observation into its family before the family row is written. A stored row for
  * the variant (from before variations were known) becomes the family row, or merges into it when
  * both exist; the variant is recorded as an alias. Returns the family ASIN to write under.
