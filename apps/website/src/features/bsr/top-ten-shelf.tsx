@@ -31,12 +31,15 @@ export const shelfProductName = (product: ShelfProduct) =>
  */
 export const TopTenShelf = ({
     className,
+    highlightAsin,
     keyword,
     shelf,
     size = 'sm',
 }: {
     /** Layout only (width, margins). Blocks share the width evenly. */
     className?: string;
+    /** Rings this product's block (the Product page marks its own design on each shelf). */
+    highlightAsin?: string;
     /** The search the shelf belongs to, for the accessible name. */
     keyword: string;
     shelf: readonly ShelfProduct[];
@@ -52,7 +55,13 @@ export const TopTenShelf = ({
 
     return (
         <CursorTooltip
-            content={<ShelfTooltip placement={hovered + 1} product={hoveredProduct} />}
+            content={
+                <ShelfTooltip
+                    isHighlighted={hoveredProduct !== null && hoveredProduct.asin === highlightAsin}
+                    placement={hovered + 1}
+                    product={hoveredProduct}
+                />
+            }
             triggerClassName={cn('flex', shelfWidth[size], className)}
         >
             <ul
@@ -71,7 +80,8 @@ export const TopTenShelf = ({
                                 aria-label={`#${index + 1} ${shelfProductName(product)}, ${formatBsr(product.salesRank)}`}
                                 className={cn(
                                     tierClassName(classifyBsr(product.salesRank)),
-                                    'flex-1 rounded-swatch bg-tier-sw'
+                                    'flex-1 rounded-swatch bg-tier-sw',
+                                    product.asin === highlightAsin && 'top-ten-shelf__mine'
                                 )}
                                 onPointerDown={keepFromRowPress}
                                 // Slots are hover targets in a dense table; keyboard users open
@@ -93,9 +103,11 @@ export const TopTenShelf = ({
 };
 
 const ShelfTooltip = ({
+    isHighlighted,
     placement,
     product,
 }: {
+    isHighlighted: boolean;
     placement: number;
     product: ShelfProduct | null;
 }) => {
@@ -107,7 +119,7 @@ const ShelfTooltip = ({
         <span className={cn('flex flex-col', tierClassName(tier.key))}>
             <span>
                 <span className="font-mono text-muted">#{placement}</span>{' '}
-                {shelfProductName(product)}
+                {isHighlighted ? 'This design' : shelfProductName(product)}
             </span>
             <span>
                 <span className="font-mono font-semibold text-tier-fg">

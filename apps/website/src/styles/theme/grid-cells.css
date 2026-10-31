@@ -271,4 +271,19 @@
     .grid-col--status {
         width: var(--col-status);
     }
+
+    .grid-col--placement {
+        width: var(--col-placement);
+    }
+
+    .grid-col--seen {
+        width: var(--col-seen);
+    }
+
+    /* The Product page's own design on a Top 10 shelf: its block ringed in ink off the cell. */
+    .top-ten-shelf__mine {
+        box-shadow:
+            0 0 0 1.5px var(--content),
+            0 0 0 3px var(--foreground);
+    }
 }

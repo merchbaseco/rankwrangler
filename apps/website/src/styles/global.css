@@ -8,6 +8,7 @@
 @import "./theme/overrides.css";
 @import "./theme/grid-overrides.css";
 @import "./theme/product.css";
+@import "./theme/product-screen.css";
 @import "./theme/art.css";
 @import "./theme/shell.css";
 @import "./theme/grid.css";

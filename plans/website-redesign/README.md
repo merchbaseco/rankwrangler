@@ -30,6 +30,13 @@ place of the mock's F-keys, live status cells, theme, account) and is laid out a
 of 24px rows in 13px Geist Mono, with Onest kept for product names. `explore.dc.html`, `keywords.dc.html` and `product.dc.html` remain
 as the record of the card-table direction; the two `*-terminal` mocks are the current target.
 
+## Product page (October 30, 2026)
+
+Three Product page directions in the Grid language sit on the private canvas
+<https://claude.ai/artifact/JQpVfaE8Af4g2ojFwxPFkP>: A · Dossier (the product sidebar beside banded
+KPIs, a tier-halftone rank chart and the Keywords grid), B · Header strip, and C · Grid-first. A was
+chosen and built.
+
 ## Competitive research
 
 Flying Research is the broadest tool: best-seller search, niche scores, live niche pulls,

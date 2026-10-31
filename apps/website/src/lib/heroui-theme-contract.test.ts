@@ -19,6 +19,7 @@ const ruleFiles = [
     'overrides.css',
     'grid-overrides.css',
     'product.css',
+    'product-screen.css',
     'art.css',
     'shell.css',
     'grid.css',

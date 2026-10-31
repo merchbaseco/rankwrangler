@@ -99,7 +99,8 @@ export const MIN_BAND_LABEL_PX = 14;
 
 /**
  * X-axis ticks for a time span: weekly for a month or less, otherwise the
- * first of each month, thinned so at most 13 labels fit.
+ * first of each month, thinned on the calendar (every 2, 3, 6 or 12 months
+ * counted from January) so at most 13 labels fit and January always stays.
  */
 export const timeTicks = (start: number, end: number): number[] => {
     if (!(end > start)) {
@@ -121,9 +122,12 @@ export const timeTicks = (start: number, end: number): number[] => {
         months.push(cursor.getTime());
         cursor.setUTCMonth(cursor.getUTCMonth() + 1);
     }
-    const step = Math.ceil(months.length / 13);
-    return months.filter((_, index) => index % step === 0);
+    const needed = Math.ceil(months.length / 13);
+    const step = monthSteps.find(candidate => candidate >= needed) ?? 12 * Math.ceil(needed / 12);
+    return months.filter(month => new Date(month).getUTCMonth() % step === 0);
 };
+
+const monthSteps = [1, 2, 3, 6, 12] as const;
 
 /** `Oct` for a month tick, `Oct 3` for a weekly one. */
 export const formatTimeTick = (value: number, spanMs: number) =>

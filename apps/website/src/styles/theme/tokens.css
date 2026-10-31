@@ -8,6 +8,7 @@
  *   theme/overrides.css  BEM overrides of HeroUI parts a token cannot express
  *   theme/grid-overrides.css  the same for the Grid direction's DataGrid, KPIs, pager, sidebar
  *   theme/product.css    product structural classes (panes, rows, tier scopes)
+ *   theme/product-screen.css  the Product screen: sidebar, main column sections, rank chart
  *   theme/art.css        design art at every size and its hover preview
  *   theme/shell.css      the page background, the page shell and the banner's marks
  *   theme/grid.css       the Grid direction's sidebar, grid card, status bar, KPI spans
@@ -99,7 +100,6 @@
     --pane-row-height: 1.5rem;
     --key-value-height: 1.4375rem;
     --pane-width-log: 26.25rem;
-    --pane-width-product: 25rem;
     /* The 10px inset pane bars and bodies share. */
     --pane-inset: 0.625rem;
     /* Design art: a 20px row thumb, the detail size, the Product page's hero. */
@@ -128,6 +128,10 @@
     --banner-height: 3.375rem;
     --banner-search-width: 27.5rem;
     --sidebar-width: 14.75rem;
+    /* The Product page's sidebar: the filter column plus room for its art and listing asides. */
+    --sidebar-width-product: 17.5rem;
+    /* The Product rank chart's drawing (rank-history-widget.tsx draws at the same 320px). */
+    --rank-chart-height: 20rem;
     --kpi-band-height: 3.875rem;
     --pager-height: 2.875rem;
     /* The 12px cell gutter every grid cell, KPI cell and sidebar row shares. */
@@ -154,12 +158,12 @@
     --col-new: 5.3125rem;
     --col-merch: 5.3125rem;
     --col-status: 10rem;
+    /* The Product keywords grid's own columns: where this design placed, and when. */
+    --col-placement: 6.5rem;
+    --col-seen: 4.5rem;
 
     /* The hover preview's full design (user feedback: the print is what sells). */
     --art-preview-size: 15rem;
-    /* The Product rank chart's frame. */
-    --chart-height: 8rem;
-
     /*
      * Desktop cursor convention: controls keep the arrow and only hyperlinks
      * (and grid rows that open something) get the pointer. HeroUI routes every interactive cursor through this
@@ -232,6 +236,7 @@
         --col-shelf: 0px;
         --col-merch: 0px;
         --col-status: 0px;
+        --col-seen: 0px;
         --col-rank: 2.5rem;
         --col-bsr: 6.5rem;
         --col-score: 4.75rem;

@@ -27,29 +27,14 @@
         line-height: 1.5;
     }
 
-    /* Product and Logs: a flexing main pane beside a fixed side pane. */
-    .term-pane:is(.log-table, .product-main) {
+    /* Logs: a flexing main pane beside the fixed event pane. */
+    .term-pane.log-table {
         flex: 1 1 0;
     }
 
-    /* Side panes keep their width while the main pane flexes. */
-    .term-pane:is(.log-detail, .product-rail) {
-        flex-shrink: 0;
-    }
-
-    /* The event pane. */
     .term-pane.log-detail {
+        flex-shrink: 0;
         width: var(--pane-width-log);
-    }
-
-    /* The Product rail. */
-    .term-pane.product-rail {
-        width: var(--pane-width-product);
-    }
-
-    /* Stacked sections in a pane are ruled apart. */
-    .pane-section + .pane-section {
-        border-top: 1px solid var(--border);
     }
 
     /* Below 80rem the banner sheds the unbuilt views and grids their low-priority columns. */
@@ -76,19 +61,27 @@
             flex: 1 1 0;
         }
 
-        /* Stacked, the Product art stops filling the full window width. */
-        .product-thumb--hero {
-            width: min(100%, var(--thumb-hero-max));
-        }
-
-        /* The Product page scrolls as one column: its panes take their natural height, so the
-         * rail, figures, history and lists never overlap or clip one another. */
-        .term-panes:has(> .product-rail) {
+        /* The Product sidebar stacks over the main column and the page scrolls as one. */
+        .product-screen {
+            flex-direction: column;
             overflow-y: auto;
         }
 
-        .term-panes:has(> .product-rail) > .term-pane {
+        .product-screen > .product-sidebar {
+            width: auto;
+            overflow: visible;
+            border-right: 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .product-screen > .product-main {
             flex: none;
+            overflow: visible;
+        }
+
+        /* Stacked, the Product art stops filling the full window width. */
+        .product-thumb--hero {
+            width: min(100%, var(--thumb-hero-max));
         }
     }
 
@@ -119,6 +112,11 @@
 
         /* The density toggle and page size go; the pager keeps the range and page turns. */
         .grid-pager__end {
+            display: none;
+        }
+
+        /* The shelf column has gone, so its key in the Product lists' bar goes with it. */
+        .product-lists__key {
             display: none;
         }
 

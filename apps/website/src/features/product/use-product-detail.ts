@@ -13,10 +13,7 @@ type ProductRead = RouterOutputs['api']['app']['product']['get'];
  * after a realtime reconnect in case that event was missed.
  */
 export const useProductDetail = ({ asin, marketplaceId }: ProductIdentity) => {
-    const input = useMemo(
-        () => ({ asin, includeProvenance: false, marketplaceId, refresh: false }),
-        [asin, marketplaceId]
-    );
+    const input = useMemo(() => productDetailInput({ asin, marketplaceId }), [asin, marketplaceId]);
     const query = api.api.app.product.get.useQuery(input, {
         refetchOnWindowFocus: false,
         staleTime: 30_000,
@@ -47,6 +44,14 @@ export const useProductDetail = ({ asin, marketplaceId }: ProductIdentity) => {
         product: read?.product ? { ...read.product, ...pageDetail(read) } : null,
     };
 };
+
+/** The page's `product.get` input; prefetching builds the same key. */
+export const productDetailInput = ({ asin, marketplaceId }: ProductIdentity) => ({
+    asin,
+    includeProvenance: false,
+    marketplaceId,
+    refresh: false,
+});
 
 export type ProductPageDetail = ProductDetail & ReturnType<typeof pageDetail>;
 

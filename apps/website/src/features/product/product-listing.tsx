@@ -1,37 +1,46 @@
-import { Button, Link, Tooltip } from '@heroui/react';
+import { Button, Tooltip } from '@heroui/react';
 import { Copy01Icon } from '@hugeicons-pro/core-stroke-rounded';
 import type { ReactNode } from 'react';
 import { Icon } from '@/components/ui/icon';
-import { daysSince, formatCount, formatPrice } from '@/features/bsr/bsr-format';
+import { daysSince, formatPrice } from '@/features/bsr/bsr-format';
 import { KeyValue } from '@/features/shell/term-pane';
 import type { ProductPageDetail } from './use-product-detail';
 
 /**
  * The listing's properties as ruled key/value rows: value with a muted aside.
- * Rows with nothing stored are left out; Type and Trademark from the product
- * mock have no data source yet.
+ * Every row always renders, an em dash standing in for a value not stored or
+ * not loaded yet, so the sidebar keeps its height while the product loads; a
+ * row remounts when its value lands rather than sliding its right-aligned
+ * figure across.
+ * The brand sits under the name. Type and Trademark from the product mock
+ * have no data source yet.
  */
 export const ProductListing = ({
+    asin,
     priceTrend,
     product,
 }: {
-    priceTrend: string | null;
-    product: ProductPageDetail;
+    /** Known from the URL before the product loads. */
+    asin: string;
+    priceTrend: { isLoading: boolean; label: string | null };
+    product: ProductPageDetail | null;
 }) => {
-    const age = daysSince(product.dateFirstAvailable);
-    const price = formatPrice(product.keepa?.currentNewPrice);
+    const published = product?.dateFirstAvailable ?? null;
+    const age = daysSince(published);
+    const price = formatPrice(product?.keepa?.currentNewPrice);
+    const category = product?.rootCategoryDisplayName ?? null;
 
     return (
         <dl className="key-values">
             <Property label="ASIN">
                 <span className="font-mono" data-selectable-text>
-                    {product.asin}
+                    {asin}
                 </span>
                 <Tooltip>
                     <Button
                         aria-label="Copy ASIN"
                         isIconOnly
-                        onPress={() => copyText(product.asin)}
+                        onPress={() => copyText(asin)}
                         size="sm"
                         variant="ghost"
                     >
@@ -40,39 +49,38 @@ export const ProductListing = ({
                     <Tooltip.Content>Copy ASIN</Tooltip.Content>
                 </Tooltip>
             </Property>
-            {product.brand ? (
-                <Property label="Brand">
-                    <Link href={`/explore?${new URLSearchParams({ brand: product.brand })}`}>
-                        <span data-selectable-text>{product.brand}</span>
-                    </Link>
-                    {product.brandDesignCount ? (
-                        <Aside>
-                            {formatCount(product.brandDesignCount)}{' '}
-                            {product.brandDesignCount === 1 ? 'design' : 'designs'}
-                        </Aside>
-                    ) : null}
-                </Property>
-            ) : null}
-            {product.dateFirstAvailable ? (
-                <Property label="Published">
-                    <span className="font-mono">{formatLongDate(product.dateFirstAvailable)}</span>
-                    {age === null ? null : <Aside mono>{age}d</Aside>}
-                </Property>
-            ) : null}
-            {price ? (
-                <Property label="Price">
-                    <span className="font-mono">{price}</span>
-                    {priceTrend ? <Aside mono>{priceTrend}</Aside> : null}
-                </Property>
-            ) : null}
-            {product.rootCategoryDisplayName ? (
-                <Property label="Category">
-                    <span className="truncate">{product.rootCategoryDisplayName}</span>
-                </Property>
-            ) : null}
+            <Property key={published ? 'published' : 'published-pending'} label="Published">
+                {published ? (
+                    <>
+                        <span className="font-mono">{formatLongDate(published)}</span>
+                        {age === null ? null : <Aside mono>{age}d</Aside>}
+                    </>
+                ) : (
+                    <Missing />
+                )}
+            </Property>
+            <Property
+                key={price && !priceTrend.isLoading ? 'price' : 'price-pending'}
+                label="Price"
+            >
+                {/* Price and its trend land together, so the right-aligned value never slides. */}
+                {price && !priceTrend.isLoading ? (
+                    <>
+                        <span className="font-mono">{price}</span>
+                        {priceTrend.label ? <Aside mono>{priceTrend.label}</Aside> : null}
+                    </>
+                ) : (
+                    <Missing />
+                )}
+            </Property>
+            <Property key={category ? 'category' : 'category-pending'} label="Category">
+                {category ? <span className="truncate">{category}</span> : <Missing />}
+            </Property>
         </dl>
     );
 };
+
+const Missing = () => <span className="text-muted">—</span>;
 
 const Property = ({ children, label }: { children: ReactNode; label: string }) => (
     <KeyValue label={label}>

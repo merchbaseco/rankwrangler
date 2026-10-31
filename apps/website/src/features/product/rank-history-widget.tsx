@@ -3,7 +3,6 @@ import { EmptyState, Segment } from '@heroui-pro/react';
 import { ChartLineData01Icon } from '@hugeicons-pro/core-stroke-rounded';
 import { Icon } from '@/components/ui/icon';
 import type { RankPoint } from '@/features/bsr/sparkline-geometry';
-import { PaneBar, PaneBarSpacer } from '@/features/shell/term-pane';
 import {
     type HistoryRange,
     historyRangeLabels,
@@ -11,13 +10,14 @@ import {
     isHistoryRange,
 } from './rank-history-axis';
 import { RankHistoryChart } from './rank-history-chart';
+import { ProductSection } from './product-section';
 
 /**
- * The rank history section of the Product pane: a pane bar with the category
- * the rank is measured in, Keepa sync status and the 30D/90D/1Y/ALL range,
- * over the chart. While
- * Keepa is still collecting a product that has no stored history the chart
- * area says so instead of claiming there is none.
+ * The rank history section of the Product page: a section bar with the
+ * category the rank is measured in, Keepa sync status and the 30d/90d/1y/All
+ * range, over the halftone chart. The chart area keeps one height while the
+ * history loads, while Keepa is still collecting a product with none stored
+ * (it says so instead of claiming there is none), and once it draws.
  */
 export const RankHistoryWidget = ({
     category,
@@ -36,11 +36,8 @@ export const RankHistoryWidget = ({
     series: readonly RankPoint[];
     syncError: string | null;
 }) => (
-    <section aria-label="Rank history" className="pane-section">
-        <PaneBar title="Rank history">
-            {category ? <span className="truncate">{category}</span> : null}
-            <SyncStatus error={syncError} isSyncing={isSyncing} />
-            <PaneBarSpacer />
+    <ProductSection
+        actions={
             <Segment
                 aria-label="History range"
                 onSelectionChange={key => {
@@ -57,11 +54,19 @@ export const RankHistoryWidget = ({
                     </Segment.Item>
                 ))}
             </Segment>
-        </PaneBar>
-        <div className="pane-section__body">
+        }
+        context={
+            <>
+                {category ? <span className="truncate">{category}</span> : null}
+                <SyncStatus error={syncError} isSyncing={isSyncing} />
+            </>
+        }
+        title="Rank history"
+    >
+        <div className="rank-chart-frame">
             <ChartBody isLoading={isLoading} isSyncing={isSyncing} series={series} />
         </div>
-    </section>
+    </ProductSection>
 );
 
 const ChartBody = ({
@@ -74,10 +79,10 @@ const ChartBody = ({
     series: readonly RankPoint[];
 }) => {
     if (isLoading) {
-        return <Skeleton className="h-[20rem] w-full rounded-none" />;
+        return <Skeleton className="h-full w-full rounded-none" />;
     }
     if (series.length >= 2) {
-        return <RankHistoryChart height={320} series={series} />;
+        return <RankHistoryChart height={CHART_HEIGHT} series={series} />;
     }
     return (
         <EmptyState size="sm">
@@ -97,6 +102,9 @@ const ChartBody = ({
         </EmptyState>
     );
 };
+
+/** The chart's drawing height in px: `--rank-chart-height`, which the frame holds in every state. */
+const CHART_HEIGHT = 320;
 
 const SyncStatus = ({ error, isSyncing }: { error: string | null; isSyncing: boolean }) => {
     if (isSyncing) {

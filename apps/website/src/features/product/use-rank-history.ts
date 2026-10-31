@@ -18,7 +18,7 @@ export const useRankHistory = (identity: ProductIdentity, range: HistoryRange) =
         return days === null ? undefined : new Date(Date.now() - days * 86_400_000).toISOString();
     }, [range]);
     const query = api.api.app.getProductHistory.useQuery(
-        { ...identity, limit: 5000, metric: 'bsrMain', refresh: 'none', startAt },
+        rankHistoryInput(identity, startAt),
         { placeholderData: previous => previous, refetchOnWindowFocus: false, staleTime: 30_000 }
     );
 
@@ -42,3 +42,16 @@ export const useRankHistory = (identity: ProductIdentity, range: HistoryRange) =
         series,
     };
 };
+
+/**
+ * The chart's history input for a window start (none is everything);
+ * prefetching builds the same key.
+ */
+export const rankHistoryInput = ({ asin, marketplaceId }: ProductIdentity, startAt?: string) => ({
+    asin,
+    limit: 5000,
+    marketplaceId,
+    metric: 'bsrMain' as const,
+    refresh: 'none' as const,
+    startAt,
+});

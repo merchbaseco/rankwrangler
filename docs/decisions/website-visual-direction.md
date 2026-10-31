@@ -29,6 +29,11 @@ row marks; see the redesign plan).
   groups (a figure over a dot-matrix band), a flat ranked hairline grid, and a pager
   ("1–50 of N · Page x of y · Rows 50"). A row click or ⏎ opens the product (or Explore's results
   for a keyword); there is no side detail pane.
+- **Product page in the same frame** (mock A · Dossier; see the redesign plan): a product
+  sidebar where the filters sit (art, name, brand, actions, listing, niche rows that open Explore),
+  then one scrolling column of the KPI header with its bands, the rank history as a halftone whose
+  dots take the ink of the tier band they reach, and the keywords grid in the Keywords columns with
+  this design's block ringed on each Top 10 shelf.
 - **Density.** Comfortable rows are 56px with 40px art (Grid J); compact keeps the 24px line.
   14px body, 13px secondary, 15px names, 16px BSR figures, 20px KPI figures.
 - **Two faces.** Onest for the UI and names; Geist Mono for every figure. No display face.

@@ -37,7 +37,11 @@ export const KeywordCell = ({ row }: { row: KeywordRow }) => (
  * the Brand Analytics search frequency rank when Amazon ranks the term; an
  * unscored trial shows that rank in place of the score.
  */
-export const ScoreCell = ({ row }: { row: KeywordRow }) => {
+export const ScoreCell = ({
+    row,
+}: {
+    row: Pick<KeywordRow, 'heat' | 'score' | 'searchFrequencyRank'>;
+}) => {
     const rank =
         row.searchFrequencyRank === null
             ? null
@@ -85,7 +89,7 @@ export const ScoreCell = ({ row }: { row: KeywordRow }) => {
 };
 
 /** Twelve weeks of score as halftone dot columns, at the density's size. */
-export const WeeksCell = ({ row }: { row: KeywordRow }) => {
+export const WeeksCell = ({ row }: { row: Pick<KeywordRow, 'scoreTrend12w'> }) => {
     const { density } = useDensity();
     return density === 'compact' ? (
         <WeekDots height={16} series={row.scoreTrend12w} width={64} />

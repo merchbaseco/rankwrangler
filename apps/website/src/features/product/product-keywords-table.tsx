@@ -1,120 +1,169 @@
-import { Link, Skeleton } from '@heroui/react';
+import { Spinner, useMediaQuery } from '@heroui/react';
 import { DataGrid, type DataGridColumn, EmptyState } from '@heroui-pro/react';
 import { Search01Icon } from '@hugeicons-pro/core-stroke-rounded';
+import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CursorTooltip } from '@/components/ui/cursor-tooltip';
 import { Icon } from '@/components/ui/icon';
-import { formatCount } from '@/features/bsr/bsr-format';
-import { tierClassName } from '@/features/bsr/bsr-tier';
-import { PaneBar } from '@/features/shell/term-pane';
-import { cn } from '@/lib/utils';
+import { TopTenShelf } from '@/features/bsr/top-ten-shelf';
+import { gridColumn } from '@/features/grid/grid-column';
+import { GridRowLinks } from '@/features/grid/grid-row-links';
+import { FreshCell, MedianBsrCell, ScoreCell, WeeksCell } from '@/features/keywords/keyword-cells';
 import { KeywordRowMenu, keywordRowAttribute } from './keyword-row-menu';
 import { formatAgo } from './product-format';
-import { keywordHref } from './product-keyword-links';
+import { exploreKeywordHref } from './product-keyword-links';
 import type { ProductKeyword } from './use-product-keywords';
 
 /**
- * Keywords whose mined search pages showed this product, as a section of the
- * Product pane over a hairline grid: where it placed, the keyword's standing score and heat, and when it
- * was last seen. The mock's "Search rank" column is replaced by the standing
- * score; Brand Analytics search frequency is retired. Right-click a row for
- * quick navigation.
+ * Keywords whose mined search pages showed this product, in the Keywords
+ * screen's grid (Grid I): standing score and heat, twelve weeks of score, the
+ * Top 10 shelf with this design's block ringed, where this design placed, the
+ * shelf's median BSR and fresh designs, and when it was last seen. A row
+ * opens Explore's results for the keyword, like the Keywords screen;
+ * right-click for the row menu. Narrow windows leave columns out of the list
+ * rather than hiding them in CSS: a hidden column still takes width while the
+ * table is empty, so the loading table would lay out apart from the loaded one.
  */
 export const ProductKeywordsTable = ({
+    asin,
     isLoading,
     keywords,
-    total,
 }: {
+    /** This product, ringed on each shelf. */
+    asin: string;
     isLoading: boolean;
     keywords: readonly ProductKeyword[];
-    total: number | null;
-}) => (
-    <section aria-label="Keywords" className="pane-section">
-        <PaneBar title="Keywords">
-            {total === null ? null : <span className="font-mono">{formatCount(total)}</span>}
-        </PaneBar>
-        {isLoading ? (
-            <Skeleton className="h-24 w-full rounded-none" />
-        ) : (
-            <KeywordRowMenu keywords={keywords}>
+}) => {
+    const navigate = useNavigate();
+    const isWide = useMediaQuery(wideQuery, { initializeWithValue: true });
+    const isPhone = useMediaQuery(phoneQuery, { initializeWithValue: true });
+    const columns = useMemo(
+        () =>
+            columnsFor(asin, keywords).filter(
+                column =>
+                    (isWide || !wideColumns.has(String(column.id))) &&
+                    !(isPhone && phoneHiddenColumns.has(String(column.id)))
+            ),
+        [asin, isPhone, isWide, keywords]
+    );
+    const hrefOf = (id: string) => {
+        const keyword = keywords.find(candidate => candidate.queryId === id);
+        return keyword ? exploreKeywordHref(keyword.keyword) : undefined;
+    };
+    return (
+        <KeywordRowMenu keywords={keywords}>
+            <GridRowLinks hrefOf={hrefOf}>
                 <DataGrid
                     aria-label="Keywords this product ranks for"
-                    // Resize mode is what applies column widths (fixed layout); no column is resizable.
-                    allowsColumnResize
-                    className="hairline-grid"
-                    variant="secondary"
+                    className="hairline-grid hairline-grid--fixed"
                     columns={columns}
                     data={[...keywords]}
                     getRowId={keyword => keyword.queryId}
-                    renderEmptyState={() => <KeywordsEmptyState />}
+                    onRowAction={key => {
+                        const href = hrefOf(String(key));
+                        if (href) {
+                            navigate(href);
+                        }
+                    }}
+                    // Loading keeps the header with a spinner where the rows go (Explore, Keywords).
+                    renderEmptyState={() =>
+                        isLoading ? <Spinner size="sm" /> : <KeywordsEmptyState />
+                    }
+                    variant="secondary"
                 />
-            </KeywordRowMenu>
-        )}
-    </section>
-);
+            </GridRowLinks>
+        </KeywordRowMenu>
+    );
+};
 
-/** Standing heat, inked with the nearest BSR tier (the Keywords screen's convention). */
-const heatTiers = { cold: 'slow', hot: 'hot', warm: 'strong' } as const;
-const heatLabels = { cold: 'Cold', hot: 'Hot', warm: 'Warm' } as const;
+/** The screens.css breakpoints the other grids drop their `wide` and `secondary` columns at. */
+const wideQuery = '(width >= 80rem)';
+const phoneQuery = '(width < 48rem)';
+const wideColumns = new Set(['weeks', 'median', 'new', 'seen']);
+const phoneHiddenColumns = new Set(['shelf']);
 
-const columns: DataGridColumn<ProductKeyword>[] = [
-    {
-        cell: keyword => (
-            <span {...{ [keywordRowAttribute]: keyword.queryId }}>
-                <Link href={keywordHref(keyword.keyword)}>
-                    <span className="font-sans font-semibold" data-selectable-text>
-                        {keyword.keyword}
-                    </span>
-                </Link>
+const columnsFor = (
+    asin: string,
+    keywords: readonly ProductKeyword[]
+): DataGridColumn<ProductKeyword>[] => [
+    gridColumn<ProductKeyword>(
+        'rank',
+        '#',
+        keyword => (
+            <span
+                className="grid-figure grid-figure--muted"
+                {...{ [keywordRowAttribute]: keyword.queryId }}
+            >
+                {keywords.indexOf(keyword) + 1}
             </span>
         ),
-        header: 'Keyword',
-        id: 'keyword',
-        allowsResizing: false,
-        isRowHeader: true,
-        minWidth: 180,
-    },
-    {
-        cell: keyword =>
-            keyword.position === null ? (
-                <span className="text-muted">—</span>
-            ) : (
-                <span>
-                    #{keyword.position}
-                    {keyword.page === null ? null : (
-                        <span className="text-muted"> p{keyword.page}</span>
-                    )}
+        { align: 'end' }
+    ),
+    gridColumn<ProductKeyword>(
+        'keyword',
+        'Keyword',
+        keyword => (
+            <CursorTooltip content={keyword.keyword} triggerClassName="flex min-w-0">
+                <span className="keyword-cell" data-selectable-text>
+                    {keyword.keyword}
                 </span>
-            ),
-        header: 'Rank',
-        id: 'position',
-        allowsResizing: false,
-        width: 88,
-    },
-    {
-        cell: keyword =>
-            keyword.score === null || keyword.tier === 'unrated' ? (
-                <span className="text-muted">Unrated</span>
-            ) : (
-                <span className="inline-flex items-center gap-1.5">
-                    <span className="font-semibold">{Math.round(keyword.score)}</span>
-                    <span className={cn('text-tier-fg', tierClassName(heatTiers[keyword.tier]))}>
-                        {heatLabels[keyword.tier]}
-                    </span>
-                </span>
-            ),
-        header: 'Score',
-        id: 'score',
-        allowsResizing: false,
-        width: 104,
-    },
-    {
+            </CursorTooltip>
+        ),
+        { isRowHeader: true }
+    ),
+    gridColumn<ProductKeyword>('score', 'Score', keyword => (
+        <ScoreCell
+            row={{ heat: keyword.tier, score: keyword.score, searchFrequencyRank: null }}
+        />
+    )),
+    gridColumn<ProductKeyword>('weeks', '12 weeks', keyword => <WeeksCell row={keyword} />),
+    gridColumn<ProductKeyword>(
+        'shelf',
+        'Top 10 shelf',
+        keyword => (
+            <TopTenShelf
+                highlightAsin={asin}
+                keyword={keyword.keyword}
+                shelf={keyword.shelf}
+                size="lg"
+            />
+        )
+    ),
+    gridColumn<ProductKeyword>('placement', 'This design', keyword => (
+        <PlacementCell keyword={keyword} />
+    )),
+    gridColumn<ProductKeyword>(
+        'median',
+        'Median BSR',
+        keyword => <MedianBsrCell medianBsr={keyword.medianBsr} />
+    ),
+    gridColumn<ProductKeyword>('new', 'New', keyword => <FreshCell value={keyword.freshCount} />, {
         align: 'end',
-        cell: keyword => <span className="text-muted">{formatAgo(keyword.lastObservedAt)}</span>,
-        header: 'Seen',
-        id: 'seen',
-        allowsResizing: false,
-        width: 72,
-    },
+    }),
+    gridColumn<ProductKeyword>(
+        'seen',
+        'Seen',
+        keyword => (
+            <span className="grid-figure grid-figure--muted">
+                {formatAgo(keyword.lastObservedAt)}
+            </span>
+        ),
+        { align: 'end' }
+    ),
 ];
+
+/** Where this design placed in the keyword's newest search, `#2 p1`; a dash when it was not seen. */
+const PlacementCell = ({ keyword }: { keyword: ProductKeyword }) =>
+    keyword.position === null ? (
+        <CursorTooltip content="Not in the newest search pages" triggerClassName="inline-flex">
+            <span className="grid-figure grid-figure--muted">—</span>
+        </CursorTooltip>
+    ) : (
+        <span className="grid-figure">
+            #{keyword.position}
+            {keyword.page === null ? null : <span className="text-muted"> p{keyword.page}</span>}
+        </span>
+    );
 
 const KeywordsEmptyState = () => (
     <EmptyState size="sm">

@@ -128,7 +128,7 @@
     }
 
     /* Over the name columns the band row is a hatch; the dot bands sit over their own columns. */
-    .grid-kpi > :is(.dot-band, .grid-kpi__hatch) {
+    .grid-kpi > :is(.dot-band, .grid-kpi__hatch, .grid-kpi__spark) {
         display: block;
         /* Bottom-aligned, so every cell's band shares one row however tall its header runs. */
         margin-top: auto;
@@ -136,6 +136,13 @@
         margin-inline: calc(var(--cell-inset) * -1);
         margin-bottom: calc(var(--cell-inset) * -1);
         border-top: 1px solid var(--border);
+    }
+
+    /* A rank halftone as a band (Product BSR): the drawing sits on the band's floor, full width. */
+    .grid-kpi__spark {
+        display: flex;
+        align-items: flex-end;
+        overflow: hidden;
     }
 
     /* The dot before a KPI title, in its band's ink (Grid J `.kdot`). */

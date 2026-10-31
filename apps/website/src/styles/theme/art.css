@@ -71,7 +71,7 @@
     }
 
     .product-thumb--detail,
-    /* The Product rail's full-width square art. */
+    /* The Product sidebar's full-width square art. */
     .product-thumb--hero {
         border-radius: var(--radius-art);
     }
@@ -82,7 +82,7 @@
         height: var(--thumb-detail-height);
     }
 
-    /* The Product rail's full-width square art. */
+    /* The Product sidebar's full-width square art. */
     .product-thumb--hero {
         width: 100%;
         height: auto;

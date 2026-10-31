@@ -8,9 +8,15 @@ const NEARBY_LIMIT = 6;
 /**
  * The best-ranked live Merch designs sharing this product's niche: one
  * `product.search` page by BSR, one extra row requested so dropping the
- * product itself still leaves a full row. Disabled until a niche is known.
+ * product itself still leaves a full row. Disabled until a niche is known and
+ * the caller wants it (the Same niche list is shown, or the page's own reads
+ * have landed), so it never competes with the page's first reads.
  */
-export const useNearbyProducts = (identity: ProductIdentity, niche: NicheFacet | null) => {
+export const useNearbyProducts = (
+    identity: ProductIdentity,
+    niche: NicheFacet | null,
+    isWanted: boolean
+) => {
     const input = useMemo(
         () => ({
             facets: niche ? [{ facet: niche.facet, name: niche.name }] : [],
@@ -21,7 +27,7 @@ export const useNearbyProducts = (identity: ProductIdentity, niche: NicheFacet |
         [identity.marketplaceId, niche]
     );
     const query = api.api.app.product.search.useQuery(input, {
-        enabled: niche !== null,
+        enabled: niche !== null && isWanted,
         refetchOnWindowFocus: false,
         staleTime: 60_000,
     });
@@ -32,5 +38,5 @@ export const useNearbyProducts = (identity: ProductIdentity, niche: NicheFacet |
                 .slice(0, NEARBY_LIMIT),
         [identity.asin, query.data]
     );
-    return { isLoading: niche !== null && query.isLoading, products };
+    return { isLoading: niche !== null && (!isWanted || query.isLoading), products };
 };
