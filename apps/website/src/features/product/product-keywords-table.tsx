@@ -1,4 +1,4 @@
-import { Spinner, useMediaQuery } from '@heroui/react';
+import { useMediaQuery } from '@heroui/react';
 import { DataGrid, type DataGridColumn, EmptyState } from '@heroui-pro/react';
 import { Search01Icon } from '@hugeicons-pro/core-stroke-rounded';
 import { useMemo } from 'react';
@@ -7,6 +7,11 @@ import { CursorTooltip } from '@/components/ui/cursor-tooltip';
 import { Icon } from '@/components/ui/icon';
 import { TopTenShelf } from '@/features/bsr/top-ten-shelf';
 import { gridColumn } from '@/features/grid/grid-column';
+import {
+    gridPlaceholderRows,
+    isGridPlaceholder,
+    withGridPlaceholders,
+} from '@/features/grid/grid-placeholders';
 import { GridRowLinks } from '@/features/grid/grid-row-links';
 import { FreshCell, MedianBsrCell, ScoreCell, WeeksCell } from '@/features/keywords/keyword-cells';
 import { KeywordRowMenu, keywordRowAttribute } from './keyword-row-menu';
@@ -20,9 +25,10 @@ import type { ProductKeyword } from './use-product-keywords';
  * Top 10 shelf with this design's block ringed, where this design placed, the
  * shelf's median BSR and fresh designs, and when it was last seen. A row
  * opens Explore's results for the keyword, like the Keywords screen;
- * right-click for the row menu. Narrow windows leave columns out of the list
- * rather than hiding them in CSS: a hidden column still takes width while the
- * table is empty, so the loading table would lay out apart from the loaded one.
+ * right-click for the row menu. While loading it draws placeholder rows, like
+ * Explore and Keywords. Narrow windows leave columns out of the list rather
+ * than hiding them in CSS, since a hidden column still takes width under an
+ * empty state: a product with no keywords keeps the loading table's columns.
  */
 export const ProductKeywordsTable = ({
     asin,
@@ -39,10 +45,12 @@ export const ProductKeywordsTable = ({
     const isPhone = useMediaQuery(phoneQuery, { initializeWithValue: true });
     const columns = useMemo(
         () =>
-            columnsFor(asin, keywords).filter(
-                column =>
-                    (isWide || !wideColumns.has(String(column.id))) &&
-                    !(isPhone && phoneHiddenColumns.has(String(column.id)))
+            withGridPlaceholders(
+                columnsFor(asin, keywords).filter(
+                    column =>
+                        (isWide || !wideColumns.has(String(column.id))) &&
+                        !(isPhone && phoneHiddenColumns.has(String(column.id)))
+                )
             ),
         [asin, isPhone, isWide, keywords]
     );
@@ -57,18 +65,15 @@ export const ProductKeywordsTable = ({
                     aria-label="Keywords this product ranks for"
                     className="hairline-grid hairline-grid--fixed"
                     columns={columns}
-                    data={[...keywords]}
-                    getRowId={keyword => keyword.queryId}
+                    data={isLoading ? gridPlaceholderRows(PLACEHOLDER_ROWS) : [...keywords]}
+                    getRowId={row => (isGridPlaceholder(row) ? row.placeholderId : row.queryId)}
                     onRowAction={key => {
                         const href = hrefOf(String(key));
                         if (href) {
                             navigate(href);
                         }
                     }}
-                    // Loading keeps the header with a spinner where the rows go (Explore, Keywords).
-                    renderEmptyState={() =>
-                        isLoading ? <Spinner size="sm" /> : <KeywordsEmptyState />
-                    }
+                    renderEmptyState={() => <KeywordsEmptyState />}
                     variant="secondary"
                 />
             </GridRowLinks>
@@ -79,6 +84,8 @@ export const ProductKeywordsTable = ({
 /** The screens.css breakpoints the other grids drop their `wide` and `secondary` columns at. */
 const wideQuery = '(width >= 80rem)';
 const phoneQuery = '(width < 48rem)';
+/** A few stand-in rows: the section is the page's last, so fewer real ones move nothing. */
+const PLACEHOLDER_ROWS = 4;
 const wideColumns = new Set(['weeks', 'median', 'new', 'seen']);
 const phoneHiddenColumns = new Set(['shelf']);
 
