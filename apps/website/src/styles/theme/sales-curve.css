@@ -1,9 +1,10 @@
 /*
  * The Sales curve on System Status (features/status/status-sales-curve.tsx): one panel ruled like
  * the Product page, KPI cells over the curve and the accuracy check. The curve
- * (sales-curve-chart.tsx) is drawn in the rank chart's idiom: an ink line over a halftone fill in
- * each tier slice's ink, dashed cuts at the tier edges, each tier named above and railed below.
- * Every colour is a token; a tier's comes from its `.tier-*` scope.
+ * (sales-curve-chart.tsx) is an ink line, solid where badges back it and dotted where it
+ * projects, over a fill that fades down from each tier slice's ink; rings mark the KPI ranks and
+ * each tier is named above and railed below. Every colour is a token; a tier's comes from its
+ * `.tier-*` scope.
  */
 
 @layer components {
@@ -79,8 +80,15 @@
         font-variant-numeric: tabular-nums;
     }
 
-    .sales-curve__fill {
-        opacity: 0.85;
+    /* Each tier slice's fill fades from its ink at the top of the plot to nothing at the axis. */
+    .sales-curve__fade-top {
+        stop-color: var(--tier-fg);
+        stop-opacity: 0.32;
+    }
+
+    .sales-curve__fade-bottom {
+        stop-color: var(--tier-fg);
+        stop-opacity: 0;
     }
 
     /* The curve in ink over its fill, like the rank chart's series. */
@@ -89,14 +97,28 @@
         stroke: var(--foreground);
         stroke-linecap: round;
         stroke-linejoin: round;
-        stroke-width: 1.25;
+        stroke-width: 1.5;
+    }
+
+    /* Past the last badged rank the curve projects: round dots, as a forecast reads. */
+    .sales-curve__line--projected {
+        stroke: var(--muted);
+        stroke-dasharray: 0 7;
+        stroke-width: 3;
+    }
+
+    /* The ranks the KPI cells report, ringed in their tier's ink. */
+    .sales-curve__marker {
+        fill: var(--surface);
+        stroke: var(--tier-fg);
+        stroke-width: 2.5;
     }
 
     /* Badge evidence in its tier's swatch, ringed in the panel so a dot reads on the line. */
     .sales-curve__evidence {
         fill: var(--tier-sw);
         stroke: var(--surface);
-        stroke-width: 2;
+        stroke-width: 2.5;
     }
 
     .sales-curve__cursor {

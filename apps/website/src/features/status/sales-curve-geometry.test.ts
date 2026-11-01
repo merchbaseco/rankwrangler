@@ -42,9 +42,15 @@ describe('sales curve geometry', () => {
         expect(phone.xTicks.map(tick => tick.label)).toEqual(['#100K', '#300K', '#1M']);
     });
 
-    test('evidence outside the rank axis is left off, and cuts mark the tier edges', () => {
+    test('evidence outside the rank axis is left off', () => {
         expect(geometry.evidence).toHaveLength(1);
         expect(geometry.evidence[0]?.tier).toBe('strong');
-        expect(geometry.cuts.match(/M/g)).toHaveLength(geometry.bands.length - 1);
+    });
+
+    test('the line is solid to the last badged rank and projects past it', () => {
+        const solidEnd = geometry.observedLine.split(' L').at(-1);
+        const projectedStart = geometry.projectedLine.slice(1).split(' L')[0];
+        expect(solidEnd).toBe(projectedStart);
+        expect(geometry.markers.map(marker => marker.tier)).toEqual(['hot', 'strong', 'steady']);
     });
 });

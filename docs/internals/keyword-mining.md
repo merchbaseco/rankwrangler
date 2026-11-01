@@ -248,8 +248,8 @@ failing it. The import job
 may run up to an hour, the time a weekly download and aggregation can take.
 
 Background keyword scans share 75% of the Catalog rate (`CATALOG_BACKGROUND_SHARE`) with the other
-background Catalog work; the rate is at most `CATALOG_MAX_RPS` (0.5 a second), so scans start about
-every 2.7 seconds. Both constants live in `sp-api-catalog-limiter.ts`; raising `CATALOG_MAX_RPS`
+background Catalog work; the rate is at most `CATALOG_MAX_RPS` (1 a second), so scans start about
+every 1.3 seconds. Both constants live in `sp-api-catalog-limiter.ts`; raising `CATALOG_MAX_RPS`
 speeds scanning with a deploy.
 
 Listed Brand Analytics trials are the main source of due scans; scans themselves run at the

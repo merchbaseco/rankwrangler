@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils';
 import { type CurveEvidence, salesCurveGeometry } from './sales-curve-geometry';
 
 /**
- * Sales a month by rank, both on log scales, drawn like the Product page's
- * rank chart: the fitted curve as an ink line over a halftone fill whose dots
- * take the ink of the tier slice they sit in, dashed cuts at the tier edges
- * with each tier named above its slice and railed below, and the typical
- * badged shirt per rank as a dot in its tier's swatch. The pointer reads any
- * rank's pace in a cursor tooltip. It measures its width and draws at that
- * pixel size.
+ * Sales a month by rank, both on log scales: the fitted curve solid where
+ * Amazon's badges back it and dotted where it projects past them, over a fill
+ * that fades down from each tier slice's ink. Rings mark the ranks the KPI
+ * cells report; each tier is named above its slice and railed below; the
+ * typical badged shirt per rank is a dot in its tier's swatch. The pointer
+ * reads any rank's pace in a cursor tooltip. It measures its width and draws
+ * at that pixel size.
  */
 export const SalesCurveChart = ({
     curve,
@@ -40,6 +40,8 @@ export const SalesCurveChart = ({
         }
     };
     const cursor = rank === null ? null : geometry?.pointAt(rank);
+    // Narrow charts pack the rank bins closer, so the badge dots and rings shrink to stay apart.
+    const isNarrow = width < NARROW_WIDTH;
     return (
         <div className="sales-curve" ref={ref}>
             {geometry ? (
@@ -58,16 +60,19 @@ export const SalesCurveChart = ({
                     >
                         <defs>
                             {geometry.bands.map(band => (
-                                <pattern
+                                <linearGradient
                                     className={tierClassName(band.tier)}
-                                    height={3}
-                                    id={`${id}-dots-${band.tier}`}
+                                    gradientUnits="userSpaceOnUse"
+                                    id={`${id}-fade-${band.tier}`}
                                     key={band.tier}
-                                    patternUnits="userSpaceOnUse"
-                                    width={3}
+                                    x1={0}
+                                    x2={0}
+                                    y1={geometry.plot.top}
+                                    y2={geometry.plot.bottom}
                                 >
-                                    <circle className="halftone-spark__dot" cx={1.5} cy={1.5} />
-                                </pattern>
+                                    <stop className="sales-curve__fade-top" offset="0%" />
+                                    <stop className="sales-curve__fade-bottom" offset="100%" />
+                                </linearGradient>
                             ))}
                             {geometry.bands.map(band => (
                                 <clipPath id={`${id}-band-${band.tier}`} key={band.tier}>
@@ -81,7 +86,14 @@ export const SalesCurveChart = ({
                             ))}
                         </defs>
                         <path className="sales-curve__grid" d={geometry.grid} />
-                        <path className="sales-curve__cut" d={geometry.cuts} />
+                        {geometry.bands.map(band => (
+                            <path
+                                clipPath={`url(#${id}-band-${band.tier})`}
+                                d={geometry.area}
+                                fill={`url(#${id}-fade-${band.tier})`}
+                                key={band.tier}
+                            />
+                        ))}
                         {geometry.bands.map(band => (
                             <g className={tierClassName(band.tier)} key={band.tier}>
                                 <text
@@ -123,23 +135,27 @@ export const SalesCurveChart = ({
                                 {tick.label}
                             </text>
                         ))}
-                        {geometry.bands.map(band => (
-                            <path
-                                className="sales-curve__fill"
-                                clipPath={`url(#${id}-band-${band.tier})`}
-                                d={geometry.area}
-                                fill={`url(#${id}-dots-${band.tier})`}
-                                key={band.tier}
-                            />
-                        ))}
-                        <path className="sales-curve__line" d={geometry.line} />
+                        <path className="sales-curve__line" d={geometry.observedLine} />
+                        <path
+                            className="sales-curve__line sales-curve__line--projected"
+                            d={geometry.projectedLine}
+                        />
                         {geometry.evidence.map(dot => (
                             <circle
                                 className={cn('sales-curve__evidence', tierClassName(dot.tier))}
                                 cx={dot.x}
                                 cy={dot.y}
                                 key={`${dot.x}`}
-                                r={4.5}
+                                r={isNarrow ? 4 : 6}
+                            />
+                        ))}
+                        {geometry.markers.map(marker => (
+                            <circle
+                                className={cn('sales-curve__marker', tierClassName(marker.tier))}
+                                cx={marker.x}
+                                cy={marker.y}
+                                key={marker.x}
+                                r={isNarrow ? 5.5 : 7.5}
                             />
                         ))}
                         {cursor ? (
@@ -182,3 +198,4 @@ const RankTip = ({ curve, rank }: { curve: SalesCurve; rank: number }) => {
 };
 
 const nonWord = /\W/g;
+const NARROW_WIDTH = 640;
