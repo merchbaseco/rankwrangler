@@ -1,9 +1,17 @@
-import { classifyMerchListing, type BulletEvidence } from '@/services/merch-listing-classification';
 import {
     type KeepaHistorySeries,
     keepaMinuteToDate,
     parseKeepaInterleavedSeries,
 } from '@/services/keepa-history-series';
+import {
+    classifyMerchListing,
+    type MerchListingClassification,
+} from '@/services/merch-listing-classification';
+import { type PackageMeasure, toPackageProfile } from '@/services/merch-package-profiles';
+
+// Keepa product types whose observation cannot show a whole listing: 3 is a product Keepa could not
+// access, 4 an invalid ASIN, 5 a variation parent.
+const KEEPA_PRODUCT_TYPES_WITHOUT_WHOLE_LISTING = new Set([3, 4, 5]);
 
 const KEEPA_CSV_INDEX = {
     amazonPrice: 0,
@@ -19,8 +27,13 @@ export type KeepaProductPayload = {
     brand?: string;
     imagesCSV?: string;
     features?: string[] | null;
-    partNumber?: string | null;
-    model?: string | null;
+    upcList?: string[] | null;
+    eanList?: string[] | null;
+    productType?: number;
+    packageLength?: number;
+    packageWidth?: number;
+    packageHeight?: number;
+    packageWeight?: number;
     listedSince?: number;
     rootCategory?: number;
     trackingSince?: number;
@@ -40,6 +53,15 @@ export type KeepaProductPayload = {
     };
 };
 
+/**
+ * What one Keepa observation says about Merch status. Keepa has no child lookup, so a variation
+ * parent without Merch evidence of its own is undecided, as is a product Keepa holds no listing data
+ * for. An undecided observation leaves stored status and seller bullets alone.
+ */
+export type KeepaMerchVerdict =
+    | ({ readonly kind: 'decided' } & MerchListingClassification)
+    | { readonly kind: 'undecided' };
+
 export type NormalizedKeepaProductState = {
     marketplaceId: string;
     asin: string;
@@ -48,9 +70,7 @@ export type NormalizedKeepaProductState = {
     title: string | null;
     brand: string | null;
     thumbnailUrl: string | null;
-    isMerchListing: boolean | null;
-    bullet1: string | null;
-    bullet2: string | null;
+    merch: KeepaMerchVerdict;
     dateFirstAvailable: Date | null;
     rootCategoryId: number | null;
     rootCategoryBsr: number | null;
@@ -93,12 +113,6 @@ export const normalizeKeepaProduct = ({
     );
     const rootCategoryId = normalizeCategoryId(product.salesRankReference);
     const listingRootCategoryId = normalizeCategoryId(product.rootCategory) ?? rootCategoryId;
-    const merchClassification = classifyMerchListing({
-        bullets: getKeepaBulletEvidence(product.features),
-        partNumber: product.partNumber ?? null,
-        modelNumber: product.model ?? null,
-        title: product.title ?? null,
-    });
 
     return {
         product: {
@@ -111,9 +125,7 @@ export const normalizeKeepaProduct = ({
             title: normalizeText(product.title),
             brand: normalizeText(product.brand),
             thumbnailUrl: normalizeKeepaImage(product.imagesCSV),
-            isMerchListing: merchClassification?.isMerchListing ?? null,
-            bullet1: merchClassification?.bullet1 ?? null,
-            bullet2: merchClassification?.bullet2 ?? null,
+            merch: readKeepaMerchVerdict(product),
             dateFirstAvailable: keepaMinuteToOptionalDate(product.listedSince),
             rootCategoryId: listingRootCategoryId,
             rootCategoryBsr: currentBsr,
@@ -142,13 +154,37 @@ export const normalizeKeepaProduct = ({
     };
 };
 
-const getKeepaBulletEvidence = (features: string[] | null | undefined): BulletEvidence => {
-    if (features === null || features === undefined) {
-        return { kind: 'unavailable' };
-    }
-
-    return { kind: 'available', bullets: features };
+const readKeepaMerchVerdict = (product: KeepaProductPayload): KeepaMerchVerdict => {
+    const evidence = {
+        bullets: product.features ?? [],
+        hasProductIdentifier: Boolean(product.upcList?.length || product.eanList?.length),
+        packageProfile: toPackageProfile({
+            dimensions: [
+                millimeters(product.packageLength),
+                millimeters(product.packageWidth),
+                millimeters(product.packageHeight),
+            ],
+            weight: { value: product.packageWeight ?? -1, unit: 'grams' },
+        }),
+    };
+    const classification = classifyMerchListing(evidence);
+    // Keepa sometimes holds a product before it has crawled the listing; with no features, package
+    // or identifier the observation shows nothing, and must not demote a stored Merch verdict.
+    const showsListing =
+        evidence.bullets.length > 0 ||
+        evidence.hasProductIdentifier ||
+        evidence.packageProfile !== null;
+    return classification.isMerchListing ||
+        (showsListing && !KEEPA_PRODUCT_TYPES_WITHOUT_WHOLE_LISTING.has(product.productType ?? -1))
+        ? { kind: 'decided', ...classification }
+        : { kind: 'undecided' };
 };
+
+// Keepa sends -1 or 0 for an unknown package measurement; either is no profile.
+const millimeters = (value: number | undefined): PackageMeasure => ({
+    value: value ?? -1,
+    unit: 'millimeters',
+});
 
 const parseKeepaHistorySeries = (product: KeepaProductPayload) => {
     const csv = product.csv ?? [];

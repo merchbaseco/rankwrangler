@@ -38,7 +38,7 @@ describe('public Keyword-results tRPC boundary', () => {
                         title: null,
                         brand: null,
                         thumbnail: { status: 'unavailable' as const },
-                        isMerchListing: null,
+                        isMerchListing: false,
                         amazonListingStatus: 'active' as const,
                         category: null,
                         salesRank: null,

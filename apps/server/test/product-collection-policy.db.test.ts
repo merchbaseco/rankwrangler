@@ -86,7 +86,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         });
     });
 
-    it('observes first no-BSR, later probation, unknown and cold intervals without sweeping deleted/non-Merch', async () => {
+    it('observes no-BSR Merch on probation and cold intervals, and Keepa-only non-Merch once', async () => {
         const daysAgo = (days: number) => new Date(now.getTime() - days * 86400000);
         await insert('B000000001', {
             rootCategoryBsr: null,
@@ -97,16 +97,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
             rootCategoryBsr: null,
             createdAt: daysAgo(10),
             spApiFetchedAt: daysAgo(6),
-        });
-        await insert('B000000003', {
-            isMerchListing: null,
-            createdAt: daysAgo(10),
-            spApiFetchedAt: daysAgo(8),
-        });
-        await insert('B000000004', {
-            isMerchListing: null,
-            createdAt: daysAgo(60),
-            spApiFetchedAt: daysAgo(20),
         });
         await insert('B000000005', {
             rootCategoryBsr: null,
@@ -119,12 +109,13 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
             spApiFetchedAt: null,
         });
         await insert('B000000007', { isMerchListing: false, spApiFetchedAt: null });
+        await insert('B000000008', { isMerchListing: false, spApiFetchedAt: daysAgo(60) });
         const rows = await db
             .select({ asin: products.asin })
             .from(products)
             .where(buildSpApiBlindspotRefreshCondition(now))
             .orderBy(products.asin);
-        expect(rows.map(row => row.asin)).toEqual(['B000000001', 'B000000003', 'B000000005']);
+        expect(rows.map(row => row.asin)).toEqual(['B000000001', 'B000000005', 'B000000007']);
     });
 });
 

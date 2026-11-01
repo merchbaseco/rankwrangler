@@ -136,8 +136,8 @@ background. Product
 control. `keyword.results` accepts `refresh` and retains the existing 24-hour run reuse and wait
 behavior. Product `get`/`getMany`/`history` and keyword outputs expose no pending
 data, freshness, Operations, provider status or schema version.
-Generated Product output preserves nullable `isMerchListing` knowledge; consumers must not coerce
-`null` to `false`. Basic `getMany` results always contain identity, nullable title, resolved
+Generated Product output carries a boolean `isMerchListing`; the search filter accepts `true`,
+`false`, or `all`. Basic `getMany` results always contain identity, nullable title, resolved
 thumbnail, and `amazonListingStatus: active | deleted`. Active means the detail-page listing exists,
 not that an offer is in stock or buyable. Deleted means Amazon has effectively removed the listing
 from that marketplace. Retained listing values remain last-known data, while an unavailable

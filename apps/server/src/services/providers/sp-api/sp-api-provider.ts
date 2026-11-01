@@ -7,6 +7,7 @@ import { createSpApiHttpError, runWithSpApiBackoff } from './sp-api-backoff';
 import { SpApiLimiterManager, type SpApiOperationRateLimiterStat } from './sp-api-limiter-manager';
 import { SP_API_CATALOG_QUEUE_WAIT_MS } from './sp-api-limiter-wait';
 import { persistedCatalogCapacity } from './sp-api-catalog-capacity';
+import { CATALOG_INCLUDED_DATA } from './sp-api-catalog-included-data';
 import type { SpApiKeywordSearchRequest } from './sp-api-keyword-request';
 // Reports API per-operation limits:
 // - createReport: 0.0167 RPS, burst 15
@@ -145,7 +146,7 @@ export class SpApiProvider {
                 await this.catalogApi.searchCatalogItems([marketplaceId], {
                     identifiers: asins,
                     identifiersType: 'ASIN',
-                    includedData: ['summaries', 'salesRanks', 'attributes', 'images', 'relationships'],
+                    includedData: CATALOG_INCLUDED_DATA,
                     pageSize: 20,
                 }),
         });
@@ -173,7 +174,7 @@ export class SpApiProvider {
                 await this.catalogApi.searchCatalogItems([marketplaceId], {
                     keywords: [keyword],
                     ...(brandNames?.length ? { brandNames } : {}),
-                    includedData: ['summaries', 'salesRanks', 'attributes', 'images', 'relationships'],
+                    includedData: CATALOG_INCLUDED_DATA,
                     pageSize,
                     pageToken,
                 }),

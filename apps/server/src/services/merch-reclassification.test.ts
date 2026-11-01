@@ -8,13 +8,21 @@ import type { SpApiProduct } from '@/types';
 
 const stored: StoredMerchListing[] = [
     { asin: 'B0TST00001', isMerchListing: false },
-    { asin: 'B0TST00002', isMerchListing: null },
+    { asin: 'B0TST00002', isMerchListing: true },
     { asin: 'B0TST00003', isMerchListing: false },
     { asin: 'B0TST00004', isMerchListing: true },
-    { asin: 'B0TST00005', isMerchListing: null },
+    { asin: 'B0TST00005', isMerchListing: true },
 ];
 
-const fetched = (asin: string, isMerchListing: boolean | null): SpApiProduct => ({
+// What SP-API answers now; B0TST00005 is not returned.
+const answers: Record<string, boolean> = {
+    B0TST00001: true,
+    B0TST00002: false,
+    B0TST00003: false,
+    B0TST00004: true,
+};
+
+const fetched = (asin: string, isMerchListing: boolean): SpApiProduct => ({
     asin,
     marketplaceId: 'ATVPDKIKX0DER',
     dateFirstAvailable: null,
@@ -34,15 +42,15 @@ const fetched = (asin: string, isMerchListing: boolean | null): SpApiProduct => 
 
 const harness = (options: { deferFirst?: boolean } = {}) => {
     const writes: SpApiProduct[][] = [];
-    const demotions: string[][] = [];
     const sleeps: number[] = [];
     const reads: Array<[string, number]> = [];
+    const logs: string[] = [];
     let deferred = options.deferFirst ?? false;
     return {
         writes,
-        demotions,
         sleeps,
         reads,
+        logs,
         deps: {
             readBatch: async (after: string, limit: number) => {
                 reads.push([after, limit]);
@@ -53,12 +61,6 @@ const harness = (options: { deferFirst?: boolean } = {}) => {
                     deferred = false;
                     throw new CatalogCapacityDeferredError('rate', new Date(Date.now() + 5_000));
                 }
-                const answers: Record<string, boolean | null> = {
-                    B0TST00001: true,
-                    B0TST00002: false,
-                    B0TST00003: false,
-                    B0TST00004: false,
-                };
                 return asins
                     .filter(asin => asin in answers)
                     .map(asin => fetched(asin, answers[asin]));
@@ -66,19 +68,18 @@ const harness = (options: { deferFirst?: boolean } = {}) => {
             writeProducts: async (products: SpApiProduct[]) => {
                 writes.push(products);
             },
-            demoteProducts: async (asins: string[]) => {
-                demotions.push(asins);
-            },
             sleep: async (ms: number) => {
                 sleeps.push(ms);
             },
-            log: () => {},
+            log: (message: string) => {
+                logs.push(message);
+            },
         },
     };
 };
 
 describe('reclassifyMerchListings', () => {
-    it('tallies reconciled flips without writing on a dry run', async () => {
+    it('tallies promotions and demotions without writing on a dry run', async () => {
         const run = harness();
         const result = await reclassifyMerchListings(
             { afterAsin: '', limit: null, dryRun: true },
@@ -90,16 +91,20 @@ describe('reclassifyMerchListings', () => {
             lastAsin: 'B0TST00005',
             transitions: {
                 'nonMerch->merch': 1,
-                'unknown->nonMerch': 1,
+                'merch->nonMerch': 1,
                 'nonMerch->nonMerch': 1,
                 'merch->merch': 1,
-                'unknown->missing': 1,
+                'merch->missing': 1,
             },
         });
         expect(run.writes).toEqual([]);
+        expect(run.logs.filter(message => message.startsWith('would change'))).toEqual([
+            'would change nonMerch->merch: B0TST00001',
+            'would change merch->nonMerch: B0TST00002',
+        ]);
     });
 
-    it('writes fetched batches, honors the limit, and waits out deferred capacity', async () => {
+    it('writes every fetched batch, honors the limit, and waits out deferred capacity', async () => {
         const run = harness({ deferFirst: true });
         const result = await reclassifyMerchListings(
             { afterAsin: '', limit: 3, dryRun: false },
@@ -112,23 +117,14 @@ describe('reclassifyMerchListings', () => {
             ['B0TST00002', 1],
         ]);
         expect(run.sleeps).toHaveLength(1);
-        expect(run.writes.map(batch => batch.map(product => product.asin))).toEqual([
-            ['B0TST00001', 'B0TST00002'],
-            ['B0TST00003'],
+        expect(
+            run.writes.map(batch => batch.map(product => [product.asin, product.isMerchListing]))
+        ).toEqual([
+            [
+                ['B0TST00001', true],
+                ['B0TST00002', false],
+            ],
+            [['B0TST00003', false]],
         ]);
-    });
-
-    it('clears stored Merch that fresh evidence now classifies non-Merch only when demoting', async () => {
-        const kept = harness();
-        await reclassifyMerchListings({ afterAsin: '', limit: null, dryRun: false }, kept.deps);
-        expect(kept.demotions).toEqual([]);
-
-        const run = harness();
-        const result = await reclassifyMerchListings(
-            { afterAsin: '', limit: null, dryRun: false, demote: true },
-            run.deps
-        );
-        expect(run.demotions).toEqual([['B0TST00004']]);
-        expect(result.transitions['merch->nonMerch']).toBe(1);
     });
 });

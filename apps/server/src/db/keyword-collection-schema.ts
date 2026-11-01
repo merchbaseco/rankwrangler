@@ -93,7 +93,6 @@ export const keywordDiscoveryAttempts = pgTable(
         newProducts: integer('new_products'),
         newMerchProducts: integer('new_merch_products'),
         knownMerch: integer('known_merch'),
-        unknownProducts: integer('unknown_products'),
         nonMerchProducts: integer('non_merch_products'),
         newMerchMemberships: integer('new_merch_memberships'),
     },

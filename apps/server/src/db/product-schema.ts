@@ -31,7 +31,7 @@ export const products = pgTable(
         thumbnailUrl: text('thumbnail_url'),
         title: text('title'),
         brand: text('brand'),
-        isMerchListing: boolean('is_merch_listing'),
+        isMerchListing: boolean('is_merch_listing').notNull().default(false),
         amazonListingStatus: text('amazon_listing_status')
             .$type<AmazonListingStatus>()
             .notNull()

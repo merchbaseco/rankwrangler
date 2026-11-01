@@ -56,13 +56,6 @@ export const KEEPA_REFRESH_POLICY_BUCKETS = [
         isAutoRefresh: false,
     },
     {
-        key: 'unknown',
-        label: 'Unclassified',
-        refreshEveryLabel: 'Never',
-        hint: 'Not yet classified as Merch or non-Merch.',
-        isAutoRefresh: false,
-    },
-    {
         key: 'nonMerch',
         label: 'Non-Merch',
         refreshEveryLabel: 'Never',
@@ -74,13 +67,9 @@ export const KEEPA_REFRESH_POLICY_BUCKETS = [
 export type KeepaRefreshPolicyBucketKey = (typeof KEEPA_REFRESH_POLICY_BUCKETS)[number]['key'];
 
 export const getKeepaRefreshPolicyBucketKey = (
-    isMerchListing: boolean | null,
+    isMerchListing: boolean,
     rootCategoryBsr: number | null
 ) => {
-    if (isMerchListing === null) {
-        return 'unknown' as const;
-    }
-
     if (!isMerchListing) {
         return 'nonMerch' as const;
     }
@@ -101,7 +90,7 @@ export const getKeepaRefreshPolicyBucketKey = (
 };
 
 export const isEligibleForKeepaHistoryRefresh = (
-    isMerchListing: boolean | null,
+    isMerchListing: boolean,
     rootCategoryBsr: number | null
 ) => {
     const policyBucket = getKeepaRefreshPolicyBucketKey(isMerchListing, rootCategoryBsr);
@@ -109,7 +98,7 @@ export const isEligibleForKeepaHistoryRefresh = (
 };
 
 export const getKeepaEnqueueMinRefreshIntervalMs = (
-    isMerchListing: boolean | null,
+    isMerchListing: boolean,
     rootCategoryBsr: number | null
 ) => {
     const policyBucket = getKeepaRefreshPolicyBucketKey(isMerchListing, rootCategoryBsr);
@@ -122,7 +111,6 @@ export const getKeepaEnqueueMinRefreshIntervalMs = (
             return KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
         case 'onDemand':
         case 'merchMissingBsr':
-        case 'unknown':
         case 'nonMerch':
             return null;
     }
@@ -134,7 +122,7 @@ export const getKeepaRefreshDecision = ({
     keepaFetchedAt,
     now = new Date(),
 }: {
-    isMerchListing: boolean | null;
+    isMerchListing: boolean;
     rootCategoryBsr: number | null;
     keepaFetchedAt: Date | null;
     now?: Date;

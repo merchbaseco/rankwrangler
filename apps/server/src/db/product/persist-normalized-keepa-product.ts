@@ -11,7 +11,6 @@ import {
     recordVariantAliases,
     resolveFamilyIdentities,
 } from './product-family';
-import { reconcileMerchListing, reconcileSellerBullet } from './reconcile-merch-listing';
 
 export type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -31,6 +30,10 @@ export const persistKeepaProductRow = async (
     normalized: NormalizedKeepaProduct
 ) => {
     const product = normalized.product;
+    const merch =
+        product.merch.kind === 'decided'
+            ? product.merch
+            : { isMerchListing: false, bullet1: null, bullet2: null };
     const asin = await keepaFamilyAsin(transaction, product);
     const [previous] = await transaction
         .select({ merch: products.isMerchListing })
@@ -45,9 +48,9 @@ export const persistKeepaProductRow = async (
             title: product.title,
             brand: product.brand,
             thumbnailUrl: product.thumbnailUrl,
-            isMerchListing: product.isMerchListing,
-            bullet1: product.bullet1,
-            bullet2: product.bullet2,
+            isMerchListing: merch.isMerchListing,
+            bullet1: merch.bullet1,
+            bullet2: merch.bullet2,
             dateFirstAvailable: product.dateFirstAvailable,
             rootCategoryId: product.rootCategoryId,
             rootCategoryBsr: product.rootCategoryBsr,
@@ -69,12 +72,10 @@ export const persistKeepaProductRow = async (
             target: [products.marketplaceId, products.asin],
             set: {
                 representativeAsin: fillMissingCanonicalValue(products.representativeAsin),
-                isMerchListing: reconcileMerchListing(products.isMerchListing),
+                ...(product.merch.kind === 'decided' ? latestMerchVerdict : {}),
                 title: fillMissingCanonicalValue(products.title),
                 brand: fillMissingCanonicalValue(products.brand),
                 thumbnailUrl: fillMissingCanonicalValue(products.thumbnailUrl),
-                bullet1: reconcileSellerBullet(products.bullet1, products.isMerchListing),
-                bullet2: reconcileSellerBullet(products.bullet2, products.isMerchListing),
                 dateFirstAvailable: fillMissingCanonicalValue(products.dateFirstAvailable),
                 rootCategoryId: fillMissingCanonicalValue(products.rootCategoryId),
                 rootCategoryBsr: fillMissingCanonicalValue(products.rootCategoryBsr),
@@ -193,6 +194,13 @@ const keepaFamilyAsin = async (
 
 const preserveExistingOnNull = (column: { name: string }) => {
     return sql`COALESCE(${sql.raw(`excluded.${column.name}`)}, ${column})`;
+};
+
+// A decided observation replaces the stored status and seller bullets; true can become false.
+const latestMerchVerdict = {
+    isMerchListing: sql.raw(`excluded.${products.isMerchListing.name}`),
+    bullet1: sql.raw(`excluded.${products.bullet1.name}`),
+    bullet2: sql.raw(`excluded.${products.bullet2.name}`),
 };
 
 const fillMissingCanonicalValue = (column: { name: string }) => {

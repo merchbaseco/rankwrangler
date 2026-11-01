@@ -185,7 +185,8 @@ declare const rankwranglerServiceAccounts: import("drizzle-orm/pg-core").PgTable
 	};
 	dialect: "pg";
 }>;
-export type RankWranglerServicePrincipal = Omit<typeof rankwranglerServiceAccounts.$inferSelect, "merchbaseUserId"> & {
+/** The immutable identity of a user's service account; usage is read fresh where it is metered. */
+export type RankWranglerServicePrincipal = Pick<typeof rankwranglerServiceAccounts.$inferSelect, "id" | "service"> & {
 	merchbaseUserId: string;
 };
 export interface MerchbaseUser {
@@ -235,7 +236,7 @@ export interface Product {
 		} | {
 			status: "unavailable";
 		};
-		isMerchListing: boolean | null;
+		isMerchListing: boolean;
 		amazonListingStatus: AmazonListingStatus;
 	};
 	category: {
@@ -274,7 +275,7 @@ export interface KeywordResultsProduct {
 	} | {
 		status: "unavailable";
 	};
-	isMerchListing: boolean | null;
+	isMerchListing: boolean;
 	amazonListingStatus: AmazonListingStatus;
 	category: {
 		id: number;
@@ -448,22 +449,22 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					output: {
 						keyword: string;
 						data: {
-							createdAt: string;
-							lastCheckedAt: string | null;
-							nextCheckAt: string | null;
-							id: string;
-							queryId: string;
-							term: string;
-							stage: (typeof keywordStages)[number];
 							freshness: (typeof keywordFreshness)[number] | null;
-							retryScheduled: boolean;
+							products: number;
+							id: string;
+							createdAt: string;
+							searchFrequencyRank: number | null;
+							intervalDays: number | null;
+							queryId: string;
+							nextCheckAt: string | null;
+							stage: (typeof keywordStages)[number];
 							heat: string;
 							score: number | null;
-							searchFrequencyRank: number | null;
-							sources: string[];
-							products: number;
 							merch: number;
-							intervalDays: number | null;
+							term: string;
+							retryScheduled: boolean;
+							sources: string[];
+							lastCheckedAt: string | null;
 						};
 					};
 					meta: object;
@@ -480,9 +481,9 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						text: string;
 						freshness?: "live" | "needsSync" | "syncing" | "all" | undefined;
-						sort?: "work" | "newest" | undefined;
 						limit?: number | undefined;
-						stage?: "trial" | "graduated" | "dropped" | "untracked" | "all" | undefined;
+						sort?: "work" | "newest" | undefined;
+						stage?: "trial" | "dropped" | "graduated" | "untracked" | "all" | undefined;
 						heat?: "unrated" | "hot" | "warm" | "cold" | "all" | undefined;
 						cursor?: {
 							key: [
@@ -500,22 +501,22 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					};
 					output: {
 						items: {
-							createdAt: string;
-							lastCheckedAt: string | null;
-							nextCheckAt: string | null;
-							id: string;
-							queryId: string;
-							term: string;
-							stage: (typeof keywordStages)[number];
 							freshness: (typeof keywordFreshness)[number] | null;
-							retryScheduled: boolean;
+							products: number;
+							id: string;
+							createdAt: string;
+							searchFrequencyRank: number | null;
+							intervalDays: number | null;
+							queryId: string;
+							nextCheckAt: string | null;
+							stage: (typeof keywordStages)[number];
 							heat: string;
 							score: number | null;
-							searchFrequencyRank: number | null;
-							sources: string[];
-							products: number;
 							merch: number;
-							intervalDays: number | null;
+							term: string;
+							retryScheduled: boolean;
+							sources: string[];
+							lastCheckedAt: string | null;
 						}[];
 						nextCursor: {
 							sort: "fresh" | "work" | "newest" | "score" | "medianBsr" | "merch";
@@ -597,7 +598,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						textFields?: "title" | "all" | undefined;
 						excludeWords?: string[] | undefined;
 						marketplaceIds?: string[] | undefined;
-						isMerchListing?: boolean | "unknown" | "all" | undefined;
+						isMerchListing?: boolean | "all" | undefined;
 						amazonListingStatus?: "active" | "deleted" | "all" | undefined;
 						brands?: string[] | undefined;
 						excludeBrands?: string[] | undefined;
@@ -647,6 +648,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							} | null;
 						} | null;
 						items: {
+							extra?: undefined;
 							marketplaceId: string;
 							asin: string;
 							title: string | null;
@@ -660,7 +662,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 								status: "unavailable";
 								url?: undefined;
 							};
-							isMerchListing: boolean | null;
+							isMerchListing: boolean;
 							amazonListingStatus: AmazonListingStatus;
 							categoryId: number | null;
 							salesRank: number | null;

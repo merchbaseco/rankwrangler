@@ -39,9 +39,7 @@ describe('normalizeKeepaProduct', () => {
             title: null,
             brand: null,
             thumbnailUrl: null,
-            isMerchListing: null,
-            bullet1: null,
-            bullet2: null,
+            merch: { kind: 'undecided' },
             dateFirstAvailable: null,
             rootCategoryId: 12_345,
             rootCategoryBsr: 54_321,
@@ -149,53 +147,92 @@ describe('normalizeKeepaProduct', () => {
         });
     });
 
-    it('distinguishes unavailable features from an explicitly empty feature array', () => {
-        const unavailable = normalizeKeepaProduct({
+    it('classifies a Keepa package in millimeters and grams', () => {
+        const merch = normalizeKeepaProduct({
             marketplaceId: 'ATVPDKIKX0DER',
             fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
-            product: { asin: 'B0MERCH004' },
+            product: {
+                asin: 'B07GNYFPWW',
+                productType: 0,
+                features: ['Officially Licensed by Peanuts', 'OPNT-0176'],
+                packageLength: 254,
+                packageWidth: 203,
+                packageHeight: 25,
+                packageWeight: 136,
+            },
         });
-        const availableEmpty = normalizeKeepaProduct({
+        const withUpc = normalizeKeepaProduct({
             marketplaceId: 'ATVPDKIKX0DER',
             fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
-            product: { asin: 'B0MERCH005', features: [] },
+            product: {
+                asin: 'B0GY8NVFHN',
+                productType: 0,
+                upcList: ['710917774610'],
+                packageLength: 254,
+                packageWidth: 203,
+                packageHeight: 25,
+                packageWeight: 136,
+            },
         });
 
-        expect(unavailable.product).toMatchObject({
-            isMerchListing: null,
-            bullet1: null,
-            bullet2: null,
+        expect(merch.product.merch).toEqual({
+            kind: 'decided',
+            isMerchListing: true,
+            bullet1: 'Officially Licensed by Peanuts',
+            bullet2: 'OPNT-0176',
         });
-        expect(availableEmpty.product).toMatchObject({
+        expect(withUpc.product.merch).toEqual({
+            kind: 'decided',
             isMerchListing: false,
             bullet1: null,
             bullet2: null,
         });
     });
 
-    it('classifies a Merch part number even when no feature matches a template', () => {
-        const merch = normalizeKeepaProduct({
-            marketplaceId: 'ATVPDKIKX0DER',
-            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
-            product: {
-                asin: 'B0MERCH006',
-                title: 'Funny Cat Lover Graphic T-Shirt',
-                partNumber: 'AFCHRPAT1KY',
-                features: ['Seller bullet one', 'Seller bullet two'],
-            },
-        });
-        const partNumberOnly = normalizeKeepaProduct({
-            marketplaceId: 'ATVPDKIKX0DER',
-            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
-            product: { asin: 'B0MERCH007', partNumber: 'GIL1100MDWHTP6-01-White-M' },
-        });
+    it('leaves a variation parent without its own evidence undecided', () => {
+        const normalize = (features: string[]) =>
+            normalizeKeepaProduct({
+                marketplaceId: 'ATVPDKIKX0DER',
+                fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+                product: { asin: 'B0DHL1MRZ3', productType: 5, features },
+            }).product.merch;
 
-        expect(merch.product).toMatchObject({
+        expect(normalize(['Croquet queen design'])).toEqual({ kind: 'undecided' });
+        expect(
+            normalize(['Croquet queen design', 'Dual wall insulated: keeps beverages hot or cold'])
+        ).toEqual({
+            kind: 'decided',
             isMerchListing: true,
-            bullet1: 'Seller bullet one',
-            bullet2: 'Seller bullet two',
+            bullet1: 'Croquet queen design',
+            bullet2: null,
         });
-        expect(partNumberOnly.product).toMatchObject({ isMerchListing: false });
+    });
+
+    it('leaves an observation without features, package or identifier undecided', () => {
+        const normalize = (product: { upcList?: string[] }) =>
+            normalizeKeepaProduct({
+                marketplaceId: 'ATVPDKIKX0DER',
+                fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+                product: { asin: 'B0MERCH005', productType: 0, ...product },
+            }).product.merch;
+
+        expect(normalize({})).toEqual({ kind: 'undecided' });
+        expect(normalize({ upcList: ['710917774610'] })).toEqual({
+            kind: 'decided',
+            isMerchListing: false,
+            bullet1: null,
+            bullet2: null,
+        });
+    });
+
+    it('leaves a product Keepa could not access undecided', () => {
+        expect(
+            normalizeKeepaProduct({
+                marketplaceId: 'ATVPDKIKX0DER',
+                fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+                product: { asin: 'B0MERCH004', productType: 3 },
+            }).product.merch
+        ).toEqual({ kind: 'undecided' });
     });
 
     it('classifies Keepa template features and extracts seller bullets before persistence', () => {
@@ -211,7 +248,8 @@ describe('normalizeKeepaProduct', () => {
             },
         });
 
-        expect(result.product).toMatchObject({
+        expect(result.product.merch).toEqual({
+            kind: 'decided',
             isMerchListing: true,
             bullet1: 'Seller-authored detail',
             bullet2: null,

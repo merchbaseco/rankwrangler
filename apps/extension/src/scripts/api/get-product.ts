@@ -78,7 +78,6 @@ export const getProduct = async (
 		const product: Product = {
 			asin,
 			marketplaceId,
-			isMerchListing: normalizeMerchListingValue(responseData.isMerchListing),
 			amazonListingStatus:
 				responseData.amazonListingStatus === "deleted" ? "deleted" : "active",
 			...(typeof responseData.dateFirstAvailable === "string" &&
@@ -144,6 +143,3 @@ export const getProduct = async (
 		finishProductRequestTrace(requestTrace, requestCompletion);
 	}
 };
-
-const normalizeMerchListingValue = (value: unknown): boolean | null =>
-	typeof value === "boolean" ? value : null;

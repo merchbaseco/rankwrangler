@@ -463,6 +463,13 @@
       "when": 1793382606335,
       "tag": "0065_cloudflare_access",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1793564285071,
+      "tag": "0066_binary_merch_listing",
+      "breakpoints": true
     }
   ]
 }

@@ -26,7 +26,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Keepa spare refres
             product('B0SPARE004', { rootCategoryBsr: 90_000, keepaFetchedAt: hoursAgo(23) }),
             // Already queued.
             product('B0SPARE005', { rootCategoryBsr: 80_000, keepaFetchedAt: null }),
-            // Not admitted, not Merch, unknown classification, inactive, or missing BSR.
+            // Not admitted, not Merch, inactive, or missing BSR.
             product('B0SPARE006', {
                 rootCategoryBsr: 70_000,
                 historyAdmissionState: 'notAdmitted',
@@ -34,7 +34,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Keepa spare refres
                 historyAdmittedAt: null,
             }),
             product('B0SPARE007', { rootCategoryBsr: 60_000, isMerchListing: false }),
-            product('B0SPARE008', { rootCategoryBsr: 50_000, isMerchListing: null }),
             product('B0SPARE009', { rootCategoryBsr: 40_000, amazonListingStatus: 'deleted' }),
             product('B0SPARE010', { rootCategoryBsr: null }),
         ]);

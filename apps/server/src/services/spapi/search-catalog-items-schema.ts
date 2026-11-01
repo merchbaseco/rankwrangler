@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { BulletEvidence, MerchListingEvidence } from '@/services/merch-listing-classification';
+import type { MerchListingEvidence } from '@/services/merch-listing-classification';
+import { toPackageProfile } from '@/services/merch-package-profiles';
 
 export const VariantSchema = z.enum([
     'MAIN',
@@ -36,18 +37,32 @@ const MarketplaceTextEntrySchema = z.object({
     marketplace_id: z.string().optional(),
 });
 
-// Model numbers are not always strings in catalog payloads; one odd value must not fail the item.
-const ModelNumberEntrySchema = z.object({
-    value: z.union([z.string(), z.number()]).transform(String),
-    marketplace_id: z.string().optional(),
-});
+const MarketplaceEntrySchema = z.object({ marketplace_id: z.string().optional() });
+
+const MeasureSchema = z.object({ value: z.number(), unit: z.string() });
+
+// Package measurements only feed the Merch package profile; an odd value must not fail the item.
+const PackageDimensionsEntrySchema = z
+    .object({
+        length: MeasureSchema,
+        width: MeasureSchema,
+        height: MeasureSchema,
+        marketplace_id: z.string().optional(),
+    })
+    .nullable()
+    .catch(null);
+
+const PackageWeightEntrySchema = MeasureSchema.extend({ marketplace_id: z.string().optional() })
+    .nullable()
+    .catch(null);
 
 const ItemAttributesSchema = z.object({
     product_site_launch_date: z.array(AttributeValueEntrySchema).optional(),
     bullet_point: z.array(MarketplaceTextEntrySchema).optional(),
-    part_number: z.array(MarketplaceTextEntrySchema).optional(),
-    model_number: z.array(ModelNumberEntrySchema).optional(),
-    item_name: z.array(MarketplaceTextEntrySchema).optional(),
+    product_description: z.array(MarketplaceEntrySchema).optional(),
+    externally_assigned_product_identifier: z.array(MarketplaceEntrySchema).optional(),
+    item_package_dimensions: z.array(PackageDimensionsEntrySchema).optional(),
+    item_package_weight: z.array(PackageWeightEntrySchema).optional(),
 });
 
 const ItemImageSchema = z.object({
@@ -67,6 +82,12 @@ const ItemSummariesByMarketplaceSchema = z.object({
     itemName: z.string().optional(),
     brand: z.string().optional(),
     brandName: z.string().optional(),
+    itemClassification: z.string().optional(),
+});
+
+const ItemIdentifiersByMarketplaceSchema = z.object({
+    marketplaceId: z.string(),
+    identifiers: z.array(z.unknown()),
 });
 
 const ItemRelationshipsByMarketplaceSchema = z.object({
@@ -82,6 +103,7 @@ const ItemRelationshipsByMarketplaceSchema = z.object({
 
 export const ItemSchema = z.object({
     asin: z.string(),
+    identifiers: z.array(ItemIdentifiersByMarketplaceSchema).optional(),
     relationships: z.array(ItemRelationshipsByMarketplaceSchema).optional(),
     attributes: ItemAttributesSchema.optional(),
     salesRanks: z.array(ItemSalesRanksByMarketplaceSchema).optional(),
@@ -96,40 +118,65 @@ export const ItemSearchResultsSchema = z.object({
         .optional(),
 });
 
-type MarketplaceTextEntries = z.infer<typeof MarketplaceTextEntrySchema>[] | undefined;
+export type CatalogItem = z.infer<typeof ItemSchema>;
 
-export const getMarketplaceMerchListingEvidence = (
-    attributes: z.infer<typeof ItemAttributesSchema> | undefined,
-    marketplaceId: string
-): MerchListingEvidence => ({
-    bullets: getMarketplaceBulletEvidence(attributes?.bullet_point, marketplaceId),
-    partNumber: firstMarketplaceValue(attributes?.part_number, marketplaceId),
-    modelNumber: firstMarketplaceValue(attributes?.model_number, marketplaceId),
-    title: firstMarketplaceValue(attributes?.item_name, marketplaceId),
-});
-
-const firstMarketplaceValue = (entries: MarketplaceTextEntries, marketplaceId: string) =>
-    filterMarketplaceEntries(entries, marketplaceId)
-        .map(entry => entry.value.trim())
-        .find(Boolean) ?? null;
-
-const getMarketplaceBulletEvidence = (
-    bulletPoints: MarketplaceTextEntries,
-    marketplaceId: string
-): BulletEvidence => {
-    if (!bulletPoints) {
-        return { kind: 'unavailable' };
-    }
-
+/** What a catalog item shows about its listing: Merch evidence plus what the parent fallback reads. */
+export const readCatalogListingEvidence = (item: CatalogItem, marketplaceId: string) => {
+    const attributes = item.attributes;
+    const family = readVariationFamily(item, marketplaceId);
+    const summary = item.summaries?.find(entry => entry.marketplaceId === marketplaceId);
+    const identifiers = item.identifiers?.find(entry => entry.marketplaceId === marketplaceId);
+    const merch: MerchListingEvidence = {
+        bullets: inMarketplace(attributes?.bullet_point, marketplaceId).map(entry => entry.value),
+        hasProductIdentifier:
+            (identifiers?.identifiers.length ?? 0) > 0 ||
+            inMarketplace(attributes?.externally_assigned_product_identifier, marketplaceId)
+                .length > 0,
+        packageProfile: readPackageProfile(attributes, marketplaceId),
+    };
     return {
-        kind: 'available',
-        bullets: filterMarketplaceEntries(bulletPoints, marketplaceId)
-            .map(bulletPoint => bulletPoint.value)
-            .filter(Boolean),
+        merch,
+        isVariationParent:
+            summary?.itemClassification === 'VARIATION_PARENT' || family.childAsin !== null,
+        hasProductDescription:
+            inMarketplace(attributes?.product_description, marketplaceId).length > 0,
+        firstChildAsin: family.childAsin,
     };
 };
 
-const filterMarketplaceEntries = (entries: MarketplaceTextEntries, marketplaceId: string) =>
+// A variant names its parent; a parent lists its variants. Either way the family shares one rank.
+export const readVariationFamily = (
+    item: Pick<CatalogItem, 'asin' | 'relationships'>,
+    marketplaceId: string
+) => {
+    const variations = (
+        item.relationships?.find(entry => entry.marketplaceId === marketplaceId)?.relationships ??
+        []
+    ).filter(relationship => relationship.type === 'VARIATION');
+    const parentAsin = variations.flatMap(relationship => relationship.parentAsins ?? [])[0];
+    const childAsin = variations.flatMap(relationship => relationship.childAsins ?? [])[0];
+    return {
+        parentAsin: parentAsin && parentAsin !== item.asin ? parentAsin.toUpperCase() : null,
+        childAsin: childAsin ? childAsin.toUpperCase() : null,
+    };
+};
+
+const readPackageProfile = (attributes: CatalogItem['attributes'], marketplaceId: string) => {
+    const [dimensions] = inMarketplace(attributes?.item_package_dimensions, marketplaceId);
+    const [weight] = inMarketplace(attributes?.item_package_weight, marketplaceId);
+    return dimensions && weight
+        ? toPackageProfile({
+              dimensions: [dimensions.length, dimensions.width, dimensions.height],
+              weight,
+          })
+        : null;
+};
+
+const inMarketplace = <Entry extends { marketplace_id?: string }>(
+    entries: readonly (Entry | null)[] | undefined,
+    marketplaceId: string
+) =>
     (entries ?? []).filter(
-        entry => !entry.marketplace_id || entry.marketplace_id === marketplaceId
+        (entry): entry is Entry =>
+            entry !== null && (!entry.marketplace_id || entry.marketplace_id === marketplaceId)
     );

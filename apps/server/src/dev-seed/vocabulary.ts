@@ -75,7 +75,7 @@ export const SEED_BRANDS: readonly string[] = [
 /**
  * Only the seller's own bullets reach `products.bullet_1` / `bullet_2`: the
  * shipped classifier reads the Merch template bullets as evidence and then
- * drops them, and a known non-Merch listing stores no bullets at all. These are
+ * drops them, and a non-Merch listing stores no bullets at all. These are
  * therefore written only for Products whose `is_merch_listing` is true.
  */
 export const SEED_DESIGN_BULLETS: readonly string[] = [

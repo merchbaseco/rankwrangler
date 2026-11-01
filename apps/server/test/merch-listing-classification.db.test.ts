@@ -5,7 +5,10 @@ import { ensureProductIdentities } from '@/db/product/get-products';
 import { persistNormalizedKeepaProduct } from '@/db/product/persist-normalized-keepa-product';
 import { upsertProductInfo } from '@/db/product/upsert-product';
 import { products } from '@/db/schema';
-import { normalizeKeepaProduct } from '@/services/keepa-product-normalizer';
+import {
+    type KeepaProductPayload,
+    normalizeKeepaProduct,
+} from '@/services/keepa-product-normalizer';
 import type { SpApiProduct } from '@/types';
 
 const MARKETPLACE_ID = 'ATVPDKIKX0DER';
@@ -16,6 +19,7 @@ const TEST_ASINS = [
     'B0MERCHDB004',
     'B0MERCHDB005',
 ] as const;
+const TEE_TEMPLATE = 'Lightweight, Classic fit, Double-needle sleeve and bottom hem';
 const isDedicatedCatalogTestDatabase =
     process.env.RUN_CATALOG_DB_TESTS === 'true' &&
     process.env.RANKWRANGLER_DATABASE_NAME === 'rankwrangler_catalog_test';
@@ -26,81 +30,82 @@ describeCatalogDb('Merch-listing classification persistence', () => {
         await db.delete(products).where(inArray(products.asin, TEST_ASINS));
     });
 
-    it('defaults newly ensured Products to unknown', async () => {
+    it('defaults newly ensured Products to non-Merch', async () => {
         await ensureProductIdentities([{ marketplaceId: MARKETPLACE_ID, asin: TEST_ASINS[0] }]);
 
         expect(await readClassification(TEST_ASINS[0])).toEqual({
-            isMerchListing: null,
+            isMerchListing: false,
             bullet1: null,
             bullet2: null,
         });
     });
 
-    it('reconciles a false SP-API result to true Keepa evidence', async () => {
-        await upsertProductInfo(
-            createSpApiProduct(
-                TEST_ASINS[1],
-                false,
-                'Lightweight, Classic fit, Double-needle sleeve and bottom hem'
-            )
-        );
-        await persistKeepaProduct(TEST_ASINS[1], [
-            'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
-            'Keepa seller detail one',
-            'Keepa seller detail two',
-        ]);
-
+    it('lets a later SP-API verdict demote and promote, bullets included', async () => {
+        await upsertProductInfo(createSpApiProduct(TEST_ASINS[1], true, 'Seller detail'));
+        await upsertProductInfo(createSpApiProduct(TEST_ASINS[1], false));
         expect(await readClassification(TEST_ASINS[1])).toEqual({
+            isMerchListing: false,
+            bullet1: null,
+            bullet2: null,
+        });
+
+        await upsertProductInfo(createSpApiProduct(TEST_ASINS[1], true, 'New detail', 'Second'));
+        expect(await readClassification(TEST_ASINS[1])).toEqual({
+            isMerchListing: true,
+            bullet1: 'New detail',
+            bullet2: 'Second',
+        });
+    });
+
+    it('lets a decided Keepa observation replace the SP-API verdict', async () => {
+        await upsertProductInfo(createSpApiProduct(TEST_ASINS[2], false));
+        await persistKeepaProduct({
+            asin: TEST_ASINS[2],
+            features: [TEE_TEMPLATE, 'Keepa seller detail one', 'Keepa seller detail two'],
+        });
+        expect(await readClassification(TEST_ASINS[2])).toEqual({
             isMerchListing: true,
             bullet1: 'Keepa seller detail one',
             bullet2: 'Keepa seller detail two',
         });
+
+        await persistKeepaProduct({
+            asin: TEST_ASINS[2],
+            features: [TEE_TEMPLATE],
+            upcList: ['710917774610'],
+        });
+        expect(await readClassification(TEST_ASINS[2])).toEqual({
+            isMerchListing: false,
+            bullet1: null,
+            bullet2: null,
+        });
     });
 
-    it('preserves classification and seller bullets when Keepa evidence is unavailable', async () => {
-        await upsertProductInfo(createSpApiProduct(TEST_ASINS[2], true, 'Existing seller detail'));
-        await persistKeepaProduct(TEST_ASINS[2], null);
+    it('leaves a stored Product unchanged for an undecided Keepa parent', async () => {
+        await upsertProductInfo(createSpApiProduct(TEST_ASINS[3], true, 'Existing seller detail'));
+        await persistKeepaProduct({
+            asin: TEST_ASINS[3],
+            productType: 5,
+            features: ['Parent seller bullet'],
+        });
 
-        expect(await readClassification(TEST_ASINS[2])).toEqual({
+        expect(await readClassification(TEST_ASINS[3])).toEqual({
             isMerchListing: true,
             bullet1: 'Existing seller detail',
             bullet2: null,
         });
     });
 
-    it('keeps true monotonic across concurrent false and unavailable writes', async () => {
-        await upsertProductInfo(createSpApiProduct(TEST_ASINS[3], true, 'Seller detail'));
-
-        await Promise.all([
-            upsertProductInfo(createSpApiProduct(TEST_ASINS[3], false)),
-            upsertProductInfo(createSpApiProduct(TEST_ASINS[3], null)),
-        ]);
-
-        expect(await readClassification(TEST_ASINS[3])).toEqual({
-            isMerchListing: true,
-            bullet1: 'Seller detail',
-            bullet2: null,
+    it('inserts a new Product as non-Merch from an undecided Keepa parent', async () => {
+        await persistKeepaProduct({
+            asin: TEST_ASINS[4],
+            productType: 5,
+            features: ['Parent seller bullet'],
         });
-    });
-
-    it('keeps Keepa seller bullets when true evidence races a false raw-bullet insert', async () => {
-        await Promise.all([
-            upsertProductInfo(
-                createSpApiProduct(
-                    TEST_ASINS[4],
-                    false,
-                    'Lightweight, Classic fit, Double-needle sleeve and bottom hem'
-                )
-            ),
-            persistKeepaProduct(TEST_ASINS[4], [
-                'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
-                'Concurrent Keepa seller detail',
-            ]),
-        ]);
 
         expect(await readClassification(TEST_ASINS[4])).toEqual({
-            isMerchListing: true,
-            bullet1: 'Concurrent Keepa seller detail',
+            isMerchListing: false,
+            bullet1: null,
             bullet2: null,
         });
     });
@@ -120,7 +125,7 @@ const readClassification = async (asin: string) => {
 
 const createSpApiProduct = (
     asin: string,
-    isMerchListing: boolean | null,
+    isMerchListing: boolean,
     bullet1: string | null = null,
     bullet2: string | null = null
 ): SpApiProduct => ({
@@ -141,10 +146,10 @@ const createSpApiProduct = (
     fetchedAt: '2026-08-07T12:00:00.000Z',
 });
 
-const persistKeepaProduct = async (asin: string, features: string[] | null) => {
+const persistKeepaProduct = async (product: KeepaProductPayload) => {
     const normalized = normalizeKeepaProduct({
         marketplaceId: MARKETPLACE_ID,
-        product: { asin, features },
+        product,
         fetchedAt: new Date('2026-08-07T12:00:00.000Z'),
     });
 

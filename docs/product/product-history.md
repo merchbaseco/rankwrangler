@@ -37,8 +37,7 @@ or polling fields.
 Admitted active Merch Products also collect history automatically under BSR-dependent server policy.
 Discovery and a one-time history request do not automatically enroll every listing in recurring
 collection; explicit history reads remain available.
-Missing BSR, unknown classification, and non-Merch classification remain distinct and do not imply
-automatic collection.
+Missing BSR and non-Merch classification remain distinct and do not imply automatic collection.
 
 **Brief user story:** An agent asks for a weekly sales-rank and price interval and receives current
 points, transparently waiting when stored coverage no longer satisfies policy.

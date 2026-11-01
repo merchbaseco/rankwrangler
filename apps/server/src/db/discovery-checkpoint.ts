@@ -137,7 +137,6 @@ export const checkpointDiscoveryPage = async <T>(input: {
                 newProducts: persisted.newProductIds.length,
                 newMerchProducts: persisted.newMerchProductIds.length,
                 knownMerch: persisted.merchProductIds.length,
-                unknownProducts: persisted.unknownCount,
                 nonMerchProducts: persisted.nonMerchCount,
                 newMerchMemberships: newMerchCount,
             })

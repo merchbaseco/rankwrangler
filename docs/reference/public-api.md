@@ -84,7 +84,7 @@ type Product = {
         thumbnail:
             | { status: 'available'; url: string }
             | { status: 'unavailable' };
-        isMerchListing: boolean | null;
+        isMerchListing: boolean;
         amazonListingStatus: 'active' | 'deleted';
     };
     category: { id: number; name: string | null } | null;
@@ -110,8 +110,9 @@ type Product = {
 
 `bulletPoints` is always an array; a current Product with no bullets returns `[]`. For nullable
 measurements, `null` means valid data is unavailable. It never means zero, failure, or pending work.
-`isMerchListing` is RankWrangler classification from bullet evidence supplied through either source;
-`null` means the Product has not been classified from available evidence. A Sales-rank drop is an
+`isMerchListing` is RankWrangler's Merch classification from SP-API or Keepa evidence: no UPC, EAN
+or GTIN, plus a Merch template bullet or a Merch package profile. It is always a boolean; a Product no
+provider has described yet is `false`. A Sales-rank drop is an
 observed numeric BSR improvement, not a confirmed sale.
 
 `marketData` checks current Keepa-backed rank, price, and demand data under the existing retrieval
@@ -191,7 +192,7 @@ answer and does not establish that Amazon has no matching Products.
 | `textFields` | `all` by default, or `title`. Text uses case-insensitive word AND matching with PostgreSQL's `simple` dictionary, without stemming or semantic expansion. Exact ASINs also match. With `all`, retained membership in an observation of the normalized keyword also matches. |
 | `excludeWords` | Up to 20 excluded text expressions, tested against the selected text fields. |
 | `marketplaceIds` | US by default. An empty array includes all stored marketplaces. |
-| `isMerchListing` | `true` by default, or `false`, `unknown`, or `all`. |
+| `isMerchListing` | `true` by default, or `false` or `all`. |
 | `amazonListingStatus` | `active` by default, or `deleted` or `all`. |
 | `brands`, `excludeBrands` | Exact brand names after case and whitespace normalization. |
 | `includeOfficialBrands` | `false` excludes exact matches in the maintained marketplace-specific registry. The initial registry has no verified entries. Unknown brands remain visible. |
@@ -243,7 +244,7 @@ type KeywordResults = {
             thumbnail:
                 | { status: 'available'; url: string }
                 | { status: 'unavailable' };
-            isMerchListing: boolean | null;
+            isMerchListing: boolean;
             amazonListingStatus: 'active' | 'deleted';
             category: { id: number; name: string | null } | null;
             salesRank: number | null;

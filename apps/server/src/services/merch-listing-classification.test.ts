@@ -1,116 +1,113 @@
 import { describe, expect, it } from 'bun:test';
-import { classifyMerchListing } from '@/services/merch-listing-classification';
+import {
+    classifyMerchListing,
+    findUnmatchedMerchPackage,
+} from '@/services/merch-listing-classification';
+import { toPackageProfile } from '@/services/merch-package-profiles';
 import { MERCH_TEMPLATE_BULLETS_BY_PRODUCT_TYPE } from '@/services/merch-template-bullets';
 
-// Part numbers observed on production US listings (Merch designs vs. other sellers).
-const MERCH_PART_NUMBERS = [
-    'J1CRFA43350',
-    'JWY5GR47076',
-    'AFCHRPAT1KY',
-    '28KSGP99PGP',
-    'YBQAYMK17BV',
-    'GZN5MYMASBT',
-    '006BFTSGZZ9',
-    'G816D85AV0HB07535YF3H',
-    'JFZEFS3E8HGB0B5B25JP7',
-    'CMEJRJTXDD2B0752XJYNL',
-];
-
-const NON_MERCH_PART_NUMBERS = [
-    // Structured 11-character codes from books, DVDs and branded goods that matched the bare shape.
-    'YES33194325',
-    'YES20562489',
-    'PARD345624D',
-    'PPAX1364775',
-    '83344X08001',
-    'GIL1100MDWHTP6-01-White-M',
-    'GIL1100-036-2XL',
-    '105484',
-    '9781607749707',
-    '7506306230507',
-    'Top7',
-    '1566-04P-L',
-    'FUN97311IN',
-    'JCFJI47S-999',
-    'NEP-CITYG-XL',
-    'TWUS02TS002P2-M',
-    'Sesiwadbe',
-    'Corgi Mug',
-    '12345678901',
-    'afchrpat1ky',
-    'AFCHRPAT1KYX9',
-];
-
-const noBullets = { kind: 'available', bullets: [] } as const;
+const inches = (value: number) => ({ value, unit: 'inches' });
+const pounds = (value: number) => ({ value, unit: 'pounds' });
+const standardTeePackage = toPackageProfile({
+    dimensions: [inches(10), inches(8), inches(1)],
+    weight: pounds(0.3),
+});
 
 describe('classifyMerchListing', () => {
-    it('returns no classification without bullets or a part number', () => {
-        expect(
-            classifyMerchListing({ bullets: { kind: 'unavailable' }, partNumber: null })
-        ).toBeNull();
-        expect(
-            classifyMerchListing({ bullets: { kind: 'unavailable' }, partNumber: '  ' })
-        ).toBeNull();
-    });
-
-    it('classifies available empty evidence as known non-Merch', () => {
-        expect(classifyMerchListing({ bullets: noBullets, partNumber: null })).toEqual({
-            isMerchListing: false,
-            bullet1: null,
-            bullet2: null,
-        });
-    });
-
-    it.each(MERCH_PART_NUMBERS)('recognizes Merch part number %s', partNumber => {
+    it('classifies a tee by its Merch package when no bullet is a template', () => {
         expect(
             classifyMerchListing({
-                bullets: { kind: 'unavailable' },
-                partNumber,
-                title: 'Funny Cat Lover Graphic T-Shirt',
-            })
-        ).toMatchObject({ isMerchListing: true });
-    });
-
-    it.each(NON_MERCH_PART_NUMBERS)('rejects non-Merch part number %s', partNumber => {
-        expect(
-            classifyMerchListing({ bullets: { kind: 'unavailable' }, partNumber })
-        ).toMatchObject({ isMerchListing: false });
-    });
-
-    it.each([
-        ['ULGS322B01S', 'ULGS322B01S', 'SONGMICS Dresser for Bedroom, Wide Dresser with 5 Fabric Drawers'],
-        ['FG3H8900WHT', '2060338', 'Rubbermaid Configurations Deluxe Closet Kit, White'],
-        ['MINGLUO0121', null, 'Lilaly White Sewing Buttons, 100 pcs, 5 Sizes Round Buttons'],
-    ])('rejects a fitting part number %s with a model number or no Merch product', (partNumber, modelNumber, title) => {
-        expect(
-            classifyMerchListing({ bullets: noBullets, partNumber, modelNumber, title })
-        ).toMatchObject({ isMerchListing: false });
-    });
-
-    it('requires a Merch product in the title for a part-number match', () => {
-        const evidence = { bullets: noBullets, partNumber: 'AFCHRPAT1KY' };
-        expect(classifyMerchListing({ ...evidence, title: 'Mele Kalikimaka Sweatshirt' })).toMatchObject(
-            { isMerchListing: true }
-        );
-        expect(classifyMerchListing({ ...evidence, title: null })).toMatchObject({
-            isMerchListing: false,
-        });
-    });
-
-    it('keeps seller bullets for part-number Merch listings without template bullets', () => {
-        expect(
-            classifyMerchListing({
-                bullets: {
-                    kind: 'available',
-                    bullets: ['Breast cancer awareness horror tee', 'Pink ribbon slasher gift'],
-                },
-                partNumber: 'AFCHRPAT1KY',
-                title: 'In October We Wear Pink Breast Cancer Awareness Horror T-Shirt',
+                bullets: ['Officially Licensed by Peanuts', 'OPNT-0176'],
+                hasProductIdentifier: false,
+                packageProfile: standardTeePackage,
             })
         ).toEqual({
             isMerchListing: true,
-            bullet1: 'Breast cancer awareness horror tee',
-            bullet2: 'Pink ribbon slasher gift',
+            bullet1: 'Officially Licensed by Peanuts',
+            bullet2: 'OPNT-0176',
+        });
+    });
+
+    it('classifies a template bullet without package data', () => {
+        expect(
+            classifyMerchListing({
+                bullets: [
+                    'Funny cat dad design',
+                    'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
+                ],
+                hasProductIdentifier: false,
+                packageProfile: null,
+            })
+        ).toEqual({ isMerchListing: true, bullet1: 'Funny cat dad design', bullet2: null });
+    });
+
+    it('never classifies a listing with a product identifier', () => {
+        expect(
+            classifyMerchListing({
+                bullets: ['Lightweight, Classic fit, Double-needle sleeve and bottom hem'],
+                hasProductIdentifier: true,
+                packageProfile: standardTeePackage,
+            })
+        ).toEqual({ isMerchListing: false, bullet1: null, bullet2: null });
+    });
+
+    it('rejects a seller apparel listing with an arbitrary metric package', () => {
+        // Haloumoning B0DPWKJW1D, part number M7Z659HW120.
+        expect(
+            classifyMerchListing({
+                bullets: [
+                    'Material:This short sleeve shirts for girls is made of high quality fabric',
+                    'Design: Girls summer t-shirt, casual solid color tee tops',
+                ],
+                hasProductIdentifier: false,
+                packageProfile: toPackageProfile({
+                    dimensions: [
+                        { value: 3.4036, unit: 'centimeters' },
+                        { value: 24.6126, unit: 'centimeters' },
+                        { value: 26.289, unit: 'centimeters' },
+                    ],
+                    weight: { value: 0.29, unit: 'kilograms' },
+                }),
+            })
+        ).toEqual({ isMerchListing: false, bullet1: null, bullet2: null });
+    });
+
+    it('rejects a ruler that carries a UPC', () => {
+        // Phinus B0GY8NVFHN, part number 16TXCZZN001.
+        expect(
+            classifyMerchListing({
+                bullets: [
+                    'Tshirt Ruler Set: You will receive 8 different size white t shirt rulers',
+                ],
+                hasProductIdentifier: true,
+                packageProfile: toPackageProfile({
+                    dimensions: [
+                        { value: 1.7018, unit: 'centimeters' },
+                        { value: 15.1892, unit: 'centimeters' },
+                        { value: 26.0096, unit: 'centimeters' },
+                    ],
+                    weight: { value: 0.231, unit: 'kilograms' },
+                }),
+            })
+        ).toEqual({ isMerchListing: false, bullet1: null, bullet2: null });
+    });
+
+    it('classifies pens by their template bullets', () => {
+        expect(
+            classifyMerchListing({
+                bullets: [
+                    'Character or Name design. This Jeffy merchandise is the perfect gift!',
+                    '12-pack of 1.2mm retractable ballpoint pens featuring smooth-flowing ink',
+                    'Ergonomic grip design for comfortable extended writing sessions',
+                    'Pens use 97% Global Recycled Standard (GRS) materials',
+                ],
+                hasProductIdentifier: false,
+                packageProfile: null,
+            })
+        ).toEqual({
+            isMerchListing: true,
+            bullet1: 'Character or Name design. This Jeffy merchandise is the perfect gift!',
+            bullet2: null,
         });
     });
 
@@ -121,25 +118,25 @@ describe('classifyMerchListing', () => {
     )('recognizes the %s template bullet "%s"', (_productType, templateBullet) => {
         expect(
             classifyMerchListing({
-                bullets: { kind: 'available', bullets: ['Seller bullet', templateBullet] },
-                partNumber: 'Top7',
+                bullets: ['Seller bullet', templateBullet],
+                hasProductIdentifier: false,
+                packageProfile: null,
             })
         ).toEqual({ isMerchListing: true, bullet1: 'Seller bullet', bullet2: null });
     });
 
-    it('matches templates and keeps the first two seller bullets', () => {
+    it('keeps the first two seller bullets and normalizes template punctuation', () => {
         expect(
             classifyMerchListing({
-                bullets: {
-                    kind: 'available',
-                    bullets: [
-                        'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
-                        'Custom seller bullet one',
-                        'Custom seller bullet two',
-                        'Custom seller bullet three',
-                    ],
-                },
-                partNumber: null,
+                bullets: [
+                    '  Dual-wall insulated stainless steel construction keeps beverages hot or cold, top rack dishwasher safe and BPA free  ',
+                    '16” x 16” bag with two 14” long and 1” wide black cotton webbing strap handles.',
+                    'Custom seller bullet one',
+                    'Custom   seller bullet two',
+                    'Custom seller bullet three',
+                ],
+                hasProductIdentifier: false,
+                packageProfile: null,
             })
         ).toEqual({
             isMerchListing: true,
@@ -148,39 +145,102 @@ describe('classifyMerchListing', () => {
         });
     });
 
-    it('normalizes punctuation and whitespace for template matching', () => {
+    it('does not treat generic seller copy as Merch', () => {
         expect(
             classifyMerchListing({
-                bullets: {
-                    kind: 'available',
-                    bullets: [
-                        '  Dual-wall insulated stainless steel construction keeps beverages hot or cold, top rack dishwasher safe and BPA free  ',
-                        '16” x 16” bag with two 14” long and 1” wide black cotton webbing strap handles.',
-                        'Seller bullet',
-                    ],
-                },
-                partNumber: null,
-            })
-        ).toEqual({
-            isMerchListing: true,
-            bullet1: 'Seller bullet',
-            bullet2: null,
-        });
-    });
-
-    it('does not treat generic seller copy or Merch-style titles as Merch', () => {
-        expect(
-            classifyMerchListing({
-                bullets: {
-                    kind: 'available',
-                    bullets: [
-                        'Funny design.',
-                        'Please be advised to see our size chart for the best fit',
-                        'Premium T-Shirt',
-                    ],
-                },
-                partNumber: 'LQ-3699-BK-M',
+                bullets: ['Funny design.', 'Please see our size chart for the best fit'],
+                hasProductIdentifier: false,
+                packageProfile: null,
             })
         ).toEqual({ isMerchListing: false, bullet1: null, bullet2: null });
+    });
+});
+
+describe('Merch package profiles', () => {
+    it('converts Keepa millimeters and grams', () => {
+        const packageProfile = toPackageProfile({
+            dimensions: [
+                { value: 254, unit: 'millimeters' },
+                { value: 203, unit: 'millimeters' },
+                { value: 25, unit: 'millimeters' },
+            ],
+            weight: { value: 136, unit: 'grams' },
+        });
+
+        expect(packageProfile?.dimensionsInches.map(value => value.toFixed(3))).toEqual([
+            '0.984',
+            '7.992',
+            '10.000',
+        ]);
+        expect(
+            classifyMerchListing({ bullets: [], hasProductIdentifier: false, packageProfile })
+        ).toMatchObject({ isMerchListing: true });
+    });
+
+    it('converts SP-API centimeters and kilograms', () => {
+        // Dr. Seuss B079PQPLT3.
+        const packageProfile = toPackageProfile({
+            dimensions: [
+                { value: 2.54, unit: 'centimeters' },
+                { value: 20.32, unit: 'centimeters' },
+                { value: 25.4, unit: 'centimeters' },
+            ],
+            weight: { value: 0.136, unit: 'kilograms' },
+        });
+
+        expect(
+            classifyMerchListing({ bullets: [], hasProductIdentifier: false, packageProfile })
+        ).toMatchObject({ isMerchListing: true });
+    });
+
+    it('has no profile for an unknown unit or a missing measurement', () => {
+        expect(
+            toPackageProfile({
+                dimensions: [inches(10), inches(8), { value: 1, unit: 'cubits' }],
+                weight: pounds(0.3),
+            })
+        ).toBeNull();
+        expect(
+            toPackageProfile({
+                dimensions: [inches(10), inches(8), inches(1)],
+                weight: { value: -1, unit: 'grams' },
+            })
+        ).toBeNull();
+        expect(
+            toPackageProfile({
+                dimensions: [inches(10), inches(8), inches(1)],
+                weight: { value: 4.8, unit: 'ounces' },
+            })
+        ).toEqual({ dimensionsInches: [1, 8, 10], weightPounds: 0.3 });
+    });
+
+    it('reports a template-bullet listing whose package matches no profile', () => {
+        const unknownPackage = toPackageProfile({
+            dimensions: [inches(4), inches(4), inches(4)],
+            weight: pounds(0.5),
+        });
+        const templateBullets = ['Lightweight, Classic fit, Double-needle sleeve and bottom hem'];
+
+        expect(
+            findUnmatchedMerchPackage({
+                bullets: templateBullets,
+                hasProductIdentifier: false,
+                packageProfile: unknownPackage,
+            })
+        ).toEqual({ dimensionsInches: [4, 4, 4], weightPounds: 0.5 });
+        expect(
+            findUnmatchedMerchPackage({
+                bullets: templateBullets,
+                hasProductIdentifier: false,
+                packageProfile: standardTeePackage,
+            })
+        ).toBeNull();
+        expect(
+            findUnmatchedMerchPackage({
+                bullets: ['Seller bullet'],
+                hasProductIdentifier: false,
+                packageProfile: unknownPackage,
+            })
+        ).toBeNull();
     });
 });

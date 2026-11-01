@@ -136,4 +136,10 @@ export const MERCH_TEMPLATE_BULLETS_BY_PRODUCT_TYPE = {
         'Built-in elastic closure and ribbon bookmark',
         'Includes an expandable inner storage pocket and a pen holder',
     ],
+    pens: [
+        '12-pack of 1.2mm retractable ballpoint pens featuring smooth-flowing ink',
+        "12-pack of 1.2mm retractable ballpoint pens featuring smooth-flowing ink that matches each pen's case color",
+        'Ergonomic grip design for comfortable extended writing sessions',
+        'Pens use 97% Global Recycled Standard (GRS) materials',
+    ],
 } as const satisfies Readonly<Record<string, readonly string[]>>;

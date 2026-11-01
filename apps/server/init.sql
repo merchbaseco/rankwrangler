@@ -47,9 +47,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Access projection aliases share a user with its canonical grant; migrations
 -- preserve issuer-and-subject uniqueness rather than one-row-per-user uniqueness.
 -- Key tables: access_projection, rankwrangler_service_accounts, products
--- (includes source-aware SP-API/Keepa freshness, Keepa metrics, and nullable
--- products.is_merch_listing; NULL means classification knowledge is unavailable, and
--- products.amazon_listing_status records whether the Amazon listing is active or deleted),
+-- (includes source-aware SP-API/Keepa freshness, Keepa metrics, and
+-- products.is_merch_listing, a NOT NULL boolean defaulting to false that the latest decided
+-- observation overwrites, and products.amazon_listing_status, whether the Amazon listing is
+-- active or deleted),
 -- product_short_names, product_cutout_thumbnails, product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
 -- product_history_series (compact Keepa series),
