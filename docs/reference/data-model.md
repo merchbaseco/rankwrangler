@@ -63,8 +63,8 @@ The active schema is split by responsibility:
 
 - [`schema.ts`](../../apps/server/src/db/schema.ts) owns products, facets, queues, Keepa history,
   categories, access projections, Service Accounts, and the guarded cutover gate.
-- [`top-search-terms-schema.ts`](../../apps/server/src/db/top-search-terms-schema.ts) owns Brand
-  Analytics datasets, snapshots, and daily term rows.
+- [`brand-analytics-schema.ts`](../../apps/server/src/db/brand-analytics-schema.ts) owns Brand
+  Analytics import state and the latest kept search-term rows.
 - [`ops-schema.ts`](../../apps/server/src/db/ops-schema.ts) owns Operations, activity events, and
   job execution records.
 - [`provider-telemetry-schema.ts`](../../apps/server/src/db/provider-telemetry-schema.ts) owns
