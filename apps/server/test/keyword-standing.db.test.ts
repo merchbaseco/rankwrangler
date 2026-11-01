@@ -4,7 +4,6 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { discoveryTargets } from '@/db/discovery-target-schema';
 import { keywordExplorationPasses } from '@/db/keyword-collection-schema';
-import { spApiCatalogCapacity } from '@/db/spapi-capacity-schema';
 import { products } from '@/db/product-schema';
 import { recordProductSearchInterest } from '@/db/product-search-interest';
 import { refreshKeywordStandings } from '@/db/refresh-keyword-standings';
@@ -14,7 +13,6 @@ import {
     resetDiscoveryFixture,
     seedDiscoveryTarget,
     claimDiscoveryFixture,
-    primeCatalogCapacity,
     acceptDiscoveryFixture,
     discoveryProduct,
     discoveryNow as now,
@@ -23,7 +21,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('tracked keyword st
     beforeEach(resetDiscoveryFixture);
     it('retains hot standing and revisits despite zero new identities or memberships', async () => {
         const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'halloween shirt' });
-        await primeCatalogCapacity();
         const first = await claimDiscoveryFixture();
         const sample = [
             discoveryProduct('B0TST00001', { rootCategoryBsr: 100_000 }),
@@ -48,7 +45,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('tracked keyword st
             tracking: 'tracked',
         });
         const next = accepted.pass.resumeAt;
-        await primeCatalogCapacity(next);
         const second = await claimDiscoveryFixture(next);
         await acceptDiscoveryFixture(second, sample, next, null);
         [standing] = await db
@@ -68,7 +64,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('tracked keyword st
             .update(discoveryTargets)
             .set({ tracking: 'trial' })
             .where(eq(discoveryTargets.id, target.id));
-        await primeCatalogCapacity();
         const first = await claimDiscoveryFixture();
         const { pass } = await acceptDiscoveryFixture(first, [
             discoveryProduct('B0TST00001'),
@@ -103,38 +98,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('tracked keyword st
             .from(eventLogs)
             .where(eq(eventLogs.primitiveId, target.queryId));
         expect(activity.filter(row => row.action === 'keyword.tracking.changed')).toHaveLength(1);
-        expect((await claimKeywordExploration(new Date(Date.now() + 100)))?.target.id).toBe(
-            target.id
-        );
-    });
-    it('does not starve tracked checks when trial jobs each consume five physical pages', async () => {
-        const tracked = await seedDiscoveryTarget({ kind: 'keyword', term: 'tracked niche' });
-        for (let i = 0; i < 8; i += 1) {
-            const target = await seedDiscoveryTarget({ kind: 'keyword', term: `trial ${i}` });
-            await db
-                .update(discoveryTargets)
-                .set({ tracking: 'trial' })
-                .where(eq(discoveryTargets.id, target.id));
-        }
-        await db
-            .insert(spApiCatalogCapacity)
-            .values({ id: 1, backgroundStarts: 0, discoveryClaims: 0 });
-        const first = await claimDiscoveryFixture();
-        expect(first.target.tracking).toBe('trial');
-        await stopDiscoveryWork({
-            passId: first.pass.id,
-            claimToken: first.claimToken,
-            reason: 'budget',
-            retryAt: new Date(now.getTime() + 86400000),
-            now,
-        });
-        await db
-            .update(spApiCatalogCapacity)
-            .set({ backgroundStarts: 5 })
-            .where(eq(spApiCatalogCapacity.id, 1));
-        expect((await claimDiscoveryFixture(new Date(now.getTime() + 1000))).target.id).toBe(
-            tracked.id
-        );
+        expect(
+            (await claimKeywordExploration(target.id, new Date(Date.now() + 100)))?.target.id
+        ).toBe(target.id);
     });
     it('promotes a cold keyword from fresh product ranks without paying for another search', async () => {
         const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'seasonal shirt' });

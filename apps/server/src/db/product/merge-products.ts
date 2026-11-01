@@ -47,8 +47,7 @@ export const mergeProducts = async (
     }
     await transaction.execute(sql`
         update products s set
-            is_merch_listing=case when s.is_merch_listing or o.is_merch_listing then true
-                else coalesce(s.is_merch_listing, o.is_merch_listing) end,
+            is_merch_listing=s.is_merch_listing or o.is_merch_listing,
             representative_asin=coalesce(s.representative_asin, o.representative_asin),
             date_first_available=least(s.date_first_available, o.date_first_available),
             created_at=least(s.created_at, o.created_at),

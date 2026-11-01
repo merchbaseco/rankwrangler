@@ -11,6 +11,9 @@ BEGIN
         AND keepa_fetched_at IS NULL AND is_merch_listing = false) THEN
         RAISE EXCEPTION 'Never-fetched non-Merch Product lost baseline admission';
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM products WHERE asin = 'B0UNKNOWN1' AND is_merch_listing = false) THEN
+        RAISE EXCEPTION 'Unclassified Product was not backfilled as non-Merch';
+    END IF;
     IF (SELECT count(*) FROM products WHERE history_admission_state = 'admitted'
         AND history_admission_reason = 'legacy') <> 3 THEN
         RAISE EXCEPTION 'Baseline did not include all Merch and unknown identities';

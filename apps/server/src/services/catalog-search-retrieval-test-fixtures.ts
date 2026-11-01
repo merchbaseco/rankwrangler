@@ -93,7 +93,7 @@ export const createProduct = ({
     title?: string | null;
     brand?: string | null;
     thumbnail?: ProductInfo['thumbnail'];
-    isMerchListing?: boolean | null;
+    isMerchListing?: boolean;
     category?: { id: number; name: string | null } | null;
     rootCategoryBsr?: number | null;
     keepa?: ProductInfo['keepa'];

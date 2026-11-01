@@ -61,7 +61,7 @@ Search accepts these filters:
 
 - `term`, `textFields: all | title`, and `excludeWords`.
 - `marketplaceIds` (defaults to US; an empty array selects all marketplaces).
-- `isMerchListing: true | false | unknown | all` (defaults to true).
+- `isMerchListing: true | false | all` (defaults to true).
 - `amazonListingStatus: active | deleted | all` (defaults to active).
 - `brands`, `excludeBrands`, `includeOfficialBrands` (defaults to false), and `categoryIds`.
 - `salesRank`, `price`, and `monthlySold` with optional integer `min` and `max`. Prices use minor
@@ -90,9 +90,8 @@ Every data tool call completes synchronously from the caller's perspective. It r
 policy-current data, last-known Product listing data, or a structured error. MCP does not expose pending Product data,
 provider freshness, Catalog, Operation, polling, provider status, or provider-named frontend
 availability tools. Product search coverage and keyword results expose dated research evidence.
-Only keyword `results` accepts `refresh`. Nullable `isMerchListing` remains unknown rather
-than being serialized as `false`; Product listing availability is exposed separately as
-`amazonListingStatus`.
+Only keyword `results` accepts `refresh`. `isMerchListing` is always `true` or `false`; Product
+listing availability is exposed separately as `amazonListingStatus`.
 
 `rankwrangler_status` does not report data or provider health, freshness, timestamps, or work state.
 

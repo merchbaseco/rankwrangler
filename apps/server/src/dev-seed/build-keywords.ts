@@ -130,7 +130,6 @@ export const buildKeywords = (
             newProducts: 0,
             newMerchProducts: 0,
             knownMerch: head.length,
-            unknownProducts: 0,
             nonMerchProducts: 0,
             newMerchMemberships: 0,
         });

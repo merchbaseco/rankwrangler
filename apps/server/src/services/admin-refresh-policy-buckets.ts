@@ -29,7 +29,6 @@ interface KeepaRefreshPolicyCountRow extends Record<string, unknown> {
     weekly: number;
     on_demand: number;
     merch_missing_bsr: number;
-    unknown: number;
     non_merch: number;
 }
 
@@ -77,7 +76,7 @@ export const getSpApiRefreshPolicyBuckets = async (): Promise<SpApiRefreshPolicy
             label: 'No BSR',
             refreshEveryLabel: 'Bounded',
             hint:
-                'Unclassified and Merch listings without a BSR get bounded checks; ' +
+                'Merch listings without a BSR get bounded checks; ' +
                 'non-Merch listings are never refreshed.',
             count: counts.non_auto_refresh,
             isAutoRefresh: false,
@@ -92,7 +91,6 @@ export const getKeepaRefreshPolicyBuckets = async (): Promise<KeepaRefreshPolicy
         weekly: counts.weekly,
         onDemand: counts.on_demand,
         merchMissingBsr: counts.merch_missing_bsr,
-        unknown: counts.unknown,
         nonMerch: counts.non_merch,
     };
 
@@ -154,7 +152,7 @@ const querySpApiRefreshPolicyBucketCounts = async (): Promise<SpApiRefreshPolicy
             )::int AS gte_3m,
             coalesce(
                 count(*) FILTER (
-                    WHERE is_merch_listing IS DISTINCT FROM true
+                    WHERE is_merch_listing = false
                     OR root_category_bsr IS NULL
                 ),
                 0
@@ -215,10 +213,6 @@ const queryKeepaRefreshPolicyBucketCounts = async (): Promise<KeepaRefreshPolicy
                 0
             )::int AS merch_missing_bsr,
             coalesce(
-                count(*) FILTER (WHERE is_merch_listing IS NULL),
-                0
-            )::int AS unknown,
-            coalesce(
                 count(*) FILTER (
                     WHERE is_merch_listing = false
                 ),
@@ -234,7 +228,6 @@ const queryKeepaRefreshPolicyBucketCounts = async (): Promise<KeepaRefreshPolicy
             weekly: 0,
             on_demand: 0,
             merch_missing_bsr: 0,
-            unknown: 0,
             non_merch: 0,
         }
     );

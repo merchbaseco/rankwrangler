@@ -1,0 +1,1 @@
+DROP TABLE "spapi_catalog_capacity" CASCADE;

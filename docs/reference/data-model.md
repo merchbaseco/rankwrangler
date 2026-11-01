@@ -8,14 +8,16 @@ read_when:
 # Data Model
 
 **Migration status:** Generated migration `0032_useful_skrulls.sql` stores the durable Product
-listing-resolution timestamp and nullable `products.is_merch_listing`. Generated migration
+listing-resolution timestamp and `products.is_merch_listing`. Generated migration
 `0034_flowery_winter_soldier.sql` adds short-lived Provider attempts. Generated migration
 `0035_numerous_william_stryker.sql` replaces the Product availability boolean with canonical
 `active | deleted` Amazon listing status. Generated migration `0036_melodic_jack_flag.sql` adds
 the sparse Product short-name table.
 Generated migration `0064_product_variation_families.sql` adds Product ASIN aliases and variation
 state. Generated migration `0065_cloudflare_access.sql` adds delegation audit records and allows
-multiple active Access Projections for one Merchbase user. Apply these migrations before deploying
+multiple active Access Projections for one Merchbase user. The binary Merch-status migration sets
+null `products.is_merch_listing` values to `false`, makes the column `NOT NULL DEFAULT false`, and
+drops `keyword_discovery_attempts.unknown_products`. Apply these migrations before deploying
 dependent code.
 
 ## Canonical identity
@@ -45,7 +47,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Catalog query | `(source, marketplaceId, normalizedTerm)` | Term interest, bounded admission, tier, demand evidence, research lease and next check. |
 | Keyword membership | `(queryId, productId)` | First and latest observed membership across sources. |
 | Exploration pass | generated id, at most one active per query | SP-API continuation, claimed execution, dated depth and stop reason. |
-| Discovery attempt | generated id | Durable physical-attempt reservation for SP-API exploration caps. |
+| Discovery attempt | generated id | One SP-API exploration page request and its yield, fenced to the pass claim. |
 | Keepa capacity attempt | generated id | Work class, reserved and actual token cost independent of ingestion success. |
 | History admission receipt | rollout key | Atomic baseline time and count of grandfathered Product identities. |
 | Search run | generated id | One immutable successful provider execution, including zero-result runs, with `trigger: requested | automatic`. |
@@ -119,7 +121,7 @@ The public Product is one current provider-neutral projection:
 
 - marketplace and ASIN identity;
 - `listing`: title, brand, first-available date, a bullet-point array, resolved available/unavailable
-  thumbnail, nullable `isMerchListing`, and `amazonListingStatus`;
+  thumbnail, boolean `isMerchListing`, and `amazonListingStatus`;
 - `category`: current root-category identity and name;
 - `salesRank`: current rank plus `averages.last30Days` and `averages.last90Days`;
 - `price`: money in integer minor units with currency code; and
@@ -129,11 +131,10 @@ The public Product is one current provider-neutral projection:
 Public callers never receive a pending thumbnail, provider block or timestamps,
 `trackingStartedAt`, freshness, status, Operations, or `schemaVersion`.
 
-`isMerchListing` is `true` when the part number matches the Merch design-code fingerprint or a bullet
-matches a Merch template, `false` when a part number or bullets were observed without either match,
-and `null` when neither was available or classification has not run.
-Public consumers receive only this nullable field; provider, freshness, and status metadata are
-not exposed for the property.
+`isMerchListing` is `true` when the latest decided observation had no UPC, EAN or GTIN and either a
+Merch template bullet or a Merch package profile, and `false` otherwise, including before any
+provider has described the Product. Public consumers receive only this boolean; provider,
+freshness, and status metadata are not exposed for the property.
 
 `listing.amazonListingStatus` is set to `deleted` only when a successful SP-API Catalog response
 omits the requested ASIN. Provider failures preserve the prior value, and a later successful
@@ -177,7 +178,7 @@ public scale field.
 
 Public Search returns `keyword`, `searchedAt`, and source-ordered `results`. Each result contains
 `organicSearchPlacement` plus a compact `product` with identity, title, brand, resolved thumbnail,
-nullable Merch classification, category, current sales rank, price, and bought-in-the-past-month
+boolean Merch classification, category, current sales rank, price, and bought-in-the-past-month
 evidence. It omits bullets, rank averages and drop windows, full demand, history, provider metadata,
 and freshness. Invalid or duplicate provider results preserve ordinal gaps. Search-run membership
 and placement are immutable; projected Product fields remain independent current state.

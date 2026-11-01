@@ -128,6 +128,7 @@ test('Product search rejects malformed filters before a request', () => {
         ['--availableAfter', 'yesterday'],
         ['--availableAfter', '2026-02-31'],
         ['--availableAfter', '2026-10-01', '--availableBefore', '2026-09-01'],
+        ['--merch', 'unknown'],
     ]) {
         expect(runCliFailure(['product', 'search', ...args], workspace)).toMatchObject({
             ok: false,

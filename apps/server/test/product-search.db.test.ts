@@ -181,9 +181,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('stored Merch resea
         expect((await search({ term: 'fish' })).items).toHaveLength(0);
     });
 
-    it('combines facet alternatives and preserves explicit unknown classification', async () => {
+    it('combines facet alternatives and filters by Merch status', async () => {
         const fishing = await insertProduct('B000000001');
-        const nurse = await insertProduct('B000000002', { isMerchListing: null });
+        const nurse = await insertProduct('B000000002', { isMerchListing: false });
         const [hobby, profession] = await db
             .insert(productFacetValues)
             .values([
@@ -205,8 +205,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('stored Merch resea
             { facet: 'hobby', name: 'fishing' },
         ]);
         expect(
-            (await search({ facets, isMerchListing: 'unknown' })).items.map(item => item.asin)
+            (await search({ facets, isMerchListing: false })).items.map(item => item.asin)
         ).toEqual(['B000000002']);
+        expect((await search({ facets })).items.map(item => item.asin)).toEqual(['B000000001']);
         expect((await search({ facets, salesRank: { min: 500 } })).items).toHaveLength(0);
     });
 

@@ -8,7 +8,6 @@ export interface ProductIdentifier {
 export interface Product {
 	asin: string;
 	marketplaceId: string;
-	isMerchListing: boolean | null;
 	amazonListingStatus: "active" | "deleted";
 	creationDate?: string;
 
@@ -34,7 +33,6 @@ export const getErrorProduct = (
 	return {
 		asin: productIdentifier.asin,
 		marketplaceId: productIdentifier.marketplaceId,
-		isMerchListing: null,
 		amazonListingStatus: "active",
 		metadata: {
 			success: false,

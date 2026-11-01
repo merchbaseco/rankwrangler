@@ -1,17 +1,13 @@
-import type { z } from 'zod';
-import { classifyMerchListing } from '@/services/merch-listing-classification';
+import type { MerchListingClassification } from '@/services/merch-listing-classification';
 import type { SpApiProduct } from '@/types';
 import { getRootCategoryId } from '@/types/amazon-root-categories';
-import {
-    getMarketplaceMerchListingEvidence,
-    type ItemSchema,
-    VariantSchema,
-} from './search-catalog-items-schema';
+import { type CatalogItem, readVariationFamily, VariantSchema } from './search-catalog-items-schema';
 
 export const mapSpApiCatalogItem = (
-    item: z.infer<typeof ItemSchema>,
+    item: CatalogItem,
     marketplaceId: string,
-    fetchedAt: string
+    fetchedAt: string,
+    merch: MerchListingClassification
 ): SpApiProduct => {
     const asin = item.asin;
     // Get product site launch date from attributes
@@ -21,10 +17,6 @@ export const mapSpApiCatalogItem = (
     const dateFirstAvailable = productSiteLaunchDate?.value
         ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
         : null;
-    const merchClassification = classifyMerchListing(
-        getMarketplaceMerchListingEvidence(item.attributes, marketplaceId)
-    );
-
     // Extract root category ID and BSR from display group rank (only one display group per item)
     const salesRank = item.salesRanks?.find(sr => sr.marketplaceId === marketplaceId);
     const displayGroupRank = salesRank?.displayGroupRanks?.[0];
@@ -59,9 +51,9 @@ export const mapSpApiCatalogItem = (
         dateFirstAvailable,
         title,
         brand,
-        isMerchListing: merchClassification?.isMerchListing ?? null,
-        bullet1: merchClassification?.bullet1 ?? null,
-        bullet2: merchClassification?.bullet2 ?? null,
+        isMerchListing: merch.isMerchListing,
+        bullet1: merch.bullet1,
+        bullet2: merch.bullet2,
         rootCategoryId,
         rootCategoryBsr,
         thumbnailUrl,
@@ -69,20 +61,4 @@ export const mapSpApiCatalogItem = (
         fetchedAt,
     };
     return productInfo;
-};
-
-// A variant names its parent; a parent lists its variants. Either way the family shares one rank.
-export const readVariationFamily = (
-    item: Pick<z.infer<typeof ItemSchema>, 'asin' | 'relationships'>,
-    marketplaceId: string
-) => {
-    const variations = (
-        item.relationships?.find(entry => entry.marketplaceId === marketplaceId)?.relationships ?? []
-    ).filter(relationship => relationship.type === 'VARIATION');
-    const parentAsin = variations.flatMap(relationship => relationship.parentAsins ?? [])[0];
-    const childAsin = variations.flatMap(relationship => relationship.childAsins ?? [])[0];
-    return {
-        parentAsin: parentAsin && parentAsin !== item.asin ? parentAsin.toUpperCase() : null,
-        childAsin: childAsin ? childAsin.toUpperCase() : null,
-    };
 };

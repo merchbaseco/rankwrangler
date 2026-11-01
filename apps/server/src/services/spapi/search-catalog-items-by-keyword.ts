@@ -1,14 +1,13 @@
-import type { z } from 'zod';
-import { classifyMerchListing } from '@/services/merch-listing-classification';
+import type { MerchListingClassification } from '@/services/merch-listing-classification';
 import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
-import { getRootCategoryId } from '@/types/amazon-root-categories.js';
-import type { ProductThumbnail } from '@/types/index.js';
+import { getRootCategoryId } from '@/types/amazon-root-categories';
+import type { ProductThumbnail } from '@/types/index';
+import { classifyCatalogItems } from './classify-catalog-items';
 import {
-    getMarketplaceMerchListingEvidence,
+    type CatalogItem,
     ItemSearchResultsSchema,
     VariantSchema,
-    type ItemSchema,
-} from './search-catalog-items-schema.js';
+} from './search-catalog-items-schema';
 
 const MAX_PAGE_SIZE = 20;
 const MIN_PAGE_SIZE = 1;
@@ -23,7 +22,7 @@ export type CatalogKeywordSearchItem = {
     brand: string | null;
     bullet1: string | null;
     bullet2: string | null;
-    isMerchListing: boolean | null;
+    isMerchListing: boolean;
     rootCategoryBsr: number | null;
     thumbnail: ProductThumbnail;
     facets: Array<{ facet: string; name: string }>;
@@ -90,9 +89,14 @@ export const searchCatalogItemsByKeyword = async ({
     const fetchedAt = new Date().toISOString();
 
     const parsed = ItemSearchResultsSchema.parse(rawResponse);
-    const items = parsed.items
-        .slice(0, clampedPageSize)
-        .map(item => mapCatalogItemFromKeywordSearch(item, marketplaceId, fetchedAt));
+    const classified = await classifyCatalogItems({
+        items: parsed.items.slice(0, clampedPageSize),
+        marketplaceId,
+        provider: spApiProvider,
+    });
+    const items = classified.map(({ item, merch }) =>
+        mapCatalogItemFromKeywordSearch(item, marketplaceId, fetchedAt, merch)
+    );
 
     const result: CatalogKeywordSearchResult = {
         items,
@@ -110,9 +114,10 @@ export const searchCatalogItemsByKeyword = async ({
 };
 
 export const mapCatalogItemFromKeywordSearch = (
-    item: z.infer<typeof ItemSchema>,
+    item: CatalogItem,
     marketplaceId: string,
-    fetchedAt: string
+    fetchedAt: string,
+    merch: MerchListingClassification
 ): CatalogKeywordSearchItem => {
     const productSiteLaunchDate = item.attributes?.product_site_launch_date?.find(
         entry => entry.marketplace_id === marketplaceId
@@ -120,10 +125,6 @@ export const mapCatalogItemFromKeywordSearch = (
     const dateFirstAvailable = productSiteLaunchDate?.value
         ? new Date(productSiteLaunchDate.value).toISOString().split('T')[0]
         : null;
-
-    const merchClassification = classifyMerchListing(
-        getMarketplaceMerchListingEvidence(item.attributes, marketplaceId)
-    );
 
     const salesRank = item.salesRanks?.find(rank => rank.marketplaceId === marketplaceId);
     const displayGroupRank = salesRank?.displayGroupRanks?.[0];
@@ -150,9 +151,9 @@ export const mapCatalogItemFromKeywordSearch = (
         dateFirstAvailable,
         title: summary?.itemName ?? null,
         brand: summary?.brand ?? summary?.brandName ?? null,
-        bullet1: merchClassification?.bullet1 ?? null,
-        bullet2: merchClassification?.bullet2 ?? null,
-        isMerchListing: merchClassification?.isMerchListing ?? null,
+        bullet1: merch.bullet1,
+        bullet2: merch.bullet2,
+        isMerchListing: merch.isMerchListing,
         rootCategoryBsr,
         thumbnail: thumbnailUrl
             ? { status: 'available', url: thumbnailUrl }

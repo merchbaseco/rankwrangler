@@ -1,7 +1,6 @@
 // Core product information from API
 export interface ProductInfo {
 	asin: string;
-	isMerchListing: boolean | null;
 	amazonListingStatus: "active" | "deleted";
 	dateFirstAvailable: string | null;
 	rootCategoryBsr: number | null;

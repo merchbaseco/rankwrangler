@@ -21,6 +21,12 @@ only to authorized admins in dashboard settings.
 Loading, empty, and failed states belong to each panel. A missing metric does not by itself mean
 the provider is down; corroborate it with the activity log and job execution records.
 
+SP-API Catalog search is paced in the server process by one limiter (see
+[Catalog search](../internals/catalog-search.md)): live reads first, background work at most 75%
+of a rate capped at 0.5 a second, halved on each 429 burst. Its state is not stored; System Status
+counts SP-API calls and 429s from `provider_attempts`, and a rising 429 count is the sign to lower
+`CATALOG_MAX_RPS` (or not to raise it).
+
 Keep raw provider budget details internal. Public APIs expose RankWrangler product data and usage
 limits, not Keepa tokens or SP-API throttling internals.
 

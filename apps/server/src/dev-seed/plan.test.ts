@@ -111,17 +111,15 @@ describe('dev seed coverage contract: the Product catalog', () => {
         expect(withinDay.length).toBeLessThan(plan.products.length - 5);
     });
 
-    it('promises all three states of Merch-listing knowledge are represented', () => {
+    it('promises both Merch and non-Merch listings are represented', () => {
         const values = new Set(plan.products.map(product => product.isMerchListing));
 
-        expect(values.has(true)).toBe(true);
-        expect(values.has(false)).toBe(true);
-        expect(values.has(null)).toBe(true);
+        expect([...values].sort()).toEqual([false, true]);
     });
 
-    it('promises a known non-Merch listing stores no seller bullets', () => {
+    it('promises a non-Merch listing stores no seller bullets', () => {
         for (const product of plan.products) {
-            if (product.isMerchListing !== true) {
+            if (!product.isMerchListing) {
                 expect(product.bullet1 ?? null).toBeNull();
                 expect(product.bullet2 ?? null).toBeNull();
             }

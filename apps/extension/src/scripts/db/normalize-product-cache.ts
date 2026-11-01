@@ -12,7 +12,6 @@ export const normalizeCachedProduct = (
 	cached: CachedProductRecord
 ): Product => ({
 	...cached,
-	isMerchListing: cached.isMerchListing ?? null,
 	amazonListingStatus: cached.amazonListingStatus ?? "active",
 	freshness: cached.freshness ?? {
 		stale: true,

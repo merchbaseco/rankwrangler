@@ -56,14 +56,13 @@ export const priceBandRanges: Readonly<
     under15: { max: 1499 },
 };
 
-export const listingTypes = ['merch', 'all', 'notMerch', 'unknown'] as const;
+export const listingTypes = ['merch', 'all', 'notMerch'] as const;
 export type ListingType = (typeof listingTypes)[number];
 
 export const listingTypeLabels: Readonly<Record<ListingType, string>> = {
     all: 'All listings',
     merch: 'Merch',
     notMerch: 'Not Merch',
-    unknown: 'Unknown',
 };
 
 /** Each listing type as the search's `isMerchListing` filter. */
@@ -71,8 +70,7 @@ export const listingTypeInputs = {
     all: 'all',
     merch: true,
     notMerch: false,
-    unknown: 'unknown',
-} as const satisfies Record<ListingType, boolean | 'all' | 'unknown'>;
+} as const satisfies Record<ListingType, boolean | 'all'>;
 
 export const exploreSorts = ['bsr', 'newest', 'sold', 'updated'] as const;
 export type ExploreSort = (typeof exploreSorts)[number];

@@ -2,12 +2,22 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { automaticSyncControl } from '@/db/automatic-sync-schema';
-import { readAutomaticSync, setAutomaticSyncPaused } from '@/db/automatic-sync';
+import {
+    isAutomaticSyncPaused,
+    readAutomaticSync,
+    setAutomaticSyncPaused,
+} from '@/db/automatic-sync';
 import { eventLogs } from '@/db/ops-schema';
 import { products } from '@/db/product-schema';
-import { claimKeywordExploration, reserveDiscoveryAttempt } from '@/db/discovery-work';
-import { spApiBackgroundGate } from '@/db/provider-gates';
-import { reserveCatalogCapacity } from '@/db/spapi-capacity';
+import {
+    claimKeywordExploration,
+    reserveDiscoveryAttempt,
+    stopDiscoveryWork,
+} from '@/db/discovery-work';
+import { checkpointDiscoveryPage } from '@/db/discovery-checkpoint';
+import { keywordDiscoveryAttempts, keywordExplorationPasses } from '@/db/keyword-collection-schema';
+import { persistDiscoveredSpApiProducts } from '@/services/spapi-keyword-discovery';
+import { syncRunningGate } from '@/db/provider-gates';
 import { claimKeywordAutocomplete } from '@/db/keyword-autocomplete-work';
 import { deferAutocomplete, reserveAutocompleteCall } from '@/db/keyword-autocomplete-capacity';
 import { keywordProviderCapacity } from '@/db/keyword-autocomplete-schema';
@@ -17,11 +27,14 @@ import {
 } from '@/db/brand-analytics-imports';
 import { brandAnalyticsSearchTerms } from '@/db/brand-analytics-schema';
 import { registerBrandAnalyticsTrials } from '@/db/brand-analytics-trials';
+import { scanKeywordPage } from '@/services/keyword-discovery';
+import { CatalogLimiter } from '@/services/providers/sp-api/sp-api-catalog-limiter';
+import { SpApiLimiterManager } from '@/services/providers/sp-api/sp-api-limiter-manager';
 import {
     resetDiscoveryFixture,
     seedDiscoveryTarget,
-    primeCatalogCapacity,
     acceptDiscoveryFixture,
+    claimDiscoveryFixture,
     discoveryProduct,
 } from './discovery-fixture';
 
@@ -59,9 +72,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword sync pause
         });
         await db.delete(automaticSyncControl);
         expect((await readAutomaticSync()).paused).toBe(true);
-        expect(await claimKeywordExploration()).toBeNull();
         expect(await claimKeywordAutocomplete()).toBeNull();
-        expect(await spApiBackgroundGate()).toBeNull();
+        expect(await syncRunningGate()).toBeNull();
         await expect(reserveAutocompleteCall()).rejects.toThrow('deferred');
         expect(await db.select().from(keywordProviderCapacity)).toHaveLength(0);
         await db.insert(brandAnalyticsSearchTerms).values({
@@ -77,43 +89,66 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword sync pause
         expect(await registerBrandAnalyticsTrials(10)).toBe(1);
         const due = await ensureBrandAnalyticsImport();
         expect(due && (await claimBrandAnalyticsImport(due.id))).not.toBeNull();
-        expect(await claimKeywordExploration()).toBeNull();
+        expect(await syncRunningGate()).toBeNull();
     });
     it('preserves the product scan checkpoint when paused between pages and permits foreground lookups', async () => {
-        await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
-        await primeCatalogCapacity(now);
-        const work = await claimKeywordExploration(now);
-        if (!work?.pass.claimToken) throw new Error('Missing discovery claim');
+        const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
+        const work = await claimDiscoveryFixture(now);
         const first = await acceptDiscoveryFixture(
-            { ...work, claimToken: work.pass.claimToken },
+            work,
             [discoveryProduct('B0TST00001')],
             now,
             'second-page'
         );
-        await setAutomaticSyncPaused(true, 'operator');
-        const attemptId = await reserveDiscoveryAttempt({
-            passId: first.pass.id,
-            claimToken: work.pass.claimToken,
-            page: 1,
+        await stopDiscoveryWork({
+            passId: work.pass.id,
+            claimToken: work.claimToken,
+            reason: 'jobCap',
             now,
         });
-        expect(
-            await reserveCatalogCapacity({
-                priority: 'background',
-                attemptId: attemptId!,
-                protectedQueued: false,
-                now,
-            })
-        ).toMatchObject({ kind: 'deferred', reason: 'paused' });
-        expect(first.pass).toMatchObject({
+        const manager = new SpApiLimiterManager(
+            {
+                limiter: new CatalogLimiter(),
+                documentedRps: 2,
+                isBackgroundPaused: isAutomaticSyncPaused,
+            },
+            [],
+            async (_descriptor, task) => await task()
+        );
+        const search = (priority: 'foreground' | 'background') =>
+            manager.runOperation({
+                ensureAccessTokenFreshness: async () => undefined,
+                operation: 'search',
+                operationId: 'catalog.searchCatalogItems',
+                priority,
+                run: async () => ({ items: [] }),
+            });
+        await setAutomaticSyncPaused(true, 'operator');
+        const scan = await scanKeywordPage(target.id, {
+            claim: claimKeywordExploration,
+            reserve: reserveDiscoveryAttempt,
+            discover: async () => {
+                await search('background');
+                throw new Error('A paused scan sent its request');
+            },
+            persist: persistDiscoveredSpApiProducts,
+            checkpoint: checkpointDiscoveryPage,
+            stop: stopDiscoveryWork,
+        });
+        expect(scan).toMatchObject({ kind: 'paused', page: 1 });
+        const [pass] = await db
+            .select()
+            .from(keywordExplorationPasses)
+            .where(eq(keywordExplorationPasses.id, first.pass.id));
+        expect(pass).toMatchObject({
             nextPage: 1,
             nextPageToken: 'second-page',
             failureCount: 0,
+            claimToken: null,
         });
-        await primeCatalogCapacity(now);
-        expect(
-            await reserveCatalogCapacity({ priority: 'foreground', protectedQueued: false, now })
-        ).toMatchObject({ kind: 'granted' });
+        const attempts = await db.select().from(keywordDiscoveryAttempts);
+        expect(attempts.map(row => row.status).sort()).toEqual(['accepted', 'canceled']);
+        await expect(search('foreground')).resolves.toEqual({ items: [] });
     });
     it('makes pause wait for an admission already waiting on a capacity lock', async () => {
         await db

@@ -21,11 +21,12 @@ export const buildSpApiBlindspotRefreshCondition = (now = new Date()) => {
                     END
                 ))`
             ),
+            // A Product only Keepa has seen may be non-Merch only because Keepa couldn't decide; one
+            // SP-API observation, with the variation-parent fallback, settles it.
             and(
-                isNull(products.isMerchListing),
-                sql`(${latestSuccess} IS NULL OR ${latestSuccess} <= ${now.toISOString()}::timestamp - (
-                    CASE WHEN ${inProbation} THEN interval '7 days' ELSE interval '30 days' END
-                ))`
+                eq(products.isMerchListing, false),
+                isNull(products.spApiFetchedAt),
+                isNull(products.spApiResolvedAt)
             )
         )
     );

@@ -52,7 +52,7 @@ export const checkpointDiscoveryPage = async <T>(input: {
             )
             .for('update');
         if (attempt?.status === 'accepted') return pass;
-        if (pass.nextPage !== input.page || attempt?.status !== 'fetched')
+        if (pass.nextPage !== input.page || attempt?.status !== 'started')
             throw new Error('Discovery page is not ready for acceptance');
         const [target] = await tx
             .select()
@@ -141,7 +141,6 @@ export const checkpointDiscoveryPage = async <T>(input: {
                 newProducts: persisted.newProductIds.length,
                 newMerchProducts: persisted.newMerchProductIds.length,
                 knownMerch: persisted.merchProductIds.length,
-                unknownProducts: persisted.unknownCount,
                 nonMerchProducts: persisted.nonMerchCount,
                 newMerchMemberships: newMerchCount,
             })

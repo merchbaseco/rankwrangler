@@ -1,5 +1,3 @@
-import type Bottleneck from 'bottleneck';
-
 const EWMA_ALPHA = 0.2;
 const RATE_LIMIT_SAFETY_MARGIN = 0.8;
 const MIN_RPS = 0.001;
@@ -29,17 +27,6 @@ export type SpApiLimiterState = {
     successes: number;
     throttles: number;
 };
-
-type SpApiLimiterSnapshot = {
-    operationId: SpApiLimiterOperationId;
-} & SpApiLimiterState & {
-        queued: number;
-        received: number;
-        running: number;
-        executing: number;
-        done: number;
-        currentReservoir: number | null;
-    };
 
 export const createLimiterState = ({
     configuredRps,
@@ -141,28 +128,16 @@ export const isThrottleError = (error: unknown) => {
     return getErrorStatus(error) === 429;
 };
 
-export const toLimiterSnapshot = async ({
-    operationId,
-    limiter,
-    state,
-}: {
-    operationId: SpApiLimiterOperationId;
-    limiter: Bottleneck;
-    state: SpApiLimiterState;
-}): Promise<SpApiLimiterSnapshot> => {
-    const counts = limiter.counts();
-    const currentReservoir = await limiter.currentReservoir();
-
-    return {
-        operationId,
-        ...state,
-        currentReservoir: currentReservoir ?? null,
-        done: counts.DONE ?? 0,
-        executing: counts.EXECUTING ?? 0,
-        queued: counts.QUEUED ?? 0,
-        received: counts.RECEIVED ?? 0,
-        running: counts.RUNNING ?? 0,
-    };
+// Retry-After as milliseconds, from seconds or an HTTP date; 0 when absent.
+export const readRetryAfterMs = (error: unknown, now = Date.now()) => {
+    if (!isRecord(error)) return 0;
+    const response = isRecord(error.response) ? error.response : error;
+    const value = getHeaderValue(getHeadersContainer(response), 'retry-after');
+    if (!value) return 0;
+    const seconds = Number(value);
+    return Number.isFinite(seconds)
+        ? Math.max(0, seconds * 1000)
+        : Math.max(0, Date.parse(value) - now) || 0;
 };
 
 const extractRateLimitFromObject = (value: unknown): number | null => {

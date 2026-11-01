@@ -1,7 +1,8 @@
 import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 import type { SpApiProduct } from '@/types';
 import { mapSpApiCatalogItem } from './catalog-product-mapper';
-import { ItemSchema, ItemSearchResultsSchema } from './search-catalog-items-schema';
+import { classifyCatalogItems } from './classify-catalog-items';
+import { ItemSearchResultsSchema } from './search-catalog-items-schema';
 
 const spApiProvider = createSpApiProvider();
 
@@ -19,34 +20,26 @@ export const searchCatalogItemsByAsins = async (
         throw new Error('ASINs are required');
     }
 
-    const rawResponse = await spApiProvider.searchCatalogItemsByAsins({
-        asins,
+    const response = ItemSearchResultsSchema.parse(
+        await spApiProvider.searchCatalogItemsByAsins({
+            asins,
+            marketplaceId,
+            priority: options.priority,
+        })
+    );
+    const classified = await classifyCatalogItems({
+        items: response.items.filter(item => asins.includes(item.asin)),
         marketplaceId,
         priority: options.priority,
+        provider: spApiProvider,
     });
+    const fetchedAt = new Date().toISOString();
+    const byAsin = new Map(
+        classified.map(({ item, merch }) => [
+            item.asin,
+            mapSpApiCatalogItem(item, marketplaceId, fetchedAt, merch),
+        ])
+    );
 
-    // Validate response and parse items
-    const results: SpApiProduct[] = [];
-    // Validate response with Zod schema
-    const response = ItemSearchResultsSchema.parse(rawResponse);
-    const items = response.items;
-
-    for (const rawItem of items) {
-        // Validate each item with Zod schema
-        const item = ItemSchema.parse(rawItem);
-        const asin = item.asin;
-
-        if (!asins.includes(asin)) {
-            continue;
-        }
-
-        const productInfo = mapSpApiCatalogItem(item, marketplaceId, new Date().toISOString());
-        results.push(productInfo);
-    }
-
-    const orderedResults = asins
-        .map(asin => results.find(item => item.asin === asin))
-        .filter((item): item is SpApiProduct => Boolean(item));
-
-    return orderedResults ?? [];
+    return asins.flatMap(asin => byAsin.get(asin) ?? []);
 };

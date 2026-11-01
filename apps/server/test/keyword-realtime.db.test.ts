@@ -88,7 +88,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('committed keyword 
             stopSecond();
         }
     });
-    it('pushes existing keyword counts when a product becomes Merch', async () => {
+    it('pushes existing keyword counts when a product becomes or stops being Merch', async () => {
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing' });
         const source = { ...discoveryProduct('B0TST99999'), isMerchListing: false };
         const product = await upsertProductInfo(source);
@@ -107,6 +107,22 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('committed keyword 
             expect(rows.items[0].merch).toBe(1);
         } finally {
             stop();
+        }
+        const demoted = deferred<void>();
+        const stopDemoted = await listening(subscribeToKeywordDirectoryChanged, event => {
+            if (event.kind === 'changed' && event.data.terms.includes('fishing')) {
+                demoted.resolve();
+            }
+        });
+        try {
+            await upsertProductInfo({ ...source, isMerchListing: false });
+            await within(demoted.promise);
+            const rows = await readKeywordDirectory(keywordDirectoryInput.parse({}), {
+                terms: ['fishing'],
+            });
+            expect(rows.items[0].merch).toBe(0);
+        } finally {
+            stopDemoted();
         }
     });
     it('separates sync state and log events without starting keyword work', async () => {

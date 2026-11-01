@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.15.0 - 2026-11-01
+
+### Changed
+
+- Breaking: a Product's `isMerchListing` is always `true` or `false`. The `unknown` search filter is
+  gone from the API, MCP, CLI (`--merch true|false|all`), and Explore.
+- Merch detection reads the two stamps Merch on Demand puts on every listing, its template bullets
+  and its package dimensions and weight, and rejects any listing with a UPC, EAN, or GTIN. A variation
+  parent without either stamp takes its first variant's verdict.
+- The latest classification wins, so a listing that stops looking like Merch is demoted.
+  `merch:reclassify` re-checks every active US Product and drops `--demote` and `--include-merch`.
+
+### Fixed
+
+- Third-party apparel whose part numbers resembled Merch design codes is no longer flagged as Merch.
+
 ## v0.14.0 - 2026-10-29
 
 ### Changed

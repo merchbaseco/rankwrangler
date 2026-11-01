@@ -47,8 +47,7 @@ describe('Catalog search worker', () => {
                 normalized: {
                     product: {
                         asin: 'B0MERCH001',
-                        isMerchListing: true,
-                        bullet1: 'Catalog seller detail',
+                        merch: { isMerchListing: true, bullet1: 'Catalog seller detail' },
                     },
                 },
             },

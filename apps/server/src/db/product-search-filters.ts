@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNull, lte, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
 import type { ProductCatalogFilterInput, ProductSearchInput } from '@/api/product-search-input';
 import { officialBrands } from './official-brand-schema';
 import { products } from './product-schema';
@@ -17,9 +17,7 @@ export const productSearchFilters = (input: ProductCatalogFilterInput, now = new
     if (input.marketplaceIds.length) {
         conditions.push(inArray(products.marketplaceId, input.marketplaceIds));
     }
-    if (input.isMerchListing === 'unknown') {
-        conditions.push(isNull(products.isMerchListing));
-    } else if (input.isMerchListing !== 'all') {
+    if (input.isMerchListing !== 'all') {
         conditions.push(eq(products.isMerchListing, input.isMerchListing));
     }
     if (input.amazonListingStatus !== 'all') {

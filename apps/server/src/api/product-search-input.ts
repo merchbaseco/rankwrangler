@@ -24,7 +24,7 @@ export const productSearchInput = z.object({
     textFields: z.enum(['all', 'title']).default('all'),
     excludeWords: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
     marketplaceIds: z.array(z.string().trim().min(1).max(30)).max(20).default(['ATVPDKIKX0DER']),
-    isMerchListing: z.union([z.boolean(), z.enum(['unknown', 'all'])]).default(true),
+    isMerchListing: z.union([z.boolean(), z.literal('all')]).default(true),
     amazonListingStatus: z.enum(['active', 'deleted', 'all']).default('active'),
     brands: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
     excludeBrands: z.array(z.string().trim().min(1).max(200)).max(50).default([]),

@@ -1,7 +1,7 @@
 ---
 summary: Defines source-neutral Merch-listing classification and model-assisted semantic Product facets as separate classifications.
 read_when:
-  - changing Merch-listing classification, bullet evidence, facet taxonomy, or Gemini classification
+  - changing Merch-listing classification, Merch evidence, facet taxonomy, or Gemini classification
   - diagnosing pending, ready, or error facet state
 ---
 
@@ -10,56 +10,80 @@ read_when:
 **Merch-listing status:** Shipped. Semantic facets below describe shipped behavior.
 
 RankWrangler has two distinct Product classifications: deterministic Merch-listing classification
-from source part-number and bullet evidence, and model-assisted semantic facets after a Product
-exists.
+from product-identifier, template-bullet and package evidence, and model-assisted semantic facets
+after a Product exists.
 
 ## Merch-Listing Classification
 
-The shipped [Merch-listing classification decision](../decisions/merch-listing-classification.md)
-defines binary Product truth and nullable classification knowledge. Adapters own evidence
-extraction, not classification. Each adapter reports the listing part number (SP-API
-`part_number`, Keepa `partNumber`, or `null`) and either available bullet evidence, including `[]`,
-or unavailable evidence.
+The [Merch-listing classification decision](../decisions/merch-listing-classification.md) defines
+the binary contract, the package-profile table and the variation-parent fallback. Adapters own
+evidence extraction, not classification. Each adapter reports `MerchListingEvidence`: the bullets,
+whether the listing carries a UPC, EAN or GTIN, and its package profile, if any.
 
-`classifyMerchListing` (`services/merch-listing-classification.ts`) decides:
+| Source | Bullets | Product identifier | Package |
+| --- | --- | --- | --- |
+| SP-API | `attributes.bullet_point` | `identifiers[].identifiers` non-empty, or `attributes.externally_assigned_product_identifier` | `attributes.item_package_dimensions[0]`, `attributes.item_package_weight[0]` |
+| Keepa | `features` | `upcList` or `eanList` non-empty | `packageLength/Width/Height` (mm), `packageWeight` (g) |
 
-1. **Part-number fingerprint.** Merch assigns every listing an 11-character uppercase alphanumeric
-   design code with at least one letter, sometimes followed by a 10-character `B0…` suffix
-   (`AFCHRPAT1KY`, `G816D85AV0HB07535YF3H`). On production samples it matched 60/60 known Merch
-   listings and 0/60 other listings (`GIL1100MDWHTP6-01-White-M`, `105484`, `9781607749707`).
-2. **Template bullets.** Any bullet matching a Merch on Demand product-spec bullet after case and
+`classifyMerchListing` (`services/merch-listing-classification.ts`) returns `true` exactly when the
+listing has no product identifier and either:
+
+1. **Template bullets.** A bullet matches a Merch on Demand product-spec bullet after case and
    punctuation normalization. `services/merch-template-bullets.ts` groups the templates by product
    type (shirts, jerseys, sweatshirts, jackets, hats, backpacks, PopSockets, phone cases, totes,
-   laptop sleeves, mouse pads, pillows, posters, drinkware, journals). Generic seller copy such as
-   "Funny design." or size-chart notices is excluded.
-3. Otherwise `false` when a part number or available bullets exist, and no result when neither does.
+   laptop sleeves, mouse pads, pillows, posters, drinkware, journals, pens). Generic seller copy
+   such as "Funny design." or size-chart notices is excluded.
+2. **Package profile.** `services/merch-package-profiles.ts` converts the package to inches and
+   pounds, sorts the dimensions, and matches a typed table of Merch product-type profiles within
+   ±0.06 in and ±0.01 lb.
 
-Titles are not evidence: licensed and other print-on-demand sellers copy Merch title suffixes such as
-"Premium T-Shirt".
+Otherwise the listing is non-Merch. Part numbers, model numbers and titles are not evidence:
+third-party SKUs share the Merch design-code shape, and other sellers copy Merch title suffixes such
+as "Premium T-Shirt".
 
-SP-API and Keepa feed one source-neutral deterministic classifier. Keepa Catalog search classifies
-immediately from returned bullet evidence before Product persistence and does not wait for SP-API.
+A Merch listing drops its template bullets and keeps up to two remaining seller bullets as `bullet1`
+and `bullet2`; a non-Merch listing keeps none. A non-parent SP-API item with a template bullet and
+an unmatched package logs a `[Merch Classification]` warning, the signal to add a profile row.
 
-| Evidence and result | Persistence reconciliation |
+### Variation parents and Keepa
+
+`spapi/classify-catalog-items.ts` gives an SP-API variation parent that has no Merch evidence of its
+own, no product identifier and no `product_description` the verdict of its first child, fetched
+through the ASIN catalog search (20 per request, same priority) unless the child is already in the
+response. The ASIN lookup, keyword discovery and the dashboard keyword search all classify through
+it. Keepa Catalog search classifies immediately from the returned product, before Product
+persistence, and does not wait for SP-API. A Keepa observation that is not Merch by its own evidence
+is undecided for a variation parent (`productType` 5) or a product Keepa holds no listing data for
+(3 or 4).
+
+| Observation | Persistence |
 | --- | --- |
-| `true` | Store `true`; a later result never downgrades it. |
-| `false` | Store or retain `false` unless knowledge is already `true`; later evidence may revise it to `true`. |
-| No result | No-op. |
+| Decided (every SP-API item, most Keepa products) | Overwrite status and seller bullets; `true` can become `false`. |
+| Undecided Keepa | Leave a stored Product untouched; insert a new Product as non-Merch. |
 
-Every new unclassified Product starts with `isMerchListing: null`. Existing `false` rows remain
-`false` until new evidence says otherwise. The public field exposes no provider, freshness, or
-status metadata. For every recognized listing, whichever signal matched, template bullets are
-dropped and up to two remaining seller bullets are retained as `bullet1` and `bullet2`.
+New Products start at `isMerchListing: false`. The public field exposes no provider, freshness, or
+status metadata.
 
 ### Reclassification
 
-`bun run merch:reclassify` (from `apps/server`, wrapped in `varlock run`) re-fetches active US
-Products whose stored knowledge is not `true`, 20 ASINs per SP-API `searchCatalogItems` call, and
-writes them through the ordinary Product upsert so reconciliation applies. It spends background
-Catalog capacity, yields to foreground lookups and waits while automatic sync is paused. Flags:
-`--dry-run` prints `before->after` transition counts without writing, `--include-merch` also
-refreshes known Merch rows, `--after <ASIN>` resumes, and `--limit <n>` bounds the run. ASINs the
-provider does not return are counted as `missing` and left untouched.
+`bun run merch:reclassify` (from `apps/server`, wrapped in `varlock run`) re-fetches every active
+US Product, whatever its stored status, 20 ASINs per call through `searchCatalogItemsByAsins` so
+the parent fallback applies, and writes through the ordinary Product upsert, where the latest
+verdict wins. Its calls are background Catalog requests: they yield to foreground lookups and wait
+while automatic sync is paused. The script runs its own Catalog limiter in its own process, so
+while the server also scans, the two together can exceed the background share until 429s slow
+both down. Flags: `--dry-run` prints `before->after` transition counts (`merch`,
+`nonMerch`, `missing`) without writing, `--after <ASIN>` resumes, and `--limit <n>` bounds the run.
+Each batch logs the ASINs whose status changes. ASINs the provider does not return are counted as
+`missing` and left untouched.
+
+Production secrets resolve only on the deploy path, so the server build also emits
+`dist/scripts/reclassify-merch-listings.js` (`vite.scripts.config.ts`). Run it inside the
+production server container, which carries the environment:
+
+```bash
+docker exec rankwrangler-server node dist/scripts/reclassify-merch-listings.js --dry-run --limit 1000
+```
 
 This classification is deterministic and evidence-derived. It controls workflows such as scheduled
 SP-API and Keepa refresh eligibility; it is not a niche or opportunity judgment.

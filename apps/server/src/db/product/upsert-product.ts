@@ -5,7 +5,6 @@ import { products, spApiSyncQueue } from '@/db/schema';
 import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue';
 import type { SpApiProduct } from '@/types';
 import { claimProductFamily, recordVariantAliases } from './product-family';
-import { reconcileMerchListing, reconcileSellerBullet } from './reconcile-merch-listing';
 
 type ProductWriteDatabase = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -122,7 +121,7 @@ const writeRows = async (
 ) => {
     if (!infos.length) return [];
     // A variant's listing fields (its title names the size and color) only fill gaps; the
-    // family's rank and Merch evidence apply either way.
+    // family's rank applies either way, and the latest Merch verdict replaces the stored one.
     const listing = kind === 'own' ? incoming : fillMissing;
     const rows = await transaction
         .insert(products)
@@ -160,10 +159,10 @@ const writeRows = async (
                 thumbnailUrl: listing(products.thumbnailUrl),
                 title: listing(products.title),
                 brand: listing(products.brand),
-                isMerchListing: reconcileMerchListing(products.isMerchListing),
+                isMerchListing: incoming(products.isMerchListing),
                 amazonListingStatus: 'active',
-                bullet1: reconcileSellerBullet(products.bullet1, products.isMerchListing),
-                bullet2: reconcileSellerBullet(products.bullet2, products.isMerchListing),
+                bullet1: incoming(products.bullet1),
+                bullet2: incoming(products.bullet2),
                 rootCategoryId: preserveExistingOnNull(products.rootCategoryId),
                 rootCategoryBsr: preserveExistingOnNull(products.rootCategoryBsr),
                 spApiFetchedAt: listing(products.spApiFetchedAt),

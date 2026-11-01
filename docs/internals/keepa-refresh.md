@@ -116,5 +116,6 @@ with at most ten discovery requests per keyword per day. SP-API listing acquisit
 Unknown costs permit only bounded interactive measurements; background work waits for measurements.
 
 Listing breadth comes from SP-API without enrolling every discovered Product in Keepa. Active Merch
-Products without BSR and unknown classifications receive bounded SP-API probation and later cold
-rechecks; known non-Merch and deleted Products do not enter an automatic blindspot sweep.
+Products without BSR receive bounded SP-API probation and later cold rechecks. A non-Merch Product
+that only Keepa has observed gets one SP-API check, since Keepa cannot classify a variation parent
+from its children. Other non-Merch and deleted Products do not enter an automatic blindspot sweep.

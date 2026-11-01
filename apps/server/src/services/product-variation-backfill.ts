@@ -1,12 +1,13 @@
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { products } from '@/db/schema';
-import { CatalogCapacityDeferredError } from '@/services/discovery-types';
+import { SyncPausedError } from '@/services/discovery-types';
 import { persistProductSyncResults } from '@/services/product-retrieval';
 import { searchCatalogItemsByAsins } from '@/services/spapi/search-catalog-items-by-asins';
 
 // Five catalog calls of 20 a minute (about 0.08 calls a second at background priority, behind
-// every live request): ~47k stored Products take about eight hours, then the job finds nothing.
+// every live request and sharing the background rate with keyword scans): ~47k stored Products
+// take about eight hours, then the job finds nothing.
 export const VARIATION_BACKFILL_BATCH_SIZE = 20;
 export const VARIATION_BACKFILL_BATCHES_PER_RUN = 5;
 
@@ -43,8 +44,8 @@ export const backfillProductVariations = async (deps: BackfillDeps = defaultDeps
                 { priority: 'background' }
             );
         } catch (error) {
-            // Paused sync or live work holds background capacity; try again next run.
-            if (error instanceof CatalogCapacityDeferredError) break;
+            // Paused sync stops background Catalog work; try again next run.
+            if (error instanceof SyncPausedError) break;
             throw error;
         }
         await deps.persistProductSyncResults({

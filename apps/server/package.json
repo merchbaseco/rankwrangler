@@ -1,12 +1,12 @@
 {
     "name": "@rankwrangler/server",
     "private": true,
-    "version": "0.14.0",
+    "version": "0.15.0",
     "description": "Docker-deployable SP-API service for Amazon catalog search",
     "type": "module",
     "main": "dist/index.js",
     "scripts": {
-        "build": "vite build",
+        "build": "vite build && vite build --config vite.scripts.config.ts",
         "central-auth:cutover": "tsx src/scripts/central-auth-cutover-runner.ts",
         "central-auth:preservation-proof": "tsx src/scripts/central-auth-preservation-proof.ts",
         "cli": "tsx src/cli.ts",

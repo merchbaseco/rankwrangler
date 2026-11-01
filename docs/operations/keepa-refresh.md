@@ -20,7 +20,7 @@ import rows provide provenance and diagnostics but do not schedule refreshes.
 | Merch, root BSR below `300,000` | Daily |
 | Merch, root BSR `300,000` through `999,999` | Weekly |
 | Merch, root BSR at least `1,000,000` | On demand |
-| Unknown classification or non-merch | Not scheduled |
+| Non-Merch | Not scheduled |
 | Merch with missing numeric BSR | Not scheduled |
 
 Every caller shares a strict 24-hour minimum provider gap per marketplace/ASIN. Rich product,

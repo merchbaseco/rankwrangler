@@ -1,72 +1,28 @@
 import { notifyKeywordQueryRows } from './keyword-directory-notifications';
-import { isAutomaticSyncPaused } from './automatic-sync';
 import { writeKeywordEvents } from './keyword-events';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { DiscoveryScope } from '@/services/discovery-types';
 import { KEYWORD_DAY_MS, keywordRetryAt } from '@/services/keyword-collection-policy';
 import { catalogQueries } from './catalog-search-schema';
 import { discoveryTargets } from './discovery-target-schema';
 import { db } from './index';
 import { keywordDiscoveryAttempts, keywordExplorationPasses } from './keyword-collection-schema';
-import { spApiCatalogCapacity } from './spapi-capacity-schema';
 
 const leaseMs = 300_000;
 const continuing = ['running', 'budget', 'jobCap'];
 
-// With a targetId, claims that target only if it is due; a scan-keyword job names its keyword.
-export const claimKeywordExploration = async (now = new Date(), { targetId }: { targetId?: string } = {}) =>
+// Claims a keyword target's pass for one page if it is due and not leased. The target and pass row
+// locks keep a duplicate job from claiming twice; queue priority alone decides what runs first.
+export const claimKeywordExploration = async (targetId: string, now = new Date()) =>
     db.transaction(async tx => {
-        if (await isAutomaticSyncPaused(tx)) return null;
-        await tx.execute(sql`select pg_advisory_xact_lock(hashtext('catalog-discovery-dispatch'))`);
-        await tx
-            .insert(spApiCatalogCapacity)
-            .values({ id: 1, updatedAt: now })
-            .onConflictDoNothing();
-        const [capacity] = await tx
-            .select()
-            .from(spApiCatalogCapacity)
-            .where(eq(spApiCatalogCapacity.id, 1))
-            .for('update');
-        const claims = capacity?.discoveryClaims ?? 0;
-        const trialTurn = claims % 5 === 0;
-        // Heads (first or due recurring checks) come before continuing depth, except every
-        // fourth claim, which prefers depth so deep passes keep moving under a steady head load.
-        const depthTurn = claims % 4 === 3;
         const [candidate] = await tx
             .select({ target: discoveryTargets, query: catalogQueries })
             .from(discoveryTargets)
             .innerJoin(catalogQueries, eq(catalogQueries.id, discoveryTargets.queryId))
-            .where(
-                and(
-                    eq(discoveryTargets.enabled, true),
-                    targetId ? eq(discoveryTargets.id, targetId) : undefined,
-                    sql`not exists (
-            select 1 from (select resume_at,claim_at,stop_reason from keyword_exploration_passes
-                where target_id=${discoveryTargets.id} order by created_at desc,id desc limit 1) latest
-            where (case when latest.stop_reason in ('running','budget','jobCap') then latest.resume_at
-                    else least(latest.resume_at,coalesce(${discoveryTargets.nextCheckAt},latest.resume_at)) end) > ${now.toISOString()}::timestamp
-                or latest.claim_at > ${new Date(now.getTime() - leaseMs).toISOString()}::timestamp
-        )`
-                )
-            )
-            .orderBy(
-                sql`case when exists(select 1 from keyword_exploration_passes p where p.target_id=${discoveryTargets.id}
-                    and p.stop_reason in ('running','budget','jobCap') and p.next_page>0)=${depthTurn} then 0 else 1 end`,
-                sql`case when ${discoveryTargets.tracking}=${trialTurn ? 'trial' : 'tracked'} then 0 else 1 end`,
-                sql`case when ${discoveryTargets.headObservedAt} is null then 1 else
-                    greatest(0,extract(epoch from(${now.toISOString()}::timestamp-coalesce(${discoveryTargets.nextCheckAt},${now.toISOString()}::timestamp))))
-                    /greatest(${discoveryTargets.intervalDays}*86400,1) end desc`,
-                sql`${discoveryTargets.lastSelectedAt} asc nulls first`,
-                discoveryTargets.createdAt,
-                discoveryTargets.id
-            )
-            .limit(1);
+            .where(and(eq(discoveryTargets.id, targetId), eq(discoveryTargets.enabled, true)))
+            .for('update', { of: discoveryTargets });
         if (!candidate) return null;
-        await tx
-            .update(spApiCatalogCapacity)
-            .set({ discoveryClaims: capacity.discoveryClaims + 1 })
-            .where(eq(spApiCatalogCapacity.id, 1));
         const { target, query } = candidate;
         const [latest] = await tx
             .select()
@@ -137,13 +93,18 @@ export const reserveDiscoveryAttempt = async (input: {
             )
             .for('update');
         if (!pass) return null;
+        const now = input.now ?? new Date();
+        // The page request starts now: the attempt waits its turn in the Catalog limiter, sends, and
+        // is accepted by the checkpoint (or failed or canceled by the stop).
         const [attempt] = await tx
             .insert(keywordDiscoveryAttempts)
             .values({
                 passId: pass.id,
                 claimToken: input.claimToken,
                 page: input.page,
-                attemptedAt: input.now ?? new Date(),
+                status: 'started',
+                attemptedAt: now,
+                startedAt: now,
             })
             .onConflictDoNothing()
             .returning({ id: keywordDiscoveryAttempts.id });
@@ -168,20 +129,11 @@ export const stopDiscoveryWork = async (input: Stop) =>
             )
             .for('update');
         if (!pass) return null;
-        const [capacity] =
-            input.reason === 'failure'
-                ? await tx.select().from(spApiCatalogCapacity).where(eq(spApiCatalogCapacity.id, 1))
-                : [];
         const resumeAt =
             input.reason === 'budget'
                 ? input.retryAt
                 : input.reason === 'failure'
-                  ? new Date(
-                        Math.max(
-                            keywordRetryAt(pass.failureCount, now).getTime(),
-                            capacity?.cooldownUntil?.getTime() ?? 0
-                        )
-                    )
+                  ? keywordRetryAt(pass.failureCount, now)
                   : input.reason === 'jobCap'
                     ? now
                     : pass.resumeAt;
@@ -210,7 +162,7 @@ export const stopDiscoveryWork = async (input: Stop) =>
                         eq(keywordDiscoveryAttempts.id, input.attemptId),
                         eq(keywordDiscoveryAttempts.passId, pass.id),
                         eq(keywordDiscoveryAttempts.claimToken, input.claimToken),
-                        inArray(keywordDiscoveryAttempts.status, ['reserved', 'started', 'fetched'])
+                        eq(keywordDiscoveryAttempts.status, 'started')
                     )
                 );
         if (input.reason === 'failure') {

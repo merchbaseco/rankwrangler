@@ -110,7 +110,7 @@ Product search options:
 | `--excludeWord <word>` | Exclude a word; repeat for several words. |
 | `--brand <name>` / `--excludeBrand <name>` | Exact brand filters; repeat for several brands. |
 | `--includeOfficialBrands` | Include brands in the official-brand registry. |
-| `--merch <value>` | `true`, `false`, `unknown`, or `all`; default `true`. |
+| `--merch <value>` | `true`, `false`, or `all`; default `true`. |
 | `--listingStatus <value>` | `active`, `deleted`, or `all`; default `active`. |
 | `--categoryId <N>` | Category ID; repeat for several categories. |
 | `--facet <facet=name>` | Facet filter; repeat for several facets. |
@@ -133,8 +133,8 @@ has minor-currency unit and currency code, without a scale field.
 Product search returns the current database view. Other data commands return policy-current final data or fail. Missing or policy-expired data may
 wait while durable work runs, except that `product get` returns a known Product's last-known listing
 immediately and refreshes it in the background. No command exposes pending Product data, freshness, Operations,
-provider metadata, or polling state. Product output preserves `isMerchListing: true | false | null`;
-missing classification is `null`, not `false`. Missing data is `NOT_FOUND`; retryable provider
+provider metadata, or polling state. Product output carries `isMerchListing: true | false`; a
+Product no provider has described yet is `false`. Missing data is `NOT_FOUND`; retryable provider
 failure or deadline exhaustion is `TIMEOUT` with a retry hint.
 
 ## Configuration and precedence

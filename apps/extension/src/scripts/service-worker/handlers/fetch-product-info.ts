@@ -47,7 +47,6 @@ export async function handleFetchProductInfo(
 			success: true,
 			data: {
 				asin: response.asin,
-				isMerchListing: response.listing.isMerchListing,
 				amazonListingStatus: response.listing.amazonListingStatus,
 				dateFirstAvailable: response.listing.firstAvailableAt,
 				rootCategoryBsr: response.salesRank.current,

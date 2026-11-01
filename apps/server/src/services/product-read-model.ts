@@ -24,7 +24,7 @@ export interface Product {
         firstAvailableAt: string | null;
         bulletPoints: string[];
         thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
-        isMerchListing: boolean | null;
+        isMerchListing: boolean;
         amazonListingStatus: AmazonListingStatus;
     };
     category: { id: number; name: string | null } | null;
@@ -53,7 +53,7 @@ export interface KeywordResultsProduct {
     title: string | null;
     brand: string | null;
     thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
-    isMerchListing: boolean | null;
+    isMerchListing: boolean;
     amazonListingStatus: AmazonListingStatus;
     category: { id: number; name: string | null } | null;
     salesRank: number | null;

@@ -14,15 +14,12 @@ export const startGatedWorker = (input: {
     gate: ProviderGate;
     run: (job: Job<unknown>) => Promise<unknown>;
     failureBackoffMs?: number;
-    // Parallel fetch loops. The provider's own reservation still enforces its rate; extra loops
-    // only hide per-job latency (an SP-API page takes about a second end to end).
+    // Parallel fetch loops, each running one job at a time. The provider's own limiter still sets
+    // the rate; extra loops keep a job waiting on it (an SP-API page takes seconds end to end).
     concurrency?: number;
-    // How long the loops leave between job starts. Without it, every loop sees the provider
-    // ready at the same moment, races for one reservation, and all but one re-queue.
-    startSpacingMs?: () => Promise<number>;
+    // How often a closed gate is re-read: a resumed queue starts fetching within this.
+    pausedPollMs?: number;
 }) => {
-    let nextStartAt = 0;
-    let spacingMs = 0;
     let stopped = false;
     const sleepers = new Set<() => void>();
     const sleep = (ms: number) =>
@@ -41,21 +38,14 @@ export const startGatedWorker = (input: {
             try {
                 const readyAt = await input.gate();
                 if (!readyAt) {
-                    await sleep(pausedPollMs);
+                    await sleep(input.pausedPollMs ?? pausedPollMs);
                     continue;
                 }
-                const wait = Math.max(readyAt.getTime(), nextStartAt) - Date.now();
+                const wait = readyAt.getTime() - Date.now();
                 if (wait > 0) {
                     await sleep(Math.min(wait, maxGateWaitMs));
                     continue;
                 }
-                // Claim this start slot synchronously (before any await) so sibling loops wait for
-                // the next one, then refresh the spacing for later starts. Slots follow the planned
-                // schedule, so the gate read before each start does not stretch every interval;
-                // after an idle stretch the schedule restarts from now.
-                const now = Date.now();
-                nextStartAt = (now - nextStartAt < spacingMs / 2 ? nextStartAt : now) + spacingMs;
-                if (input.startSpacingMs) spacingMs = await input.startSpacingMs();
                 const [job] = await input.boss.fetch(input.name, {
                     batchSize: 1,
                     priority: true,
@@ -88,10 +78,7 @@ export const startGatedWorker = (input: {
             }
         }
     };
-    const running = (async () => {
-        if (input.startSpacingMs) spacingMs = await input.startSpacingMs().catch(() => 0);
-        await Promise.all(Array.from({ length: input.concurrency ?? 1 }, loop));
-    })();
+    const running = Promise.all(Array.from({ length: input.concurrency ?? 1 }, loop));
     return {
         stop: async () => {
             stopped = true;

@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { CatalogCapacityDeferredError } from './discovery-types';
+import { SyncPausedError } from './discovery-types';
 import {
     backfillProductVariations,
     VARIATION_BACKFILL_BATCHES_PER_RUN,
@@ -27,12 +27,10 @@ describe('backfillProductVariations', () => {
         expect(deps.persistProductSyncResults).toHaveBeenCalledTimes(1);
     });
 
-    it('waits for the next run while background capacity is deferred', async () => {
+    it('waits for the next run while sync is paused', async () => {
         const deps = {
             readUnchecked: mock(() => Promise.resolve([identity('B000000004')])),
-            searchCatalogItemsByAsins: mock(() =>
-                Promise.reject(new CatalogCapacityDeferredError('paused', new Date()))
-            ),
+            searchCatalogItemsByAsins: mock(() => Promise.reject(new SyncPausedError())),
             persistProductSyncResults: mock(() => Promise.resolve()),
         };
 

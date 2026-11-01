@@ -13,7 +13,6 @@ describe("normalizeCachedProduct", () => {
 		} as CachedProductRecord;
 
 		expect(normalizeCachedProduct(legacyProduct)).toMatchObject({
-			isMerchListing: null,
 			amazonListingStatus: "active",
 			freshness: { stale: true, updatedAt: null },
 		});

@@ -85,7 +85,7 @@ describe('final public CLI contract', () => {
                                         firstAvailableAt: null,
                                         bulletPoints: [],
                                         thumbnail: { status: 'unavailable' },
-                                        isMerchListing: null,
+                                        isMerchListing: false,
                                         amazonListingStatus: 'active',
                                     },
                                     category: null,

@@ -228,10 +228,10 @@ not persist query identity, result placement, or run history; that belongs to th
   Keepa queue work in one transaction.
 - A failed Keepa transaction never advances `keepaFetchedAt`.
 - Missing optional Keepa values do not erase useful stored values.
-- `isMerchListing` is nullable knowledge: new unclassified Products start at `null`, a
-  non-matching part number or available bullets (even `[]`) store `false`, and evidence with
-  neither is a persistence no-op. Stored
-  `true` is monotonic across provider writes.
+- `isMerchListing` is a boolean that new Products start at `false`. The latest decided provider
+  observation overwrites it and the seller bullets, so `true` can become `false`; an undecided
+  Keepa observation (a variation parent without its own evidence) leaves both untouched. Merging
+  two family rows keeps Merch if either is Merch.
 - The shared Product retrieval service owns blocking lookups, durable queueing, freshness checks,
   in-flight deduplication, and response availability. A completed empty provider response retains
   the canonical identity and last-known listing data, marks the Amazon listing deleted, and advances

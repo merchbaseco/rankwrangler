@@ -12,12 +12,11 @@ export type DiscoveryScope =
     | { kind: 'keyword'; term: string }
     | { kind: 'brand'; term: 'shirt'; brandName: string };
 
-export class CatalogCapacityDeferredError extends Error {
-    constructor(
-        readonly reason: 'rate' | 'protectedWork' | 'cooldown' | 'paused',
-        readonly retryAt: Date
-    ) {
-        super(`Catalog capacity deferred: ${reason}`);
-        this.name = 'CatalogCapacityDeferredError';
+// Background Catalog work stops while automatic sync is paused. The Catalog limiter throws this
+// in place of the request; callers keep their place and try again once sync resumes.
+export class SyncPausedError extends Error {
+    constructor() {
+        super('Automatic sync is paused');
+        this.name = 'SyncPausedError';
     }
 }

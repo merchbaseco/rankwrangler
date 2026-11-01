@@ -62,7 +62,7 @@ export const printUsage = (paths: CliPaths) => {
         '  --excludeWord <word>     Repeat for excluded words',
         '  --categoryId <N>         Repeat for category filters',
         '  --facet <facet=name>     Repeat for facet filters',
-        '  --merch <value>          true,false,unknown,all (default: true)',
+        '  --merch <value>          true,false,all (default: true)',
         '  --listingStatus <value>  active,deleted,all (default: active)',
         '  --stage <value>          Keyword search: graduated,trial,dropped,untracked,all (default: graduated)',
         '  --freshness <value>      Keyword search: live,needsSync,syncing,all (default: all)',

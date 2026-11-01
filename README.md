@@ -36,10 +36,10 @@ cold SP-API work by marketplace. Status is `active` while the detail-page listin
 Catalog runs retain immutable search membership while their current Products resolve independently;
 cached and fresh runs use the same background path. Dashboard and internal Product records may retain
 `pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to
-`available` or `unavailable`. Product `isMerchListing` is nullable knowledge: `null` means unknown,
-distinct from known non-Merch (`false`). A listing is Merch when its part number is a Merch design
-code or a bullet matches Merch template text; keyword scans store only Merch and unknown Products,
-and the dashboard Explore grid defaults to Merch listings (its Listing type filter widens it).
+`available` or `unavailable`. Product `isMerchListing` is always `true` or `false`. A listing is
+Merch when it has no UPC, EAN or GTIN and a bullet matches Merch template text or its package
+matches a Merch product type; keyword scans store only Merch and already-stored Products, and the
+dashboard Explore grid defaults to Merch listings (its Listing type filter widens it).
 A Product is a variation family: sizes and colors share their parent's rank, so the catalog stores
 one Product per parent ASIN, and any variant ASIN (in a lookup, scan or extension page) resolves to
 that family without a provider call.

@@ -4,8 +4,6 @@ import { checkpointDiscoveryPage } from '@/db/discovery-checkpoint';
 import { discoveryTargets } from '@/db/discovery-target-schema';
 import { claimKeywordExploration, reserveDiscoveryAttempt } from '@/db/discovery-work';
 import { db } from '@/db/index';
-import { observeCatalogCapacity, reserveCatalogCapacity } from '@/db/spapi-capacity';
-import { spApiCatalogCapacity } from '@/db/spapi-capacity-schema';
 import { catalogQueries } from '@/db/catalog-search-schema';
 import type { DiscoveryScope } from '@/services/discovery-types';
 import { persistDiscoveredSpApiProducts } from '@/services/spapi-keyword-discovery';
@@ -19,7 +17,7 @@ export const resetDiscoveryFixture = async () => {
     ) {
         throw new Error('Discovery proof requires the private loopback database');
     }
-    await db.execute(sql`truncate keyword_mining_capacity,keyword_prefixes,brand_analytics_search_terms,brand_analytics_imports,products,catalog_queries,discovery_source_scans,spapi_catalog_capacity,
+    await db.execute(sql`truncate keyword_mining_capacity,keyword_prefixes,brand_analytics_search_terms,brand_analytics_imports,products,catalog_queries,discovery_source_scans,
         official_brands,keepa_capacity_state,keepa_capacity_attempts,operations cascade`);
 };
 
@@ -46,37 +44,15 @@ export const seedDiscoveryTarget = async (scope: DiscoveryScope, now = discovery
     return target.target;
 };
 
-export const claimDiscoveryFixture = async (now = discoveryNow) => {
-    const work = await claimKeywordExploration(now);
+// Claims the named target, or the only target when the test seeded one.
+export const claimDiscoveryFixture = async (now = discoveryNow, targetId?: string) => {
+    const id = targetId ?? (await onlyTargetId());
+    const work = await claimKeywordExploration(id, now);
     if (!work?.pass.claimToken) throw new Error('Missing discovery claim');
     return { ...work, claimToken: work.pass.claimToken };
 };
 
-export const primeCatalogCapacity = async (now = discoveryNow) => {
-    await db
-        .insert(spApiCatalogCapacity)
-        .values({
-            id: 1,
-            tokens: 2,
-            backgroundTokens: 1,
-            effectiveRps: 1.6,
-            observedRate: 2,
-            observedAt: now,
-            updatedAt: now,
-        })
-        .onConflictDoUpdate({
-            target: spApiCatalogCapacity.id,
-            set: {
-                tokens: 2,
-                backgroundTokens: 1,
-                observedRate: 2,
-                observedAt: now,
-                updatedAt: now,
-                effectiveRps: 1.6,
-            },
-        });
-};
-
+// The started page attempt a scan job holds while its request is in flight.
 export const fetchDiscoveryReceipt = async (
     work: Awaited<ReturnType<typeof claimDiscoveryFixture>>,
     now = discoveryNow
@@ -88,22 +64,6 @@ export const fetchDiscoveryReceipt = async (
         now,
     });
     if (!id) throw new Error('Missing discovery receipt');
-    const decision = await reserveCatalogCapacity({
-        priority: 'background',
-        attemptId: id,
-        protectedQueued: false,
-        now,
-    });
-    if (decision.kind !== 'granted')
-        throw new Error(`Unexpected capacity wait until ${decision.retryAt.toISOString()}`);
-    await observeCatalogCapacity({
-        attemptId: id,
-        observedRate: 2,
-        throttled: false,
-        retryAfterMs: 0,
-        failed: false,
-        now,
-    });
     return id;
 };
 
@@ -148,3 +108,9 @@ export const discoveryProduct = (
     fetchedAt: discoveryNow.toISOString(),
     ...extra,
 });
+
+const onlyTargetId = async () => {
+    const targets = await db.select({ id: discoveryTargets.id }).from(discoveryTargets);
+    if (targets.length !== 1) throw new Error('Name the target to claim among several');
+    return targets[0].id;
+};

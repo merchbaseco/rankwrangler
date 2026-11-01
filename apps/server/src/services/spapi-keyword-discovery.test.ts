@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { discoverSpApiKeyword } from './spapi-keyword-discovery';
 
 const marketplaceId = 'ATVPDKIKX0DER';
+const noAsinLookups = { searchCatalogItemsByAsins: () => Promise.resolve({ items: [] }) };
 
 describe('SP-API keyword discovery', () => {
     it('retains continuation and normalizes listing evidence without requesting history', async () => {
@@ -11,9 +12,9 @@ describe('SP-API keyword discovery', () => {
                 scope: { kind: 'keyword', term: 'fishing shirt' },
                 marketplaceId,
                 pageToken: 'page-two',
-                workId: 'receipt-id',
             },
             {
+                ...noAsinLookups,
                 searchCatalogItemsByKeyword: input => {
                     requests.push(input);
                     return Promise.resolve({
@@ -56,7 +57,6 @@ describe('SP-API keyword discovery', () => {
                 pageSize: 20,
                 maxAttempts: 1,
                 priority: 'background',
-                attemptId: 'receipt-id',
                 pageToken: 'page-two',
             },
         ]);
@@ -70,7 +70,7 @@ describe('SP-API keyword discovery', () => {
             keepa: null,
         });
         expect(result.nextPageToken).toBe('page-three');
-        expect(result.products[1]).toMatchObject({ isMerchListing: null, keepa: null });
+        expect(result.products[1]).toMatchObject({ isMerchListing: false, keepa: null });
         expect(
             result.products.every(product => product.fetchedAt === result.observedAt.toISOString())
         ).toBe(true);
@@ -80,15 +80,16 @@ describe('SP-API keyword discovery', () => {
         const input = {
             scope: { kind: 'keyword' as const, term: 'fishing' },
             marketplaceId,
-            workId: 'receipt-id',
         };
         const empty = await discoverSpApiKeyword(input, {
+            ...noAsinLookups,
             searchCatalogItemsByKeyword: async () => ({ items: [] }),
         });
         expect(empty.products).toEqual([]);
         expect(empty.nextPageToken).toBeNull();
         await expect(
             discoverSpApiKeyword(input, {
+                ...noAsinLookups,
                 searchCatalogItemsByKeyword: async () => ({ pagination: {} }),
             })
         ).rejects.toThrow();
@@ -100,9 +101,9 @@ describe('SP-API keyword discovery', () => {
                 scope: { kind: 'brand', term: 'shirt', brandName: 'Joy Haus' },
                 marketplaceId,
                 pageToken: 'brand-page-two',
-                workId: 'receipt-id',
             },
             {
+                ...noAsinLookups,
                 searchCatalogItemsByKeyword: async input => {
                     requests.push(input);
                     return { items: [] };
@@ -118,7 +119,68 @@ describe('SP-API keyword discovery', () => {
                 pageToken: 'brand-page-two',
                 priority: 'background',
                 maxAttempts: 1,
-                attemptId: 'receipt-id',
+            },
+        ]);
+    });
+
+    it('classifies a parent through its first child at background priority', async () => {
+        const lookups: unknown[] = [];
+        const result = await discoverSpApiKeyword(
+            {
+                scope: { kind: 'keyword', term: 'croquet tumbler' },
+                marketplaceId,
+                workId: 'receipt-id',
+            },
+            {
+                searchCatalogItemsByKeyword: () =>
+                    Promise.resolve({
+                        items: [
+                            {
+                                asin: 'B0DHL1MRZ3',
+                                summaries: [
+                                    { marketplaceId, itemClassification: 'VARIATION_PARENT' },
+                                ],
+                                relationships: [
+                                    {
+                                        marketplaceId,
+                                        relationships: [
+                                            { type: 'VARIATION', childAsins: ['B0DHKV5N9T'] },
+                                        ],
+                                    },
+                                ],
+                                attributes: { bullet_point: [{ value: 'Croquet queen design' }] },
+                            },
+                        ],
+                    }),
+                searchCatalogItemsByAsins: input => {
+                    lookups.push(input);
+                    return Promise.resolve({
+                        items: [
+                            {
+                                asin: 'B0DHKV5N9T',
+                                attributes: {
+                                    bullet_point: [
+                                        { value: 'Croquet queen design' },
+                                        {
+                                            value: 'Dual wall insulated: keeps beverages hot or cold',
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    });
+                },
+            }
+        );
+
+        expect(lookups).toEqual([{ asins: ['B0DHKV5N9T'], marketplaceId, priority: 'background' }]);
+        expect(result.products).toMatchObject([
+            {
+                asin: 'B0DHL1MRZ3',
+                childAsin: 'B0DHKV5N9T',
+                isMerchListing: true,
+                bullet1: 'Croquet queen design',
+                bullet2: null,
             },
         ]);
     });

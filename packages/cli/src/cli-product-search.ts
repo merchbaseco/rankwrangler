@@ -12,7 +12,7 @@ export const runProductSearch = async (
     fail: CliFail
 ): Promise<unknown> => {
     const term = args.join(' ').trim();
-    const merch = choice(options.merch, ['true', 'false', 'unknown', 'all'], 'merch', fail);
+    const merch = choice(options.merch, ['true', 'false', 'all'], 'merch', fail);
     return await client.product.search.query({
         ...(term ? { term } : {}),
         marketplaceIds: [requireMarketplaceId(options, config)],
@@ -32,12 +32,7 @@ export const runProductSearch = async (
             };
         }),
         includeOfficialBrands: options.includeOfficialBrands,
-        isMerchListing:
-            merch === undefined
-                ? undefined
-                : merch === 'unknown' || merch === 'all'
-                  ? merch
-                  : merch === 'true',
+        isMerchListing: merch === undefined || merch === 'all' ? merch : merch === 'true',
         amazonListingStatus: choice(
             options.listingStatus,
             ['active', 'deleted', 'all'],

@@ -38,8 +38,7 @@ const RECENT_FETCH_SHARE = 0.45;
 const LISTING_STATUS_DELETED_RATE = 0.4;
 /** Most designs belong to a niche the seed also searches, so shelves fill from the niche. */
 const FEATURED_AUDIENCE_SHARE = 0.8;
-const MERCH_KNOWN_RATE = 0.82;
-const MERCH_UNKNOWN_RATE = 0.08;
+const MERCH_LISTING_RATE = 0.9;
 /** Products off the Explore table (non-Merch, delisted, unranked) that still carry history. */
 const OFF_TABLE_HISTORY_SHARE = 0.5;
 const FACETS_READY_RATE = 0.86;
@@ -106,10 +105,10 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
         const title = buildTitle(context, audience.nouns);
         const category = random.pick(SEED_CATEGORIES);
 
-        const isMerchListing = pickMerchListing(context);
+        const isMerchListing = random.chance(MERCH_LISTING_RATE);
         // Every Merch design on the table is ranked and listed; the rank-less
         // and delisted rows sit off it, where the empty states still need them.
-        const onTable = isMerchListing === true;
+        const onTable = isMerchListing;
         const { demand, rank: rootCategoryBsr } = drawSeedDemand(
             context,
             onTable || random.chance(0.5)
@@ -227,17 +226,8 @@ const pickFetchedAt = (context: BuilderContext) => {
         : shiftMs(now, -random.between(25 * HOUR_MS, MAX_FETCH_AGE_MS));
 };
 
-const pickMerchListing = (context: BuilderContext) => {
-    const roll = context.random.next();
-    if (roll < MERCH_UNKNOWN_RATE) {
-        // Bullets were unavailable, so Merch-listing knowledge stays unknown.
-        return null;
-    }
-    return roll < MERCH_UNKNOWN_RATE + MERCH_KNOWN_RATE;
-};
-
-const pickFacetsState = (context: BuilderContext, isMerchListing: boolean | null) => {
-    if (isMerchListing !== true) {
+const pickFacetsState = (context: BuilderContext, isMerchListing: boolean) => {
+    if (!isMerchListing) {
         return 'pending';
     }
     const roll = context.random.next();

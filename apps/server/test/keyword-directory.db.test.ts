@@ -17,7 +17,6 @@ import {
     resetDiscoveryFixture,
     seedDiscoveryTarget,
     claimDiscoveryFixture,
-    primeCatalogCapacity,
     acceptDiscoveryFixture,
     discoveryProduct,
     discoveryNow as now,
@@ -78,7 +77,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
         it('logs direct user-added keywords once and each accepted discovery page once', async () => {
             await recordProductSearchInterest(productSearchInput.parse({ term: 'fishing shirt' }));
             await recordProductSearchInterest(productSearchInput.parse({ term: 'fishing shirt' }));
-            await primeCatalogCapacity();
             const work = await claimDiscoveryFixture();
             const result = await acceptDiscoveryFixture(
                 work,

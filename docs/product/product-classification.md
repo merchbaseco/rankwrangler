@@ -1,5 +1,5 @@
 ---
-summary: Defines public Merch-listing knowledge and the optional facets used to organize stored Products.
+summary: Defines the public Merch-listing status and the optional facets used to organize stored Products.
 read_when:
   - interpreting isMerchListing or Product facet badges
   - changing Merch-listing classification, niche filters, or facet classification behavior
@@ -13,26 +13,26 @@ RankWrangler has two separate Product classification concerns: a deterministic M
 classification and optional AI-generated facets. Neither is an opportunity score.
 
 See the shipped [Merch-listing classification decision](../decisions/merch-listing-classification.md)
-for evidence availability and persistence reconciliation.
+for the evidence, the package-profile table and how observations reconcile.
 
-## Merch-listing knowledge
+## Merch-listing status
 
-Product truth is binary, while public knowledge is `isMerchListing: boolean | null`:
+`isMerchListing` is always `true` or `false`:
 
 | Value | Meaning |
 | --- | --- |
-| `true` | A bullet matches Merch template language, or the part number is a Merch on Demand design code on a listing with no model number whose title names a Merch product. |
-| `false` | The classifier saw the listing's part number or bullets and found neither Merch signal. |
-| `null` | RankWrangler has no Merch-listing classification knowledge for the Product yet. |
+| `true` | The listing has no UPC, EAN or GTIN, and a bullet matches Merch template language or its package dimensions and weight match a Merch product type. |
+| `false` | Anything else, including a Product no provider has described yet. |
 
 Recognition covers every Merch on Demand product type, including shirts, hoodies, jerseys, hats,
-PopSockets, phone cases, totes, pillows, posters, drinkware and journals. A Merch-style title alone
-does not count, because other sellers copy those titles. A new unclassified Product starts at
-`null`. For a recognized Merch listing, RankWrangler also preserves the seller-authored bullets
-after removing template text.
+PopSockets, phone cases, totes, pillows, posters, drinkware, journals and pens. A Merch-style title
+or a design-code-shaped part number does not count, because other sellers share both. A variation
+parent without either signal takes its first variant's verdict. The latest observation wins, so a
+listing can move from Merch to non-Merch. For a Merch listing, RankWrangler also preserves the
+seller-authored bullets after removing template text.
 
 The dashboard Explore grid shows Merch listings by default; its Listing type filter switches to
-all listings, known non-Merch, or unknown.
+all listings or non-Merch.
 
 The signal controls workflows such as scheduled Keepa refresh eligibility. It describes listing
 type, not sales quality or intellectual-property safety.

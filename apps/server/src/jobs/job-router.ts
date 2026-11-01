@@ -26,20 +26,19 @@ type JobSchedule =
     | {
           type: 'interval';
           everyMs: number;
-          payload: unknown;
+          payload: object;
           sendOptions?: SendOptions;
       }
     | {
           type: 'cron';
           cron: string;
-          payload: unknown;
+          payload: object;
           scheduleOptions?: SendOptions;
       };
 
 type GateOptions = {
     gate: ProviderGate;
     concurrency: number;
-    startSpacingMs?: () => Promise<number>;
 };
 
 type AnyJobDefinition = {
@@ -102,13 +101,8 @@ class JobBuilder<TInput = unknown> {
     }
 
     // Gated jobs are fetched one at a time, only once the provider can start (see gated-worker).
-    gate(
-        gate: ProviderGate,
-        { concurrency = 1, startSpacingMs }: Omit<GateOptions, 'gate' | 'concurrency'> & {
-            concurrency?: number;
-        } = {}
-    ) {
-        this.providerGate = { gate, concurrency, startSpacingMs };
+    gate(gate: ProviderGate, { concurrency = 1 }: { concurrency?: number } = {}) {
+        this.providerGate = { gate, concurrency };
         return this;
     }
 
@@ -123,7 +117,7 @@ class JobBuilder<TInput = unknown> {
         sendOptions,
     }: {
         everyMs: number;
-        payload?: unknown;
+        payload?: object;
         sendOptions?: SendOptions;
     }) {
         this.schedule = {
@@ -141,7 +135,7 @@ class JobBuilder<TInput = unknown> {
         scheduleOptions,
     }: {
         cron: string;
-        payload?: unknown;
+        payload?: object;
         scheduleOptions?: SendOptions;
     }) {
         this.schedule = {
@@ -250,7 +244,6 @@ export const startRegisteredJobs = async (
                     name: jobDefinition.jobName,
                     gate: jobDefinition.gate.gate,
                     concurrency: jobDefinition.gate.concurrency,
-                    startSpacingMs: jobDefinition.gate.startSpacingMs,
                     run: runJob,
                 })
             );
