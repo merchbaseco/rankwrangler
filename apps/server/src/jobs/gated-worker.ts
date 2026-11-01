@@ -50,8 +50,11 @@ export const startGatedWorker = (input: {
                     continue;
                 }
                 // Claim this start slot synchronously (before any await) so sibling loops wait for
-                // the next one, then refresh the spacing for later starts.
-                nextStartAt = Date.now() + spacingMs;
+                // the next one, then refresh the spacing for later starts. Slots follow the planned
+                // schedule, so the gate read before each start does not stretch every interval;
+                // after an idle stretch the schedule restarts from now.
+                const now = Date.now();
+                nextStartAt = (now - nextStartAt < spacingMs / 2 ? nextStartAt : now) + spacingMs;
                 if (input.startSpacingMs) spacingMs = await input.startSpacingMs();
                 const [job] = await input.boss.fetch(input.name, {
                     batchSize: 1,

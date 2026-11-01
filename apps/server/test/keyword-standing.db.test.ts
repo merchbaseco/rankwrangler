@@ -70,17 +70,17 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('tracked keyword st
             .where(eq(discoveryTargets.id, target.id));
         await primeCatalogCapacity();
         const first = await claimDiscoveryFixture();
-        await acceptDiscoveryFixture(
-            first,
-            [discoveryProduct('B0TST00001'), discoveryProduct('B0TST00002')],
-            now,
-            null
-        );
+        const { pass } = await acceptDiscoveryFixture(first, [
+            discoveryProduct('B0TST00001'),
+            discoveryProduct('B0TST00002'),
+        ]);
         const [standing] = await db
             .select()
             .from(discoveryTargets)
             .where(eq(discoveryTargets.id, target.id));
         expect(standing).toMatchObject({ tracking: 'dropped', enabled: false });
+        // More pages exist, but a dropped trial is not scanned deeper.
+        expect(pass.stopReason).toBe('dropped');
     });
     it('reactivates a dropped completed keyword immediately when a user searches it', async () => {
         const target = await seedDiscoveryTarget({
