@@ -92,7 +92,7 @@ visible to callers or recovery and a concurrently completed reusable run does no
   of Keepa tier/admission. The former ten-per-term/twenty-global daily pilot caps are removed.
   Every Catalog search, live or background, waits its turn in one in-process limiter
   (`sp-api-catalog-limiter.ts`; the server is one process). It starts at most `CATALOG_MAX_RPS`
-  (0.5 a second, burst 2), lowered to 80% of a smaller `x-amzn-RateLimit-Limit`. Foreground reads
+  (1 a second, burst 2), lowered to 80% of a smaller `x-amzn-RateLimit-Limit`. Foreground reads
   always go first; background work may start at most `CATALOG_BACKGROUND_SHARE` (75%) of the
   current rate. A 429 halves the rate and holds every start for at least a minute or its
   Retry-After; each success then raises the rate 10% back toward the ceiling. Limiter state is

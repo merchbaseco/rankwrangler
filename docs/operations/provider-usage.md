@@ -23,7 +23,7 @@ the provider is down; corroborate it with the activity log and job execution rec
 
 SP-API Catalog search is paced in the server process by one limiter (see
 [Catalog search](../internals/catalog-search.md)): live reads first, background work at most 75%
-of a rate capped at 0.5 a second, halved on each 429 burst. Its state is not stored; System Status
+of a rate capped at 1 a second, halved on each 429 burst. Its state is not stored; System Status
 counts SP-API calls and 429s from `provider_attempts`, and a rising 429 count is the sign to lower
 `CATALOG_MAX_RPS` (or not to raise it).
 
