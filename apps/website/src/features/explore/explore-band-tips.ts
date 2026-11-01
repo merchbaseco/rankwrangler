@@ -45,45 +45,30 @@ export const improvingTip = (share: number | null) =>
         ? 'Not enough history to compare a week back'
         : `${Math.round(share * 100)}% of results ranked better than 7 days ago`;
 
-/** One bin of the page's sold-a-month spread: `4 designs · ~120–310/mo on this page`. */
-export interface SoldBin {
-    readonly low: number;
-    readonly high: number;
-    readonly count: number;
-}
-
-export const soldBinTip = (bins: readonly SoldBin[], index: number) => {
-    const bin = bins[index];
-    if (!bin) {
+/**
+ * One monthly-sold bucket of the results, on Amazon's badge steps:
+ * `1,204 designs · 100–199/mo`; the first reads `under 100/mo` (the 50+
+ * badge), the open last `50,000+/mo`.
+ */
+export const soldBucketTip = (
+    buckets: readonly {
+        readonly count: number;
+        readonly max: number | null;
+        readonly min: number;
+    }[],
+    index: number
+) => {
+    const bucket = buckets[index];
+    if (!bucket) {
         return null;
     }
     const range =
-        bin.low === bin.high
-            ? formatCount(bin.low)
-            : `${formatCount(bin.low)}–${formatCount(bin.high)}`;
-    return `${designs(bin.count)} · ~${range}/mo on this page`;
-};
-
-/** The page's sold-a-month figures binned on a log scale. */
-export const soldBins = (values: readonly number[], binCount = 18): SoldBin[] => {
-    if (values.length === 0) {
-        return [];
-    }
-    const high = Math.log1p(Math.max(...values));
-    const edge = (index: number) => Math.round(Math.expm1((index / (binCount - 1)) * high));
-    const bins = Array.from({ length: binCount }, (_, index) => ({
-        count: 0,
-        high: edge(index + 1) - 1,
-        low: edge(index),
-    }));
-    for (const value of values) {
-        const index = high > 0 ? Math.floor((Math.log1p(value) / high) * (binCount - 1)) : 0;
-        const bin = bins[index];
-        if (bin) {
-            bin.count += 1;
-        }
-    }
-    return bins.map(bin => ({ ...bin, high: Math.max(bin.low, bin.high) }));
+        bucket.max === null
+            ? `${formatCount(bucket.min)}+`
+            : bucket.min === 0
+              ? `under ${formatCount(bucket.max)}`
+              : `${formatCount(bucket.min)}–${formatCount(bucket.max - 1)}`;
+    return `${designs(bucket.count)} · ${range}/mo`;
 };
 
 const designs = (count: number) => `${formatCount(count)} ${count === 1 ? 'design' : 'designs'}`;

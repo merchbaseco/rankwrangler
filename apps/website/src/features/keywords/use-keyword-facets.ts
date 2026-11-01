@@ -8,7 +8,8 @@ export type KeywordFacets = RouterOutputs['api']['app']['keyword']['directoryFac
 /**
  * The Keywords sidebar counts and KPI figures for the current filters
  * (`keyword.directoryFacets`). Paging and sort never change it; realtime
- * directory events invalidate it (useKeywordDirectoryChanged).
+ * directory events invalidate it (useKeywordDirectoryChanged). While new
+ * filters load, the previous filters' facets stay on screen and `isStale` says so.
  */
 export const useKeywordFacets = (filters: KeywordFilters) => {
     const { facet, freshness, heat, merch, q, shelf, stage } = filters;
@@ -21,5 +22,5 @@ export const useKeywordFacets = (filters: KeywordFilters) => {
         refetchOnWindowFocus: false,
         staleTime: 30_000,
     });
-    return query.data ?? null;
+    return { facets: query.data ?? null, isStale: query.isPlaceholderData };
 };

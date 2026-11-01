@@ -3,8 +3,7 @@ import {
     bsrBucketTip,
     improvingTip,
     publishedDayTip,
-    soldBins,
-    soldBinTip,
+    soldBucketTip,
 } from './explore-band-tips';
 
 describe('explore band tooltips', () => {
@@ -27,9 +26,15 @@ describe('explore band tooltips', () => {
         expect(improvingTip(0.38)).toBe('38% of results ranked better than 7 days ago');
     });
 
-    test('sold bins cover the page on a log scale', () => {
-        const bins = soldBins([1, 10, 100, 1000], 4);
-        expect(bins.reduce((sum, bin) => sum + bin.count, 0)).toBe(4);
-        expect(soldBinTip(bins, 3)).toMatch(/^1 design · ~/);
+    test('sold buckets read their badge range and count', () => {
+        const buckets = [
+            { count: 9_120, max: 100, min: 0 },
+            { count: 1, max: 2_000, min: 1_000 },
+            { count: 4, max: null, min: 50_000 },
+        ];
+        expect(soldBucketTip(buckets, 0)).toBe('9,120 designs · under 100/mo');
+        expect(soldBucketTip(buckets, 1)).toBe('1 design · 1,000–1,999/mo');
+        expect(soldBucketTip(buckets, 2)).toBe('4 designs · 50,000+/mo');
+        expect(soldBucketTip(buckets, 3)).toBeNull();
     });
 });

@@ -8,13 +8,7 @@ import { GridKpi, KpiFigure } from '@/features/grid/grid-kpi';
 import { GridFiltersButton } from '@/features/grid/grid-screen';
 import { MixBar } from '@/features/grid/mix-bar';
 import { exploreActiveFilters, withoutExploreFilters } from './explore-active-filters';
-import {
-    bsrBucketTip,
-    improvingTip,
-    publishedDayTip,
-    soldBins,
-    soldBinTip,
-} from './explore-band-tips';
+import { bsrBucketTip, improvingTip, publishedDayTip, soldBucketTip } from './explore-band-tips';
 import { clearedExploreFilters, type ExploreFilters } from './explore-filters';
 import type { ExploreRow } from './explore-rows';
 import type { ExploreFacets } from './use-explore-facets';
@@ -26,20 +20,22 @@ import type { ExploreFacets } from './use-explore-facets';
  * active filters as removable tags; BSR distribution (over BSR, 30d) is the tier-
  * coloured log histogram with its median; Improving (over 7d) is the share of
  * results whose rank improved in seven days, drawn as a filled meter; Sold/mo
- * (over Sold/mo) is the median, its band the spread across this page (the
- * facets carry no sold histogram); Published per day (over Drops, Age, Price)
- * is the 60-day daily count with its average.
+ * (over Sold/mo) is the median over the monthly-sold histogram; Published per
+ * day (over Drops, Age, Price) is the 60-day daily count with its average.
+ * While the facets for new filters load, the previous ones stay on screen
+ * marked busy, so the header never passes them off as the grid's.
  */
 export const ExploreKpis = ({
     facets,
     filters,
+    isStale,
     onChange,
-    rows,
 }: {
     facets: ExploreFacets | null;
     filters: ExploreFilters;
+    /** `facets` describe the previous filters while the current ones load. */
+    isStale: boolean;
     onChange: (patch: Partial<ExploreFilters>) => void;
-    rows: readonly ExploreRow[];
 }) => {
     const histogram = facets?.bsrHistogram ?? [];
     const bsrLevels = useMemo(() => bandLevels(histogram.map(bucket => bucket.count)), [histogram]);
@@ -48,13 +44,10 @@ export const ExploreKpis = ({
     const dailyLevels = useMemo(() => bandLevels(daily.map(day => day.count)), [daily]);
     const improving = facets?.improving7dShare ?? null;
     const improvingLevels = useMemo(() => bandMeter(improving), [improving]);
-    const sold = useMemo(
-        () => soldBins(rows.flatMap(row => (row.sold ? [row.sold.value] : []))),
-        [rows]
-    );
-    const soldLevels = useMemo(() => bandLevels(sold.map(bin => bin.count)), [sold]);
+    const sold = facets?.soldHistogram ?? [];
+    const soldLevels = useMemo(() => bandLevels(sold.map(bucket => bucket.count)), [sold]);
     return (
-        <KPIGroup className="grid-kpis grid-kpis--explore">
+        <KPIGroup aria-busy={isStale} className="grid-kpis grid-kpis--explore">
             <ActiveFiltersCell
                 actions={<GridFiltersButton />}
                 filters={exploreActiveFilters(filters)}
@@ -113,8 +106,8 @@ export const ExploreKpis = ({
                 band={
                     <DotMatrixBand
                         ink="steady"
-                        label="Sold per month across this page"
-                        tooltip={index => soldBinTip(sold, index)}
+                        label="Monthly sold distribution of results"
+                        tooltip={index => soldBucketTip(sold, index)}
                         values={soldLevels}
                     />
                 }

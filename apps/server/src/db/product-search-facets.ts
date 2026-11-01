@@ -18,13 +18,22 @@ export const IMPROVING_SAMPLE_SIZE = 2_000;
 const DAY_MS = 86_400_000;
 /** Latest points read first for the improvement share; a week of rank changes rarely exceeds it. */
 const SERIES_TAIL = 256;
+/**
+ * Lower bounds of the monthly-sold histogram on Amazon's "bought in past month" badge steps (50,
+ * hundreds below 1K, then thousands), so a badge never straddles two buckets. The first bucket
+ * holds the 50+ badge; the last is open-ended.
+ */
+const SOLD_BUCKET_FLOORS = [
+    0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1_000, 2_000, 3_000, 4_000, 5_000, 10_000,
+    20_000, 50_000,
+] as const;
 
 /**
  * Explore's sidebar counts and KPI bands in one scan of the Products matching every non-sidebar
  * filter. Each sidebar group is counted under the other groups' filters but not its own (faceted
- * exclusion), and every KPI aggregate sees all filters. A second bounded read, run alongside,
- * samples history for the seven-day improvement share. Counts are exact; see
- * docs/internals/product-catalog.md.
+ * exclusion), and every KPI aggregate (the BSR and monthly-sold histograms among them) sees all
+ * filters. A second bounded read, run alongside, samples history for the seven-day improvement
+ * share. Counts are exact; see docs/internals/product-catalog.md.
  */
 export const readProductSearchFacets = async (
     input: ProductSearchFacetsInput,
@@ -89,6 +98,18 @@ export const readProductSearchFacets = async (
                 ),
                 sql`, `
             )},
+            ${sql.join(
+                SOLD_BUCKET_FLOORS.map((floor, index) => {
+                    const next = SOLD_BUCKET_FLOORS[index + 1];
+                    return count(
+                        `sold_${index}`,
+                        sql`${all} and sold >= ${sql.raw(String(floor))}${
+                            next === undefined ? sql`` : sql` and sold < ${sql.raw(String(next))}`
+                        }`
+                    );
+                }),
+                sql`, `
+            )},
             round(percentile_cont(0.5) within group (order by bsr)
                 filter (where ${all} and bsr >= 1))::int median_bsr,
             round(percentile_cont(0.5) within group (order by sold)
@@ -129,6 +150,11 @@ export const readProductSearchFacets = async (
         medianBsr: row?.median_bsr ?? null,
         improving7dShare: total ? improving : null,
         medianSoldPerMonth: row?.median_sold ?? null,
+        soldHistogram: SOLD_BUCKET_FLOORS.map((min, index) => ({
+            min,
+            max: SOLD_BUCKET_FLOORS[index + 1] ?? null,
+            count: value(`sold_${index}`),
+        })),
         publishedPerDay60d,
         publishedPerDayAvg: total ? recent / PUBLISHED_RECENT_DAYS : null,
     };

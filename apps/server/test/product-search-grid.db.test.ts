@@ -144,6 +144,13 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Explore grid searc
         });
         expect(open.medianBsr).toBe(6_000);
         expect(open.medianSoldPerMonth).toBe(200);
+        expect(open.soldHistogram).toHaveLength(18);
+        expect(open.soldHistogram.filter(bucket => bucket.count > 0)).toEqual([
+            { min: 100, max: 200, count: 1 },
+            { min: 200, max: 300, count: 1 },
+            { min: 400, max: 500, count: 1 },
+        ]);
+        expect(open.soldHistogram.at(-1)).toMatchObject({ min: 50_000, max: null });
         expect(open.publishedPerDay60d).toHaveLength(60);
         expect(open.publishedPerDay60d.at(-1)).toEqual({
             day: now.toISOString().slice(0, 10),

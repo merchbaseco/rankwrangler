@@ -127,6 +127,20 @@
         grid-column: span 3;
     }
 
+    /*
+     * Cells still describing the previous filters step back until the new aggregate lands; the
+     * filter cell keeps its tags live and dims only its counts.
+     */
+    .grid-kpis[aria-busy='true']
+        :is(
+            .grid-kpi:not(.grid-kpi--results),
+            .mix-bar__track,
+            .mix-bar__count,
+            .mix-summary__count
+        ) {
+        opacity: 0.45;
+    }
+
     /* Over the name columns the band row is a hatch; the dot bands sit over their own columns. */
     .grid-kpi > :is(.dot-band, .grid-kpi__hatch, .grid-kpi__spark) {
         display: block;

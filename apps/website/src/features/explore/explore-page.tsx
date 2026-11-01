@@ -39,7 +39,9 @@ export const ExplorePage = () => {
     const navigate = useNavigate();
     const { filters, update } = useExploreFilters();
     const products = useExploreProducts(filters);
-    const { facets } = useExploreFacets(filters);
+    const { facets, isStale: facetsStale } = useExploreFacets(filters);
+    // The facets' total is an exact count of the same set; the page's own is an estimate past 10K.
+    const exactTotal = facets && !facetsStale ? facets.total : null;
     const [cursorAsin, setCursorAsin] = useState<string | null>(null);
 
     // Fixed per mount so ages do not tick between renders.
@@ -127,7 +129,12 @@ export const ExplorePage = () => {
             label="Explore"
         >
             <ExploreSearch onChange={handleSearch} value={filters.q} />
-            <ExploreKpis facets={facets} filters={filters} onChange={update} rows={rows} />
+            <ExploreKpis
+                facets={facets}
+                filters={filters}
+                isStale={facetsStale}
+                onChange={update}
+            />
             <ProductRowMenu
                 attribute={exploreRowAttribute}
                 fill
@@ -162,14 +169,14 @@ export const ExplorePage = () => {
             </ProductRowMenu>
             <GridPager
                 extra={<GridDensityToggle />}
-                isEstimate={products.totalIsEstimate}
+                isEstimate={exactTotal === null && products.totalIsEstimate}
                 onPageChange={page => update({ page })}
                 onPageSizeChange={pageSize => update({ pageSize })}
                 page={filters.page}
                 pageSize={filters.pageSize}
                 pageSizes={pageSizes}
                 rowCount={rows.length}
-                total={products.total}
+                total={exactTotal ?? products.total}
             />
         </GridScreen>
     );

@@ -9,7 +9,8 @@ export type ExploreFacets = RouterOutputs['api']['app']['product']['searchFacets
 /**
  * The sidebar counts and KPI aggregates for the current filters
  * (`product.searchFacets`; each group counted without its own filter). Paging
- * and sort do not change it, so turning a page never refetches it.
+ * and sort do not change it, so turning a page never refetches it. While new
+ * filters load, the previous filters' facets stay on screen and `isStale` says so.
  */
 export const useExploreFacets = (filters: ExploreFilters) => {
     const { brand, listing, niche, nicheState, price, published, q, tiers } = filters;
@@ -23,5 +24,9 @@ export const useExploreFacets = (filters: ExploreFilters) => {
         refetchOnWindowFocus: false,
         staleTime: 60_000,
     });
-    return { facets: query.data ?? null, isLoading: query.isLoading };
+    return {
+        facets: query.data ?? null,
+        isLoading: query.isLoading,
+        isStale: query.isPlaceholderData,
+    };
 };

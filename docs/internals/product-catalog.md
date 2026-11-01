@@ -163,9 +163,11 @@ scan's inner select carries rank, monthly sold, first-available date and a niche
 per row; the outer aggregate counts with `FILTER` clauses, so there is no grouping, join fan-out
 or per-facet query. Each sidebar group (`tiers`, `published`, `niche`) is counted under the other
 groups' filters but not its own; `total`, the 24-bucket BSR histogram (log-spaced inside each
-tier, bounds aligned to tier edges, last bucket open-ended), median BSR, median monthly sold and
-the 60 daily first-available counts see every filter. Counts are exact (`totalIsEstimate` is
-always false here); the medians are the only sorts, over the filtered rank and sold columns.
+tier, bounds aligned to tier edges, last bucket open-ended), median BSR, median monthly sold, the
+18-bucket monthly-sold histogram (on Amazon's "bought in past month" badge steps, under 100 through
+50K+) and the 60 daily first-available counts see every filter. Counts are exact
+(`totalIsEstimate` is always false here, so Explore's pager shows this total once it loads); the
+medians are the only sorts, over the filtered rank and sold columns.
 `improving7dShare` samples the first 2,000 matches in UUID order (uniform, since ids are random)
 and compares the main BSR in force now with the one in force seven days ago, read in one pass over
 the tail of each sampled Product's `bsr_main` series (the full series only when the last 256 points

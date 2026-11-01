@@ -22,15 +22,20 @@ import type { KeywordFacets } from './use-keyword-facets';
  * New, Merch, Status) as meters of their share of the set; Shelf BSR (over
  * Median BSR) as its place on the log rank scale, in its tier's ink. The
  * facets carry no daily series, so those bands are shares, not histories.
+ * While the facets for new filters load, the previous ones stay on screen
+ * marked busy.
  */
 export const KeywordKpis = ({
     facets,
     filters,
+    isStale,
     onChange,
     track,
 }: {
     facets: KeywordFacets | null;
     filters: KeywordFilters;
+    /** `facets` describe the previous filters while the current ones load. */
+    isStale: boolean;
     onChange: (patch: Partial<KeywordFilters>) => void;
     /** The Track button for a searched phrase the directory does not have yet. */
     track: ReactNode;
@@ -46,7 +51,7 @@ export const KeywordKpis = ({
     const median = facets?.medianShelfBsr ?? null;
     const waiting = facets ? facets.needsSync + facets.syncing : null;
     return (
-        <KPIGroup className="grid-kpis grid-kpis--keywords">
+        <KPIGroup aria-busy={isStale} className="grid-kpis grid-kpis--keywords">
             <ActiveFiltersCell
                 actions={
                     <>

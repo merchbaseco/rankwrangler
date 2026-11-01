@@ -40,7 +40,7 @@ export const KeywordsPage = () => {
     const navigate = useNavigate();
     const { filters, update } = useKeywordFilters();
     const directory = useKeywordDirectory(filters);
-    const facets = useKeywordFacets(filters);
+    const { facets, isStale: facetsStale } = useKeywordFacets(filters);
     const tracking = useKeywordTrack();
     const [cursorId, setCursorId] = useState<string | null>(null);
     const rows = directory.rows;
@@ -115,6 +115,7 @@ export const KeywordsPage = () => {
             <KeywordKpis
                 facets={facets}
                 filters={filters}
+                isStale={facetsStale}
                 onChange={update}
                 track={
                     canTrack ? (
