@@ -11,10 +11,11 @@ import { useRefreshTiers } from './use-refresh-tiers';
 import { useSystemStatus } from './use-system-status';
 
 /**
- * System Status (`/status`, admins only): one top-down read of the system. Products and their
- * sync status, the sales curve and whether it still matches Amazon, keywords by stage and
- * freshness, Keepa and SP-API usage each above its refresh tiers, then the event log explorer. A
- * failing health check adds one alert at the top. Everyone else goes to Explore.
+ * System Status (`/status`, admins only): one top-down read of the system, what says it works
+ * first. Products and their sync status, keywords by stage and freshness, Keepa and SP-API usage
+ * each above its refresh tiers, the sales curve and whether it still matches Amazon, then the
+ * event log explorer. A failing health check adds one alert at the top. Everyone else goes to
+ * Explore.
  */
 export const StatusPage = () => {
     const access = useAdminAccess();
@@ -35,9 +36,9 @@ const StatusOverview = () => {
                     <>
                         <HealthAlert status={status.data} />
                         <StatusProducts products={status.data.products} />
-                        <StatusSalesCurve />
                         <StatusKeywords />
                         <StatusProviders status={status.data} tiers={tiers.data} />
+                        <StatusSalesCurve />
                     </>
                 ) : status.error ? (
                     <p className="text-danger">

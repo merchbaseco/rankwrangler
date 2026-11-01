@@ -112,7 +112,7 @@ export interface HeadlineFigure {
 /**
  * A horizontal bar split into its segments, proportional to their values over `total` (the
  * segments' sum by default; a larger total leaves the rest as track). `marker` draws a tick at a
- * fraction of the bar, such as a reserve line.
+ * fraction of the bar: a reserve line in warning, or an expectation in the accent.
  */
 export const SegmentedBar = ({
     label,
@@ -122,7 +122,7 @@ export const SegmentedBar = ({
     total,
 }: {
     label: string;
-    marker?: { readonly at: number; readonly label: string };
+    marker?: { readonly at: number; readonly label: string; readonly tone?: 'accent' };
     segments: readonly Segment[];
     size?: 'lg' | 'sm';
     total?: number | null;
@@ -152,7 +152,10 @@ export const SegmentedBar = ({
             {marker ? (
                 <span
                     aria-hidden
-                    className="status-bar__marker"
+                    className={cn(
+                        'status-bar__marker',
+                        marker.tone && `status-bar__marker--${marker.tone}`
+                    )}
                     style={{ insetInlineStart: `${marker.at * 100}%` }}
                     title={marker.label}
                 />

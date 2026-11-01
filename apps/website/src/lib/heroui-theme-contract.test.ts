@@ -112,10 +112,10 @@ const herouiStyleAllowlist: Record<string, string> = {
         'KPI cells are ruled on the right like the grid cells under them, so the lines meet',
     'grid-overrides.css .kpi-group.grid-kpis > .kpi:last-child border-right':
         "the last KPI cell closes on the surface's own edge",
-    'grid-overrides.css .kpi-group.grid-kpis--product border-bottom':
-        'wrapped Product figures rule each row off themselves',
-    'grid-overrides.css .kpi-group.grid-kpis--product > .kpi border-bottom':
-        'wrapped Product figures rule each row off themselves',
+    'grid-overrides.css .kpi-group.grid-kpis--wraps border-bottom':
+        'figures that wrap onto rows rule each row off themselves',
+    'grid-overrides.css .kpi-group.grid-kpis--wraps > .kpi border-bottom':
+        'figures that wrap onto rows rule each row off themselves',
     'grid-overrides.css .kpi-group.grid-kpis .kpi__title font-weight':
         'stat labels are regular weight (Grid J), not the stock medium',
     'grid-overrides.css .kpi-group.grid-kpis grid-template-columns':

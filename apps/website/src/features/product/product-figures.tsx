@@ -60,7 +60,7 @@ export const ProductFigures = ({
         [history, now]
     );
     return (
-        <KPIGroup className="grid-kpis grid-kpis--product">
+        <KPIGroup className="grid-kpis grid-kpis--product grid-kpis--wraps">
             <GridKpi
                 band={
                     bands.days30.length > 1 ? (

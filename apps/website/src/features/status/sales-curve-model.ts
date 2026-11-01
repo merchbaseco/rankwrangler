@@ -23,12 +23,11 @@ export const accuracyRows = (ranges: SalesCurveReport['ranges']) =>
         const gap = Math.round((actual - range.expectedShare) * 100);
         return {
             actual,
+            badged: range.badged,
             expected: range.expectedShare,
             gap,
             id: String(range.min),
             label: `#${formatCompact(range.min)}–${formatCompact(range.max)}`,
-            max: range.max,
-            min: range.min,
             products: range.products,
             status: accuracyStatus(gap),
         };
