@@ -69,8 +69,10 @@ status metadata.
 `bun run merch:reclassify` (from `apps/server`, wrapped in `varlock run`) re-fetches every active
 US Product, whatever its stored status, 20 ASINs per call through `searchCatalogItemsByAsins` so
 the parent fallback applies, and writes through the ordinary Product upsert, where the latest
-verdict wins. It spends background Catalog capacity, yields to foreground lookups and waits while
-automatic sync is paused. Flags: `--dry-run` prints `before->after` transition counts (`merch`,
+verdict wins. Its calls are background Catalog requests: they yield to foreground lookups and wait
+while automatic sync is paused. The script runs its own Catalog limiter in its own process, so
+while the server also scans, the two together can exceed the background share until 429s slow
+both down. Flags: `--dry-run` prints `before->after` transition counts (`merch`,
 `nonMerch`, `missing`) without writing, `--after <ASIN>` resumes, and `--limit <n>` bounds the run.
 Each batch logs the ASINs whose status changes. ASINs the provider does not return are counted as
 `missing` and left untouched.

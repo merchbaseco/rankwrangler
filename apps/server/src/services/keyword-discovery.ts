@@ -4,7 +4,7 @@ import {
     reserveDiscoveryAttempt,
     stopDiscoveryWork,
 } from '@/db/discovery-work';
-import { CatalogCapacityDeferredError } from './discovery-types';
+import { SyncPausedError } from './discovery-types';
 import { discoverSpApiKeyword, persistDiscoveredSpApiProducts } from './spapi-keyword-discovery';
 
 const defaultDeps = {
@@ -17,9 +17,10 @@ const defaultDeps = {
 };
 
 // One SP-API page for one keyword target. `continues` means the pass has another page ready; the
-// scan job then queues that page behind due heads instead of fetching it now.
+// scan job then queues that page behind due heads instead of fetching it now. `paused` means sync
+// was paused while the page waited its turn: the page is kept and the job stays queued.
 export const scanKeywordPage = async (targetId: string, deps = defaultDeps) => {
-    const work = await deps.claim(new Date(), { targetId });
+    const work = await deps.claim(targetId);
     if (!work?.pass.claimToken) return { kind: 'notDue' as const, didWork: false };
     const claimToken = work.pass.claimToken;
     const pass = work.pass;
@@ -33,7 +34,6 @@ export const scanKeywordPage = async (targetId: string, deps = defaultDeps) => {
             scope: work.scope,
             marketplaceId: work.marketplaceId,
             pageToken: pass.nextPageToken ?? undefined,
-            workId: attemptId,
         });
         const next = await deps.checkpoint({
             passId: pass.id,
@@ -57,15 +57,15 @@ export const scanKeywordPage = async (targetId: string, deps = defaultDeps) => {
             continues,
         };
     } catch (error) {
-        if (error instanceof CatalogCapacityDeferredError) {
+        if (error instanceof SyncPausedError) {
             await deps.stop({
                 passId: pass.id,
                 claimToken,
                 attemptId: attemptId ?? undefined,
                 reason: 'budget',
-                retryAt: error.retryAt,
+                retryAt: new Date(),
             });
-            return { kind: 'waiting' as const, didWork: false, term, page, retryAt: error.retryAt };
+            return { kind: 'paused' as const, didWork: false, term, page };
         }
         await deps.stop({
             passId: pass.id,

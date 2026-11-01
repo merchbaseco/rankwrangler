@@ -24,7 +24,6 @@ export const discoverSpApiKeyword = async (
         scope: DiscoveryScope;
         pageToken?: string;
         marketplaceId: string;
-        workId: string;
     },
     provider: Pick<
         SpApiProvider,
@@ -35,7 +34,6 @@ export const discoverSpApiKeyword = async (
         await provider.searchCatalogItemsByKeyword({
             keyword: input.scope.term,
             ...(input.scope.kind === 'brand' ? { brandNames: [input.scope.brandName] } : {}),
-            attemptId: input.workId,
             marketplaceId: input.marketplaceId,
             pageSize: 20,
             maxAttempts: 1,

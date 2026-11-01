@@ -81,49 +81,43 @@ describe('provider-gated worker', () => {
         expect(calls.complete).toEqual(['job-2']);
         expect(calls.send).toHaveLength(0);
     });
-    it('staggers parallel loops by the provider start spacing', async () => {
+    it('runs parallel loops at once, leaving the pace to the provider limiter', async () => {
         const jobs = Array.from({ length: 4 }, (_, i) => ({ ...job, id: `job-${i}` }));
         const { boss, calls } = fakeBoss(jobs);
-        const starts: number[] = [];
+        let running = 0;
+        let peak = 0;
         const worker = startGatedWorker({
             boss,
             name: 'scan-keyword',
             gate: async () => new Date(0),
             concurrency: 4,
-            startSpacingMs: async () => 40,
             run: async () => {
-                starts.push(Date.now());
+                peak = Math.max(peak, ++running);
+                await new Promise(resolve => setTimeout(resolve, 20));
+                running -= 1;
                 return { didWork: true };
             },
         });
         await until(() => calls.complete.length === 4);
         await worker.stop();
-        const gaps = starts.slice(1).map((at, index) => at - starts[index]);
-        expect(gaps.every(gap => gap >= 30)).toBe(true);
+        expect(peak).toBe(4);
     });
-
-    it('keeps the start spacing when each gate read takes time', async () => {
-        const jobs = Array.from({ length: 6 }, (_, i) => ({ ...job, id: `job-${i}` }));
+    it('stops fetching once the gate closes and resumes when it reopens', async () => {
+        const jobs = Array.from({ length: 2 }, (_, i) => ({ ...job, id: `job-${i}` }));
         const { boss, calls } = fakeBoss(jobs);
-        const starts: number[] = [];
+        let paused = true;
         const worker = startGatedWorker({
             boss,
             name: 'scan-keyword',
-            gate: async () => {
-                await new Promise(resolve => setTimeout(resolve, 15));
-                return new Date(0);
-            },
-            concurrency: 4,
-            startSpacingMs: async () => 40,
-            run: async () => {
-                starts.push(Date.now());
-                return { didWork: true };
-            },
+            gate: async () => (paused ? null : new Date(0)),
+            run: async () => ({ didWork: true }),
+            pausedPollMs: 10,
         });
-        await until(() => calls.complete.length === 6);
+        await new Promise(resolve => setTimeout(resolve, 30));
+        expect(calls.fetch).toBe(0);
+        paused = false;
+        await until(() => calls.complete.length === 2);
         await worker.stop();
-        // Measuring each slot from its actual start would add the 15ms read to every interval.
-        const meanGap = (starts[starts.length - 1] - starts[1]) / (starts.length - 2);
-        expect(meanGap).toBeLessThan(50);
+        expect(calls.fail).toHaveLength(0);
     });
 });

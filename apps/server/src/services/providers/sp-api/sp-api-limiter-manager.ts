@@ -1,9 +1,8 @@
-import { CatalogCapacityDeferredError } from '@/services/discovery-types';
-import { type CatalogCapacity, runWithCatalogCapacity } from './sp-api-catalog-capacity';
 import type Bottleneck from 'bottleneck';
+import { SyncPausedError } from '@/services/discovery-types';
 import { captureProviderAttempt } from '@/services/providers/provider-telemetry';
 import { runWithSpApiBackoff } from './sp-api-backoff';
-import { SpApiLimiterWaitError, scheduleWithQueueDeadline } from './sp-api-limiter-wait';
+import type { CatalogLimiter, CatalogPriority } from './sp-api-catalog-limiter';
 import {
     createLimiterState,
     extractRateLimitFromError,
@@ -12,68 +11,60 @@ import {
     getRateLimitTunedRps,
     getThrottlePenalizedRps,
     isThrottleError,
+    readRetryAfterMs,
     type SpApiLimiterOperationId,
     type SpApiLimiterState,
     shouldApplyLimiterUpdate,
     shouldApplyThrottlePenalty,
-    toLimiterSnapshot,
 } from './sp-api-rate-limiter';
 
 export type SpApiOperationRateLimiterStat = {
     operationId: SpApiLimiterOperationId;
-} & SpApiLimiterState & {
-        queued: number;
-        received: number;
-        running: number;
-        executing: number;
-        done: number;
-        currentReservoir: number | null;
-    };
+    label: string;
+    configuredRps: number;
+    effectiveRps: number;
+    queued: number;
+};
 
-interface OperationLimiterConfig {
-    burstCapacity: number;
-    limiter: Bottleneck;
-    maxConcurrent: number;
-    maxQueueWaitMs: number | null;
-    operationId: SpApiLimiterOperationId;
-    state: SpApiLimiterState;
-}
+type ReportsOperationId = Exclude<SpApiLimiterOperationId, 'catalog.searchCatalogItems'>;
 
-interface ManagedLimiterConfig {
+interface ReportsLimiterConfig {
     burstCapacity: number;
     configuredRps: number;
     label: string;
     limiter: Bottleneck;
     maxConcurrent: number;
-    /** Longest a call may sit queued before failing as a wedged limiter; null waits forever. */
-    maxQueueWaitMs: number | null;
-    operationId: SpApiLimiterOperationId;
+    operationId: ReportsOperationId;
 }
 
+type ReportsLimiter = ReportsLimiterConfig & { state: SpApiLimiterState };
+
+// Catalog search goes through the one Catalog limiter (priority, background share, pause and 429
+// adaptation). Each Reports operation keeps its own Bottleneck reservoir tuned from rate headers.
 export class SpApiLimiterManager {
-    private readonly limiterConfigs: Record<SpApiLimiterOperationId, OperationLimiterConfig>;
+    private readonly reports: Map<ReportsOperationId, ReportsLimiter>;
 
     constructor(
-        configs: ManagedLimiterConfig[],
-        private readonly captureAttempt: typeof captureProviderAttempt = captureProviderAttempt,
-        private readonly catalogCapacity?: CatalogCapacity
+        private readonly catalog: {
+            limiter: CatalogLimiter;
+            // Amazon's documented rate, shown on System Status as the operation's ceiling.
+            documentedRps: number;
+            isBackgroundPaused: () => Promise<boolean>;
+        },
+        reports: ReportsLimiterConfig[] = [],
+        private readonly captureAttempt: typeof captureProviderAttempt = captureProviderAttempt
     ) {
-        this.limiterConfigs = configs.reduce(
-            (acc, config) => {
-                acc[config.operationId] = {
-                    burstCapacity: config.burstCapacity,
-                    limiter: config.limiter,
-                    maxConcurrent: config.maxConcurrent,
-                    maxQueueWaitMs: config.maxQueueWaitMs,
-                    operationId: config.operationId,
+        this.reports = new Map(
+            reports.map(config => [
+                config.operationId,
+                {
+                    ...config,
                     state: createLimiterState({
                         configuredRps: config.configuredRps,
                         label: config.label,
                     }),
-                };
-                return acc;
-            },
-            {} as Record<SpApiLimiterOperationId, OperationLimiterConfig>
+                },
+            ])
         );
     }
 
@@ -84,188 +75,161 @@ export class SpApiLimiterManager {
         run,
         maxAttempts,
         priority = 'foreground',
-        attemptId,
     }: {
         ensureAccessTokenFreshness: () => Promise<void>;
         operation: string;
         operationId: SpApiLimiterOperationId;
         run: () => Promise<T>;
         maxAttempts?: number;
-        priority?: 'foreground' | 'background';
-        attemptId?: string;
-    }) => {
-        const config = this.limiterConfigs[operationId];
-
-        return await runWithSpApiBackoff({
+        priority?: CatalogPriority;
+    }) =>
+        await runWithSpApiBackoff({
             operation,
             maxAttempts,
-            run: async () => {
-                return await scheduleWithQueueDeadline({
-                    limiter: config.limiter,
-                    maxQueueWaitMs: config.maxQueueWaitMs,
-                    priority: priority === 'background' ? 8 : 2,
-                    onQueueDeadline: () => this.reportQueueDeadline(config),
-                    task: async () => {
-                        await ensureAccessTokenFreshness();
-                        try {
-                            const call = () =>
-                                this.captureAttempt(
-                                    {
-                                        provider: 'spapi',
-                                        operation: mapTelemetryOperation(operationId),
-                                    },
-                                    run
-                                );
-                            const result =
-                                operationId === 'catalog.searchCatalogItems' && this.catalogCapacity
-                                    ? await runWithCatalogCapacity({
-                                          capacity: this.catalogCapacity,
-                                          priority,
-                                          attemptId,
-                                          protectedQueued: config.limiter.queued() > 0,
-                                          run: call,
-                                      })
-                                    : await call();
-                            await this.trackOperationSuccess({
-                                operationId,
-                                response: result,
-                            });
-                            return result;
-                        } catch (error) {
-                            if (
-                                error instanceof CatalogCapacityDeferredError ||
-                                error instanceof SpApiLimiterWaitError
-                            )
-                                throw error;
-                            await this.trackOperationFailure({
-                                error,
-                                operationId,
-                            });
-                            throw error;
-                        }
-                    },
-                });
+            run: async () =>
+                operationId === 'catalog.searchCatalogItems'
+                    ? await this.runCatalog({ ensureAccessTokenFreshness, priority, run })
+                    : await this.runReports({ ensureAccessTokenFreshness, operationId, run }),
+        });
+
+    getOperationRateLimiterStats = (): SpApiOperationRateLimiterStat[] => {
+        const catalog = this.catalog.limiter.snapshot();
+        return [
+            {
+                operationId: 'catalog.searchCatalogItems',
+                label: 'Catalog Search',
+                configuredRps: this.catalog.documentedRps,
+                effectiveRps: catalog.effectiveRps,
+                queued: catalog.queued,
             },
-        });
+            ...[...this.reports.values()].map(entry => ({
+                operationId: entry.operationId,
+                label: entry.label,
+                configuredRps: entry.configuredRps,
+                effectiveRps: entry.state.effectiveRps,
+                queued: entry.limiter.queued(),
+            })),
+        ];
     };
 
-    getOperationRateLimiterStats = async (): Promise<SpApiOperationRateLimiterStat[]> => {
-        return await Promise.all(
-            Object.values(this.limiterConfigs).map(async config => {
-                return await toLimiterSnapshot({
-                    operationId: config.operationId,
-                    limiter: config.limiter,
-                    state: config.state,
-                });
-            })
-        );
-    };
-
-    private readonly reportQueueDeadline = (config: OperationLimiterConfig) => {
-        const error = new SpApiLimiterWaitError({
-            operationId: config.operationId,
-            label: config.state.label,
-            maxQueueWaitMs: config.maxQueueWaitMs ?? 0,
-        });
-        const counts = config.limiter.counts();
-        console.error(error.message, {
-            operationId: config.operationId,
-            queued: counts.QUEUED ?? 0,
-            running: counts.RUNNING ?? 0,
-            executing: counts.EXECUTING ?? 0,
-            effectiveRps: config.state.effectiveRps,
-            lastSuccessAt: config.state.lastSuccessAt,
-        });
-        return error;
-    };
-
-    private readonly trackOperationSuccess = async ({
-        operationId,
-        response,
+    private readonly runCatalog = async <T>({
+        ensureAccessTokenFreshness,
+        priority,
+        run,
     }: {
-        operationId: SpApiLimiterOperationId;
-        response: unknown;
+        ensureAccessTokenFreshness: () => Promise<void>;
+        priority: CatalogPriority;
+        run: () => Promise<T>;
     }) => {
-        const config = this.limiterConfigs[operationId];
-        config.state.successes += 1;
-        config.state.lastSuccessAt = new Date().toISOString();
+        const { limiter } = this.catalog;
+        await limiter.acquire(priority);
+        // Checked at the start, after any wait, so a pause stops background requests at once.
+        if (priority === 'background' && (await this.catalog.isBackgroundPaused()))
+            throw new SyncPausedError();
+        await ensureAccessTokenFreshness();
+        try {
+            const result = await this.capture('catalog.searchCatalogItems', run);
+            limiter.observe({ kind: 'ok', observedRate: extractRateLimitFromResponse(result) });
+            return result;
+        } catch (error) {
+            const observedRate = extractRateLimitFromError(error);
+            limiter.observe(
+                isThrottleError(error)
+                    ? { kind: 'throttled', observedRate, retryAfterMs: readRetryAfterMs(error) }
+                    : { kind: 'failed', observedRate }
+            );
+            throw error;
+        }
+    };
+
+    private readonly runReports = async <T>({
+        ensureAccessTokenFreshness,
+        operationId,
+        run,
+    }: {
+        ensureAccessTokenFreshness: () => Promise<void>;
+        operationId: ReportsOperationId;
+        run: () => Promise<T>;
+    }) => {
+        const entry = this.reports.get(operationId);
+        if (!entry) throw new Error(`[SP-API] No limiter configured for ${operationId}`);
+        return await entry.limiter.schedule(async () => {
+            await ensureAccessTokenFreshness();
+            try {
+                const result = await this.capture(operationId, run);
+                await this.trackOperationSuccess(entry, result);
+                return result;
+            } catch (error) {
+                await this.trackOperationFailure(entry, error);
+                throw error;
+            }
+        });
+    };
+
+    private readonly capture = <T>(operationId: SpApiLimiterOperationId, run: () => Promise<T>) =>
+        this.captureAttempt(
+            { provider: 'spapi', operation: mapTelemetryOperation(operationId) },
+            run
+        );
+
+    private readonly trackOperationSuccess = async (entry: ReportsLimiter, response: unknown) => {
+        entry.state.successes += 1;
+        entry.state.lastSuccessAt = new Date().toISOString();
 
         const observedRateLimit = extractRateLimitFromResponse(response);
         if (observedRateLimit === null) {
             return;
         }
 
-        config.state.lastObservedRateLimit = observedRateLimit;
-        config.state.lastObservedRateLimitAt = new Date().toISOString();
-        config.state.rateLimitSamples += 1;
+        entry.state.lastObservedRateLimit = observedRateLimit;
+        entry.state.lastObservedRateLimitAt = new Date().toISOString();
+        entry.state.rateLimitSamples += 1;
 
-        const tunedRps = getRateLimitTunedRps({
-            currentRps: config.state.effectiveRps,
-            observedRateLimitRps: observedRateLimit,
-        });
-        await this.applyLimiterRps({
-            config,
-            nextRps: tunedRps,
-        });
+        await this.applyLimiterRps(
+            entry,
+            getRateLimitTunedRps({
+                currentRps: entry.state.effectiveRps,
+                observedRateLimitRps: observedRateLimit,
+            })
+        );
     };
 
-    private readonly trackOperationFailure = async ({
-        error,
-        operationId,
-    }: {
-        error: unknown;
-        operationId: SpApiLimiterOperationId;
-    }) => {
-        const config = this.limiterConfigs[operationId];
-        config.state.failures += 1;
-        config.state.lastErrorAt = new Date().toISOString();
+    private readonly trackOperationFailure = async (entry: ReportsLimiter, error: unknown) => {
+        entry.state.failures += 1;
+        entry.state.lastErrorAt = new Date().toISOString();
 
         const observedRateLimit = extractRateLimitFromError(error);
         if (observedRateLimit !== null) {
-            config.state.lastObservedRateLimit = observedRateLimit;
-            config.state.lastObservedRateLimitAt = new Date().toISOString();
-            config.state.rateLimitSamples += 1;
+            entry.state.lastObservedRateLimit = observedRateLimit;
+            entry.state.lastObservedRateLimitAt = new Date().toISOString();
+            entry.state.rateLimitSamples += 1;
         }
 
         if (isThrottleError(error)) {
-            config.state.throttles += 1;
-            if (!shouldApplyThrottlePenalty(config.state.lastAppliedRpsAt)) {
+            entry.state.throttles += 1;
+            if (!shouldApplyThrottlePenalty(entry.state.lastAppliedRpsAt)) {
                 return;
             }
-            await this.applyLimiterRps({
-                config,
-                nextRps: getThrottlePenalizedRps(config.state.effectiveRps),
-            });
+            await this.applyLimiterRps(entry, getThrottlePenalizedRps(entry.state.effectiveRps));
         }
     };
 
-    private readonly applyLimiterRps = async ({
-        config,
-        nextRps,
-    }: {
-        config: OperationLimiterConfig;
-        nextRps: number;
-    }) => {
-        if (
-            !shouldApplyLimiterUpdate({
-                nextRps,
-                previousRps: config.state.effectiveRps,
-            })
-        ) {
+    private readonly applyLimiterRps = async (entry: ReportsLimiter, nextRps: number) => {
+        if (!shouldApplyLimiterUpdate({ nextRps, previousRps: entry.state.effectiveRps })) {
             return;
         }
 
-        await config.limiter.updateSettings(
+        await entry.limiter.updateSettings(
             getLimiterSettingsFromRps({
-                burstCapacity: config.burstCapacity,
-                maxConcurrent: config.maxConcurrent,
+                burstCapacity: entry.burstCapacity,
+                maxConcurrent: entry.maxConcurrent,
                 rps: nextRps,
             })
         );
-        config.state.effectiveRps = nextRps;
-        config.state.lastAppliedRps = nextRps;
-        config.state.lastAppliedRpsAt = new Date().toISOString();
-        config.state.adaptations += 1;
+        entry.state.effectiveRps = nextRps;
+        entry.state.lastAppliedRps = nextRps;
+        entry.state.lastAppliedRpsAt = new Date().toISOString();
+        entry.state.adaptations += 1;
     };
 }
 

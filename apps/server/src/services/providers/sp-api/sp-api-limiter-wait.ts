@@ -1,9 +1,8 @@
-import type Bottleneck from 'bottleneck';
 import type { SpApiLimiterOperationId } from './sp-api-rate-limiter';
 
-// A healthy limiter starts a queued call within seconds. A call still queued after this deadline
-// means the limiter stopped releasing work (a drained reservoir that never refills), so we fail
-// loudly instead of letting callers hang until their own handler or caller deadline.
+// The longest a live (foreground) Catalog call waits for its turn. A healthy limiter starts it
+// within seconds; past this, a long throttle cooldown or a wedged limiter holds it, so it fails
+// loudly instead of hanging until the caller's own deadline.
 export const SP_API_CATALOG_QUEUE_WAIT_MS = 2 * 60 * 1000;
 
 export class SpApiLimiterWaitError extends Error {
@@ -29,60 +28,3 @@ export class SpApiLimiterWaitError extends Error {
         this.maxQueueWaitMs = maxQueueWaitMs;
     }
 }
-
-/**
- * Schedules a call on a Bottleneck limiter, rejecting when it has not started within
- * `maxQueueWaitMs`. Bottleneck cannot cancel a queued job, so an abandoned job skips its work
- * when the limiter eventually releases it.
- */
-export const scheduleWithQueueDeadline = <T>({
-    limiter,
-    maxQueueWaitMs,
-    onQueueDeadline,
-    task,
-    priority = 5,
-}: {
-    limiter: Bottleneck;
-    maxQueueWaitMs: number | null;
-    onQueueDeadline: () => SpApiLimiterWaitError;
-    task: () => Promise<T>;
-    priority?: number;
-}): Promise<T> => {
-    if (maxQueueWaitMs === null) {
-        return limiter.schedule({ priority }, task);
-    }
-
-    return new Promise<T>((resolve, reject) => {
-        let state: 'queued' | 'started' | 'abandoned' = 'queued';
-        const deadline = setTimeout(() => {
-            if (state !== 'queued') {
-                return;
-            }
-            state = 'abandoned';
-            reject(onQueueDeadline());
-        }, maxQueueWaitMs);
-
-        limiter
-            .schedule({ priority }, async () => {
-                if (state === 'abandoned') {
-                    return null;
-                }
-                state = 'started';
-                clearTimeout(deadline);
-                return { value: await task() };
-            })
-            .then(
-                result => {
-                    if (result) {
-                        resolve(result.value);
-                    }
-                },
-                error => {
-                    clearTimeout(deadline);
-                    if (state !== 'abandoned') {
-                        reject(error);
-                    }
-                }
-            );
-    });
-};

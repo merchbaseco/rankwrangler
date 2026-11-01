@@ -1,4 +1,4 @@
-import { CatalogCapacityDeferredError } from '@/services/discovery-types';
+import { SyncPausedError } from '@/services/discovery-types';
 import type { SpApiProduct } from '@/types';
 
 export const MERCH_RECLASSIFICATION_BATCH_SIZE = 20;
@@ -36,7 +36,7 @@ export const reclassifyMerchListings = async (
         );
         const stored = await deps.readBatch(afterAsin, size);
         if (!stored.length) break;
-        const fetched = await fetchWithBackgroundCapacity(
+        const fetched = await fetchUnlessPaused(
             stored.map(row => row.asin),
             deps
         );
@@ -62,17 +62,20 @@ export const reclassifyMerchListings = async (
     return { checked, lastAsin: afterAsin, transitions: Object.fromEntries(transitions) };
 };
 
-const fetchWithBackgroundCapacity = async (asins: string[], deps: MerchReclassificationDeps) => {
+// Background Catalog calls wait their turn in the limiter; only a paused sync stops them, so the
+// run holds its place and checks again each minute.
+const fetchUnlessPaused = async (asins: string[], deps: MerchReclassificationDeps) => {
     while (true) {
         try {
             return await deps.fetchProducts(asins);
         } catch (error) {
-            if (!(error instanceof CatalogCapacityDeferredError)) throw error;
-            const waitMs = Math.max(1000, error.retryAt.getTime() - Date.now());
-            deps.log(`background capacity deferred (${error.reason}); waiting ${waitMs}ms`);
-            await deps.sleep(waitMs);
+            if (!(error instanceof SyncPausedError)) throw error;
+            deps.log(`sync paused; waiting ${pausedRetryMs}ms`);
+            await deps.sleep(pausedRetryMs);
         }
     }
 };
+
+const pausedRetryMs = 60_000;
 
 const label = (isMerchListing: boolean) => (isMerchListing ? 'merch' : 'nonMerch');

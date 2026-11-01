@@ -226,29 +226,31 @@ preserves old evidence and starts a new pass.
 The pipeline follows [background jobs](../decisions/background-jobs.md): one job per external call,
 one queue per provider, at most one queued-or-running job per entity.
 
-| Job | Entity | Provider gate | What it does next |
+| Job | Entity | Paced by | What it does next |
 | --- | --- | --- | --- |
 | `schedule-brand-analytics` | none, every six hours | none | Starts the newest week's import when due and nudges keyword listing; ignores Pause sync |
 | `schedule-keyword-work` | none, every minute | none | Backfills keyword prefixes; while sync runs, enqueues due scans and tops up autocomplete seeds and prefixes |
-| `scan-keyword` | keyword target | SP-API background capacity | Fetches one page; queues the next page of a continuing pass at depth priority |
+| `scan-keyword` | keyword target | Catalog limiter (background share); closed while paused | Fetches one page; queues the next page of a continuing pass at depth priority |
 | `autocomplete-keyword` | tracked seed or prefix | autocomplete spacing | Saves up to ten suggestions (for a prefix, those naming a Merch product) as trials and completes the seed or prefix |
 | `import-brand-analytics` | weekly import | always open | Requests, checks (every two minutes) or downloads and saves one week's report; queues its own next step, then keyword listing |
 | `register-brand-analytics-keywords` | none (one chain) | always open | Lists 2,000 kept terms as trial keywords; queues itself while a full batch was listed |
 
-A gated queue fetches its next job only once its provider can start, so waiting work stays visible
-in the queue. Due re-checks of graduated keywords carry priority 2, trial keywords' qualifying first pages
+Waiting work stays visible in the queue. Due re-checks of graduated keywords carry priority 2, trial keywords' qualifying first pages
 priority 1 and deeper pages priority 0, so a backlog of trials never delays keeping graduated
 keywords fresh; within a priority the oldest waits least. The scheduler raises depth jobs waiting
-six hours to trial-head priority, well before an SP-API continuation cursor expires at a day. A provider wait or lost
-reservation re-sends the same job for the provider's ready time instead of failing it. Parallel
-scan loops start one job per start interval (one background Catalog interval plus 10%); slots follow
-that schedule rather than each actual start, so the gate read before a start does not stretch it. Claims and
-leases still guard each entity, so a lost or duplicate job repeats no saved stage. The import job
+six hours to trial-head priority, well before an SP-API continuation cursor expires at a day:
+nothing else bounds how long a depth job waits behind a large trial backlog, so the promotion
+stays. Queue priority is the only ordering; a claim locks just its target and pass and checks the
+pass is due and not leased, so a lost or duplicate job repeats no saved stage. Four scan jobs run
+at once and wait their turn in the Catalog limiter, which alone sets the pace; an autocomplete
+provider wait or lost reservation re-sends the same job for the gate's ready time instead of
+failing it. The import job
 may run up to an hour, the time a weekly download and aggregation can take.
 
-Background keyword scans may use 75% of the measured SP-API Catalog rate, up to
-`spapi_catalog_capacity.background_max_rps` (0.5 by default); raising that value speeds scanning
-without a deploy.
+Background keyword scans share 75% of the Catalog rate (`CATALOG_BACKGROUND_SHARE`) with the other
+background Catalog work; the rate is at most `CATALOG_MAX_RPS` (0.5 a second), so scans start about
+every 2.7 seconds. Both constants live in `sp-api-catalog-limiter.ts`; raising `CATALOG_MAX_RPS`
+speeds scanning with a deploy.
 
 Listed Brand Analytics trials are the main source of due scans; scans themselves run at the
 background SP-API rate in work order. Expansion is not held back by scan load or a compute-time
@@ -339,19 +341,21 @@ directory once. See [Realtime events](realtime-events.md).
 
 System Status (`/status`, the Keywords section) has the one admin-only Pause / Resume control for
 the keyword pipeline. It
-controls refresh work only: the keyword scheduler (due scans and autocomplete seeds) and the gated
-scan and autocomplete queues. The weekly Brand Analytics import and keyword listing always run,
+controls refresh work only: the keyword scheduler (due scans and autocomplete seeds), the scan and
+autocomplete queues, and every background Catalog request. The weekly Brand Analytics import and keyword listing always run,
 because they are free and spend no scan capacity; paused, new keywords simply wait in Queued.
 Existing Product refresh, history refresh and deliberate reads also stay outside this switch. Pausing does not disable tracked
 keywords or delete queued work.
 
 `automatic_sync_control` persists the flag and actor; a missing row also means paused. Already
-admitted requests may finish and save their response. Every provider admission and child-work claim
-rechecks the flag. Admission transactions hold a shared control-row lock, so Pause waits for any
-capacity reservations already in progress before acknowledging.
+sent requests may finish and save their response. The Catalog limiter rechecks the flag when a
+background request's turn comes and refuses it while paused; the scan job then keeps its page and
+re-queues itself at the same priority. Autocomplete admission transactions hold a shared
+control-row lock, so Pause waits for any autocomplete reservation already in progress before
+acknowledging.
 
 Resume preserves saved suggestions, cursors, backoffs, import state and provider cooldowns. Queued
-jobs stay queued while paused; gated workers resume fetching within ten seconds and the scheduler
+jobs stay queued while paused; the scan and autocomplete queues resume fetching within ten seconds and the scheduler
 on its next minute. Read-only status and its dedicated WebSocket event are separate from the
 admin-only mutation. Real transitions produce keyword.sync.paused/resumed Logs events
 transactionally; repeated requests for the same value do not duplicate events.

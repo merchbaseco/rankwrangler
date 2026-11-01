@@ -33,14 +33,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword pipeline j
         expect(await listDueKeywordScans(now, 10)).toEqual([
             { id: target.id, depth: false, tracked: expect.any(Boolean) },
         ]);
-        const claimed = await claimKeywordExploration(now, { targetId: target.id });
+        const claimed = await claimKeywordExploration(target.id, now);
         expect(claimed?.target.id).toBe(target.id);
         expect(await listDueKeywordScans(now, 10)).toEqual([]);
         const other = await seedDiscoveryTarget({ kind: 'keyword', term: 'nurse shirt' }, now);
-        expect(await claimKeywordExploration(now, { targetId: target.id })).toBeNull();
-        expect((await claimKeywordExploration(now, { targetId: other.id }))?.target.id).toBe(
-            other.id
-        );
+        expect(await claimKeywordExploration(target.id, now)).toBeNull();
+        expect((await claimKeywordExploration(other.id, now))?.target.id).toBe(other.id);
     });
     it('registers the most searched Brand Analytics terms as trials once', async () => {
         await addTerm('rare fishing shirt', 900_000);

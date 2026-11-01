@@ -1,4 +1,4 @@
-import { claimKeywordExploration } from '@/db/discovery-work';
+import { listDueKeywordScans } from '@/db/keyword-work-due';
 import { keywordDirectoryInput } from '@/api/keyword-directory-input';
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
@@ -211,7 +211,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword stage and 
         });
         expect(result.nextCursor?.key.slice(0, 2)).toEqual([0, 1]);
     });
-    it('uses target identity for tied due keywords just like the dispatcher', async () => {
+    it('uses target identity for tied due keywords just like the scheduler', async () => {
         const now = new Date();
         const first = '00000000-0000-4000-8000-000000000001';
         const second = '00000000-0000-4000-8000-000000000002';
@@ -242,8 +242,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword stage and 
             }))
         );
         const result = await read({ freshness: 'needsSync' });
-        const actual = await claimKeywordExploration(now);
-        expect(result.items[0].queryId).toBe(actual?.target.queryId);
+        const [next] = await listDueKeywordScans(now, 1);
+        const [scheduled] = await db
+            .select()
+            .from(discoveryTargets)
+            .where(eq(discoveryTargets.id, next.id));
+        expect(result.items[0].queryId).toBe(scheduled.queryId);
         expect(result.items[0].term).toBe('second shirt');
     });
 });

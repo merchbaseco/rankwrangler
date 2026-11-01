@@ -5,6 +5,5 @@ export interface SpApiKeywordSearchRequest {
     pageToken?: string;
     maxAttempts?: number;
     brandNames?: string[];
-    attemptId?: string;
     priority?: 'foreground' | 'background';
 }

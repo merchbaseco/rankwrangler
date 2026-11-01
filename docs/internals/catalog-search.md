@@ -90,11 +90,14 @@ visible to callers or recovery and a concurrently completed reusable run does no
 - Keepa observes the first page only. A live pilot showed page 1 repeats page 0 and charges again.
   SP-API acquisition uses real continuation tokens, one page per claim with due heads ahead of depth, independently
   of Keepa tier/admission. The former ten-per-term/twenty-global daily pilot caps are removed.
-  Every physical Catalog start shares a persisted token bucket with foreground listing reads.
-  Background gets 75% of effective observed rate, capped at the stored `background_max_rps`
-  (0.5 requests/second by default); foreground has queue priority and access to the remaining
-  capacity. Rate headers, throttle cooldown and Retry-After survive restart. Deferrals retain the
-  page; the gated `scan-keyword` queue re-sends the job for the bucket's ready time.
+  Every Catalog search, live or background, waits its turn in one in-process limiter
+  (`sp-api-catalog-limiter.ts`; the server is one process). It starts at most `CATALOG_MAX_RPS`
+  (0.5 a second, burst 2), lowered to 80% of a smaller `x-amzn-RateLimit-Limit`. Foreground reads
+  always go first; background work may start at most `CATALOG_BACKGROUND_SHARE` (75%) of the
+  current rate. A 429 halves the rate and holds every start for at least a minute or its
+  Retry-After; each success then raises the rate 10% back toward the ceiling. Limiter state is
+  in memory and starts at the ceiling after a restart. A paused sync refuses background requests
+  when their turn comes; the page is kept and the `scan-keyword` job re-queues itself.
   Background calls get one physical attempt; failures retry through durable backoff.
 - Exploration retains source, contiguous observed depth, oldest page time and stop reason. Two
   pages each adding fewer than three catalog-new Merch products, or the pass's page limit (ten,
@@ -114,8 +117,8 @@ breadth. Hot checks use 1–7 days,
 warm 7–21, cold 30–60, with change/quiet adaptation. Demotion requires two weak observations and
 fourteen days since weak evidence began. Product-rank updates can promote a keyword between
 searches. No new-ASIN yield is required to keep a strong known niche current. Novelty only stops
-expensive deeper paging. A durable claim sequence reserves one in five dispatches for trials,
-with the other class lending unused opportunities; physical request capacity remains the ceiling.
+expensive deeper paging. Queue priority orders scans (graduated re-checks, then trial first pages,
+then deeper pages); the Catalog limiter's background share remains the ceiling.
 
 [Keyword collection](keyword-mining.md) owns the weekly Brand Analytics import, trial admission,
 autocomplete expansion, retry checkpoints, source evidence and provider budgets. Product facet classification remains

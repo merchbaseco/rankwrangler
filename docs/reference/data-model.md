@@ -47,7 +47,7 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Catalog query | `(source, marketplaceId, normalizedTerm)` | Term interest, bounded admission, tier, demand evidence, research lease and next check. |
 | Keyword membership | `(queryId, productId)` | First and latest observed membership across sources. |
 | Exploration pass | generated id, at most one active per query | SP-API continuation, claimed execution, dated depth and stop reason. |
-| Discovery attempt | generated id | Durable physical-attempt reservation for SP-API exploration caps. |
+| Discovery attempt | generated id | One SP-API exploration page request and its yield, fenced to the pass claim. |
 | Keepa capacity attempt | generated id | Work class, reserved and actual token cost independent of ingestion success. |
 | History admission receipt | rollout key | Atomic baseline time and count of grandfathered Product identities. |
 | Search run | generated id | One immutable successful provider execution, including zero-result runs, with `trigger: requested | automatic`. |

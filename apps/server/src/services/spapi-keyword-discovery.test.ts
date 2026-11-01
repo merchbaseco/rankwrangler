@@ -12,7 +12,6 @@ describe('SP-API keyword discovery', () => {
                 scope: { kind: 'keyword', term: 'fishing shirt' },
                 marketplaceId,
                 pageToken: 'page-two',
-                workId: 'receipt-id',
             },
             {
                 ...noAsinLookups,
@@ -58,7 +57,6 @@ describe('SP-API keyword discovery', () => {
                 pageSize: 20,
                 maxAttempts: 1,
                 priority: 'background',
-                attemptId: 'receipt-id',
                 pageToken: 'page-two',
             },
         ]);
@@ -82,7 +80,6 @@ describe('SP-API keyword discovery', () => {
         const input = {
             scope: { kind: 'keyword' as const, term: 'fishing' },
             marketplaceId,
-            workId: 'receipt-id',
         };
         const empty = await discoverSpApiKeyword(input, {
             ...noAsinLookups,
@@ -104,7 +101,6 @@ describe('SP-API keyword discovery', () => {
                 scope: { kind: 'brand', term: 'shirt', brandName: 'Joy Haus' },
                 marketplaceId,
                 pageToken: 'brand-page-two',
-                workId: 'receipt-id',
             },
             {
                 ...noAsinLookups,
@@ -123,7 +119,6 @@ describe('SP-API keyword discovery', () => {
                 pageToken: 'brand-page-two',
                 priority: 'background',
                 maxAttempts: 1,
-                attemptId: 'receipt-id',
             },
         ]);
     });

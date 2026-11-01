@@ -19,7 +19,6 @@ import {
     discoveryNow as now,
     discoveryProduct,
     fetchDiscoveryReceipt,
-    primeCatalogCapacity,
     resetDiscoveryFixture,
     seedDiscoveryTarget,
 } from './discovery-fixture';
@@ -34,7 +33,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
         expect(await resolveScheduledKeywordHead({ queryId: target.queryId, now })).toEqual({
             kind: 'notDue',
         });
-        await primeCatalogCapacity();
         await acceptDiscoveryFixture(work, [discoveryProduct('B0TST00001')]);
         const [query] = await db
             .select()
@@ -44,26 +42,24 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
         expect(query.latestSuccessfulRunAt).toBeNull();
         expect((await db.select().from(products))[0].historyAdmissionState).toBe('notAdmitted');
     });
-    it('finds eligible work beyond thirty deferred targets', async () => {
-        for (let i = 0; i < 31; i += 1) {
-            const target = await seedDiscoveryTarget({ kind: 'keyword', term: `fishing ${i}` });
-            if (i < 30)
-                await db.insert(keywordExplorationPasses).values({
-                    targetId: target.id,
-                    stopReason: 'lowYield',
-                    resumeAt: later(86_400),
-                });
-        }
-        expect((await claimDiscoveryFixture()).scope).toEqual({
+    it('claims a target only once its pass is due', async () => {
+        const resting = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing 0' });
+        await db.insert(keywordExplorationPasses).values({
+            targetId: resting.id,
+            stopReason: 'lowYield',
+            resumeAt: later(86_400),
+        });
+        const due = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing 1' });
+        expect(await claimKeywordExploration(resting.id, now)).toBeNull();
+        expect((await claimDiscoveryFixture(now, due.id)).scope).toEqual({
             kind: 'keyword',
-            term: 'fishing 30',
+            term: 'fishing 1',
         });
     });
-    it('yields a continuation to an unvisited peer and resumes without repeating its page', async () => {
+    it('resumes a continuation without repeating its page', async () => {
         const first = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
-        await seedDiscoveryTarget({ kind: 'keyword', term: 'nurse shirt' });
-        await primeCatalogCapacity();
-        const work = await claimDiscoveryFixture();
+        const other = await seedDiscoveryTarget({ kind: 'keyword', term: 'nurse shirt' });
+        const work = await claimDiscoveryFixture(now, first.id);
         const accepted = await acceptDiscoveryFixture(work, [discoveryProduct('B0TST00001')]);
         await stopDiscoveryWork({
             passId: work.pass.id,
@@ -71,8 +67,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
             reason: 'jobCap',
             now,
         });
-        const peer = await claimDiscoveryFixture(later(10));
-        expect(peer.target.id).not.toBe(first.id);
+        const peer = await claimDiscoveryFixture(later(10), other.id);
         await stopDiscoveryWork({
             passId: peer.pass.id,
             claimToken: peer.claimToken,
@@ -80,7 +75,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
             retryAt: later(100),
             now: later(10),
         });
-        const resumed = await claimDiscoveryFixture(later(20));
+        const resumed = await claimDiscoveryFixture(later(20), first.id);
         expect(resumed.pass.id).toBe(accepted.pass.id);
         expect(resumed.pass.nextPageToken).toBe('next-page');
         expect(resumed.pass.nextPage).toBe(1);
@@ -91,7 +86,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
             term: 'shirt',
             brandName: 'Independent Studio',
         });
-        await primeCatalogCapacity();
         const work = await claimDiscoveryFixture();
         expect(work.scope).toEqual({
             kind: 'brand',
@@ -110,7 +104,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
     });
     it('accepts a page once and records real new identities separately from membership', async () => {
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
-        await primeCatalogCapacity();
         const work = await claimDiscoveryFixture();
         const attemptId = await fetchDiscoveryReceipt(work);
         const input = {
@@ -139,12 +132,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
             nonMerchProducts: 1,
             newMerchMemberships: 1,
         });
-        await seedDiscoveryTarget({
+        const brand = await seedDiscoveryTarget({
             kind: 'brand',
             term: 'shirt',
             brandName: 'Independent Studio',
         });
-        const peer = await claimDiscoveryFixture(later(10));
+        const peer = await claimDiscoveryFixture(later(10), brand.id);
         await acceptDiscoveryFixture(peer, [discoveryProduct('B0TST00001')], later(10));
         const receipts = await db
             .select()
@@ -160,7 +153,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
             title: 'Old title',
             isMerchListing: false,
         });
-        await primeCatalogCapacity();
         const work = await claimDiscoveryFixture();
         const { pass } = await acceptDiscoveryFixture(work, [
             discoveryProduct('B0TST00001'),
@@ -195,7 +187,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
     it('rejects an expired worker before any Product write', async () => {
         await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
         const old = await claimDiscoveryFixture();
-        await primeCatalogCapacity();
         const attemptId = await fetchDiscoveryReceipt(old);
         const current = await claimDiscoveryFixture(later(301));
         expect(current.claimToken).not.toBe(old.claimToken);
@@ -243,7 +234,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
     });
     it('records successful emptiness separately from capacity and retry failures', async () => {
         const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' });
-        await primeCatalogCapacity();
         const work = await claimDiscoveryFixture();
         const first = await acceptDiscoveryFixture(work, [], now, null);
         expect(first.pass.resumeAt.getTime() - now.getTime()).toBeGreaterThanOrEqual(
@@ -257,7 +247,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('scoped listing acq
             now,
         });
         const nextAt = first.pass.resumeAt;
-        await primeCatalogCapacity(nextAt);
         const again = await claimDiscoveryFixture(nextAt);
         const second = await acceptDiscoveryFixture(again, [], nextAt, null);
         expect(second.pass.resumeAt.getTime() - nextAt.getTime()).toBeGreaterThanOrEqual(

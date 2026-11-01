@@ -301,7 +301,7 @@ bun test \
     apps/server/test/catalog-search-history.db.test.ts \
     apps/server/test/catalog-query-refresh.db.test.ts \
     apps/server/test/keyword-collection.db.test.ts \
-    apps/server/test/discovery-capacity.db.test.ts \
+    apps/server/test/scan-keyword-queue.db.test.ts \
     apps/server/test/discovery-sources.db.test.ts \
     apps/server/test/keyword-jobs.db.test.ts \
     apps/server/test/keyword-autocomplete.db.test.ts \

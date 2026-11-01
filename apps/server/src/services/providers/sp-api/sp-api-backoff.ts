@@ -1,4 +1,4 @@
-import { CatalogCapacityDeferredError } from '@/services/discovery-types';
+import { SyncPausedError } from '@/services/discovery-types';
 import { SpApiLimiterWaitError } from './sp-api-limiter-wait';
 
 const SPAPI_RETRYABLE_STATUS_CODES = new Set<number>([408, 425, 429, 500, 502, 503, 504]);
@@ -42,11 +42,8 @@ export const runWithSpApiBackoff = async <T>({
         try {
             return await run();
         } catch (error) {
-            // A wedged limiter is not an upstream failure; retrying would only queue again.
-            if (
-                error instanceof SpApiLimiterWaitError ||
-                error instanceof CatalogCapacityDeferredError
-            ) {
+            // A limiter wait or a pause is not an upstream failure; retrying would only queue again.
+            if (error instanceof SpApiLimiterWaitError || error instanceof SyncPausedError) {
                 throw error;
             }
             const isRetryable = isRetryableSpApiError(error);

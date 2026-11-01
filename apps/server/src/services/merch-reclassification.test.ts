@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { CatalogCapacityDeferredError } from '@/services/discovery-types';
+import { SyncPausedError } from '@/services/discovery-types';
 import {
     reclassifyMerchListings,
     type StoredMerchListing,
@@ -59,7 +59,7 @@ const harness = (options: { deferFirst?: boolean } = {}) => {
             fetchProducts: async (asins: string[]) => {
                 if (deferred) {
                     deferred = false;
-                    throw new CatalogCapacityDeferredError('rate', new Date(Date.now() + 5_000));
+                    throw new SyncPausedError();
                 }
                 return asins
                     .filter(asin => asin in answers)
@@ -104,7 +104,7 @@ describe('reclassifyMerchListings', () => {
         ]);
     });
 
-    it('writes every fetched batch, honors the limit, and waits out deferred capacity', async () => {
+    it('writes every fetched batch, honors the limit, and waits out a paused sync', async () => {
         const run = harness({ deferFirst: true });
         const result = await reclassifyMerchListings(
             { afterAsin: '', limit: 3, dryRun: false },

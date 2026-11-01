@@ -470,6 +470,13 @@
       "when": 1793564285071,
       "tag": "0066_binary_merch_listing",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793565712625,
+      "tag": "0067_drop_spapi_catalog_capacity",
+      "breakpoints": true
     }
   ]
 }

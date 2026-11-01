@@ -59,9 +59,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- operations, event_logs, job_executions, job_execution_logs, provider_attempts
 -- catalog_queries (keyword admission, tiers, demand, due dates and research leases),
 -- keyword_products, keyword_exploration_passes (scoped discovery target and fenced claim),
--- keyword_discovery_attempts (physical starts and page yield), discovery_targets,
+-- keyword_discovery_attempts (page requests and yield), discovery_targets,
 -- keyword_standing_observations (score history per standing observation), discovery_evidence,
--- discovery_source_scans, brand_discovery_products, spapi_catalog_capacity,
+-- discovery_source_scans, brand_discovery_products,
 -- keepa_capacity_state, keepa_capacity_attempts, history_admission_rollouts,
 -- catalog_search_runs (page and trigger provenance),
 -- catalog_search_results, official_brands (verified marketplace-specific brand exclusions)

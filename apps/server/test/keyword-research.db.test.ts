@@ -14,7 +14,6 @@ import {
     claimDiscoveryFixture,
     discoveryProduct,
     discoveryNow as now,
-    primeCatalogCapacity,
     resetDiscoveryFixture,
     seedDiscoveryTarget,
 } from './discovery-fixture';
@@ -151,8 +150,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword research r
 const observeKeyword = async (term: string, heads: [string, number, Date?][], offsetDays = 0) => {
     const at = new Date(now.getTime() + offsetDays * DAY);
     const target = await seedDiscoveryTarget({ kind: 'keyword', term }, at);
-    await primeCatalogCapacity(at);
-    const work = await claimDiscoveryFixture(at);
+    const work = await claimDiscoveryFixture(at, target.id);
     await acceptDiscoveryFixture(
         work,
         heads.map(([asin, rank, firstAvailable]) =>

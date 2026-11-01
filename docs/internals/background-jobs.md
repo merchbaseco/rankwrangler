@@ -30,13 +30,15 @@ where a second attempt would be redundant.
 | Product facets | One-minute worker definition, currently disabled by policy. |
 | Provider-attempt retention | Daily bounded deletion of attempts older than seven days. |
 | Job-execution retention | Daily bounded deletion of run history older than fourteen days. |
-| Keyword pipeline | One-minute scheduler feeding gated scan and autocomplete queues and the weekly Brand Analytics import. |
+| Keyword pipeline | One-minute scheduler feeding the scan and autocomplete queues and the weekly Brand Analytics import. |
 
 New and changed jobs follow [background jobs](../decisions/background-jobs.md): one job per external
 call on one entity, one queue per provider, schedulers that only enqueue. A job definition can declare
-`.queue({ policy })` and `.gate(providerGate)`. A gated queue runs one worker that fetches the next
-job, by priority, only once its gate reports the provider can start; the job may return a `followup`
-to re-send itself for its entity after it completes. Entity queues use the `exclusive` policy keyed by
+`.queue({ policy })` and `.gate(providerGate, { concurrency })`. A gated queue runs worker loops
+(one by default; `scan-keyword` runs four) that fetch the next job, by priority, only once the gate
+is open: the autocomplete gate waits for its provider spacing, the scan gate only for Pause sync,
+since the Catalog limiter paces each request. The job may return a `followup` to re-send itself for
+its entity after it completes. Entity queues use the `exclusive` policy keyed by
 entity. The keyword pipeline is the first user; see
 [keyword jobs](keyword-mining.md#keyword-jobs). Retired `process-keyword-sync` and older keyword
 stage schedules are unscheduled at startup.
