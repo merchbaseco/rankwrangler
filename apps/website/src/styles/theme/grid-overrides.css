@@ -115,12 +115,12 @@
         border-right: 0;
     }
 
-    /* Wrapped Product figures (four or two across) rule each row off; the cells draw the edge. */
-    .kpi-group.grid-kpis--product {
+    /* Figures that wrap onto rows (Product, Sales curve) rule each row off; the cells draw it. */
+    .kpi-group.grid-kpis--wraps {
         border-bottom: 0;
     }
 
-    .kpi-group.grid-kpis--product > .kpi {
+    .kpi-group.grid-kpis--wraps > .kpi {
         border-bottom: 1px solid var(--border);
     }
 

@@ -1,4 +1,4 @@
-import { type PointerEvent, useMemo, useState } from 'react';
+import { type PointerEvent, useId, useMemo, useState } from 'react';
 import { CursorTooltip } from '@/components/ui/cursor-tooltip';
 import { formatBsrCompact, formatCount } from '@/features/bsr/bsr-format';
 import { bsrTierDefinitions, classifyBsr, tierClassName } from '@/features/bsr/bsr-tier';
@@ -8,11 +8,13 @@ import { cn } from '@/lib/utils';
 import { type CurveEvidence, salesCurveGeometry } from './sales-curve-geometry';
 
 /**
- * Sales a month by rank, both on log scales, over the tier bands: the fitted
- * curve in the accent with the range most shirts land in washed behind it,
- * the typical badged shirt per rank as a dot in its tier's swatch, and the
- * pace written at #100K, #300K and #1M. The pointer reads any rank's pace in
- * a cursor tooltip. It measures its width and draws at that pixel size.
+ * Sales a month by rank, both on log scales, drawn like the Product page's
+ * rank chart: the fitted curve as an ink line over a halftone fill whose dots
+ * take the ink of the tier slice they sit in, dashed cuts at the tier edges
+ * with each tier named above its slice and railed below, and the typical
+ * badged shirt per rank as a dot in its tier's swatch. The pointer reads any
+ * rank's pace in a cursor tooltip. It measures its width and draws at that
+ * pixel size.
  */
 export const SalesCurveChart = ({
     curve,
@@ -29,6 +31,8 @@ export const SalesCurveChart = ({
         [curve, evidence, height, width]
     );
     const [rank, setRank] = useState<number | null>(null);
+    // A fragment-safe id prefix: React's ids carry punctuation `url(#…)` would need escaping.
+    const id = `curve${useId().replace(nonWord, '')}`;
     const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
         if (geometry) {
             const bounds = event.currentTarget.getBoundingClientRect();
@@ -44,9 +48,7 @@ export const SalesCurveChart = ({
                     triggerClassName="block"
                 >
                     <svg
-                        aria-label={`Sales a month by rank: ${geometry.callouts
-                            .map(callout => callout.label)
-                            .join(', ')} at #100K, #300K and #1M`}
+                        aria-label="Sales a month by Best Sellers Rank, with Amazon's badges"
                         height={height}
                         onPointerLeave={() => setRank(null)}
                         onPointerMove={handlePointerMove}
@@ -54,25 +56,50 @@ export const SalesCurveChart = ({
                         viewBox={`0 0 ${width} ${height}`}
                         width={width}
                     >
+                        <defs>
+                            {geometry.bands.map(band => (
+                                <pattern
+                                    className={tierClassName(band.tier)}
+                                    height={3}
+                                    id={`${id}-dots-${band.tier}`}
+                                    key={band.tier}
+                                    patternUnits="userSpaceOnUse"
+                                    width={3}
+                                >
+                                    <circle className="halftone-spark__dot" cx={1.5} cy={1.5} />
+                                </pattern>
+                            ))}
+                            {geometry.bands.map(band => (
+                                <clipPath id={`${id}-band-${band.tier}`} key={band.tier}>
+                                    <rect
+                                        height={geometry.plot.bottom - geometry.plot.top}
+                                        width={band.width}
+                                        x={band.x}
+                                        y={geometry.plot.top}
+                                    />
+                                </clipPath>
+                            ))}
+                        </defs>
+                        <path className="sales-curve__grid" d={geometry.grid} />
+                        <path className="sales-curve__cut" d={geometry.cuts} />
                         {geometry.bands.map(band => (
                             <g className={tierClassName(band.tier)} key={band.tier}>
-                                <rect
-                                    className="sales-curve__band"
-                                    height={geometry.plot.bottom - geometry.plot.top}
-                                    width={band.width}
-                                    x={band.x}
-                                    y={geometry.plot.top}
-                                />
                                 <text
                                     className="sales-curve__band-label"
-                                    x={band.x + 8}
-                                    y={geometry.plot.top + 16}
+                                    x={band.x + 6}
+                                    y={geometry.plot.top - 8}
                                 >
                                     {bsrTierDefinitions[band.tier].label}
                                 </text>
+                                <rect
+                                    className="sales-curve__rail"
+                                    height={geometry.rail.height}
+                                    width={Math.max(0, band.width - 2)}
+                                    x={band.x + 1}
+                                    y={geometry.rail.y}
+                                />
                             </g>
                         ))}
-                        <path className="sales-curve__grid" d={geometry.grid} />
                         {geometry.yTicks.map(tick => (
                             <text
                                 className="sales-curve__tick"
@@ -96,7 +123,15 @@ export const SalesCurveChart = ({
                                 {tick.label}
                             </text>
                         ))}
-                        <path className="sales-curve__range" d={geometry.range} />
+                        {geometry.bands.map(band => (
+                            <path
+                                className="sales-curve__fill"
+                                clipPath={`url(#${id}-band-${band.tier})`}
+                                d={geometry.area}
+                                fill={`url(#${id}-dots-${band.tier})`}
+                                key={band.tier}
+                            />
+                        ))}
                         <path className="sales-curve__line" d={geometry.line} />
                         {geometry.evidence.map(dot => (
                             <circle
@@ -104,26 +139,8 @@ export const SalesCurveChart = ({
                                 cx={dot.x}
                                 cy={dot.y}
                                 key={`${dot.x}`}
-                                r={4}
+                                r={4.5}
                             />
-                        ))}
-                        {geometry.callouts.map(callout => (
-                            <g key={callout.label}>
-                                <circle
-                                    className="sales-curve__callout"
-                                    cx={callout.x}
-                                    cy={callout.y}
-                                    r={4.5}
-                                />
-                                <text
-                                    className="sales-curve__callout-label"
-                                    textAnchor={callout.anchor}
-                                    x={callout.labelX}
-                                    y={callout.y + 20}
-                                >
-                                    {callout.label}
-                                </text>
-                            </g>
                         ))}
                         {cursor ? (
                             <>
@@ -163,3 +180,5 @@ const RankTip = ({ curve, rank }: { curve: SalesCurve; rank: number }) => {
         </span>
     );
 };
+
+const nonWord = /\W/g;

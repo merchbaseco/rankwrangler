@@ -1,40 +1,40 @@
+import { KPIGroup } from '@heroui-pro/react';
 import { formatCount } from '@/features/bsr/bsr-format';
-import { curveMonthlySales, formatSalesPace } from '@/features/bsr/sales-estimate';
+import { curveMonthlySales } from '@/features/bsr/sales-estimate';
+import { GridKpi, KpiFigure } from '@/features/grid/grid-kpi';
+import { ProductSection } from '@/features/product/product-section';
 import { useLiveRelativeTime } from '@/hooks/use-live-relative-time';
 import { SalesCurveAccuracy } from './sales-curve-accuracy';
 import { SalesCurveChart } from './sales-curve-chart';
 import { accuracyRows, accuracySummary } from './sales-curve-model';
-import { Headline, StatusBlock, StatusCard, StatusSection } from './status-panel';
+import { StatusSection } from './status-panel';
 import { type SalesCurveFit, useSalesCurveFit } from './use-sales-curve-fit';
 
 const CHART_HEIGHT = 320;
-const HEADLINE_RANKS = [
-    [100_000, '#100K'],
-    [300_000, '#300K'],
-    [1_000_000, '#1M'],
+const KEY_RANKS = [
+    { dot: 'tier-hot', label: '#100K', rank: 100_000 },
+    { dot: 'tier-strong', label: '#300K', rank: 300_000 },
+    { dot: 'tier-steady', label: '#1M', rank: 1_000_000 },
 ] as const;
 
 /**
  * Sales curve: what a Best Sellers Rank means in sales right now, refitted
- * every six hours from Amazon's "bought in past month" badges. The pace at
- * three ranks heads it, then the curve over its badge evidence, then the
- * check that the curve still matches Amazon. Everything comes from the stored
- * fit; nothing is analysed while the page loads.
+ * every six hours from Amazon's "bought in past month" badges. One panel in
+ * the Product page's grid: KPI cells for sales a day at three ranks and the
+ * badged shirts behind the fit, the curve drawn like the rank chart, then the
+ * check that it still matches Amazon range by range. Everything comes from
+ * the stored fit; nothing is analysed while the page loads.
  */
 export const StatusSalesCurve = () => {
     const fit = useSalesCurveFit();
-    const rebuilt = useLiveRelativeTime(fit.data?.fittedAt);
+    const refit = useLiveRelativeTime(fit.data?.fittedAt);
     return (
         <StatusSection
-            caption={
-                fit.data
-                    ? `Rebuilt ${rebuilt} from ${formatCount(fit.data.products)} shirts, ${formatCount(fit.data.badged)} with a badge`
-                    : undefined
-            }
+            caption={fit.data ? `Refit ${refit} · every 6 hours` : undefined}
             title="Sales curve"
         >
             {fit.data ? (
-                <SalesCurveBody fit={fit.data} />
+                <SalesCurvePanel fit={fit.data} />
             ) : (
                 <p className="text-muted">{fit.error ? fit.error.message : 'Loading…'}</p>
             )}
@@ -42,53 +42,65 @@ export const StatusSalesCurve = () => {
     );
 };
 
-const SalesCurveBody = ({ fit }: { fit: SalesCurveFit }) => {
+const SalesCurvePanel = ({ fit }: { fit: SalesCurveFit }) => {
     const { curve, report } = fit;
     if (!(curve && report)) {
         return <p className="text-muted">Too few shirts carry a badge to fit a curve yet.</p>;
     }
     return (
-        <>
-            <StatusCard>
-                <Headline
-                    figures={HEADLINE_RANKS.map(([rank, label]) => {
-                        const monthly = curveMonthlySales(curve, rank);
-                        return {
-                            display: formatSalesPace(monthly),
-                            label: `A ${label} shirt sells`,
-                            note: `≈${formatCount(Math.round(monthly))} a month`,
-                            value: null,
-                        };
-                    })}
+        <div className="sales-curve-panel">
+            <KPIGroup className="grid-kpis grid-kpis--curve grid-kpis--wraps">
+                {KEY_RANKS.map(({ dot, label, rank }) => (
+                    <GridKpi
+                        band={false}
+                        dot={dot}
+                        figure={
+                            <KpiFigure
+                                format="average"
+                                value={curveMonthlySales(curve, rank) / 30}
+                            />
+                        }
+                        key={label}
+                        span="even"
+                        suffix="a day"
+                        title={`Sales at ${label}`}
+                    />
+                ))}
+                <GridKpi
+                    band={false}
+                    dot="band-ink-accent"
+                    figure={<KpiFigure value={fit.badged} />}
+                    span="even"
+                    suffix={`of ${formatCount(fit.products)}`}
+                    title="Badged shirts"
                 />
-                <SalesCurveChart curve={curve} evidence={report.evidence} height={CHART_HEIGHT} />
-                <ul className="status-legend">
+            </KPIGroup>
+            <ProductSection context="Median sold a month by 30-day BSR" title="Curve">
+                <div className="sales-curve-frame">
+                    <SalesCurveChart
+                        curve={curve}
+                        evidence={report.evidence}
+                        height={CHART_HEIGHT}
+                    />
+                </div>
+                <p className="sales-curve__note">
+                    Dots are Amazon&apos;s badge for a typical shirt; past #500K most sell under 50
+                    a month, so there is no badge.
+                </p>
+            </ProductSection>
+            <ProductSection context={accuracySummary(accuracyRows(report.ranges))} title="Accuracy">
+                <ul className="status-legend sales-curve__legend">
                     <li className="status-legend__item">
-                        <span aria-hidden className="sales-curve-key sales-curve-key--line" />
-                        The curve: a typical shirt
+                        <span aria-hidden className="status-swatch status-tone--idle" />
+                        Shirts showing a badge
                     </li>
                     <li className="status-legend__item">
-                        <span aria-hidden className="sales-curve-key sales-curve-key--range" />
-                        Where most shirts land
-                    </li>
-                    <li className="status-legend__item">
-                        <span aria-hidden className="sales-curve-key sales-curve-key--evidence" />
-                        Amazon&apos;s badge, typical shirt
+                        <span aria-hidden className="sales-curve-key sales-curve-key--tick" />
+                        What the curve expects
                     </li>
                 </ul>
-                <p className="sales-curve__note">
-                    Badge dots stop past about #500K: most shirts there sell under 50 a month, so
-                    Amazon shows no badge and the curve carries the trend on.
-                </p>
-            </StatusCard>
-            <StatusCard>
-                <StatusBlock
-                    aside={accuracySummary(accuracyRows(report.ranges))}
-                    title="Is the curve still accurate?"
-                >
-                    <SalesCurveAccuracy ranges={report.ranges} />
-                </StatusBlock>
-            </StatusCard>
-        </>
+                <SalesCurveAccuracy ranges={report.ranges} />
+            </ProductSection>
+        </div>
     );
 };
