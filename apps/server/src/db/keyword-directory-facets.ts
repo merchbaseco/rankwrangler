@@ -36,9 +36,12 @@ export const readKeywordDirectoryFacets = async (
             search: input.search,
             facet: input.facet,
             shelf: true,
-            // Stage counts ignore the stage filter but honour the shelf and Merch ones, so only
-            // those filters make every stage need measures.
-            measured: input.shelfElite || input.merch ? sql`true` : measuredStages(input.stage),
+            // Stage counts ignore the stage filter but honour the shelf, Merch and niche ones, so
+            // only those filters make every stage need measures.
+            measured:
+                input.shelfElite || input.merch || input.facet
+                    ? sql`true`
+                    : measuredStages(input.stage),
         })}
         select ${count('total', all)},
             ${count('heat_hot', sql`${without('heat')} and heat='hot'`)},

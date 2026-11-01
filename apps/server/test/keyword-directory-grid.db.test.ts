@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
+import { sql } from 'drizzle-orm';
 import {
     appKeywordDirectoryInput,
     keywordDirectoryFacetsInput,
 } from '@/api/keyword-directory-input';
 import { stopDiscoveryWork } from '@/db/discovery-work';
+import { db } from '@/db/index';
 import { readKeywordDirectory } from '@/db/keyword-directory';
 import { readKeywordDirectoryFacets } from '@/db/keyword-directory-facets';
+import { productFacets, productFacetValues } from '@/db/schema';
 import {
     acceptDiscoveryFixture,
     claimDiscoveryFixture,
@@ -139,6 +142,15 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Keywords grid dire
         expect(noElite.shelf).toEqual({ hasElite: 2, noElite: 2 });
         expect(noElite.total).toBe(2);
     });
+
+    it('counts stages outside the selection under a niche filter', async () => {
+        for (const asin of ['B0GRD00001', 'B0GRD00002', 'B0GRD00003']) {
+            await attachFacet(asin, 'hobby', 'fishing');
+        }
+        const trials = await facets({ stage: ['trial'], facet: 'hobby' });
+        expect(trials.total).toBe(0);
+        expect(trials.stage).toMatchObject({ graduated: 1, trial: 0 });
+    });
 });
 
 const observeKeyword = async (term: string, heads: [string, number][]) => {
@@ -164,4 +176,19 @@ const observeKeyword = async (term: string, heads: [string, number][]) => {
         now,
     });
     return target;
+};
+
+const attachFacet = async (asin: string, facet: string, name: string) => {
+    const [value] = await db
+        .insert(productFacetValues)
+        .values({ facet, name })
+        .onConflictDoUpdate({
+            target: [productFacetValues.facet, productFacetValues.name],
+            set: { name },
+        })
+        .returning();
+    const [product] = await db.execute<{ id: string }>(
+        sql`select id from products where asin=${asin}`
+    );
+    await db.insert(productFacets).values({ productId: product.id, facetValueId: value.id });
 };
