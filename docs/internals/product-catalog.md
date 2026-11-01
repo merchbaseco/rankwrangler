@@ -138,8 +138,8 @@ returns footer counts for any signed-in user.
 `api.app.product.search` also takes Explore's sidebar filters and offset paging, all
 dashboard-only:
 
-- `tiers`: a union of BSR tiers (`elite` ≤2,500, `hot` ≤15,000, `strong` ≤60,000, `steady`
-  ≤250,000, `slow` above). Each tier is its own inclusive range ORed together, so Elite + Steady
+- `tiers`: a union of BSR tiers (`elite` ≤25,000, `hot` ≤100,000, `strong` ≤300,000, `steady`
+  ≤1,000,000, `slow` above). Each tier is its own inclusive range ORed together, so Elite + Steady
   does not match the tiers between. An unranked Product is `slow`, so the five tiers partition
   the result. Thresholds live once in `apps/server/src/services/bsr-tiers.ts`, mirroring
   `apps/website/src/features/bsr/bsr-tier.ts`.

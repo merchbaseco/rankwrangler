@@ -3,15 +3,15 @@ import { bandPixelHeight, MIN_BAND_LABEL_PX, tierBands, timeTicks } from './rank
 
 describe('rank history tier bands', () => {
     test('each band is clipped to its own rank range inside the domain', () => {
-        const bands = tierBands([300, 3000]);
+        const bands = tierBands([3000, 30_000]);
         expect(bands.map(band => [band.tier, band.y1, band.y2])).toEqual([
-            ['elite', 300, 2500],
-            ['hot', 2501, 3000],
+            ['elite', 3000, 25_000],
+            ['hot', 25_001, 30_000],
         ]);
     });
 
     test('a sliver of a band is too short to label', () => {
-        const domain = [300, 3000] as const;
+        const domain = [3000, 30_000] as const;
         const [elite, hot] = tierBands(domain);
         expect(elite && bandPixelHeight(elite, domain, 200)).toBeGreaterThan(MIN_BAND_LABEL_PX);
         expect(hot && bandPixelHeight(hot, domain, 120)).toBeLessThan(MIN_BAND_LABEL_PX);

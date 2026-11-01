@@ -80,10 +80,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Explore grid searc
     });
 
     it('filters a non-adjacent tier union, published windows and niche presence', async () => {
-        await insertProduct('B0ELITE001', { rootCategoryBsr: 2_500 });
-        await insertProduct('B0HOT00001', { rootCategoryBsr: 2_501 });
-        await insertProduct('B0STEADY01', { rootCategoryBsr: 250_000 });
-        await insertProduct('B0SLOW0001', { rootCategoryBsr: 250_001 });
+        await insertProduct('B0ELITE001', { rootCategoryBsr: 25_000 });
+        await insertProduct('B0HOT00001', { rootCategoryBsr: 25_001 });
+        await insertProduct('B0STEADY01', { rootCategoryBsr: 1_000_000 });
+        await insertProduct('B0SLOW0001', { rootCategoryBsr: 1_000_001 });
         await insertProduct('B0UNRANKED', { rootCategoryBsr: null });
         const asins = async (input: Parameters<typeof appProductSearchInput.parse>[0]) =>
             (await page({ sort: 'salesRankAsc', ...input })).items.map(item => item.asin);
@@ -133,13 +133,13 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Explore grid searc
         const open = await facets({});
         expect(open.total).toBe(5);
         expect(open.totalIsEstimate).toBe(false);
-        expect(open.tiers).toEqual({ elite: 2, hot: 1, strong: 0, steady: 1, slow: 1 });
+        expect(open.tiers).toEqual({ elite: 3, hot: 1, strong: 0, steady: 0, slow: 1 });
         expect(open.published).toEqual({ last60d: 3, lastYear: 4, any: 5 });
         expect(open.niche).toEqual({ has: 2, none: 3 });
         expect(open.bsrHistogram).toHaveLength(24);
         expect(open.bsrHistogram.reduce((sum, bucket) => sum + bucket.count, 0)).toBe(4);
-        expect(open.bsrHistogram.find(bucket => bucket.bucketMax === 2_500)).toMatchObject({
-            count: 2,
+        expect(open.bsrHistogram.find(bucket => bucket.bucketMax === 25_000)).toMatchObject({
+            count: 1,
             tier: 'elite',
         });
         expect(open.medianBsr).toBe(6_000);
@@ -164,14 +164,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Explore grid searc
         // Tier counts ignore the tier filter but keep the published one.
         expect(elite.tiers).toEqual({ elite: 2, hot: 0, strong: 0, steady: 0, slow: 1 });
         // Published counts ignore the published filter but keep the tier one.
-        expect(elite.published).toEqual({ last60d: 2, lastYear: 2, any: 2 });
+        expect(elite.published).toEqual({ last60d: 2, lastYear: 3, any: 3 });
         expect(elite.niche).toEqual({ has: 1, none: 1 });
         expect(elite.medianBsr).toBe(1_500);
 
         const niche = await facets({ niche: 'has' });
         expect(niche.total).toBe(2);
         expect(niche.niche).toEqual({ has: 2, none: 3 });
-        expect(niche.tiers).toEqual({ elite: 1, hot: 1, strong: 0, steady: 0, slow: 0 });
+        expect(niche.tiers).toEqual({ elite: 2, hot: 0, strong: 0, steady: 0, slow: 0 });
 
         const empty = await facets({ term: 'nothing matches this' });
         expect(empty).toMatchObject({

@@ -1,3 +1,4 @@
+import { classifyBsr } from '@/features/bsr/bsr-tier';
 import type { RouterInputs, RouterOutputs } from '@/lib/trpc';
 
 type Page = RouterOutputs['api']['app']['keywordDirectory'];
@@ -58,9 +59,9 @@ export const matchesDirectory = (row: DirectoryRow, input: DirectoryInput) =>
     (!input.shelfElite || hasEliteShelf(row) === (input.shelfElite === 'has')) &&
     (!input.merch || row.merch > 0 === (input.merch === 'tracked'));
 
-/** The server's Elite bound (BSR ≤ 2,500) on any top-ten shelf product. */
+/** The server's Elite bound on any top-ten shelf product. */
 const hasEliteShelf = (row: DirectoryRow) =>
-    row.shelf.some(product => product.salesRank !== null && product.salesRank <= 2500);
+    row.shelf.some(product => classifyBsr(product.salesRank) === 'elite');
 
 const compareKeys = (a: DirectoryRow['sortKey'], b: DirectoryRow['sortKey']) => {
     for (let index = 0; index < 6; index++) {

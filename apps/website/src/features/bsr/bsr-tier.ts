@@ -1,8 +1,9 @@
 /**
  * BSR tiers: the one classification every screen colors rank by. Thresholds are
- * inclusive upper bounds on Amazon's main-category Best Sellers Rank, from
- * `docs/decisions/website-visual-direction.md`; a starting guess to tune
- * against real sell-through. Colors are theme tokens (`.tier-<key>` in
+ * inclusive upper bounds on Amazon's main-category Best Sellers Rank, tuned
+ * for Merch shirts in Clothing (`docs/decisions/website-visual-direction.md`):
+ * Steady and better mostly carry Amazon's "bought in past month" badge, Slow
+ * almost never does. Colors are theme tokens (`.tier-<key>` in
  * theme/product.css sets `--tier-fg/bg/bd`), so nothing here names a hex.
  */
 export const bsrTiers = ['elite', 'hot', 'strong', 'steady', 'slow'] as const;
@@ -14,16 +15,16 @@ export interface BsrTierDefinition {
     readonly label: string;
     /** Inclusive upper bound, or null for the open-ended last tier. */
     readonly max: number | null;
-    /** Compact range for chips, e.g. `≤2.5K` or `250K+`. */
+    /** Compact range for chips, e.g. `≤25K` or `1M+`. */
     readonly rangeLabel: string;
 }
 
 export const bsrTierDefinitions: Readonly<Record<BsrTier, BsrTierDefinition>> = {
-    elite: { key: 'elite', label: 'Elite', max: 2500, rangeLabel: '≤2.5K' },
-    hot: { key: 'hot', label: 'Hot', max: 15_000, rangeLabel: '≤15K' },
-    strong: { key: 'strong', label: 'Strong', max: 60_000, rangeLabel: '≤60K' },
-    steady: { key: 'steady', label: 'Steady', max: 250_000, rangeLabel: '≤250K' },
-    slow: { key: 'slow', label: 'Slow', max: null, rangeLabel: '250K+' },
+    elite: { key: 'elite', label: 'Elite', max: 25_000, rangeLabel: '≤25K' },
+    hot: { key: 'hot', label: 'Hot', max: 100_000, rangeLabel: '≤100K' },
+    strong: { key: 'strong', label: 'Strong', max: 300_000, rangeLabel: '≤300K' },
+    steady: { key: 'steady', label: 'Steady', max: 1_000_000, rangeLabel: '≤1M' },
+    slow: { key: 'slow', label: 'Slow', max: null, rangeLabel: '1M+' },
 };
 
 /** The tier for a rank. A missing rank reads as `slow`: nothing says it sells. */

@@ -15,7 +15,7 @@
         --band-ink: var(--tier-elite-ht);
     }
 
-    /* Hot: ≤15K. */
+    /* Hot: ≤100K. */
     .tier-hot {
         --tier-fg: var(--tier-hot-fg);
         --tier-bg: var(--tier-hot-bg);
@@ -25,7 +25,7 @@
         --band-ink: var(--tier-hot-ht);
     }
 
-    /* Strong: ≤60K. */
+    /* Strong: ≤300K. */
     .tier-strong {
         --tier-fg: var(--tier-strong-fg);
         --tier-bg: var(--tier-strong-bg);
@@ -35,7 +35,7 @@
         --band-ink: var(--tier-strong-ht);
     }
 
-    /* Steady: ≤250K. */
+    /* Steady: ≤1M. */
     .tier-steady {
         --tier-fg: var(--tier-steady-fg);
         --tier-bg: var(--tier-steady-bg);
@@ -45,7 +45,7 @@
         --band-ink: var(--tier-steady-ht);
     }
 
-    /* Slow: above 250K, or no rank. */
+    /* Slow: above 1M, or no rank. */
     .tier-slow {
         --tier-fg: var(--tier-slow-fg);
         --tier-bg: var(--tier-slow-bg);

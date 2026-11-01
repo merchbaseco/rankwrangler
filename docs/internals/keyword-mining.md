@@ -303,7 +303,7 @@ input and row shape.
 
 The dashboard directory's sidebar filters are unions (empty means any): `heat` (Hot, Warm,
 Cold), `stage` and `freshness` (replacing the public single values), plus `shelfElite` (the shelf
-holds a Product at BSR ≤2,500, or not) and `merch` (any retained active Merch, or none). `page` with
+holds a Product at BSR ≤25,000, or not) and `merch` (any retained active Merch, or none). `page` with
 `pageSize` reads by offset and ignores the cursor; every page carries `total` from a window count
 over the filtered rows. `api.app.keyword.directoryFacets` takes the same filters and returns the
 sidebar counts and KPI band in one aggregate over the same directory source: each group counted

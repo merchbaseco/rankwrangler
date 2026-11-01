@@ -47,10 +47,10 @@ describe('rank history axis', () => {
     });
 
     it('clips tier bands to the domain', () => {
-        expect(tierBands([2000, 20_000])).toEqual([
-            { tier: 'elite', y1: 2000, y2: 2500 },
-            { tier: 'hot', y1: 2501, y2: 15_000 },
-            { tier: 'strong', y1: 15_001, y2: 20_000 },
+        expect(tierBands([20_000, 200_000])).toEqual([
+            { tier: 'elite', y1: 20_000, y2: 25_000 },
+            { tier: 'hot', y1: 25_001, y2: 100_000 },
+            { tier: 'strong', y1: 100_001, y2: 200_000 },
         ]);
     });
 

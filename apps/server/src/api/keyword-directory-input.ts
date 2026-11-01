@@ -48,7 +48,7 @@ export const keywordDirectoryHeats = ['hot', 'warm', 'cold'] as const;
 
 /**
  * The Keywords sidebar. `heat`, `stage` and `freshness` are unions (empty means any).
- * `shelfElite` asks whether the top-ten Merch shelf holds an Elite-tier Product (BSR ≤ 2,500);
+ * `shelfElite` asks whether the top-ten Merch shelf holds an Elite-tier Product (BSR ≤ 25,000);
  * `merch` whether the keyword has any retained active Merch Product.
  */
 const appKeywordDirectoryFilters = {

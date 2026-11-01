@@ -13,7 +13,7 @@ describe('keyword band tooltips', () => {
 
     test('meters say their figure and what it counts', () => {
         expect(minedTip(6, 13)).toBe('6 of 13 keywords mined in the last 24h');
-        expect(shelfBsrTip(13_000)).toBe('#13,000 median shelf BSR · Hot');
+        expect(shelfBsrTip(42_000)).toBe('#42,000 median shelf BSR · Hot');
         expect(queueTip({ needsSync: 3, syncing: 1, total: 13, trials: 0 })).toBe(
             '3 need sync · 1 syncing, of 13 keywords'
         );

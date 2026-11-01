@@ -8,10 +8,10 @@ export const bsrTierKeys = ['elite', 'hot', 'strong', 'steady', 'slow'] as const
 export type BsrTier = (typeof bsrTierKeys)[number];
 
 export const bsrTierMax = {
-    elite: 2_500,
-    hot: 15_000,
-    strong: 60_000,
-    steady: 250_000,
+    elite: 25_000,
+    hot: 100_000,
+    strong: 300_000,
+    steady: 1_000_000,
     slow: null,
 } as const satisfies Record<BsrTier, number | null>;
 
@@ -29,8 +29,11 @@ export const classifyBsrTier = (rank: number | null | undefined): BsrTier => {
     );
 };
 
-/** Sub-buckets per tier for the KPI histogram; 24 in all, log-spaced inside each tier. */
-const HISTOGRAM_SPLITS = { elite: 8, hot: 3, strong: 3, steady: 3, slow: 7 } as const;
+/**
+ * Sub-buckets per tier for the KPI histogram; 24 in all, log-spaced inside each tier and weighted
+ * toward Steady and Slow, where most Merch ranks.
+ */
+const HISTOGRAM_SPLITS = { elite: 6, hot: 3, strong: 3, steady: 5, slow: 7 } as const;
 /** Nominal top of the open-ended last bucket; ranks above it still count in that bucket. */
 const HISTOGRAM_CEILING = 5_000_000;
 

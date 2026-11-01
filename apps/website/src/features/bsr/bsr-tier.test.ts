@@ -12,12 +12,12 @@ import { nearestSampleIndex, sparklineGeometry } from './sparkline-geometry';
 describe('classifyBsr', () => {
     test('uses inclusive upper bounds', () => {
         expect(classifyBsr(1)).toBe('elite');
-        expect(classifyBsr(2500)).toBe('elite');
-        expect(classifyBsr(2501)).toBe('hot');
-        expect(classifyBsr(15_000)).toBe('hot');
-        expect(classifyBsr(60_000)).toBe('strong');
-        expect(classifyBsr(250_000)).toBe('steady');
-        expect(classifyBsr(250_001)).toBe('slow');
+        expect(classifyBsr(25_000)).toBe('elite');
+        expect(classifyBsr(25_001)).toBe('hot');
+        expect(classifyBsr(100_000)).toBe('hot');
+        expect(classifyBsr(300_000)).toBe('strong');
+        expect(classifyBsr(1_000_000)).toBe('steady');
+        expect(classifyBsr(1_000_001)).toBe('slow');
     });
 
     test('treats a missing rank as slow', () => {
@@ -29,16 +29,16 @@ describe('classifyBsr', () => {
 
 describe('tier ranges', () => {
     test('tiers tile the rank line without gaps', () => {
-        expect(tierRankRange('elite')).toEqual({ min: 1, max: 2500 });
-        expect(tierRankRange('hot')).toEqual({ min: 2501, max: 15_000 });
-        expect(tierRankRange('slow')).toEqual({ min: 250_001, max: null });
+        expect(tierRankRange('elite')).toEqual({ min: 1, max: 25_000 });
+        expect(tierRankRange('hot')).toEqual({ min: 25_001, max: 100_000 });
+        expect(tierRankRange('slow')).toEqual({ min: 1_000_001, max: null });
     });
 
     test('a selection spans its outermost tiers', () => {
         expect(tierSalesRankSpan([])).toBeUndefined();
-        expect(tierSalesRankSpan(['hot'])).toEqual({ min: 2501, max: 15_000 });
-        expect(tierSalesRankSpan(['steady', 'elite'])).toEqual({ min: 1, max: 250_000 });
-        expect(tierSalesRankSpan(['strong', 'slow'])).toEqual({ min: 15_001 });
+        expect(tierSalesRankSpan(['hot'])).toEqual({ min: 25_001, max: 100_000 });
+        expect(tierSalesRankSpan(['steady', 'elite'])).toEqual({ min: 1, max: 1_000_000 });
+        expect(tierSalesRankSpan(['strong', 'slow'])).toEqual({ min: 100_001 });
     });
 });
 
