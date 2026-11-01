@@ -1,9 +1,9 @@
 import { SP_API_CATALOG_QUEUE_WAIT_MS, SpApiLimiterWaitError } from './sp-api-limiter-wait';
 
-// The fastest the server starts Catalog searches, all callers together. Amazon documents 2 a second;
-// production ran 0.5 without a 429, so this is the next step; raise it further as production holds
-// up. A lower `x-amzn-RateLimit-Limit` (less a 20% margin) lowers it at runtime.
-export const CATALOG_MAX_RPS = 1;
+// The fastest the server starts Catalog searches, all callers together: Amazon's documented 2 a
+// second, after 0.5 and 1 ran without a 429. Amazon's `x-amzn-RateLimit-Limit`, less a 20% margin,
+// caps it at runtime, so a reported 2 runs at 1.6.
+export const CATALOG_MAX_RPS = 2;
 // Background work (keyword scans, variation backfill, Merch reclassification) may start at most this
 // share of the current rate. Foreground reads always go first and keep the rest.
 export const CATALOG_BACKGROUND_SHARE = 0.75;
