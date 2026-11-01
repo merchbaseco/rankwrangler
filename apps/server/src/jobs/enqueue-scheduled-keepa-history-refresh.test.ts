@@ -41,18 +41,15 @@ describe('enqueueScheduledKeepaHistoryRefresh', () => {
             queuedBefore: 600,
             target: 600,
             dueCount: 0,
-            spareCount: 0,
             reason: 'queue_full',
         });
         expect(calls.getKeepaScheduledRefreshCandidates.mock.calls).toHaveLength(0);
     });
 
-    it('fills the room with tier-due work first, then spare refreshes', async () => {
+    it('fills the room with tier-due work', async () => {
         const { enqueueScheduledKeepaHistoryRefresh } = await loadSubject();
         const due = [candidate('B000000001'), candidate('B000000002')];
-        const spare = [candidate('B000000003')];
         const getKeepaScheduledRefreshCandidates = mock(async () => due);
-        const getKeepaSpareRefreshCandidates = mock(async () => spare);
         const enqueueKeepaScheduledRefreshCandidates = mock(
             async (items: readonly unknown[]) => items.length
         );
@@ -60,7 +57,6 @@ describe('enqueueScheduledKeepaHistoryRefresh', () => {
             countQueuedKeepaRefreshes: async () => 590,
             getKeepaRefreshQueueTarget: async () => 600,
             getKeepaScheduledRefreshCandidates,
-            getKeepaSpareRefreshCandidates,
             enqueueKeepaScheduledRefreshCandidates,
         });
 
@@ -71,18 +67,13 @@ describe('enqueueScheduledKeepaHistoryRefresh', () => {
             queuedBefore: 590,
             target: 600,
             dueCount: 2,
-            spareCount: 1,
             reason: 'enqueued',
         });
         expect(getKeepaScheduledRefreshCandidates.mock.calls[0]).toEqual([{ limit: 10 }]);
-        expect(getKeepaSpareRefreshCandidates.mock.calls[0]).toEqual([{ limit: 8 }]);
-        expect(enqueueKeepaScheduledRefreshCandidates.mock.calls.map(call => call[0])).toEqual([
-            due,
-            spare,
-        ]);
+        expect(enqueueKeepaScheduledRefreshCandidates.mock.calls.map(call => call[0])).toEqual([due]);
     });
 
-    it('reports no candidates when nothing is due or stale', async () => {
+    it('reports no candidates when nothing is due', async () => {
         const { enqueueScheduledKeepaHistoryRefresh } = await loadSubject();
         const { deps, calls } = createDeps();
 
@@ -101,7 +92,6 @@ const createDeps = (overrides: Partial<EnqueueScheduledKeepaHistoryRefreshDeps> 
         countQueuedKeepaRefreshes: mock(async () => 0),
         getKeepaRefreshQueueTarget: mock(async () => 600),
         getKeepaScheduledRefreshCandidates: mock(async () => []),
-        getKeepaSpareRefreshCandidates: mock(async () => []),
         enqueueKeepaScheduledRefreshCandidates: mock(async () => 0),
         isKeepaConfigured: mock(() => true),
     };
