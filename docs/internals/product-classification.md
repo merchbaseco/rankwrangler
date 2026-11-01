@@ -75,6 +75,14 @@ automatic sync is paused. Flags: `--dry-run` prints `before->after` transition c
 Each batch logs the ASINs whose status changes. ASINs the provider does not return are counted as
 `missing` and left untouched.
 
+Production secrets resolve only on the deploy path, so the server build also emits
+`dist/scripts/reclassify-merch-listings.js` (`vite.scripts.config.ts`). Run it inside the
+production server container, which carries the environment:
+
+```bash
+docker exec rankwrangler-server node dist/scripts/reclassify-merch-listings.js --dry-run --limit 1000
+```
+
 This classification is deterministic and evidence-derived. It controls workflows such as scheduled
 SP-API and Keepa refresh eligibility; it is not a niche or opportunity judgment.
 
