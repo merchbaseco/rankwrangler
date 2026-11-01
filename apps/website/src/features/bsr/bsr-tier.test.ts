@@ -1,12 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { formatBsr, formatBsrCompact, formatPrice } from './bsr-format';
-import {
-    classifyBsr,
-    estimateMonthlySales,
-    rankStrength,
-    tierRankRange,
-    tierSalesRankSpan,
-} from './bsr-tier';
+import { classifyBsr, rankStrength, tierRankRange, tierSalesRankSpan } from './bsr-tier';
 import { nearestSampleIndex, sparklineGeometry } from './sparkline-geometry';
 
 describe('classifyBsr', () => {
@@ -40,12 +34,6 @@ describe('tier ranges', () => {
         expect(tierSalesRankSpan(['steady', 'elite'])).toEqual({ min: 1, max: 1_000_000 });
         expect(tierSalesRankSpan(['strong', 'slow'])).toEqual({ min: 100_001 });
     });
-});
-
-test('estimateMonthlySales falls with rank and never reaches zero', () => {
-    expect(estimateMonthlySales(null)).toBeNull();
-    expect(estimateMonthlySales(1840)).toBeGreaterThan(estimateMonthlySales(60_000) ?? 0);
-    expect(estimateMonthlySales(5_000_000)).toBe(1);
 });
 
 describe('formatting', () => {

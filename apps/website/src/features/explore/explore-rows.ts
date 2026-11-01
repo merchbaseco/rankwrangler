@@ -1,5 +1,6 @@
 import { daysSince, formatCompact, formatCount } from '@/features/bsr/bsr-format';
-import { type BsrTier, classifyBsr, estimateMonthlySales } from '@/features/bsr/bsr-tier';
+import { type BsrTier, classifyBsr } from '@/features/bsr/bsr-tier';
+import { estimateMonthlySales, type SalesCurve } from '@/features/bsr/sales-estimate';
 import type { RankPoint } from '@/features/bsr/sparkline-geometry';
 import type { ExploreProduct } from './use-explore-products';
 
@@ -15,7 +16,7 @@ export interface ExploreRow extends ExploreProduct {
     readonly delta7d: number | null;
     /**
      * Amazon's "bought in past month" bucket when present (shown `900+`), else
-     * the BSR estimate (shown `~787`). `share` is the value over the page's
+     * the sales curve's estimate at the 30-day average rank (shown `~787`). `share` is the value over the page's
      * largest, for the cell's neutral bar.
      */
     readonly sold: {
@@ -34,9 +35,13 @@ const WEEK_TOLERANCE_MS = 86_400_000;
 
 export const toExploreRows = (
     products: readonly ExploreProduct[],
-    { now = Date.now(), offset = 0 }: { now?: number; offset?: number } = {}
+    {
+        curve = null,
+        now = Date.now(),
+        offset = 0,
+    }: { curve?: SalesCurve | null; now?: number; offset?: number } = {}
 ): ExploreRow[] => {
-    const sold = products.map(soldPerMonth);
+    const sold = products.map(product => soldPerMonth(product, curve));
     const most = Math.max(0, ...sold.map(figure => figure?.value ?? 0));
     return products.map((product, index) => {
         const figure = sold[index] ?? null;
@@ -106,11 +111,11 @@ export const formatAge = (days: number | null) => {
     return days >= 365 ? `${(days / 365).toFixed(1)}y` : `${days}d`;
 };
 
-const soldPerMonth = (product: ExploreProduct) => {
+const soldPerMonth = (product: ExploreProduct, curve: SalesCurve | null) => {
     const reported = product.demand.boughtInPastMonth;
     if (reported !== null && reported !== undefined) {
         return { isEstimate: false, value: reported };
     }
-    const estimate = estimateMonthlySales(product.salesRank);
+    const estimate = estimateMonthlySales(product.averages.last30Days ?? product.salesRank, curve);
     return estimate === null ? null : { isEstimate: true, value: estimate };
 };

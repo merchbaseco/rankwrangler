@@ -16,6 +16,7 @@ import {
     readCachedProductSearchFacets,
 } from './dashboard-aggregates';
 import { searchAppProducts } from './product-app-search';
+import { readSalesCurveFit } from './sales-curve';
 
 /** After start-up's own connections settle; the database allows few connections in all. */
 const DASHBOARD_WARM_DELAY_MS = 15_000;
@@ -50,6 +51,7 @@ const warmDashboard = () =>
             keywordDirectoryFacetsInput.parse(defaultKeywordFilters)
         );
         await searchAppProducts(appProductSearchInput.parse(defaultExplorePage));
+        await readSalesCurveFit();
         await readKeywordDirectoryWithDetail(appKeywordDirectoryInput.parse(defaultKeywordPage));
         const ms = Math.round(performance.now() - started);
         console.log(`[Server] Dashboard reads warmed in ${ms}ms`);

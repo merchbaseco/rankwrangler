@@ -308,6 +308,7 @@ bun test \
     apps/server/test/keyword-prefixes.db.test.ts \
     apps/server/test/keyword-directory.db.test.ts \
     apps/server/test/keyword-directory-grid.db.test.ts \
+    apps/server/test/sales-curve.db.test.ts \
     apps/server/test/keyword-realtime.db.test.ts \
     apps/server/test/keyword-directory-status.db.test.ts \
     apps/server/test/keyword-sync-control.db.test.ts \

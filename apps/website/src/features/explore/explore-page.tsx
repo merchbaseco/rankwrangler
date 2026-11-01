@@ -2,6 +2,7 @@ import type { Selection } from '@heroui/react';
 import { DataGrid, type DataGridSortDescriptor } from '@heroui-pro/react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSalesCurve } from '@/features/bsr/use-sales-curve';
 import { GridDensityToggle } from '@/features/grid/grid-density-toggle';
 import { GridPager } from '@/features/grid/grid-pager';
 import {
@@ -40,6 +41,7 @@ export const ExplorePage = () => {
     const { filters, update } = useExploreFilters();
     const products = useExploreProducts(filters);
     const { facets, isStale: facetsStale } = useExploreFacets(filters);
+    const curve = useSalesCurve();
     // The facets' total is an exact count of the same set; the page's own is an estimate past 10K.
     const exactTotal = facets && !facetsStale ? facets.total : null;
     const [cursorAsin, setCursorAsin] = useState<string | null>(null);
@@ -48,8 +50,8 @@ export const ExplorePage = () => {
     const [now] = useState(() => Date.now());
     const offset = (filters.page - 1) * filters.pageSize;
     const rows = useMemo(
-        () => toExploreRows(products.products, { now, offset }),
-        [products.products, now, offset]
+        () => toExploreRows(products.products, { curve, now, offset }),
+        [products.products, curve, now, offset]
     );
     const ids = useMemo(() => rows.map(row => row.asin), [rows]);
     const cursor = rows.some(row => row.asin === cursorAsin) ? cursorAsin : null;

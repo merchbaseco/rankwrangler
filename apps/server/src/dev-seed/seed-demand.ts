@@ -4,21 +4,22 @@ import type { BuilderContext } from '@/dev-seed/types';
  * Rank and demand for a seeded Product, shaped like the Explore mock's table:
  * mostly Hot, Strong and Elite sellers with a Steady shoulder and a few slow
  * movers, so the first screen shows the tier mix rather than a grey wall.
- * Monthly sold and rank drops follow the rank through the same curves the
- * website uses to estimate them, so a card's `#4,400 · 230/mo` reads true.
+ * Monthly sold follows the rank through production's fitted sales curve, read
+ * the way Keepa reports Amazon's badge, so the dev server's own refit of the
+ * curve lands near production's; rank drops follow the mock's 30-day curve.
  */
 
 /** Tier share and BSR range (log-uniform inside it), Elite to Slow. */
 const RANK_BANDS = [
-    { share: 0.13, min: 700, max: 2_500 },
-    { share: 0.38, min: 2_501, max: 15_000 },
-    { share: 0.3, min: 15_001, max: 60_000 },
-    { share: 0.11, min: 60_001, max: 250_000 },
-    { share: 0.08, min: 400_000, max: 1_500_000 },
+    { share: 0.13, min: 7_000, max: 25_000 },
+    { share: 0.38, min: 25_001, max: 100_000 },
+    { share: 0.3, min: 100_001, max: 300_000 },
+    { share: 0.11, min: 300_001, max: 1_000_000 },
+    { share: 0.08, min: 1_200_000, max: 5_000_000 },
 ] as const;
 
-/** The deepest rank the demand weight maps back from (mirrors the old curve). */
-const DEMAND_RANK_SPAN = 2_400_000;
+/** The deepest rank the demand weight maps back from. */
+const DEMAND_RANK_SPAN = 24_000_000;
 
 export interface SeedDemand {
     /** Main-category BSR, or null for a Product Keepa has never ranked. */
@@ -42,20 +43,37 @@ export const drawSeedDemand = (context: BuilderContext, isRanked: boolean): Seed
     const rank = Math.round(
         Math.exp(context.random.between(Math.log(band.min), Math.log(band.max)))
     );
-    const demand = 1 - Math.cbrt(Math.min(1, Math.max(0, rank - 900) / DEMAND_RANK_SPAN));
+    const demand = 1 - Math.cbrt(Math.min(1, Math.max(0, rank - 9_000) / DEMAND_RANK_SPAN));
     return { demand: Math.min(1, Math.max(0.01, demand)), rank };
 };
 
 /**
- * Keepa's bought-past-month figure: the website's sales curve (bsr-tier.ts
- * `estimateMonthlySales`) with a little noise; Keepa omits it for slow movers.
+ * Keepa's bought-past-month figure: production's sales curve (fitted November
+ * 2026: about 150 a month at #300K, rank^-0.9 above it and rank^-2 below) with
+ * a ×0.5–×2 spread, floored to Amazon's badge steps, and absent under 50 a
+ * month as Amazon's is. The spread comes from the rank itself, so the badge
+ * draws nothing from the seed's random stream and retuning it never reshuffles
+ * the rest of the catalog.
  */
-export const monthlySoldForRank = (context: BuilderContext, rank: number | null) => {
-    if (rank === null || rank > 250_000) {
+export const monthlySoldForRank = (rank: number | null) => {
+    if (rank === null) {
         return null;
     }
-    const sold = 260_000 / rank ** 0.82;
-    return Math.max(1, Math.round(sold * context.random.between(0.92, 1.08)));
+    const slope = rank < 300_000 ? -0.9 : -2;
+    const spread = 2 ** (2 * ((rank * GOLDEN_RATIO) % 1) - 1);
+    const sold = 150 * (rank / 300_000) ** slope * spread;
+    return sold < 50 ? null : badgeFloor(sold);
+};
+
+const GOLDEN_RATIO = 0.618_033_988_7;
+
+/** Amazon's badge floor for a monthly count: 50+, then hundreds, thousands and so on. */
+const badgeFloor = (sold: number) => {
+    if (sold < 100) {
+        return 50;
+    }
+    const step = 10 ** Math.floor(Math.log10(sold));
+    return Math.floor(sold / step) * step;
 };
 
 /** Rank drops over a window: the mock's 30-day curve, scaled to the window. */

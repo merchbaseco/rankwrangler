@@ -26,6 +26,7 @@ const ruleFiles = [
     'grid-cells.css',
     'mix.css',
     'screens.css',
+    'sales-curve.css',
 ];
 
 /**

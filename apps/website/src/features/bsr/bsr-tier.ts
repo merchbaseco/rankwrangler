@@ -74,18 +74,6 @@ export const tierSalesRankSpan = (
 };
 
 /**
- * Estimated units sold per month from rank alone, for when Amazon's "bought in
- * past month" badge is absent. A power-law fit (`260000 / bsr^0.82`) that
- * matches the mocks; treat it as an order of magnitude, never a count.
- */
-export const estimateMonthlySales = (salesRank: number | null | undefined): number | null => {
-    if (salesRank === null || salesRank === undefined || salesRank <= 0) {
-        return null;
-    }
-    return Math.max(1, Math.round(260_000 / salesRank ** 0.82));
-};
-
-/**
  * A rank's strength on a log scale for bars and meters (Grid I): #600 and
  * better is 1, #6M and worse is 0. Null for no rank.
  */

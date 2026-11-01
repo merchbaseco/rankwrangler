@@ -21,6 +21,7 @@ import { operationGet } from './operation-get.js';
 import { productGet } from './product-get';
 import { productHistoryRefreshCompleted } from './product-history-refresh-completed';
 import { productKeywords } from './product-keywords';
+import { productSalesCurve } from './product-sales-curve';
 import { productSearch } from './product-search';
 import { productSearchFacets } from './product-search-facets';
 import { productSearchMetadata } from './product-search-metadata';
@@ -31,6 +32,7 @@ import { syncControlChanged } from './sync-control-changed';
 import { syncControlGet } from './sync-control-get';
 import { syncControlSet } from './sync-control-set';
 import { systemRefreshTiers } from './system-refresh-tiers';
+import { systemSalesCurve } from './system-sales-curve';
 import { systemStatus } from './system-status';
 
 export const appApiRouter = router({
@@ -66,11 +68,16 @@ export const appApiRouter = router({
     stats: router({
         summary: statsSummary,
     }),
-    system: router({ status: systemStatus, refreshTiers: systemRefreshTiers }),
+    system: router({
+        status: systemStatus,
+        refreshTiers: systemRefreshTiers,
+        salesCurve: systemSalesCurve,
+    }),
     product: router({
         get: productGet,
         keywords: productKeywords,
         search: productSearch,
+        salesCurve: productSalesCurve,
         searchFacets: productSearchFacets,
         searchMetadata: productSearchMetadata,
         sync: router({
