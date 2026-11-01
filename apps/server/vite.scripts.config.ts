@@ -17,13 +17,7 @@ export default defineConfig({
         rollupOptions: {
             ...serverConfig.build?.rollupOptions,
             input: resolve(currentDirectory, 'src/scripts/reclassify-merch-listings.ts'),
-            // One file: a script awaits its work at top level, so a lazily imported chunk that
-            // imports back from the entry would wait on it forever.
-            output: {
-                format: 'es',
-                entryFileNames: 'reclassify-merch-listings.js',
-                inlineDynamicImports: true,
-            },
+            output: { format: 'es', entryFileNames: 'reclassify-merch-listings.js' },
         },
     },
 });

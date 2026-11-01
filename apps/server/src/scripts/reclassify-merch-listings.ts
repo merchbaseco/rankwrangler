@@ -67,5 +67,12 @@ const readFlag = (args: string[], flag: string) => {
     return index === -1 ? null : (args[index + 1] ?? null);
 };
 
-await main();
-process.exit(0);
+// Not awaited at top level: the built script lazily imports modules that must finish evaluating
+// first, and a top-level await would hold their evaluation until main returned.
+main().then(
+    () => process.exit(0),
+    error => {
+        console.error(error);
+        process.exit(1);
+    }
+);
