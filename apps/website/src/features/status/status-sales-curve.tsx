@@ -21,9 +21,10 @@ const KEY_RANKS = [
  * Sales curve: what a Best Sellers Rank means in sales right now, refitted
  * every six hours from Amazon's "bought in past month" badges. One panel in
  * the Product page's grid: KPI cells for sales a day at three ranks and the
- * badged shirts behind the fit, the curve drawn like the rank chart, then the
- * check that it still matches Amazon range by range. Everything comes from
- * the stored fit; nothing is analysed while the page loads.
+ * badged shirts behind the fit, the curve (solid where badges back it, dotted
+ * where it projects), then the check that it still matches Amazon range by
+ * range. Everything comes from the stored fit; nothing is analysed while the
+ * page loads.
  */
 export const StatusSalesCurve = () => {
     const fit = useSalesCurveFit();
@@ -84,8 +85,8 @@ const SalesCurvePanel = ({ fit }: { fit: SalesCurveFit }) => {
                     />
                 </div>
                 <p className="sales-curve__note">
-                    Dots are Amazon&apos;s badge for a typical shirt; past #500K most sell under 50
-                    a month, so there is no badge.
+                    Dots are Amazon&apos;s badge for a typical shirt. Past the last badge most
+                    shirts sell under 50 a month, so the dotted line is projected.
                 </p>
             </ProductSection>
             <ProductSection context={accuracySummary(accuracyRows(report.ranges))} title="Accuracy">
