@@ -1,5 +1,7 @@
 services:
   postgres:
+    sysctls:
+      net.mptcp.enabled: "0"
     image: postgres:15-alpine
     container_name: rankwrangler-postgres
     restart: unless-stopped
@@ -24,6 +26,8 @@ services:
       start_period: 30s
 
   server:
+    sysctls:
+      net.mptcp.enabled: "0"
     build:
       # Build from repo root so Bun workspaces (packages/*) are available.
       context: ../..
@@ -86,6 +90,8 @@ services:
       start_period: 60s
 
   caddy:
+    sysctls:
+      net.mptcp.enabled: "0"
     build:
       # Build context is repo root so we can build the website workspace.
       context: ../..
