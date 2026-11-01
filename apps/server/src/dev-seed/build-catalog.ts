@@ -153,7 +153,7 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
             keepaRootCategoryId: category.id,
             keepaCurrentBsr: rootCategoryBsr,
             keepaCurrentNewPrice: currentNewPrice,
-            keepaMonthlySold: monthlySoldForRank(context, rootCategoryBsr),
+            keepaMonthlySold: monthlySoldForRank(rootCategoryBsr),
             keepaBsrAverage30:
                 rootCategoryBsr === null ? null : jitterRank(context, rootCategoryBsr, 0.18),
             keepaBsrAverage90:

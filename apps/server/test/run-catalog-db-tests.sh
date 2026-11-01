@@ -308,6 +308,7 @@ bun test \
     apps/server/test/keyword-prefixes.db.test.ts \
     apps/server/test/keyword-directory.db.test.ts \
     apps/server/test/keyword-directory-grid.db.test.ts \
+    apps/server/test/sales-curve.db.test.ts \
     apps/server/test/keyword-realtime.db.test.ts \
     apps/server/test/keyword-directory-status.db.test.ts \
     apps/server/test/keyword-sync-control.db.test.ts \
@@ -316,7 +317,6 @@ bun test \
     apps/server/test/keyword-scheduling-races.db.test.ts \
     apps/server/test/keepa-capacity.db.test.ts \
     apps/server/test/refresh-tiers.db.test.ts \
-    apps/server/test/keepa-spare-refresh.db.test.ts \
     apps/server/test/product-collection-policy.db.test.ts \
     apps/server/test/product-search-document.db.test.ts \
     apps/server/test/product-search.db.test.ts \

@@ -101,4 +101,29 @@ describe('provider-gated worker', () => {
         const gaps = starts.slice(1).map((at, index) => at - starts[index]);
         expect(gaps.every(gap => gap >= 30)).toBe(true);
     });
+
+    it('keeps the start spacing when each gate read takes time', async () => {
+        const jobs = Array.from({ length: 6 }, (_, i) => ({ ...job, id: `job-${i}` }));
+        const { boss, calls } = fakeBoss(jobs);
+        const starts: number[] = [];
+        const worker = startGatedWorker({
+            boss,
+            name: 'scan-keyword',
+            gate: async () => {
+                await new Promise(resolve => setTimeout(resolve, 15));
+                return new Date(0);
+            },
+            concurrency: 4,
+            startSpacingMs: async () => 40,
+            run: async () => {
+                starts.push(Date.now());
+                return { didWork: true };
+            },
+        });
+        await until(() => calls.complete.length === 6);
+        await worker.stop();
+        // Measuring each slot from its actual start would add the 15ms read to every interval.
+        const meanGap = (starts[starts.length - 1] - starts[1]) / (starts.length - 2);
+        expect(meanGap).toBeLessThan(50);
+    });
 });

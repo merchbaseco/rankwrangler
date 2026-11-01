@@ -40,9 +40,12 @@ row marks; see the redesign plan).
 - **Warm paper neutrals** in light, graphite in dark, with one azure accent for actions,
   selection and upward moves (burnt orange for downward).
 - **Five BSR tiers are the data palette** and the only saturated fills on data surfaces: Elite
-  ≤2.5K (violet), Hot ≤15K (orange), Strong ≤60K (amber), Steady ≤250K (teal), Slow (grey). They
-  also differ in lightness, so their order reads without colour vision. Thresholds are a starting
-  guess to tune against sell-through.
+  ≤25K (violet), Hot ≤100K (orange), Strong ≤300K (amber), Steady ≤1M (teal), Slow (grey). They
+  also differ in lightness, so their order reads without colour vision. Thresholds fit Merch
+  shirts in Clothing, where the median rank is about 1.3M (November 2026): most shirts under 300K
+  carry Amazon's "50+ bought in past month" badge, about half from 300K to 500K, a tenth from
+  500K to 1M and almost none past 1M. Sellers read the same lines: sub-100K is a standout that
+  sells every day, and under 1M means a design is selling at all.
 - **BSR is a plain tier-coloured figure** (no ring, pill or bar, no direction glyph: the 7d column
   carries direction). The 30-day rank is a halftone area: the exact 1.5px line over a dotted
   fill in the tier ink.

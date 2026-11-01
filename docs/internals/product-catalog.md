@@ -138,8 +138,8 @@ returns footer counts for any signed-in user.
 `api.app.product.search` also takes Explore's sidebar filters and offset paging, all
 dashboard-only:
 
-- `tiers`: a union of BSR tiers (`elite` ≤2,500, `hot` ≤15,000, `strong` ≤60,000, `steady`
-  ≤250,000, `slow` above). Each tier is its own inclusive range ORed together, so Elite + Steady
+- `tiers`: a union of BSR tiers (`elite` ≤25,000, `hot` ≤100,000, `strong` ≤300,000, `steady`
+  ≤1,000,000, `slow` above). Each tier is its own inclusive range ORed together, so Elite + Steady
   does not match the tiers between. An unranked Product is `slow`, so the five tiers partition
   the result. Thresholds live once in `apps/server/src/services/bsr-tiers.ts`, mirroring
   `apps/website/src/features/bsr/bsr-tier.ts`.
@@ -180,6 +180,35 @@ Indexes these reads lean on: `products_marketplace_bsr_idx` (tier ranges and ran
 `products_search_document_idx` (text), and the `product_facets` primary key (niche probes). At
 millions of Products the facet scan is a sequential pass over the marketplace's Merch rows,
 bounded by the other filters; the stale-while-revalidate cache is what keeps it off the hot path.
+
+### Sales estimate: the rank-to-sales curve
+
+Sold/mo shows Amazon's "bought in past month" badge (Keepa `monthlySold`) when a Product has one,
+and otherwise `~N`, the median of `api.app.product.salesCurve` at the Product's 30-day average
+rank. The curve is fitted from the catalog, not fixed: active US Merch listings in Clothing
+(root category 7141123011) whose Keepa read is under 30 days old, counted per log-rank bin of the
+30-day average BSR and badge value. The badge and that average cover the same trailing month,
+and a Product Keepa has not read says nothing about its badge, so unread Products are left out.
+
+The badge is a floor on a step scale (50+, 100+ … 900+, 1K+ …) and absent under 50 a month, so
+each Product only bounds its sales. Log sales are modelled as normal around a power law that
+bends at #300K (`headSlope` above, `tailSlope` below, where badges thin out much faster), plus a
+share of Products missing the badge whatever they sell; the interval likelihood is maximised
+(`services/sales-curve-fit.ts`). Rank drops are not used: Keepa counts at most one per sample,
+so they plateau near the sampling rate and undercount anything selling daily.
+
+BSR is relative to everything else selling, so the same rank means more sales in Q4 than in
+spring. The fit reads only the trailing month, so the curve follows the season with about a
+month's lag: it is refitted every six hours (served stale for a day while a background fit
+replaces it) and warmed after a restart. A fit at November 2026 put #100K near 400 a month,
+#300K near 150 and #1M near 14.
+
+Each fit also builds the System Status report in the same pass (`services/sales-curve-report.ts`):
+the typical badged shirt per log-rank bin, kept where most of the bin shows a badge, and per rank
+range the share of shirts showing a badge against the share the curve expects. Admins read the
+fit and report through `api.app.system.salesCurve`; the dashboard's estimates read the curve alone
+through `api.app.product.salesCurve`. Both come from the stored fit, so no page load analyses
+Products.
 
 ## Lookup Versus Discovery
 

@@ -102,7 +102,8 @@ searched first.
 A trial's first-page head scan decides admission. At least `MIN_MERCH_ON_FIRST_PAGE` (3) confirmed
 active Merch listings on page one graduates it to tracked; anything less drops it. One check decides:
 a keyword with real Merch demand shows it right away, so a dropped keyword is never re-checked on a
-schedule. Three is a starting point, to be calibrated from real first-page scans. No model judges
+schedule. The pass of a dropped trial stops there (`dropped`), so no deeper page is
+queued for it. Three is a starting point, to be calibrated from real first-page scans. No model judges
 keyword fit.
 
 ## Autocomplete
@@ -239,7 +240,9 @@ in the queue. Due re-checks of graduated keywords carry priority 2, trial keywor
 priority 1 and deeper pages priority 0, so a backlog of trials never delays keeping graduated
 keywords fresh; within a priority the oldest waits least. The scheduler raises depth jobs waiting
 six hours to trial-head priority, well before an SP-API continuation cursor expires at a day. A provider wait or lost
-reservation re-sends the same job for the provider's ready time instead of failing it. Claims and
+reservation re-sends the same job for the provider's ready time instead of failing it. Parallel
+scan loops start one job per start interval (one background Catalog interval plus 10%); slots follow
+that schedule rather than each actual start, so the gate read before a start does not stretch it. Claims and
 leases still guard each entity, so a lost or duplicate job repeats no saved stage. The import job
 may run up to an hour, the time a weekly download and aggregation can take.
 
@@ -303,7 +306,7 @@ input and row shape.
 
 The dashboard directory's sidebar filters are unions (empty means any): `heat` (Hot, Warm,
 Cold), `stage` and `freshness` (replacing the public single values), plus `shelfElite` (the shelf
-holds a Product at BSR ≤2,500, or not) and `merch` (any retained active Merch, or none). `page` with
+holds a Product at BSR ≤25,000, or not) and `merch` (any retained active Merch, or none). `page` with
 `pageSize` reads by offset and ignores the cursor; every page carries `total` from a window count
 over the filtered rows. `api.app.keyword.directoryFacets` takes the same filters and returns the
 sidebar counts and KPI band in one aggregate over the same directory source: each group counted

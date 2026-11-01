@@ -1,0 +1,169 @@
+/*
+ * The Sales curve on System Status (features/status/sales-curve-chart.tsx and
+ * sales-curve-accuracy.tsx): rank on a log axis over the tier bands, the fitted curve in the
+ * accent, badge evidence in each tier's swatch, and the actual-against-expected columns. Every
+ * colour is a token; a tier's comes from its `.tier-*` scope.
+ */
+
+@layer components {
+    .sales-curve {
+        width: 100%;
+    }
+
+    .sales-curve svg {
+        display: block;
+    }
+
+    /* Each tier's slice of the rank axis, washed in its tile fill, its name in the tier ink. */
+    .sales-curve__band {
+        fill: var(--tier-bg);
+        opacity: 0.6;
+    }
+
+    .sales-curve__band-label {
+        fill: var(--tier-fg);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        font-weight: 600;
+    }
+
+    .sales-curve__grid {
+        fill: none;
+        stroke: var(--separator);
+        stroke-width: 1;
+    }
+
+    .sales-curve__baseline {
+        stroke: var(--border);
+        stroke-width: 1;
+    }
+
+    .sales-curve__tick {
+        fill: var(--muted);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* The range most shirts land in: the accent as a wash behind the curve. */
+    .sales-curve__range {
+        fill: var(--accent);
+        fill-opacity: 0.14;
+    }
+
+    .sales-curve__line {
+        fill: none;
+        stroke: var(--accent);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+    }
+
+    /* Badge evidence in its tier's swatch, ringed in the card so a dot reads across the curve. */
+    .sales-curve__evidence {
+        fill: var(--tier-sw);
+        stroke: var(--surface);
+        stroke-width: 2;
+    }
+
+    .sales-curve__callout {
+        fill: var(--accent);
+        stroke: var(--surface);
+        stroke-width: 2;
+    }
+
+    /* The pace written under each callout, haloed in the card so it reads over the wash. */
+    .sales-curve__callout-label {
+        fill: var(--foreground);
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        font-weight: 600;
+        paint-order: stroke;
+        stroke: var(--surface);
+        stroke-linejoin: round;
+        stroke-width: 4;
+    }
+
+    .sales-curve__cursor {
+        stroke: var(--muted);
+        stroke-dasharray: 2 2;
+        stroke-width: 1;
+    }
+
+    .sales-curve__hover {
+        fill: var(--foreground);
+        stroke: var(--surface);
+        stroke-width: 2;
+    }
+
+    /* Accuracy columns: shirts showing a badge in the routine swatch, the expectation in accent. */
+    .sales-curve__hit {
+        fill: transparent;
+    }
+
+    .sales-curve__actual {
+        fill: var(--tier-slow-sw);
+    }
+
+    .sales-curve__expected {
+        stroke: var(--accent);
+        stroke-linecap: round;
+        stroke-width: 3;
+    }
+
+    .sales-curve__range-bar.is-dimmed {
+        opacity: 0.45;
+    }
+
+    .sales-curve__note {
+        margin: 0;
+        color: var(--muted);
+        font-size: var(--text-sm);
+    }
+
+    .sales-curve-accuracy {
+        display: flex;
+        flex-direction: column;
+        gap: calc(var(--spacing-base) * 3);
+    }
+
+    /* Legend keys, each drawn like the mark it names. */
+    .sales-curve-key {
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+    .sales-curve-key--line,
+    .sales-curve-key--expected {
+        width: 1rem;
+        height: 2px;
+        border-radius: var(--radius-swatch);
+        background-color: var(--accent);
+    }
+
+    .sales-curve-key--expected {
+        height: 3px;
+    }
+
+    .sales-curve-key--range {
+        width: 1rem;
+        height: 0.625rem;
+        border-radius: var(--radius-swatch);
+        background-color: var(--accent);
+        opacity: 0.25;
+    }
+
+    .sales-curve-key--evidence {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 50%;
+        background-color: var(--muted);
+    }
+
+    .sales-curve-key--actual {
+        width: 0.625rem;
+        height: 0.625rem;
+        border-radius: var(--radius-swatch);
+        background-color: var(--tier-slow-sw);
+    }
+}

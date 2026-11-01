@@ -72,7 +72,7 @@ export const checkpointDiscoveryPage = async <T>(input: {
                 .set({ merchObservedAt: input.observedAt, updatedAt: input.observedAt })
                 .where(eq(catalogQueries.id, target.queryId));
         }
-        const nextCheckAt =
+        const standing =
             input.page === 0 && target.kind === 'keyword'
                 ? await observeKeywordStanding(tx, {
                       target,
@@ -80,7 +80,8 @@ export const checkpointDiscoveryPage = async <T>(input: {
                       resultCount: input.products.length,
                       now: input.observedAt,
                   })
-                : target.nextCheckAt;
+                : null;
+        const nextCheckAt = standing ? standing.nextCheckAt : target.nextCheckAt;
         const checkpoint = explorationCheckpoint({
             ...pass,
             page: input.page,
@@ -99,6 +100,9 @@ export const checkpointDiscoveryPage = async <T>(input: {
             checkpoint.contiguousPages = pass.contiguousPages;
         }
         if (!input.nextPageToken) checkpoint.stopReason = 'sourceEnd';
+        // A trial its first page drops is never scanned deeper; without this its next page would
+        // wait in the queue and spend a scan start finding the keyword disabled.
+        if (standing?.tracking === 'dropped') checkpoint.stopReason = 'dropped';
         const firstEmpty = input.page === 0 && input.products.length === 0;
         const emptyCount =
             input.page === 0 ? (firstEmpty ? target.emptyCount + 1 : 0) : target.emptyCount;

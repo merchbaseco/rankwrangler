@@ -127,5 +127,5 @@ export const observeKeywordStanding = async (
                 },
             },
         ]);
-    return cadence.nextDueAt;
+    return { nextCheckAt: cadence.nextDueAt, tracking };
 };

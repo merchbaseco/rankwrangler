@@ -16,6 +16,7 @@
 @import "./theme/mix.css";
 @import "./theme/screens.css";
 @import "./theme/status.css";
+@import "./theme/sales-curve.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

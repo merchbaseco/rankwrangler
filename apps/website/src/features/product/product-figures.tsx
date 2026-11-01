@@ -2,14 +2,11 @@ import { KPIGroup } from '@heroui-pro/react';
 import { KPI } from '@heroui-pro/react/kpi';
 import { useMemo, useState } from 'react';
 import { formatCount, formatShortDate } from '@/features/bsr/bsr-format';
-import {
-    bsrTierDefinitions,
-    classifyBsr,
-    estimateMonthlySales,
-    tierClassName,
-} from '@/features/bsr/bsr-tier';
+import { bsrTierDefinitions, classifyBsr, tierClassName } from '@/features/bsr/bsr-tier';
+import { estimateMonthlySales } from '@/features/bsr/sales-estimate';
 import type { RankPoint } from '@/features/bsr/sparkline-geometry';
 import { trendOf } from '@/features/bsr/trend';
+import { useSalesCurve } from '@/features/bsr/use-sales-curve';
 import { GridKpi, KpiFigure } from '@/features/grid/grid-kpi';
 import { dailyDrops, dailyRanks, monthlyBest } from './product-bands';
 import {
@@ -50,6 +47,7 @@ export const ProductFigures = ({
     const tier = classifyBsr(bsr);
     const change = rankChangeVsAverage(bsr, keepa?.averageRootCategoryBsr30);
     const reportedSold = keepa?.monthlySold ?? null;
+    const curve = useSalesCurve();
     const best = product?.bestEverBsr ?? null;
     const [now] = useState(() => Date.now());
     const bands = useMemo(
@@ -121,7 +119,14 @@ export const ProductFigures = ({
                 title="Best ever"
             />
             <GridKpi
-                figure={<KpiFigure value={reportedSold ?? estimateMonthlySales(bsr)} />}
+                figure={
+                    <KpiFigure
+                        value={
+                            reportedSold ??
+                            estimateMonthlySales(keepa?.averageRootCategoryBsr30 ?? bsr, curve)
+                        }
+                    />
+                }
                 span="even"
                 suffix={product ? (reportedSold === null ? 'estimate' : 'Amazon') : undefined}
                 title="Sold/mo"
@@ -137,7 +142,9 @@ export const ProductFigures = ({
                 dot="band-ink-steady"
                 figure={<KpiFigure value={keepa?.salesRankDrops?.days30 ?? null} />}
                 span="even"
-                suffix={product ? `${formatCount(keepa?.salesRankDrops?.days365)} in 1y` : undefined}
+                suffix={
+                    product ? `${formatCount(keepa?.salesRankDrops?.days365)} in 1y` : undefined
+                }
                 title="Drops 30d"
             />
             <GridKpi
