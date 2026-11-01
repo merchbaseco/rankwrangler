@@ -61,17 +61,13 @@ credentials from `MERCHBASE_API_KEY` or the common CLI keychain become native
 Cloudflare client ID and secret headers. The public npm client has no private
 package dependency.
 
-## Development and release
+## Development
 
 An explicit development runtime uses the shared offline principal. Its target
 guard runs before migrations and refuses remote databases or production
 lifecycle markers. The projection adapter seeds the stable development user;
-newer local revocation and expiry remain effective. No fake JWT or Clerk ticket
-is needed.
-
-These access changes use generated migration `0065_cloudflare_access.sql`. Cutover still requires
-the final published shared package, Cloudflare configuration, matching Safari provisioning, and
-live client proof.
+newer local revocation and expiry remain effective. No fake JWT or external
+identity-provider ticket is needed.
 
 ## BidBeacon product lookup
 

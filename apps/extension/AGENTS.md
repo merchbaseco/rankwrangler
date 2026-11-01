@@ -12,8 +12,8 @@ Use this document when assisting with the browser extension + Safari wrapper rep
   - Content script – `src/scripts/content/index.tsx`
   - Popup – `src/scripts/popup/index.tsx`
   - Background/service worker – `src/scripts/service-worker/service-worker.ts`
-- **Environment**: Pure front-end. Chrome build inputs come from the repository-root `.env`; only
-  `VITE_` values are bundled, and production Chrome builds reject development Clerk keys.
+- **Environment**: Pure front-end. Public extension build values come from the repository-root
+  `.env.schema`; no machine secret belongs in the bundle.
 
 ## Core Commands
 
@@ -52,8 +52,8 @@ bun run --filter rankwrangler-extension build
 - File names use kebab-case (`search-badge.tsx`), components use PascalCase.
 - UI primitives live under `src/components/ui`.
 - Popup and content script share centralized-auth helpers in `src/scripts/**/*.`
-- Chrome delegates interactive auth to the Clerk Sync Host; Safari delegates OAuth to the native
-  handler. Neither path stores a suite API key in extension storage.
+- Chrome uses Cloudflare Managed OAuth with S256 PKCE. Safari uses the native OAuth handler and
+  Keychain. Neither path stores a suite API key in extension storage.
 - Chrome's committed public CRX key derives to `hfoliiddbbblflnaakfggibiiphalbnc`. Keep that key
   unchanged for unpacked builds; the production build preflight rejects a changed key or ID.
 
@@ -81,13 +81,12 @@ bun run --filter rankwrangler-extension build
 ## Chrome Build
 
 - `bun run build:chrome`:
-  1. Requires an explicit production `pk_live_` Clerk publishable key, the production Sync Host,
-     and the explicit Merchbase account URL.
+  1. Validates the fixed Cloudflare issuer and permanent public manifest key.
   2. Runs `bun run build --mode production` (cleans and builds to `dist/`).
-  3. Extension ready in `dist/` for loading as unpacked extension.
+  3. Leaves the extension in `dist/` for loading as an unpacked extension.
 
 See [`docs/operations/extension-release.md`](../../docs/operations/extension-release.md) for the
-stable Chrome origin, Clerk allowed-origin, and live verification contract.
+Cloudflare OAuth redirect, stable Chrome identity, and live verification contract.
 - To test in Chrome:
   1. Open `chrome://extensions`
   2. Enable "Developer mode"

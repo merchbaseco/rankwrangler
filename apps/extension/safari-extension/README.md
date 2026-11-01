@@ -55,4 +55,4 @@ request and never receives a refresh token.
 The native `signOut` message clears local credentials and revokes the provider
 grant. A network failure during revocation is reported after local cleanup.
 Changing the credential context invalidates the saved credential and requires
-sign-in again. Existing Clerk credentials are not reused.
+sign-in again; credentials from another OAuth context are not reused.

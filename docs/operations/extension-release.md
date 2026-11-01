@@ -26,8 +26,8 @@ bun run extension:build:chrome
 The build validates the fixed Cloudflare issuer and permanent public manifest key
 before emitting `apps/extension/dist/`. Public configuration is declared in
 `.env.schema`; `VITE_MERCHBASE_ACCESS_ISSUER` must match
-`https://thearcade.cloudflareaccess.com`. No Clerk or machine secret belongs in
-the extension build.
+`https://thearcade.cloudflareaccess.com`. No machine secret belongs in the
+extension build.
 
 The manifest public key fixes the Chrome ID to
 `hfoliiddbbblflnaakfggibiiphalbnc`. Keep this identity across builds. Verify the
@@ -49,8 +49,7 @@ https://hfoliiddbbblflnaakfggibiiphalbnc.chromiumapp.org/oauth/callback
 The API must accept the exact extension origin in its browser Origin/CORS
 boundary. This permission does not replace signed assertion verification.
 The manifest uses `identity` for the OAuth browser flow, `storage` and `alarms`
-for credential lifecycle, and existing Amazon/debug permissions. It no longer
-uses Clerk cookie synchronization.
+for credential lifecycle, and existing Amazon/debug permissions.
 
 ## Live verification
 

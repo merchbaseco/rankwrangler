@@ -64,7 +64,7 @@ Changing a package means bumping its version in the same PR (patch, minor, or ma
 - All APIs are tRPC only (no REST surface).
 - Router split:
   - `api.public.*`: Merchbase API-key/OAuth auth.
-  - `api.app.*`: Clerk auth.
+  - `api.app.*`: Cloudflare Access assertion auth.
 - Keep shared behavior in utils/libs (not shared routers).
 - Each tRPC procedure should live in its own file under `apps/server/src/api/public` or `apps/server/src/api/app`.
 - No `.js` import extensions.
@@ -195,17 +195,17 @@ bunx varlock run -- node_modules/.bin/concurrently -k -n server,website -c cyan,
 ```
 
 The API listens on `http://localhost:8080` and the website on `http://localhost:5173`. Sign-in is
-automatic outside production (the page mints a dev Clerk ticket for the shared Dev Sign-In user),
-so wait for the server's `Dev Clerk Sign-In Token: Configured` line, then capture:
+automatic outside production; wait for the startup summary's
+`Development identity: Local development principal` line, then capture:
 
 ```bash
 capture-page http://localhost:5173 /tmp/rankwrangler.png --settle 8000
 ```
 
 `capture-page` is the fleet's Playwright wrapper around the image's Chromium; it routes external
-hosts such as Clerk through the agent proxy and keeps loopback direct. Use `localhost`, not `127.0.0.1`: the development authorized party is
-`http://localhost:5173`. If the screenshot shows a sign-in form, follow "When auto sign-in does not
-fire" in `docs/operations/ui-verification.md`.
+hosts through the agent proxy and keeps loopback direct. Use the `localhost` development URL. If
+the screenshot shows a sign-in form, follow "When auto sign-in does not fire" in
+`docs/operations/ui-verification.md`.
 
 ## Maintenance Boundary
 

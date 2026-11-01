@@ -7,13 +7,12 @@
     "storage",
     "tabs",
     "alarms",
-    "scripting",
-    "cookies"
+    "scripting"
   ],
   "host_permissions": [
     "*://*.amazon.com/*",
-    "https://rankwrangler.merchbase.co/api/*",
-    "https://clerk.merchbase.co/*"
+    "https://rankwrangler-api.merchbase.co/*",
+    "https://thearcade.cloudflareaccess.com/*"
   ],
   "icons": {
     "32": "images/icon-32-safari.png",

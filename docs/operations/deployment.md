@@ -107,18 +107,17 @@ mini reboot. After a router or network change, Colima's DNS can go stale: the se
 `getaddrinfo ENOTFOUND` for the database host while the mini itself resolves it. `colima restart`
 on the mini fixes it.
 
-## Authentication migration
+## Authentication and legacy identity cutover
 
 The older license-to-canonical-user cutover through migration `0028` is historical.
-It must already be applied before deploying the current stack. Do not replay its
-Clerk bootstrap, webhook, or Native API setup for the Cloudflare migration.
+It must already be applied before deploying the current stack. Its legacy identity
+provider bootstrap, webhook, and Native API setup are not part of Cloudflare Access.
 
 Follow [Authentication](../internals/authentication.md) for the current host/audience,
-projection, OAuth and development contracts. The coordinated suite cutover supplies the
-new Cloudflare configuration, preserves existing canonical users and service accounts,
-applies later additive migrations, and verifies key aliases and revocation. Keep a
-verified database backup and the prior deployment revision for rollback. Publish and
-change production only after the operator authorizes the prepared release.
+projection, OAuth, and development contracts. The Cloudflare Access cutover is complete;
+future releases use the ordinary deployment and migration flow. Keep a verified database
+backup and the prior deployment revision for rollback. Publish and change production only
+after the operator authorizes the prepared release.
 
 ## Verification
 

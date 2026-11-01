@@ -12,9 +12,9 @@ the accepted public target.
 
 The hosted Model Context Protocol endpoint is `https://rankwrangler.merchbase.co/mcp`; the API host
 remains an alias at `https://rankwrangler-api.merchbase.co/mcp`. Both hosts expose three tools and
-require a person OAuth bearer token authorized through the suite Cloudflare API boundary. Clients
-discover Managed OAuth without requesting Clerk identity scopes. Protected-resource metadata and
-OAuth challenges name the exact admitted host receiving the request.
+require a person OAuth bearer token authorized through the suite Cloudflare API boundary.
+Protected-resource metadata and OAuth challenges name the exact admitted host receiving the
+request.
 
 Caddy forwards `/mcp` and the two exact protected-resource metadata paths to Fastify. Cloudflare
 Access serves authorization-server metadata at the configured issuer, which the protected-resource
