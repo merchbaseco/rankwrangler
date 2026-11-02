@@ -3,7 +3,12 @@ import { z } from 'zod';
 import { productSearchInput } from '@/api/product-search-input';
 import { productGetIncludes } from '@/api/public/product-input';
 import { rejectFieldsOutsideOperation } from './input-refinements';
-import type { ProductGetManyMcpInput, ProductGetMcpInput, ProductHistoryMcpInput } from './types';
+import type {
+    ProductFamilyMcpInput,
+    ProductGetManyMcpInput,
+    ProductGetMcpInput,
+    ProductHistoryMcpInput,
+} from './types';
 
 const optionalSearchField = <Schema extends z.ZodType>(schema: Schema) =>
     z.optional(schema instanceof z.ZodDefault ? schema.removeDefault() : schema);
@@ -74,8 +79,32 @@ export const productInputSchema = z
             .min(1)
             .max(2)
             .optional(),
-        operation: z.enum(['get', 'getMany', 'search', 'history']),
+        operation: z.enum(['get', 'getMany', 'search', 'history', 'family']),
         products: productBatchSchema.optional(),
+        asins: z
+            .array(
+                z
+                    .string()
+                    .trim()
+                    .regex(/^[A-Z0-9]{10}$/i)
+            )
+            .min(1)
+            .max(50)
+            .superRefine((asins, context) => {
+                const seen = new Set<string>();
+                asins.forEach((asin, index) => {
+                    const key = asin.toUpperCase();
+                    if (seen.has(key)) {
+                        context.addIssue({
+                            code: 'custom',
+                            message: 'ASINs must be unique',
+                            path: [index],
+                        });
+                    }
+                    seen.add(key);
+                });
+            })
+            .optional(),
         startAt: z.string().datetime().optional(),
     })
     .strict()
@@ -83,6 +112,7 @@ export const productInputSchema = z
         rejectFieldsOutsideOperation(input, context, {
             get: ['asin', 'include', 'marketplaceId'],
             getMany: ['products'],
+            family: ['asins', 'marketplaceId'],
             history: [
                 'asin',
                 'bucket',
@@ -132,6 +162,11 @@ export const toProductHistoryInput = (input: ProductInput): ProductHistoryMcpInp
 });
 
 export const toProductSearchInput = (input: ProductInput) => productSearchInput.parse(input);
+
+export const toProductFamilyInput = (input: ProductInput): ProductFamilyMcpInput => ({
+    asins: requireValue(input.asins, 'asins').map(asin => asin.toUpperCase()),
+    marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
+});
 
 const requireValue = <Value>(value: Value | undefined, name: string): Value => {
     if (value === undefined) {

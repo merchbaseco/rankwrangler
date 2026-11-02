@@ -201,7 +201,7 @@ const mcpDataSource: RankWranglerMcpDataSource = {
         service: 'rankwrangler',
         status: 'ready',
         capabilities: {
-            product: ['get', 'getMany', 'search', 'history'],
+            product: ['get', 'getMany', 'search', 'history', 'family'],
             keyword: ['get', 'search', 'results'],
         },
     }),
@@ -210,6 +210,7 @@ const mcpDataSource: RankWranglerMcpDataSource = {
         getMany: async input => ({ operation: 'getMany', data: { products: input.products } }),
         search: async input => ({ operation: 'search', data: { term: input.term } }),
         history: async input => ({ operation: 'history', data: { asin: input.asin } }),
+        family: async input => ({ operation: 'family', data: { asins: input.asins } }),
     },
     keyword: {
         results: async input => ({ operation: 'results', data: { term: input.term } }),

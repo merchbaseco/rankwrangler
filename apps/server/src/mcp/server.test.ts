@@ -8,7 +8,7 @@ const dataSource: RankWranglerMcpDataSource = {
         service: 'rankwrangler',
         status: 'ready',
         capabilities: {
-            product: ['get', 'getMany', 'search', 'history'],
+            product: ['get', 'getMany', 'search', 'history', 'family'],
             keyword: ['get', 'search', 'results'],
         },
     }),
@@ -17,6 +17,7 @@ const dataSource: RankWranglerMcpDataSource = {
         getMany: async input => ({ operation: 'getMany', data: { products: input.products } }),
         search: async input => ({ operation: 'search', data: { term: input.term } }),
         history: async input => ({ operation: 'history', data: { asin: input.asin } }),
+        family: async input => ({ operation: 'family', data: { asins: input.asins } }),
     },
     keyword: {
         results: async input => ({ operation: 'results', data: { term: input.term } }),
@@ -65,9 +66,11 @@ describe('RankWrangler MCP server', () => {
         expect(productTool?.description).toContain('deleted means the listing no longer exists');
         expect(productTool?.description).toContain('not that an offer is in stock or buyable');
         expect(productTool?.description).toContain('last-known data');
+        expect(productTool?.description).toContain('family uses asins');
+        expect(productTool?.description).toContain('status unknown');
         expect(productTool?.inputSchema).toMatchObject({
             properties: {
-                operation: { enum: ['get', 'getMany', 'search', 'history'] },
+                operation: { enum: ['get', 'getMany', 'search', 'history', 'family'] },
             },
         });
         for (const tool of result.tools) {
@@ -112,6 +115,10 @@ describe('RankWrangler MCP server', () => {
                 arguments: { operation: 'history', asin: 'B012345678' },
             }),
             client.callTool({
+                name: 'rankwrangler_product',
+                arguments: { operation: 'family', asins: ['b012345678', 'B087654321'] },
+            }),
+            client.callTool({
                 name: 'rankwrangler_keyword',
                 arguments: { operation: 'get', keyword: 'shirts' },
             }),
@@ -136,6 +143,7 @@ describe('RankWrangler MCP server', () => {
             },
             { operation: 'search', data: { term: 'shirts' } },
             { operation: 'history', data: { asin: 'B012345678' } },
+            { operation: 'family', data: { asins: ['B012345678', 'B087654321'] } },
             { operation: 'get', data: { keyword: 'shirts' } },
             { operation: 'search', data: { text: 'shirt' } },
         ]);

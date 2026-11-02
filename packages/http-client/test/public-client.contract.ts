@@ -8,9 +8,11 @@ type Assert<Condition extends true> = Condition;
 type ProductSearchInput = PublicRouterInputs['product']['search'];
 type ProductGetInput = PublicRouterInputs['product']['get'];
 type ProductGetManyInput = PublicRouterInputs['product']['getMany'];
+type ProductFamilyInput = PublicRouterInputs['product']['family'];
 type ProductHistoryInput = PublicRouterInputs['product']['history'];
 type ProductOutput = PublicRouterOutputs['product']['get'];
 type ProductGetManyOutput = PublicRouterOutputs['product']['getMany'];
+type ProductFamilyOutput = PublicRouterOutputs['product']['family'];
 type ProductHistoryOutput = PublicRouterOutputs['product']['history'];
 type KeywordGetInput = PublicRouterInputs['keyword']['get'];
 type ProductSearchOutput = PublicRouterOutputs['product']['search'];
@@ -21,7 +23,7 @@ export type PublicNamespaceContract = Assert<
     Equal<keyof PublicRouterInputs, 'product' | 'keyword'>
 >;
 export type ProductProcedureContract = Assert<
-    Equal<keyof PublicRouterInputs['product'], 'get' | 'getMany' | 'search' | 'history'>
+    Equal<keyof PublicRouterInputs['product'], 'get' | 'getMany' | 'search' | 'history' | 'family'>
 >;
 export type KeywordProcedureContract = Assert<
     Equal<keyof PublicRouterInputs['keyword'], 'get' | 'search' | 'results'>
@@ -47,6 +49,12 @@ export type ProductGetManyOutputKeysContract = Assert<
         keyof ProductGetManyOutput[number],
         'marketplaceId' | 'asin' | 'title' | 'thumbnail' | 'amazonListingStatus'
     >
+>;
+export type ProductFamilyInputContract = Assert<
+    Equal<keyof ProductFamilyInput, 'marketplaceId' | 'asins'>
+>;
+export type ProductFamilyOutputStatusContract = Assert<
+    Equal<ProductFamilyOutput[number]['status'], 'known' | 'unknown'>
 >;
 export type ProductOutputContract = Assert<
     Equal<

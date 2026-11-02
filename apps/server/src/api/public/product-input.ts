@@ -68,3 +68,25 @@ export const productHistoryInput = productIdentityInput
         startAt: z.coerce.date().optional(),
     })
     .strict();
+
+export const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';
+
+export const productFamilyInput = z
+    .object({
+        marketplaceId: z.string().min(1, 'Marketplace ID is required').default(US_MARKETPLACE_ID),
+        asins: z.array(asinInput).min(1).max(50),
+    })
+    .strict()
+    .superRefine(({ asins }, context) => {
+        const seen = new Set<string>();
+        asins.forEach((asin, index) => {
+            if (seen.has(asin)) {
+                context.addIssue({
+                    code: 'custom',
+                    message: 'ASINs must be unique',
+                    path: ['asins', index],
+                });
+            }
+            seen.add(asin);
+        });
+    });

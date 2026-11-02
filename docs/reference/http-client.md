@@ -42,6 +42,10 @@ const basicProducts = await client.product.getMany.mutate({
     ],
 });
 
+const families = await client.product.family.mutate({
+    asins: ['B0DV53VS61', 'B012345678'],
+});
+
 const search = await client.product.search.query({
     term: 'retro gardening shirt',
     salesRank: { max: 300_000 },

@@ -53,6 +53,7 @@ pending data, freshness, Operations, polling state, provider status or response 
 | --- | --- | --- |
 | `api.public.product.get` | mutation | One current Product. |
 | `api.public.product.getMany` | mutation | Basic listing results for up to 200 Product identities. |
+| `api.public.product.family` | mutation | Variation-family membership for up to 50 ASINs. |
 | `api.public.product.search` | query | Paginated stored Products and keyword coverage. |
 | `api.public.product.history` | mutation | Product sales-rank and price series. |
 | `api.public.keyword.get` | query | One stored keyword directory entry. |
@@ -146,6 +147,46 @@ response (`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`); gene
 running, so a later `get` returns the finished value. Slow or failed enrichment never produces a
 `TIMEOUT` or asks the caller to retry. Concurrent requests for the same Product share one
 generation.
+
+## Product family
+
+`product.family` is a catalog read. It accepts `marketplaceId` (default US `ATVPDKIKX0DER`) and one
+to 50 unique ASINs, normalized to uppercase. Parent and child ASINs are both valid inputs. Results
+preserve request order. Each entry is either known or unknown:
+
+```ts
+type ProductFamilyVariant = {
+    asin: string;
+    attributes: {
+        size: string | null;
+        color: string | null;
+        fit: string | null;
+        style: string | null;
+    };
+};
+
+type ProductFamilyLookup =
+    | {
+          status: 'known';
+          marketplaceId: string;
+          requestedAsin: string;
+          familyAsin: string;
+          variationsCheckedAt: string | null;
+          variants: ProductFamilyVariant[];
+      }
+    | {
+          status: 'unknown';
+          marketplaceId: string;
+          requestedAsin: string;
+      };
+```
+
+A known result resolves the requested ASIN to its variation parent (`familyAsin`), lists known
+variant ASINs from `product_asin_aliases`, and returns `variationsCheckedAt` when RankWrangler last
+checked SP-API relationships. Attribute fields are present when RankWrangler stores them; otherwise
+they are `null`. An unknown result means RankWrangler has no stored family for that ASIN and does
+not invent one. The read does not wait on SP-API or Keepa; unknown ASINs may be enqueued for normal
+background discovery. Each ASIN consumes one Service Account usage unit.
 
 ## Basic Products
 

@@ -28,9 +28,9 @@ The `initialize` server info advertises `websiteUrl` `https://rankwrangler.merch
 
 | Tool | Input | Result |
 | --- | --- | --- |
-| `rankwrangler_status` | `{}` | Connection, authentication, and eight supported noun/verb capabilities. |
-| `rankwrangler_product` | `operation: get \| getMany \| search \| history` | Product data or a standard error. |
-| `rankwrangler_keyword` | `operation: get \| search \| history \| results` | Keyword data or a standard error. |
+| `rankwrangler_status` | `{}` | Connection, authentication, and supported noun/verb capabilities. |
+| `rankwrangler_product` | `operation: get \| getMany \| search \| history \| family` | Product data or a standard error. |
+| `rankwrangler_keyword` | `operation: get \| search \| results` | Keyword data or a standard error. |
 
 `rankwrangler_product` uses `asin` and `marketplaceId` for `get`. It may also set
 `include: ['shortName', 'cutoutThumbnail']` to request an image-informed label and a transparent
@@ -48,7 +48,11 @@ lookup does not return the ASIN; pending work and provider failures do not produ
 title and thumbnail values are last-known listing data. `get` and `getMany` return a known
 Product's last-known listing immediately and refresh it in the background; they wait only for
 Products with no resolved listing. An unavailable thumbnail alone means no
-usable image, not a deleted listing. The tool adds only the documented Product-history range, metric,
+usable image, not a deleted listing. `family` accepts `asins` (1–50 unique) and optional
+`marketplaceId` (defaults to US). It returns each ASIN's variation family from the catalog without
+waiting on providers: known results include `familyAsin`, variant ASINs with size/color/fit/style
+when stored, and `variationsCheckedAt`; unknown ASINs return `status: unknown` with no guessed
+family. The tool adds only the documented Product-history range, metric,
 and bucket fields for `history`. Product `search` accepts an optional `term` and catalog filters.
 `rankwrangler_keyword` uses `keyword` for `get` and `history`, `text` for `search`, and accepts
 cursor/limit or range options. Keyword `results` uses `term` and optional `refresh` (default false).

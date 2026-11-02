@@ -47,8 +47,10 @@ The client is scoped to `api.public.*`. Product `search` reads the stored catalo
 screen compact Products with market metrics. `keyword.results` preserves dated external search
 evidence and can wait for collection under the existing 24-hour reuse policy.
 
-Product `get` returns the current Product. `getMany` returns basic listing data, and `history`
-returns compact rank and price series. Keyword `get` and `search` read the stored keyword directory, separately from observed search results. Retryable `TIMEOUT` errors preserve retry hints.
+Product `get` returns the current Product. `getMany` returns basic listing data. `family` resolves
+ASINs to variation families from the catalog. `history` returns compact rank and price series.
+Keyword `get` and `search` read the stored keyword directory, separately from observed search
+results. Retryable `TIMEOUT` errors preserve retry hints.
 
 ## Types
 

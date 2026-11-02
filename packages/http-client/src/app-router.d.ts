@@ -296,6 +296,30 @@ export interface KeywordResults {
 		product: KeywordResultsProduct;
 	}>;
 }
+export type ProductFamilyVariantAttributes = {
+	size: string | null;
+	color: string | null;
+	fit: string | null;
+	style: string | null;
+};
+export type ProductFamilyVariant = {
+	asin: string;
+	attributes: ProductFamilyVariantAttributes;
+};
+export type KnownProductFamilyLookup = {
+	status: "known";
+	marketplaceId: string;
+	requestedAsin: string;
+	familyAsin: string;
+	variationsCheckedAt: string | null;
+	variants: ProductFamilyVariant[];
+};
+export type UnknownProductFamilyLookup = {
+	status: "unknown";
+	marketplaceId: string;
+	requestedAsin: string;
+};
+export type ProductFamilyLookupEntry = KnownProductFamilyLookup | UnknownProductFamilyLookup;
 export interface BasicProduct {
 	marketplaceId: string;
 	asin: string;
@@ -559,6 +583,14 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				errorShape: import("@trpc/server").TRPCDefaultErrorShape;
 				transformer: false;
 			}, import("@trpc/server").TRPCDecorateCreateRouterOptions<{
+				family: import("@trpc/server").TRPCMutationProcedure<{
+					input: {
+						asins: string[];
+						marketplaceId?: string | undefined;
+					};
+					output: ProductFamilyLookupEntry[];
+					meta: object;
+				}>;
 				get: import("@trpc/server").TRPCMutationProcedure<{
 					input: {
 						marketplaceId: string;

@@ -16,6 +16,11 @@ export interface ProductGetManyMcpInput {
     products: Pick<ProductGetMcpInput, 'marketplaceId' | 'asin'>[];
 }
 
+export interface ProductFamilyMcpInput {
+    marketplaceId: string;
+    asins: string[];
+}
+
 export type ProductSearchMcpInput = ProductSearchInput;
 
 export interface KeywordResultsMcpInput {
@@ -45,7 +50,7 @@ export interface RankWranglerMcpStatus {
     service: 'rankwrangler';
     status: 'ready';
     capabilities: {
-        product: ['get', 'getMany', 'search', 'history'];
+        product: ['get', 'getMany', 'search', 'history', 'family'];
         keyword: ['get', 'search', 'results'];
     };
 }
@@ -57,6 +62,7 @@ export interface RankWranglerMcpDataSource {
         getMany(input: ProductGetManyMcpInput): Promise<Record<string, unknown>>;
         search(input: ProductSearchMcpInput): Promise<Record<string, unknown>>;
         history(input: ProductHistoryMcpInput): Promise<Record<string, unknown>>;
+        family(input: ProductFamilyMcpInput): Promise<Record<string, unknown>>;
     };
     keyword: {
         results(input: KeywordResultsMcpInput): Promise<Record<string, unknown>>;
@@ -69,7 +75,7 @@ export const RANKWRANGLER_MCP_STATUS: RankWranglerMcpStatus = {
     service: 'rankwrangler',
     status: 'ready',
     capabilities: {
-        product: ['get', 'getMany', 'search', 'history'],
+        product: ['get', 'getMany', 'search', 'history', 'family'],
         keyword: ['get', 'search', 'results'],
     },
 };

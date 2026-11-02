@@ -11,6 +11,7 @@ const source: RankWranglerMcpDataSource = {
         get: async input => ({ data: input }),
         getMany: async input => ({ data: input }),
         search: async input => ({ data: input }),
+        family: async input => ({ data: input }),
     },
     keyword: {
         get: async input => ({ data: input }),

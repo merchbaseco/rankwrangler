@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { rejectFieldsOutsideOperation } from './input-refinements';
 import {
     productInputSchema,
+    toProductFamilyInput,
     toProductGetInput,
     toProductGetManyInput,
     toProductHistoryInput,
@@ -36,7 +37,7 @@ const toolOutputSchema = z.object({
             retryAfterSeconds: z.number().int().positive().optional(),
         })
         .optional(),
-    operation: z.enum(['get', 'getMany', 'search', 'history', 'results']).optional(),
+    operation: z.enum(['get', 'getMany', 'search', 'history', 'family', 'results']).optional(),
 });
 
 const keywordInputSchema = z
@@ -65,7 +66,7 @@ const keywordInputSchema = z
 const statusOutputSchema = z.object({
     capabilities: z.object({
         keyword: z.array(z.enum(['get', 'search', 'results'])),
-        product: z.array(z.enum(['get', 'getMany', 'search', 'history'])),
+        product: z.array(z.enum(['get', 'getMany', 'search', 'history', 'family'])),
     }),
     service: z.literal('rankwrangler'),
     status: z.literal('ready'),
@@ -108,6 +109,11 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 'listing no longer exists for customers in that marketplace; retained title or ' +
                 'thumbnail values are last-known data. An unavailable thumbnail alone does not ' +
                 'mean the Product is deleted. ' +
+                'family uses asins (1–50 unique) and optional marketplaceId (defaults to US) to ' +
+                'resolve each ASIN to its variation family. Each known result includes the family ' +
+                'ASIN, known variant ASINs with size/color/fit/style attributes when stored, and ' +
+                'variationsCheckedAt. Unknown ASINs return status unknown with no guessed family. ' +
+                'family is a catalog read and does not wait on provider fetches. ' +
                 'search immediately screens the collected catalog using optional term, textFields, ' +
                 'excludeWords, marketplaceIds, isMerchListing, amazonListingStatus, brands, ' +
                 'excludeBrands, includeOfficialBrands, categoryIds, salesRank, price, monthlySold, ' +
@@ -137,6 +143,10 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 case 'history':
                     return runReadOnlyTool(async () =>
                         source.product.history(toProductHistoryInput(input))
+                    );
+                case 'family':
+                    return runReadOnlyTool(async () =>
+                        source.product.family(toProductFamilyInput(input))
                     );
                 default:
                     return assertNever(input.operation);

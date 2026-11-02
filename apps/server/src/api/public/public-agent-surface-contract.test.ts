@@ -7,6 +7,7 @@ describe('public agent surface', () => {
 
         expect(procedures.sort()).toEqual(
             [
+                'api.public.product.family',
                 'api.public.product.get',
                 'api.public.product.getMany',
                 'api.public.product.search',

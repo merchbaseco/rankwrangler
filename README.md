@@ -43,7 +43,9 @@ store only Merch and already-stored Products, and the
 dashboard Explore grid defaults to Merch listings (its Listing type filter widens it).
 A Product is a variation family: sizes and colors share their parent's rank, so the catalog stores
 one Product per parent ASIN, and any variant ASIN (in a lookup, scan or extension page) resolves to
-that family without a provider call.
+that family without a provider call. Public `product.family` (and MCP `operation=family`) returns
+that membership as a catalog read for up to 50 ASINs, with an explicit unknown status when
+RankWrangler has not stored the ASIN.
 
 ## Use RankWrangler
 
