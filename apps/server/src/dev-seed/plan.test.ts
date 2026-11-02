@@ -216,6 +216,25 @@ describe('dev seed coverage contract: Product history', () => {
         expect(Math.max(...observed)).toBeLessThanOrEqual(NOW.getTime());
     });
 
+    it('promises rank history covers the last year, so the seasonality chart has a year to draw', () => {
+        const launched = new Map(
+            plan.products.map(product => [product.id, product.dateFirstAvailable?.getTime() ?? 0])
+        );
+        const rankPoints = points.filter(
+            point => point.metric === keepaHistoryMetricColumns.bsrMain
+        );
+        const years = new Set(rankPoints.map(point => point.observedAt.getUTCFullYear()));
+
+        expect(years.has(NOW.getUTCFullYear() - 1)).toBe(true);
+        // The seasonal backfill (older than the last quarter) never predates a design's launch.
+        const quarterAgo = NOW.getTime() - 90 * DAY_MS;
+        for (const point of rankPoints.filter(p => p.observedAt.getTime() < quarterAgo)) {
+            expect(point.observedAt.getTime()).toBeGreaterThanOrEqual(
+                launched.get(point.productId) ?? 0
+            );
+        }
+    });
+
     it('promises a missing point exists, because Keepa reports gaps and the chart must survive one', () => {
         const missing = points.filter(point => point.isMissing);
 

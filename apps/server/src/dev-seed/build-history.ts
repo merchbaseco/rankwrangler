@@ -1,4 +1,5 @@
 import { DAY_MS, HOUR_MS, shiftMs } from '@/dev-seed/time-offsets';
+import { seasonalRank, seasonFactor } from '@/dev-seed/seed-seasons';
 import type { BuilderContext, DevSeedPlan, PlanRows, SeedProduct } from '@/dev-seed/types';
 import {
     KEEPA_MAIN_CATEGORY_ID,
@@ -17,6 +18,9 @@ import {
  * Keepa records change points, not samples: a value appears only when it moved.
  * Ranks move most days and prices rarely, so the two series are generated at
  * different densities and the chart's carry-in behaviour gets exercised.
+ * Before the last quarter, ranks follow the design's audience season back to
+ * the start of last year (or its launch, if later), so Explore's seasonality
+ * chart has a whole year to draw.
  */
 
 const HOURS_PER_RANK_POINT = 6;
@@ -25,8 +29,10 @@ const SPARKLINE_DAYS = 30;
 /** Sparser rank points back to 90 days, so the preview's 90-day chart is drawn, not carried in. */
 const QUARTER_DAYS = 90;
 const QUARTER_STEP_DAYS = 3;
-/** One old peak per Product, so best-ever BSR differs from the recent range. */
-const PEAK_DAYS_AGO = 180;
+/** Days between the seasonal points before the quarter. */
+const SEASON_STEP_DAYS = 3;
+/** Calendar years of seasonal history before this one; the chart reads the last 52 weeks. */
+const SEASON_YEARS_BACK = 1;
 const PRICE_CHANGE_RATE = 0.12;
 /** One Product carries a category series so `bsrCategory` has something to show. */
 const CATEGORY_SERIES_PRODUCTS = 1;
@@ -56,17 +62,47 @@ export const buildHistory = (
         const rankPoint = (observedAt: Date, value: number) => {
             rankPairs.push([dateToKeepaMinute(observedAt), value]);
         };
-        rankPoint(
-            shiftMs(now, -PEAK_DAYS_AGO * DAY_MS),
-            Math.max(1, Math.round(baseRank * random.between(0.25, 0.5)))
+        const seasonStart = Math.max(
+            product.launchedAt.getTime(),
+            Date.UTC(now.getUTCFullYear() - SEASON_YEARS_BACK, 0, 1)
         );
+        const quarterStart = shiftMs(now, -QUARTER_DAYS * DAY_MS);
+        for (
+            let at = seasonStart;
+            at < quarterStart.getTime();
+            at += SEASON_STEP_DAYS * DAY_MS
+        ) {
+            rankPoint(
+                new Date(at),
+                seasonalRank({
+                    audience: product.audiences[0],
+                    baseRank,
+                    day: new Date(at),
+                    now,
+                    random,
+                })
+            );
+        }
+        // The quarter's walk rides the season too, so the last year keeps its shape; the season
+        // is 1 today, so the dense week still lands on the catalog's rank.
+        const seasonalPoint = (observedAt: Date, value: number) =>
+            rankPoint(
+                observedAt,
+                Math.max(
+                    1,
+                    Math.round(
+                        value *
+                            seasonFactor({ audience: product.audiences[0], day: observedAt, now })
+                    )
+                )
+            );
         for (let day = QUARTER_DAYS; day > SPARKLINE_DAYS; day -= QUARTER_STEP_DAYS) {
             rank = Math.max(1, Math.round(rank * random.between(0.88, 1.12)));
-            rankPoint(shiftMs(now, -day * DAY_MS), rank);
+            seasonalPoint(shiftMs(now, -day * DAY_MS), rank);
         }
         for (let day = SPARKLINE_DAYS; day > options.dayCount; day -= 1) {
             rank = Math.max(1, Math.round(rank * random.between(0.85, 1.15)));
-            rankPoint(shiftMs(now, -day * DAY_MS), rank);
+            seasonalPoint(shiftMs(now, -day * DAY_MS), rank);
         }
 
         for (let step = pointCount; step >= 0; step -= 1) {

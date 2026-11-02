@@ -118,6 +118,8 @@ export interface SeedProduct {
     readonly demand: number;
     /** Whether this Product carries a history series the chart can render. */
     readonly hasHistory: boolean;
+    /** `dateFirstAvailable`; rank history never starts before it. */
+    readonly launchedAt: Date;
     /** Audience names (primary first) whose search terms may place it. */
     readonly audiences: readonly string[];
 }

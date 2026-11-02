@@ -121,6 +121,11 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
         const createdAt = shiftMs(now, -random.between(0, options.dayCount * DAY_MS));
         // Every card carries a 30-day sparkline; off-table rows exercise the empty chart.
         const hasHistory = onTable || random.chance(OFF_TABLE_HISTORY_SHARE);
+        const launchedAt = shiftMs(
+            now,
+            -(index % RECENT_LAUNCH_EVERY === 0 ? random.int(0, 59) : random.int(60, 1100)) *
+                DAY_MS
+        );
         const facetsState = pickFacetsState(context, isMerchListing);
 
         products.push({
@@ -135,11 +140,7 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
             bullet1: isMerchListing ? random.pick(SEED_DESIGN_BULLETS) : null,
             bullet2: isMerchListing && random.chance(0.6) ? random.pick(SEED_DESIGN_BULLETS) : null,
             thumbnailUrl: buildThumbnailDataUri(context, title),
-            dateFirstAvailable: shiftMs(
-                now,
-                -(index % RECENT_LAUNCH_EVERY === 0 ? random.int(0, 59) : random.int(60, 900)) *
-                    DAY_MS
-            ),
+            dateFirstAvailable: launchedAt,
             rootCategoryId: category.id,
             rootCategoryBsr,
             facetsState,
@@ -193,6 +194,7 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
             keepaFetchedAt,
             demand,
             hasHistory,
+            launchedAt,
             audiences: [audience.name, secondaryAudience.name],
         });
     }
