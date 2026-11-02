@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.16.0 - 2026-11-02
+
+### Added
+
+- Public `product.family` (and MCP `operation=family`) resolves parent or child ASINs to their
+  variation family from the catalog, with an explicit `unknown` status when RankWrangler has not
+  stored the ASIN. MerchBase Core and its agents consume this as a cross-service contract.
+
 ## v0.15.0 - 2026-11-01
 
 ### Changed
