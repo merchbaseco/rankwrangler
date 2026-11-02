@@ -8,6 +8,7 @@ import {
     dispatchCatalogSearchOperation,
     normalizeCatalogDisplayTerm,
 } from '@/services/catalog-search';
+import { subscribeToCatalogSearchCompleted } from '@/services/catalog-search-events';
 import type { OperationRecord } from '@/services/operations';
 import {
     type KeywordResults,
@@ -27,8 +28,18 @@ const CATALOG_SEARCH_POLL_INTERVAL_MS = 2 * 1000;
 type CatalogSearchResolution = Awaited<ReturnType<typeof resolveCatalogSearchRequest>>;
 type CatalogSearchRun = NonNullable<Awaited<ReturnType<typeof getCatalogSearchRun>>>;
 
-const sleep = async (delayMs: number) => {
-    await new Promise(resolve => setTimeout(resolve, delayMs));
+// Polling is the fallback; the worker runs in this process and announces completion, which ends the
+// wait at once.
+const sleepUntilCompleted = async (delayMs: number, queryId: string) => {
+    let unsubscribe = () => {};
+    await new Promise<void>(resolve => {
+        const timer = setTimeout(resolve, delayMs);
+        unsubscribe = subscribeToCatalogSearchCompleted({ queryId }, () => {
+            clearTimeout(timer);
+            resolve();
+        });
+    });
+    unsubscribe();
 };
 
 export interface CatalogSearchRetrievalDeps {
@@ -41,7 +52,7 @@ export interface CatalogSearchRetrievalDeps {
     ) => Promise<CatalogSearchRun | null>;
     getOperationById: (operationId: string) => Promise<OperationRecord | null>;
     dispatchOperation: (operation: CatalogSearchOperation) => Promise<boolean>;
-    sleep: (delayMs: number) => Promise<void>;
+    sleep: (delayMs: number, queryId: string) => Promise<void>;
     now?: () => Date;
 }
 
@@ -50,7 +61,7 @@ const defaultDeps: CatalogSearchRetrievalDeps = {
     getRun: getCatalogSearchRun,
     getOperationById,
     dispatchOperation: dispatchCatalogSearchOperation,
-    sleep,
+    sleep: sleepUntilCompleted,
 };
 
 export const awaitCatalogSearchRetrieval = async (
@@ -145,7 +156,7 @@ export const awaitCatalogSearchRetrieval = async (
         timeoutMs,
         retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
         retryMessage: 'Keyword results are temporarily unavailable. Retry shortly.',
-        work: async () => await waitForCatalogSearchRun(prepared.operation.id, deps),
+        work: async () => await waitForCatalogSearchRun(prepared.operation, deps),
     });
     return await buildSearchResponse(runId, 'blocking', signal, timeoutMs, deps);
 };
@@ -197,7 +208,10 @@ const mapCatalogSearchRun = (run: CatalogSearchRun): KeywordResults => ({
     }),
 });
 
-const waitForCatalogSearchRun = async (operationId: string, deps: CatalogSearchRetrievalDeps) => {
+const waitForCatalogSearchRun = async (
+    { id: operationId, input: { queryId } }: CatalogSearchOperation,
+    deps: CatalogSearchRetrievalDeps
+) => {
     const deadline = (deps.now?.() ?? new Date()).getTime() + CATALOG_SEARCH_WORK_TIMEOUT_MS;
 
     while ((deps.now?.() ?? new Date()).getTime() < deadline) {
@@ -211,7 +225,7 @@ const waitForCatalogSearchRun = async (operationId: string, deps: CatalogSearchR
         if (operation.status === 'completed') {
             return resolveCompletedCatalogSearch(operation);
         }
-        await deps.sleep(CATALOG_SEARCH_POLL_INTERVAL_MS);
+        await deps.sleep(CATALOG_SEARCH_POLL_INTERVAL_MS, queryId);
     }
 
     throw new RetrievalRetryableError(
