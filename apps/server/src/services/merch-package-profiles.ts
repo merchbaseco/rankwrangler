@@ -94,6 +94,7 @@ export const MERCH_PACKAGE_PROFILES: readonly MerchPackageProfile[] = [
     { dimensionsInches: [3, 16, 22], weightPounds: 1.8, productTypes: ['backpack'] },
     { dimensionsInches: [5, 7, 9], weightPounds: 0.38, productTypes: ['hat'] },
     { dimensionsInches: [2, 9.5, 14.5], weightPounds: 0.7, productTypes: ['tote'] },
+    { dimensionsInches: [5, 6, 8], weightPounds: 1, productTypes: ['crossbody bag'] },
     { dimensionsInches: [7, 10, 18], weightPounds: 1.1, productTypes: ['throw pillow'] },
 ];
 

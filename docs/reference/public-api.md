@@ -110,8 +110,10 @@ type Product = {
 
 `bulletPoints` is always an array; a current Product with no bullets returns `[]`. For nullable
 measurements, `null` means valid data is unavailable. It never means zero, failure, or pending work.
-`isMerchListing` is RankWrangler's Merch classification from SP-API or Keepa evidence: no UPC, EAN
-or GTIN, plus a Merch template bullet or a Merch package profile. It is always a boolean; a Product no
+`isMerchListing` is RankWrangler's Merch classification from SP-API or Keepa evidence: a Merch
+template bullet, or no UPC, EAN or GTIN plus the catalog attributes Merch sets (see the
+[Merch-listing classification decision](../decisions/merch-listing-classification.md)). It is
+always a boolean; a Product no
 provider has described yet is `false`. A Sales-rank drop is an
 observed numeric BSR improvement, not a confirmed sale.
 

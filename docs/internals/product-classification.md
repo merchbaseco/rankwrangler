@@ -18,26 +18,30 @@ after a Product exists.
 The [Merch-listing classification decision](../decisions/merch-listing-classification.md) defines
 the binary contract, the package-profile table and the variation-parent fallback. Adapters own
 evidence extraction, not classification. Each adapter reports `MerchListingEvidence`: the bullets,
-whether the listing carries a UPC, EAN or GTIN, and its package profile, if any.
+whether the listing carries a UPC, EAN or GTIN, its package profile, if any, and, from SP-API only,
+which listing attributes it carries.
 
 | Source | Bullets | Product identifier | Package |
 | --- | --- | --- | --- |
 | SP-API | `attributes.bullet_point` | `identifiers[].identifiers` non-empty, or `attributes.externally_assigned_product_identifier` | `attributes.item_package_dimensions[0]`, `attributes.item_package_weight[0]` |
-| Keepa | `features` | `upcList` or `eanList` non-empty | `packageLength/Width/Height` (mm), `packageWeight` (g) |
+| Keepa | `features` | `upcList` or `eanList` non-empty | not evidence |
 
-`classifyMerchListing` (`services/merch-listing-classification.ts`) returns `true` exactly when the
-listing has no product identifier and either:
+`classifyMerchListing` (`services/merch-listing-classification.ts`) returns `true` exactly when:
 
 1. **Template bullets.** A bullet matches a Merch on Demand product-spec bullet after case and
-   punctuation normalization. `services/merch-template-bullets.ts` groups the templates by product
-   type (shirts, jerseys, sweatshirts, jackets, hats, backpacks, PopSockets, phone cases, totes,
-   laptop sleeves, mouse pads, pillows, posters, drinkware, journals, pens). Generic seller copy
-   such as "Funny design." or size-chart notices is excluded.
-2. **Package profile.** `services/merch-package-profiles.ts` converts the package to inches and
-   pounds, sorts the dimensions, and matches a typed table of Merch product-type profiles within
-   ±0.06 in and ±0.01 lb.
+   punctuation normalization, even beside a product identifier (licensed Merch carries UPCs).
+   `services/merch-template-bullets.ts` groups the templates by product type (shirts, jerseys,
+   sweatshirts, jackets, hats, backpacks, crossbody bags, PopSockets, phone cases, totes, laptop
+   sleeves, mouse pads, pillows, posters, drinkware, journals, pens). Generic seller copy such as
+   "Funny design." or size-chart notices is excluded.
+2. **Listing attributes.** The listing has no product identifier, has a manufacturer, part number
+   and list price, and either its package matches a profile in `services/merch-package-profiles.ts`
+   (inches and pounds, sorted dimensions, ±0.06 in and ±0.01 lb), or it is not a variation parent
+   and has no seller attribute: description, battery or hazmat declaration, identifier exemption,
+   `skip_offer` or `title_differentiation`.
 
-Otherwise the listing is non-Merch. Part numbers, model numbers and titles are not evidence:
+Otherwise the listing is non-Merch. Only SP-API reports the listing attributes, so a Keepa
+observation can show Merch only by a template bullet. Part numbers, model numbers and titles are not evidence:
 third-party SKUs share the Merch design-code shape, and other sellers copy Merch title suffixes such
 as "Premium T-Shirt".
 
@@ -52,13 +56,13 @@ own, no product identifier and no `product_description` the verdict of its first
 through the ASIN catalog search (20 per request, same priority) unless the child is already in the
 response. The ASIN lookup, keyword discovery and the dashboard keyword search all classify through
 it. Keepa Catalog search classifies immediately from the returned product, before Product
-persistence, and does not wait for SP-API. A Keepa observation that is not Merch by its own evidence
-is undecided for a variation parent (`productType` 5) or a product Keepa holds no listing data for
-(3 or 4).
+persistence: a template bullet decides Merch, and a product identifier without one decides
+non-Merch except for a variation parent (`productType` 5) or a product Keepa holds no listing data
+for (3 or 4). Every other Keepa observation is undecided.
 
 | Observation | Persistence |
 | --- | --- |
-| Decided (every SP-API item, most Keepa products) | Overwrite status and seller bullets; `true` can become `false`. |
+| Decided (every SP-API item; Keepa with a template bullet or an identifier) | Overwrite status and seller bullets; `true` can become `false`. |
 | Undecided Keepa | Leave a stored Product untouched; insert a new Product as non-Merch. |
 
 New Products start at `isMerchListing: false`. The public field exposes no provider, freshness, or

@@ -56,13 +56,24 @@ const PackageWeightEntrySchema = MeasureSchema.extend({ marketplace_id: z.string
     .nullable()
     .catch(null);
 
+// Merch evidence reads the remaining attributes by presence only.
+const PresenceSchema = z.array(MarketplaceEntrySchema).optional();
+
 const ItemAttributesSchema = z.object({
     product_site_launch_date: z.array(AttributeValueEntrySchema).optional(),
     bullet_point: z.array(MarketplaceTextEntrySchema).optional(),
-    product_description: z.array(MarketplaceEntrySchema).optional(),
-    externally_assigned_product_identifier: z.array(MarketplaceEntrySchema).optional(),
     item_package_dimensions: z.array(PackageDimensionsEntrySchema).optional(),
     item_package_weight: z.array(PackageWeightEntrySchema).optional(),
+    externally_assigned_product_identifier: PresenceSchema,
+    manufacturer: PresenceSchema,
+    part_number: PresenceSchema,
+    list_price: PresenceSchema,
+    product_description: PresenceSchema,
+    batteries_required: PresenceSchema,
+    supplier_declared_dg_hz_regulation: PresenceSchema,
+    supplier_declared_has_product_identifier_exemption: PresenceSchema,
+    skip_offer: PresenceSchema,
+    title_differentiation: PresenceSchema,
 });
 
 const ItemImageSchema = z.object({
@@ -126,20 +137,26 @@ export const readCatalogListingEvidence = (item: CatalogItem, marketplaceId: str
     const family = readVariationFamily(item, marketplaceId);
     const summary = item.summaries?.find(entry => entry.marketplaceId === marketplaceId);
     const identifiers = item.identifiers?.find(entry => entry.marketplaceId === marketplaceId);
+    const has = (key: PresenceAttribute) =>
+        inMarketplace(attributes?.[key], marketplaceId).length > 0;
+    const isVariationParent =
+        summary?.itemClassification === 'VARIATION_PARENT' || family.childAsin !== null;
     const merch: MerchListingEvidence = {
         bullets: inMarketplace(attributes?.bullet_point, marketplaceId).map(entry => entry.value),
         hasProductIdentifier:
             (identifiers?.identifiers.length ?? 0) > 0 ||
-            inMarketplace(attributes?.externally_assigned_product_identifier, marketplaceId)
-                .length > 0,
+            has('externally_assigned_product_identifier'),
         packageProfile: readPackageProfile(attributes, marketplaceId),
+        catalogAttributes: {
+            hasMerchListingAttributes: MERCH_LISTING_ATTRIBUTES.every(has),
+            hasSellerListingAttributes: SELLER_LISTING_ATTRIBUTES.some(has),
+            isVariationParent,
+        },
     };
     return {
         merch,
-        isVariationParent:
-            summary?.itemClassification === 'VARIATION_PARENT' || family.childAsin !== null,
-        hasProductDescription:
-            inMarketplace(attributes?.product_description, marketplaceId).length > 0,
+        isVariationParent,
+        hasProductDescription: has('product_description'),
         firstChildAsin: family.childAsin,
     };
 };
@@ -160,6 +177,22 @@ export const readVariationFamily = (
         childAsin: childAsin ? childAsin.toUpperCase() : null,
     };
 };
+
+const MERCH_LISTING_ATTRIBUTES = ['manufacturer', 'part_number', 'list_price'] as const;
+
+const SELLER_LISTING_ATTRIBUTES = [
+    'product_description',
+    'batteries_required',
+    'supplier_declared_dg_hz_regulation',
+    'supplier_declared_has_product_identifier_exemption',
+    'skip_offer',
+    'title_differentiation',
+] as const;
+
+type PresenceAttribute =
+    | 'externally_assigned_product_identifier'
+    | (typeof MERCH_LISTING_ATTRIBUTES)[number]
+    | (typeof SELLER_LISTING_ATTRIBUTES)[number];
 
 const readPackageProfile = (attributes: CatalogItem['attributes'], marketplaceId: string) => {
     const [dimensions] = inMarketplace(attributes?.item_package_dimensions, marketplaceId);

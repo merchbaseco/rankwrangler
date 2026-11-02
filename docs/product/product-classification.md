@@ -21,12 +21,13 @@ for the evidence, the package-profile table and how observations reconcile.
 
 | Value | Meaning |
 | --- | --- |
-| `true` | The listing has no UPC, EAN or GTIN, and a bullet matches Merch template language or its package dimensions and weight match a Merch product type. |
+| `true` | A bullet matches Merch template language, or the listing has no UPC, EAN or GTIN and the catalog attributes Merch sets, with a Merch package or none of the attributes sellers set. |
 | `false` | Anything else, including a Product no provider has described yet. |
 
 Recognition covers every Merch on Demand product type, including shirts, hoodies, jerseys, hats,
 PopSockets, phone cases, totes, pillows, posters, drinkware, journals and pens. A Merch-style title
-or a design-code-shaped part number does not count, because other sellers share both. A variation
+or a design-code-shaped part number does not count, because other sellers share both. Licensed
+Merch with a UPC and older Merch whose bullets Amazon rewrote both count. A variation
 parent without either signal takes its first variant's verdict. The latest observation wins, so a
 listing can move from Merch to non-Merch. For a Merch listing, RankWrangler also preserves the
 seller-authored bullets after removing template text.

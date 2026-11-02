@@ -93,6 +93,11 @@ export const MERCH_TEMPLATE_BULLETS_BY_PRODUCT_TYPE = {
         'Dual-layer design with premium scratch-resistant polycarbonate shell and shock-absorbent TPU liner provides protection against drops',
         'Slim profile with raised edges safeguards camera while maintaining a sleek, pocket-friendly design',
     ],
+    crossbodyBag: [
+        'Two spacious zippered compartments with an interior pocket for organizing your phone, wallet, keys, and essentials. 3L capacity (5.5"H x 8.2"L x 5"W when stuffed) provides ample room for everything you need on the go',
+        'Durable construction features smooth matte polyester material with color-matched molded zipper and adjustable shoulder strap with buckle',
+        'Versatile carrying options: wear as a waist pack, crossbody, or over the shoulder for hands-free convenience',
+    ],
     toteBag: [
         '16" x 16" bag with two 14" long and 1" wide black cotton webbing strap handles.',
         'Made of a lightweight, spun polyester canvas-like fabric.',

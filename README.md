@@ -37,8 +37,9 @@ Catalog runs retain immutable search membership while their current Products res
 cached and fresh runs use the same background path. Dashboard and internal Product records may retain
 `pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to
 `available` or `unavailable`. Product `isMerchListing` is always `true` or `false`. A listing is
-Merch when it has no UPC, EAN or GTIN and a bullet matches Merch template text or its package
-matches a Merch product type; keyword scans store only Merch and already-stored Products, and the
+Merch when a bullet matches Merch template text, or when it has no UPC, EAN or GTIN and the catalog
+attributes Merch sets, with a Merch package or none of the attributes sellers set; keyword scans
+store only Merch and already-stored Products, and the
 dashboard Explore grid defaults to Merch listings (its Listing type filter widens it).
 A Product is a variation family: sizes and colors share their parent's rank, so the catalog stores
 one Product per parent ASIN, and any variant ASIN (in a lookup, scan or extension page) resolves to

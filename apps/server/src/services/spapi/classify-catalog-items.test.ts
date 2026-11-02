@@ -163,23 +163,50 @@ describe('classifyCatalogItems', () => {
         ]);
     });
 
-    it('rejects a variant that carries an external product identifier', async () => {
+    it('keeps a template-bullet variant Merch beside an external product identifier', async () => {
         const { provider } = providerReturning([]);
         const [result] = await classifyCatalogItems({
             items: [
-                {
-                    ...croquetTumbler,
-                    attributes: {
-                        ...croquetTumbler.attributes,
-                        externally_assigned_product_identifier: [{ marketplace_id: US }],
-                    },
-                },
+                withAttributes(croquetTumbler, {
+                    externally_assigned_product_identifier: [{ marketplace_id: US }],
+                }),
             ],
             marketplaceId: US,
             provider,
         });
 
-        expect(result.merch.isMerchListing).toBe(false);
+        expect(result.merch.isMerchListing).toBe(true);
+    });
+
+    it('reads the listing attributes of a listing Amazon rewrote', async () => {
+        // Star Wars B07KVKT3LY: Amazon replaced the template bullets and remeasured the package.
+        const rewritten = withAttributes(
+            {
+                asin: 'B07KVKT3LY',
+                identifiers: [{ marketplaceId: US, identifiers: [] }],
+                summaries: [{ marketplaceId: US, itemClassification: 'BASE_PRODUCT' }],
+            },
+            {
+                bullet_point: [
+                    { value: 'Officially licensed Star Wars apparel', marketplace_id: US },
+                ],
+                manufacturer: [{ marketplace_id: US }],
+                part_number: [{ marketplace_id: US }],
+                list_price: [{ marketplace_id: US }],
+            }
+        );
+        const { provider } = providerReturning([]);
+        const classify = async (item: CatalogItem) =>
+            (await classifyCatalogItems({ items: [item], marketplaceId: US, provider }))[0].merch
+                .isMerchListing;
+
+        expect(await classify(rewritten)).toBe(true);
+        expect(
+            await classify(
+                withAttributes(rewritten, { batteries_required: [{ marketplace_id: US }] })
+            )
+        ).toBe(false);
+        expect(await classify(withAttributes(rewritten, { part_number: undefined }))).toBe(false);
     });
 
     it('warns when a Merch template bullet ships in a package no profile matches', async () => {
@@ -206,4 +233,9 @@ describe('classifyCatalogItems', () => {
             ],
         ]);
     });
+});
+
+const withAttributes = (item: CatalogItem, attributes: NonNullable<CatalogItem['attributes']>) => ({
+    ...item,
+    attributes: { ...item.attributes, ...attributes },
 });

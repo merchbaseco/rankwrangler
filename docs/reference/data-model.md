@@ -131,8 +131,9 @@ The public Product is one current provider-neutral projection:
 Public callers never receive a pending thumbnail, provider block or timestamps,
 `trackingStartedAt`, freshness, status, Operations, or `schemaVersion`.
 
-`isMerchListing` is `true` when the latest decided observation had no UPC, EAN or GTIN and either a
-Merch template bullet or a Merch package profile, and `false` otherwise, including before any
+`isMerchListing` is `true` when the latest decided observation had a Merch template bullet, or had
+no UPC, EAN or GTIN and the Merch listing attributes with a Merch package profile or no seller
+attributes, and `false` otherwise, including before any
 provider has described the Product. Public consumers receive only this boolean; provider,
 freshness, and status metadata are not exposed for the property.
 

@@ -6,9 +6,19 @@ const MAX_SELLER_BULLETS_TO_PERSIST = 2;
 /** What one catalog observation (an SP-API item or a Keepa product) shows about its listing. */
 export interface MerchListingEvidence {
     readonly bullets: readonly string[];
-    /** A UPC, EAN or GTIN; Merch on Demand never assigns one. */
+    /** A UPC, EAN or GTIN. Seller listings carry one; licensed Merch sometimes does too. */
     readonly hasProductIdentifier: boolean;
     readonly packageProfile: PackageProfile | null;
+    /** Null from a source that does not report catalog attributes (Keepa). */
+    readonly catalogAttributes: MerchCatalogAttributes | null;
+}
+
+export interface MerchCatalogAttributes {
+    /** A manufacturer, part number and list price, which Merch sets on every listing it creates. */
+    readonly hasMerchListingAttributes: boolean;
+    /** A description, hazmat or battery declaration, or identifier exemption, which sellers set. */
+    readonly hasSellerListingAttributes: boolean;
+    readonly isVariationParent: boolean;
 }
 
 export interface MerchListingClassification {
@@ -19,17 +29,19 @@ export interface MerchListingClassification {
 
 /**
  * The Merch on Demand pipeline stamps every listing with its product type's template bullets and
- * package profile and never assigns a product identifier. A listing is Merch when it has no product
- * identifier and shows either stamp. A Merch listing keeps its first two non-template bullets as
- * seller bullets.
+ * package profile, and sets a manufacturer, part number and list price but no seller attributes. A
+ * template bullet alone makes a listing Merch; licensed Merch keeps it beside a UPC. Without one,
+ * a Merch listing has no product identifier and the Merch listing attributes, plus either a Merch
+ * package or, unless it is a variation parent, no seller attributes: Amazon has rewritten the
+ * bullets and remeasured the package of some older Merch listings. A Merch listing keeps its first
+ * two non-template bullets as seller bullets.
  */
 export const classifyMerchListing = (
     evidence: MerchListingEvidence
 ): MerchListingClassification => {
     const bullets = dedupeAndNormalizeBullets(evidence.bullets);
     const isMerchListing =
-        !evidence.hasProductIdentifier &&
-        (bullets.some(isMerchTemplateBullet) || hasMerchPackageProfile(evidence.packageProfile));
+        bullets.some(isMerchTemplateBullet) || showsMerchListingAttributes(evidence);
     const sellerBullets = isMerchListing
         ? bullets
               .filter(bullet => !isMerchTemplateBullet(bullet))
@@ -54,8 +66,16 @@ export const findUnmatchedMerchPackage = (evidence: MerchListingEvidence) =>
         ? evidence.packageProfile
         : null;
 
-const hasMerchPackageProfile = (profile: PackageProfile | null) =>
-    profile !== null && matchesMerchPackageProfile(profile);
+const showsMerchListingAttributes = ({
+    hasProductIdentifier,
+    packageProfile,
+    catalogAttributes,
+}: MerchListingEvidence) =>
+    catalogAttributes !== null &&
+    !hasProductIdentifier &&
+    catalogAttributes.hasMerchListingAttributes &&
+    ((packageProfile !== null && matchesMerchPackageProfile(packageProfile)) ||
+        (!catalogAttributes.isVariationParent && !catalogAttributes.hasSellerListingAttributes));
 
 const isMerchTemplateBullet = (bullet: string) => {
     return merchTemplateBulletSet.has(normalizeBulletForMatching(bullet));

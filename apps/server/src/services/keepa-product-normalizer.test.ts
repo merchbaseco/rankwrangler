@@ -147,44 +147,48 @@ describe('normalizeKeepaProduct', () => {
         });
     });
 
-    it('classifies a Keepa package in millimeters and grams', () => {
-        const merch = normalizeKeepaProduct({
-            marketplaceId: 'ATVPDKIKX0DER',
-            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
-            product: {
-                asin: 'B07GNYFPWW',
-                productType: 0,
-                features: ['Officially Licensed by Peanuts', 'OPNT-0176'],
-                packageLength: 254,
-                packageWidth: 203,
-                packageHeight: 25,
-                packageWeight: 136,
-            },
-        });
-        const withUpc = normalizeKeepaProduct({
-            marketplaceId: 'ATVPDKIKX0DER',
-            fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
-            product: {
-                asin: 'B0GY8NVFHN',
-                productType: 0,
-                upcList: ['710917774610'],
-                packageLength: 254,
-                packageWidth: 203,
-                packageHeight: 25,
-                packageWeight: 136,
-            },
-        });
+    it('leaves a listing without a template bullet or identifier to SP-API', () => {
+        const normalize = (product: { upcList?: string[] }) =>
+            normalizeKeepaProduct({
+                marketplaceId: 'ATVPDKIKX0DER',
+                fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+                product: {
+                    asin: 'B07GNYFPWW',
+                    productType: 0,
+                    features: ['Officially Licensed by Peanuts', 'OPNT-0176'],
+                    ...product,
+                },
+            }).product.merch;
 
-        expect(merch.product.merch).toEqual({
-            kind: 'decided',
-            isMerchListing: true,
-            bullet1: 'Officially Licensed by Peanuts',
-            bullet2: 'OPNT-0176',
-        });
-        expect(withUpc.product.merch).toEqual({
+        expect(normalize({})).toEqual({ kind: 'undecided' });
+        expect(normalize({ upcList: ['710917774610'] })).toEqual({
             kind: 'decided',
             isMerchListing: false,
             bullet1: null,
+            bullet2: null,
+        });
+    });
+
+    it('classifies licensed Merch by a template feature beside a UPC', () => {
+        // Marvel B07KBLWCC1.
+        expect(
+            normalizeKeepaProduct({
+                marketplaceId: 'ATVPDKIKX0DER',
+                fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
+                product: {
+                    asin: 'B07KBLWCC1',
+                    productType: 0,
+                    upcList: ['197866818433'],
+                    features: [
+                        'Officially Licensed Marvel Tee Shirt',
+                        'Lightweight, Classic fit, Double-needle sleeve and bottom hem',
+                    ],
+                },
+            }).product.merch
+        ).toEqual({
+            kind: 'decided',
+            isMerchListing: true,
+            bullet1: 'Officially Licensed Marvel Tee Shirt',
             bullet2: null,
         });
     });
@@ -204,23 +208,6 @@ describe('normalizeKeepaProduct', () => {
             kind: 'decided',
             isMerchListing: true,
             bullet1: 'Croquet queen design',
-            bullet2: null,
-        });
-    });
-
-    it('leaves an observation without features, package or identifier undecided', () => {
-        const normalize = (product: { upcList?: string[] }) =>
-            normalizeKeepaProduct({
-                marketplaceId: 'ATVPDKIKX0DER',
-                fetchedAt: new Date('2026-07-22T14:00:00.000Z'),
-                product: { asin: 'B0MERCH005', productType: 0, ...product },
-            }).product.merch;
-
-        expect(normalize({})).toEqual({ kind: 'undecided' });
-        expect(normalize({ upcList: ['710917774610'] })).toEqual({
-            kind: 'decided',
-            isMerchListing: false,
-            bullet1: null,
             bullet2: null,
         });
     });
