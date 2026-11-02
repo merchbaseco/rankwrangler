@@ -5,8 +5,10 @@ import {
     type StoredVariationChild,
 } from '@/db/product-variation-schema';
 
-export const VARIATIONS_GENERATOR_VERSION = 'catalog-relationships-2022-04-01:v1';
+export const VARIATIONS_GENERATOR_VERSION = 'catalog-relationships-2022-04-01:v2';
 export const VARIATIONS_REUSE_MS = 24 * 60 * 60 * 1000;
+/** Steal a ready family that omits a requested member once it is at least this old. */
+export const VARIATIONS_MEMBER_REFRESH_MS = 60 * 60 * 1000;
 export const VARIATIONS_ERROR_RETRY_MS = 5 * 60 * 1000;
 const CLAIM_LEASE_SECONDS = 120;
 
@@ -47,7 +49,7 @@ export const lookupVariationsByMember = async (
             fetched_at AS "fetchedAt"
         FROM product_variations
         WHERE marketplace_id = ${marketplaceId}
-            AND ${asin.toUpperCase()} = ANY (member_asins)
+            AND member_asins @> ARRAY[${asin.toUpperCase()}]::text[]
     `);
     return rows;
 };
@@ -72,8 +74,14 @@ export const claimVariationFetch = async ({
     marketplaceId,
     parentAsin,
     claimId,
-}: VariationFamilyIdentity & { claimId: string }): Promise<boolean> => {
+    allowMemberRefresh = false,
+}: VariationFamilyIdentity & {
+    claimId: string;
+    /** Steal a ready row older than VARIATIONS_MEMBER_REFRESH_MS (missing-member path). */
+    allowMemberRefresh?: boolean;
+}): Promise<boolean> => {
     const upperParent = parentAsin.toUpperCase();
+    const memberRefreshMs = allowMemberRefresh ? VARIATIONS_MEMBER_REFRESH_MS : VARIATIONS_REUSE_MS;
     const rows = await db.execute<{ claim_id: string }>(sql`
         INSERT INTO product_variations (
             marketplace_id, parent_asin, generator_version, state, kind, theme, children,
@@ -100,7 +108,7 @@ export const claimVariationFetch = async ({
             OR (product_variations.state = 'ready'
                 AND (
                     product_variations.fetched_at IS NULL
-                    OR product_variations.fetched_at < now() - ${VARIATIONS_REUSE_MS} * interval '1 millisecond'
+                    OR product_variations.fetched_at < now() - ${memberRefreshMs} * interval '1 millisecond'
                 ))
         RETURNING claim_id
     `);

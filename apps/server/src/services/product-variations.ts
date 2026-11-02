@@ -1,41 +1,37 @@
 import { randomUUID } from 'node:crypto';
 import {
     claimVariationFetch,
-    failVariationFetch,
     finishVariationFetch,
+    getStoredVariation,
     lookupVariationsByMember,
-    refreshVariationLease,
+    VARIATIONS_MEMBER_REFRESH_MS,
 } from '@/db/product/product-variation-store';
 import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 import { createConcurrencyLimit } from './concurrency-limit';
-import { createEventLogSafe } from './event-logs';
 import { waitForProductEnrichment } from './product-enrichment-wait';
 import {
-    assembleFamily,
-    chunkAsins,
-    parseCatalogItems,
-    readVariationRole,
-    type VariationRole,
-} from './product-variations-parse';
+    clearVariationDiscoveryCachesForTests,
+    discoverVariationRole,
+    type VariationDeps,
+} from './product-variations-discovery';
+import { fetchClaimedVariationFamily } from './product-variations-fetch';
+import type { VariationRole } from './product-variations-parse';
 import {
     classifyStoredVariations,
     type ProductVariations,
     type VariationRequest,
-    toProductVariations,
     variationsRetrievalKey,
 } from './product-variations-request';
 
 export type { ProductVariations, VariationRequest } from './product-variations-request';
+export type { VariationDeps } from './product-variations-discovery';
+export { clearVariationDiscoveryCachesForTests };
 
 const POLL_MS = 250;
+/** Extra wall time after the caller enrichment budget for one in-flight Catalog fetch. */
+export const VARIATIONS_RESOLVE_GRACE_MS = 30_000;
 export const VARIATIONS_FETCH_CONCURRENCY = 2;
 const fetchSlots = createConcurrencyLimit(VARIATIONS_FETCH_CONCURRENCY);
-
-export interface VariationDeps {
-    searchCatalogItemsByAsins: ReturnType<
-        typeof createSpApiProvider
-    >['searchCatalogItemsByAsins'];
-}
 
 const defaultDeps: VariationDeps = {
     searchCatalogItemsByAsins: (...args) =>
@@ -60,10 +56,12 @@ const resolveVariations = async (
 ): Promise<ProductVariations | null> => {
     const marketplaceId = request.marketplaceId;
     const requestedAsin = request.asin.toUpperCase();
+    const hardDeadline = Date.now() + request.timeoutMs + VARIATIONS_RESOLVE_GRACE_MS;
     let knownParent: string | null = null;
     let discovered: VariationRole | null = null;
+    let memberRefreshAttempted = false;
 
-    while (true) {
+    while (Date.now() < hardDeadline) {
         const classified = classifyStoredVariations(
             await lookupVariationsByMember(marketplaceId, requestedAsin),
             requestedAsin
@@ -77,7 +75,11 @@ const resolveVariations = async (
         knownParent ??= classified.parentAsin;
 
         if (knownParent === null) {
-            discovered = await discoverRole(marketplaceId, requestedAsin, deps);
+            const discovery = await discoverVariationRole(marketplaceId, requestedAsin, deps);
+            if (discovery.kind === 'unavailable') {
+                return null;
+            }
+            discovered = discovery;
             if (discovered.kind === 'none') {
                 const claimId = randomUUID();
                 const claimed = await claimVariationFetch({
@@ -94,7 +96,7 @@ const resolveVariations = async (
                     });
                     return null;
                 }
-                await new Promise(resolve => setTimeout(resolve, POLL_MS));
+                await sleep(POLL_MS);
                 continue;
             }
             knownParent = discovered.parentAsin;
@@ -106,7 +108,7 @@ const resolveVariations = async (
             if (!(await claimVariationFetch({ marketplaceId, parentAsin, claimId }))) {
                 return { kind: 'claimed-elsewhere' } as const;
             }
-            return await fetchClaimed({
+            return await fetchClaimedVariationFamily({
                 marketplaceId,
                 parentAsin,
                 claimId,
@@ -121,135 +123,49 @@ const resolveVariations = async (
         if (result.kind === 'none') {
             return null;
         }
-        await new Promise(resolve => setTimeout(resolve, POLL_MS));
-    }
-};
 
-const fetchClaimed = async ({
-    marketplaceId,
-    parentAsin,
-    claimId,
-    seed,
-    deps,
-}: {
-    marketplaceId: string;
-    parentAsin: string;
-    claimId: string;
-    seed: Extract<VariationRole, { kind: 'parent' }> | null;
-    deps: VariationDeps;
-}): Promise<
-    { kind: 'ready'; value: ProductVariations } | { kind: 'none' } | { kind: 'superseded' }
-> => {
-    try {
-        let parentRole = seed;
-        if (!parentRole || parentRole.parentAsin !== parentAsin) {
-            const role = await discoverRole(marketplaceId, parentAsin, deps);
-            if (role.kind === 'none') {
-                const saved = await finishVariationFetch({
+        const parentRow = await getStoredVariation({ marketplaceId, parentAsin });
+        if (readyFamilyOmitsMember(parentRow, requestedAsin) && parentRow.fetchedAt) {
+            const ageMs = Date.now() - parentRow.fetchedAt.getTime();
+            if (ageMs < VARIATIONS_MEMBER_REFRESH_MS || memberRefreshAttempted) {
+                return null;
+            }
+            memberRefreshAttempted = true;
+            const claimId = randomUUID();
+            const claimed = await claimVariationFetch({
+                marketplaceId,
+                parentAsin,
+                claimId,
+                allowMemberRefresh: true,
+            });
+            if (!claimed) {
+                return null;
+            }
+            const refreshed = await fetchSlots.run(() =>
+                fetchClaimedVariationFamily({
                     marketplaceId,
                     parentAsin,
                     claimId,
-                    resolution: { kind: 'none' },
-                });
-                return saved ? { kind: 'none' } : { kind: 'superseded' };
-            }
-            if (role.kind === 'child') {
-                throw new Error(
-                    `Expected variation parent ${parentAsin} but catalog named parent ${role.parentAsin}.`
-                );
-            }
-            parentRole = role;
-        }
-
-        const itemsByAsin = new Map<string, unknown>();
-        for (const batch of chunkAsins(parentRole.childAsins)) {
-            const items = parseCatalogItems(
-                await deps.searchCatalogItemsByAsins({
-                    asins: [...batch],
-                    marketplaceId,
-                    priority: 'foreground',
+                    seed: null,
+                    deps,
                 })
             );
-            for (const item of items) {
-                const asin = catalogAsin(item);
-                if (asin) {
-                    itemsByAsin.set(asin, item);
-                }
-            }
-            if (!(await refreshVariationLease({ marketplaceId, parentAsin, claimId }))) {
-                return { kind: 'superseded' };
-            }
+            return refreshed.kind === 'ready' ? refreshed.value : null;
         }
 
-        const family = assembleFamily(parentRole, itemsByAsin, marketplaceId);
-        const saved = await finishVariationFetch({
-            marketplaceId,
-            parentAsin,
-            claimId,
-            resolution: {
-                kind: 'family',
-                theme: family.theme,
-                children: family.children.map(child => ({
-                    asin: child.asin,
-                    attributes: { ...child.attributes },
-                })),
-            },
-        });
-        if (!saved) {
-            return { kind: 'superseded' };
-        }
-        await createEventLogSafe({
-            level: 'info',
-            status: 'success',
-            category: 'product',
-            action: 'product.variations.fetch',
-            primitiveType: 'product',
-            message: `Fetched variation family for ${parentAsin}.`,
-            marketplaceId,
-            asin: parentAsin,
-            detailsJson: {
-                outcome: 'family',
-                childCount: family.children.length,
-                theme: [...family.theme],
-            },
-        });
-        return { kind: 'ready', value: toProductVariations(family, new Date()) };
-    } catch (error) {
-        await failVariationFetch({ marketplaceId, parentAsin, claimId });
-        await createEventLogSafe({
-            level: 'error',
-            status: 'failed',
-            category: 'product',
-            action: 'product.variations.fetch',
-            primitiveType: 'product',
-            message: `Variation fetch failed for ${parentAsin}.`,
-            marketplaceId,
-            asin: parentAsin,
-        });
-        throw new Error(`Product variation fetch failed for ${parentAsin}.`, { cause: error });
+        await sleep(POLL_MS);
     }
+    return null;
 };
 
-const discoverRole = async (
-    marketplaceId: string,
-    asin: string,
-    deps: VariationDeps
-): Promise<VariationRole> => {
-    const items = parseCatalogItems(
-        await deps.searchCatalogItemsByAsins({
-            asins: [asin],
-            marketplaceId,
-            priority: 'foreground',
-        })
-    );
-    const match = items.find(item => catalogAsin(item) === asin.toUpperCase());
-    return match ? readVariationRole(match, marketplaceId) : { kind: 'none' };
-};
+const readyFamilyOmitsMember = (
+    row: Awaited<ReturnType<typeof getStoredVariation>>,
+    requestedAsin: string
+): row is NonNullable<typeof row> & { fetchedAt: Date } =>
+    row !== null &&
+    row.state === 'ready' &&
+    row.kind === 'family' &&
+    row.fetchedAt !== null &&
+    !row.memberAsins.includes(requestedAsin.toUpperCase());
 
-const catalogAsin = (item: unknown): string | null => {
-    if (typeof item !== 'object' || item === null || !('asin' in item)) {
-        return null;
-    }
-    const asin = (item as { asin: unknown }).asin;
-    return typeof asin === 'string' ? asin.toUpperCase() : null;
-};
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

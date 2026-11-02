@@ -1,6 +1,13 @@
 import { z } from 'zod';
+import {
+    catalogKeysForPublicAttribute,
+    publicAttributeKey,
+    uniquePublicThemeKeys,
+} from './product-variations-theme';
 
 export const VARIATION_ASIN_BATCH_SIZE = 20;
+export const VARIATIONS_MAX_CHILDREN = 1000;
+export { publicAttributeKey } from './product-variations-theme';
 
 export interface VariationChild {
     readonly asin: string;
@@ -120,7 +127,7 @@ export const readThemeAttributes = (
     const result: Record<string, string> = {};
     for (const themeAttribute of theme) {
         const key = publicAttributeKey(themeAttribute);
-        const value = firstMarketplaceValue(attributes[themeAttribute], marketplaceId);
+        const value = firstAttributeValue(attributes, marketplaceId, key);
         if (value !== null) {
             result[key] = value;
         }
@@ -128,6 +135,10 @@ export const readThemeAttributes = (
     return result;
 };
 
+/**
+ * Children follow Amazon's childAsins order. A child absent from the catalog response (suppressed
+ * or retired) is kept with empty attributes so defaultChildAsin stays Amazon's first entry.
+ */
 export const assembleFamily = (
     parent: Extract<VariationRole, { kind: 'parent' }>,
     itemsByAsin: ReadonlyMap<string, unknown>,
@@ -136,12 +147,9 @@ export const assembleFamily = (
     const children: VariationChild[] = [];
     for (const childAsin of parent.childAsins) {
         const item = itemsByAsin.get(childAsin);
-        if (!item) {
-            throw new Error(`Variation child ${childAsin} was missing from the catalog response.`);
-        }
         children.push({
             asin: childAsin,
-            attributes: readThemeAttributes(item, marketplaceId, parent.theme),
+            attributes: item ? readThemeAttributes(item, marketplaceId, parent.theme) : {},
         });
     }
     return {
@@ -151,11 +159,23 @@ export const assembleFamily = (
     };
 };
 
+export const truncateChildAsins = (
+    childAsins: readonly string[],
+    maxChildren: number = VARIATIONS_MAX_CHILDREN
+): { readonly childAsins: readonly string[]; readonly truncated: number } => {
+    if (childAsins.length <= maxChildren) {
+        return { childAsins, truncated: 0 };
+    }
+    return {
+        childAsins: childAsins.slice(0, maxChildren),
+        truncated: childAsins.length - maxChildren,
+    };
+};
+
 export const familyMemberAsins = (
     parentAsin: string,
     children: readonly { asin: string }[]
-): readonly string[] =>
-    uniqueUpperAsins([parentAsin, ...children.map(child => child.asin)]);
+): readonly string[] => uniqueUpperAsins([parentAsin, ...children.map(child => child.asin)]);
 
 export const chunkAsins = (
     asins: readonly string[],
@@ -179,24 +199,33 @@ const readThemeNames = (
             ?.map(name => name.trim())
             .filter(Boolean);
         if (attributes && attributes.length > 0) {
-            return attributes;
+            return uniquePublicThemeKeys(attributes);
         }
         const theme = relationship.variationTheme?.theme?.trim();
         if (theme) {
-            return theme
-                .split('/')
-                .map(part => part.trim())
-                .filter(Boolean)
-                .map(part => part.toLowerCase());
+            return uniquePublicThemeKeys(
+                theme
+                    .split('/')
+                    .map(part => part.trim())
+                    .filter(Boolean)
+            );
         }
     }
     return [];
 };
 
-const publicAttributeKey = (themeAttribute: string) => {
-    const trimmed = themeAttribute.trim();
-    const withoutNameSuffix = trimmed.replace(/_name$/i, '');
-    return withoutNameSuffix.toLowerCase();
+const firstAttributeValue = (
+    attributes: Readonly<Record<string, readonly z.infer<typeof AttributeEntrySchema>[] | null>>,
+    marketplaceId: string,
+    publicKey: string
+): string | null => {
+    for (const alias of catalogKeysForPublicAttribute(publicKey)) {
+        const value = firstMarketplaceValue(attributes[alias], marketplaceId);
+        if (value !== null) {
+            return value;
+        }
+    }
+    return null;
 };
 
 const firstMarketplaceValue = (

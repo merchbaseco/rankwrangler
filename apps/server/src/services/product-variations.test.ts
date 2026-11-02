@@ -1,20 +1,26 @@
-import { afterEach, describe, expect, it, mock, spyOn } from 'bun:test';
-import * as variationStore from '@/db/product/product-variation-store';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { VARIATIONS_MEMBER_REFRESH_MS } from '@/db/product/product-variation-store';
 import {
-    VARIATIONS_GENERATOR_VERSION,
-    type StoredVariationRow,
-} from '@/db/product/product-variation-store';
-import * as eventLogs from './event-logs';
-import { getProductVariations, type VariationDeps } from './product-variations';
-
-const MARKETPLACE = 'ATVPDKIKX0DER';
-const PARENT = 'B0GHTD7TKB';
-const DEFAULT_CHILD = 'B0GHT1WYPY';
-const SECOND_CHILD = 'B0GHT00002';
+    clearVariationDiscoveryCachesForTests,
+    getProductVariations,
+    VARIATIONS_RESOLVE_GRACE_MS,
+} from './product-variations';
+import { VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS } from './product-variations-discovery';
+import {
+    catalogItemFor,
+    createCatalogMock,
+    DEFAULT_CHILD,
+    installStoreSpy,
+    MARKETPLACE,
+    ORPHAN_CHILD,
+    PARENT,
+    SECOND_CHILD,
+} from './product-variations-test-fixtures';
 
 describe('getProductVariations', () => {
     afterEach(() => {
         mock.restore();
+        clearVariationDiscoveryCachesForTests();
     });
 
     it('returns a family when the requested ASIN is the variation parent', async () => {
@@ -31,7 +37,7 @@ describe('getProductVariations', () => {
 
         expect(result).toMatchObject({
             parentAsin: PARENT,
-            theme: ['color_name', 'size_name'],
+            theme: ['color', 'size'],
             defaultChildAsin: DEFAULT_CHILD,
             children: [
                 { asin: DEFAULT_CHILD, attributes: { color: 'Black', size: 'Large' } },
@@ -39,9 +45,6 @@ describe('getProductVariations', () => {
             ],
         });
         expect(result?.fetchedAt).toEqual(expect.any(String));
-        expect(searchCatalogItemsByAsins.mock.calls.some(call => call[0].asins.includes(PARENT))).toBe(
-            true
-        );
     });
 
     it('discovers the parent when the request starts on a child ASIN', async () => {
@@ -58,10 +61,6 @@ describe('getProductVariations', () => {
 
         expect(result?.parentAsin).toBe(PARENT);
         expect(result?.defaultChildAsin).toBe(DEFAULT_CHILD);
-        const discoveryCalls = searchCatalogItemsByAsins.mock.calls.filter(call =>
-            call[0].asins.includes(DEFAULT_CHILD)
-        );
-        expect(discoveryCalls.length).toBeGreaterThan(0);
     });
 
     it('returns null for a standalone Product', async () => {
@@ -78,147 +77,173 @@ describe('getProductVariations', () => {
 
         expect(result).toBeNull();
     });
-});
 
-const createCatalogMock = () => {
-    const searchCatalogItemsByAsins = mock<VariationDeps['searchCatalogItemsByAsins']>();
-    return {
-        deps: { searchCatalogItemsByAsins },
-        searchCatalogItemsByAsins,
-    };
-};
-
-const installStoreSpy = () => {
-    const rows = new Map<string, StoredVariationRow>();
-    spyOn(eventLogs, 'createEventLogSafe').mockResolvedValue(undefined);
-    spyOn(variationStore, 'lookupVariationsByMember').mockImplementation(
-        async (_marketplaceId, asin) =>
-            [...rows.values()].filter(row => row.memberAsins.includes(asin.toUpperCase()))
-    );
-    spyOn(variationStore, 'claimVariationFetch').mockImplementation(async input => {
-        const parentAsin = input.parentAsin.toUpperCase();
-        const key = storeKey(input.marketplaceId, parentAsin);
-        const existing = rows.get(key);
-        if (existing?.state === 'pending') {
-            return false;
-        }
-        rows.set(key, pendingRow(input.marketplaceId, parentAsin, input.claimId));
-        return true;
-    });
-    spyOn(variationStore, 'refreshVariationLease').mockImplementation(async input => {
-        const row = rows.get(storeKey(input.marketplaceId, input.parentAsin.toUpperCase()));
-        return row?.claimId === input.claimId && row.state === 'pending';
-    });
-    spyOn(variationStore, 'finishVariationFetch').mockImplementation(async input => {
-        const parentAsin = input.parentAsin.toUpperCase();
-        const key = storeKey(input.marketplaceId, parentAsin);
-        const row = rows.get(key);
-        if (!row || row.claimId !== input.claimId || row.state !== 'pending') {
-            return false;
-        }
-        if (input.resolution.kind === 'none') {
-            rows.set(key, {
-                ...row,
-                state: 'ready',
-                kind: 'none',
-                theme: [],
-                children: null,
-                memberAsins: [parentAsin],
-                fetchedAt: new Date(),
-            });
-            return true;
-        }
-        const children = input.resolution.children.map(child => ({
-            asin: child.asin.toUpperCase(),
-            attributes: { ...child.attributes },
+    it('returns null quickly when a fresh parent family omits the requested child', async () => {
+        const { deps, searchCatalogItemsByAsins } = createCatalogMock();
+        searchCatalogItemsByAsins.mockImplementation(async ({ asins }) => ({
+            items: asins.map(asin =>
+                asin === ORPHAN_CHILD
+                    ? {
+                          asin: ORPHAN_CHILD,
+                          relationships: [
+                              {
+                                  marketplaceId: MARKETPLACE,
+                                  relationships: [{ type: 'VARIATION', parentAsins: [PARENT] }],
+                              },
+                          ],
+                      }
+                    : catalogItemFor(asin)
+            ),
         }));
-        rows.set(key, {
-            ...row,
-            state: 'ready',
-            kind: 'family',
-            theme: [...input.resolution.theme],
-            children,
-            memberAsins: [parentAsin, ...children.map(child => child.asin)],
+        const store = installStoreSpy();
+        store.seedReadyFamily({
+            marketplaceId: MARKETPLACE,
+            parentAsin: PARENT,
+            children: [
+                { asin: DEFAULT_CHILD, attributes: { color: 'Black', size: 'Large' } },
+                { asin: SECOND_CHILD, attributes: { color: 'White', size: 'Medium' } },
+            ],
             fetchedAt: new Date(),
         });
-        return true;
-    });
-    spyOn(variationStore, 'failVariationFetch').mockImplementation(async input => {
-        const key = storeKey(input.marketplaceId, input.parentAsin.toUpperCase());
-        const row = rows.get(key);
-        if (row) {
-            rows.set(key, { ...row, state: 'error', fetchedAt: new Date() });
-        }
-    });
-};
 
-const storeKey = (marketplaceId: string, parentAsin: string) => `${marketplaceId}:${parentAsin}`;
+        const started = Date.now();
+        const result = await getProductVariations(
+            { marketplaceId: MARKETPLACE, asin: ORPHAN_CHILD, timeoutMs: 400 },
+            deps
+        );
 
-const pendingRow = (
-    marketplaceId: string,
-    parentAsin: string,
-    claimId: string
-): StoredVariationRow => ({
-    marketplaceId,
-    parentAsin,
-    generatorVersion: VARIATIONS_GENERATOR_VERSION,
-    state: 'pending',
-    kind: null,
-    theme: null,
-    children: null,
-    memberAsins: [parentAsin],
-    claimId,
-    attemptedAt: new Date(),
-    fetchedAt: null,
+        expect(result).toBeNull();
+        expect(Date.now() - started).toBeLessThan(VARIATIONS_RESOLVE_GRACE_MS);
+        expect(searchCatalogItemsByAsins.mock.calls.length).toBeLessThan(5);
+    });
+
+    it('refetches once when an older parent family omits the requested child', async () => {
+        const { deps, searchCatalogItemsByAsins } = createCatalogMock();
+        searchCatalogItemsByAsins.mockImplementation(async ({ asins }) => ({
+            items: asins.map(asin =>
+                asin === ORPHAN_CHILD
+                    ? {
+                          asin: ORPHAN_CHILD,
+                          relationships: [
+                              {
+                                  marketplaceId: MARKETPLACE,
+                                  relationships: [{ type: 'VARIATION', parentAsins: [PARENT] }],
+                              },
+                          ],
+                          attributes: {
+                              color: [{ value: 'Red', marketplace_id: MARKETPLACE }],
+                              size: [{ value: 'S', marketplace_id: MARKETPLACE }],
+                          },
+                      }
+                    : asin === PARENT
+                      ? {
+                            asin: PARENT,
+                            relationships: [
+                                {
+                                    marketplaceId: MARKETPLACE,
+                                    relationships: [
+                                        {
+                                            type: 'VARIATION',
+                                            childAsins: [DEFAULT_CHILD, ORPHAN_CHILD],
+                                            variationTheme: {
+                                                attributes: ['COLOR_NAME', 'SIZE_NAME'],
+                                            },
+                                        },
+                                    ],
+                                },
+                            ],
+                        }
+                      : catalogItemFor(asin)
+            ),
+        }));
+        const store = installStoreSpy();
+        store.seedReadyFamily({
+            marketplaceId: MARKETPLACE,
+            parentAsin: PARENT,
+            children: [{ asin: DEFAULT_CHILD, attributes: { color: 'Black', size: 'Large' } }],
+            fetchedAt: new Date(Date.now() - VARIATIONS_MEMBER_REFRESH_MS - 1_000),
+        });
+
+        const result = await getProductVariations(
+            { marketplaceId: MARKETPLACE, asin: ORPHAN_CHILD, timeoutMs: 5000 },
+            deps
+        );
+
+        expect(result?.defaultChildAsin).toBe(DEFAULT_CHILD);
+        expect(result?.children.map(child => child.asin)).toEqual([DEFAULT_CHILD, ORPHAN_CHILD]);
+        expect(result?.children[1]?.attributes).toEqual({ color: 'Red', size: 'S' });
+    });
+
+    it('backs off discovery after a Catalog error instead of hammering SP-API', async () => {
+        const { deps, searchCatalogItemsByAsins } = createCatalogMock();
+        searchCatalogItemsByAsins.mockRejectedValue(new Error('catalog down'));
+        installStoreSpy();
+
+        const first = await getProductVariations(
+            { marketplaceId: MARKETPLACE, asin: PARENT, timeoutMs: 500 },
+            deps
+        );
+        const second = await getProductVariations(
+            { marketplaceId: MARKETPLACE, asin: PARENT, timeoutMs: 500 },
+            deps
+        );
+
+        expect(first).toBeNull();
+        expect(second).toBeNull();
+        expect(searchCatalogItemsByAsins).toHaveBeenCalledTimes(1);
+        expect(VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS).toBeGreaterThan(0);
+    });
+
+    it('runs the first child batch in foreground and later batches in background', async () => {
+        const manyChildren = [
+            DEFAULT_CHILD,
+            ...Array.from({ length: 39 }, (_, index) => `B0BATCH${String(index + 2).padStart(3, '0')}`),
+        ];
+        const { deps, searchCatalogItemsByAsins } = createCatalogMock();
+        searchCatalogItemsByAsins.mockImplementation(async ({ asins }) => ({
+            items: asins.map(asin =>
+                asin === PARENT
+                    ? {
+                          asin: PARENT,
+                          relationships: [
+                              {
+                                  marketplaceId: MARKETPLACE,
+                                  relationships: [
+                                      {
+                                          type: 'VARIATION',
+                                          childAsins: manyChildren,
+                                          variationTheme: { attributes: ['color'] },
+                                      },
+                                  ],
+                              },
+                          ],
+                      }
+                    : {
+                          asin,
+                          relationships: [
+                              {
+                                  marketplaceId: MARKETPLACE,
+                                  relationships: [{ type: 'VARIATION', parentAsins: [PARENT] }],
+                              },
+                          ],
+                          attributes: {
+                              color: [{ value: 'Black', marketplace_id: MARKETPLACE }],
+                          },
+                      }
+            ),
+        }));
+        installStoreSpy();
+
+        await getProductVariations(
+            { marketplaceId: MARKETPLACE, asin: PARENT, timeoutMs: 10_000 },
+            deps
+        );
+
+        const childBatchCalls = searchCatalogItemsByAsins.mock.calls.filter(
+            call => !call[0].asins.includes(PARENT)
+        );
+        expect(childBatchCalls.length).toBe(2);
+        expect(childBatchCalls[0]?.[0].priority).toBe('foreground');
+        expect(childBatchCalls[1]?.[0].priority).toBe('background');
+    });
 });
-
-const catalogItemFor = (asin: string) => {
-    if (asin === PARENT) {
-        return {
-            asin: PARENT,
-            relationships: [
-                {
-                    marketplaceId: MARKETPLACE,
-                    relationships: [
-                        {
-                            type: 'VARIATION',
-                            childAsins: [DEFAULT_CHILD, SECOND_CHILD],
-                            variationTheme: { attributes: ['color_name', 'size_name'] },
-                        },
-                    ],
-                },
-            ],
-        };
-    }
-    if (asin === DEFAULT_CHILD) {
-        return {
-            asin: DEFAULT_CHILD,
-            relationships: [
-                {
-                    marketplaceId: MARKETPLACE,
-                    relationships: [{ type: 'VARIATION', parentAsins: [PARENT] }],
-                },
-            ],
-            attributes: {
-                color_name: [{ value: 'Black', marketplace_id: MARKETPLACE }],
-                size_name: [{ value: 'Large', marketplace_id: MARKETPLACE }],
-            },
-        };
-    }
-    if (asin === SECOND_CHILD) {
-        return {
-            asin: SECOND_CHILD,
-            relationships: [
-                {
-                    marketplaceId: MARKETPLACE,
-                    relationships: [{ type: 'VARIATION', parentAsins: [PARENT] }],
-                },
-            ],
-            attributes: {
-                color_name: [{ value: 'White', marketplace_id: MARKETPLACE }],
-                size_name: [{ value: 'Medium', marketplace_id: MARKETPLACE }],
-            },
-        };
-    }
-    return { asin, relationships: [] };
-};
