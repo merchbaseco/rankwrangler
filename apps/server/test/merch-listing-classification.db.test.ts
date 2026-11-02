@@ -71,7 +71,7 @@ describeCatalogDb('Merch-listing classification persistence', () => {
 
         await persistKeepaProduct({
             asin: TEST_ASINS[2],
-            features: [TEE_TEMPLATE],
+            features: ['Tshirt Ruler Set: 8 different size white t shirt rulers'],
             upcList: ['710917774610'],
         });
         expect(await readClassification(TEST_ASINS[2])).toEqual({
