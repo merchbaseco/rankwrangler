@@ -9,7 +9,7 @@ import {
 import { db } from '@/db/index';
 import { familyIdentityKey, resolveFamilyIdentities } from '@/db/product/product-family';
 import { mapStoredProductInfo } from '@/db/product/product-info-mapper';
-import { upsertProductInfo } from '@/db/product/upsert-product';
+import { upsertProductsInfo } from '@/db/product/upsert-product';
 import { deleteSpApiSyncQueueItemsForIdentities } from '@/db/spapi-sync-queue/delete-queue-items';
 import { searchCatalogItemsByAsins } from '@/services/spapi/search-catalog-items-by-asins';
 import type { ProductInfo, SpApiProduct } from '@/types';
@@ -49,13 +49,13 @@ export interface PersistProductSyncResultsInput {
 
 interface PersistProductSyncResultsDeps {
     ensureProductIdentities: typeof ensureProductIdentities;
-    upsertProductInfo: typeof upsertProductInfo;
+    upsertProductsInfo: typeof upsertProductsInfo;
     markProductsDeleted: typeof markProductsDeleted;
 }
 
 const defaultPersistProductSyncResultsDeps: PersistProductSyncResultsDeps = {
     ensureProductIdentities,
-    upsertProductInfo,
+    upsertProductsInfo,
     markProductsDeleted,
 };
 
@@ -65,9 +65,9 @@ export const persistProductSyncResults = async (
 ) => {
     await deps.ensureProductIdentities(identities);
     const fetchedIdentities = new Set(products.map(product => productKey(product)));
-    for (const product of products) {
-        await deps.upsertProductInfo(product);
-    }
+    // One transaction for the batch: each statement is a round trip to the remote database, and a
+    // caller is usually waiting on this save.
+    await deps.upsertProductsInfo(products);
 
     const deletedIdentities = identities.filter(
         identity => !fetchedIdentities.has(productKey(identity))

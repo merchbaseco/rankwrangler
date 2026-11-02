@@ -11,13 +11,14 @@ describe('Product sync persistence', () => {
         const resolvedAt = new Date('2026-08-08T12:00:00.000Z');
         const deps = {
             ensureProductIdentities: mock(() => Promise.resolve(0)),
-            upsertProductInfo: mock(() => Promise.resolve({ id: 'product-id', inserted: false })),
+            upsertProductsInfo: mock(() => Promise.resolve([])),
             markProductsDeleted: mock(() => Promise.resolve(1)),
         };
 
         await persistProductSyncResults({ identities, products, resolvedAt }, deps);
 
-        expect(deps.upsertProductInfo).toHaveBeenCalledWith(products[0]);
+        expect(deps.upsertProductsInfo).toHaveBeenCalledTimes(1);
+        expect(deps.upsertProductsInfo).toHaveBeenCalledWith(products);
         expect(deps.markProductsDeleted).toHaveBeenCalledWith([identities[1]], resolvedAt);
     });
 });
