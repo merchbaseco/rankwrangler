@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.16.0 - 2026-11-02
+
+### Added
+
+- `product.get` accepts `include: ['variations']` (public API, HTTP client, and MCP
+  `rankwrangler_product` get). On request it resolves the Amazon variation family from Catalog
+  Items, returns ordered children with theme attributes, and stores the snapshot for 24 hours.
+  MerchBase BidBeacon and related agents use this to pick an advertisable child ASIN after the
+  Sep 2026 Merch re-parenting. Slow or unfinished enrichment settles as `variations: null` inside
+  the shared 20-second enrichment budget; `getMany`, search, and history never trigger it.
+
 ## v0.15.0 - 2026-11-01
 
 ### Changed
