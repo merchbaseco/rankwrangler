@@ -100,11 +100,20 @@ const rewriteInput = (
     const next = { ...input };
     if ('asin' in next) next.asin = localAsin(next.asin);
     if (Array.isArray(next.products)) {
-        next.products = next.products.map(product =>
-            product && typeof product === 'object'
-                ? { ...product, asin: localAsin((product as { asin?: unknown }).asin) }
-                : product
-        );
+        // Many recorded ASINs map onto one local ASIN; getMany requires unique identities.
+        const seen = new Set<string>();
+        next.products = next.products
+            .map(product =>
+                product && typeof product === 'object'
+                    ? { ...product, asin: localAsin((product as { asin?: unknown }).asin) }
+                    : product
+            )
+            .filter(product => {
+                const key = JSON.stringify(product);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
     }
     if (next.operation === 'results' && typeof next.term === 'string') {
         next.term = `${termPrefix} ${next.term}`;

@@ -14,6 +14,7 @@ read_when:
 | Docker stack, production deployment, and health checks | [Deployment](deployment.md) |
 | Safe production inspection | [Database queries](database-queries.md) |
 | Dashboard API and view-switch latency | [Dashboard latency](dashboard-latency.md) |
+| Agent (MCP) wait time on RankWrangler, replayed locally | [Agent latency replay](agent-latency-replay.md) |
 | PlanetScale restore rehearsal and remote-database cutover | [PlanetScale](planetscale.md) |
 | GitHub Actions failures | [CI troubleshooting](ci-troubleshooting.md) |
 | Version bump, changelog, tag, and GitHub release | [Releases](releases.md) |

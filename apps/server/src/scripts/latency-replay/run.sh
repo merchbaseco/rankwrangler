@@ -7,6 +7,7 @@
 # RW_REPLAY_DATASET    calls.jsonl (default ~/.factory/handoff/rankwrangler-latency/calls.jsonl)
 # RW_REPLAY_PORT       server port (default: dev-port, else 37172)
 # RW_REPLAY_DB_PORT    loopback PostgreSQL port of a seeded database (default 5433)
+# RW_REPLAY_KEEPA_PRODUCT_MS Keepa product (history refresh) latency of the stand-in (default 2000)
 # RW_REPLAY_KEEPA_SEARCH_MS  Keepa search latency the stand-in answers after (default 14000, calibrated so a lone live keyword results call matches production's 16s)
 set -euo pipefail
 
@@ -20,6 +21,7 @@ asins="$(psql -h 127.0.0.1 -p "$db_port" -U postgres -d rankwrangler -At -c "
     select string_agg(asin, ',') from (
         select asin from products
         where marketplace_id = 'ATVPDKIKX0DER' and amazon_listing_status <> 'deleted'
+            and asin like 'B0DEV%'
             and sp_api_fetched_at > timezone('UTC', now()) - interval '36 hours'
         order by asin limit 40) fresh")"
 if [[ -z "$asins" ]]; then
@@ -44,6 +46,11 @@ where display_term like :'prefix';
 delete from operations where type = 'catalogSearch' and status = 'pending'
     and target_key in (select id::text from catalog_queries where display_term like :'prefix');
 SQL
+fi
+
+if curl -s -o /dev/null "http://127.0.0.1:$port/health/live"; then
+    echo "Port $port already answers; stop that server first." >&2
+    exit 1
 fi
 
 cd "$server_dir"

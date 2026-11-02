@@ -1,10 +1,11 @@
 // Preloaded into a local development server by `latency-replay` (`tsx --import`), never imported by
-// the application. Keepa answers from here after a calibrated delay; every other non-loopback host
-// fails closed, so a replay never spends a provider key.
+// the application. Keepa search and product answer from here after calibrated delays; every other
+// non-loopback host fails closed, so a replay never spends a provider key.
 import http from 'node:http';
 import https from 'node:https';
 
 const keepaSearchMs = Number(process.env.RW_REPLAY_KEEPA_SEARCH_MS ?? 14_000);
+const keepaProductMs = Number(process.env.RW_REPLAY_KEEPA_PRODUCT_MS ?? 2000);
 const asins = (process.env.RW_REPLAY_ASINS ?? '').split(',').filter(Boolean);
 const resultsPerSearch = 20;
 const bucket = { refillRate: 100, refillIn: 30_000, tokensLeft: 6000 };
@@ -27,6 +28,15 @@ globalThis.fetch = async (input, init) => {
     }
     if (url.pathname === '/token') {
         return json({ ...bucket, tokensConsumed: 0 });
+    }
+    if (url.pathname === '/product') {
+        await new Promise(resolve => setTimeout(resolve, keepaProductMs));
+        const requested = (url.searchParams.get('asin') ?? '').split(',').filter(Boolean);
+        return json({
+            ...bucket,
+            tokensConsumed: requested.length,
+            products: requested.map(asin => ({ asin, title: `Replay ${asin}`, csv: [] })),
+        });
     }
     if (url.pathname !== '/search') {
         return json({ ...bucket, tokensConsumed: 0, error: { type: 'replayDisabled' } }, 503);
