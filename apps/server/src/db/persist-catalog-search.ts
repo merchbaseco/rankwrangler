@@ -48,6 +48,16 @@ export const persistCatalogSearchSuccess = async ({
     const orderedResults = [...results].sort((left, right) =>
         left.normalized.product.asin.localeCompare(right.normalized.product.asin)
     );
+    // Product rows need neither lock, so they are saved first in their own transaction: every live
+    // search's results wait on the keyword lock, and holding it only for the run keeps parallel
+    // searches from queueing behind each other's Product writes.
+    const productIds = await db.transaction(async transaction => {
+        const ids: string[] = [];
+        for (const result of orderedResults) {
+            ids.push(await persistKeepaProductRow(transaction, result.normalized));
+        }
+        return ids;
+    });
     const saved = await db.transaction(async transaction => {
         await lockKeywordScheduling(transaction);
         await lockCatalogQueryForReconciliation(transaction, queryId);
@@ -63,7 +73,6 @@ export const persistCatalogSearchSuccess = async ({
             )
             .for('update');
         if (!owned) throw new Error('Catalog execution ownership expired.');
-        const productIds: string[] = [];
 
         const [run] = await transaction
             .insert(catalogSearchRuns)
@@ -82,28 +91,30 @@ export const persistCatalogSearchSuccess = async ({
             throw new Error(`Failed to create Catalog Search run for ${queryId}`);
         }
 
-        for (const result of orderedResults) {
-            const productId = await persistKeepaProductRow(transaction, result.normalized);
-            // Variants of one family on a page count once, at the family's first position.
-            const repeated = productIds.includes(productId);
-            productIds.push(productId);
-            if (repeated) continue;
-            const observed = result.normalized.product;
-            await transaction.insert(catalogSearchResults).values({
-                runId: run.id,
-                productId,
-                sourcePosition: result.sourcePosition,
-                observedRootCategoryBsr: observed.keepaCurrentBsr,
-                observedNewPrice: observed.keepaCurrentNewPrice,
-                observedMonthlySold: observed.keepaMonthlySold,
-                observedBsrAverage30: observed.keepaBsrAverage30,
-                observedBsrAverage90: observed.keepaBsrAverage90,
-                observedSalesRankDrops30: observed.keepaSalesRankDrops30,
-                observedSalesRankDrops90: observed.keepaSalesRankDrops90,
-                observedSalesRankDrops180: observed.keepaSalesRankDrops180,
-                observedSalesRankDrops365: observed.keepaSalesRankDrops365,
-                observedSourceUpdatedAt: observed.keepaSourceUpdatedAt,
-            });
+        // Variants of one family on a page count once, at the family's first position.
+        const firstPositions = orderedResults.flatMap((result, index) =>
+            productIds.indexOf(productIds[index]) === index
+                ? [{ productId: productIds[index], observed: result }]
+                : []
+        );
+        if (firstPositions.length > 0) {
+            await transaction.insert(catalogSearchResults).values(
+                firstPositions.map(({ productId, observed: { sourcePosition, normalized } }) => ({
+                    runId: run.id,
+                    productId,
+                    sourcePosition,
+                    observedRootCategoryBsr: normalized.product.keepaCurrentBsr,
+                    observedNewPrice: normalized.product.keepaCurrentNewPrice,
+                    observedMonthlySold: normalized.product.keepaMonthlySold,
+                    observedBsrAverage30: normalized.product.keepaBsrAverage30,
+                    observedBsrAverage90: normalized.product.keepaBsrAverage90,
+                    observedSalesRankDrops30: normalized.product.keepaSalesRankDrops30,
+                    observedSalesRankDrops90: normalized.product.keepaSalesRankDrops90,
+                    observedSalesRankDrops180: normalized.product.keepaSalesRankDrops180,
+                    observedSalesRankDrops365: normalized.product.keepaSalesRankDrops365,
+                    observedSourceUpdatedAt: normalized.product.keepaSourceUpdatedAt,
+                }))
+            );
         }
 
         await acceptKeywordObservation(transaction, {
