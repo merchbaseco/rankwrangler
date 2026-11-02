@@ -175,6 +175,17 @@ do not reach back a week); Products without a point on both sides are left out, 
 when none compare. The sample runs alongside the aggregate. Results are fresh per filter for 60
 seconds per process, then served for up to 30 minutes while a background read replaces them.
 
+`api.app.product.searchSeasonality` takes the same input and returns Explore's seasonality chart:
+estimated units sold a week over the last 52 whole weeks, oldest first, the last ending at today's
+UTC midnight. It samples the first 1,000 matches in UUID order and reads each one's `bsr_main`
+series, thinned in the database to the last point of each UTC day (weeks end at midnight, so
+nothing else can be in force at a week's end). Each week takes the rank in force at its end,
+converts it through the rank-to-sales curve below (monthly median ÷ 30.4375 × 7), and sums the
+designs with a rank then; `designs` says how many, and a week with none is null. The whole result
+is null while no curve is fitted or no sampled design has history. The bucketing is the pure
+`bucketSeasonality` in `services/search-seasonality.ts`. Results are fresh per filter for an hour,
+then served for up to six more while a background read replaces them.
+
 Indexes these reads lean on: `products_marketplace_bsr_idx` (tier ranges and rank sorts),
 `products_marketplace_first_available_idx` (published windows and first-available sorts),
 `products_search_document_idx` (text), and the `product_facets` primary key (niche probes). At

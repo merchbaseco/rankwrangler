@@ -34,7 +34,10 @@ export const REFERENCE_BSR = 300_000;
 export const BADGE_FLOOR = 50;
 
 /** The median monthly sales the curve gives a rank. */
-export const curveMedianSales = (curve: SalesCurve, bsr: number) =>
+export const curveMedianSales = (
+    curve: Pick<SalesCurve, 'intercept' | 'headSlope' | 'tailSlope'>,
+    bsr: number
+) =>
     Math.exp(
         curve.intercept +
             (bsr < REFERENCE_BSR ? curve.headSlope : curve.tailSlope) *

@@ -3,6 +3,7 @@ import type { ProductSearchFacetsInput } from '@/api/product-search-input';
 import { runBackground } from '@/db/index';
 import { readKeywordDirectoryFacets } from '@/db/keyword-directory-facets';
 import { readProductSearchFacets } from '@/db/product-search-facets';
+import { readProductSearchSeasonality } from '@/db/product-search-seasonality';
 import { createSwrCache } from '@/utils/swr-cache';
 
 /**
@@ -15,6 +16,19 @@ const productFacets = createSwrCache<Awaited<ReturnType<typeof readProductSearch
     maxEntries: 200,
     runRefresh: runBackground,
 });
+
+/**
+ * Explore's seasonality chart, from years of sampled rank history that barely moves in an hour.
+ * Fresh for an hour, then served at once for up to six more while a background read replaces it.
+ */
+const productSeasonality = createSwrCache<Awaited<ReturnType<typeof readProductSearchSeasonality>>>(
+    {
+        freshMs: 3_600_000,
+        staleMs: 6 * 3_600_000,
+        maxEntries: 200,
+        runRefresh: runBackground,
+    }
+);
 
 /**
  * The Keywords sidebar counts and KPI band. Directory status moves with live work, so a value is
@@ -30,6 +44,9 @@ const keywordFacets = createSwrCache<Awaited<ReturnType<typeof readKeywordDirect
 
 export const readCachedProductSearchFacets = (input: ProductSearchFacetsInput) =>
     productFacets(JSON.stringify(input), () => readProductSearchFacets(input));
+
+export const readCachedProductSearchSeasonality = (input: ProductSearchFacetsInput) =>
+    productSeasonality(JSON.stringify(input), () => readProductSearchSeasonality(input));
 
 export const readCachedKeywordDirectoryFacets = (input: KeywordDirectoryFacetsInput) =>
     keywordFacets(JSON.stringify(input), () => readKeywordDirectoryFacets(input));

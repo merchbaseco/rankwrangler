@@ -25,6 +25,7 @@ import { productSalesCurve } from './product-sales-curve';
 import { productSearch } from './product-search';
 import { productSearchFacets } from './product-search-facets';
 import { productSearchMetadata } from './product-search-metadata';
+import { productSearchSeasonality } from './product-search-seasonality';
 import { productSyncCompleted } from './product-sync-completed';
 import { providerTelemetryGet } from './provider-telemetry-get';
 import { statsSummary } from './stats-summary';
@@ -80,6 +81,7 @@ export const appApiRouter = router({
         salesCurve: productSalesCurve,
         searchFacets: productSearchFacets,
         searchMetadata: productSearchMetadata,
+        searchSeasonality: productSearchSeasonality,
         sync: router({
             completed: productSyncCompleted,
         }),
