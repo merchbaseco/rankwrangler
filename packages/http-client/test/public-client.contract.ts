@@ -51,7 +51,14 @@ export type ProductGetManyOutputKeysContract = Assert<
 export type ProductOutputContract = Assert<
     Equal<
         keyof ProductOutput,
-        'marketplaceId' | 'asin' | 'listing' | 'category' | 'salesRank' | 'price' | 'demand'
+        | 'marketplaceId'
+        | 'asin'
+        | 'listing'
+        | 'variations'
+        | 'category'
+        | 'salesRank'
+        | 'price'
+        | 'demand'
     >
 >;
 export type ProductHistoryInputContract = Assert<

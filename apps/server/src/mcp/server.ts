@@ -93,14 +93,14 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
             annotations: readOnlyToolAnnotations,
             description:
                 'Read RankWrangler Product data synchronously. operation=get uses asin and ' +
-                'marketplaceId and accepts include=[marketData,shortName,cutoutThumbnail]. ' +
-                'get waits up to 20s for requested shortName/cutoutThumbnail generation; a field ' +
+                'marketplaceId and accepts include=[marketData,shortName,cutoutThumbnail,variations]. ' +
+                'get waits up to 20s for requested shortName/cutoutThumbnail/variations generation; a field ' +
                 'still generating or failed at that deadline returns as none (shortName null, ' +
-                'cutoutThumbnail {status:unavailable}) and a later get returns it, so never ' +
+                'cutoutThumbnail {status:unavailable}, variations null) and a later get returns it, so never ' +
                 'retry get just for enrichment. ' +
                 'getMany uses products and returns fixed-shape basic title and ' +
                 'thumbnail data for up to 200 identities without include; request ' +
-                'shortName or cutoutThumbnail with get. get and getMany return a known ' +
+                'shortName, cutoutThumbnail, or variations with get. get and getMany return a known ' +
                 "Product's last-known listing data at once and refresh it in the background; " +
                 'they wait only for Products RankWrangler has never resolved. In getMany results, ' +
                 'amazonListingStatus is active or deleted. active means the Amazon detail-page ' +

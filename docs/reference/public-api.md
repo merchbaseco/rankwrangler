@@ -64,7 +64,7 @@ There is no public Catalog, Operation, polling, or provider-health namespace.
 ## Product
 
 `product.get` accepts `marketplaceId`, a ten-character alphanumeric `asin` normalized to uppercase,
-and optional `include: Array<'marketData' | 'shortName' | 'cutoutThumbnail'>` (default `['marketData']`). It returns one Product rather than a
+and optional `include: Array<'marketData' | 'shortName' | 'cutoutThumbnail' | 'variations'>` (default `['marketData']`). It returns one Product rather than a
 summary/history composite:
 
 ```ts
@@ -87,6 +87,7 @@ type Product = {
         isMerchListing: boolean;
         amazonListingStatus: 'active' | 'deleted';
     };
+    variations: ProductVariations | null;
     category: { id: number; name: string | null } | null;
     salesRank: {
         current: number | null;
@@ -106,7 +107,23 @@ type Product = {
         };
     };
 };
+
+type ProductVariations = {
+    parentAsin: string;
+    theme: string[];
+    defaultChildAsin: string;
+    children: Array<{ asin: string; attributes: Record<string, string> }>;
+    fetchedAt: string;
+};
 ```
+
+`variations` is `null` unless the caller includes `variations`. MerchBase BidBeacon and related agents
+depend on this enrichment for variation-aware bidding; treat it as a supported public contract, not
+an experimental opt-in. When included, RankWrangler reads Amazon Catalog variation relationships at
+foreground priority, preserves Amazon's child order (the first child is `defaultChildAsin`), maps
+theme attribute keys to public names (`color_name` → `color`), stores the family for 24 hours, and
+reuses it across concurrent callers. Standalone Products settle as `null`. Slow or failed variation
+fetch within the enrichment deadline also settles as `null` while background work may continue.
 
 `bulletPoints` is always an array; a current Product with no bullets returns `[]`. For nullable
 measurements, `null` means valid data is unavailable. It never means zero, failure, or pending work.
@@ -136,16 +153,18 @@ or generation fails. The original `thumbnail` remains the listing photo. A reque
 stored in R2 and reused while the source URL and generator version are unchanged;
 generation failures do not prevent the Product or a requested short name from returning. A caller
 displaying chips can request `include: ['shortName', 'cutoutThumbnail']` without Keepa market data.
+Bid and catalog agents can request `include: ['variations']` (alone or with other chips) for
+variation family metadata without market data when appropriate.
 `getMany`, search, and history do not generate cutouts.
 
-`get` answers enrichment in one call. With `shortName` or `cutoutThumbnail` included, it waits for
-that generation, up to a 20-second enrichment budget that starts once the listing is resolved and
-includes time queued behind the server's generation concurrency limits. A field still generating
-at the deadline, or whose generation failed within the last five minutes, returns as none for this
-response (`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`); generation keeps
-running, so a later `get` returns the finished value. Slow or failed enrichment never produces a
-`TIMEOUT` or asks the caller to retry. Concurrent requests for the same Product share one
-generation.
+`get` answers enrichment in one call. With `shortName`, `cutoutThumbnail`, or `variations` included,
+it waits for that generation, up to a 20-second enrichment budget that starts once the listing is
+resolved and includes time queued behind the server's generation concurrency limits. A field still
+generating at the deadline, or whose generation failed within the recent retry window, returns as
+none for this response (`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`,
+`variations: null`); generation keeps running, so a later `get` returns the finished value. Slow or
+failed enrichment never produces a `TIMEOUT` or asks the caller to retry. Concurrent requests for
+the same Product share one generation.
 
 ## Basic Products
 

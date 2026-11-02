@@ -42,7 +42,12 @@ export const productSummaryInput = z.object({
     refresh: z.boolean().default(false),
 });
 
-export const productGetIncludes = ['marketData', 'shortName', 'cutoutThumbnail'] as const;
+export const productGetIncludes = [
+    'marketData',
+    'shortName',
+    'cutoutThumbnail',
+    'variations',
+] as const;
 export type ProductGetInclude = (typeof productGetIncludes)[number];
 
 export const productGetInput = productIdentityInput

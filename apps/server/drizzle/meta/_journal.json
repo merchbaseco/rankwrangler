@@ -477,6 +477,13 @@
       "when": 1793565712625,
       "tag": "0067_drop_spapi_catalog_capacity",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1793662632068,
+      "tag": "0068_product_variations",
+      "breakpoints": true
     }
   ]
 }
