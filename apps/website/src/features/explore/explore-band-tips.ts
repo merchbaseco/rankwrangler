@@ -1,4 +1,4 @@
-import { formatCount, formatShortDate } from '@/features/bsr/bsr-format';
+import { formatBsrCompact, formatCompact, formatCount, formatShortDate } from '@/features/bsr/bsr-format';
 import { type BsrTier, bsrTierDefinitions } from '@/features/bsr/bsr-tier';
 
 /**
@@ -69,6 +69,35 @@ export const soldBucketTip = (
               ? `under ${formatCount(bucket.max)}`
               : `${formatCount(bucket.min)}–${formatCount(bucket.max - 1)}`;
     return `${designs(bucket.count)} · ${range}/mo`;
+};
+
+/**
+ * The two ends of each band, named under it so its scale reads without
+ * hovering (user feedback: the published band only read as a month once
+ * hovered). Null while a band has no buckets.
+ */
+
+/** `#1` … `#2M+`: the BSR histogram runs best rank to worst. */
+export const bsrAxis = (buckets: readonly { readonly bucketMax: number }[]) => {
+    const low = buckets.at(-2)?.bucketMax;
+    return low === undefined ? null : (['#1', `${formatBsrCompact(low + 1)}+`] as const);
+};
+
+/** `<100/mo` … `50K+/mo`: the sold histogram's first and open last badge steps. */
+export const soldAxis = (
+    buckets: readonly { readonly max: number | null; readonly min: number }[]
+) => {
+    const first = buckets[0];
+    const last = buckets.at(-1);
+    return first?.max && last
+        ? ([`<${formatCompact(first.max)}/mo`, `${formatCompact(last.min)}+/mo`] as const)
+        : null;
+};
+
+/** `Sep 4` … `Today`: the published series' first day, then today. */
+export const publishedAxis = (days: readonly { readonly day: string }[]) => {
+    const first = days[0];
+    return first ? ([formatShortDate(`${first.day}T00:00:00Z`), 'Today'] as const) : null;
 };
 
 const designs = (count: number) => `${formatCount(count)} ${count === 1 ? 'design' : 'designs'}`;

@@ -13,9 +13,12 @@ import { bandValueIndex, dotMatrixGeometry } from './dot-matrix-geometry';
  * `--dot-off`, which is transparent on paper (the light mock shows only the
  * shape). It measures the cell and draws at that pixel width, so dots stay
  * round whatever the column widths are. With `tooltip`, the pointer reads the
- * value under it (a bucket, a day) in a mouse-following tooltip.
+ * value under it (a bucket, a day) in a mouse-following tooltip. With
+ * `axis`, the band's two ends are named under it (`#1` … `#2M+`) so its scale
+ * reads without hovering.
  */
 export const DotMatrixBand = ({
+    axis,
     height = 58,
     ink = 'accent',
     keyClass,
@@ -25,6 +28,8 @@ export const DotMatrixBand = ({
     tooltip,
     values,
 }: {
+    /** What the first and last columns stand for, drawn under the band. */
+    axis?: readonly [ReactNode, ReactNode];
     height?: number;
     /** The single-series ink (`band-ink-*`; `tier` takes the enclosing tier scope), when no `keys`. */
     ink?: 'accent' | 'steady' | 'elite' | 'tier';
@@ -88,6 +93,12 @@ export const DotMatrixBand = ({
             ) : (
                 drawing
             )}
+            {axis ? (
+                <span aria-hidden className="dot-band__axis">
+                    <span>{axis[0]}</span>
+                    <span>{axis[1]}</span>
+                </span>
+            ) : null}
         </span>
     );
 };

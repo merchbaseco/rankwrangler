@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import {
+    bsrAxis,
     bsrBucketTip,
     improvingTip,
+    publishedAxis,
     publishedDayTip,
+    soldAxis,
     soldBucketTip,
 } from './explore-band-tips';
 
@@ -36,5 +39,24 @@ describe('explore band tooltips', () => {
         expect(soldBucketTip(buckets, 1)).toBe('1 design · 1,000–1,999/mo');
         expect(soldBucketTip(buckets, 2)).toBe('4 designs · 50,000+/mo');
         expect(soldBucketTip(buckets, 3)).toBeNull();
+    });
+
+    test('each band names its two ends', () => {
+        expect(bsrAxis([{ bucketMax: 2500 }, { bucketMax: 2_000_000 }, { bucketMax: 5_000_000 }])).toEqual(
+            ['#1', '#2M+']
+        );
+        expect(bsrAxis([])).toBeNull();
+        expect(
+            soldAxis([
+                { max: 100, min: 0 },
+                { max: null, min: 50_000 },
+            ])
+        ).toEqual(['<100/mo', '50K+/mo']);
+        expect(soldAxis([])).toBeNull();
+        expect(publishedAxis([{ day: '2026-09-04' }, { day: '2026-11-02' }])).toEqual([
+            'Sep 4',
+            'Today',
+        ]);
+        expect(publishedAxis([])).toBeNull();
     });
 });

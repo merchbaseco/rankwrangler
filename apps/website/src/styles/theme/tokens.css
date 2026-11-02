@@ -90,6 +90,8 @@
     --text-4xl--line-height: var(--text-2xl--line-height);
     /* The Product page's name heading (mock: 18px Onest, 650). */
     --text-title: 1.125rem;
+    /* Axis captions under KPI bands and charts: the one size below the body scale. */
+    --text-axis: 0.6875rem;
 
     /*
      * Pane layout (Product, Logs): a 24px line plus its rule for pane bars,

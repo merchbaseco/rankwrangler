@@ -39,6 +39,20 @@
         fill: var(--band-ink);
     }
 
+    /* The band's two ends named under it, in the figures face, small and muted. */
+    .dot-band__axis {
+        display: flex;
+        justify-content: space-between;
+        gap: calc(var(--spacing-base) * 2);
+        padding-inline: calc(var(--spacing-base) * 1.5);
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: var(--text-axis);
+        font-variant-numeric: tabular-nums;
+        line-height: 1rem;
+        white-space: nowrap;
+    }
+
     .halftone-spark {
         display: block;
     }

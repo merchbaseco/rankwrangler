@@ -1,3 +1,4 @@
+import { Tooltip } from '@heroui/react';
 import { KPI } from '@heroui-pro/react/kpi';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
@@ -7,13 +8,15 @@ import { cn } from '@/lib/utils';
  * figure with a muted suffix, then the cell's dot band (or the hatch over the
  * name columns) below a hairline. The group lays out on the grid's column
  * template (`grid-kpis--explore` etc., grid.css) and `span` names the column
- * group a cell covers, so its edges meet the grid's own.
+ * group a cell covers, so its edges meet the grid's own. With `hint`, the
+ * title underlines and says on hover what the figure and band measure.
  */
 export const GridKpi = ({
     actions,
     band,
     dot,
     figure,
+    hint,
     span,
     suffix,
     title,
@@ -26,6 +29,8 @@ export const GridKpi = ({
     dot?: string;
     /** The figure: a `KPI.Value` (see `KpiFigure`). */
     figure: ReactNode;
+    /** What the cell measures and how its band reads, shown from the title. */
+    hint?: ReactNode;
     span: string;
     suffix?: ReactNode;
     title: ReactNode;
@@ -33,7 +38,18 @@ export const GridKpi = ({
     <KPI className={cn('grid-kpi', `grid-kpi--${span}`)}>
         <KPI.Header>
             {dot ? <span aria-hidden className={cn('kpi-dot', dot)} /> : null}
-            <KPI.Title>{title}</KPI.Title>
+            {hint ? (
+                <Tooltip delay={300}>
+                    <Tooltip.Trigger className="grid-kpi__hinted">
+                        <KPI.Title>{title}</KPI.Title>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content className="grid-kpi__hint" placement="bottom">
+                        {hint}
+                    </Tooltip.Content>
+                </Tooltip>
+            ) : (
+                <KPI.Title>{title}</KPI.Title>
+            )}
             {actions}
         </KPI.Header>
         <KPI.Content>

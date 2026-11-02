@@ -168,6 +168,18 @@
         background-color: var(--band-ink);
     }
 
+    /* A title that explains its cell on hover: dotted underline, help cursor, no button chrome. */
+    .grid-kpi__hinted {
+        min-width: 0;
+        cursor: help;
+        text-decoration: underline dotted var(--border);
+        text-underline-offset: 0.25em;
+    }
+
+    .grid-kpi__hint {
+        max-width: 18rem;
+    }
+
     /* The figure's muted unit or context after it. */
     .grid-kpi__suffix {
         min-width: 0;
