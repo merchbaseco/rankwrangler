@@ -116,9 +116,11 @@ to SP-API.
 - A status change notifies the keyword directory rows that list the Product.
 - Merging two family rows keeps Merch if either row is Merch.
 
-`bun run merch:reclassify` (from `apps/server`) re-fetches every active US Product through the ASIN
-catalog search, so the parent fallback applies, and writes through the Product upsert, which
-promotes and demotes alike. It keeps `--dry-run`, `--after <ASIN>` and `--limit <n>`.
+`bun run merch:reclassify` (from `apps/server`) starts a server job that re-fetches every active US
+Product through the ASIN catalog search, so the parent fallback applies, and writes through the
+Product upsert, which promotes and demotes alike. It keeps `--dry-run`, `--after <ASIN>` and
+`--limit <n>`. The work runs in the server, not the script, because the Catalog limiter lives in
+the server process: a script with its own limiter doubled the request rate and drew 429s.
 
 ### Why part numbers were dropped
 

@@ -70,20 +70,22 @@ status metadata.
 
 ### Reclassification
 
-`bun run merch:reclassify` (from `apps/server`, wrapped in `varlock run`) re-fetches every active
-US Product, whatever its stored status, 20 ASINs per call through `searchCatalogItemsByAsins` so
-the parent fallback applies, and writes through the ordinary Product upsert, where the latest
-verdict wins. Its calls are background Catalog requests: they yield to foreground lookups and wait
-while automatic sync is paused. The script runs its own Catalog limiter in its own process, so
-while the server also scans, the two together can exceed the background share until 429s slow
-both down. Flags: `--dry-run` prints `before->after` transition counts (`merch`,
-`nonMerch`, `missing`) without writing, `--after <ASIN>` resumes, and `--limit <n>` bounds the run.
-Each batch logs the ASINs whose status changes. ASINs the provider does not return are counted as
-`missing` and left untouched.
+`bun run merch:reclassify` (from `apps/server`, wrapped in `varlock run`) starts a run that
+re-fetches every active US Product, whatever its stored status, 20 ASINs per call through
+`searchCatalogItemsByAsins` so the parent fallback applies, and writes through the ordinary Product
+upsert, where the latest verdict wins. The script only queues the `reclassify-merch-listings` job;
+the server does the work, 500 Products per job, each job queuing the next. Its calls therefore go
+through the server's one Catalog limiter as background requests: they share the background rate
+with keyword scans, yield to foreground lookups, and wait while automatic sync is paused. Only one
+run is queued at a time, and a deploy only delays it. Flags: `--dry-run` counts `before->after`
+transitions (`merch`, `nonMerch`, `missing`) without writing, `--after <ASIN>` resumes, and
+`--limit <n>` bounds the run. Each job's output in `job_executions` carries the resume point and
+running totals; its log lists the ASINs whose status changed. ASINs the provider does not return
+are counted as `missing` and left untouched.
 
 Production secrets resolve only on the deploy path, so the server build also emits
-`dist/scripts/reclassify-merch-listings.js` (`vite.scripts.config.ts`). Run it inside the
-production server container, which carries the environment:
+`dist/scripts/reclassify-merch-listings.js` (`vite.scripts.config.ts`). Start a production run
+from inside the server container, which carries the environment:
 
 ```bash
 docker exec rankwrangler-server node dist/scripts/reclassify-merch-listings.js --dry-run --limit 1000

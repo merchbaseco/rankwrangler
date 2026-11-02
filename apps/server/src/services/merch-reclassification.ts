@@ -12,34 +12,38 @@ export interface MerchReclassificationDeps {
     readBatch: (afterAsin: string, limit: number) => Promise<StoredMerchListing[]>;
     fetchProducts: (asins: string[]) => Promise<SpApiProduct[]>;
     writeProducts: (products: SpApiProduct[]) => Promise<void>;
-    sleep: (ms: number) => Promise<void>;
     log: (message: string) => void;
 }
 
 /**
- * Re-fetches stored listings in SP-API batches and writes them back through the Product upsert,
- * where the latest verdict wins: fresh evidence promotes and demotes alike. A dry run fetches and
- * tallies without writing. Transition keys read `before->after`; a listing SP-API didn't return
- * is `missing` and keeps its stored status.
+ * Re-fetches up to `limit` stored listings in SP-API batches and writes them back through the
+ * Product upsert, where the latest verdict wins: fresh evidence promotes and demotes alike. A dry
+ * run fetches and tallies without writing. Transition keys read `before->after`; a listing SP-API
+ * didn't return is `missing` and keeps its stored status. A paused sync stops the run before the
+ * batch it interrupted, so `lastAsin` is where the next run resumes.
  */
 export const reclassifyMerchListings = async (
-    input: { afterAsin: string; limit: number | null; dryRun: boolean },
+    input: { afterAsin: string; limit: number; dryRun: boolean },
     deps: MerchReclassificationDeps
 ) => {
     const transitions = new Map<string, number>();
     let afterAsin = input.afterAsin;
     let checked = 0;
-    while (input.limit === null || checked < input.limit) {
-        const size = Math.min(
-            MERCH_RECLASSIFICATION_BATCH_SIZE,
-            (input.limit ?? Number.POSITIVE_INFINITY) - checked
-        );
+    let exhausted = false;
+    let paused = false;
+    while (checked < input.limit) {
+        const size = Math.min(MERCH_RECLASSIFICATION_BATCH_SIZE, input.limit - checked);
         const stored = await deps.readBatch(afterAsin, size);
-        if (!stored.length) break;
-        const fetched = await fetchUnlessPaused(
-            stored.map(row => row.asin),
-            deps
-        );
+        let fetched: SpApiProduct[] = [];
+        if (stored.length) {
+            try {
+                fetched = await deps.fetchProducts(stored.map(row => row.asin));
+            } catch (error) {
+                if (!(error instanceof SyncPausedError)) throw error;
+                paused = true;
+                break;
+            }
+        }
         const byAsin = new Map(fetched.map(product => [product.asin, product]));
         const changed = new Map<string, string[]>();
         for (const row of stored) {
@@ -56,26 +60,20 @@ export const reclassifyMerchListings = async (
             deps.log(`${input.dryRun ? 'would change' : 'changed'} ${key}: ${asins.join(',')}`);
         }
         checked += stored.length;
-        afterAsin = stored[stored.length - 1].asin;
-        deps.log(`checked ${checked} through ${afterAsin}`);
-    }
-    return { checked, lastAsin: afterAsin, transitions: Object.fromEntries(transitions) };
-};
-
-// Background Catalog calls wait their turn in the limiter; only a paused sync stops them, so the
-// run holds its place and checks again each minute.
-const fetchUnlessPaused = async (asins: string[], deps: MerchReclassificationDeps) => {
-    while (true) {
-        try {
-            return await deps.fetchProducts(asins);
-        } catch (error) {
-            if (!(error instanceof SyncPausedError)) throw error;
-            deps.log(`sync paused; waiting ${pausedRetryMs}ms`);
-            await deps.sleep(pausedRetryMs);
+        if (stored.length) afterAsin = stored[stored.length - 1].asin;
+        if (stored.length < size) {
+            exhausted = true;
+            break;
         }
     }
+    deps.log(`checked ${checked} through ${afterAsin}${paused ? '; sync paused' : ''}`);
+    return {
+        checked,
+        lastAsin: afterAsin,
+        exhausted,
+        paused,
+        transitions: Object.fromEntries(transitions),
+    };
 };
-
-const pausedRetryMs = 60_000;
 
 const label = (isMerchListing: boolean) => (isMerchListing ? 'merch' : 'nonMerch');

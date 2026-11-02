@@ -15,6 +15,7 @@ import { startRegisteredJobs } from '@/jobs/job-router.js';
 import { processKeepaHistoryRefreshQueueJob } from '@/jobs/process-keepa-history-refresh-queue.js';
 import { processProductFacetClassificationJob } from '@/jobs/process-product-facet-classification.js';
 import { processSpApiSyncQueueJob } from '@/jobs/process-spapi-sync-queue.js';
+import { reclassifyMerchListingsJob } from '@/jobs/reclassify-merch-listings';
 import { pruneJobExecutionsJob } from '@/jobs/prune-job-executions';
 import { pruneProviderAttemptsJob } from '@/jobs/prune-provider-attempts';
 import { recoverStaleCatalogSearchOperationsJob } from '@/jobs/recover-stale-catalog-search-operations';
@@ -39,6 +40,7 @@ const registeredJobs = [
     processProductFacetClassificationJob,
     processSpApiSyncQueueJob,
     backfillProductVariationsJob,
+    reclassifyMerchListingsJob,
     pruneProviderAttemptsJob,
     pruneJobExecutionsJob,
     reprocessStaleProductsJob,

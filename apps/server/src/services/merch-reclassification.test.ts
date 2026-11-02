@@ -42,19 +42,17 @@ const fetched = (asin: string, isMerchListing: boolean): SpApiProduct => ({
 
 const harness = (options: { deferFirst?: boolean } = {}) => {
     const writes: SpApiProduct[][] = [];
-    const sleeps: number[] = [];
     const reads: Array<[string, number]> = [];
     const logs: string[] = [];
     let deferred = options.deferFirst ?? false;
     return {
         writes,
-        sleeps,
         reads,
         logs,
         deps: {
             readBatch: async (after: string, limit: number) => {
                 reads.push([after, limit]);
-                return stored.filter(row => row.asin > after).slice(0, Math.min(limit, 2));
+                return stored.filter(row => row.asin > after).slice(0, limit);
             },
             fetchProducts: async (asins: string[]) => {
                 if (deferred) {
@@ -68,9 +66,6 @@ const harness = (options: { deferFirst?: boolean } = {}) => {
             writeProducts: async (products: SpApiProduct[]) => {
                 writes.push(products);
             },
-            sleep: async (ms: number) => {
-                sleeps.push(ms);
-            },
             log: (message: string) => {
                 logs.push(message);
             },
@@ -82,13 +77,15 @@ describe('reclassifyMerchListings', () => {
     it('tallies promotions and demotions without writing on a dry run', async () => {
         const run = harness();
         const result = await reclassifyMerchListings(
-            { afterAsin: '', limit: null, dryRun: true },
+            { afterAsin: '', limit: 10, dryRun: true },
             run.deps
         );
 
         expect(result).toEqual({
             checked: 5,
             lastAsin: 'B0TST00005',
+            exhausted: true,
+            paused: false,
             transitions: {
                 'nonMerch->merch': 1,
                 'merch->nonMerch': 1,
@@ -104,27 +101,40 @@ describe('reclassifyMerchListings', () => {
         ]);
     });
 
-    it('writes every fetched batch, honors the limit, and waits out a paused sync', async () => {
-        const run = harness({ deferFirst: true });
+    it('writes what it fetched and stops at the limit', async () => {
+        const run = harness();
         const result = await reclassifyMerchListings(
             { afterAsin: '', limit: 3, dryRun: false },
             run.deps
         );
 
-        expect(result.checked).toBe(3);
-        expect(run.reads).toEqual([
-            ['', 3],
-            ['B0TST00002', 1],
-        ]);
-        expect(run.sleeps).toHaveLength(1);
+        expect(result).toMatchObject({ checked: 3, lastAsin: 'B0TST00003', exhausted: false });
+        expect(run.reads).toEqual([['', 3]]);
         expect(
             run.writes.map(batch => batch.map(product => [product.asin, product.isMerchListing]))
         ).toEqual([
             [
                 ['B0TST00001', true],
                 ['B0TST00002', false],
+                ['B0TST00003', false],
             ],
-            [['B0TST00003', false]],
         ]);
+    });
+
+    it('stops before the batch a paused sync interrupted, so the next run resumes there', async () => {
+        const run = harness({ deferFirst: true });
+        const result = await reclassifyMerchListings(
+            { afterAsin: 'B0TST00001', limit: 10, dryRun: false },
+            run.deps
+        );
+
+        expect(result).toEqual({
+            checked: 0,
+            lastAsin: 'B0TST00001',
+            exhausted: false,
+            paused: true,
+            transitions: {},
+        });
+        expect(run.writes).toEqual([]);
     });
 });

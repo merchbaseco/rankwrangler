@@ -1,65 +1,53 @@
-import { and, asc, eq, gt } from 'drizzle-orm';
-import { db } from '@/db/index';
-import { upsertProductsInfo } from '@/db/product/upsert-product';
-import { products } from '@/db/product-schema';
-import { reclassifyMerchListings } from '@/services/merch-reclassification';
-import { searchCatalogItemsByAsins } from '@/services/spapi/search-catalog-items-by-asins';
+import { PgBoss } from 'pg-boss';
+import { buildDatabaseUrl } from '@/config/database-url';
+import {
+    RECLASSIFY_MERCH_LISTINGS_JOB,
+    type ReclassifyMerchListingsInput,
+} from '@/jobs/reclassify-merch-listings-input';
 
 /**
- * One-off: re-fetch every active US Product from SP-API and write the current Merch verdict, which
- * promotes and demotes. Run from apps/server:
+ * Starts a Merch reclassification run: re-fetch every active US Product from SP-API and write the
+ * current verdict, which promotes and demotes. It only queues the job; the server does the work
+ * under its Catalog limiter, so the run never competes with the server's own calls. Run from
+ * apps/server:
  *
  *   varlock run -p ../../.env.schema -- bun src/scripts/reclassify-merch-listings.ts --dry-run
  *
  * Flags: `--dry-run` tallies transitions without writing; `--after <ASIN>` resumes after an ASIN;
- * `--limit <n>` stops after n Products. Requests use background Catalog capacity, so the script
- * yields to foreground lookups and waits while automatic sync is paused.
+ * `--limit <n>` stops after n Products. Progress and totals are each chunk's job output.
  */
-const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';
-
 const main = async () => {
     const args = process.argv.slice(2);
-    const dryRun = args.includes('--dry-run');
-    const afterAsin = readFlag(args, '--after') ?? '';
     const limitValue = readFlag(args, '--limit');
     const limit = limitValue === null ? null : Number.parseInt(limitValue, 10);
     if (limit !== null && !(limit > 0)) throw new Error('--limit must be a positive integer');
+    const input: ReclassifyMerchListingsInput = {
+        afterAsin: readFlag(args, '--after') ?? '',
+        dryRun: args.includes('--dry-run'),
+        remaining: limit,
+        checked: 0,
+        transitions: {},
+    };
 
-    console.log(
-        `[Reclassify] ${dryRun ? 'Dry run' : 'Writing'}: US Products after "${afterAsin}"` +
-            `${limit ? `, limit ${limit}` : ''}`
-    );
-    const result = await reclassifyMerchListings(
-        { afterAsin, limit, dryRun },
-        {
-            readBatch: async (after, size) =>
-                await db
-                    .select({ asin: products.asin, isMerchListing: products.isMerchListing })
-                    .from(products)
-                    .where(
-                        and(
-                            eq(products.marketplaceId, US_MARKETPLACE_ID),
-                            eq(products.amazonListingStatus, 'active'),
-                            gt(products.asin, after)
-                        )
-                    )
-                    .orderBy(asc(products.asin))
-                    .limit(size),
-            fetchProducts: async asins =>
-                await searchCatalogItemsByAsins(US_MARKETPLACE_ID, asins, {
-                    priority: 'background',
-                }),
-            writeProducts: async fetched => {
-                await upsertProductsInfo(fetched);
-            },
-            sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
-            log: message => console.log(`[Reclassify] ${message}`),
-        }
-    );
-    console.log(`[Reclassify] ${dryRun ? 'Would apply' : 'Applied'} transitions (before->after):`);
-    for (const [transition, count] of Object.entries(result.transitions).sort())
-        console.log(`[Reclassify]   ${transition.padEnd(22)} ${count}`);
-    console.log(`[Reclassify] Checked ${result.checked}; resume with --after ${result.lastAsin}`);
+    const boss = new PgBoss({
+        connectionString: buildDatabaseUrl(),
+        migrate: false,
+        schedule: false,
+        supervise: false,
+    });
+    await boss.start();
+    try {
+        const id = await boss.send(RECLASSIFY_MERCH_LISTINGS_JOB, input, {
+            singletonKey: RECLASSIFY_MERCH_LISTINGS_JOB,
+        });
+        console.log(
+            id
+                ? `[Reclassify] Queued ${input.dryRun ? 'dry run' : 'run'} ${id}: ${JSON.stringify(input)}`
+                : '[Reclassify] A run is already queued; nothing sent'
+        );
+    } finally {
+        await boss.stop();
+    }
 };
 
 const readFlag = (args: string[], flag: string) => {

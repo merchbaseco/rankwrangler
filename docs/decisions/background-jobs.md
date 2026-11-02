@@ -64,7 +64,9 @@ call, about 20–25k a day at full keyword collection, which pg-boss handles.
 Rate limiting lives in the one server process that makes every call. The SP-API scan queue runs
 four jobs at once so the Catalog limiter always has a page waiting; the limiter alone sets the
 pace. Autocomplete runs one job at a time behind its gate (one call every ten seconds). A second
-server process would need a shared limiter again.
+server process would need a shared limiter again. So would an operator script that calls a
+provider itself; bulk operator work runs as a server job the script only queues (Merch
+reclassification does).
 
 Existing systems move onto this shape when next changed. Keepa history already follows it
 (scheduler, per-ASIN job); Product refresh keeps its 20-ASIN batches as the job unit.
