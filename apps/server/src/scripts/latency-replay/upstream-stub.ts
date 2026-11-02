@@ -3,9 +3,14 @@
 // non-loopback host fails closed, so a replay never spends a provider key.
 import http from 'node:http';
 import https from 'node:https';
+// @ts-expect-error - SDK doesn't export types properly in package.json
+import { CatalogitemsSpApi } from '@amazon-sp-api-release/amazon-sp-api-sdk-js';
 
 const keepaSearchMs = Number(process.env.RW_REPLAY_KEEPA_SEARCH_MS ?? 14_000);
 const keepaProductMs = Number(process.env.RW_REPLAY_KEEPA_PRODUCT_MS ?? 2000);
+const spApiCatalogMs = Number(process.env.RW_REPLAY_SPAPI_CATALOG_MS ?? 700);
+// Share of a search's results RankWrangler has never resolved; they need SP-API before answering.
+const newProductShare = Number(process.env.RW_REPLAY_NEW_PRODUCT_SHARE ?? 1);
 const asins = (process.env.RW_REPLAY_ASINS ?? '').split(',').filter(Boolean);
 const resultsPerSearch = 20;
 const bucket = { refillRate: 100, refillIn: 30_000, tokensLeft: 6000 };
@@ -22,6 +27,9 @@ globalThis.fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     if (isLoopback(url.hostname)) {
         return await realFetch(input, init);
+    }
+    if (url.hostname === 'api.amazon.com' && url.pathname === '/auth/o2/token') {
+        return json({ access_token: 'latency-replay', token_type: 'bearer', expires_in: 3600 });
     }
     if (url.hostname !== 'api.keepa.com') {
         throw new Error(`latency-replay: upstream ${url.hostname} is disabled`);
@@ -71,14 +79,47 @@ for (const module of [http, https]) {
     }) as typeof module.get;
 }
 
+// A long-tail term mostly surfaces Products RankWrangler has never resolved: stable new ASINs per
+// term, so a repeated term finds them stored. The rest are seeded, already-resolved Products.
 const productsFor = (term: string) => {
     const start = hash(term) % asins.length;
-    return Array.from({ length: Math.min(resultsPerSearch, asins.length) }, (_, index) => ({
-        asin: asins[(start + index) % asins.length],
+    const fresh = Math.round(resultsPerSearch * newProductShare);
+    return Array.from({ length: resultsPerSearch }, (_, index) => ({
+        asin:
+            index < fresh
+                ? `B0R${(hash(`${term}#${index}`) % 36 ** 7).toString(36).toUpperCase().padStart(7, '0')}`
+                : asins[(start + index) % asins.length],
         title: `${term} shirt ${index + 1}`,
         brand: 'Replay',
         csv: [],
     }));
+};
+
+// SP-API Catalog search answers through the SDK the provider uses, after a calibrated delay.
+CatalogitemsSpApi.CatalogApi.prototype.searchCatalogItems = async function (
+    marketplaceIds: string[],
+    options: { identifiers?: string[] }
+) {
+    await new Promise(resolve => setTimeout(resolve, spApiCatalogMs));
+    const marketplaceId = marketplaceIds[0];
+    return {
+        items: (options.identifiers ?? []).map(asin => ({
+            asin,
+            summaries: [{ marketplaceId, itemName: `Replay ${asin}`, brand: 'Replay' }],
+            images: [
+                {
+                    marketplaceId,
+                    images: [{ variant: 'MAIN', link: `https://m.media-amazon.com/${asin}.jpg` }],
+                },
+            ],
+            salesRanks: [
+                {
+                    marketplaceId,
+                    displayGroupRanks: [{ title: 'Clothing', rank: 1000 + (hash(asin) % 900_000) }],
+                },
+            ],
+        })),
+    };
 };
 
 const json = (body: unknown, status = 200) =>

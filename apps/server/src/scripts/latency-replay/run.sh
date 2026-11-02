@@ -7,6 +7,9 @@
 # RW_REPLAY_DATASET    calls.jsonl (default ~/.factory/handoff/rankwrangler-latency/calls.jsonl)
 # RW_REPLAY_PORT       server port (default: dev-port, else 37172)
 # RW_REPLAY_DB_PORT    loopback PostgreSQL port of a seeded database (default 5433)
+# RW_REPLAY_DB_RTT_MS  round trip added to every database statement (default 0; production is remote)
+# RW_REPLAY_SPAPI_CATALOG_MS SP-API Catalog search latency of the stand-in (default 700)
+# RW_REPLAY_NEW_PRODUCT_SHARE share of search results never resolved before (default 1)
 # RW_REPLAY_KEEPA_PRODUCT_MS Keepa product (history refresh) latency of the stand-in (default 2000)
 # RW_REPLAY_KEEPA_SEARCH_MS  Keepa search latency the stand-in answers after (default 14000, calibrated so a lone live keyword results call matches production's 16s)
 set -euo pipefail
@@ -54,13 +57,21 @@ if curl -s -o /dev/null "http://127.0.0.1:$port/health/live"; then
 fi
 
 cd "$server_dir"
-RW_REPLAY_ASINS="$asins" RANKWRANGLER_PORT="$port" RANKWRANGLER_DATABASE_PORT="$db_port" NODE_ENV=development \
+server_db_port="$db_port"
+if [[ "${RW_REPLAY_DB_RTT_MS:-0}" != 0 ]]; then
+    server_db_port=$((port + 1))
+    node_modules/.bin/tsx src/scripts/latency-replay/db-latency-proxy.ts \
+        "$server_db_port" "$db_port" "$RW_REPLAY_DB_RTT_MS" >"$log.proxy" 2>&1 &
+    proxy_pid=$!
+fi
+RW_REPLAY_ASINS="$asins" RANKWRANGLER_PORT="$port" RANKWRANGLER_DATABASE_PORT="$server_db_port" \
+    NODE_ENV=development \
     RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER=false \
     bunx varlock run -p ../../.env.schema -- \
     node_modules/.bin/tsx --import ./src/scripts/latency-replay/upstream-stub.ts src/index.ts \
     >"$log" 2>&1 &
 server_pid=$!
-trap 'kill $server_pid 2>/dev/null; wait $server_pid 2>/dev/null || true' EXIT
+trap 'kill $server_pid ${proxy_pid:-} 2>/dev/null; wait $server_pid 2>/dev/null || true' EXIT
 
 for _ in $(seq 1 120); do
     curl -sf "http://127.0.0.1:$port/health/live" >/dev/null 2>&1 && break
