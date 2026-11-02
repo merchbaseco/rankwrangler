@@ -6,6 +6,7 @@ import {
 } from './product-variations-parse';
 
 export const VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS = 5 * 60 * 1000;
+export const VARIATIONS_DISCOVERY_ERROR_CACHE_MAX = 10_000;
 
 export type VariationDeps = {
     searchCatalogItemsByAsins: ReturnType<
@@ -27,6 +28,8 @@ export const clearVariationDiscoveryCachesForTests = () => {
     discoveryErrorUntil.clear();
 };
 
+export const discoveryErrorCacheSizeForTests = () => discoveryErrorUntil.size;
+
 /** Foreground Catalog probe. Coalesces concurrent probes and backs off after errors. */
 export const discoverVariationRole = async (
     marketplaceId: string,
@@ -34,9 +37,13 @@ export const discoverVariationRole = async (
     deps: VariationDiscoveryDeps
 ): Promise<VariationDiscoveryResult> => {
     const key = `${marketplaceId}:${asin.toUpperCase()}`;
+    pruneDiscoveryErrorCache(Date.now());
     const errorUntil = discoveryErrorUntil.get(key);
     if (errorUntil !== undefined && Date.now() < errorUntil) {
         return { kind: 'unavailable' };
+    }
+    if (errorUntil !== undefined) {
+        discoveryErrorUntil.delete(key);
     }
     const existing = discoveryInFlight.get(key);
     if (existing) {
@@ -55,7 +62,7 @@ export const discoverVariationRole = async (
             discoveryErrorUntil.delete(key);
             return match ? readVariationRole(match, marketplaceId) : { kind: 'none' };
         } catch (error) {
-            discoveryErrorUntil.set(key, Date.now() + VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS);
+            rememberDiscoveryError(key, Date.now() + VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS);
             throw error;
         } finally {
             discoveryInFlight.delete(key);
@@ -63,6 +70,38 @@ export const discoverVariationRole = async (
     })();
     discoveryInFlight.set(key, work);
     return await work;
+};
+
+export const rememberDiscoveryErrorForTests = (key: string, untilMs: number) => {
+    rememberDiscoveryError(key, untilMs);
+};
+
+export const pruneDiscoveryErrorCacheForTests = (nowMs: number = Date.now()) => {
+    pruneDiscoveryErrorCache(nowMs);
+};
+
+const rememberDiscoveryError = (key: string, untilMs: number) => {
+    pruneDiscoveryErrorCache(Date.now());
+    if (
+        discoveryErrorUntil.size >= VARIATIONS_DISCOVERY_ERROR_CACHE_MAX &&
+        !discoveryErrorUntil.has(key)
+    ) {
+        const oldestKey = discoveryErrorUntil.keys().next().value;
+        if (oldestKey !== undefined) {
+            discoveryErrorUntil.delete(oldestKey);
+        }
+    }
+    // Re-insert so this key is the newest insertion-order entry for eviction.
+    discoveryErrorUntil.delete(key);
+    discoveryErrorUntil.set(key, untilMs);
+};
+
+const pruneDiscoveryErrorCache = (nowMs: number) => {
+    for (const [key, untilMs] of discoveryErrorUntil) {
+        if (untilMs <= nowMs) {
+            discoveryErrorUntil.delete(key);
+        }
+    }
 };
 
 const catalogAsin = (item: unknown): string | null => {

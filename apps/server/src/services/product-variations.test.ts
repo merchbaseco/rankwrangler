@@ -3,6 +3,7 @@ import { VARIATIONS_MEMBER_REFRESH_MS } from '@/db/product/product-variation-sto
 import {
     clearVariationDiscoveryCachesForTests,
     getProductVariations,
+    VARIATIONS_FAMILY_FETCH_DEADLINE_MS,
     VARIATIONS_RESOLVE_GRACE_MS,
 } from './product-variations';
 import { VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS } from './product-variations-discovery';
@@ -194,7 +195,7 @@ describe('getProductVariations', () => {
         expect(VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS).toBeGreaterThan(0);
     });
 
-    it('runs the first child batch in foreground and later batches in background', async () => {
+    it('runs every child batch at foreground priority', async () => {
         const manyChildren = [
             DEFAULT_CHILD,
             ...Array.from({ length: 39 }, (_, index) => `B0BATCH${String(index + 2).padStart(3, '0')}`),
@@ -243,7 +244,8 @@ describe('getProductVariations', () => {
             call => !call[0].asins.includes(PARENT)
         );
         expect(childBatchCalls.length).toBe(2);
-        expect(childBatchCalls[0]?.[0].priority).toBe('foreground');
-        expect(childBatchCalls[1]?.[0].priority).toBe('background');
+        expect(childBatchCalls.every(call => call[0].priority === 'foreground')).toBe(true);
+        expect(VARIATIONS_FAMILY_FETCH_DEADLINE_MS).toBe(60_000);
     });
 });
+

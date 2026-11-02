@@ -4,7 +4,7 @@ import {
     refreshVariationLease,
 } from '@/db/product/product-variation-store';
 import { createEventLogSafe } from './event-logs';
-import { discoverVariationRole } from './product-variations-discovery';
+import { discoverVariationRole, type VariationDeps } from './product-variations-discovery';
 import {
     assembleFamily,
     chunkAsins,
@@ -12,8 +12,17 @@ import {
     truncateChildAsins,
     type VariationRole,
 } from './product-variations-parse';
-import type { VariationDeps } from './product-variations-discovery';
 import { toProductVariations, type ProductVariations } from './product-variations-request';
+
+/** Wall-clock budget for one claimed family Catalog walk (all batches foreground). */
+export const VARIATIONS_FAMILY_FETCH_DEADLINE_MS = 60_000;
+
+export class VariationFamilyFetchAbortedError extends Error {
+    constructor(parentAsin: string) {
+        super(`Product variation fetch aborted for ${parentAsin}.`);
+        this.name = 'VariationFamilyFetchAbortedError';
+    }
+}
 
 export const fetchClaimedVariationFamily = async ({
     marketplaceId,
@@ -21,19 +30,28 @@ export const fetchClaimedVariationFamily = async ({
     claimId,
     seed,
     deps,
+    signal,
 }: {
     marketplaceId: string;
     parentAsin: string;
     claimId: string;
     seed: Extract<VariationRole, { kind: 'parent' }> | null;
     deps: VariationDeps;
+    signal?: AbortSignal;
 }): Promise<
-    { kind: 'ready'; value: ProductVariations } | { kind: 'none' } | { kind: 'superseded' }
+    | { kind: 'ready'; value: ProductVariations }
+    | { kind: 'none' }
+    | { kind: 'superseded' }
+    | { kind: 'aborted' }
 > => {
+    const fetchSignal =
+        signal ?? AbortSignal.timeout(VARIATIONS_FAMILY_FETCH_DEADLINE_MS);
     try {
+        throwIfAborted(fetchSignal, parentAsin);
         let parentRole = seed;
         if (!parentRole || parentRole.parentAsin !== parentAsin) {
             const discovery = await discoverVariationRole(marketplaceId, parentAsin, deps);
+            throwIfAborted(fetchSignal, parentAsin);
             if (discovery.kind === 'unavailable') {
                 await failVariationFetch({ marketplaceId, parentAsin, claimId });
                 return { kind: 'superseded' };
@@ -55,10 +73,11 @@ export const fetchClaimedVariationFamily = async ({
             parentRole = discovery;
         }
 
-        const { childAsins, truncated } = truncateChildAsins(parentRole.childAsins);
+        const allChildAsins = parentRole.childAsins;
+        const { childAsins: attributeChildAsins, truncated } = truncateChildAsins(allChildAsins);
         if (truncated > 0) {
             console.warn(
-                `[Product Variations] Truncated ${truncated} children for ${parentAsin} at cap ${childAsins.length}.`
+                `[Product Variations] Truncated attribute lookups for ${truncated} children of ${parentAsin}; kept ${attributeChildAsins.length} attribute rows and all member ASINs.`
             );
             await createEventLogSafe({
                 level: 'warn',
@@ -66,21 +85,25 @@ export const fetchClaimedVariationFamily = async ({
                 category: 'product',
                 action: 'product.variations.fetch',
                 primitiveType: 'product',
-                message: `Truncated variation family for ${parentAsin}.`,
+                message: `Truncated variation attribute lookups for ${parentAsin}.`,
                 marketplaceId,
                 asin: parentAsin,
-                detailsJson: { truncated, kept: childAsins.length },
+                detailsJson: {
+                    truncated,
+                    attributeChildren: attributeChildAsins.length,
+                    memberChildren: allChildAsins.length,
+                },
             });
         }
-        parentRole = { ...parentRole, childAsins };
 
         const itemsByAsin = new Map<string, unknown>();
-        for (const [index, batch] of chunkAsins(parentRole.childAsins).entries()) {
+        for (const batch of chunkAsins(attributeChildAsins)) {
+            throwIfAborted(fetchSignal, parentAsin);
             const items = parseCatalogItems(
                 await deps.searchCatalogItemsByAsins({
                     asins: [...batch],
                     marketplaceId,
-                    priority: index === 0 ? 'foreground' : 'background',
+                    priority: 'foreground',
                 })
             );
             for (const item of items) {
@@ -94,7 +117,13 @@ export const fetchClaimedVariationFamily = async ({
             }
         }
 
-        const family = assembleFamily(parentRole, itemsByAsin, marketplaceId);
+        throwIfAborted(fetchSignal, parentAsin);
+        // Full Amazon child list: truncated ASINs stay as members with empty attributes.
+        const family = assembleFamily(
+            { ...parentRole, childAsins: allChildAsins },
+            itemsByAsin,
+            marketplaceId
+        );
         const saved = await finishVariationFetch({
             marketplaceId,
             parentAsin,
@@ -130,6 +159,20 @@ export const fetchClaimedVariationFamily = async ({
         return { kind: 'ready', value: toProductVariations(family, new Date()) };
     } catch (error) {
         await failVariationFetch({ marketplaceId, parentAsin, claimId });
+        if (isAbortError(error)) {
+            await createEventLogSafe({
+                level: 'warn',
+                status: 'failed',
+                category: 'product',
+                action: 'product.variations.fetch',
+                primitiveType: 'product',
+                message: `Variation fetch timed out for ${parentAsin}.`,
+                marketplaceId,
+                asin: parentAsin,
+                detailsJson: { outcome: 'aborted', retryable: true },
+            });
+            return { kind: 'aborted' };
+        }
         await createEventLogSafe({
             level: 'error',
             status: 'failed',
@@ -143,6 +186,19 @@ export const fetchClaimedVariationFamily = async ({
         throw new Error(`Product variation fetch failed for ${parentAsin}.`, { cause: error });
     }
 };
+
+const throwIfAborted = (signal: AbortSignal, parentAsin: string) => {
+    if (signal.aborted) {
+        throw new VariationFamilyFetchAbortedError(parentAsin);
+    }
+};
+
+const isAbortError = (error: unknown) =>
+    error instanceof VariationFamilyFetchAbortedError ||
+    (error instanceof Error && error.name === 'AbortError') ||
+    (typeof DOMException !== 'undefined' &&
+        error instanceof DOMException &&
+        error.name === 'AbortError');
 
 const catalogAsin = (item: unknown): string | null => {
     if (typeof item !== 'object' || item === null || !('asin' in item)) {

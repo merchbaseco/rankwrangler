@@ -14,7 +14,10 @@ import {
     discoverVariationRole,
     type VariationDeps,
 } from './product-variations-discovery';
-import { fetchClaimedVariationFamily } from './product-variations-fetch';
+import {
+    fetchClaimedVariationFamily,
+    VARIATIONS_FAMILY_FETCH_DEADLINE_MS,
+} from './product-variations-fetch';
 import type { VariationRole } from './product-variations-parse';
 import {
     classifyStoredVariations,
@@ -26,6 +29,7 @@ import {
 export type { ProductVariations, VariationRequest } from './product-variations-request';
 export type { VariationDeps } from './product-variations-discovery';
 export { clearVariationDiscoveryCachesForTests };
+export { VARIATIONS_FAMILY_FETCH_DEADLINE_MS };
 
 const POLL_MS = 250;
 /** Extra wall time after the caller enrichment budget for one in-flight Catalog fetch. */
@@ -114,13 +118,14 @@ const resolveVariations = async (
                 claimId,
                 seed: discovered?.kind === 'parent' ? discovered : null,
                 deps,
+                signal: familyFetchSignal(request.signal),
             });
         });
 
         if (result.kind === 'ready') {
             return result.value;
         }
-        if (result.kind === 'none') {
+        if (result.kind === 'none' || result.kind === 'aborted') {
             return null;
         }
 
@@ -148,6 +153,7 @@ const resolveVariations = async (
                     claimId,
                     seed: null,
                     deps,
+                    signal: familyFetchSignal(request.signal),
                 })
             );
             return refreshed.kind === 'ready' ? refreshed.value : null;
@@ -156,6 +162,11 @@ const resolveVariations = async (
         await sleep(POLL_MS);
     }
     return null;
+};
+
+const familyFetchSignal = (callerSignal?: AbortSignal) => {
+    const deadline = AbortSignal.timeout(VARIATIONS_FAMILY_FETCH_DEADLINE_MS);
+    return callerSignal ? AbortSignal.any([deadline, callerSignal]) : deadline;
 };
 
 const readyFamilyOmitsMember = (

@@ -120,12 +120,14 @@ type ProductVariations = {
 `variations` is `null` unless the caller includes `variations`. MerchBase BidBeacon and related agents
 depend on this enrichment for variation-aware bidding; treat it as a supported public contract, not
 an experimental opt-in. When included, RankWrangler reads Amazon Catalog variation relationships
-(discovery and the first child batch at foreground priority; further batches at background), preserves
-Amazon's `childAsins` order (the first entry is always `defaultChildAsin`), and maps theme names such
-as `COLOR_NAME` / `SIZE_NAME` / `FIT_TYPE` / `DEPARTMENT_NAME` to public keys `color`, `size`, `fit`,
-and `department` from Catalog `attributes.<key>[0].value`. Families larger than 1,000 children are
-truncated with a logged warning. A child ASIN Amazon lists but the catalog lookup omits (suppressed or
-retired) stays in `children` with empty `attributes` so order and `defaultChildAsin` stay stable.
+(all Catalog batches at foreground priority, with a 60-second AbortSignal budget around the family
+walk), preserves Amazon's `childAsins` order (the first entry is always `defaultChildAsin`), and maps
+theme names such as `COLOR_NAME` / `SIZE_NAME` / `FIT_TYPE` / `DEPARTMENT_NAME` to public keys
+`color`, `size`, `fit`, and `department` from Catalog `attributes.<key>[0].value`. Attribute lookups
+cap at 1,000 children; every Amazon child ASIN is still stored as a family member, and children past
+the attribute cap appear in `children` with empty `attributes`. A child ASIN Amazon lists but the
+catalog lookup omits (suppressed or retired) likewise stays with empty `attributes` so order and
+`defaultChildAsin` stay stable.
 Snapshots reuse for 24 hours; a requested child missing from a fresh family returns `null` until the
 row is at least an hour old, then RankWrangler refetches once. Standalone Products settle as `null`.
 Slow or failed variation fetch within the enrichment deadline also settles as `null`.
