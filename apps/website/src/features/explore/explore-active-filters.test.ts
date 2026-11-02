@@ -7,7 +7,7 @@ describe('explore active filters', () => {
         expect(exploreActiveFilters(defaultExploreFilters)).toEqual([]);
     });
 
-    test('each narrowing filter becomes a tag, in sidebar order', () => {
+    test('each narrowing filter becomes a tag, in sidebar order; the keyword does not', () => {
         const filters = {
             ...defaultExploreFilters,
             brand: 'Copper Canyon Tees',
@@ -16,7 +16,6 @@ describe('explore active filters', () => {
             tiers: new Set(['hot', 'elite'] as const),
         };
         expect(exploreActiveFilters(filters).map(filter => filter.label)).toEqual([
-            '“halloween”',
             'Elite',
             'Hot',
             'Last 60 days',
@@ -30,9 +29,9 @@ describe('explore active filters', () => {
             q: 'x',
             tiers: new Set(['hot', 'elite'] as const),
         };
-        const patch = withoutExploreFilters(filters, ['tier:hot', 'q']);
+        const patch = withoutExploreFilters(filters, ['tier:hot']);
         expect([...(patch.tiers ?? [])]).toEqual(['elite']);
-        expect(patch.q).toBe('');
+        expect(patch.q).toBeUndefined();
         expect(patch.brand).toBeUndefined();
     });
 });

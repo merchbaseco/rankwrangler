@@ -1,0 +1,132 @@
+/*
+ * A keyword search's head on Explore (features/explore/keyword-header.tsx): the keyword as the
+ * page's name beside its last year (seasonality-chart.tsx), ruled off above the KPI header. The
+ * chart's column is capped, so on a wide window the halftone stays a compact texture instead of a
+ * long field of dots; the keyword takes the rest.
+ */
+
+@layer components {
+    .keyword-header {
+        --season-width: 34rem;
+        display: grid;
+        flex-shrink: 0;
+        grid-template-columns: minmax(0, 1fr) minmax(0, var(--season-width));
+        border-bottom: 1px solid var(--border);
+    }
+
+    .keyword-header__identity {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-base);
+        min-width: 0;
+        padding: var(--cell-inset);
+        border-right: 1px solid var(--border);
+    }
+
+    .keyword-header__eyebrow,
+    .keyword-header__note {
+        color: var(--muted);
+    }
+
+    .keyword-header__name {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-base);
+        min-width: 0;
+    }
+
+    .keyword-header__title {
+        min-width: 0;
+        overflow: hidden;
+        font-size: var(--text-title);
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .keyword-header__meta {
+        margin-top: auto;
+        color: var(--muted);
+    }
+
+    .keyword-header__season {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-base);
+        min-width: 0;
+        padding: var(--cell-inset) var(--cell-inset) 0;
+    }
+
+    /* Title, then what the line measures. */
+    .keyword-header__season-bar {
+        display: flex;
+        align-items: baseline;
+        gap: calc(var(--spacing-base) * 2);
+        min-width: 0;
+        white-space: nowrap;
+    }
+
+    .keyword-header__season-bar > .keyword-header__note {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* One height loading, empty and drawn, so the grid under it never moves. */
+    .keyword-header__chart {
+        display: flex;
+        align-items: center;
+        height: 5.5rem;
+    }
+
+    /* ---------------------------------------------------------------------------------------------
+     * Seasonality chart: the band ink's line over its halftone fill (the 30d sparkline at size)
+     * -------------------------------------------------------------------------------------------*/
+    .season-chart {
+        width: 100%;
+        height: 100%;
+    }
+
+    .season-chart svg {
+        display: block;
+    }
+
+    .season-chart__line {
+        fill: none;
+        stroke: var(--band-ink);
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 1.5;
+    }
+
+    .season-chart__tick {
+        fill: var(--muted);
+        font-family: var(--font-mono);
+        font-size: var(--text-axis);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .season-chart__cursor {
+        stroke: var(--muted);
+        stroke-dasharray: 2 2;
+        stroke-width: 1;
+    }
+
+    .season-chart__hover {
+        fill: var(--band-ink);
+        stroke: var(--content);
+        stroke-width: 2;
+    }
+
+    /* Narrow windows stack the keyword over its year. */
+    @media (width < 48rem) {
+        .keyword-header {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .keyword-header__identity {
+            border-right: 0;
+            border-bottom: 1px solid var(--border);
+        }
+    }
+}

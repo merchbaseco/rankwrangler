@@ -10,13 +10,14 @@ import {
 
 /**
  * The narrowing filters in force on Explore as removable tags, in sidebar
- * order: the search, listing type (when not Merch), tiers, published window,
- * niche state and niche, brand, price. Sort and paging are not filters.
+ * order: listing type (when not Merch), tiers, published window, niche state
+ * and niche, brand, price. Sort and paging are not filters, and neither is the
+ * search: a keyword makes the page that keyword's (KeywordHeader names it and
+ * leaves it), so it is not one chip among many.
  */
 export const exploreActiveFilters = (filters: ExploreFilters): ActiveFilter[] => {
     const niche = filters.niche ? parseNicheFacetKey(filters.niche) : null;
     return [
-        filters.q.trim() ? { id: 'q', label: `“${filters.q.trim()}”` } : null,
         filters.listing === 'merch'
             ? null
             : { id: 'listing', label: listingTypeLabels[filters.listing] },
@@ -50,8 +51,6 @@ export const withoutExploreFilters = (
         if (tier) {
             tiers.delete(tier);
             patch.tiers = tiers;
-        } else if (id === 'q') {
-            patch.q = '';
         } else if (id === 'listing') {
             patch.listing = 'merch';
         } else if (id === 'published') {

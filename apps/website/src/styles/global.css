@@ -17,6 +17,7 @@
 @import "./theme/screens.css";
 @import "./theme/status.css";
 @import "./theme/sales-curve.css";
+@import "./theme/keyword-season.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

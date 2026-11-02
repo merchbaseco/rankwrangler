@@ -22,16 +22,19 @@ import { ExploreEmpty } from './explore-placeholders';
 import { toExploreRows } from './explore-rows';
 import { ExploreSearch } from './explore-search';
 import { ExploreSidebar } from './explore-sidebar';
+import { KeywordHeader } from './keyword-header';
 import { amazonUrl, productHref } from './product-links';
 import { type ProductRowFilter, ProductRowMenu } from './product-row-menu';
 import { useExploreFacets } from './use-explore-facets';
 import { useExploreFilters } from './use-explore-filters';
 import { useExploreProducts } from './use-explore-products';
+import { useExploreSeasonality } from './use-explore-seasonality';
 
 /**
  * Explore (`/explore`, Grid J/K): the filter sidebar, the KPI header over
  * its column groups, and one flat ranked page of `product.search` with a
- * pager. Filters, sort and page live in the URL. A click or ⏎ opens the
+ * pager. A keyword search heads the page with that keyword and its year.
+ * Filters, sort and page live in the URL. A click or ⏎ opens the
  * Product page; j/k move the row cursor, `a` opens Amazon, right-click opens
  * the row menu (open, Amazon, copy ASIN, filter to niche or brand). A row the
  * pointer or cursor rests on prefetches its Product page.
@@ -41,6 +44,8 @@ export const ExplorePage = () => {
     const { filters, update } = useExploreFilters();
     const products = useExploreProducts(filters);
     const { facets, isStale: facetsStale } = useExploreFacets(filters);
+    const seasonality = useExploreSeasonality(filters);
+    const keyword = filters.q.trim();
     const curve = useSalesCurve();
     // The facets' total is an exact count of the same set; the page's own is an estimate past 10K.
     const exactTotal = facets && !facetsStale ? facets.total : null;
@@ -112,6 +117,7 @@ export const ExplorePage = () => {
     });
 
     const handleSearch = useCallback((q: string) => update({ q }), [update]);
+    const leaveKeyword = useCallback(() => update({ q: '' }), [update]);
     const handleFilter = useCallback((filter: ProductRowFilter) => update(filter), [update]);
     const handleSortChange = ({ column }: DataGridSortDescriptor) => {
         const sort = exploreSortForColumn(column);
@@ -131,6 +137,15 @@ export const ExplorePage = () => {
             label="Explore"
         >
             <ExploreSearch onChange={handleSearch} value={filters.q} />
+            {keyword ? (
+                <KeywordHeader
+                    isLoading={seasonality.isLoading}
+                    keyword={keyword}
+                    onLeave={leaveKeyword}
+                    season={seasonality.season}
+                    total={exactTotal}
+                />
+            ) : null}
             <ExploreKpis
                 facets={facets}
                 filters={filters}
