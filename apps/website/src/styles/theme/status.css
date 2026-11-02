@@ -77,9 +77,23 @@
         font-weight: 600;
     }
 
-    /* Side-by-side sections keep their own height instead of stretching to the taller one. */
-    .status-pair--top {
-        align-items: start;
+    /*
+     * Side-by-side provider cards share their row lines: each section spans three of the pair's
+     * rows (header, usage, tiers) as a subgrid and its card the last two, so both cards stretch to
+     * one height and their usage blocks and tier tables start level, whatever either holds.
+     */
+    .status-pair--aligned > .status-section {
+        display: grid;
+        grid-row: span 3;
+        grid-template-rows: subgrid;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .status-pair--aligned > .status-section > .status-card {
+        display: grid;
+        grid-row: span 2;
+        grid-template-rows: subgrid;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     /* A titled part of a card (usage, then refresh tiers): figures, bar, legend or table. */
