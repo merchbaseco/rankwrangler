@@ -11,6 +11,7 @@ export const CATALOG_SEARCH_JOB_NAME = 'catalog-search';
 export const CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60;
 
 let catalogSearchBoss: PgBoss | null = null;
+let runInProcess: ((operationId: string) => void) | null = null;
 
 type CatalogSearchResolution = Awaited<ReturnType<typeof resolveCatalogSearchRequest>>;
 type CatalogSearchRun = NonNullable<Awaited<ReturnType<typeof getCatalogSearchRun>>>;
@@ -49,6 +50,11 @@ export class CatalogSearchBillingError extends Error {
 
 export const registerCatalogSearchWakeups = (boss: PgBoss) => {
     catalogSearchBoss = boss;
+};
+
+// Registered where the job runner runs (production runs it in the API process).
+export const registerCatalogSearchRunner = (run: ((operationId: string) => void) | null) => {
+    runInProcess = run;
 };
 
 export const requestCatalogSearch = async (
@@ -132,6 +138,13 @@ export const dispatchCatalogSearchOperation = async (operation: CatalogSearchOpe
     const claimed = await claimOperationDispatch(operation.id);
     if (!claimed) {
         return false;
+    }
+    // Someone waits on an interactive search, so it starts now instead of waiting for a worker:
+    // any number run at once, each waiting only on its Keepa token reservation. If the process
+    // dies first, stale-operation recovery sends it to the queue like any other.
+    if (operation.input.priority === 'interactive' && runInProcess) {
+        runInProcess(operation.id);
+        return true;
     }
 
     try {

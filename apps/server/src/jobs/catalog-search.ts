@@ -3,6 +3,7 @@ import {
     completeCatalogSearchOperationWithError,
     releaseCatalogSearchWork,
 } from '@/db/catalog-search-operations';
+import { runBackground } from '@/db/index';
 import { claimOperationWork } from '@/db/operations';
 import {
     type CatalogSearchPersistenceResult,
@@ -161,13 +162,23 @@ export const catalogSearchJob = defineJob(CATALOG_SEARCH_JOB_NAME, {
 })
     .input(catalogSearchJobInput)
     .options({ retryLimit: 0, priority: 10 })
-    // Agents launch live searches in bursts and wait on each; a burst must not queue behind itself or
-    // behind a scheduled refresh still saving its history. Keepa pacing stays with the provider.
-    // Someone usually waits on the result, so a queued search is picked up within half a second.
-    .workOptions({ localConcurrency: 8, pollingIntervalSeconds: 0.5 })
+    // Interactive searches start in process (startCatalogSearchInProcess); the queue carries
+    // scheduled refreshes and recovered work, and Keepa pacing stays with the provider.
+    .workOptions({ localConcurrency: 3 })
     .work(async job => {
         return await runCatalogSearchOperation(job.data.operationId);
     });
+
+// Off the request's interactive pool: the caller holds no connection while the search runs, and a
+// search waiting for Keepa tokens holds none between its reservation attempts.
+export const startCatalogSearchInProcess = (operationId: string) => {
+    runBackground(() => runCatalogSearchOperation(operationId)).catch(error => {
+        console.error('[Catalog Search] In-process search failed', {
+            operationId,
+            error: getErrorMessage(error),
+        });
+    });
+};
 
 const normalizeSearchResults = (
     marketplaceId: string,

@@ -28,6 +28,7 @@ import {
 } from '@/db/migrate.js';
 import { syncOfficialBrandRegistry } from '@/db/official-brand-registry';
 import { closeRealtimeConnection } from '@/db/realtime-connection';
+import { startCatalogSearchInProcess } from '@/jobs/catalog-search';
 import { prepareJobQueues, startJobs } from '@/jobs/index.js';
 import { registerRankWranglerMcp } from '@/mcp/register';
 import { registerInternalRouteBoundary } from '@/services/access/internal-access';
@@ -39,6 +40,7 @@ import { collectDueCatalogQueries } from '@/services/catalog-query-refresh';
 import { scheduleStartupWarmup } from '@/services/dashboard-warmup';
 import {
     recoverStaleCatalogSearchOperations,
+    registerCatalogSearchRunner,
     registerCatalogSearchWakeups,
 } from '@/services/catalog-search';
 import {
@@ -125,6 +127,7 @@ const startServer = async () => {
         : createDisabledJobsRuntime();
 
     if (serverRuntimeFlags.shouldStartJobRunner) {
+        registerCatalogSearchRunner(startCatalogSearchInProcess);
         recoveredProductHistoryOperationsCount = await recoverStaleProductHistoryOperations();
         recoveredCatalogSearchOperationsCount = await recoverStaleCatalogSearchOperations();
         startedCatalogKeywordRefreshesCount = (await collectDueCatalogQueries()).startedCount;
@@ -257,7 +260,7 @@ const startServer = async () => {
         printStartupSummary({
             authSummary: 'Merchbase centralized access (session, OAuth, API key)',
             catalogSearchOperations: serverRuntimeFlags.shouldStartJobRunner
-                ? `Enabled (${recoveredCatalogSearchOperationsCount} recovered at startup)`
+                ? `Enabled, live in process (${recoveredCatalogSearchOperationsCount} recovered)`
                 : 'Disabled at runtime (job runner disabled)',
             databaseConnected: true,
             developmentIdentityStatus:

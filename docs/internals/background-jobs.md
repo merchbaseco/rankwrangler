@@ -25,7 +25,7 @@ where a second attempt would be redundant.
 | Keepa candidate selection | Hourly scan of eligible stale Products. |
 | Keepa queue dispatch | Every minute, capacity-bounded, then one singleton fetch per ASIN. |
 | Product-history Operation | Event-driven worker plus one-minute stale-pending recovery. |
-| Catalog-search Operation | Event-driven first-page Keepa search plus one-minute stale-pending recovery. |
+| Catalog-search Operation | First-page Keepa search: interactive ones run in process at dispatch, scheduled ones on the queue; one-minute stale-pending recovery. |
 | Active Catalog keyword | One-minute due scan plus one startup scan; one current run, no backfill. |
 | Product facets | One-minute worker definition, currently disabled by policy. |
 | Provider-attempt retention | Daily bounded deletion of attempts older than seven days. |

@@ -11,10 +11,10 @@ const capacity: KeepaCapacity = {
 };
 
 describe('Keepa provider lanes', () => {
-    it('runs a burst of live searches together', async () => {
-        const searches = await peakSearchesInFlight('interactiveCatalog', 4);
+    it('runs any number of live searches together', async () => {
+        const searches = await peakSearchesInFlight('interactiveCatalog', 12);
 
-        expect(searches).toBe(4);
+        expect(searches).toBe(12);
     });
 
     it('keeps background searches two at a time', async () => {

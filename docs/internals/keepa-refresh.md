@@ -101,10 +101,15 @@ each attempt's tokens by its product count. Errors, empty results
 and ingestion failures retain their provider cost; missing accounting retains the reservation for
 its rolling window. Provider attempts are independent of Product import success.
 
-Interactive work (someone is waiting on it) is limited only by the physical bucket. While an
+Interactive work (someone is waiting on it) is limited only by the physical bucket: it is not paced
+or capped in process (background calls run two at a time), and an interactive catalog search starts
+in the server process as soon as it is dispatched instead of waiting for a queue worker. While an
 interactive attempt is open (created in the last five minutes and unsettled), every background class
 yields. An interactive request short on tokens keeps its attempt open and retries every five seconds
-for up to ninety, so background work cannot take the refill it is waiting for.
+for up to ninety, holding no database connection between attempts, so background work cannot take
+the refill it is waiting for. After ninety seconds the search is released and stale-operation
+recovery re-dispatches it about five minutes later; its caller has already received a retryable
+error at its own two-minute deadline.
 
 Keepa refills the bucket every minute and drops tokens older than an hour, so a full bucket wastes
 its refill. Background work (history, keyword heads, discovery) may therefore spend the bucket down
