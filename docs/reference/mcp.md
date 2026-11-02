@@ -3,6 +3,7 @@ summary: Defines the hosted RankWrangler MCP endpoint, OAuth boundary, tools, in
 read_when:
   - connecting an agent to hosted RankWrangler MCP
   - changing MCP authentication, tool names, discriminators, or public error mapping
+  - changing product family lookup consumed by MerchBase
 ---
 
 # Hosted MCP
@@ -48,11 +49,13 @@ lookup does not return the ASIN; pending work and provider failures do not produ
 title and thumbnail values are last-known listing data. `get` and `getMany` return a known
 Product's last-known listing immediately and refresh it in the background; they wait only for
 Products with no resolved listing. An unavailable thumbnail alone means no
-usable image, not a deleted listing. `family` accepts `asins` (1–50 unique) and optional
-`marketplaceId` (defaults to US). It returns each ASIN's variation family from the catalog without
-waiting on providers: known results include `familyAsin`, variant ASINs with size/color/fit/style
-when stored, and `variationsCheckedAt`; unknown ASINs return `status: unknown` with no guessed
-family. The tool adds only the documented Product-history range, metric,
+usable image, not a deleted listing. `family` is the same cross-service contract as
+`api.public.product.family`: MerchBase Core and its agents resolve any ASIN to its listing family
+through it. Keep its shape and `known`/`unknown` semantics stable. It accepts `asins` (1–50 unique)
+and optional `marketplaceId` (defaults to US). It returns each ASIN's variation family from the
+catalog without waiting on providers: known results include `familyAsin`, variant ASINs with
+size/color/fit/style when stored, and `variationsCheckedAt`; unknown ASINs return
+`status: unknown` with no guessed family. The tool adds only the documented Product-history range, metric,
 and bucket fields for `history`. Product `search` accepts an optional `term` and catalog filters.
 `rankwrangler_keyword` uses `keyword` for `get` and `history`, `text` for `search`, and accepts
 cursor/limit or range options. Keyword `results` uses `term` and optional `refresh` (default false).

@@ -17,9 +17,10 @@ RankWrangler separates interactive dashboard sessions from portable agent creden
 | Safari extension | Native OAuth Authorization Code + PKCE | Background requests through the public surface |
 
 The public surface exposes one current Product, a basic batch of up to 200 Products, Product family
-lookup for up to 50 ASINs, Product history, Product search, and keyword intelligence. The basic
-batch and family lookup debit one usage unit per unique marketplace/ASIN pair; other Product reads
-debit their documented request unit. Durable work and freshness policy remain internal
+lookup for up to 50 ASINs, Product history, Product search, and keyword intelligence. Family lookup
+is a MerchBase cross-service contract (Core and its agents resolve ASINs to listing families
+through it). The basic batch and family lookup debit one usage unit per unique marketplace/ASIN
+pair; other Product reads debit their documented request unit. Durable work and freshness policy remain internal
 implementation details. The published `@rankwrangler/http-client` supplies end-to-end tRPC types,
 the hosted Product MCP tool accepts the same pair array and family inputs, and multi-ASIN
 `rw product get` provides a same-marketplace CLI form. The CLI presents these primitives as stable

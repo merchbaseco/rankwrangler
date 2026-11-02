@@ -73,6 +73,15 @@ Changing a package means bumping its version in the same PR (patch, minor, or ma
 - Prefer `const` arrow functions.
 - Put helper functions at the bottom of files.
 
+## External contracts
+
+- `api.public.product.family` (MCP `rankwrangler_product` `operation=family`) is a cross-service
+  contract consumed by MerchBase Core and its agents to resolve any ASIN to its listing family.
+  Do not change its input/output shape, `known`/`unknown` status semantics, or catalog-read
+  behavior without coordinating that consumer. The pinned response shape is enforced by
+  `apps/server/src/api/public/product-family-contract.test.ts` and
+  `packages/http-client/test/public-client.contract.ts`.
+
 ## Detailed Coding Standards
 
 ### Import And File Conventions

@@ -3,6 +3,7 @@ summary: Defines public tRPC authentication, caller-synchronous retrieval, and p
 read_when:
   - calling RankWrangler without the CLI or typed npm client
   - changing public authentication, Product inputs, retrieval output, or API transport
+  - changing product.family or another MerchBase-consumed public contract
 ---
 
 # Public API
@@ -150,9 +151,13 @@ generation.
 
 ## Product family
 
-`product.family` is a catalog read. It accepts `marketplaceId` (default US `ATVPDKIKX0DER`) and one
-to 50 unique ASINs, normalized to uppercase. Parent and child ASINs are both valid inputs. Results
-preserve request order. Each entry is either known or unknown:
+`product.family` is a cross-service catalog contract. MerchBase Core and its agents use it to
+resolve any ASIN to its listing family. Treat the input limits, `known`/`unknown` status semantics,
+and response fields below as stable; breaking changes need coordination with that consumer.
+
+`product.family` accepts `marketplaceId` (default US `ATVPDKIKX0DER`) and one to 50 unique ASINs,
+normalized to uppercase. Parent and child ASINs are both valid inputs. Results preserve request
+order. Each entry is either known or unknown:
 
 ```ts
 type ProductFamilyVariant = {

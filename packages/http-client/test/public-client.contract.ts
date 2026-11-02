@@ -56,6 +56,28 @@ export type ProductFamilyInputContract = Assert<
 export type ProductFamilyOutputStatusContract = Assert<
     Equal<ProductFamilyOutput[number]['status'], 'known' | 'unknown'>
 >;
+type KnownFamily = Extract<ProductFamilyOutput[number], { status: 'known' }>;
+type UnknownFamily = Extract<ProductFamilyOutput[number], { status: 'unknown' }>;
+export type ProductFamilyKnownKeysContract = Assert<
+    Equal<
+        keyof KnownFamily,
+        | 'status'
+        | 'marketplaceId'
+        | 'requestedAsin'
+        | 'familyAsin'
+        | 'variationsCheckedAt'
+        | 'variants'
+    >
+>;
+export type ProductFamilyUnknownKeysContract = Assert<
+    Equal<keyof UnknownFamily, 'status' | 'marketplaceId' | 'requestedAsin'>
+>;
+export type ProductFamilyVariantKeysContract = Assert<
+    Equal<keyof KnownFamily['variants'][number], 'asin' | 'attributes'>
+>;
+export type ProductFamilyAttributeKeysContract = Assert<
+    Equal<keyof KnownFamily['variants'][number]['attributes'], 'size' | 'color' | 'fit' | 'style'>
+>;
 export type ProductOutputContract = Assert<
     Equal<
         keyof ProductOutput,
