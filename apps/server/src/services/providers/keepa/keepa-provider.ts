@@ -19,9 +19,11 @@ import { estimateTokensLeft } from './keepa-runtime-state';
 const KEEPA_TOKEN_STATE_STALE_MS = 60 * 1000;
 
 export class KeepaProvider {
-    // Pacing only: the durable token reservation decides what may be spent, and live requests jump
-    // the queue. Two calls at a time keep one slow save from stalling the refill.
+    // Pacing only: the durable token reservation decides what may be spent. Background work runs two
+    // calls at a time so one slow save cannot stall the refill; someone waits on interactive work, so
+    // it has its own lane and a burst of live requests runs together instead of in pairs.
     private readonly limiter = new Bottleneck({ maxConcurrent: 2, minTime: 1000 });
+    private readonly liveLimiter = new Bottleneck({ maxConcurrent: 8 });
     private readonly deps: KeepaProviderDeps;
     private readonly tokenState = {
         tokensConsumed: null as number | null,
@@ -267,7 +269,8 @@ export class KeepaProvider {
         }
         const id = await this.deps.capacity.enqueue(request);
         try {
-            return await this.limiter.schedule(
+            const limiter = request.workClass === 'interactive' ? this.liveLimiter : this.limiter;
+            return await limiter.schedule(
                 { priority: getKeepaProviderPriority(priority) },
                 () => run(id)
             );
