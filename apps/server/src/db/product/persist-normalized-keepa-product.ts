@@ -1,5 +1,5 @@
 import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { db } from '@/db/index';
 import { keepaHistoryRefreshQueue, productHistoryImports, products } from '@/db/schema';
 import type { NormalizedKeepaProduct } from '@/services/keepa-product-normalizer';
@@ -29,86 +29,94 @@ export const persistKeepaProductRow = async (
     transaction: DatabaseTransaction,
     normalized: NormalizedKeepaProduct
 ) => {
-    const product = normalized.product;
-    const merch =
-        product.merch.kind === 'decided'
-            ? product.merch
-            : { isMerchListing: false, bullet1: null, bullet2: null };
-    const asin = await keepaFamilyAsin(transaction, product);
-    const [previous] = await transaction
-        .select({ merch: products.isMerchListing })
-        .from(products)
-        .where(and(eq(products.marketplaceId, product.marketplaceId), eq(products.asin, asin)));
-    const [storedProduct] = await transaction
-        .insert(products)
-        .values({
-            marketplaceId: product.marketplaceId,
-            asin,
-            representativeAsin: asin === product.asin ? null : product.asin,
-            title: product.title,
-            brand: product.brand,
-            thumbnailUrl: product.thumbnailUrl,
-            isMerchListing: merch.isMerchListing,
-            bullet1: merch.bullet1,
-            bullet2: merch.bullet2,
-            dateFirstAvailable: product.dateFirstAvailable,
-            rootCategoryId: product.rootCategoryId,
-            rootCategoryBsr: product.rootCategoryBsr,
-            keepaFetchedAt: product.keepaFetchedAt,
-            keepaSourceUpdatedAt: product.keepaSourceUpdatedAt,
-            keepaFirstTrackedAt: product.keepaFirstTrackedAt,
-            keepaRootCategoryId: product.keepaRootCategoryId,
-            keepaCurrentBsr: product.keepaCurrentBsr,
-            keepaCurrentNewPrice: product.keepaCurrentNewPrice,
-            keepaMonthlySold: product.keepaMonthlySold,
-            keepaBsrAverage30: product.keepaBsrAverage30,
-            keepaBsrAverage90: product.keepaBsrAverage90,
-            keepaSalesRankDrops30: product.keepaSalesRankDrops30,
-            keepaSalesRankDrops90: product.keepaSalesRankDrops90,
-            keepaSalesRankDrops180: product.keepaSalesRankDrops180,
-            keepaSalesRankDrops365: product.keepaSalesRankDrops365,
-        })
-        .onConflictDoUpdate({
-            target: [products.marketplaceId, products.asin],
-            set: {
-                representativeAsin: fillMissingCanonicalValue(products.representativeAsin),
-                ...(product.merch.kind === 'decided' ? latestMerchVerdict : {}),
-                title: fillMissingCanonicalValue(products.title),
-                brand: fillMissingCanonicalValue(products.brand),
-                thumbnailUrl: fillMissingCanonicalValue(products.thumbnailUrl),
-                dateFirstAvailable: fillMissingCanonicalValue(products.dateFirstAvailable),
-                rootCategoryId: fillMissingCanonicalValue(products.rootCategoryId),
-                rootCategoryBsr: fillMissingCanonicalValue(products.rootCategoryBsr),
-                keepaSourceUpdatedAt: preserveExistingOnNull(products.keepaSourceUpdatedAt),
-                keepaFirstTrackedAt: preserveExistingOnNull(products.keepaFirstTrackedAt),
-                keepaRootCategoryId: preserveExistingOnNull(products.keepaRootCategoryId),
-                keepaCurrentBsr: preserveExistingOnNull(products.keepaCurrentBsr),
-                keepaCurrentNewPrice: preserveExistingOnNull(products.keepaCurrentNewPrice),
-                keepaMonthlySold: preserveExistingOnNull(products.keepaMonthlySold),
-                keepaBsrAverage30: preserveExistingOnNull(products.keepaBsrAverage30),
-                keepaBsrAverage90: preserveExistingOnNull(products.keepaBsrAverage90),
-                keepaSalesRankDrops30: preserveExistingOnNull(products.keepaSalesRankDrops30),
-                keepaSalesRankDrops90: preserveExistingOnNull(products.keepaSalesRankDrops90),
-                keepaSalesRankDrops180: preserveExistingOnNull(products.keepaSalesRankDrops180),
-                keepaSalesRankDrops365: preserveExistingOnNull(products.keepaSalesRankDrops365),
-                keepaFetchedAt: product.keepaFetchedAt,
-            },
-        })
-        .returning({
-            id: products.id,
-            merch: products.isMerchListing,
-        });
+    const [productId] = await persistKeepaProductRows(transaction, [normalized]);
+    return productId;
+};
 
-    if (!storedProduct) {
-        throw new Error(`Failed to persist Keepa Product ${product.asin}`);
+// A page of Product rows in a few statements, not a few per Product: a live search saves its whole
+// page while a caller waits, and each statement is a round trip to the remote database. Returns
+// each Product's family row id in input order; a family seen twice is written once, by its first
+// Product.
+export const persistKeepaProductRows = async (
+    transaction: DatabaseTransaction,
+    normalizedProducts: readonly NormalizedKeepaProduct[]
+) => {
+    const items = normalizedProducts.map(normalized => normalized.product);
+    if (!items.length) return [];
+    const marketplaceId = items[0].marketplaceId;
+    if (items.some(item => item.marketplaceId !== marketplaceId))
+        throw new Error('A Keepa Product page must belong to one marketplace');
+    const familyAsins = await keepaFamilyAsins(transaction, items);
+    const rowsByFamily = new Map<string, NormalizedKeepaProduct['product']>();
+    items.forEach((item, index) => {
+        if (!rowsByFamily.has(familyAsins[index])) rowsByFamily.set(familyAsins[index], item);
+    });
+    const previous = new Map(
+        (
+            await transaction
+                .select({ asin: products.asin, merch: products.isMerchListing })
+                .from(products)
+                .where(
+                    and(
+                        eq(products.marketplaceId, marketplaceId),
+                        inArray(products.asin, [...rowsByFamily.keys()])
+                    )
+                )
+        ).map(row => [row.asin, row.merch])
+    );
+    const stored = new Map<string, { id: string; merch: boolean }>();
+    // A decided Merch verdict replaces the stored one; an undecided one leaves it.
+    for (const decided of [true, false]) {
+        const rows = [...rowsByFamily].filter(
+            ([, item]) => (item.merch.kind === 'decided') === decided
+        );
+        if (!rows.length) continue;
+        const written = await transaction
+            .insert(products)
+            .values(rows.map(([asin, item]) => productRowValues(asin, item)))
+            .onConflictDoUpdate({
+                target: [products.marketplaceId, products.asin],
+                set: {
+                    representativeAsin: fillMissingCanonicalValue(products.representativeAsin),
+                    ...(decided ? latestMerchVerdict : {}),
+                    title: fillMissingCanonicalValue(products.title),
+                    brand: fillMissingCanonicalValue(products.brand),
+                    thumbnailUrl: fillMissingCanonicalValue(products.thumbnailUrl),
+                    dateFirstAvailable: fillMissingCanonicalValue(products.dateFirstAvailable),
+                    rootCategoryId: fillMissingCanonicalValue(products.rootCategoryId),
+                    rootCategoryBsr: fillMissingCanonicalValue(products.rootCategoryBsr),
+                    keepaSourceUpdatedAt: preserveExistingOnNull(products.keepaSourceUpdatedAt),
+                    keepaFirstTrackedAt: preserveExistingOnNull(products.keepaFirstTrackedAt),
+                    keepaRootCategoryId: preserveExistingOnNull(products.keepaRootCategoryId),
+                    keepaCurrentBsr: preserveExistingOnNull(products.keepaCurrentBsr),
+                    keepaCurrentNewPrice: preserveExistingOnNull(products.keepaCurrentNewPrice),
+                    keepaMonthlySold: preserveExistingOnNull(products.keepaMonthlySold),
+                    keepaBsrAverage30: preserveExistingOnNull(products.keepaBsrAverage30),
+                    keepaBsrAverage90: preserveExistingOnNull(products.keepaBsrAverage90),
+                    keepaSalesRankDrops30: preserveExistingOnNull(products.keepaSalesRankDrops30),
+                    keepaSalesRankDrops90: preserveExistingOnNull(products.keepaSalesRankDrops90),
+                    keepaSalesRankDrops180: preserveExistingOnNull(products.keepaSalesRankDrops180),
+                    keepaSalesRankDrops365: preserveExistingOnNull(products.keepaSalesRankDrops365),
+                    keepaFetchedAt: sql.raw(`excluded.${products.keepaFetchedAt.name}`),
+                },
+            })
+            .returning({ id: products.id, asin: products.asin, merch: products.isMerchListing });
+        for (const row of written) stored.set(row.asin, row);
     }
-    await recordVariantAliases(transaction, product.marketplaceId, [
-        { asin: product.asin, familyAsin: asin },
-    ]);
-
-    if (previous && previous.merch !== storedProduct.merch)
-        await notifyKeywordProductRows(transaction, [storedProduct.id]);
-    return storedProduct.id;
+    await recordVariantAliases(
+        transaction,
+        marketplaceId,
+        items.map((item, index) => ({ asin: item.asin, familyAsin: familyAsins[index] }))
+    );
+    const changed = [...stored].flatMap(([asin, row]) =>
+        previous.has(asin) && previous.get(asin) !== row.merch ? [row.id] : []
+    );
+    if (changed.length) await notifyKeywordProductRows(transaction, changed);
+    return familyAsins.map(asin => {
+        const row = stored.get(asin);
+        if (!row) throw new Error(`Failed to persist Keepa Product family ${asin}`);
+        return row.id;
+    });
 };
 
 // The Keepa import record and its history series, replacing earlier successful imports. Each
@@ -183,13 +191,56 @@ export const persistKeepaProductHistory = async (
 };
 
 // Keepa answers for a variant: write under its parent, or under a family the variant already maps to.
-const keepaFamilyAsin = async (
+// Claiming a parent writes, so variants claim one at a time; the rest resolve in one read.
+const keepaFamilyAsins = async (
     transaction: DatabaseTransaction,
-    product: NormalizedKeepaProduct['product']
+    items: readonly NormalizedKeepaProduct['product'][]
 ) => {
-    if (product.parentAsin) return await claimProductFamily(transaction, product);
-    const families = await resolveFamilyIdentities(transaction, [product]);
-    return families.get(familyIdentityKey(product))?.asin ?? product.asin;
+    const familyAsins = items.map(item => item.asin);
+    for (const [index, item] of items.entries()) {
+        if (item.parentAsin) familyAsins[index] = await claimProductFamily(transaction, item);
+    }
+    const plain = items.filter(item => !item.parentAsin);
+    const families = plain.length ? await resolveFamilyIdentities(transaction, plain) : new Map();
+    items.forEach((item, index) => {
+        if (!item.parentAsin)
+            familyAsins[index] = families.get(familyIdentityKey(item))?.asin ?? item.asin;
+    });
+    return familyAsins;
+};
+
+const productRowValues = (asin: string, product: NormalizedKeepaProduct['product']) => {
+    const merch =
+        product.merch.kind === 'decided'
+            ? product.merch
+            : { isMerchListing: false, bullet1: null, bullet2: null };
+    return {
+        marketplaceId: product.marketplaceId,
+        asin,
+        representativeAsin: asin === product.asin ? null : product.asin,
+        title: product.title,
+        brand: product.brand,
+        thumbnailUrl: product.thumbnailUrl,
+        isMerchListing: merch.isMerchListing,
+        bullet1: merch.bullet1,
+        bullet2: merch.bullet2,
+        dateFirstAvailable: product.dateFirstAvailable,
+        rootCategoryId: product.rootCategoryId,
+        rootCategoryBsr: product.rootCategoryBsr,
+        keepaFetchedAt: product.keepaFetchedAt,
+        keepaSourceUpdatedAt: product.keepaSourceUpdatedAt,
+        keepaFirstTrackedAt: product.keepaFirstTrackedAt,
+        keepaRootCategoryId: product.keepaRootCategoryId,
+        keepaCurrentBsr: product.keepaCurrentBsr,
+        keepaCurrentNewPrice: product.keepaCurrentNewPrice,
+        keepaMonthlySold: product.keepaMonthlySold,
+        keepaBsrAverage30: product.keepaBsrAverage30,
+        keepaBsrAverage90: product.keepaBsrAverage90,
+        keepaSalesRankDrops30: product.keepaSalesRankDrops30,
+        keepaSalesRankDrops90: product.keepaSalesRankDrops90,
+        keepaSalesRankDrops180: product.keepaSalesRankDrops180,
+        keepaSalesRankDrops365: product.keepaSalesRankDrops365,
+    };
 };
 
 const preserveExistingOnNull = (column: { name: string }) => {

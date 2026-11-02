@@ -9,7 +9,7 @@ import { acceptKeywordObservation } from './keyword-observation';
 import { buildCatalogSearchResource } from './catalog-search-operations';
 import {
     persistKeepaProductHistory,
-    persistKeepaProductRow,
+    persistKeepaProductRows,
 } from './product/persist-normalized-keepa-product';
 
 const CATALOG_NORMALIZER_VERSION = 1;
@@ -51,13 +51,12 @@ export const persistCatalogSearchSuccess = async ({
     // Product rows need neither lock, so they are saved first in their own transaction: every live
     // search's results wait on the keyword lock, and holding it only for the run keeps parallel
     // searches from queueing behind each other's Product writes.
-    const productIds = await db.transaction(async transaction => {
-        const ids: string[] = [];
-        for (const result of orderedResults) {
-            ids.push(await persistKeepaProductRow(transaction, result.normalized));
-        }
-        return ids;
-    });
+    const productIds = await db.transaction(transaction =>
+        persistKeepaProductRows(
+            transaction,
+            orderedResults.map(result => result.normalized)
+        )
+    );
     const saved = await db.transaction(async transaction => {
         await lockKeywordScheduling(transaction);
         await lockCatalogQueryForReconciliation(transaction, queryId);

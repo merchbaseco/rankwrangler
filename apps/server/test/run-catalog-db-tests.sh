@@ -329,5 +329,6 @@ bun test \
     apps/server/test/product-cutout-thumbnail.db.test.ts \
     apps/server/test/provider-health.db.test.ts \
     apps/server/test/product-variation-families.db.test.ts \
+    apps/server/test/keepa-product-rows.db.test.ts \
     apps/server/test/system-status.db.test.ts \
     apps/server/test/event-log-histogram.db.test.ts
