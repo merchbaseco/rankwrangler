@@ -138,28 +138,31 @@ export const persistCatalogSearchSuccess = async ({
         return { runId: run.id, productIds };
     });
     // History is saved after the results commit, each Product in its own transaction, so the keyword
-    // lock and the caller never wait on it and a failed history save cannot fail the search.
-    for (const [index, result] of orderedResults.entries()) {
-        const productId = saved.productIds[index];
-        if (!productId || saved.productIds.indexOf(productId) !== index) continue;
-        try {
-            await db.transaction(tx =>
-                persistKeepaProductHistory(tx, productId, result.normalized, {
-                    requestParams: { kind: 'catalogSearch', queryId, operationId },
-                    responsePayload: null,
-                    tokensConsumed: index === 0 ? internalUsage.tokensConsumed : null,
-                    tokensLeft: index === 0 ? internalUsage.tokensLeft : null,
-                    refillInMs: index === 0 ? internalUsage.refillInMs : null,
-                    refillRate: index === 0 ? internalUsage.refillRate : null,
-                })
-            );
-        } catch (error) {
-            console.error('[Catalog Search] Saving Product history failed', {
-                operationId,
-                asin: result.normalized.product.asin,
-                error: error instanceof Error ? error.message : String(error),
-            });
+    // lock never waits on it and a failed history save cannot fail the search. The caller saves it
+    // after announcing completion, so whoever waits on the run does not wait on its history either.
+    const saveHistory = async () => {
+        for (const [index, result] of orderedResults.entries()) {
+            const productId = saved.productIds[index];
+            if (!productId || saved.productIds.indexOf(productId) !== index) continue;
+            try {
+                await db.transaction(tx =>
+                    persistKeepaProductHistory(tx, productId, result.normalized, {
+                        requestParams: { kind: 'catalogSearch', queryId, operationId },
+                        responsePayload: null,
+                        tokensConsumed: index === 0 ? internalUsage.tokensConsumed : null,
+                        tokensLeft: index === 0 ? internalUsage.tokensLeft : null,
+                        refillInMs: index === 0 ? internalUsage.refillInMs : null,
+                        refillRate: index === 0 ? internalUsage.refillRate : null,
+                    })
+                );
+            } catch (error) {
+                console.error('[Catalog Search] Saving Product history failed', {
+                    operationId,
+                    asin: result.normalized.product.asin,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
         }
-    }
-    return { runId: saved.runId };
+    };
+    return { runId: saved.runId, saveHistory };
 };

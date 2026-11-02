@@ -105,7 +105,7 @@ export const runCatalogSearchOperation = async (
             providerResult.products,
             sourceCompletedAt
         );
-        await deps.persistSuccess({
+        const saved = await deps.persistSuccess({
             operationId,
             queryId: input.queryId,
             page: input.page,
@@ -120,6 +120,7 @@ export const runCatalogSearchOperation = async (
             operationId,
             queryId: input.queryId,
         });
+        await saved.saveHistory?.();
 
         return {
             didWork: true,
