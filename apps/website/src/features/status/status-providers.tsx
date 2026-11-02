@@ -4,25 +4,17 @@ import {
     formatCount,
     formatPercent,
     fraction,
-    keepaWorkLabels,
+    keepaWorkUsage,
     type RefreshTiers,
     type SystemStatus,
     spApiOperationUsage,
 } from './status-model';
-import {
-    Headline,
-    Legend,
-    type Segment,
-    type SeriesTone,
-    SegmentedBar,
-    StatusBlock,
-    StatusCard,
-    StatusSection,
-} from './status-panel';
+import { Headline, SegmentedBar, StatusBlock, StatusCard, StatusSection } from './status-panel';
 
 /**
  * One column per provider: the last hour's usage against its allowance, the last day's throttles
- * and errors, and beneath them the refresh tiers that decide when it is called.
+ * and errors, and beneath them the refresh tiers that decide when it is called. Both cards read
+ * the same way (headline, one bar per row, tier table) and share their row lines.
  */
 export const StatusProviders = ({
     status,
@@ -31,13 +23,13 @@ export const StatusProviders = ({
     status: SystemStatus;
     tiers: RefreshTiers | undefined;
 }) => (
-    <div className="status-pair status-pair--top">
+    <div className="status-pair status-pair--aligned">
         <KeepaSection status={status} tiers={tiers?.keepa} />
         <SpApiSection status={status} tiers={tiers?.spApi} />
     </div>
 );
 
-/** Keepa: tokens spent in the last hour against the hour's refill, by what they went to. */
+/** Keepa: tokens spent in the last hour by work class, each against the hour's shared refill. */
 const KeepaSection = ({
     status,
     tiers,
@@ -46,14 +38,8 @@ const KeepaSection = ({
     tiers: RefreshTiers['keepa'] | undefined;
 }) => {
     const { keepa } = status;
-    const segments = toSegments(
-        keepa.spentLastHour.map(row => ({
-            key: row.workClass,
-            label: keepaWorkLabels[row.workClass] ?? row.workClass,
-            value: Math.round(row.tokens),
-        }))
-    );
-    const used = segments.reduce((sum, segment) => sum + segment.value, 0);
+    const work = keepaWorkUsage(keepa);
+    const used = work.reduce((sum, row) => sum + row.tokens, 0);
     return (
         <StatusSection
             caption={<ProviderVerdictChip provider="keepa" status={status} />}
@@ -74,12 +60,15 @@ const KeepaSection = ({
                             ...failureFigures(status, 'keepa'),
                         ]}
                     />
-                    <SegmentedBar
-                        label="Keepa tokens spent in the last hour"
-                        segments={segments}
-                        total={keepa.capacity}
+                    <UsageRows
+                        rows={work.map(row => ({
+                            key: row.workClass,
+                            label: row.label,
+                            limit: keepa.capacity,
+                            value: row.tokens,
+                        }))}
+                        unit="tokens"
                     />
-                    <Legend segments={segments} />
                 </StatusBlock>
                 <RefreshTierTable label="Keepa refresh tiers" tiers={tiers} />
             </StatusCard>
@@ -115,42 +104,65 @@ const SpApiSection = ({
                             ...failureFigures(status, 'spapi'),
                         ]}
                     />
-                    <dl className="status-rows">
-                        {operations.map(row => (
-                            <div className="status-row" key={row.operation}>
-                                <dt className="truncate">{row.label}</dt>
-                                <dd className="status-row__bar">
-                                    <SegmentedBar
-                                        label={`${row.label} calls in the last hour`}
-                                        segments={[
-                                            {
-                                                key: row.operation,
-                                                label: row.label,
-                                                tone: 'current',
-                                                value: row.calls1h,
-                                            },
-                                        ]}
-                                        size="sm"
-                                        total={row.hourlyLimit}
-                                    />
-                                </dd>
-                                <dd className="status-row__value">
-                                    {formatCount(row.calls1h)}
-                                    <span className="text-muted">
-                                        {row.hourlyLimit === null
-                                            ? ''
-                                            : ` / ${formatCount(row.hourlyLimit)}`}
-                                    </span>
-                                </dd>
-                            </div>
-                        ))}
-                    </dl>
+                    <UsageRows
+                        rows={operations.map(row => ({
+                            key: row.operation,
+                            label: row.label,
+                            limit: row.hourlyLimit,
+                            value: row.calls1h,
+                        }))}
+                        showLimit
+                        unit="calls"
+                    />
                 </StatusBlock>
                 <RefreshTierTable label="SP-API refresh tiers" tiers={tiers} />
             </StatusCard>
         </StatusSection>
     );
 };
+
+/**
+ * One line per row: name, a bar of the last hour against its limit, and the count. `showLimit`
+ * trails each count with its own limit; rows drawing on one shared allowance leave it to the aside.
+ */
+const UsageRows = ({
+    rows,
+    showLimit = false,
+    unit,
+}: {
+    rows: ReadonlyArray<{
+        readonly key: string;
+        readonly label: string;
+        readonly limit: number | null;
+        readonly value: number;
+    }>;
+    showLimit?: boolean;
+    unit: string;
+}) => (
+    <dl className="status-rows">
+        {rows.map(row => (
+            <div className="status-row" key={row.key}>
+                <dt className="truncate">{row.label}</dt>
+                <dd className="status-row__bar">
+                    <SegmentedBar
+                        label={`${row.label} ${unit} in the last hour`}
+                        segments={[
+                            { key: row.key, label: row.label, tone: 'current', value: row.value },
+                        ]}
+                        size="sm"
+                        total={row.limit}
+                    />
+                </dd>
+                <dd className="status-row__value">
+                    {formatCount(row.value)}
+                    {showLimit && row.limit !== null ? (
+                        <span className="text-muted"> / {formatCount(row.limit)}</span>
+                    ) : null}
+                </dd>
+            </div>
+        ))}
+    </dl>
+);
 
 const keepaAside = (keepa: SystemStatus['keepa']) => {
     if (keepa.refillRate === null) {
@@ -159,13 +171,3 @@ const keepaAside = (keepa: SystemStatus['keepa']) => {
     const left = keepa.tokensLeft === null ? '—' : formatCount(Math.round(keepa.tokensLeft));
     return `${left} left · ${formatCount(keepa.refillRate)}/min`;
 };
-
-const breakdownTones: readonly SeriesTone[] = ['current', 'accent', 'pending', 'due', 'idle'];
-
-const toSegments = (
-    rows: ReadonlyArray<{ readonly key: string; readonly label: string; readonly value: number }>
-): Segment[] =>
-    rows.map((row, index) => ({
-        ...row,
-        tone: breakdownTones[index % breakdownTones.length] ?? 'idle',
-    }));

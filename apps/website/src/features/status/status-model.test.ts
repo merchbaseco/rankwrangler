@@ -3,6 +3,7 @@ import { eventRangeStart } from './event-range';
 import {
     formatPercent,
     fraction,
+    keepaWorkUsage,
     operationLabel,
     providerVerdict,
     type SystemStatus,
@@ -102,6 +103,25 @@ describe('spApiOperationUsage', () => {
                 label: 'Report downloads',
                 operation: 'spapi.reports.download',
             },
+        ]);
+    });
+});
+
+describe('keepaWorkUsage', () => {
+    it('lists every named work class in order, idle or not, then unnamed ones', () => {
+        const usage = keepaWorkUsage({
+            spentLastHour: [
+                { tokens: 538.6, workClass: 'history' },
+                { tokens: 10, workClass: 'head' },
+                { tokens: 4, workClass: 'backfill' },
+            ],
+        } as SystemStatus['keepa']);
+        expect(usage).toEqual([
+            { label: 'Keyword checks', tokens: 10, workClass: 'head' },
+            { label: 'Sales history', tokens: 539, workClass: 'history' },
+            { label: 'Live lookups', tokens: 0, workClass: 'interactive' },
+            { label: 'Discovery', tokens: 0, workClass: 'discovery' },
+            { label: 'backfill', tokens: 4, workClass: 'backfill' },
         ]);
     });
 });

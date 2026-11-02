@@ -110,12 +110,31 @@ export const formatPercent = (value: number) => {
 
 export const formatCount = (value: number) => countFormatter.format(value);
 
-/** Keepa work classes as the dashboard names them. */
-export const keepaWorkLabels: Readonly<Record<string, string>> = {
-    discovery: 'Discovery',
-    head: 'Keyword checks',
-    history: 'Sales history',
-    interactive: 'Live lookups',
+export interface WorkUsage {
+    readonly workClass: string;
+    readonly label: string;
+    readonly tokens: number;
+}
+
+/**
+ * Keepa tokens spent in the last hour by work class: every named class in a fixed order, idle or
+ * not, so the card keeps its shape, then any class the dashboard does not name yet.
+ */
+export const keepaWorkUsage = (keepa: SystemStatus['keepa']): WorkUsage[] => {
+    const spent = new Map(keepa.spentLastHour.map(row => [row.workClass, row.tokens]));
+    const named = [...keepaWorkLabels].map(([workClass, label]) => ({
+        workClass,
+        label,
+        tokens: Math.round(spent.get(workClass) ?? 0),
+    }));
+    const unnamed = keepa.spentLastHour
+        .filter(row => !keepaWorkLabels.has(row.workClass))
+        .map(row => ({
+            workClass: row.workClass,
+            label: row.workClass,
+            tokens: Math.round(row.tokens),
+        }));
+    return [...named, ...unnamed];
 };
 
 /** A provider operation as people read it: `spapi.catalog.search` becomes "Catalog search". */
@@ -139,3 +158,11 @@ const operationNames: Readonly<Record<string, string>> = {
 };
 
 const countFormatter = new Intl.NumberFormat('en-US');
+
+/** Keepa work classes as the dashboard names them, in the order the card lists them. */
+const keepaWorkLabels: ReadonlyMap<string, string> = new Map([
+    ['head', 'Keyword checks'],
+    ['history', 'Sales history'],
+    ['interactive', 'Live lookups'],
+    ['discovery', 'Discovery'],
+]);
