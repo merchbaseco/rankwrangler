@@ -187,6 +187,17 @@ const merchChild = (asin: string, color: string, size: string) => ({
     },
 });
 
+export const waitUntil = async (predicate: () => boolean, timeoutMs = 2_000) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (predicate()) {
+            return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    throw new Error('Timed out waiting for condition.');
+};
+
 const storeKey = (marketplaceId: string, parentAsin: string) => `${marketplaceId}:${parentAsin}`;
 
 const pendingRow = (

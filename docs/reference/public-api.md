@@ -120,8 +120,9 @@ type ProductVariations = {
 `variations` is `null` unless the caller includes `variations`. MerchBase BidBeacon and related agents
 depend on this enrichment for variation-aware bidding; treat it as a supported public contract, not
 an experimental opt-in. When included, RankWrangler reads Amazon Catalog variation relationships
-(all Catalog batches at foreground priority, with a 60-second AbortSignal budget around the family
-walk), preserves Amazon's `childAsins` order (the first entry is always `defaultChildAsin`), and maps
+(all Catalog batches at foreground priority, with a 60-second AbortSignal budget around the shared
+family walk — independent of the caller's request signal, which only ends that caller's wait),
+preserves Amazon's `childAsins` order (the first entry is always `defaultChildAsin`), and maps
 theme names such as `COLOR_NAME` / `SIZE_NAME` / `FIT_TYPE` / `DEPARTMENT_NAME` to public keys
 `color`, `size`, `fit`, and `department` from Catalog `attributes.<key>[0].value`. Attribute lookups
 cap at 1,000 children; every Amazon child ASIN is still stored as a family member, and children past

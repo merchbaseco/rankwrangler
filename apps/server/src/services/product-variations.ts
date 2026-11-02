@@ -118,7 +118,7 @@ const resolveVariations = async (
                 claimId,
                 seed: discovered?.kind === 'parent' ? discovered : null,
                 deps,
-                signal: familyFetchSignal(request.signal),
+                signal: familyFetchDeadlineSignal(),
             });
         });
 
@@ -153,7 +153,7 @@ const resolveVariations = async (
                     claimId,
                     seed: null,
                     deps,
-                    signal: familyFetchSignal(request.signal),
+                    signal: familyFetchDeadlineSignal(),
                 })
             );
             return refreshed.kind === 'ready' ? refreshed.value : null;
@@ -164,10 +164,8 @@ const resolveVariations = async (
     return null;
 };
 
-const familyFetchSignal = (callerSignal?: AbortSignal) => {
-    const deadline = AbortSignal.timeout(VARIATIONS_FAMILY_FETCH_DEADLINE_MS);
-    return callerSignal ? AbortSignal.any([deadline, callerSignal]) : deadline;
-};
+/** Shared fetch budget only — never wired to the caller's request AbortSignal. */
+const familyFetchDeadlineSignal = () => AbortSignal.timeout(VARIATIONS_FAMILY_FETCH_DEADLINE_MS);
 
 const readyFamilyOmitsMember = (
     row: Awaited<ReturnType<typeof getStoredVariation>>,
