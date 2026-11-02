@@ -85,6 +85,7 @@ export const awaitCatalogSearchRetrieval = async (
                 displayTerm,
                 page: 0,
                 maxAgeSeconds: refresh ? 0 : CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS,
+                serveStale: !refresh,
                 trigger: 'requested',
                 serviceAccountId,
                 ownerMerchbaseUserId,
@@ -118,7 +119,12 @@ export const awaitCatalogSearchRetrieval = async (
     });
 
     if (prepared.kind === 'ready') {
-        return await buildSearchResponse(prepared.runId, signal, timeoutMs, deps);
+        return await buildSearchResponse(prepared.runId, 'last-known', signal, timeoutMs, deps);
+    }
+    // Stored evidence of any age answers at once with its searchedAt; resolution has already
+    // queued its refresh as background work. Only refresh: true waits for a live search.
+    if (!refresh && prepared.staleRunId) {
+        return await buildSearchResponse(prepared.staleRunId, 'last-known', signal, timeoutMs, deps);
     }
     if (prepared.kind === 'cooldown') {
         throw new RetrievalRetryableError(
@@ -141,17 +147,20 @@ export const awaitCatalogSearchRetrieval = async (
         retryMessage: 'Keyword results are temporarily unavailable. Retry shortly.',
         work: async () => await waitForCatalogSearchRun(prepared.operation.id, deps),
     });
-    return await buildSearchResponse(runId, signal, timeoutMs, deps);
+    return await buildSearchResponse(runId, 'blocking', signal, timeoutMs, deps);
 };
 
+// A stored run's Products are known, so they answer last-known and refresh in the background; a
+// fresh search may surface Products RankWrangler has never resolved, which it waits for.
 const buildSearchResponse = async (
     runId: string,
+    fetchPolicy: 'blocking' | 'last-known',
     signal: AbortSignal | undefined,
     timeoutMs: number,
     deps: CatalogSearchRetrievalDeps
 ): Promise<KeywordResults> => {
     const run = await deps.getRun(runId, {
-        fetchPolicy: 'blocking',
+        fetchPolicy,
         signal,
         timeoutMs,
     });

@@ -299,6 +299,7 @@ bun test \
     apps/server/test/internal-access.db.test.ts \
     apps/server/test/catalog-search-concurrency.db.test.ts \
     apps/server/test/catalog-search-history.db.test.ts \
+    apps/server/test/catalog-search-stale-refresh.db.test.ts \
     apps/server/test/catalog-query-refresh.db.test.ts \
     apps/server/test/keyword-collection.db.test.ts \
     apps/server/test/scan-keyword-queue.db.test.ts \

@@ -76,8 +76,10 @@ page with the same filters and sort. Pages reflect current data and can move as 
 Search items include compact screening metrics. Coverage reports dated keyword observations; it
 does not promise a complete catalog.
 
-Keyword `results` returns `keyword`, `searchedAt`, and compact `results`. It reuses search evidence
-for 24 hours unless `refresh` is true, and can wait for collection. Each result nests
+Keyword `results` returns `keyword`, `searchedAt`, and compact `results`. It answers at once from
+the latest stored search evidence of any age (read its `searchedAt`), refreshing evidence older than
+24 hours in the background. It waits for collection only for a term with no stored evidence, or when
+`refresh` is true. Each result nests
 `organicSearchPlacement` and a compact Product projection with identity, title, brand, resolved
 thumbnail, classification, category, current sales rank, price, and bought-in-the-past-month
 evidence. It is not a full Product response.

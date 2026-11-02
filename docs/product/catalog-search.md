@@ -21,9 +21,12 @@ observation time, source-supplied placement, and compact current Product values.
 placement is useful evidence, not a guarantee of Amazon organic rank. Invalid or duplicate rows
 leave gaps. Retained membership and placement never change, while current Product values can.
 
-A successful observation is reused for 24 hours. A missing or expired observation starts or joins
-collection, then waits for the run and Product enrichment. Explicit refresh requests a replacement
-run. Provider failures and caller deadlines preserve the existing retryable error behavior.
+A stored observation of any age answers at once with its observation time and last-known Product
+values. One older than 24 hours also queues a replacement run as background work, classed like a
+scheduled head refresh so it yields Keepa capacity to requests someone is waiting on. Only a term
+with no observation starts or joins collection and waits for the run and Product enrichment.
+Explicit refresh requests a replacement run and waits for it. Provider failures and caller
+deadlines preserve the existing retryable error behavior.
 
 The Keywords dashboard shows the stored directory and its collection lifecycle. Dated Amazon
 search results remain available through keyword.results.

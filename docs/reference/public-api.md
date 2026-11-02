@@ -228,8 +228,9 @@ gap; the request does not wait for discovery. Source timestamps remain separate 
 ## Keyword results
 
 `keyword.results` preserves the former external Product-search behavior. It accepts `{ term,
-refresh? }`, reuses a successful run for 24 hours, and waits for collection and Product enrichment
-when a new run is needed. `refresh: true` requests a replacement run. Equivalent requests share
+refresh? }` and answers at once from the latest stored run of any age, queueing a background
+replacement when that run is older than 24 hours. It waits for collection and Product enrichment only
+for a term with no stored run, or when `refresh: true` requests a replacement run. Equivalent requests share
 work. Provider failure and deadline errors retain the existing retryable error contract.
 
 ```ts

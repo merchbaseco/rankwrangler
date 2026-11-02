@@ -41,10 +41,13 @@ export const resolveCatalogSearchRequest = async (
             return { kind: 'ready', runId: reusableRunId } as const;
         }
 
+        const staleRunId = await getLatestRunId(transaction, query.id);
+        const background = Boolean(input.serveStale && staleRunId);
         const pending = await getPendingCatalogSearchOperation(transaction, query.id);
 
         if (pending) {
             if (
+                !background &&
                 pending.type === 'catalogSearch' &&
                 pending.input.priority !== 'interactive' &&
                 !pending.startedAt
@@ -66,7 +69,7 @@ export const resolveCatalogSearchRequest = async (
                 kind: 'pending',
                 operation: pending,
                 created: false,
-                staleRunId: await getLatestRunId(transaction, query.id),
+                staleRunId,
             } as const;
         }
 
@@ -78,7 +81,7 @@ export const resolveCatalogSearchRequest = async (
                     1,
                     Math.ceil((queryState.nextRefreshAttemptAt.getTime() - now.getTime()) / 1000)
                 ),
-                staleRunId: await getLatestRunId(transaction, query.id),
+                staleRunId,
             } as const;
         }
 
@@ -98,8 +101,9 @@ export const resolveCatalogSearchRequest = async (
             marketplaceId: input.marketplaceId,
             term: input.displayTerm,
             page: input.page,
-            workClass: 'interactive',
-            priority: input.priority,
+            // A background refresh of known evidence is classed like a scheduled head refresh.
+            workClass: background ? 'head' : 'interactive',
+            priority: background ? 'scheduled' : input.priority,
             trigger: input.trigger,
             ownerMerchbaseUserId: input.ownerMerchbaseUserId,
         };
@@ -120,7 +124,7 @@ export const resolveCatalogSearchRequest = async (
             kind: 'pending',
             operation: mapCatalogSearchOperation(created),
             created: true,
-            staleRunId: await getLatestRunId(transaction, query.id),
+            staleRunId,
         } as const;
     });
 };

@@ -36,7 +36,7 @@ describe('Product-search retrieval policy', () => {
             }),
         ]);
         const getRun = mock((_runId: string, options?: { fetchPolicy?: string }) => {
-            expect(options?.fetchPolicy).toBe('blocking');
+            expect(options?.fetchPolicy).toBe('last-known');
             return Promise.resolve(run);
         });
         const deps = createDeps({
@@ -102,32 +102,25 @@ describe('Product-search retrieval policy', () => {
         expect(deps.resolveRequest.mock.calls[0]?.[0].maxAgeSeconds).toBe(86_400);
     });
 
-    it('waits for a replacement run even when a stale run is available', async () => {
+    it('answers from a stale run at once and leaves its refresh to background work', async () => {
         const staleRun = createRun('2026-08-05T11:00:00.000Z');
-        const freshRun = createRun('2026-08-06T12:00:02.000Z');
         const operation = createPendingOperation();
-        let operationReads = 0;
-        const getRun = mock((runId: string) => {
-            expect(runId).toBe(freshRun.id);
-            return Promise.resolve(freshRun);
+        const getRun = mock((runId: string, options?: { fetchPolicy?: string }) => {
+            expect(runId).toBe(staleRun.id);
+            expect(options?.fetchPolicy).toBe('last-known');
+            return Promise.resolve(staleRun);
         });
         const deps = createDeps({
-            resolveRequest: async () => ({
-                kind: 'pending' as const,
-                operation,
-                created: true,
-                staleRunId: staleRun.id,
-            }),
-            getOperationById: () => {
-                operationReads += 1;
-                return Promise.resolve(
-                    operationReads === 1
-                        ? operation
-                        : createCompletedOperation(operation, freshRun.id)
-                );
+            resolveRequest: async input => {
+                expect(input.serveStale).toBe(true);
+                return {
+                    kind: 'pending' as const,
+                    operation,
+                    created: true,
+                    staleRunId: staleRun.id,
+                };
             },
             getRun,
-            sleep: async () => undefined,
         });
 
         const result = await awaitCatalogSearchRetrieval(
@@ -141,10 +134,9 @@ describe('Product-search retrieval policy', () => {
             deps
         );
 
-        expect(result.searchedAt).toBe(freshRun.sourceCompletedAt);
-        expect(operationReads).toBe(2);
+        expect(result.searchedAt).toBe(staleRun.sourceCompletedAt);
         expect(deps.dispatchOperation.mock.calls).toHaveLength(1);
-        expect(getRun.mock.calls).toHaveLength(1);
+        expect(deps.getOperationById.mock.calls).toHaveLength(0);
     });
 
     it('waits for a missing Search run and maps the completed result', async () => {
@@ -186,7 +178,7 @@ describe('Product-search retrieval policy', () => {
         expect(operationReads).toBe(2);
     });
 
-    it('does not return stale evidence during a retry cooldown', async () => {
+    it('answers from stale evidence during a retry cooldown', async () => {
         const staleRun = createRun('2026-08-05T11:00:00.000Z');
         const deps = createDeps({
             resolveRequest: async () => ({
@@ -194,23 +186,20 @@ describe('Product-search retrieval policy', () => {
                 retryAfterSeconds: 120,
                 staleRunId: staleRun.id,
             }),
+            getRun: async () => staleRun,
         });
 
-        await expect(
-            awaitCatalogSearchRetrieval(
-                {
-                    term: 'cooldown shirts',
-                    refresh: false,
-                    ownerMerchbaseUserId: 'mbu_test',
-                    serviceAccountId: 'account-1',
-                },
-                deps
-            )
-        ).rejects.toMatchObject({
-            name: 'RetrievalRetryableError',
-            retryAfterSeconds: 120,
-        });
-        expect(deps.getRun.mock.calls).toHaveLength(0);
+        const result = await awaitCatalogSearchRetrieval(
+            {
+                term: 'cooldown shirts',
+                refresh: false,
+                ownerMerchbaseUserId: 'mbu_test',
+                serviceAccountId: 'account-1',
+            },
+            deps
+        );
+
+        expect(result.searchedAt).toBe(staleRun.sourceCompletedAt);
         expect(deps.dispatchOperation.mock.calls).toHaveLength(0);
     });
 

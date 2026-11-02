@@ -13,6 +13,9 @@ export interface ResolveCatalogSearchInput {
     displayTerm: string;
     page: 0;
     maxAgeSeconds: number;
+    // The caller answers from the latest stored run when one exists, so refreshing it is
+    // background work nobody waits on.
+    serveStale?: boolean;
     priority: 'interactive';
     trigger: 'requested';
     serviceAccountId?: string;

@@ -149,7 +149,7 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
         {
             annotations: readOnlyToolAnnotations,
             description:
-                'Read RankWrangler keyword data synchronously. operation=get reads a keyword directory entry; search filters our stored keyword directory using text, stage (default graduated; trial, dropped, untracked or all), freshness (live, needsSync, syncing or all), heat, limit and an opaque nextCursor. These reads show each keyword stage, data freshness, popularity and refresh cadence. results uses term and optional refresh to fetch or reuse dated Amazon search evidence, returning keyword, searchedAt and results with placements. It may wait for collection and normally reuses evidence for 24 hours. Responses contain data or a standard error.',
+                'Read RankWrangler keyword data synchronously. operation=get reads a keyword directory entry; search filters our stored keyword directory using text, stage (default graduated; trial, dropped, untracked or all), freshness (live, needsSync, syncing or all), heat, limit and an opaque nextCursor. These reads show each keyword stage, data freshness, popularity and refresh cadence. results uses term and optional refresh to fetch or reuse dated Amazon search evidence, returning keyword, searchedAt and results with placements. It answers at once from stored evidence of any age (check searchedAt) and refreshes evidence older than 24 hours in the background; it waits for a live search only for a term with no stored evidence or when refresh is true. Responses contain data or a standard error.',
             inputSchema: keywordInputSchema,
             outputSchema: toolOutputSchema,
             title: 'RankWrangler keyword',
