@@ -35,23 +35,16 @@ export const lookupVariationsByMember = async (
     marketplaceId: string,
     asin: string
 ): Promise<readonly StoredVariationRow[]> => {
-    const rows = await db.execute<StoredVariationRow>(sql`
-        SELECT marketplace_id AS "marketplaceId",
-            parent_asin AS "parentAsin",
-            generator_version AS "generatorVersion",
-            state,
-            kind,
-            theme,
-            children,
-            member_asins AS "memberAsins",
-            claim_id AS "claimId",
-            attempted_at AS "attemptedAt",
-            fetched_at AS "fetchedAt"
-        FROM product_variations
-        WHERE marketplace_id = ${marketplaceId}
-            AND member_asins @> ${textArrayLiteral([asin.toUpperCase()])}
-    `);
-    return rows;
+    const rows = await db
+        .select()
+        .from(productVariations)
+        .where(
+            and(
+                eq(productVariations.marketplaceId, marketplaceId),
+                sql`${productVariations.memberAsins} @> ${textArrayLiteral([asin.toUpperCase()])}`
+            )
+        );
+    return rows.map(normalizeStoredVariationRow);
 };
 
 export const getStoredVariation = async (
@@ -63,10 +56,10 @@ export const getStoredVariation = async (
         .where(
             and(
                 eq(productVariations.marketplaceId, identity.marketplaceId),
-                eq(productVariations.parentAsin, identity.parentAsin)
+                eq(productVariations.parentAsin, identity.parentAsin.toUpperCase())
             )
         );
-    return row ?? null;
+    return row ? normalizeStoredVariationRow(row) : null;
 };
 
 /** Returns true only when this claimId won the parent row. */
@@ -238,4 +231,54 @@ const textArrayLiteral = (values: readonly string[]) => {
         values.map(value => sql`${value}`),
         sql`, `
     )}]::text[]`;
+};
+
+type RawStoredVariationRow = {
+    marketplaceId: string;
+    parentAsin: string;
+    generatorVersion: string;
+    state: 'pending' | 'ready' | 'error';
+    kind: 'family' | 'none' | null;
+    theme: readonly string[] | string | null;
+    children: readonly StoredVariationChild[] | string | null;
+    memberAsins: string[];
+    claimId: string;
+    attemptedAt: Date | string;
+    fetchedAt: Date | string | null;
+};
+
+/** postgres-js may return timestamps as strings and jsonb as text on raw paths. */
+const normalizeStoredVariationRow = (row: RawStoredVariationRow): StoredVariationRow => ({
+    marketplaceId: row.marketplaceId,
+    parentAsin: row.parentAsin,
+    generatorVersion: row.generatorVersion,
+    state: row.state,
+    kind: row.kind,
+    theme: parseJsonField<readonly string[]>(row.theme),
+    children: parseJsonField<readonly StoredVariationChild[]>(row.children),
+    memberAsins: row.memberAsins,
+    claimId: row.claimId,
+    attemptedAt: coerceDate(row.attemptedAt),
+    fetchedAt: row.fetchedAt == null ? null : coerceDate(row.fetchedAt),
+});
+
+const coerceDate = (value: Date | string): Date => {
+    if (value instanceof Date) {
+        return value;
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        throw new Error(`Invalid product_variations timestamp: ${value}`);
+    }
+    return date;
+};
+
+const parseJsonField = <T>(value: T | string | null): T | null => {
+    if (value == null) {
+        return null;
+    }
+    if (typeof value === 'string') {
+        return JSON.parse(value) as T;
+    }
+    return value;
 };

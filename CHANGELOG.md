@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.16.2 - 2026-11-03
+
+### Fixed
+
+- `product.get` `include: ['variations']` no longer throws when reading a stored family.
+  Variation store reads now return real `Date` values for `attemptedAt` / `fetchedAt` (and parsed
+  jsonb for theme/children), so a ready snapshot is returned instead of settling as `null`.
+
 ## v0.16.1 - 2026-11-03
 
 ### Fixed

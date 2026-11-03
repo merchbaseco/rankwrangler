@@ -99,5 +99,9 @@ describeCatalogDb('product_variations store', () => {
         const byMember = await lookupVariationsByMember(MARKETPLACE, sharedChild);
         expect(byMember).toHaveLength(1);
         expect(byMember[0]?.parentAsin).toBe(PARENT);
+        expect(byMember[0]?.attemptedAt).toBeInstanceOf(Date);
+        expect(byMember[0]?.fetchedAt).toBeInstanceOf(Date);
+        expect(Array.isArray(byMember[0]?.children)).toBe(true);
+        expect(Array.isArray(byMember[0]?.theme)).toBe(true);
     });
 });

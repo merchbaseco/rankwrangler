@@ -331,6 +331,7 @@ bun test \
     apps/server/test/provider-health.db.test.ts \
     apps/server/test/product-variation-families.db.test.ts \
     apps/server/test/product-variations-store.db.test.ts \
+    apps/server/test/product-variations-read-path.db.test.ts \
     apps/server/test/keepa-product-rows.db.test.ts \
     apps/server/test/system-status.db.test.ts \
     apps/server/test/event-log-histogram.db.test.ts
