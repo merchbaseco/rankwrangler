@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.16.1 - 2026-11-03
+
+### Fixed
+
+- `product.get` `include: ['variations']` no longer fails when finishing a multi-child family.
+  Overlap cleanup now binds `member_asins` as a Postgres `text[]` instead of a row constructor, so
+  live families (hundreds of children) settle as `ready` instead of `error`.
+
 ## v0.16.0 - 2026-11-02
 
 ### Added

@@ -49,7 +49,7 @@ export const lookupVariationsByMember = async (
             fetched_at AS "fetchedAt"
         FROM product_variations
         WHERE marketplace_id = ${marketplaceId}
-            AND member_asins @> ARRAY[${asin.toUpperCase()}]::text[]
+            AND member_asins @> ${textArrayLiteral([asin.toUpperCase()])}
     `);
     return rows;
 };
@@ -88,7 +88,7 @@ export const claimVariationFetch = async ({
             member_asins, claim_id, attempted_at, fetched_at
         ) VALUES (
             ${marketplaceId}, ${upperParent}, ${VARIATIONS_GENERATOR_VERSION}, 'pending', NULL, NULL, NULL,
-            ARRAY[${upperParent}]::text[], ${claimId}::uuid, now(), NULL
+            ${textArrayLiteral([upperParent])}, ${claimId}::uuid, now(), NULL
         )
         ON CONFLICT (marketplace_id, parent_asin) DO UPDATE SET
             generator_version = excluded.generator_version,
@@ -187,7 +187,7 @@ export const finishVariationFetch = async ({
                 DELETE FROM product_variations
                 WHERE marketplace_id = ${marketplaceId}
                     AND parent_asin <> ${upperParent}
-                    AND member_asins && ${members}::text[]
+                    AND member_asins && ${textArrayLiteral(members)}
             `);
         }
         return true;
@@ -227,4 +227,15 @@ const memberAsinsForFamily = (
         members.push(upper);
     }
     return members;
+};
+
+/** Bind a JS string[] as one Postgres text[] (never `${array}::text[]` — that becomes a row). */
+const textArrayLiteral = (values: readonly string[]) => {
+    if (values.length === 0) {
+        return sql`'{}'::text[]`;
+    }
+    return sql`ARRAY[${sql.join(
+        values.map(value => sql`${value}`),
+        sql`, `
+    )}]::text[]`;
 };
