@@ -20,7 +20,7 @@
         "@radix-ui/react-slot": "1.2.4",
         "@radix-ui/react-switch": "1.2.6",
         "@rankwrangler/history-chart": "workspace:*",
-        "@rankwrangler/http-client": "^0.14.0",
+        "@rankwrangler/http-client": "^0.15.0",
         "@tanstack/react-query": "5.90.20",
         "class-variance-authority": "0.7.1",
         "clsx": "2.1.1",
@@ -67,7 +67,7 @@
     },
     "apps/server": {
       "name": "@rankwrangler/server",
-      "version": "0.14.0",
+      "version": "0.15.0",
       "dependencies": {
         "@amazon-sp-api-release/amazon-sp-api-sdk-js": "1.7.1",
         "@aws-sdk/client-s3": "3.1136.0",
@@ -88,7 +88,7 @@
         "nanoid": "5.1.6",
         "node-cache": "5.1.2",
         "pg": "8.18.0",
-        "pg-boss": "12.9.0",
+        "pg-boss": "12.14.0",
         "postgres": "3.4.8",
         "sharp": "0.35.4",
         "tslib": "2.8.1",
@@ -154,13 +154,13 @@
     },
     "packages/cli": {
       "name": "@rankwrangler/cli",
-      "version": "0.14.0",
+      "version": "0.15.0",
       "bin": {
         "rw": "dist/index.js",
         "rankwrangler": "dist/index.js",
       },
       "dependencies": {
-        "@rankwrangler/http-client": "^0.13.0",
+        "@rankwrangler/http-client": "^0.15.0",
         "keytar": "7.9.0",
       },
       "devDependencies": {
@@ -179,7 +179,7 @@
     },
     "packages/http-client": {
       "name": "@rankwrangler/http-client",
-      "version": "0.14.0",
+      "version": "0.15.0",
       "dependencies": {
         "@trpc/client": "11.10.0",
         "@trpc/server": "11.10.0",
@@ -1354,7 +1354,7 @@
 
     "pg": ["pg@8.18.0", "", { "dependencies": { "pg-connection-string": "^2.11.0", "pg-pool": "^3.11.0", "pg-protocol": "^1.11.0", "pg-types": "2.2.0", "pgpass": "1.0.5" }, "optionalDependencies": { "pg-cloudflare": "^1.3.0" }, "peerDependencies": { "pg-native": ">=3.0.1" }, "optionalPeers": ["pg-native"] }, "sha512-xqrUDL1b9MbkydY/s+VZ6v+xiMUmOUk7SS9d/1kpyQxoJ6U9AO1oIJyUWVZojbfe5Cc/oluutcgFG4L9RDP1iQ=="],
 
-    "pg-boss": ["pg-boss@12.9.0", "", { "dependencies": { "cron-parser": "^5.5.0", "pg": "^8.18.0", "serialize-error": "^13.0.1" }, "bin": { "pg-boss": "dist/cli.js" } }, "sha512-VrHzjr7RYmT4Jsu9eHg07psfFi/7Rlv/rzyF7uuAq7VdAHC+nR1Y//vcOGxJMcN6z0URvV6QBJlXj1qnmAcfXQ=="],
+    "pg-boss": ["pg-boss@12.14.0", "", { "dependencies": { "cron-parser": "^5.5.0", "pg": "^8.19.0", "serialize-error": "^13.0.1" }, "bin": { "pg-boss": "dist/cli.js" } }, "sha512-sxF+Y5w6uRRkFCen3LM6BOcSG5gdMM3/hs+WiycAHHX8EuP5Zod5eTo79IlmegXFzIgtYWs7Bcjjhid4TRLlvg=="],
 
     "pg-cloudflare": ["pg-cloudflare@1.3.0", "", {}, "sha512-6lswVVSztmHiRtD6I8hw4qP/nDm1EJbKMRhf3HCYaqud7frGysPv7FYJ5noZQdhQtN2xJnimfMtvQq21pdbzyQ=="],
 
@@ -1780,6 +1780,8 @@
 
     "p-locate/p-limit": ["p-limit@4.0.0", "", { "dependencies": { "yocto-queue": "^1.0.0" } }, "sha512-5b0R4txpzjPWVw/cXXUResoD4hb6U/x9BH08L7nw+GN1sezDzPdxeRvpc9c433fZhBan/wusjbCsqwqm4EIBIQ=="],
 
+    "pg-boss/pg": ["pg@8.23.1", "", { "dependencies": { "pg-connection-string": "^2.14.1", "pg-pool": "^3.14.0", "pg-protocol": "^1.16.1", "pg-types": "2.2.0", "pgpass": "1.0.5" }, "optionalDependencies": { "pg-cloudflare": "^1.4.1" }, "peerDependencies": { "pg-native": ">=3.0.1" }, "optionalPeers": ["pg-native"] }, "sha512-aL96AHANtWjPLDOLqnhx+ngp9+UK7ETEU8VJrDCGvsSSi/mGLcWYsS6Herg7lmaBJe4uwrfqsa7gTEFaSizDoQ=="],
+
     "pkg-types/confbox": ["confbox@0.2.4", "", {}, "sha512-ysOGlgTFbN2/Y6Cg3Iye8YKulHw+R2fNXHrgSmXISQdMnomY6eNDprVdW9R5xBguEqI954+S6709UyiO7B+6OQ=="],
 
     "postcss/nanoid": ["nanoid@3.3.11", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w=="],
@@ -1869,6 +1871,14 @@
     "giget/nypm/tinyexec": ["tinyexec@0.3.2", "", {}, "sha512-KQQR9yN7R5+OSwaK0XQoj22pwHoTlgYqmUscPYoknOoWCWfj/5/ABTMRi69FrKU5ffPVh5QcFikpWJI/P1ocHA=="],
 
     "heroui-pro/@clack/prompts/@clack/core": ["@clack/core@1.1.0", "", { "dependencies": { "sisteransi": "^1.0.5" } }, "sha512-SVcm4Dqm2ukn64/8Gub2wnlA5nS2iWJyCkdNHcvNHPIeBTGojpdJ+9cZKwLfmqy7irD4N5qLteSilJlE0WLAtA=="],
+
+    "pg-boss/pg/pg-cloudflare": ["pg-cloudflare@1.4.1", "", {}, "sha512-6PQbsFWZcp9EmJEwy5cGQ2La+AMWpP46lgbb8X+U/XsHIUweYDNCpeuKck5RxL2MdVFi7krbbEi5nX4Zh7JhrQ=="],
+
+    "pg-boss/pg/pg-connection-string": ["pg-connection-string@2.14.1", "", {}, "sha512-qR3kGNPBLpCNtz0evbKA0Y/MRFXwSSdT+pTJvYp/bXTcReZbvX1kzF0IyTc1QnxqF7AZbOeBhNL8R5mYQZV/MA=="],
+
+    "pg-boss/pg/pg-pool": ["pg-pool@3.14.0", "", { "peerDependencies": { "pg": ">=8.0" } }, "sha512-gKtPkFdQPU3DksooVLi9LsjZxrsBUZIpa+7aVx+LV5pNh0KzP4Zleud2po+ConrxbuXGBJ6Hfer6hdgpIBpBaw=="],
+
+    "pg-boss/pg/pg-protocol": ["pg-protocol@1.16.1", "", {}, "sha512-p9VOFMiHB/ZbJATetbg+99PxssTVSQRnyuPSQ67mN1+1KBOjZaZ83ZQzltnxPhJwSsC3nwVjJ10DVJlerbFzLg=="],
 
     "rankwrangler-extension/@tailwindcss/vite/@tailwindcss/node": ["@tailwindcss/node@4.1.18", "", { "dependencies": { "@jridgewell/remapping": "^2.3.4", "enhanced-resolve": "^5.18.3", "jiti": "^2.6.1", "lightningcss": "1.30.2", "magic-string": "^0.30.21", "source-map-js": "^1.2.1", "tailwindcss": "4.1.18" } }, "sha512-DoR7U1P7iYhw16qJ49fgXUlry1t4CpXeErJHnQ44JgTSKMaZUdf17cfn5mHchfJ4KRBZRFA/Coo+MUF5+gOaCQ=="],
 

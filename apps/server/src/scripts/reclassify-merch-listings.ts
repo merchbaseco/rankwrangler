@@ -31,8 +31,7 @@ const main = async () => {
 
     const boss = new PgBoss({
         connectionString: buildDatabaseUrl(),
-        // Starts as the server does: pg-boss's strict schema check (`migrate: false`) refuses the
-        // production schema, which runs ahead of this library's version.
+        // Starts as the server does, without its scheduler or maintenance.
         schedule: false,
         supervise: false,
     });
