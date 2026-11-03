@@ -7,9 +7,11 @@ import { createEventLogSafe } from './event-logs';
 import { discoverVariationRole, type VariationDeps } from './product-variations-discovery';
 import {
     assembleFamily,
+    catalogAttributeKeyNames,
     chunkAsins,
     parseCatalogItems,
     truncateChildAsins,
+    unresolvedThemeKeys,
     type VariationRole,
 } from './product-variations-parse';
 import { toProductVariations, type ProductVariations } from './product-variations-request';
@@ -139,6 +141,24 @@ export const fetchClaimedVariationFamily = async ({
             itemsByAsin,
             marketplaceId
         );
+        const unresolvedTheme = unresolvedThemeKeys(family);
+        if (unresolvedTheme.length > 0) {
+            const sampleItem = firstCatalogChildItem(allChildAsins, itemsByAsin);
+            await createEventLogSafe({
+                level: 'warn',
+                status: 'partial',
+                category: 'product',
+                action: 'product.variations.fetch',
+                primitiveType: 'product',
+                message: `Variation theme attributes unresolved for ${parentAsin}.`,
+                marketplaceId,
+                asin: parentAsin,
+                detailsJson: {
+                    unresolvedTheme: [...unresolvedTheme],
+                    sampleAttributeKeys: sampleItem ? [...catalogAttributeKeyNames(sampleItem)] : [],
+                },
+            });
+        }
         const saved = await finishVariationFetch({
             marketplaceId,
             parentAsin,
@@ -259,4 +279,17 @@ const catalogAsin = (item: unknown): string | null => {
     }
     const asin = (item as { asin: unknown }).asin;
     return typeof asin === 'string' ? asin.toUpperCase() : null;
+};
+
+const firstCatalogChildItem = (
+    childAsins: readonly string[],
+    itemsByAsin: ReadonlyMap<string, unknown>
+): unknown | null => {
+    for (const asin of childAsins) {
+        const item = itemsByAsin.get(asin);
+        if (item !== undefined) {
+            return item;
+        }
+    }
+    return null;
 };

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.16.4 - 2026-11-03
+
+### Fixed
+
+- Merch apparel `include: ['variations']` now resolves `size` from Catalog Items 2022-04-01 apparel
+  attributes (`shirt_size`, `apparel_size`, then `size` / `size_name` / `bottoms_size` /
+  `headwear_size`), reading `[0].size` before `[0].value` on object-valued entries and normalizing
+  alpha tokens (`medium` → `M`, `x_large` → `XL`, …). The same object extraction applies to other
+  theme dimensions. When a theme key resolves for zero children, one warn event logs the sorted
+  Catalog attribute key names from the first child. Generator version bumped to
+  `catalog-relationships-2022-04-01:v3` so stored families refetch.
+
 ## v0.16.3 - 2026-11-03
 
 ### Fixed

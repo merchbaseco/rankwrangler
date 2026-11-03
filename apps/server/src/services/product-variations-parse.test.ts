@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'bun:test';
 import {
     assembleFamily,
+    catalogAttributeKeyNames,
     chunkAsins,
     publicAttributeKey,
     readThemeAttributes,
     readVariationRole,
     truncateChildAsins,
+    unresolvedThemeKeys,
     VARIATION_ASIN_BATCH_SIZE,
     VARIATIONS_MAX_CHILDREN,
 } from './product-variations-parse';
+import { normalizeAlphaSize } from './product-variations-theme';
 
 const MARKETPLACE = 'ATVPDKIKX0DER';
 const PARENT = 'B0GHTD7TKB';
@@ -76,7 +79,102 @@ describe('product variations parse', () => {
             MARKETPLACE,
             theme
         );
-        expect(attributes).toEqual({ color: 'Navy', size: 'Large', fit: 'Mens' });
+        expect(attributes).toEqual({ color: 'Navy', size: 'L', fit: 'Mens' });
+    });
+
+    it('reads size from shirt_size / apparel_size objects and normalizes alpha labels', () => {
+        expect(normalizeAlphaSize('small')).toBe('S');
+        expect(normalizeAlphaSize('medium')).toBe('M');
+        expect(normalizeAlphaSize('x_large')).toBe('XL');
+        expect(normalizeAlphaSize('xx_large')).toBe('2XL');
+        expect(normalizeAlphaSize('3x_large')).toBe('3XL');
+        expect(normalizeAlphaSize('One Size')).toBe('One Size');
+
+        const fromShirt = readThemeAttributes(
+            childCatalogItem(DEFAULT_CHILD, PARENT, {
+                color: [{ value: 'Navy', marketplace_id: MARKETPLACE }],
+                shirt_size: [
+                    {
+                        size: 'medium',
+                        size_class: 'alpha',
+                        size_system: 'as3',
+                        marketplace_id: MARKETPLACE,
+                    },
+                ],
+                fit_type: [{ value: 'Mens', marketplace_id: MARKETPLACE }],
+            }),
+            MARKETPLACE,
+            ['color', 'size', 'fit']
+        );
+        expect(fromShirt).toEqual({ color: 'Navy', size: 'M', fit: 'Mens' });
+
+        const fromApparel = readThemeAttributes(
+            childCatalogItem(DEFAULT_CHILD, PARENT, {
+                apparel_size: [
+                    {
+                        size: 'x_large',
+                        size_class: 'alpha',
+                        marketplace_id: MARKETPLACE,
+                    },
+                ],
+            }),
+            MARKETPLACE,
+            ['size']
+        );
+        expect(fromApparel).toEqual({ size: 'XL' });
+
+        const prefersShirt = readThemeAttributes(
+            childCatalogItem(DEFAULT_CHILD, PARENT, {
+                shirt_size: [{ size: 'small', marketplace_id: MARKETPLACE }],
+                size: [{ value: 'ShouldNotWin', marketplace_id: MARKETPLACE }],
+            }),
+            MARKETPLACE,
+            ['size']
+        );
+        expect(prefersShirt).toEqual({ size: 'S' });
+    });
+
+    it('pulls a string from object-valued theme attributes via size then value', () => {
+        const attributes = readThemeAttributes(
+            childCatalogItem(DEFAULT_CHILD, PARENT, {
+                color: [{ value: { value: 'Teal' }, marketplace_id: MARKETPLACE }],
+                fit_type: [{ size: 'Slim', marketplace_id: MARKETPLACE }],
+            }),
+            MARKETPLACE,
+            ['color', 'fit']
+        );
+        expect(attributes).toEqual({ color: 'Teal', fit: 'Slim' });
+    });
+
+    it('reports unresolved theme keys and sorted sample attribute key names', () => {
+        const item = childCatalogItem(DEFAULT_CHILD, PARENT, {
+            color: [{ value: 'Navy', marketplace_id: MARKETPLACE }],
+            shirt_size: [{ size: 'large', marketplace_id: MARKETPLACE }],
+            fit_type: [{ value: 'Mens', marketplace_id: MARKETPLACE }],
+            item_name: [{ value: 'Tee', marketplace_id: MARKETPLACE }],
+        });
+        expect(catalogAttributeKeyNames(item)).toEqual([
+            'color',
+            'fit_type',
+            'item_name',
+            'shirt_size',
+        ]);
+        const family = assembleFamily(
+            {
+                kind: 'parent',
+                parentAsin: PARENT,
+                theme: ['color', 'size', 'fit', 'style'],
+                childAsins: [DEFAULT_CHILD],
+            },
+            new Map([[DEFAULT_CHILD, item]]),
+            MARKETPLACE
+        );
+        expect(family.children[0]?.attributes).toEqual({
+            color: 'Navy',
+            size: 'L',
+            fit: 'Mens',
+        });
+        expect(unresolvedThemeKeys(family)).toEqual(['style']);
     });
 
     it('keeps catalog-missing children with empty attributes without throwing', () => {
@@ -137,7 +235,7 @@ const childAsin = (index: number) => `B0TEST${String(index).padStart(4, '0')}`;
 const childCatalogItem = (
     asin: string,
     parentAsin: string,
-    attributes: Record<string, Array<{ value: string; marketplace_id: string }>> = {}
+    attributes: Record<string, Array<Record<string, unknown>>> = {}
 ) => ({
     asin,
     relationships: [

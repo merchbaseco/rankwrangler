@@ -140,4 +140,68 @@ describe('fetchClaimedVariationFamily', () => {
         expect(store.refreshLeaseCalls()).toBe(batchCount * 2);
         expect(VARIATIONS_FAMILY_FETCH_DEADLINE_MS).toBe(180_000);
     });
+
+    it('warns with sample attribute keys when a theme dimension resolves for no children', async () => {
+        const { deps, searchCatalogItemsByAsins } = createCatalogMock();
+        searchCatalogItemsByAsins.mockImplementation(async ({ asins }) => ({
+            items: asins.map(asin => ({
+                asin,
+                relationships: [
+                    {
+                        marketplaceId: MARKETPLACE,
+                        relationships: [{ type: 'VARIATION', parentAsins: [PARENT] }],
+                    },
+                ],
+                attributes: {
+                    color: [{ value: 'Navy', marketplace_id: MARKETPLACE }],
+                    fit_type: [{ value: 'Mens', marketplace_id: MARKETPLACE }],
+                    shirt_size: [
+                        {
+                            size: 'medium',
+                            size_class: 'alpha',
+                            marketplace_id: MARKETPLACE,
+                        },
+                    ],
+                    item_name: [{ value: 'Tee', marketplace_id: MARKETPLACE }],
+                },
+            })),
+        }));
+        const store = installStoreSpy();
+        const claimId = '00000000-0000-0000-0000-00000000size';
+        store.seedPending({ marketplaceId: MARKETPLACE, parentAsin: PARENT, claimId });
+
+        const result = await fetchClaimedVariationFamily({
+            marketplaceId: MARKETPLACE,
+            parentAsin: PARENT,
+            claimId,
+            seed: {
+                kind: 'parent',
+                parentAsin: PARENT,
+                theme: ['color', 'size', 'fit', 'style'],
+                childAsins: [DEFAULT_CHILD],
+            },
+            deps,
+        });
+
+        expect(result.kind).toBe('ready');
+        if (result.kind !== 'ready') {
+            return;
+        }
+        expect(result.value.children[0]?.attributes).toEqual({
+            color: 'Navy',
+            size: 'M',
+            fit: 'Mens',
+        });
+        expect(eventLogs.createEventLogSafe).toHaveBeenCalledWith(
+            expect.objectContaining({
+                level: 'warn',
+                status: 'partial',
+                message: `Variation theme attributes unresolved for ${PARENT}.`,
+                detailsJson: {
+                    unresolvedTheme: ['style'],
+                    sampleAttributeKeys: ['color', 'fit_type', 'item_name', 'shirt_size'],
+                },
+            })
+        );
+    });
 });

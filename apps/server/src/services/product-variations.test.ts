@@ -41,8 +41,8 @@ describe('getProductVariations', () => {
             theme: ['color', 'size'],
             defaultChildAsin: DEFAULT_CHILD,
             children: [
-                { asin: DEFAULT_CHILD, attributes: { color: 'Black', size: 'Large' } },
-                { asin: SECOND_CHILD, attributes: { color: 'White', size: 'Medium' } },
+                { asin: DEFAULT_CHILD, attributes: { color: 'Black', size: 'L' } },
+                { asin: SECOND_CHILD, attributes: { color: 'White', size: 'M' } },
             ],
         });
         expect(result?.fetchedAt).toEqual(expect.any(String));
