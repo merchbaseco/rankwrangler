@@ -120,7 +120,7 @@ type ProductVariations = {
 `variations` is `null` unless the caller includes `variations`. MerchBase BidBeacon and related agents
 depend on this enrichment for variation-aware bidding; treat it as a supported public contract, not
 an experimental opt-in. When included, RankWrangler reads Amazon Catalog variation relationships
-(all Catalog batches at foreground priority, with a 60-second AbortSignal budget around the shared
+(all Catalog batches at foreground priority, with a 180-second AbortSignal budget around the shared
 family walk — independent of the caller's request signal, which only ends that caller's wait),
 preserves Amazon's `childAsins` order (the first entry is always `defaultChildAsin`), and maps
 theme names such as `COLOR_NAME` / `SIZE_NAME` / `FIT_TYPE` / `DEPARTMENT_NAME` to public keys
@@ -131,7 +131,10 @@ catalog lookup omits (suppressed or retired) likewise stays with empty `attribut
 `defaultChildAsin` stay stable.
 Snapshots reuse for 24 hours; a requested child missing from a fresh family returns `null` until the
 row is at least an hour old, then RankWrangler refetches once. Standalone Products settle as `null`.
-Slow or failed variation fetch within the enrichment deadline also settles as `null`.
+Slow or failed variation fetch within the enrichment deadline also settles as `null`. A cold request
+for a large apparel family (hundreds of children, many Catalog batches) usually returns
+`variations: null` within the shared 20-second enrichment budget while the shared walk continues;
+callers should retry `get` after about one minute for the finished snapshot.
 
 `bulletPoints` is always an array; a current Product with no bullets returns `[]`. For nullable
 measurements, `null` means valid data is unavailable. It never means zero, failure, or pending work.

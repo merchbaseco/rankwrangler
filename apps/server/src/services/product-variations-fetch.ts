@@ -15,7 +15,7 @@ import {
 import { toProductVariations, type ProductVariations } from './product-variations-request';
 
 /** Wall-clock budget for one claimed family Catalog walk (all batches foreground). */
-export const VARIATIONS_FAMILY_FETCH_DEADLINE_MS = 60_000;
+export const VARIATIONS_FAMILY_FETCH_DEADLINE_MS = 180_000;
 
 export class VariationFamilyFetchAbortedError extends Error {
     constructor(parentAsin: string) {
@@ -44,8 +44,11 @@ export const fetchClaimedVariationFamily = async ({
     | { kind: 'superseded' }
     | { kind: 'aborted' }
 > => {
-    const fetchSignal =
-        signal ?? AbortSignal.timeout(VARIATIONS_FAMILY_FETCH_DEADLINE_MS);
+    const fetchSignal = signal ?? AbortSignal.timeout(VARIATIONS_FAMILY_FETCH_DEADLINE_MS);
+    const startedAt = Date.now();
+    let batchesDone = 0;
+    let batchesTotal = 0;
+    let slowestBatchMs = 0;
     try {
         throwIfAborted(fetchSignal, parentAsin);
         let parentRole = seed;
@@ -96,9 +99,16 @@ export const fetchClaimedVariationFamily = async ({
             });
         }
 
+        const batches = chunkAsins(attributeChildAsins);
+        batchesTotal = batches.length;
         const itemsByAsin = new Map<string, unknown>();
-        for (const batch of chunkAsins(attributeChildAsins)) {
+        for (const batch of batches) {
             throwIfAborted(fetchSignal, parentAsin);
+            // Renew before the Catalog call so a long foreground queue wait cannot outlive the lease.
+            if (!(await refreshVariationLease({ marketplaceId, parentAsin, claimId }))) {
+                return { kind: 'superseded' };
+            }
+            const batchStartedAt = Date.now();
             const items = parseCatalogItems(
                 await deps.searchCatalogItemsByAsins({
                     asins: [...batch],
@@ -106,12 +116,17 @@ export const fetchClaimedVariationFamily = async ({
                     priority: 'foreground',
                 })
             );
+            const batchMs = Date.now() - batchStartedAt;
+            if (batchMs > slowestBatchMs) {
+                slowestBatchMs = batchMs;
+            }
             for (const item of items) {
                 const asin = catalogAsin(item);
                 if (asin) {
                     itemsByAsin.set(asin, item);
                 }
             }
+            batchesDone += 1;
             if (!(await refreshVariationLease({ marketplaceId, parentAsin, claimId }))) {
                 return { kind: 'superseded' };
             }
@@ -154,6 +169,12 @@ export const fetchClaimedVariationFamily = async ({
                 childCount: family.children.length,
                 theme: [...family.theme],
                 truncated,
+                ...familyFetchTiming({
+                    batchesDone,
+                    batchesTotal,
+                    startedAt,
+                    slowestBatchMs,
+                }),
             },
         });
         return { kind: 'ready', value: toProductVariations(family, new Date()) };
@@ -169,7 +190,16 @@ export const fetchClaimedVariationFamily = async ({
                 message: `Variation fetch timed out for ${parentAsin}.`,
                 marketplaceId,
                 asin: parentAsin,
-                detailsJson: { outcome: 'aborted', retryable: true },
+                detailsJson: {
+                    outcome: 'aborted',
+                    retryable: true,
+                    ...familyFetchTiming({
+                        batchesDone,
+                        batchesTotal,
+                        startedAt,
+                        slowestBatchMs,
+                    }),
+                },
             });
             return { kind: 'aborted' };
         }
@@ -182,10 +212,33 @@ export const fetchClaimedVariationFamily = async ({
             message: `Variation fetch failed for ${parentAsin}.`,
             marketplaceId,
             asin: parentAsin,
+            detailsJson: familyFetchTiming({
+                batchesDone,
+                batchesTotal,
+                startedAt,
+                slowestBatchMs,
+            }),
         });
         throw new Error(`Product variation fetch failed for ${parentAsin}.`, { cause: error });
     }
 };
+
+const familyFetchTiming = ({
+    batchesDone,
+    batchesTotal,
+    startedAt,
+    slowestBatchMs,
+}: {
+    batchesDone: number;
+    batchesTotal: number;
+    startedAt: number;
+    slowestBatchMs: number;
+}) => ({
+    batchesDone,
+    batchesTotal,
+    elapsedMs: Date.now() - startedAt,
+    slowestBatchMs,
+});
 
 const throwIfAborted = (signal: AbortSignal, parentAsin: string) => {
     if (signal.aborted) {

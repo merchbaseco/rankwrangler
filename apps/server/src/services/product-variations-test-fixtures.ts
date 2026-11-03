@@ -51,7 +51,9 @@ export const installStoreSpy = () => {
         rows.set(key, pendingRow(input.marketplaceId, parentAsin, input.claimId));
         return true;
     });
+    let refreshLeaseCalls = 0;
     spyOn(variationStore, 'refreshVariationLease').mockImplementation(async input => {
+        refreshLeaseCalls += 1;
         const row = rows.get(storeKey(input.marketplaceId, input.parentAsin.toUpperCase()));
         return row?.claimId === input.claimId && row.state === 'pending';
     });
@@ -97,6 +99,7 @@ export const installStoreSpy = () => {
         }
     });
     return {
+        refreshLeaseCalls: () => refreshLeaseCalls,
         getRow: (marketplaceId: string, parentAsin: string) =>
             rows.get(storeKey(marketplaceId, parentAsin.toUpperCase())) ?? null,
         seedPending: ({
