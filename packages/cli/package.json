@@ -1,6 +1,6 @@
 {
     "name": "@rankwrangler/cli",
-    "version": "0.16.0",
+    "version": "0.16.1",
     "description": "Official RankWrangler command line interface",
     "repository": {
         "type": "git",
@@ -29,7 +29,7 @@
         "provenance": true
     },
     "dependencies": {
-        "@rankwrangler/http-client": "^0.16.0",
+        "@rankwrangler/http-client": "^0.16.1",
         "keytar": "7.9.0"
     },
     "devDependencies": {
