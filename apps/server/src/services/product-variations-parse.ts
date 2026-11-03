@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
+    catalogEntryDisplayString,
     catalogKeysForPublicAttribute,
+    displayStringForPublicAttribute,
     publicAttributeKey,
     uniquePublicThemeKeys,
 } from './product-variations-theme';
@@ -30,9 +32,9 @@ export type VariationRole =
           readonly childAsins: readonly string[];
       };
 
+/** Apparel sizes use object entries (`size` / nested `value`); keep entries permissive. */
 const AttributeEntrySchema = z
     .object({
-        value: z.union([z.string(), z.number(), z.boolean()]).optional(),
         marketplace_id: z.string().optional(),
     })
     .passthrough();
@@ -159,6 +161,21 @@ export const assembleFamily = (
     };
 };
 
+/** Theme keys that resolved on zero children (attribute missing or unreadable). */
+export const unresolvedThemeKeys = (family: VariationFamily): readonly string[] =>
+    family.theme.filter(key =>
+        family.children.every(child => child.attributes[key] === undefined)
+    );
+
+/** Sorted Catalog attribute key names on a raw item (values omitted for diagnostics). */
+export const catalogAttributeKeyNames = (item: unknown): readonly string[] => {
+    const parsed = CatalogItemSchema.safeParse(item);
+    if (!parsed.success || !parsed.data.attributes) {
+        return [];
+    }
+    return Object.keys(parsed.data.attributes).sort((left, right) => left.localeCompare(right));
+};
+
 export const truncateChildAsins = (
     childAsins: readonly string[],
     maxChildren: number = VARIATIONS_MAX_CHILDREN
@@ -222,7 +239,7 @@ const firstAttributeValue = (
     for (const alias of catalogKeysForPublicAttribute(publicKey)) {
         const value = firstMarketplaceValue(attributes[alias], marketplaceId);
         if (value !== null) {
-            return value;
+            return displayStringForPublicAttribute(publicKey, value);
         }
     }
     return null;
@@ -236,11 +253,8 @@ const firstMarketplaceValue = (
         if (entry.marketplace_id && entry.marketplace_id !== marketplaceId) {
             continue;
         }
-        if (entry.value === undefined || entry.value === null) {
-            continue;
-        }
-        const value = String(entry.value).trim();
-        if (value) {
+        const value = catalogEntryDisplayString(entry);
+        if (value !== null) {
             return value;
         }
     }
