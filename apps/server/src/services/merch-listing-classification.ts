@@ -14,11 +14,15 @@ export interface MerchListingEvidence {
 }
 
 export interface MerchCatalogAttributes {
-    /** A manufacturer, part number and list price, which Merch sets on every listing it creates. */
+    /** A part number and list price, which Merch sets on every listing it creates. */
     readonly hasMerchListingAttributes: boolean;
-    /** A description, hazmat or battery declaration, or identifier exemption, which sellers set. */
+    /** A description, skipped offer or title differentiation, which only sellers set. */
     readonly hasSellerListingAttributes: boolean;
+    /** A battery, hazmat or identifier-exemption declaration, which some Merch listings carry. */
+    readonly hasSupplierDeclarations: boolean;
     readonly isVariationParent: boolean;
+    /** A product type Merch sells: a shirt, hat, bag, phone accessory, mug or pillow. */
+    readonly isMerchProductType: boolean;
 }
 
 export interface MerchListingClassification {
@@ -29,19 +33,23 @@ export interface MerchListingClassification {
 
 /**
  * The Merch on Demand pipeline stamps every listing with its product type's template bullets and
- * package profile, and sets a manufacturer, part number and list price but no seller attributes. A
- * template bullet alone makes a listing Merch; licensed Merch keeps it beside a UPC. Without one,
- * a Merch listing has no product identifier and the Merch listing attributes, plus either a Merch
- * package or, unless it is a variation parent, no seller attributes: Amazon has rewritten the
- * bullets and remeasured the package of some older Merch listings. A Merch listing keeps its first
- * two non-template bullets as seller bullets.
+ * package profile, and sets a part number and list price but no seller attributes. A template
+ * bullet makes a listing Merch, licensed Merch keeps it beside a UPC, but sellers copy template
+ * bullets, so where the catalog reports attributes it must also show the Merch listing attributes.
+ * Without a template bullet, a Merch listing is a Merch product type with no product identifier,
+ * the Merch listing attributes and no seller attributes, plus either a Merch package or, unless it
+ * is a variation parent, no supplier declarations: Amazon has rewritten the bullets, remeasured
+ * the package and dropped the manufacturer of some older Merch listings.
+ * A Merch listing keeps its first two non-template bullets as seller bullets.
  */
 export const classifyMerchListing = (
     evidence: MerchListingEvidence
 ): MerchListingClassification => {
     const bullets = dedupeAndNormalizeBullets(evidence.bullets);
     const isMerchListing =
-        bullets.some(isMerchTemplateBullet) || showsMerchListingAttributes(evidence);
+        (bullets.some(isMerchTemplateBullet) &&
+            evidence.catalogAttributes?.hasMerchListingAttributes !== false) ||
+        showsMerchListingAttributes(evidence);
     const sellerBullets = isMerchListing
         ? bullets
               .filter(bullet => !isMerchTemplateBullet(bullet))
@@ -73,9 +81,14 @@ const showsMerchListingAttributes = ({
 }: MerchListingEvidence) =>
     catalogAttributes !== null &&
     !hasProductIdentifier &&
+    catalogAttributes.isMerchProductType &&
     catalogAttributes.hasMerchListingAttributes &&
-    ((packageProfile !== null && matchesMerchPackageProfile(packageProfile)) ||
-        (!catalogAttributes.isVariationParent && !catalogAttributes.hasSellerListingAttributes));
+    !catalogAttributes.hasSellerListingAttributes &&
+    (isMerchPackage(packageProfile) ||
+        (!catalogAttributes.isVariationParent && !catalogAttributes.hasSupplierDeclarations));
+
+const isMerchPackage = (packageProfile: PackageProfile | null) =>
+    packageProfile !== null && matchesMerchPackageProfile(packageProfile);
 
 const isMerchTemplateBullet = (bullet: string) => {
     return merchTemplateBulletSet.has(normalizeBulletForMatching(bullet));

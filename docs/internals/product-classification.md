@@ -29,16 +29,20 @@ which listing attributes it carries.
 `classifyMerchListing` (`services/merch-listing-classification.ts`) returns `true` exactly when:
 
 1. **Template bullets.** A bullet matches a Merch on Demand product-spec bullet after case and
-   punctuation normalization, even beside a product identifier (licensed Merch carries UPCs).
+   punctuation normalization, even beside a product identifier (licensed Merch carries UPCs). On
+   SP-API the listing must also have a part number and list price, since sellers copy template
+   bullets.
    `services/merch-template-bullets.ts` groups the templates by product type (shirts, jerseys,
    sweatshirts, jackets, hats, backpacks, crossbody bags, PopSockets, phone cases, totes, laptop
    sleeves, mouse pads, pillows, posters, drinkware, journals, pens). Generic seller copy such as
    "Funny design." or size-chart notices is excluded.
-2. **Listing attributes.** The listing has no product identifier, has a manufacturer, part number
-   and list price, and either its package matches a profile in `services/merch-package-profiles.ts`
-   (inches and pounds, sorted dimensions, ±0.06 in and ±0.01 lb), or it is not a variation parent
-   and has no seller attribute: description, battery or hazmat declaration, identifier exemption,
-   `skip_offer` or `title_differentiation`.
+2. **Listing attributes.** The SP-API product type is one Merch sells (shirts, sweatshirts, coats,
+   hats, tote and crossbody bags, PopSockets grips, phone cases, drinkware, pillows), the listing
+   has no product identifier, has a part number and list price, has no description, `skip_offer` or
+   `title_differentiation`, and either its package matches a profile in
+   `services/merch-package-profiles.ts` (inches and pounds, sorted dimensions, ±0.06 in and
+   ±0.01 lb), or it is not a variation parent and declares no batteries, hazmat or identifier
+   exemption.
 
 Otherwise the listing is non-Merch. Only SP-API reports the listing attributes, so a Keepa
 observation can show Merch only by a template bullet. Part numbers, model numbers and titles are not evidence:

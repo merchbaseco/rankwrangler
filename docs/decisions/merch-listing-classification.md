@@ -10,6 +10,7 @@ read_when:
 
 Status: Shipped
 Date: 2026-11-01 (supersedes the 2026-08-07 nullable, part-number contract); amended 2026-11-02
+and 2026-11-03
 
 The public Product contract is summarized in [Product classification](../product/product-classification.md).
 
@@ -22,19 +23,23 @@ so a Product no observation has decided yet reads as non-Merch.
 One observation is one SP-API catalog item or one Keepa product. It is Merch exactly when either:
 
 1. a bullet equals a Merch on Demand template bullet after punctuation and case normalization
-   (`apps/server/src/services/merch-template-bullets.ts`), whatever else the listing carries; or
-2. it carries no product identifier (UPC, EAN or GTIN), has the Merch listing attributes
-   (`manufacturer`, `part_number` and `list_price`), and either
+   (`apps/server/src/services/merch-template-bullets.ts`), even beside a product identifier, and,
+   where the source reports listing attributes (SP-API), the listing has the Merch listing
+   attributes `part_number` and `list_price`; or
+2. its SP-API product type is one Merch sells (`SHIRT`, `SWEATSHIRT`, `COAT`, `HAT`, `TOTE_BAG`,
+   `HANDBAG`, `CELL_PHONE_GRIP`, `CELLULAR_PHONE_CASE`, `DRINKING_CUP` or `PILLOW`), it carries no
+   product identifier (UPC, EAN or GTIN), has the Merch listing attributes and none of the seller
+   attributes `product_description`, `skip_offer` or `title_differentiation`, and either
    - its package dimensions and weight match a Merch package profile
      (`apps/server/src/services/merch-package-profiles.ts`), or
-   - it is not a variation parent and has no seller attributes: `product_description`,
-     `batteries_required`, `supplier_declared_dg_hz_regulation`,
-     `supplier_declared_has_product_identifier_exemption`, `skip_offer` or `title_differentiation`.
+   - it is not a variation parent and has none of the supplier declarations
+     `batteries_required`, `supplier_declared_dg_hz_regulation` or
+     `supplier_declared_has_product_identifier_exemption`.
 
 The Merch on Demand pipeline stamps each listing with its product type's template bullets and
-package profile, and sets a manufacturer, part number and list price but none of the seller
-attributes. No seller listing in the validation set copied a template bullet, so a template bullet
-decides alone. A Merch listing keeps its first two non-template bullets as seller bullets; a
+package profile, and sets a part number and list price but none of the seller attributes. Some
+Merch listings also carry supplier declarations, so those count against a listing only when no
+package confirms it. A Merch listing keeps its first two non-template bullets as seller bullets; a
 non-Merch listing keeps none.
 
 ### Package profiles
@@ -82,8 +87,9 @@ Adapters extract evidence at their source boundary; the shared classifier owns t
 - **SP-API:** bullets from `attributes.bullet_point`; a product identifier when
   `identifiers[].identifiers` is non-empty or `attributes.externally_assigned_product_identifier`
   exists; the package from `attributes.item_package_dimensions[0]` and
-  `attributes.item_package_weight[0]`; the listing and seller attributes by presence in the
-  marketplace. Every catalog request includes `identifiers`.
+  `attributes.item_package_weight[0]`; the product type from `productTypes`; the listing and
+  seller attributes and supplier declarations by presence in the marketplace. Every catalog
+  request includes `identifiers` and `productTypes`.
 - **Keepa:** bullets from `features`; a product identifier when `upcList` or `eanList` is
   non-empty. Keepa reports none of the listing attributes, so its package is not evidence.
 
@@ -146,9 +152,32 @@ Merch on Demand badge on the Amazon page contradicted 19 of them:
 
 The amended rule classifies all of these correctly and keeps every earlier verdict. Badge-checked
 samples of about 1,100 stored Products changed only where the badge or a `MerchByAmazon`
-manufacturer confirmed Merch. Without the hazmat and battery attributes in the seller set, big-brand
-parents such as Under Armour and Polo Ralph Lauren would pass, which is also why parents need a
-package profile or defer to their child.
+manufacturer confirmed Merch. Without the hazmat and battery declarations, big-brand parents such as
+Under Armour and Polo Ralph Lauren would pass, which is also why parents need a package profile or
+defer to their child.
+
+### Why product types and the part-number gate were added
+
+The full rerun on 2026-11-02 and 03 checked 153,522 Products and changed 64 verdicts. The badge
+contradicted 10:
+
+- Five gift-card families turned Merch. Their variants carry no identifier but a manufacturer, part
+  number and list price, and no seller attribute. Only Merch product types now take the
+  listing-attribute path.
+- Two sellers copied the standard tee template bullet onto listings with no part number or list
+  price, which every Merch listing sets. A "Generic" sweater took its variant's verdict through the
+  listing-attribute path.
+- Two badged Merch tees in the standard tee package had lost their manufacturer, so the Merch
+  listing attributes no longer include it. Wild Bobby tees in a Merch package carry a description,
+  which now rules out the listing-attribute path even with a package.
+
+In a sample of 500 stored Products, every Merch listing had a part number and list price, and none
+had a description, `skip_offer` or `title_differentiation`, but 9 badged Merch shirts and hats
+declared batteries or hazmat and a badged Disney tee declared an identifier exemption. The amended
+rule agrees with every stored verdict in that sample and with the badge on 67 of the rerun's 69
+checked listings. The two it misses are a Linkin Park vendor hoodie family whose variant carries a
+UPC and a copied template bullet beside the full Merch listing attributes, the same evidence as
+licensed Merch.
 
 ## Consequences
 
@@ -156,6 +185,7 @@ package profile or defer to their child.
 - Keepa-first search results carry a Merch verdict only for a template bullet; other new Products
   start non-Merch until SP-API checks them, which the blindspot selection does once.
 - A new Merch product type is invisible to the template and package paths until its rows are
-  added; the listing-attribute path and the drift warning cover the gap.
+  added, and to the listing-attribute path until its SP-API product type is; the drift warning
+  covers the gap.
 - Provider adapters remain evidence extractors, while the rule and the parent fallback have one
   owner each.

@@ -31,6 +31,8 @@ describe('SP-API keyword discovery', () => {
                                         },
                                         { value: 'Gone fishing', marketplace_id: marketplaceId },
                                     ],
+                                    part_number: [{ marketplace_id: marketplaceId }],
+                                    list_price: [{ marketplace_id: marketplaceId }],
                                 },
                                 salesRanks: [
                                     {
@@ -165,6 +167,8 @@ describe('SP-API keyword discovery', () => {
                                             value: 'Dual wall insulated: keeps beverages hot or cold',
                                         },
                                     ],
+                                    part_number: [{ marketplace_id: marketplaceId }],
+                                    list_price: [{ marketplace_id: marketplaceId }],
                                 },
                             },
                         ],

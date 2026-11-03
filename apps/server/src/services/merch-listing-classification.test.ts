@@ -24,23 +24,27 @@ const centimeterPackage = (dimensions: [number, number, number], kilograms: numb
 const merchLeaf = {
     hasMerchListingAttributes: true,
     hasSellerListingAttributes: false,
+    hasSupplierDeclarations: false,
     isVariationParent: false,
+    isMerchProductType: true,
 };
 const sellerLeaf = {
     hasMerchListingAttributes: false,
     hasSellerListingAttributes: true,
+    hasSupplierDeclarations: true,
     isVariationParent: false,
+    isMerchProductType: true,
 };
 
 describe('classifyMerchListing', () => {
     it('classifies a Merch package with the Merch listing attributes', () => {
-        // Awesome Christmas Family Co B07KVZMPNS carries seller attributes too.
+        // Like Swinger Symbol Gear B0HHD1FC9F, which declares batteries and hazmat.
         expect(
             classifyMerchListing({
                 bullets: ['Officially Licensed by Peanuts', 'OPNT-0176'],
                 hasProductIdentifier: false,
                 packageProfile: standardTeePackage,
-                catalogAttributes: { ...merchLeaf, hasSellerListingAttributes: true },
+                catalogAttributes: { ...merchLeaf, hasSupplierDeclarations: true },
             })
         ).toEqual({
             isMerchListing: true,

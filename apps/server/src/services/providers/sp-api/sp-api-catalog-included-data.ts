@@ -1,5 +1,5 @@
 // Every catalog search asks for the same item sections. Merch classification reads `identifiers`
-// (UPC, EAN, GTIN) and the package dimensions and weight under `attributes`.
+// (UPC, EAN, GTIN), `productTypes`, and the package dimensions and weight under `attributes`.
 export const CATALOG_INCLUDED_DATA = [
     'summaries',
     'salesRanks',
@@ -7,4 +7,5 @@ export const CATALOG_INCLUDED_DATA = [
     'identifiers',
     'images',
     'relationships',
+    'productTypes',
 ] as const;

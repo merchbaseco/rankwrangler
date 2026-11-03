@@ -65,7 +65,6 @@ const ItemAttributesSchema = z.object({
     item_package_dimensions: z.array(PackageDimensionsEntrySchema).optional(),
     item_package_weight: z.array(PackageWeightEntrySchema).optional(),
     externally_assigned_product_identifier: PresenceSchema,
-    manufacturer: PresenceSchema,
     part_number: PresenceSchema,
     list_price: PresenceSchema,
     product_description: PresenceSchema,
@@ -120,6 +119,9 @@ export const ItemSchema = z.object({
     salesRanks: z.array(ItemSalesRanksByMarketplaceSchema).optional(),
     images: z.array(ItemImagesByMarketplaceSchema).optional(),
     summaries: z.array(ItemSummariesByMarketplaceSchema).optional(),
+    productTypes: z
+        .array(z.object({ marketplaceId: z.string(), productType: z.string() }))
+        .optional(),
 });
 
 export const ItemSearchResultsSchema = z.object({
@@ -137,6 +139,9 @@ export const readCatalogListingEvidence = (item: CatalogItem, marketplaceId: str
     const family = readVariationFamily(item, marketplaceId);
     const summary = item.summaries?.find(entry => entry.marketplaceId === marketplaceId);
     const identifiers = item.identifiers?.find(entry => entry.marketplaceId === marketplaceId);
+    const productType = item.productTypes?.find(
+        entry => entry.marketplaceId === marketplaceId
+    )?.productType;
     const has = (key: PresenceAttribute) =>
         inMarketplace(attributes?.[key], marketplaceId).length > 0;
     const isVariationParent =
@@ -150,7 +155,9 @@ export const readCatalogListingEvidence = (item: CatalogItem, marketplaceId: str
         catalogAttributes: {
             hasMerchListingAttributes: MERCH_LISTING_ATTRIBUTES.every(has),
             hasSellerListingAttributes: SELLER_LISTING_ATTRIBUTES.some(has),
+            hasSupplierDeclarations: SUPPLIER_DECLARATIONS.some(has),
             isVariationParent,
+            isMerchProductType: productType !== undefined && MERCH_PRODUCT_TYPES.has(productType),
         },
     };
     return {
@@ -178,21 +185,40 @@ export const readVariationFamily = (
     };
 };
 
-const MERCH_LISTING_ATTRIBUTES = ['manufacturer', 'part_number', 'list_price'] as const;
+const MERCH_LISTING_ATTRIBUTES = ['part_number', 'list_price'] as const;
+
+// The SP-API product types of everything Merch sells: shirts, hoodies and tanks, jackets, hats,
+// tote and crossbody bags, PopSockets grips, phone cases, mugs and tumblers, and pillows.
+const MERCH_PRODUCT_TYPES: ReadonlySet<string> = new Set([
+    'SHIRT',
+    'SWEATSHIRT',
+    'COAT',
+    'HAT',
+    'TOTE_BAG',
+    'HANDBAG',
+    'CELL_PHONE_GRIP',
+    'CELLULAR_PHONE_CASE',
+    'DRINKING_CUP',
+    'PILLOW',
+]);
 
 const SELLER_LISTING_ATTRIBUTES = [
     'product_description',
+    'skip_offer',
+    'title_differentiation',
+] as const;
+
+const SUPPLIER_DECLARATIONS = [
     'batteries_required',
     'supplier_declared_dg_hz_regulation',
     'supplier_declared_has_product_identifier_exemption',
-    'skip_offer',
-    'title_differentiation',
 ] as const;
 
 type PresenceAttribute =
     | 'externally_assigned_product_identifier'
     | (typeof MERCH_LISTING_ATTRIBUTES)[number]
-    | (typeof SELLER_LISTING_ATTRIBUTES)[number];
+    | (typeof SELLER_LISTING_ATTRIBUTES)[number]
+    | (typeof SUPPLIER_DECLARATIONS)[number];
 
 const readPackageProfile = (attributes: CatalogItem['attributes'], marketplaceId: string) => {
     const [dimensions] = inMarketplace(attributes?.item_package_dimensions, marketplaceId);

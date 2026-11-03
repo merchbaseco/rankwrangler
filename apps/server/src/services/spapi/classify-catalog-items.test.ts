@@ -27,6 +27,7 @@ const croquetTumbler: CatalogItem = {
     asin: 'B0DHKV5N9T',
     identifiers: [{ marketplaceId: US, identifiers: [] }],
     summaries: [{ marketplaceId: US, itemClassification: 'BASE_PRODUCT' }],
+    productTypes: [{ marketplaceId: US, productType: 'DRINKING_CUP' }],
     attributes: {
         bullet_point: [
             ...CROQUET_BULLETS,
@@ -42,6 +43,8 @@ const croquetTumbler: CatalogItem = {
             },
         ],
         item_package_weight: [{ unit: 'pounds', value: 0.723, marketplace_id: US }],
+        part_number: [{ marketplace_id: US }],
+        list_price: [{ marketplace_id: US }],
     },
 };
 
@@ -178,19 +181,32 @@ describe('classifyCatalogItems', () => {
         expect(result.merch.isMerchListing).toBe(true);
     });
 
+    it('rejects a seller listing that copies a template bullet', async () => {
+        // Wjuitnh B0FKGHXJT2 copies the standard tee bullet but sets no list price.
+        const { provider } = providerReturning([]);
+        const [result] = await classifyCatalogItems({
+            items: [withAttributes(croquetTumbler, { list_price: undefined })],
+            marketplaceId: US,
+            provider,
+        });
+
+        expect(result.merch.isMerchListing).toBe(false);
+    });
+
     it('reads the listing attributes of a listing Amazon rewrote', async () => {
         // Star Wars B07KVKT3LY: Amazon replaced the template bullets and remeasured the package.
+        // Some such listings, like B097QL13ZL, lost their manufacturer too.
         const rewritten = withAttributes(
             {
                 asin: 'B07KVKT3LY',
                 identifiers: [{ marketplaceId: US, identifiers: [] }],
                 summaries: [{ marketplaceId: US, itemClassification: 'BASE_PRODUCT' }],
+                productTypes: [{ marketplaceId: US, productType: 'SHIRT' }],
             },
             {
                 bullet_point: [
                     { value: 'Officially licensed Star Wars apparel', marketplace_id: US },
                 ],
-                manufacturer: [{ marketplace_id: US }],
                 part_number: [{ marketplace_id: US }],
                 list_price: [{ marketplace_id: US }],
             }
@@ -207,6 +223,34 @@ describe('classifyCatalogItems', () => {
             )
         ).toBe(false);
         expect(await classify(withAttributes(rewritten, { part_number: undefined }))).toBe(false);
+        // A pirate tee, B097QL13ZL, in the Merch tee package; Wild Bobby B08DLWFL1C adds a
+        // description. Disney B01J4SWO1G declares batteries, hazmat and an identifier exemption.
+        const inTeePackage = withAttributes(rewritten, {
+            item_package_dimensions: [
+                {
+                    length: { unit: 'inches', value: 10 },
+                    width: { unit: 'inches', value: 8 },
+                    height: { unit: 'inches', value: 1 },
+                    marketplace_id: US,
+                },
+            ],
+            item_package_weight: [{ unit: 'pounds', value: 0.3, marketplace_id: US }],
+            batteries_required: [{ marketplace_id: US }],
+            supplier_declared_has_product_identifier_exemption: [{ marketplace_id: US }],
+        });
+        expect(await classify(inTeePackage)).toBe(true);
+        expect(
+            await classify(
+                withAttributes(inTeePackage, { product_description: [{ marketplace_id: US }] })
+            )
+        ).toBe(false);
+        // Lowe's eGift Card B096TL1G3N sets the same attributes.
+        expect(
+            await classify({
+                ...rewritten,
+                productTypes: [{ marketplaceId: US, productType: 'GIFT_CARD' }],
+            })
+        ).toBe(false);
     });
 
     it('warns when a Merch template bullet ships in a package no profile matches', async () => {
