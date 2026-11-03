@@ -26,20 +26,45 @@ const PUBLIC_KEY_CATALOG_ALIASES: Readonly<Record<string, readonly string[]>> = 
     style: ['style', 'style_name'],
 };
 
-/** Catalog alpha size tokens → merch display labels. Unknown values stay as-is. */
+/**
+ * Catalog alpha size tokens → merch display labels. Unknown values stay as-is.
+ * Includes Amazon long forms (`medium`, `x_large`) and Merch short spellings
+ * (`m`, `x_l`, `2x`, `2_years`) observed on live Catalog apparel sizes.
+ */
 const ALPHA_SIZE_LABELS: Readonly<Record<string, string>> = {
     xx_small: '2XS',
     '2x_small': '2XS',
     x_small: 'XS',
+    x_s: 'XS',
     small: 'S',
+    s: 'S',
     medium: 'M',
+    m: 'M',
     large: 'L',
+    l: 'L',
     x_large: 'XL',
+    x_l: 'XL',
     xx_large: '2XL',
+    xx_l: '2XL',
     '2x_large': '2XL',
+    '2x_l': '2XL',
     '3x_large': '3XL',
+    '3x_l': '3XL',
     '4x_large': '4XL',
+    '4x_l': '4XL',
     '5x_large': '5XL',
+    '5x_l': '5XL',
+    '6x_large': '6XL',
+    '6x_l': '6XL',
+    '1x': '1X',
+    '2x': '2X',
+    '3x': '3X',
+    '4x': '4X',
+    '5x': '5X',
+    '6x': '6X',
+    '2_years': '2T',
+    '3_years': '3T',
+    '4_years': '4T',
 };
 
 export const publicAttributeKey = (themeAttribute: string) => {
@@ -73,7 +98,24 @@ export const catalogKeysForPublicAttribute = (publicKey: string): readonly strin
 
 export const normalizeAlphaSize = (raw: string): string => {
     const key = raw.trim().toLowerCase().replace(/[-\s]+/g, '_');
-    return ALPHA_SIZE_LABELS[key] ?? raw.trim();
+    return ALPHA_SIZE_LABELS[key] ?? matchPatternSize(key) ?? raw.trim();
+};
+
+/** Nx_l → NXL, Nx → NX (plus), N_years → NT (toddler). */
+const matchPatternSize = (key: string): string | null => {
+    const alphaLarge = /^(\d+)x_l$/.exec(key);
+    if (alphaLarge) {
+        return `${alphaLarge[1]}XL`;
+    }
+    const plus = /^(\d+)x$/.exec(key);
+    if (plus) {
+        return `${plus[1]}X`;
+    }
+    const toddler = /^(\d+)_years$/.exec(key);
+    if (toddler) {
+        return `${toddler[1]}T`;
+    }
+    return null;
 };
 
 /**

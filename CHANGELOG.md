@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.16.5 - 2026-11-03
+
+### Fixed
+
+- Variation size normalization now covers Merch Catalog short spellings (`s`/`m`/`l`, `x_s`/`x_l`/
+  `xx_l`/`Nx_l`, plus `Nx` → `NX`, toddler `N_years` → `NT`) alongside the existing long forms
+  (`medium`, `x_large`, …). Generator version bumped to `catalog-relationships-2022-04-01:v4` so
+  stored families refetch with display labels.
+
 ## v0.16.4 - 2026-11-03
 
 ### Fixed
