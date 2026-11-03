@@ -90,12 +90,38 @@ describe('product variations parse', () => {
         expect(normalizeAlphaSize('3x_large')).toBe('3XL');
         expect(normalizeAlphaSize('One Size')).toBe('One Size');
 
+        // Merch Catalog short spellings observed live (B0GHTD7TKB and peers).
+        const merchShorts: ReadonlyArray<readonly [string, string]> = [
+            ['x_s', 'XS'],
+            ['s', 'S'],
+            ['m', 'M'],
+            ['l', 'L'],
+            ['x_l', 'XL'],
+            ['xx_l', '2XL'],
+            ['3x_l', '3XL'],
+            ['4x_l', '4XL'],
+            ['5x_l', '5XL'],
+            ['6x_l', '6XL'],
+            ['1x', '1X'],
+            ['2x', '2X'],
+            ['3x', '3X'],
+            ['4x', '4X'],
+            ['5x', '5X'],
+            ['6x', '6X'],
+            ['2_years', '2T'],
+            ['3_years', '3T'],
+            ['4_years', '4T'],
+        ];
+        for (const [raw, label] of merchShorts) {
+            expect(normalizeAlphaSize(raw)).toBe(label);
+        }
+
         const fromShirt = readThemeAttributes(
             childCatalogItem(DEFAULT_CHILD, PARENT, {
                 color: [{ value: 'Navy', marketplace_id: MARKETPLACE }],
                 shirt_size: [
                     {
-                        size: 'medium',
+                        size: 'm',
                         size_class: 'alpha',
                         size_system: 'as3',
                         marketplace_id: MARKETPLACE,
@@ -112,7 +138,7 @@ describe('product variations parse', () => {
             childCatalogItem(DEFAULT_CHILD, PARENT, {
                 apparel_size: [
                     {
-                        size: 'x_large',
+                        size: 'x_l',
                         size_class: 'alpha',
                         marketplace_id: MARKETPLACE,
                     },
@@ -125,13 +151,32 @@ describe('product variations parse', () => {
 
         const prefersShirt = readThemeAttributes(
             childCatalogItem(DEFAULT_CHILD, PARENT, {
-                shirt_size: [{ size: 'small', marketplace_id: MARKETPLACE }],
+                shirt_size: [{ size: 's', marketplace_id: MARKETPLACE }],
                 size: [{ value: 'ShouldNotWin', marketplace_id: MARKETPLACE }],
             }),
             MARKETPLACE,
             ['size']
         );
         expect(prefersShirt).toEqual({ size: 'S' });
+
+        expect(
+            readThemeAttributes(
+                childCatalogItem(DEFAULT_CHILD, PARENT, {
+                    shirt_size: [{ size: '2x', marketplace_id: MARKETPLACE }],
+                }),
+                MARKETPLACE,
+                ['size']
+            )
+        ).toEqual({ size: '2X' });
+        expect(
+            readThemeAttributes(
+                childCatalogItem(DEFAULT_CHILD, PARENT, {
+                    shirt_size: [{ size: '3_years', marketplace_id: MARKETPLACE }],
+                }),
+                MARKETPLACE,
+                ['size']
+            )
+        ).toEqual({ size: '3T' });
     });
 
     it('pulls a string from object-valued theme attributes via size then value', () => {

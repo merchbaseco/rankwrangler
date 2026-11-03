@@ -126,15 +126,16 @@ preserves Amazon's `childAsins` order (the first entry is always `defaultChildAs
 theme names such as `COLOR_NAME` / `SIZE_NAME` / `FIT_TYPE` / `DEPARTMENT_NAME` to public keys
 `color`, `size`, `fit`, and `department`. Size reads apparel Catalog keys in order
 (`shirt_size`, `apparel_size`, `size`, `size_name`, `bottoms_size`, `headwear_size`), preferring
-`[0].size` then `[0].value` (including object-valued entries), and normalizes alpha tokens
-(`medium` → `M`, `x_large` → `XL`, `3x_large` → `3XL`, …). Other theme dimensions use the same
-object extraction so nested attribute objects are not dropped. When a theme key resolves for zero
-children, RankWrangler writes one `product.variations.fetch` warn with the sorted attribute key
-names from the first catalog child (keys only). Attribute lookups cap at 1,000 children; every
-Amazon child ASIN is still stored as a family member, and children past the attribute cap appear in
-`children` with empty `attributes`. A child ASIN Amazon lists but the catalog lookup omits
-(suppressed or retired) likewise stays with empty `attributes` so order and `defaultChildAsin`
-stay stable.
+`[0].size` then `[0].value` (including object-valued entries), and normalizes alpha tokens —
+Amazon long forms (`medium` → `M`, `x_large` → `XL`, `3x_large` → `3XL`) and Merch short
+spellings (`m` → `M`, `x_l` → `XL`, `xx_l` → `2XL`, `2x` → `2X`, `2_years` → `2T`). Other theme
+dimensions use the same object extraction so nested attribute objects are not dropped. When a theme
+key resolves for zero children, RankWrangler writes one `product.variations.fetch` warn with the
+sorted attribute key names from the first catalog child (keys only). Attribute lookups cap at 1,000
+children; every Amazon child ASIN is still stored as a family member, and children past the
+attribute cap appear in `children` with empty `attributes`. A child ASIN Amazon lists but the
+catalog lookup omits (suppressed or retired) likewise stays with empty `attributes` so order and
+`defaultChildAsin` stay stable.
 Snapshots reuse for 24 hours; a requested child missing from a fresh family returns `null` until the
 row is at least an hour old, then RankWrangler refetches once. Standalone Products settle as `null`.
 Slow or failed variation fetch within the enrichment deadline also settles as `null`. A cold request

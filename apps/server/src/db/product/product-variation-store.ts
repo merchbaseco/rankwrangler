@@ -5,7 +5,7 @@ import {
     type StoredVariationChild,
 } from '@/db/product-variation-schema';
 
-export const VARIATIONS_GENERATOR_VERSION = 'catalog-relationships-2022-04-01:v3';
+export const VARIATIONS_GENERATOR_VERSION = 'catalog-relationships-2022-04-01:v4';
 export const VARIATIONS_REUSE_MS = 24 * 60 * 60 * 1000;
 /** Steal a ready family that omits a requested member once it is at least this old. */
 export const VARIATIONS_MEMBER_REFRESH_MS = 60 * 60 * 1000;
