@@ -62,6 +62,7 @@ The extension continues to resolve the ASINs visible on the user's Amazon page t
 lookups and history reads.
 
 Clients that display compact labels can request `include: ['marketData', 'shortName']` on a single public Product get.
+MerchBase BidBeacon and related agents request `include: ['variations']` on the same get for variation family metadata.
 For known Merch listings with an available image, RankWrangler inspects the printed design and
 selects a supported span from the listing title. The nullable name travels beside the full Product,
 so clients can use it for a chip and show Product details on hover. The default single Product get

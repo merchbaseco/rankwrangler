@@ -1,8 +1,8 @@
 import { coordinateRetrieval, RetrievalRetryableError } from './retrieval-coordinator';
 
 /**
- * How long Product `get` waits in total for requested AI enrichment (`shortName`,
- * `cutoutThumbnail`), including time queued behind the generation concurrency limits.
+ * How long Product `get` waits in total for requested enrichment (`shortName`,
+ * `cutoutThumbnail`, `variations`), including time queued behind concurrency limits.
  * Production generation runs about 2.5s for a short name (Gemini observe p90 ~2.1s + Jev ~0.3s)
  * and about 3.5s for a cutout (Cloudflare transform p90 ~3.2s + R2 put ~0.6s), so a cold
  * 10-chip message clears both queues in roughly two waves (~7s). 20s leaves headroom for a

@@ -37,6 +37,7 @@ describe('public Product tRPC boundary', () => {
                     last365Days: 31,
                 },
             },
+            variations: null,
         } satisfies Product;
         const getProductReadModel = mock(async () => product);
         const caller = createCaller({ getProductReadModel });
@@ -93,6 +94,21 @@ describe('public Product tRPC boundary', () => {
         });
     });
 
+    it('forwards a variations opt-in to the Product read model', async () => {
+        const getProductReadModel = mock(async () => createProduct());
+        const caller = createCaller({ getProductReadModel });
+
+        await caller.get({
+            marketplaceId: 'ATVPDKIKX0DER',
+            asin: 'B012345678',
+            include: ['variations'],
+        });
+
+        expect(getProductReadModel.mock.calls[0]?.[0]).toMatchObject({
+            include: ['variations'],
+        });
+    });
+
     it('maps a retrieval deadline to a retryable public error', async () => {
         const caller = createCaller({
             getProductReadModel: mock(() => {
@@ -127,6 +143,7 @@ const createCaller = (overrides: Partial<ProductGetDeps> = {}) =>
 const createProduct = (): Product => ({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B012345678',
+    variations: null,
     listing: {
         title: null,
         shortName: null,

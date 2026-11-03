@@ -86,6 +86,10 @@ temporary provider failure or deadline exhaustion uses the shared retryable erro
 Single public Product get defaults to `include: ['marketData']`, retaining its existing Keepa
 freshness check and automatic background Keepa policy. Passing `include: []` skips that on-demand
 Keepa check. It does not alter the scheduled Keepa queue or 24-hour successful-fetch guard.
+The same get can opt into top-level `variations` to hydrate an Amazon variation family (parent ASIN,
+ordered children, theme attributes, default child) from Catalog relationships with 24-hour reuse.
+MerchBase BidBeacon and agents consume this include on public Product get.
+
 The same get can opt into `listing.shortName`. For a known Merch listing with an
 available image, Gemini 3.1 Flash-Lite observes the printed words and distinctive pictured motifs
 at low image resolution. Jev selects a word-for-word title span that identifies the design, or

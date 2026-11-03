@@ -231,6 +231,7 @@ export { productCutoutThumbnails } from './product-cutout-thumbnail-schema';
 export { productAsinAliases } from './product-asin-alias-schema';
 export { products } from './product-schema';
 export { productShortNames } from './product-short-name-schema';
+export { productVariations } from './product-variation-schema';
 export { providerAttempts } from './provider-telemetry-schema';
 export { rankwranglerServiceAccounts } from './service-account-schema';
 

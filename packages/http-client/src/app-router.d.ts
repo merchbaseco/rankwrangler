@@ -214,6 +214,16 @@ declare const keywordFreshness: readonly [
 	"needsSync",
 	"syncing"
 ];
+export interface ProductVariations {
+	parentAsin: string;
+	theme: string[];
+	defaultChildAsin: string;
+	children: Array<{
+		asin: string;
+		attributes: Record<string, string>;
+	}>;
+	fetchedAt: string;
+}
 export type PublicCutoutThumbnail = {
 	status: "available";
 	url: string;
@@ -239,6 +249,7 @@ export interface Product {
 		isMerchListing: boolean;
 		amazonListingStatus: AmazonListingStatus;
 	};
+	variations: ProductVariations | null;
 	category: {
 		id: number;
 		name: string | null;
@@ -563,7 +574,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						marketplaceId: string;
 						asin: string;
-						include?: ("shortName" | "marketData" | "cutoutThumbnail")[] | undefined;
+						include?: ("shortName" | "marketData" | "cutoutThumbnail" | "variations")[] | undefined;
 					};
 					output: Product;
 					meta: object;
