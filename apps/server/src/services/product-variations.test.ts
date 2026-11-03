@@ -245,7 +245,7 @@ describe('getProductVariations', () => {
         );
         expect(childBatchCalls.length).toBe(2);
         expect(childBatchCalls.every(call => call[0].priority === 'foreground')).toBe(true);
-        expect(VARIATIONS_FAMILY_FETCH_DEADLINE_MS).toBe(60_000);
+        expect(VARIATIONS_FAMILY_FETCH_DEADLINE_MS).toBe(180_000);
     });
 });
 

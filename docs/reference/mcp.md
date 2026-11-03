@@ -37,7 +37,10 @@ The `initialize` server info advertises `websiteUrl` `https://rankwrangler.merch
 Product cutout, or a Catalog variation family in the full Product response. `get` waits up to 20 seconds for that generation and
 then returns any unfinished field as none (`shortName: null`, `cutoutThumbnail:
 { status: 'unavailable' }`, `variations: null`) while generation continues; it never returns
-`TEMPORARILY_UNAVAILABLE` just because enrichment is slow or failed. The default is `['marketData']`. `getMany` accepts `products` with 1–200 unique
+`TEMPORARILY_UNAVAILABLE` just because enrichment is slow or failed. A cold `variations` request for a
+large apparel family usually returns `null` within that 20-second budget while Catalog batches finish
+in the background; retry `get` after about one minute for the ready snapshot. The default is
+`['marketData']`. `getMany` accepts `products` with 1–200 unique
 `{ asin, marketplaceId }` pairs and returns a fixed-shape basic Product array without short names
 or cutouts; it rejects `include`.
 Every basic result includes identity, nullable title, resolved thumbnail, and

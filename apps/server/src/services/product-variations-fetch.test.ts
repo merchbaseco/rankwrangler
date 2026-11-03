@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
+import * as eventLogs from './event-logs';
 import { clearVariationDiscoveryCachesForTests } from './product-variations-discovery';
-import { fetchClaimedVariationFamily } from './product-variations-fetch';
+import {
+    fetchClaimedVariationFamily,
+    VARIATIONS_FAMILY_FETCH_DEADLINE_MS,
+} from './product-variations-fetch';
 import { VARIATIONS_MAX_CHILDREN } from './product-variations-parse';
 import {
     createCatalogMock,
@@ -16,7 +20,7 @@ describe('fetchClaimedVariationFamily', () => {
         clearVariationDiscoveryCachesForTests();
     });
 
-    it('aborts between batches when the AbortSignal fires and fails the claim', async () => {
+    it('aborts between batches when the AbortSignal fires and records timing', async () => {
         const manyChildren = [
             DEFAULT_CHILD,
             ...Array.from({ length: 39 }, (_, index) => `B0ABORT${String(index + 2).padStart(3, '0')}`),
@@ -67,6 +71,20 @@ describe('fetchClaimedVariationFamily', () => {
         expect(result.kind).toBe('aborted');
         expect(childBatches).toBe(1);
         expect(store.getRow(MARKETPLACE, PARENT)?.state).toBe('error');
+        expect(store.refreshLeaseCalls()).toBe(2);
+        expect(eventLogs.createEventLogSafe).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: `Variation fetch timed out for ${PARENT}.`,
+                detailsJson: expect.objectContaining({
+                    outcome: 'aborted',
+                    retryable: true,
+                    batchesDone: 1,
+                    batchesTotal: 2,
+                    elapsedMs: expect.any(Number),
+                    slowestBatchMs: expect.any(Number),
+                }),
+            })
+        );
     });
 
     it('stores every Amazon child as a member while capping attribute Catalog lookups', async () => {
@@ -117,8 +135,9 @@ describe('fetchClaimedVariationFamily', () => {
         expect(store.getRow(MARKETPLACE, PARENT)?.memberAsins).toHaveLength(
             VARIATIONS_MAX_CHILDREN + 4
         );
-        expect(searchCatalogItemsByAsins.mock.calls).toHaveLength(
-            Math.ceil(VARIATIONS_MAX_CHILDREN / 20)
-        );
+        const batchCount = Math.ceil(VARIATIONS_MAX_CHILDREN / 20);
+        expect(searchCatalogItemsByAsins.mock.calls).toHaveLength(batchCount);
+        expect(store.refreshLeaseCalls()).toBe(batchCount * 2);
+        expect(VARIATIONS_FAMILY_FETCH_DEADLINE_MS).toBe(180_000);
     });
 });

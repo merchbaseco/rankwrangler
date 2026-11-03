@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.16.3 - 2026-11-03
+
+### Fixed
+
+- Large Catalog variation families (hundreds of children) get a 180-second shared fetch budget and
+  renew the claim lease before and after each batch, so apparel parents finish instead of aborting
+  at 60 seconds under Catalog load. Success and timeout event logs now record batches done/total,
+  elapsed ms, and slowest batch ms. Callers should still expect a cold large family to return
+  `variations: null` within the 20-second enrichment budget and retry `get` after about one minute.
+
 ## v0.16.2 - 2026-11-03
 
 ### Fixed

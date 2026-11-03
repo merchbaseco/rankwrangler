@@ -10,7 +10,8 @@ export const VARIATIONS_REUSE_MS = 24 * 60 * 60 * 1000;
 /** Steal a ready family that omits a requested member once it is at least this old. */
 export const VARIATIONS_MEMBER_REFRESH_MS = 60 * 60 * 1000;
 export const VARIATIONS_ERROR_RETRY_MS = 5 * 60 * 1000;
-const CLAIM_LEASE_SECONDS = 120;
+/** Must exceed one foreground Catalog queue wait (120s) plus a slow HTTP call. */
+export const VARIATIONS_CLAIM_LEASE_SECONDS = 180;
 
 export interface VariationFamilyIdentity {
     marketplaceId: string;
@@ -95,7 +96,7 @@ export const claimVariationFetch = async ({
             fetched_at = NULL
         WHERE product_variations.generator_version <> excluded.generator_version
             OR (product_variations.state = 'pending'
-                AND product_variations.attempted_at < now() - ${CLAIM_LEASE_SECONDS} * interval '1 second')
+                AND product_variations.attempted_at < now() - ${VARIATIONS_CLAIM_LEASE_SECONDS} * interval '1 second')
             OR (product_variations.state = 'error'
                 AND product_variations.attempted_at < now() - ${VARIATIONS_ERROR_RETRY_MS} * interval '1 millisecond')
             OR (product_variations.state = 'ready'
