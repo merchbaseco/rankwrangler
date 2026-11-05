@@ -29,7 +29,7 @@ Public callers never receive pending Product data, Operations, polling state, pr
 health or timestamps, freshness fields, or a refresh input. `getMany` returns basic listing fields
 only and accepts no enrichment. Product `get` enrichment waits up to a bounded deadline (20
 seconds) and settles an unfinished or recently failed field as none (`shortName: null`,
-`cutoutThumbnail: { status: 'unavailable' }`, `variations: null`) while generation continues for the next request:
+`cutoutThumbnail: { status: 'unavailable' }`) while generation continues for the next request:
 enrichment is optional decoration, so slowness must never become a retryable error or a polling
 loop. Product responses are provider-neutral,
 and response shapes do not carry a schema version. `rankwrangler_status` probes connection,

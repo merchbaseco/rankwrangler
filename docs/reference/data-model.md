@@ -37,7 +37,6 @@ ASIN inputs are normalized to uppercase at public boundaries.
 | Product ASIN alias | `(marketplaceId, asin)` | Variant ASIN mapped to its canonical Product family. |
 | Product short name | `(marketplaceId, asin)` when requested | Nullable generated name, source fingerprint, and claim state; no row for never-requested Products. |
 | Product cutout thumbnail | `(marketplaceId, asin)` when requested | R2 object key, source fingerprint, and claim state; no row for never-requested Products. |
-| Product variation family | `(marketplaceId, parentAsin)` when requested | Nullable family or explicit none, theme, ordered children with theme attributes, member ASIN index, generator version, and claim state; rows appear after opt-in or background backfill. |
 | Product facet value | `(facet, name)` | Reusable normalized classification value. |
 | Product facet assignment | `(productId, facetValueId)` | Current product-to-facet membership. |
 | History import | generated id | One Keepa import attempt, request context, provider accounting, and outcome. |
