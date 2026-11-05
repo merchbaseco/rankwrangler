@@ -20,6 +20,7 @@ import {
     ORPHAN_CHILD,
     PARENT,
     SECOND_CHILD,
+    waitUntil,
 } from './product-variations-test-fixtures';
 import { RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS } from './retrieval-coordinator';
 
@@ -308,14 +309,17 @@ describe('getProductVariations', () => {
         expect(result.retryAfterSeconds).toBeLessThan(expectedSeconds + 5);
     });
 
-    it('returns pending when the caller times out while a fetch is already in flight', async () => {
-        const { deps } = createCatalogMock();
-        const store = installStoreSpy();
-        store.seedPending({
-            marketplaceId: MARKETPLACE,
-            parentAsin: PARENT,
-            claimId: randomUUID(),
+    it('returns pending when the caller times out while discovery is still running', async () => {
+        const { deps, searchCatalogItemsByAsins } = createCatalogMock();
+        let releaseDiscovery: (() => void) | undefined;
+        const discoveryReleased = new Promise<void>(resolve => {
+            releaseDiscovery = resolve;
         });
+        searchCatalogItemsByAsins.mockImplementation(async ({ asins }) => {
+            await discoveryReleased;
+            return { items: asins.map(asin => catalogItemFor(asin)) };
+        });
+        const store = installStoreSpy();
 
         const result = await getProductVariations(
             { marketplaceId: MARKETPLACE, asin: PARENT, timeoutMs: 50 },
@@ -326,6 +330,11 @@ describe('getProductVariations', () => {
             status: 'pending',
             retryAfterSeconds: RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS,
         });
+
+        // Let the shared background fetch finish instead of leaving it to spin for the
+        // ~30s internal grace window, which would bleed into later tests' event-loop timing.
+        releaseDiscovery?.();
+        await waitUntil(() => store.getRow(MARKETPLACE, PARENT)?.state === 'ready');
     });
 });
 
