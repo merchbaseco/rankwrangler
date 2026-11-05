@@ -37,7 +37,6 @@ describe('public Product tRPC boundary', () => {
                     last365Days: 31,
                 },
             },
-            variations: null,
         } satisfies Product;
         const getProductReadModel = mock(async () => product);
         const caller = createCaller({ getProductReadModel });
@@ -94,7 +93,7 @@ describe('public Product tRPC boundary', () => {
         });
     });
 
-    it('forwards a variations opt-in to the Product read model', async () => {
+    it('accepts a removed variations include without error, forwarding nothing for it', async () => {
         const getProductReadModel = mock(async () => createProduct());
         const caller = createCaller({ getProductReadModel });
 
@@ -105,7 +104,7 @@ describe('public Product tRPC boundary', () => {
         });
 
         expect(getProductReadModel.mock.calls[0]?.[0]).toMatchObject({
-            include: ['variations'],
+            include: [],
         });
     });
 
@@ -143,7 +142,6 @@ const createCaller = (overrides: Partial<ProductGetDeps> = {}) =>
 const createProduct = (): Product => ({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B012345678',
-    variations: null,
     listing: {
         title: null,
         shortName: null,

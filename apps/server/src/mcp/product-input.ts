@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { productSearchInput } from '@/api/product-search-input';
-import { productGetIncludes } from '@/api/public/product-input';
+import { productGetIncludeInput } from '@/api/public/product-input';
 import { rejectFieldsOutsideOperation } from './input-refinements';
 import type { ProductGetManyMcpInput, ProductGetMcpInput, ProductHistoryMcpInput } from './types';
 
@@ -66,7 +66,7 @@ export const productInputSchema = z
         bucket: z.enum(['auto', 'day', 'week', 'month']).optional(),
         days: z.number().int().min(30).max(3650).optional(),
         endAt: z.string().datetime().optional(),
-        include: z.array(z.enum(productGetIncludes)).max(productGetIncludes.length).optional(),
+        include: productGetIncludeInput.optional(),
         limit: z.number().int().min(1).max(10_000).optional(),
         marketplaceId: z.string().trim().min(1).optional(),
         metrics: z

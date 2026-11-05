@@ -63,7 +63,6 @@ describe('RankWrangler MCP server', () => {
         expect(productTool?.description).toContain('getMany uses products');
         expect(productTool?.description).toContain('amazonListingStatus is active or deleted');
         expect(productTool?.description).toContain('deleted means the listing no longer exists');
-        expect(productTool?.description).toContain('variations');
         expect(productTool?.description).toContain('not that an offer is in stock or buyable');
         expect(productTool?.description).toContain('last-known data');
         expect(productTool?.inputSchema).toMatchObject({

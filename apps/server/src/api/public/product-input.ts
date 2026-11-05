@@ -42,20 +42,24 @@ export const productSummaryInput = z.object({
     refresh: z.boolean().default(false),
 });
 
-export const productGetIncludes = [
-    'marketData',
-    'shortName',
-    'cutoutThumbnail',
-    'variations',
-] as const;
+export const productGetIncludes = ['marketData', 'shortName', 'cutoutThumbnail'] as const;
 export type ProductGetInclude = (typeof productGetIncludes)[number];
+
+/** Removed include some callers still send; accepted so they don't error, resolved to nothing. */
+const legacyProductGetIncludes = ['variations'] as const;
+
+export const productGetIncludeInput = z
+    .array(z.enum([...productGetIncludes, ...legacyProductGetIncludes]))
+    .max(productGetIncludes.length + legacyProductGetIncludes.length)
+    .transform(values =>
+        values.filter((value): value is ProductGetInclude =>
+            (productGetIncludes as readonly string[]).includes(value)
+        )
+    );
 
 export const productGetInput = productIdentityInput
     .extend({
-        include: z
-            .array(z.enum(productGetIncludes))
-            .max(productGetIncludes.length)
-            .default(['marketData']),
+        include: productGetIncludeInput.default(['marketData']),
     })
     .strict();
 

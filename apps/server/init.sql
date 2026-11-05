@@ -51,7 +51,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- products.is_merch_listing, a NOT NULL boolean defaulting to false that the latest decided
 -- observation overwrites, and products.amazon_listing_status, whether the Amazon listing is
 -- active or deleted),
--- product_short_names, product_cutout_thumbnails, product_variations,
+-- product_short_names, product_cutout_thumbnails,
 -- product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
 -- product_history_series (compact Keepa series),
