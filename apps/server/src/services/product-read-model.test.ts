@@ -16,7 +16,7 @@ describe('public Product read model', () => {
         const getProductHistorySurface = mock(async () => ({}) as never);
         const getProductShortName = mock(async () => 'Garden Shirt');
         const getProductCutoutThumbnail = mock(async () => null);
-        const getProductVariations = mock(async () => null);
+        const getProductVariations = mock(async () => ({ status: 'none' as const }));
 
         const result = await getProductReadModel(
             {
@@ -69,7 +69,10 @@ describe('public Product read model', () => {
             children: [{ asin: 'B0GHT1WYPY', attributes: { color: 'Black' } }],
             fetchedAt: '2026-11-02T00:00:00.000Z',
         };
-        const getProductVariations = mock(async () => family);
+        const getProductVariations = mock(async () => ({
+            status: 'ready' as const,
+            value: family,
+        }));
 
         const withInclude = await getProductReadModel(
             {
@@ -87,6 +90,7 @@ describe('public Product read model', () => {
             }
         );
         expect(withInclude.variations).toEqual(family);
+        expect(withInclude.variationsStatus).toBe('ready');
         expect(getProductVariations).toHaveBeenCalledTimes(1);
 
         getProductVariations.mockClear();
@@ -106,7 +110,89 @@ describe('public Product read model', () => {
             }
         );
         expect(withoutInclude.variations).toBeNull();
+        expect(withoutInclude.variationsStatus).toBe('not_requested');
         expect(getProductVariations).not.toHaveBeenCalled();
+    });
+
+    it('reports variationsStatus none when there is no variation family', async () => {
+        const product = createProductInfo();
+        const getProductVariations = mock(async () => ({ status: 'none' as const }));
+
+        const result = await getProductReadModel(
+            {
+                marketplaceId: product.marketplaceId,
+                asin: product.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: ['variations'],
+            },
+            {
+                getRequiredProduct: mock(async () => product),
+                getProductHistorySurface: mock(async () => ({}) as never),
+                getProductShortName: mock(async () => null),
+                getProductCutoutThumbnail: mock(async () => null),
+                getProductVariations,
+            }
+        );
+
+        expect(result.variations).toBeNull();
+        expect(result.variationsStatus).toBe('none');
+        expect(result.variationsRetryAfterSeconds).toBeUndefined();
+    });
+
+    it('reports variationsStatus pending with a retry hint during enrichment', async () => {
+        const product = createProductInfo();
+        const getProductVariations = mock(async () => ({
+            status: 'pending' as const,
+            retryAfterSeconds: 2,
+        }));
+
+        const result = await getProductReadModel(
+            {
+                marketplaceId: product.marketplaceId,
+                asin: product.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: ['variations'],
+            },
+            {
+                getRequiredProduct: mock(async () => product),
+                getProductHistorySurface: mock(async () => ({}) as never),
+                getProductShortName: mock(async () => null),
+                getProductCutoutThumbnail: mock(async () => null),
+                getProductVariations,
+            }
+        );
+
+        expect(result.variations).toBeNull();
+        expect(result.variationsStatus).toBe('pending');
+        expect(result.variationsRetryAfterSeconds).toBe(2);
+    });
+
+    it('reports variationsStatus failed with a retry hint after a recent error', async () => {
+        const product = createProductInfo();
+        const getProductVariations = mock(async () => ({
+            status: 'failed' as const,
+            retryAfterSeconds: 240,
+        }));
+
+        const result = await getProductReadModel(
+            {
+                marketplaceId: product.marketplaceId,
+                asin: product.asin,
+                ownerMerchbaseUserId: 'mbu_test',
+                include: ['variations'],
+            },
+            {
+                getRequiredProduct: mock(async () => product),
+                getProductHistorySurface: mock(async () => ({}) as never),
+                getProductShortName: mock(async () => null),
+                getProductCutoutThumbnail: mock(async () => null),
+                getProductVariations,
+            }
+        );
+
+        expect(result.variations).toBeNull();
+        expect(result.variationsStatus).toBe('failed');
+        expect(result.variationsRetryAfterSeconds).toBe(240);
     });
 
     it('generates a short name only for an opted-in Merch Product with an image', async () => {
@@ -129,7 +215,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName,
                 getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations: mock(async () => null),
+                getProductVariations: mock(async () => ({ status: 'none' as const })),
             }
         );
 
@@ -170,7 +256,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface,
                 getProductShortName,
                 getProductCutoutThumbnail,
-                getProductVariations: mock(async () => null),
+                getProductVariations: mock(async () => ({ status: 'none' as const })),
             }
         );
 
@@ -210,7 +296,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName: mock(async () => null),
                 getProductCutoutThumbnail,
-                getProductVariations: mock(async () => null),
+                getProductVariations: mock(async () => ({ status: 'none' as const })),
             }
         );
 
@@ -248,7 +334,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName,
                 getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations: mock(async () => null),
+                getProductVariations: mock(async () => ({ status: 'none' as const })),
             }
         );
 
@@ -285,7 +371,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName: getProductShortName as never,
                 getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations: mock(async () => null),
+                getProductVariations: mock(async () => ({ status: 'none' as const })),
             }
         );
 
@@ -309,7 +395,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface,
                 getProductShortName: mock(async () => null),
                 getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations: mock(async () => null),
+                getProductVariations: mock(async () => ({ status: 'none' as const })),
             }
         );
 
@@ -326,6 +412,7 @@ describe('public Product read model', () => {
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B012345678',
             variations: null,
+            variationsStatus: 'not_requested',
             listing: {
                 title: 'Garden shirt',
                 shortName: null,
@@ -378,6 +465,7 @@ describe('public Product read model', () => {
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B012345678',
             variations: null,
+            variationsStatus: 'not_requested',
             listing: {
                 title: null,
                 shortName: null,

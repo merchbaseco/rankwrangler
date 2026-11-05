@@ -8,11 +8,11 @@ import {
 } from '@/db/product/product-variation-store';
 import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 import { createConcurrencyLimit } from './concurrency-limit';
-import { waitForProductEnrichment } from './product-enrichment-wait';
 import {
     clearVariationDiscoveryCachesForTests,
     discoverVariationRole,
     type VariationDeps,
+    VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS,
 } from './product-variations-discovery';
 import {
     fetchClaimedVariationFamily,
@@ -23,10 +23,18 @@ import {
     classifyStoredVariations,
     type ProductVariations,
     type VariationRequest,
+    type VariationsOutcome,
     variationsRetrievalKey,
 } from './product-variations-request';
+import {
+    coordinateRetrieval,
+    RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS,
+    RetrievalRetryableError,
+} from './retrieval-coordinator';
 
 export type { ProductVariations, VariationRequest } from './product-variations-request';
+export type { ProductVariationsStatus, VariationsOutcome } from './product-variations-request';
+export { toPublicVariationsFields } from './product-variations-request';
 export type { VariationDeps } from './product-variations-discovery';
 export { clearVariationDiscoveryCachesForTests };
 export { VARIATIONS_FAMILY_FETCH_DEADLINE_MS };
@@ -45,19 +53,30 @@ const defaultDeps: VariationDeps = {
 export const getProductVariations = async (
     request: VariationRequest,
     deps: VariationDeps = defaultDeps
-): Promise<ProductVariations | null> =>
-    await waitForProductEnrichment({
-        key: variationsRetrievalKey(request),
-        signal: request.signal,
-        timeoutMs: request.timeoutMs,
-        label: 'Product Variations',
-        work: () => resolveVariations(request, deps),
-    });
+): Promise<VariationsOutcome> => {
+    try {
+        return await coordinateRetrieval({
+            key: variationsRetrievalKey(request),
+            work: () => resolveVariations(request, deps),
+            signal: request.signal,
+            timeoutMs: request.timeoutMs,
+        });
+    } catch (error) {
+        if (error instanceof RetrievalRetryableError) {
+            if (error.reason === 'caller_detached') {
+                throw error;
+            }
+            return { status: 'pending', retryAfterSeconds: error.retryAfterSeconds };
+        }
+        console.error('[Product Variations] Enrichment unavailable for this response:', error);
+        return { status: 'failed', retryAfterSeconds: RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS };
+    }
+};
 
 const resolveVariations = async (
     request: VariationRequest,
     deps: VariationDeps
-): Promise<ProductVariations | null> => {
+): Promise<VariationsOutcome> => {
     const marketplaceId = request.marketplaceId;
     const requestedAsin = request.asin.toUpperCase();
     const hardDeadline = Date.now() + request.timeoutMs + VARIATIONS_RESOLVE_GRACE_MS;
@@ -71,17 +90,22 @@ const resolveVariations = async (
             requestedAsin
         );
         if (classified.state === 'ready') {
-            return classified.value;
+            return classified.value === null
+                ? { status: 'none' }
+                : { status: 'ready', value: classified.value };
         }
         if (classified.state === 'failed') {
-            return null;
+            return { status: 'failed', retryAfterSeconds: classified.retryAfterSeconds };
         }
         knownParent ??= classified.parentAsin;
 
         if (knownParent === null) {
             const discovery = await discoverVariationRole(marketplaceId, requestedAsin, deps);
             if (discovery.kind === 'unavailable') {
-                return null;
+                return {
+                    status: 'failed',
+                    retryAfterSeconds: Math.ceil(VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS / 1000),
+                };
             }
             discovered = discovery;
             if (discovered.kind === 'none') {
@@ -98,7 +122,7 @@ const resolveVariations = async (
                         claimId,
                         resolution: { kind: 'none' },
                     });
-                    return null;
+                    return { status: 'none' };
                 }
                 await sleep(POLL_MS);
                 continue;
@@ -123,17 +147,20 @@ const resolveVariations = async (
         });
 
         if (result.kind === 'ready') {
-            return result.value;
+            return { status: 'ready', value: result.value };
         }
-        if (result.kind === 'none' || result.kind === 'aborted') {
-            return null;
+        if (result.kind === 'none') {
+            return { status: 'none' };
+        }
+        if (result.kind === 'aborted') {
+            return { status: 'pending', retryAfterSeconds: RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS };
         }
 
         const parentRow = await getStoredVariation({ marketplaceId, parentAsin });
         if (readyFamilyOmitsMember(parentRow, requestedAsin) && parentRow.fetchedAt) {
             const ageMs = Date.now() - parentRow.fetchedAt.getTime();
             if (ageMs < VARIATIONS_MEMBER_REFRESH_MS || memberRefreshAttempted) {
-                return null;
+                return { status: 'none' };
             }
             memberRefreshAttempted = true;
             const claimId = randomUUID();
@@ -144,7 +171,10 @@ const resolveVariations = async (
                 allowMemberRefresh: true,
             });
             if (!claimed) {
-                return null;
+                return {
+                    status: 'pending',
+                    retryAfterSeconds: RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS,
+                };
             }
             const refreshed = await fetchSlots.run(() =>
                 fetchClaimedVariationFamily({
@@ -156,12 +186,18 @@ const resolveVariations = async (
                     signal: familyFetchDeadlineSignal(),
                 })
             );
-            return refreshed.kind === 'ready' ? refreshed.value : null;
+            if (refreshed.kind === 'ready') {
+                return { status: 'ready', value: refreshed.value };
+            }
+            if (refreshed.kind === 'none') {
+                return { status: 'none' };
+            }
+            return { status: 'pending', retryAfterSeconds: RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS };
         }
 
         await sleep(POLL_MS);
     }
-    return null;
+    return { status: 'pending', retryAfterSeconds: RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS };
 };
 
 /** Shared fetch budget only — never wired to the caller's request AbortSignal. */

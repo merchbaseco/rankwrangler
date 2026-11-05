@@ -224,6 +224,7 @@ export interface ProductVariations {
 	}>;
 	fetchedAt: string;
 }
+export type ProductVariationsStatus = "ready" | "none" | "pending" | "failed" | "not_requested";
 export type PublicCutoutThumbnail = {
 	status: "available";
 	url: string;
@@ -250,6 +251,8 @@ export interface Product {
 		amazonListingStatus: AmazonListingStatus;
 	};
 	variations: ProductVariations | null;
+	variationsStatus: ProductVariationsStatus;
+	variationsRetryAfterSeconds?: number;
 	category: {
 		id: number;
 		name: string | null;

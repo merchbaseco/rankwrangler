@@ -88,6 +88,8 @@ type Product = {
         amazonListingStatus: 'active' | 'deleted';
     };
     variations: ProductVariations | null;
+    variationsStatus: 'ready' | 'none' | 'pending' | 'failed' | 'not_requested';
+    variationsRetryAfterSeconds?: number;
     category: { id: number; name: string | null } | null;
     salesRank: {
         current: number | null;
@@ -142,6 +144,16 @@ Slow or failed variation fetch within the enrichment deadline also settles as `n
 for a large apparel family (hundreds of children, many Catalog batches) usually returns
 `variations: null` within the shared 20-second enrichment budget while the shared walk continues;
 callers should retry `get` after about one minute for the finished snapshot.
+
+`variationsStatus` tells apart the cases that otherwise all read as `variations: null`. `ready`
+means `variations` holds the resolved family. `none` means RankWrangler has an authoritative
+answer that this ASIN has no variation family — either a standalone Catalog relationship, or a
+fresh (under one hour old) family snapshot that does not list this ASIN. `pending` means
+resolution is still running or timed out at the shared 20-second enrichment budget. `failed` means
+a Catalog lookup error within the last 5 minutes, or an active Catalog-error cooldown.
+`not_requested` means the caller omitted `variations` from `include`. `variationsRetryAfterSeconds`
+accompanies `pending` and `failed` with a hint for when to retry `get`; it is absent for `ready`,
+`none`, and `not_requested`.
 
 `bulletPoints` is always an array; a current Product with no bullets returns `[]`. For nullable
 measurements, `null` means valid data is unavailable. It never means zero, failure, or pending work.

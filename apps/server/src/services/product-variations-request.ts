@@ -23,8 +23,42 @@ export interface VariationRequest {
 
 export type ClassifiedStoredVariations =
     | { state: 'ready'; value: ProductVariations | null }
-    | { state: 'failed' }
+    | { state: 'failed'; retryAfterSeconds: number }
     | { state: 'missing'; parentAsin: string | null };
+
+export type ProductVariationsStatus = 'ready' | 'none' | 'pending' | 'failed' | 'not_requested';
+
+export type VariationsOutcome =
+    | { status: 'ready'; value: ProductVariations }
+    | { status: 'none' }
+    | { status: 'pending'; retryAfterSeconds: number }
+    | { status: 'failed'; retryAfterSeconds: number };
+
+export type PublicVariationsFields = {
+    variations: ProductVariations | null;
+    variationsStatus: ProductVariationsStatus;
+    variationsRetryAfterSeconds?: number;
+};
+
+/** `outcome` is null when the caller never requested `variations`. */
+export const toPublicVariationsFields = (
+    outcome: VariationsOutcome | null
+): PublicVariationsFields => {
+    if (outcome === null) {
+        return { variations: null, variationsStatus: 'not_requested' };
+    }
+    if (outcome.status === 'ready') {
+        return { variations: outcome.value, variationsStatus: 'ready' };
+    }
+    if (outcome.status === 'none') {
+        return { variations: null, variationsStatus: 'none' };
+    }
+    return {
+        variations: null,
+        variationsStatus: outcome.status,
+        variationsRetryAfterSeconds: outcome.retryAfterSeconds,
+    };
+};
 
 export const variationsRetrievalKey = ({
     marketplaceId,
@@ -78,7 +112,11 @@ export const classifyStoredVariations = (
             row.state === 'error' && now - row.attemptedAt.getTime() < VARIATIONS_ERROR_RETRY_MS
     );
     if (failed) {
-        return { state: 'failed' };
+        const retryAfterSeconds = Math.max(
+            1,
+            Math.ceil((failed.attemptedAt.getTime() + VARIATIONS_ERROR_RETRY_MS - now) / 1000)
+        );
+        return { state: 'failed', retryAfterSeconds };
     }
     const anyParent = current[0]?.parentAsin ?? rows[0]?.parentAsin ?? null;
     return { state: 'missing', parentAsin: anyParent };

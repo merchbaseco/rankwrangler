@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { VARIATIONS_MEMBER_REFRESH_MS } from '@/db/product/product-variation-store';
+import { randomUUID } from 'node:crypto';
+import {
+    VARIATIONS_ERROR_RETRY_MS,
+    VARIATIONS_MEMBER_REFRESH_MS,
+} from '@/db/product/product-variation-store';
 import {
     clearVariationDiscoveryCachesForTests,
     getProductVariations,
@@ -17,6 +21,7 @@ import {
     PARENT,
     SECOND_CHILD,
 } from './product-variations-test-fixtures';
+import { RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS } from './retrieval-coordinator';
 
 describe('getProductVariations', () => {
     afterEach(() => {
@@ -36,7 +41,11 @@ describe('getProductVariations', () => {
             deps
         );
 
-        expect(result).toMatchObject({
+        expect(result.status).toBe('ready');
+        if (result.status !== 'ready') {
+            return;
+        }
+        expect(result.value).toMatchObject({
             parentAsin: PARENT,
             theme: ['color', 'size'],
             defaultChildAsin: DEFAULT_CHILD,
@@ -45,7 +54,7 @@ describe('getProductVariations', () => {
                 { asin: SECOND_CHILD, attributes: { color: 'White', size: 'M' } },
             ],
         });
-        expect(result?.fetchedAt).toEqual(expect.any(String));
+        expect(result.value.fetchedAt).toEqual(expect.any(String));
     });
 
     it('discovers the parent when the request starts on a child ASIN', async () => {
@@ -60,11 +69,15 @@ describe('getProductVariations', () => {
             deps
         );
 
-        expect(result?.parentAsin).toBe(PARENT);
-        expect(result?.defaultChildAsin).toBe(DEFAULT_CHILD);
+        expect(result.status).toBe('ready');
+        if (result.status !== 'ready') {
+            return;
+        }
+        expect(result.value.parentAsin).toBe(PARENT);
+        expect(result.value.defaultChildAsin).toBe(DEFAULT_CHILD);
     });
 
-    it('returns null for a standalone Product', async () => {
+    it('returns none for a standalone Product', async () => {
         const { deps, searchCatalogItemsByAsins } = createCatalogMock();
         searchCatalogItemsByAsins.mockResolvedValue({
             items: [{ asin: 'B0STANDALN', relationships: [] }],
@@ -76,10 +89,10 @@ describe('getProductVariations', () => {
             deps
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({ status: 'none' });
     });
 
-    it('returns null quickly when a fresh parent family omits the requested child', async () => {
+    it('returns none quickly when a fresh parent family omits the requested child', async () => {
         const { deps, searchCatalogItemsByAsins } = createCatalogMock();
         searchCatalogItemsByAsins.mockImplementation(async ({ asins }) => ({
             items: asins.map(asin =>
@@ -113,7 +126,7 @@ describe('getProductVariations', () => {
             deps
         );
 
-        expect(result).toBeNull();
+        expect(result).toEqual({ status: 'none' });
         expect(Date.now() - started).toBeLessThan(VARIATIONS_RESOLVE_GRACE_MS);
         expect(searchCatalogItemsByAsins.mock.calls.length).toBeLessThan(5);
     });
@@ -170,9 +183,16 @@ describe('getProductVariations', () => {
             deps
         );
 
-        expect(result?.defaultChildAsin).toBe(DEFAULT_CHILD);
-        expect(result?.children.map(child => child.asin)).toEqual([DEFAULT_CHILD, ORPHAN_CHILD]);
-        expect(result?.children[1]?.attributes).toEqual({ color: 'Red', size: 'S' });
+        expect(result.status).toBe('ready');
+        if (result.status !== 'ready') {
+            return;
+        }
+        expect(result.value.defaultChildAsin).toBe(DEFAULT_CHILD);
+        expect(result.value.children.map(child => child.asin)).toEqual([
+            DEFAULT_CHILD,
+            ORPHAN_CHILD,
+        ]);
+        expect(result.value.children[1]?.attributes).toEqual({ color: 'Red', size: 'S' });
     });
 
     it('backs off discovery after a Catalog error instead of hammering SP-API', async () => {
@@ -189,8 +209,15 @@ describe('getProductVariations', () => {
             deps
         );
 
-        expect(first).toBeNull();
-        expect(second).toBeNull();
+        expect(first).toMatchObject({ status: 'failed' });
+        if (first.status !== 'failed') {
+            return;
+        }
+        expect(first.retryAfterSeconds).toBeGreaterThan(0);
+        expect(second).toEqual({
+            status: 'failed',
+            retryAfterSeconds: Math.ceil(VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS / 1000),
+        });
         expect(searchCatalogItemsByAsins).toHaveBeenCalledTimes(1);
         expect(VARIATIONS_DISCOVERY_ERROR_COOLDOWN_MS).toBeGreaterThan(0);
     });
@@ -246,6 +273,52 @@ describe('getProductVariations', () => {
         expect(childBatchCalls.length).toBe(2);
         expect(childBatchCalls.every(call => call[0].priority === 'foreground')).toBe(true);
         expect(VARIATIONS_FAMILY_FETCH_DEADLINE_MS).toBe(180_000);
+    });
+
+    it('returns failed with a precise retry hint from a recent DB error row', async () => {
+        const { deps } = createCatalogMock();
+        const store = installStoreSpy();
+        const attemptedAt = new Date(Date.now() - 60_000);
+        store.seedError({
+            marketplaceId: MARKETPLACE,
+            parentAsin: PARENT,
+            claimId: randomUUID(),
+            attemptedAt,
+        });
+
+        const result = await getProductVariations(
+            { marketplaceId: MARKETPLACE, asin: PARENT, timeoutMs: 5000 },
+            deps
+        );
+
+        expect(result).toMatchObject({ status: 'failed' });
+        if (result.status !== 'failed') {
+            return;
+        }
+        const elapsedSeconds = (Date.now() - attemptedAt.getTime()) / 1000;
+        const expectedSeconds = VARIATIONS_ERROR_RETRY_MS / 1000 - elapsedSeconds;
+        expect(result.retryAfterSeconds).toBeGreaterThan(expectedSeconds - 5);
+        expect(result.retryAfterSeconds).toBeLessThan(expectedSeconds + 5);
+    });
+
+    it('returns pending when the caller times out while a fetch is already in flight', async () => {
+        const { deps } = createCatalogMock();
+        const store = installStoreSpy();
+        store.seedPending({
+            marketplaceId: MARKETPLACE,
+            parentAsin: PARENT,
+            claimId: randomUUID(),
+        });
+
+        const result = await getProductVariations(
+            { marketplaceId: MARKETPLACE, asin: PARENT, timeoutMs: 50 },
+            deps
+        );
+
+        expect(result).toEqual({
+            status: 'pending',
+            retryAfterSeconds: RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS,
+        });
     });
 });
 

@@ -98,6 +98,9 @@ export const createRankWranglerMcpServer = (source: RankWranglerMcpDataSource) =
                 'still generating or failed at that deadline returns as none (shortName null, ' +
                 'cutoutThumbnail {status:unavailable}, variations null) and a later get returns it, so never ' +
                 'retry get just for enrichment. ' +
+                'variations also returns variationsStatus (ready, none, pending, failed, or not_requested) and, ' +
+                'for pending or failed, variationsRetryAfterSeconds, to tell a resolved standalone ASIN apart ' +
+                'from still-resolving or failed enrichment. ' +
                 'getMany uses products and returns fixed-shape basic title and ' +
                 'thumbnail data for up to 200 identities without include; request ' +
                 'shortName, cutoutThumbnail, or variations with get. get and getMany return a known ' +

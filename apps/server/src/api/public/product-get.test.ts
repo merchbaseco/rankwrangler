@@ -38,6 +38,7 @@ describe('public Product tRPC boundary', () => {
                 },
             },
             variations: null,
+            variationsStatus: 'not_requested',
         } satisfies Product;
         const getProductReadModel = mock(async () => product);
         const caller = createCaller({ getProductReadModel });
@@ -144,6 +145,7 @@ const createProduct = (): Product => ({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B012345678',
     variations: null,
+    variationsStatus: 'not_requested',
     listing: {
         title: null,
         shortName: null,

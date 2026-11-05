@@ -116,6 +116,32 @@ export const installStoreSpy = () => {
                 pendingRow(marketplaceId, parentAsin.toUpperCase(), claimId)
             );
         },
+        seedError: ({
+            marketplaceId,
+            parentAsin,
+            claimId,
+            attemptedAt,
+        }: {
+            marketplaceId: string;
+            parentAsin: string;
+            claimId: string;
+            attemptedAt: Date;
+        }) => {
+            const upperParent = parentAsin.toUpperCase();
+            rows.set(storeKey(marketplaceId, upperParent), {
+                marketplaceId,
+                parentAsin: upperParent,
+                generatorVersion: VARIATIONS_GENERATOR_VERSION,
+                state: 'error',
+                kind: null,
+                theme: null,
+                children: null,
+                memberAsins: [upperParent],
+                claimId,
+                attemptedAt,
+                fetchedAt: null,
+            });
+        },
         seedReadyFamily: ({
             marketplaceId,
             parentAsin,

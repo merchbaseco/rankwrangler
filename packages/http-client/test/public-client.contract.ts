@@ -55,6 +55,8 @@ export type ProductOutputContract = Assert<
         | 'asin'
         | 'listing'
         | 'variations'
+        | 'variationsStatus'
+        | 'variationsRetryAfterSeconds'
         | 'category'
         | 'salesRank'
         | 'price'

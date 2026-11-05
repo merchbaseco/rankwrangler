@@ -9,6 +9,8 @@ import { getProductShortName } from './product-short-name';
 import {
     getProductVariations,
     type ProductVariations,
+    type ProductVariationsStatus,
+    toPublicVariationsFields,
 } from './product-variations';
 
 const PRODUCT_READ_KEEP_A_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
@@ -32,6 +34,8 @@ export interface Product {
         amazonListingStatus: AmazonListingStatus;
     };
     variations: ProductVariations | null;
+    variationsStatus: ProductVariationsStatus;
+    variationsRetryAfterSeconds?: number;
     category: { id: number; name: string | null } | null;
     salesRank: {
         current: number | null;
@@ -210,7 +214,7 @@ export const getProductReadModel = async (
             shortName,
             cutoutThumbnail,
         },
-        variations: includes.includes('variations') ? variations : null,
+        ...toPublicVariationsFields(variations),
     };
 };
 
@@ -240,6 +244,7 @@ export const mapProductToPublicProduct = (
         amazonListingStatus: product.amazonListingStatus,
     },
     variations: null,
+    variationsStatus: 'not_requested',
     category:
         product.rootCategoryId === null
             ? null

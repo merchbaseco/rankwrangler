@@ -90,8 +90,12 @@ describeCatalogDb('product_variations read path', () => {
             { marketplaceId: MARKETPLACE, asin: CHILD_A, timeoutMs: 2_000 },
             { searchCatalogItemsByAsins }
         );
-        expect(result?.parentAsin).toBe(PARENT);
-        expect(result?.children.map(child => child.asin)).toEqual([CHILD_A, CHILD_B]);
+        expect(result.status).toBe('ready');
+        if (result.status !== 'ready') {
+            return;
+        }
+        expect(result.value.parentAsin).toBe(PARENT);
+        expect(result.value.children.map(child => child.asin)).toEqual([CHILD_A, CHILD_B]);
         expect(searchCatalogItemsByAsins).not.toHaveBeenCalled();
     });
 
