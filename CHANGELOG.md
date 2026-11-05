@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.16.6 - 2026-11-05
+
+### Changed
+
+- `product.get` no longer resolves Amazon Catalog variation relationships; the `variations` field
+  is removed from the response, since owned-listing variant data now comes from merchbase-core.
+  `include: ['variations']` is still accepted without error for existing callers; it resolves to
+  nothing.
+
 ## v0.16.5 - 2026-11-03
 
 ### Fixed
