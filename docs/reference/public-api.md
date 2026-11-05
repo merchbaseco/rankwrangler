@@ -146,11 +146,13 @@ for a large apparel family (hundreds of children, many Catalog batches) usually 
 callers should retry `get` after about one minute for the finished snapshot.
 
 `variationsStatus` tells apart the cases that otherwise all read as `variations: null`. `ready`
-means `variations` holds the resolved family. `none` means RankWrangler has an authoritative
-answer that this ASIN has no variation family — either a standalone Catalog relationship, or a
-fresh (under one hour old) family snapshot that does not list this ASIN. `pending` means
-resolution is still running or timed out at the shared 20-second enrichment budget. `failed` means
-a Catalog lookup error within the last 5 minutes, or an active Catalog-error cooldown.
+means `variations` holds the resolved family. `none` means a ready `kind:'none'` row — RankWrangler
+determined this ASIN is standalone, or rediscovered that a previously known parent is no longer a
+variation parent. `pending` means resolution is still running, timed out at the shared 20-second
+enrichment budget, or the requested ASIN is missing from a family snapshot under one hour old
+(RankWrangler refetches once the snapshot is old enough; `variationsRetryAfterSeconds` gives the
+wait). `failed` means a Catalog lookup error within the last 5 minutes, or an active
+Catalog-error cooldown.
 `not_requested` means the caller omitted `variations` from `include`. `variationsRetryAfterSeconds`
 accompanies `pending` and `failed` with a hint for when to retry `get`; it is absent for `ready`,
 `none`, and `not_requested`.

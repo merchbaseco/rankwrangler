@@ -159,8 +159,18 @@ const resolveVariations = async (
         const parentRow = await getStoredVariation({ marketplaceId, parentAsin });
         if (readyFamilyOmitsMember(parentRow, requestedAsin) && parentRow.fetchedAt) {
             const ageMs = Date.now() - parentRow.fetchedAt.getTime();
-            if (ageMs < VARIATIONS_MEMBER_REFRESH_MS || memberRefreshAttempted) {
-                return { status: 'none' };
+            if (memberRefreshAttempted) {
+                return {
+                    status: 'pending',
+                    retryAfterSeconds: RETRIEVAL_DEFAULT_RETRY_AFTER_SECONDS,
+                };
+            }
+            if (ageMs < VARIATIONS_MEMBER_REFRESH_MS) {
+                const retryAfterSeconds = Math.max(
+                    1,
+                    Math.ceil((VARIATIONS_MEMBER_REFRESH_MS - ageMs) / 1000)
+                );
+                return { status: 'pending', retryAfterSeconds };
             }
             memberRefreshAttempted = true;
             const claimId = randomUUID();

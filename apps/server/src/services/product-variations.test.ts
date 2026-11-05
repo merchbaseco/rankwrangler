@@ -92,7 +92,7 @@ describe('getProductVariations', () => {
         expect(result).toEqual({ status: 'none' });
     });
 
-    it('returns none quickly when a fresh parent family omits the requested child', async () => {
+    it('returns pending with a refetch retry hint when a fresh parent family omits the requested child', async () => {
         const { deps, searchCatalogItemsByAsins } = createCatalogMock();
         searchCatalogItemsByAsins.mockImplementation(async ({ asins }) => ({
             items: asins.map(asin =>
@@ -126,7 +126,14 @@ describe('getProductVariations', () => {
             deps
         );
 
-        expect(result).toEqual({ status: 'none' });
+        expect(result).toMatchObject({ status: 'pending' });
+        if (result.status !== 'pending') {
+            return;
+        }
+        expect(result.retryAfterSeconds).toBeGreaterThan(0);
+        expect(result.retryAfterSeconds).toBeLessThanOrEqual(
+            Math.ceil(VARIATIONS_MEMBER_REFRESH_MS / 1000)
+        );
         expect(Date.now() - started).toBeLessThan(VARIATIONS_RESOLVE_GRACE_MS);
         expect(searchCatalogItemsByAsins.mock.calls.length).toBeLessThan(5);
     });
