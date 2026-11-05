@@ -52,6 +52,7 @@
         "release:bump": "node scripts/release/bump-version.mjs",
         "release:check": "node scripts/release/validate-release-metadata.mjs",
         "release:check-cli-pack": "node scripts/release/check-cli-pack.mjs",
+        "release:check-published-bump": "node scripts/release/check-published-package-bump.mjs",
         "release:collect-changelog-context": "node scripts/release/collect-changelog-context.mjs",
         "server:build": "bun run --filter @rankwrangler/server build",
         "server:cli": "varlock run -- bun run --filter @rankwrangler/server cli",

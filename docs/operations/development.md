@@ -182,6 +182,16 @@ production database. CI runs the same script on the same private-cluster path a
 checkout does; it only has to put the runner image's PostgreSQL binaries on
 PATH first.
 
+The `Published package version bump` job is the same kind of exception. It
+re-runs `scripts/release/check-published-package-bump.mjs` — no `bun install`,
+since the script only imports Node's built-ins — and fails a PR that changes a
+file inside `packages/http-client` or `packages/cli` that actually ships
+(mapped from each package's `package.json` "files" through its `tsconfig.json`
+`rootDir`/`outDir`, so tests, scripts, and fixtures don't count) without
+bumping the shared version. Deploy Stack's own "Version bump backstop" job
+runs the same script again against the merged commit; this PR-time job exists
+so that failure shows up before merge instead of after deploy.
+
 This shape is fleet-wide, not a RankWrangler quirk: Quality answers one question
 per push — is the contract intact and does the fast stuff pass? — in under about
 sixty seconds, with installs capped at `timeout-minutes: 5` and a concurrency

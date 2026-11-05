@@ -67,6 +67,25 @@ jobs:
       - name: Run fast quality gates
         run: bun run check:fast
 
+  # Catches a published package (packages/http-client, packages/cli) changing a
+  # file it actually ships without a version bump, before merge instead of after
+  # deploy. Deploy Stack's own "Version bump backstop" job re-runs the same
+  # script against the merged commit as a second gate; this is not a duplicate
+  # implementation of that check, just an earlier run of it. No install needed:
+  # the script only uses Node's built-in modules plus `git`/`npm`, both already
+  # on the runner.
+  published-package-version-bump:
+    name: Published package version bump
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check published packages were bumped if changed
+        run: node scripts/release/check-published-package-bump.mjs
+
   # The database-backed half of the server suite, which skips itself without a
   # real PostgreSQL. It runs beside `check` rather than inside it so the fast
   # lane still answers in about a minute, and it uses the same throwaway
