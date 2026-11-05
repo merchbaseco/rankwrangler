@@ -73,15 +73,14 @@ and price history has no scale field.
 The returned proxy is already scoped to `api.public`; call `client.product...` and
 `client.keyword...`, not `client.api.public...`.
 `include` defaults to `['marketData']`, preserving the Keepa-backed current Product read. Add
-`shortName` for an image-informed compact label, `cutoutThumbnail` for a transparent 128-pixel
-Product photo, and `variations` for Amazon variation family metadata (MerchBase BidBeacon and agents
-use this include). Pass `['shortName', 'cutoutThumbnail']` for chip data without Keepa market data,
-`['variations']` for variation-aware workflows without market data, or `[]` to skip optional
-hydrations. The name, cutout, and variation family remain nullable when omitted. `get` waits up
+`shortName` for an image-informed compact label and `cutoutThumbnail` for a transparent 128-pixel
+Product photo. Pass `['shortName', 'cutoutThumbnail']` for chip data without Keepa market data, or
+`[]` to skip optional hydrations. The name and cutout remain nullable when omitted. `get` waits up
 to 20 seconds for requested enrichment and returns an unfinished or failed field as none
-(`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`, `variations: null`) rather than a `TIMEOUT`; a later
+(`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`) rather than a `TIMEOUT`; a later
 `get` returns the finished value. Batch Product reads do not accept these options; request
-enrichment with one `get` per Product.
+enrichment with one `get` per Product. `include` still accepts the removed `'variations'` token
+without error; it resolves to nothing. Owned-listing variant data now comes from merchbase-core.
 
 ## Options
 

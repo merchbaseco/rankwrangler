@@ -16,7 +16,6 @@ describe('public Product read model', () => {
         const getProductHistorySurface = mock(async () => ({}) as never);
         const getProductShortName = mock(async () => 'Garden Shirt');
         const getProductCutoutThumbnail = mock(async () => null);
-        const getProductVariations = mock(async () => null);
 
         const result = await getProductReadModel(
             {
@@ -30,7 +29,6 @@ describe('public Product read model', () => {
                 getProductHistorySurface,
                 getProductShortName,
                 getProductCutoutThumbnail,
-                getProductVariations,
             } satisfies ProductReadModelDeps
         );
 
@@ -57,56 +55,6 @@ describe('public Product read model', () => {
         });
         expect(getProductShortName).not.toHaveBeenCalled();
         expect(getProductCutoutThumbnail).not.toHaveBeenCalled();
-        expect(getProductVariations).not.toHaveBeenCalled();
-    });
-
-    it('hydrates variation families only when include contains variations', async () => {
-        const product = createProductInfo();
-        const family = {
-            parentAsin: 'B0GHTD7TKB',
-            theme: ['color_name'],
-            defaultChildAsin: 'B0GHT1WYPY',
-            children: [{ asin: 'B0GHT1WYPY', attributes: { color: 'Black' } }],
-            fetchedAt: '2026-11-02T00:00:00.000Z',
-        };
-        const getProductVariations = mock(async () => family);
-
-        const withInclude = await getProductReadModel(
-            {
-                marketplaceId: product.marketplaceId,
-                asin: product.asin,
-                ownerMerchbaseUserId: 'mbu_test',
-                include: ['variations'],
-            },
-            {
-                getRequiredProduct: mock(async () => product),
-                getProductHistorySurface: mock(async () => ({}) as never),
-                getProductShortName: mock(async () => null),
-                getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations,
-            }
-        );
-        expect(withInclude.variations).toEqual(family);
-        expect(getProductVariations).toHaveBeenCalledTimes(1);
-
-        getProductVariations.mockClear();
-        const withoutInclude = await getProductReadModel(
-            {
-                marketplaceId: product.marketplaceId,
-                asin: product.asin,
-                ownerMerchbaseUserId: 'mbu_test',
-                include: [],
-            },
-            {
-                getRequiredProduct: mock(async () => product),
-                getProductHistorySurface: mock(async () => ({}) as never),
-                getProductShortName: mock(async () => null),
-                getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations,
-            }
-        );
-        expect(withoutInclude.variations).toBeNull();
-        expect(getProductVariations).not.toHaveBeenCalled();
     });
 
     it('generates a short name only for an opted-in Merch Product with an image', async () => {
@@ -129,7 +77,6 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName,
                 getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations: mock(async () => null),
             }
         );
 
@@ -170,7 +117,6 @@ describe('public Product read model', () => {
                 getProductHistorySurface,
                 getProductShortName,
                 getProductCutoutThumbnail,
-                getProductVariations: mock(async () => null),
             }
         );
 
@@ -210,7 +156,6 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName: mock(async () => null),
                 getProductCutoutThumbnail,
-                getProductVariations: mock(async () => null),
             }
         );
 
@@ -248,7 +193,6 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName,
                 getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations: mock(async () => null),
             }
         );
 
@@ -285,7 +229,6 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName: getProductShortName as never,
                 getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations: mock(async () => null),
             }
         );
 
@@ -309,7 +252,6 @@ describe('public Product read model', () => {
                 getProductHistorySurface,
                 getProductShortName: mock(async () => null),
                 getProductCutoutThumbnail: mock(async () => null),
-                getProductVariations: mock(async () => null),
             }
         );
 
@@ -325,7 +267,6 @@ describe('public Product read model', () => {
         expect(result).toEqual({
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B012345678',
-            variations: null,
             listing: {
                 title: 'Garden shirt',
                 shortName: null,
@@ -377,7 +318,6 @@ describe('public Product read model', () => {
         expect(result).toEqual({
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B012345678',
-            variations: null,
             listing: {
                 title: null,
                 shortName: null,

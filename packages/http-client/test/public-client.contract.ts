@@ -54,7 +54,6 @@ export type ProductOutputContract = Assert<
         | 'marketplaceId'
         | 'asin'
         | 'listing'
-        | 'variations'
         | 'category'
         | 'salesRank'
         | 'price'

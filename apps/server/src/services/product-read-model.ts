@@ -6,10 +6,6 @@ import { getProductCutoutThumbnail } from './product-cutout-thumbnail';
 import { PRODUCT_ENRICHMENT_DEADLINE_MS } from './product-enrichment-wait';
 import { getRequiredProduct } from './product-retrieval';
 import { getProductShortName } from './product-short-name';
-import {
-    getProductVariations,
-    type ProductVariations,
-} from './product-variations';
 
 const PRODUCT_READ_KEEP_A_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 
@@ -31,7 +27,6 @@ export interface Product {
         isMerchListing: boolean;
         amazonListingStatus: AmazonListingStatus;
     };
-    variations: ProductVariations | null;
     category: { id: number; name: string | null } | null;
     salesRank: {
         current: number | null;
@@ -51,8 +46,6 @@ export interface Product {
         };
     };
 }
-
-export type { ProductVariations };
 
 export interface KeywordResultsProduct {
     marketplaceId: string;
@@ -92,7 +85,6 @@ export interface ProductReadModelDeps {
     getProductHistorySurface: typeof getProductHistorySurface;
     getProductShortName: typeof getProductShortName;
     getProductCutoutThumbnail: typeof getProductCutoutThumbnail;
-    getProductVariations: typeof getProductVariations;
 }
 
 const defaultDeps: ProductReadModelDeps = {
@@ -100,7 +92,6 @@ const defaultDeps: ProductReadModelDeps = {
     getProductHistorySurface,
     getProductShortName,
     getProductCutoutThumbnail,
-    getProductVariations,
 };
 
 export const getProductReadModel = async (
@@ -140,15 +131,8 @@ export const getProductReadModel = async (
               timeoutMs: enrichmentTimeoutMs(),
           })
         : Promise.resolve(null);
-    const variationsPromise = includes.includes('variations')
-        ? deps.getProductVariations({
-              ...identity,
-              signal: input.signal,
-              timeoutMs: enrichmentTimeoutMs(),
-          })
-        : Promise.resolve(null);
 
-    const [, initialShortName, initialCutout, variations] = await Promise.all([
+    const [, initialShortName, initialCutout] = await Promise.all([
         includes.includes('marketData')
             ? deps.getProductHistorySurface({
                   ...identity,
@@ -164,7 +148,6 @@ export const getProductReadModel = async (
             : Promise.resolve(null),
         shortNamePromise,
         cutoutPromise,
-        variationsPromise,
     ]);
 
     const current = await deps.getRequiredProduct({
@@ -210,7 +193,6 @@ export const getProductReadModel = async (
             shortName,
             cutoutThumbnail,
         },
-        variations: includes.includes('variations') ? variations : null,
     };
 };
 
@@ -239,7 +221,6 @@ export const mapProductToPublicProduct = (
         isMerchListing: product.isMerchListing,
         amazonListingStatus: product.amazonListingStatus,
     },
-    variations: null,
     category:
         product.rootCategoryId === null
             ? null

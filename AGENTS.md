@@ -61,8 +61,9 @@ Changing a package means bumping its version in the same PR (patch, minor, or ma
 
 ## API + Code Design
 
-- MerchBase BidBeacon and related agents rely on `product.get` with `include: ['variations']`; keep
-  that enrichment stable and documented whenever touching Product reads or Catalog variation code.
+- `product.get` no longer resolves Amazon Catalog variation relationships; owned-listing variant
+  data comes from merchbase-core. `include` still accepts the removed `'variations'` token without
+  error (it resolves to nothing), for callers that have not updated yet.
 - All APIs are tRPC only (no REST surface).
 - Router split:
   - `api.public.*`: Merchbase API-key/OAuth auth.

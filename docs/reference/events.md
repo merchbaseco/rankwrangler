@@ -38,7 +38,6 @@ identifies behavior, and primitive type supports broad filtering.
 | `product.deleted` | product | SP-API returned no product payload and the stored Product was removed when present. | `success` |
 | `product.facets.classify` | product | Product facet-classification outcome. | `success`, `failed` |
 | `product.cutoutThumbnail.generate` | product | On-demand product cutout upload outcome. Success details include stored bytes and input fingerprint; failure details include the error. | `success`, `failed` |
-| `product.variations.fetch` | product | On-demand Catalog variation family fetch. Success details include child count and theme; warn/partial covers truncated attribute lookups and unresolved theme dimensions (sample Catalog attribute key names, no values); failures log without blocking the Product response. | `success`, `partial`, `failed` |
 | `history.sync.manual` | history | User-requested Keepa history import. | `success`, `failed` |
 | `history.sync.background` | history | Scheduled or queued Keepa history import. | `success`, `failed` |
 | `job.fatal` | job | Background job escaped with a fatal error. | `failed` |

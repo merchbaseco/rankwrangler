@@ -484,6 +484,13 @@
       "when": 1793662632068,
       "tag": "0068_product_variations",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1793903078929,
+      "tag": "0069_drop_product_variations",
+      "breakpoints": true
     }
   ]
 }

@@ -64,7 +64,7 @@ There is no public Catalog, Operation, polling, or provider-health namespace.
 ## Product
 
 `product.get` accepts `marketplaceId`, a ten-character alphanumeric `asin` normalized to uppercase,
-and optional `include: Array<'marketData' | 'shortName' | 'cutoutThumbnail' | 'variations'>` (default `['marketData']`). It returns one Product rather than a
+and optional `include: Array<'marketData' | 'shortName' | 'cutoutThumbnail'>` (default `['marketData']`). It returns one Product rather than a
 summary/history composite:
 
 ```ts
@@ -87,7 +87,6 @@ type Product = {
         isMerchListing: boolean;
         amazonListingStatus: 'active' | 'deleted';
     };
-    variations: ProductVariations | null;
     category: { id: number; name: string | null } | null;
     salesRank: {
         current: number | null;
@@ -107,41 +106,12 @@ type Product = {
         };
     };
 };
-
-type ProductVariations = {
-    parentAsin: string;
-    theme: string[];
-    defaultChildAsin: string;
-    children: Array<{ asin: string; attributes: Record<string, string> }>;
-    fetchedAt: string;
-};
 ```
 
-`variations` is `null` unless the caller includes `variations`. MerchBase BidBeacon and related agents
-depend on this enrichment for variation-aware bidding; treat it as a supported public contract, not
-an experimental opt-in. When included, RankWrangler reads Amazon Catalog variation relationships
-(all Catalog batches at foreground priority, with a 180-second AbortSignal budget around the shared
-family walk — independent of the caller's request signal, which only ends that caller's wait),
-preserves Amazon's `childAsins` order (the first entry is always `defaultChildAsin`), and maps
-theme names such as `COLOR_NAME` / `SIZE_NAME` / `FIT_TYPE` / `DEPARTMENT_NAME` to public keys
-`color`, `size`, `fit`, and `department`. Size reads apparel Catalog keys in order
-(`shirt_size`, `apparel_size`, `size`, `size_name`, `bottoms_size`, `headwear_size`), preferring
-`[0].size` then `[0].value` (including object-valued entries), and normalizes alpha tokens —
-Amazon long forms (`medium` → `M`, `x_large` → `XL`, `3x_large` → `3XL`) and Merch short
-spellings (`m` → `M`, `x_l` → `XL`, `xx_l` → `2XL`, `2x` → `2X`, `2_years` → `2T`). Other theme
-dimensions use the same object extraction so nested attribute objects are not dropped. When a theme
-key resolves for zero children, RankWrangler writes one `product.variations.fetch` warn with the
-sorted attribute key names from the first catalog child (keys only). Attribute lookups cap at 1,000
-children; every Amazon child ASIN is still stored as a family member, and children past the
-attribute cap appear in `children` with empty `attributes`. A child ASIN Amazon lists but the
-catalog lookup omits (suppressed or retired) likewise stays with empty `attributes` so order and
-`defaultChildAsin` stay stable.
-Snapshots reuse for 24 hours; a requested child missing from a fresh family returns `null` until the
-row is at least an hour old, then RankWrangler refetches once. Standalone Products settle as `null`.
-Slow or failed variation fetch within the enrichment deadline also settles as `null`. A cold request
-for a large apparel family (hundreds of children, many Catalog batches) usually returns
-`variations: null` within the shared 20-second enrichment budget while the shared walk continues;
-callers should retry `get` after about one minute for the finished snapshot.
+`include` still accepts the removed `'variations'` token without error, for callers that have not
+updated yet; it resolves to nothing and the response carries no `variations` field. Owned-listing
+variant data now comes from merchbase-core; RankWrangler no longer resolves Amazon Catalog variation
+relationships for `product.get`.
 
 `bulletPoints` is always an array; a current Product with no bullets returns `[]`. For nullable
 measurements, `null` means valid data is unavailable. It never means zero, failure, or pending work.
@@ -171,16 +141,14 @@ or generation fails. The original `thumbnail` remains the listing photo. A reque
 stored in R2 and reused while the source URL and generator version are unchanged;
 generation failures do not prevent the Product or a requested short name from returning. A caller
 displaying chips can request `include: ['shortName', 'cutoutThumbnail']` without Keepa market data.
-Bid and catalog agents can request `include: ['variations']` (alone or with other chips) for
-variation family metadata without market data when appropriate.
 `getMany`, search, and history do not generate cutouts.
 
-`get` answers enrichment in one call. With `shortName`, `cutoutThumbnail`, or `variations` included,
+`get` answers enrichment in one call. With `shortName` or `cutoutThumbnail` included,
 it waits for that generation, up to a 20-second enrichment budget that starts once the listing is
 resolved and includes time queued behind the server's generation concurrency limits. A field still
 generating at the deadline, or whose generation failed within the recent retry window, returns as
-none for this response (`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`,
-`variations: null`); generation keeps running, so a later `get` returns the finished value. Slow or
+none for this response (`shortName: null`, `cutoutThumbnail: { status: 'unavailable' }`);
+generation keeps running, so a later `get` returns the finished value. Slow or
 failed enrichment never produces a `TIMEOUT` or asks the caller to retry. Concurrent requests for
 the same Product share one generation.
 
