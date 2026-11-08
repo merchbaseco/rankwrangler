@@ -6,7 +6,7 @@
 # packages/http-client resolve during `bun install`.
 #
 
-FROM oven/bun:1.4.2 AS deps
+FROM oven/bun:1.4.4 AS deps
 WORKDIR /app
 
 # Copy only the workspace manifests first for better layer caching.
@@ -36,7 +36,7 @@ ARG BUILD_REVISION
 # Build only the server workspace.
 RUN bun run --filter @rankwrangler/server build
 
-FROM node:20-alpine AS runtime
+FROM node:24.22.2-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache dumb-init \
