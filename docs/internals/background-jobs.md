@@ -39,7 +39,10 @@ call on one entity, one queue per provider, schedulers that only enqueue. A job 
 is open: the autocomplete gate waits for its provider spacing, the scan gate only for Pause sync,
 since the Catalog limiter paces each request. The job may return a `followup` to re-send itself for
 its entity after it completes. Entity queues use the `exclusive` policy keyed by
-entity. The keyword pipeline is the first user; see
+entity. A scheduler that may outrun its interval uses `exclusive` too, so ticks sent during a
+slow run are dropped rather than queued behind it. pg-boss never changes a stored queue policy, so
+startup recreates a scheduled job's queue (ticks only) when its declared policy differs; entity
+queues are never recreated. The keyword pipeline is the first user; see
 [keyword jobs](keyword-mining.md#keyword-jobs). Retired `process-keyword-sync` and older keyword
 stage schedules are unscheduled at startup.
 

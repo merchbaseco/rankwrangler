@@ -1,5 +1,6 @@
 import type { Job, PgBoss, Queue, SendOptions, WorkOptions } from 'pg-boss';
 import type { ProviderGate } from '@/db/provider-gates';
+import { ensureJobQueue } from '@/jobs/ensure-job-queue';
 import { startGatedWorker } from '@/jobs/gated-worker';
 import { z } from 'zod';
 import { runTrackedJob } from '@/services/job-executions.js';
@@ -195,11 +196,8 @@ export const startRegisteredJobs = async (
     const createdQueues = new Set<string>();
 
     for (const jobDefinition of jobs) {
-        if (createdQueues.has(jobDefinition.jobName)) {
-            continue;
-        }
-
-        await boss.createQueue(jobDefinition.jobName, jobDefinition.queueOptions);
+        if (createdQueues.has(jobDefinition.jobName)) continue;
+        await ensureJobQueue(boss, jobDefinition);
         createdQueues.add(jobDefinition.jobName);
     }
 
