@@ -23,12 +23,13 @@ type Deps = {
 type QueueAccess = Pick<Deps, 'queued' | 'insert'>;
 
 // Enqueues due keyword scans and autocomplete while sync runs; it calls no provider. Jobs already
-// queued for an entity are skipped by the queue, so enqueueing everything due each minute is safe.
-// Brand Analytics keywords are listed by their own jobs and simply become due here. Autocomplete
-// seeds and prefixes are not held back by scan load: the scan queue may grow, and autocomplete
-// keeps its own pacing and daily ceiling. They are only topped up to a short queue so the
-// autocomplete queue never floods. The keyword prefix backfill is database-only and runs even while
-// paused.
+// queued for an entity are skipped by the queue, so enqueueing what is due each minute is safe.
+// Due scans are listed only while fewer than a batch are waiting: the queue drains at SP-API pace,
+// so a fresh listing would mostly re-offer targets already waiting. Brand Analytics keywords are
+// listed by their own jobs and simply become due here. Autocomplete seeds and prefixes are not
+// held back by scan load: the scan queue may grow, and autocomplete keeps its own pacing and daily
+// ceiling. They are only topped up to a short queue so the autocomplete queue never floods. The
+// keyword prefix backfill is database-only and runs even while paused.
 export const scheduleKeywordWork = async (queues: QueueAccess, overrides: Partial<Deps> = {}) => {
     const deps: Deps = { ...defaults, ...queues, ...overrides };
     const prefixes = await deps.backfillPrefixes(prefixBackfillBatch);
@@ -39,7 +40,8 @@ export const scheduleKeywordWork = async (queues: QueueAccess, overrides: Partia
             prefixesRegistered: prefixes.registered,
         };
     const now = new Date();
-    const scans = await deps.dueScans(now, scanBatch);
+    const scanQueueFull = (await deps.queued(keywordQueues.scan)) >= scanBatch;
+    const scans = scanQueueFull ? [] : await deps.dueScans(now, scanBatch);
     const enqueued = {
         scanHeads: await deps.insert(keywordQueues.scan, scanJobs(scans, false)),
         scanDepth: await deps.insert(keywordQueues.scan, scanJobs(scans, true)),
@@ -70,6 +72,7 @@ export const scheduleKeywordWork = async (queues: QueueAccess, overrides: Partia
         didWork: prefixes.registered > 0 || Object.values(enqueued).some(count => count > 0),
         paused: false,
         prefixesRegistered: prefixes.registered,
+        scanQueueFull,
         enqueued,
     };
 };

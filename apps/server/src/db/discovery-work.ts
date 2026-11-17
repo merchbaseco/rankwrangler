@@ -8,12 +8,14 @@ import { catalogQueries } from './catalog-search-schema';
 import { discoveryTargets } from './discovery-target-schema';
 import { db } from './index';
 import { keywordDiscoveryAttempts, keywordExplorationPasses } from './keyword-collection-schema';
+import { keywordScanLeaseMs, syncKeywordScanDue } from './keyword-scan-due';
 
-const leaseMs = 300_000;
 const continuing = ['running', 'budget', 'jobCap'];
 
 // Claims a keyword target's pass for one page if it is due and not leased. The target and pass row
 // locks keep a duplicate job from claiming twice; queue priority alone decides what runs first.
+// Either way the target's scan due time is rewritten, so a listing that sent a job too early
+// corrects itself instead of listing the target again.
 export const claimKeywordExploration = async (targetId: string, now = new Date()) =>
     db.transaction(async tx => {
         const [candidate] = await tx
@@ -38,9 +40,11 @@ export const claimKeywordExploration = async (targetId: string, now = new Date()
                 : new Date(
                       Math.min(latest.resumeAt.getTime(), target.nextCheckAt?.getTime() ?? Infinity)
                   )) > now ||
-                (latest.claimAt && latest.claimAt.getTime() > now.getTime() - leaseMs))
-        )
+                (latest.claimAt && latest.claimAt.getTime() > now.getTime() - keywordScanLeaseMs))
+        ) {
+            await syncKeywordScanDue(tx, [target.id]);
             return null;
+        }
         let pass = latest;
         const stale =
             pass?.lastPageAt && now.getTime() - pass.lastPageAt.getTime() > KEYWORD_DAY_MS;
@@ -65,6 +69,7 @@ export const claimKeywordExploration = async (targetId: string, now = new Date()
             .update(discoveryTargets)
             .set({ lastSelectedAt: now })
             .where(eq(discoveryTargets.id, target.id));
+        await syncKeywordScanDue(tx, [target.id]);
         await notifyKeywordQueryRows(tx, [target.queryId]);
         let scope: DiscoveryScope;
         if (target.kind === 'brand') {
@@ -191,6 +196,7 @@ export const stopDiscoveryWork = async (input: Stop) =>
                     },
                 ]);
         }
+        await syncKeywordScanDue(tx, [pass.targetId]);
         const [target] = await tx
             .select({ queryId: discoveryTargets.queryId })
             .from(discoveryTargets)

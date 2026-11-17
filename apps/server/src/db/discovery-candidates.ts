@@ -1,6 +1,7 @@
 import { notifyKeywordDirectoryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
 import { registerKeywordPrefixes } from './keyword-prefixes';
+import { syncKeywordScanDue } from './keyword-scan-due';
 import { and, eq, inArray, sql, getTableColumns } from 'drizzle-orm';
 import {
     normalizeDiscoveryBrand,
@@ -117,6 +118,11 @@ export const recordDiscoveryCandidates = async (
             },
         })
         .returning({ ...getTableColumns(discoveryTargets), inserted: sql<boolean>`(xmax=0)` });
+    // New targets are due now; re-enabled or re-tracked ones take their due time from their passes.
+    await syncKeywordScanDue(
+        tx,
+        targets.map(target => target.id)
+    );
     const targetIds = new Map(
         targets.map(target => [`${target.queryId}:${target.kind}:${target.scopeKey}`, target.id])
     );

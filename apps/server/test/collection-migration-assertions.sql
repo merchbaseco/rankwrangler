@@ -26,6 +26,14 @@ BEGIN
         AND query.tier = 'hot' AND query.next_due_at = '2026-10-23 12:00:00') THEN
         RAISE EXCEPTION 'Retained keyword observations or active research lease were lost';
     END IF;
+    -- The scan due backfill reads the preserved budget pass: depth, due when its lease ends.
+    IF NOT EXISTS (SELECT 1 FROM discovery_targets target
+        JOIN keyword_exploration_passes pass ON pass.target_id = target.id
+        WHERE pass.next_page_token = 'preserved-frontier' AND (NOT target.enabled
+            OR (target.scan_depth AND target.scan_due_at
+                = greatest(pass.resume_at, pass.claim_at + interval '5 minutes')))) THEN
+        RAISE EXCEPTION 'Scan due backfill did not derive the preserved pass';
+    END IF;
 END $$;
 BEGIN;
 INSERT INTO products (marketplace_id, asin) VALUES ('ATVPDKIKX0DER', 'B0NEW00001');

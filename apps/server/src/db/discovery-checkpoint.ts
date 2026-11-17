@@ -14,6 +14,7 @@ import { recordDiscoveryMembership } from './discovery-membership';
 import { discoveryTargets } from './discovery-target-schema';
 import { db } from './index';
 import { keywordDiscoveryAttempts, keywordExplorationPasses } from './keyword-collection-schema';
+import { syncKeywordScanDue } from './keyword-scan-due';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -132,6 +133,7 @@ export const checkpointDiscoveryPage = async <T>(input: {
             })
             .where(eq(keywordExplorationPasses.id, pass.id))
             .returning();
+        await syncKeywordScanDue(tx, [target.id]);
         await tx
             .update(keywordDiscoveryAttempts)
             .set({

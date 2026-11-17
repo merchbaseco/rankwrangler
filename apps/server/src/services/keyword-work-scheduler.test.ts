@@ -2,10 +2,10 @@ import { describe, expect, it, mock } from 'bun:test';
 import type { JobInsert } from 'pg-boss';
 import { scheduleKeywordWork } from './keyword-work-scheduler';
 
-const setup = (queued = 0) => {
+const setup = (queued: Partial<Record<string, number>> = {}) => {
     const inserted: Record<string, JobInsert[]> = {};
     const queues = {
-        queued: mock(async () => queued),
+        queued: mock(async (name: string) => queued[name] ?? 0),
         insert: mock(async (name: string, jobs: JobInsert[]) => {
             inserted[name] = [...(inserted[name] ?? []), ...jobs];
             return jobs.length;
@@ -13,15 +13,15 @@ const setup = (queued = 0) => {
     };
     const overrides = {
         isPaused: async () => false,
-        dueScans: (async () => [
+        dueScans: mock(async () => [
             { id: 'head', depth: false, tracked: false },
             { id: 'recheck', depth: false, tracked: true },
             { id: 'deep', depth: true, tracked: true },
-        ]) as never,
+        ]),
         dueAutocomplete: mock(async () => [{ id: 'seed' }, { id: 'seed-2' }]) as never,
         duePrefixes: mock(async () => [{ id: 'prefix' }]) as never,
         backfillPrefixes: mock(async () => ({ scanned: 0, registered: 0 })),
-        promote: mock(async () => 0),
+        promote: mock(async () => 4),
     };
     return { queues, overrides, inserted };
 };
@@ -50,16 +50,39 @@ describe('keyword work scheduler', () => {
             { data: { queryId: 'seed-2' }, singletonKey: 'seed-2' },
         ]);
         expect(result.didWork).toBe(true);
+        expect(result).toMatchObject({ scanQueueFull: false });
+    });
+    it('lists no due scans while a full batch waits, but still tops up and promotes', async () => {
+        const { queues, overrides, inserted } = setup({ 'scan-keyword': 1000 });
+        const result = await scheduleKeywordWork(queues, overrides);
+        expect(overrides.dueScans).not.toHaveBeenCalled();
+        expect(inserted['scan-keyword'] ?? []).toEqual([]);
+        expect(overrides.promote).toHaveBeenCalled();
+        expect(inserted['autocomplete-keyword']).toHaveLength(3);
+        expect(result).toMatchObject({
+            didWork: true,
+            scanQueueFull: true,
+            enqueued: { scanHeads: 0, scanDepth: 0, autocomplete: 3, depthPromoted: 4 },
+        });
+    });
+    it('lists due scans while the scan queue is below a batch', async () => {
+        const { queues, overrides } = setup({ 'scan-keyword': 999 });
+        const result = await scheduleKeywordWork(queues, overrides);
+        expect(overrides.dueScans).toHaveBeenCalledWith(expect.any(Date), 1000);
+        expect(result).toMatchObject({
+            scanQueueFull: false,
+            enqueued: { scanHeads: 2, scanDepth: 1 },
+        });
     });
     it('only tops autocomplete up to a short queue', async () => {
-        const { queues, overrides, inserted } = setup(30);
+        const { queues, overrides, inserted } = setup({ 'autocomplete-keyword': 30 });
         await scheduleKeywordWork(queues, overrides);
         expect(inserted['autocomplete-keyword']).toBeUndefined();
         expect(overrides.dueAutocomplete).not.toHaveBeenCalled();
         expect(overrides.duePrefixes).not.toHaveBeenCalled();
     });
     it('shares the autocomplete top-up between seeds and prefixes', async () => {
-        const { queues, overrides, inserted } = setup(28);
+        const { queues, overrides, inserted } = setup({ 'autocomplete-keyword': 28 });
         await scheduleKeywordWork(queues, overrides);
         expect(inserted['autocomplete-keyword']?.map(job => job.singletonKey)).toEqual([
             'seed',

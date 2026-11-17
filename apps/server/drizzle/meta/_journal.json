@@ -491,6 +491,13 @@
       "when": 1793903078929,
       "tag": "0069_drop_product_variations",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1794944465123,
+      "tag": "0070_keyword_scan_due",
+      "breakpoints": true
     }
   ]
 }

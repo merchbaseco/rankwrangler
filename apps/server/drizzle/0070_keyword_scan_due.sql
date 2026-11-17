@@ -1,0 +1,4 @@
+ALTER TABLE "discovery_targets" ADD COLUMN "scan_due_at" timestamp DEFAULT now() NOT NULL;--> statement-breakpoint
+ALTER TABLE "discovery_targets" ADD COLUMN "scan_depth" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+UPDATE "discovery_targets" t SET "scan_due_at"=coalesce(greatest(CASE WHEN p.stop_reason IN ('running','budget','jobCap') THEN p.resume_at ELSE least(p.resume_at,t.next_check_at) END,p.claim_at+interval '5 minutes'),t.created_at),"scan_depth"=coalesce(p.stop_reason IN ('running','budget','jobCap') AND p.next_page>0,false) FROM "discovery_targets" s LEFT JOIN (SELECT DISTINCT ON (target_id) target_id,stop_reason,resume_at,claim_at,next_page FROM "keyword_exploration_passes" ORDER BY target_id,created_at DESC,id DESC) p ON p.target_id=s.id WHERE t.id=s.id AND s.enabled;--> statement-breakpoint
+CREATE INDEX "discovery_targets_scan_due_idx" ON "discovery_targets" USING btree ("scan_depth","scan_due_at") WHERE "discovery_targets"."enabled";

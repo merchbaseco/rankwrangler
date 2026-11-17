@@ -50,6 +50,10 @@ export const discoveryTargets = pgTable(
         emptyCount: integer('empty_count').notNull().default(0),
         enabled: boolean('enabled').notNull().default(false),
         lastSelectedAt: timestamp('last_selected_at', { mode: 'date' }),
+        // When the next scan is due and whether it continues a pass past page one; derived from
+        // the latest pass and next_check_at by syncKeywordScanDue for the scheduler's index.
+        scanDueAt: timestamp('scan_due_at', { mode: 'date' }).notNull().defaultNow(),
+        scanDepth: boolean('scan_depth').notNull().default(false),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
     },
     table => ({
@@ -59,6 +63,9 @@ export const discoveryTargets = pgTable(
             table.scopeKey
         ),
         fairness: index('discovery_targets_fairness_idx').on(table.enabled, table.lastSelectedAt),
+        scanDue: index('discovery_targets_scan_due_idx')
+            .on(table.scanDepth, table.scanDueAt)
+            .where(sql`${table.enabled}`),
         shape: check(
             'discovery_targets_shape_check',
             sql`

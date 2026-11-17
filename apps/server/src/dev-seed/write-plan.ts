@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db/index';
+import { syncKeywordScanDue } from '@/db/keyword-scan-due';
 import {
     catalogQueries,
     catalogSearchResults,
@@ -131,6 +132,11 @@ export const writeDevSeedPlan = async (plan: DevSeedPlan): Promise<DevSeedWriteR
                 }
             }
         }
+        // Seeded passes are written directly, so derive the scheduler's scan due times from them.
+        await syncKeywordScanDue(
+            tx,
+            plan.discoveryTargets.map(target => target.id as string)
+        );
 
         return { cleared, inserted };
     });

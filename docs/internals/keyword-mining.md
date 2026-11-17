@@ -229,7 +229,7 @@ one queue per provider, at most one queued-or-running job per entity.
 | Job | Entity | Paced by | What it does next |
 | --- | --- | --- | --- |
 | `schedule-brand-analytics` | none, every six hours | none | Starts the newest week's import when due and nudges keyword listing; ignores Pause sync |
-| `schedule-keyword-work` | none, every minute | none | Backfills keyword prefixes; while sync runs, enqueues due scans and tops up autocomplete seeds and prefixes |
+| `schedule-keyword-work` | none, every minute; one tick queued or running | none | Backfills keyword prefixes; while sync runs, enqueues due scans (only while fewer than 1,000 scans wait) and tops up autocomplete seeds and prefixes |
 | `scan-keyword` | keyword target | Catalog limiter (background share); closed while paused | Fetches one page; queues the next page of a continuing pass at depth priority |
 | `autocomplete-keyword` | tracked seed or prefix | autocomplete spacing | Saves up to ten suggestions (for a prefix, those naming a Merch product) as trials and completes the seed or prefix |
 | `import-brand-analytics` | weekly import | always open | Requests, checks (every two minutes) or downloads and saves one week's report; queues its own next step, then keyword listing |
@@ -257,6 +257,21 @@ background SP-API rate in work order. Expansion is not held back by scan load or
 budget: autocomplete seeds and prefixes are enqueued whenever they are due, and the scan queue is
 allowed to grow. Autocomplete keeps its own pacing and daily ceiling, and the scheduler only tops its
 queue up to thirty jobs (about five minutes of starts) so it never floods.
+
+Due scans are listed from `discovery_targets.scan_due_at` and `scan_depth`, indexed over enabled
+targets, so a listing reads only the rows it returns: heads first, then depth, oldest due first,
+and targets due at the same instant (trials registered together) most searched first. The two
+columns are the claim's readiness rule reduced to one instant: no pass is due from creation, a
+continuing pass at its resume time, a finished one at the earlier of its resume time and
+`next_check_at`, and a claimed one not before its five-minute lease ends. They are derived, not
+owned: `syncKeywordScanDue` rewrites them in the same transaction as every write to a target's
+latest pass, `next_check_at` or `enabled` (claim, checkpoint, stop, standing refresh, candidate
+registration). A claim refused as not due rewrites them too, so a value left early costs one job,
+and a target inserted without them defaults to due. The claim stays authoritative.
+
+The scheduler also skips the listing while the scan queue already holds a full batch (1,000) and
+reports `scanQueueFull`; the queue drains at SP-API pace and would deduplicate most of a fresh
+listing anyway. Depth promotion and the autocomplete top-up still run.
 
 Job runs are recorded in `job_executions` when they did work or failed.
 

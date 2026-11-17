@@ -8,6 +8,7 @@ import {
 } from './discovery-target-schema';
 import { db } from './index';
 import { notifyKeywordQueryRows } from './keyword-directory-notifications';
+import { syncKeywordScanDue } from './keyword-scan-due';
 import { writeKeywordEvents } from './keyword-events';
 
 export const refreshKeywordStandings = async (now = new Date()) =>
@@ -114,6 +115,10 @@ export const refreshKeywordStandings = async (now = new Date()) =>
         and (t.popularity_score,t.score_components,t.standing_tier,t.interval_days,t.next_check_at)
             is distinct from (u.score,u.components,u.tier,u.interval,u.next)
         returning t.id,t.query_id,t.standing_tier tier,u.expected_tier previous_tier,t.popularity_score score,t.interval_days interval`);
+            await syncKeywordScanDue(
+                tx,
+                changed.map(row => row.id)
+            );
             await notifyKeywordQueryRows(
                 tx,
                 changed.map(row => row.query_id)

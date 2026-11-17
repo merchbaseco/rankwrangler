@@ -1,4 +1,5 @@
 import { listDueKeywordScans } from '@/db/keyword-work-due';
+import { syncKeywordScanDue } from '@/db/keyword-scan-due';
 import { keywordDirectoryInput } from '@/api/keyword-directory-input';
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
@@ -241,6 +242,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword stage and 
                 createdAt: now,
             }))
         );
+        await db.transaction(tx => syncKeywordScanDue(tx, [first, second]));
         const result = await read({ freshness: 'needsSync' });
         const [next] = await listDueKeywordScans(now, 1);
         const [scheduled] = await db

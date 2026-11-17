@@ -5,26 +5,15 @@ import { db } from './index';
 // each job then re-checks and claims its entity, so a stale list never duplicates durable work.
 const lease = sql`interval '5 minutes'`;
 
-// Mirrors the claim's readiness rule in claimKeywordExploration. Depth means a continuing pass
-// already past its first page; everything else due is a head check. Trials registered together
-// are listed most searched first (Brand Analytics rank).
-export const listDueKeywordScans = async (now: Date, limit: number) =>
-    db.execute<{ id: string; depth: boolean; tracked: boolean }>(sql`
-        select t.id, coalesce(latest.stop_reason in ('running','budget','jobCap') and latest.next_page>0,false) depth,
-            t.tracking='tracked' tracked
-        from discovery_targets t join catalog_queries q on q.id=t.query_id
-        left join brand_analytics_search_terms ba on ba.marketplace_id=q.marketplace_id
-            and ba.normalized_term=q.normalized_term
-        left join lateral (
-            select resume_at,claim_at,stop_reason,next_page from keyword_exploration_passes
-            where target_id=t.id order by created_at desc,id desc limit 1
-        ) latest on true
-        where t.enabled and (latest.resume_at is null or (
-            (case when latest.stop_reason in ('running','budget','jobCap') then latest.resume_at
-                else least(latest.resume_at,coalesce(t.next_check_at,latest.resume_at)) end)<=${now.toISOString()}::timestamp
-            and (latest.claim_at is null or latest.claim_at<=${now.toISOString()}::timestamp-${lease})))
-        order by depth, coalesce(t.next_check_at,t.created_at), ba.search_frequency_rank nulls last, t.id
-        limit ${limit}`);
+// Due keyword scans, read from the `scan_due_at` index (see syncKeywordScanDue) so the listing
+// touches only the rows it returns. Heads come first, then depth (a continuing pass already past
+// its first page) fills the rest. Oldest due first; targets due at the same instant, like trials
+// registered together, are listed most searched first (Brand Analytics rank).
+export const listDueKeywordScans = async (now: Date, limit: number) => {
+    const heads = await listDue(now, false, limit);
+    const depth = heads.length < limit ? await listDue(now, true, limit - heads.length) : [];
+    return [...heads, ...depth];
+};
 
 // Tracked seeds whose one-time autocomplete expansion has not completed.
 export const listDueAutocomplete = async (now: Date, limit: number) =>
@@ -47,4 +36,16 @@ export const listDuePrefixAutocomplete = async (now: Date, limit: number) =>
             and next_due_at<=${now.toISOString()}::timestamp
             and (claim_at is null or claim_at<=${now.toISOString()}::timestamp-${lease})
         order by next_due_at, created_at, id
+        limit ${limit}`);
+
+const listDue = (now: Date, depth: boolean, limit: number) =>
+    db.execute<{ id: string; depth: boolean; tracked: boolean }>(sql`
+        select t.id,t.scan_depth depth,t.tracking='tracked' tracked from discovery_targets t
+        where t.enabled and t.scan_depth=${depth} and t.scan_due_at<=${now.toISOString()}::timestamp
+        order by t.scan_due_at,(
+            select ba.search_frequency_rank from catalog_queries q
+            join brand_analytics_search_terms ba on ba.marketplace_id=q.marketplace_id
+                and ba.normalized_term=q.normalized_term
+            where q.id=t.query_id
+        ) nulls last,t.id
         limit ${limit}`);

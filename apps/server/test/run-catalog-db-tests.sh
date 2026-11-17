@@ -315,6 +315,7 @@ bun test \
     apps/server/test/keyword-directory-status.db.test.ts \
     apps/server/test/keyword-sync-control.db.test.ts \
     apps/server/test/keyword-standing.db.test.ts \
+    apps/server/test/keyword-scan-due.db.test.ts \
     apps/server/test/discovery-agent-research.db.test.ts \
     apps/server/test/keyword-scheduling-races.db.test.ts \
     apps/server/test/keepa-capacity.db.test.ts \

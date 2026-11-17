@@ -30,12 +30,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword pipeline j
     it('lists a due keyword head until a job claims it, then leaves it to that job', async () => {
         const now = new Date();
         const target = await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, now);
-        expect(await listDueKeywordScans(now, 10)).toEqual([
+        // A new target is due from its creation, which follows `now`.
+        const listedAt = new Date(Date.now() + 1000);
+        expect(await listDueKeywordScans(listedAt, 10)).toEqual([
             { id: target.id, depth: false, tracked: expect.any(Boolean) },
         ]);
         const claimed = await claimKeywordExploration(target.id, now);
         expect(claimed?.target.id).toBe(target.id);
-        expect(await listDueKeywordScans(now, 10)).toEqual([]);
+        expect(await listDueKeywordScans(listedAt, 10)).toEqual([]);
         const other = await seedDiscoveryTarget({ kind: 'keyword', term: 'nurse shirt' }, now);
         expect(await claimKeywordExploration(target.id, now)).toBeNull();
         expect((await claimKeywordExploration(other.id, now))?.target.id).toBe(other.id);
@@ -55,7 +57,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword pipeline j
             ['brandAnalytics', 'week:2026-10-18', true],
         ]);
         // Trials scan most searched first.
-        const due = await listDueKeywordScans(now, 10);
+        const due = await listDueKeywordScans(new Date(Date.now() + 1000), 10);
         expect(due).toHaveLength(2);
         expect(await registerBrandAnalyticsTrials(10, now)).toBe(1);
         expect(await registerBrandAnalyticsTrials(10, now)).toBe(0);
