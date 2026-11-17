@@ -42,7 +42,8 @@ its entity after it completes. Entity queues use the `exclusive` policy keyed by
 entity. A scheduler that may outrun its interval uses `exclusive` too, so ticks sent during a
 slow run are dropped rather than queued behind it. pg-boss never changes a stored queue policy, so
 startup recreates a scheduled job's queue (ticks only) when its declared policy differs; entity
-queues are never recreated. The keyword pipeline is the first user; see
+queues are never recreated. Recreation is one transaction: on failure startup logs the database
+error, keeps the old queue and policy, and tries again on the next start. The keyword pipeline is the first user; see
 [keyword jobs](keyword-mining.md#keyword-jobs). Retired `process-keyword-sync` and older keyword
 stage schedules are unscheduled at startup.
 
