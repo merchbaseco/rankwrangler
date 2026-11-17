@@ -61,7 +61,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- catalog_queries (keyword admission, tiers, demand, due dates and research leases),
 -- keyword_products, keyword_exploration_passes (scoped discovery target and fenced claim),
 -- keyword_discovery_attempts (page requests and yield), discovery_targets (with scan_due_at and
--- scan_depth, derived from the latest pass for the scheduler's due-scan index),
+-- scan_depth, derived from the latest pass for the scheduler's due-scan index), keyword_directory
+-- (one narrow derived row per keyword target with stage, schedule, latest-pass state and measures
+-- that the Keywords directory scans),
 -- keyword_standing_observations (score history per standing observation), discovery_evidence,
 -- discovery_source_scans, brand_discovery_products,
 -- keepa_capacity_state, keepa_capacity_attempts, history_admission_rollouts,

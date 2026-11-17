@@ -4,6 +4,7 @@ import { checkpointDiscoveryPage } from '@/db/discovery-checkpoint';
 import { discoveryTargets } from '@/db/discovery-target-schema';
 import { claimKeywordExploration, reserveDiscoveryAttempt } from '@/db/discovery-work';
 import { db } from '@/db/index';
+import { syncKeywordTargets } from '@/db/keyword-target-sync';
 import { catalogQueries } from '@/db/catalog-search-schema';
 import type { DiscoveryScope } from '@/services/discovery-types';
 import { persistDiscoveredSpApiProducts } from '@/services/spapi-keyword-discovery';
@@ -42,6 +43,21 @@ export const seedDiscoveryTarget = async (scope: DiscoveryScope, now = discovery
         );
     if (!target) throw new Error('Missing seeded discovery target');
     return target.target;
+};
+
+/**
+ * Re-derives every target's scan due time and directory row with all measures, as production
+ * writes do in their own transactions, after a test wrote targets, passes or Products directly.
+ */
+export const syncDiscoveryFixture = async () => {
+    const targets = await db.select({ id: discoveryTargets.id }).from(discoveryTargets);
+    await db.transaction(tx =>
+        syncKeywordTargets(
+            tx,
+            targets.map(target => target.id),
+            'all'
+        )
+    );
 };
 
 // Claims the named target, or the only target when the test seeded one.

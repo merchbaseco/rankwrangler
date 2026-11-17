@@ -1,4 +1,4 @@
-import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
+import { refreshKeywordProductRows } from '@/db/keyword-directory-notifications';
 import { and, eq, or } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { products, spApiSyncQueue } from '@/db/schema';
@@ -105,7 +105,7 @@ export const markProductsDeleted = async (identities: ProductIdentity[], resolve
         .set({ amazonListingStatus: 'deleted', spApiResolvedAt: resolvedAt })
         .where(identityCondition)
         .returning({ id: products.id });
-    await notifyKeywordProductRows(
+    await refreshKeywordProductRows(
         db,
         previous.filter(row => row.status !== 'deleted').map(row => row.id)
     );

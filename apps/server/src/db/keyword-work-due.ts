@@ -5,7 +5,7 @@ import { db } from './index';
 // each job then re-checks and claims its entity, so a stale list never duplicates durable work.
 const lease = sql`interval '5 minutes'`;
 
-// Due keyword scans, read from the `scan_due_at` index (see syncKeywordScanDue) so the listing
+// Due keyword scans, read from the `scan_due_at` index (see syncKeywordTargets) so the listing
 // touches only the rows it returns. Heads come first, then depth (a continuing pass already past
 // its first page) fills the rest. Oldest due first; targets due at the same instant, like trials
 // registered together, are listed most searched first (Brand Analytics rank).

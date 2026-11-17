@@ -304,18 +304,21 @@ bun test \
     apps/server/test/catalog-query-refresh.db.test.ts \
     apps/server/test/keyword-collection.db.test.ts \
     apps/server/test/scan-keyword-queue.db.test.ts \
+    apps/server/test/ensure-job-queue.db.test.ts \
     apps/server/test/discovery-sources.db.test.ts \
     apps/server/test/keyword-jobs.db.test.ts \
     apps/server/test/keyword-autocomplete.db.test.ts \
     apps/server/test/keyword-prefixes.db.test.ts \
     apps/server/test/keyword-directory.db.test.ts \
     apps/server/test/keyword-directory-grid.db.test.ts \
+    apps/server/test/keyword-directory-projection.db.test.ts \
     apps/server/test/sales-curve.db.test.ts \
     apps/server/test/keyword-realtime.db.test.ts \
     apps/server/test/keyword-directory-status.db.test.ts \
     apps/server/test/keyword-sync-control.db.test.ts \
     apps/server/test/keyword-standing.db.test.ts \
     apps/server/test/keyword-scan-due.db.test.ts \
+    apps/server/test/interactive-requests.db.test.ts \
     apps/server/test/discovery-agent-research.db.test.ts \
     apps/server/test/keyword-scheduling-races.db.test.ts \
     apps/server/test/keepa-capacity.db.test.ts \

@@ -498,6 +498,13 @@
       "when": 1794944465123,
       "tag": "0070_keyword_scan_due",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1794948862173,
+      "tag": "0071_keyword_directory",
+      "breakpoints": true
     }
   ]
 }

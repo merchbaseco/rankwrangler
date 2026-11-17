@@ -51,7 +51,7 @@ export const discoveryTargets = pgTable(
         enabled: boolean('enabled').notNull().default(false),
         lastSelectedAt: timestamp('last_selected_at', { mode: 'date' }),
         // When the next scan is due and whether it continues a pass past page one; derived from
-        // the latest pass and next_check_at by syncKeywordScanDue for the scheduler's index.
+        // the latest pass and next_check_at by syncKeywordTargets for the scheduler's index.
         scanDueAt: timestamp('scan_due_at', { mode: 'date' }).notNull().defaultNow(),
         scanDepth: boolean('scan_depth').notNull().default(false),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),

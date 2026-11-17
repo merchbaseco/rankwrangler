@@ -8,7 +8,7 @@ type FilterInput = Pick<
     Partial<Pick<KeywordDirectoryReadInput, 'shelfElite' | 'merch'>>;
 
 /**
- * The directory's row predicates over `ordered`, one per sidebar group so the facet aggregate can
+ * The directory's row predicates over `classified`, one per sidebar group so the facet aggregate can
  * count a group without its own filter. Each is `true` when unset. The public input sends one
  * value per group (`all` or a value); the dashboard sends a union (empty means any).
  */
@@ -46,13 +46,6 @@ export const directoryWhere = (
             .map(key => sql`(${filters[key]})`),
         sql` and `
     );
-
-/**
- * The rows a read must measure (`directoryMeasures`): those its stage selection keeps, over the
- * measured row alias `r`. Stage is the one filter known before the measures, and the expensive
- * shelf and Product counts then skip the trial backlog unless the request shows trials.
- */
-export const measuredStages = (stage: FilterInput['stage']) => anyOf(sql`r.stage`, stage);
 
 const anyOf = (column: SQL, value: string | readonly string[]) => {
     const values = typeof value === 'string' ? (value === 'all' ? [] : [value]) : value;

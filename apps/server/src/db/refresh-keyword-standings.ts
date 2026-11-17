@@ -8,7 +8,7 @@ import {
 } from './discovery-target-schema';
 import { db } from './index';
 import { notifyKeywordQueryRows } from './keyword-directory-notifications';
-import { syncKeywordScanDue } from './keyword-scan-due';
+import { syncKeywordTargets } from './keyword-target-sync';
 import { writeKeywordEvents } from './keyword-events';
 
 export const refreshKeywordStandings = async (now = new Date()) =>
@@ -115,10 +115,6 @@ export const refreshKeywordStandings = async (now = new Date()) =>
         and (t.popularity_score,t.score_components,t.standing_tier,t.interval_days,t.next_check_at)
             is distinct from (u.score,u.components,u.tier,u.interval,u.next)
         returning t.id,t.query_id,t.standing_tier tier,u.expected_tier previous_tier,t.popularity_score score,t.interval_days interval`);
-            await syncKeywordScanDue(
-                tx,
-                changed.map(row => row.id)
-            );
             await notifyKeywordQueryRows(
                 tx,
                 changed.map(row => row.query_id)
@@ -160,6 +156,13 @@ export const refreshKeywordStandings = async (now = new Date()) =>
                     }))
             );
         }
+        // The batch's state and shelves, whose Products this scan just read: the shelf's ranks drift
+        // between page checks, and the rewrite also repairs any directory row left behind.
+        await syncKeywordTargets(
+            tx,
+            rows.map(row => row.target.id),
+            'shelf'
+        );
         const last = rows.length === 500 ? rows.at(-1)?.target : null;
         await tx
             .update(discoverySourceScans)

@@ -12,9 +12,9 @@ import {
     keywordDetailColumns,
     withKeywordDetail,
 } from './keyword-directory-detail';
-import { directoryFilters, directoryWhere, measuredStages } from './keyword-directory-filters';
-import { directoryProductCounts } from './keyword-directory-sort';
-import { directorySource } from './keyword-directory-source';
+import { directoryFilters, directoryWhere } from './keyword-directory-filters';
+import { directorySortKey } from './keyword-directory-sort';
+import { directorySource, searchFrequencyRank } from './keyword-directory-source';
 
 type DirectoryRow = {
     sortKey: NonNullable<AppKeywordDirectoryInput['cursor']>['key'];
@@ -79,40 +79,30 @@ const readDirectory = async <Row extends DirectoryRow>(
     const size = terms ? terms.length : (input.pageSize ?? input.limit);
     const filters = directoryFilters(input);
     const cursor = !terms && input.cursor && !input.page ? input.cursor : undefined;
-    // Measures feed the order or the filter only for these; otherwise the page alone is measured.
-    const measuresFirst =
-        sort === 'merch' ||
-        sort === 'medianBsr' ||
-        sort === 'fresh' ||
-        input.merch !== undefined ||
-        input.shelfElite !== undefined ||
-        input.facet !== undefined;
-    const source = directorySource({
+    const source = sql`${directorySource({
         asOf,
         sort,
         search: input.search,
         terms,
         facet: input.facet,
-        shelf: input.shelfElite !== undefined,
-        measured: measuresFirst ? (terms ? sql`true` : measuredStages(input.stage)) : null,
         stage: terms ? undefined : input.stage,
-    });
+    })}, ordered as (select *,${directorySortKey(sort)} "sortKey" from classified)`;
     const where = terms ? sql`true` : directoryWhere(filters, ['search']);
     const rows = await db.execute<Row>(sql`
         ${source}
-        select page.*,coalesce(s.sources,'{}'::text[]) sources${measuresFirst ? sql`` : sql`,m.products,m.merch`}
+        select page.*,${searchFrequencyRank(sql`d`)} "searchFrequencyRank",
+            coalesce(s.sources,'{}'::text[]) sources
             ${detail ? sql`,${keywordDetailColumns(sql`page."queryId"`, asOf)}` : sql``} from (
-            select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,"searchFrequencyRank",${measuresFirst ? sql`products,merch,` : sql``}"lastCheckedAt","sortKey",total,
+            select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,products,merch,"lastCheckedAt","sortKey",total,
                 case when freshness is null then null else "nextCheckAt" end "nextCheckAt",
                 case when freshness is null then null else "intervalDays" end "intervalDays"
             from (select *,count(*) over()::int total from ordered where ${where}) matched
             where ${cursor ? sql`"sortKey">${JSON.stringify(cursor.key)}::jsonb` : sql`true`}
             order by "sortKey" asc limit ${size + 1} offset ${!terms && input.page ? (input.page - 1) * size : 0}
         ) page
-        ${measuresFirst ? sql`` : sql`left join lateral (${directoryProductCounts(sql`page."queryId"`)}) m on true`}
-        left join lateral (select array_agg(distinct e.kind) sources from discovery_targets t
-            join discovery_evidence e on e.target_id=t.id and e.eligible
-            where t.query_id=page."queryId" and t.kind='keyword') s on true
+        join keyword_directory d on d.query_id=page."queryId"
+        left join lateral (select array_agg(distinct e.kind) sources
+            from discovery_evidence e where e.target_id=d.target_id and e.eligible) s on true
         order by page."sortKey" asc`);
     const items = rows.slice(0, size).map(({ total: _total, ...row }) => ({
         ...row,
@@ -130,7 +120,7 @@ const readDirectory = async <Row extends DirectoryRow>(
             (cursor || (input.page ?? 1) > 1
                 ? ((
                       await db.execute<{ total: number }>(
-                          sql`${source} select count(*)::int total from ordered where ${where}`
+                          sql`${source} select count(*)::int total from classified where ${where}`
                       )
                   )[0]?.total ?? 0)
                 : 0),

@@ -1,4 +1,4 @@
-import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
+import { refreshKeywordProductRows } from '@/db/keyword-directory-notifications';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { products, spApiSyncQueue } from '@/db/schema';
@@ -65,7 +65,10 @@ const writeFamilies = async (
                 })
                 .from(products)
                 .where(
-                    and(eq(products.marketplaceId, marketplaceId), inArray(products.asin, familyAsins))
+                    and(
+                        eq(products.marketplaceId, marketplaceId),
+                        inArray(products.asin, familyAsins)
+                    )
                 )
         ).map(row => [row.asin, row])
     );
@@ -96,7 +99,7 @@ const writeFamilies = async (
         return before && (before.merch !== row.merch || before.status !== 'active');
     });
     if (changed.length)
-        await notifyKeywordProductRows(
+        await refreshKeywordProductRows(
             transaction,
             changed.map(row => row.id)
         );

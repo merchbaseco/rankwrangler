@@ -7,14 +7,15 @@ import {
 } from '@/api/keyword-directory-input';
 import { KEYWORD_HOT_SCORE, KEYWORD_WARM_SCORE } from '@/services/keyword-standing-policy';
 import { db } from './index';
-import { directoryFilters, directoryWhere, measuredStages } from './keyword-directory-filters';
+import { directoryFilters, directoryWhere } from './keyword-directory-filters';
 import { directorySource } from './keyword-directory-source';
 
 const SCORE_BUCKETS = 20;
 const SCORE_BUCKET_WIDTH = 100 / SCORE_BUCKETS;
 
 /**
- * The Keywords sidebar counts and KPI band in one aggregate over the directory source. Each
+ * The Keywords sidebar counts and KPI band in one aggregate over the directory source, a single
+ * scan of the `keyword_directory` projection with no per-keyword lookups. Each
  * sidebar group is counted under every other filter but not its own (faceted exclusion); `total`,
  * the score histogram, `minedLast24h` and `medianShelfBsr` see all filters. `needsSync` and
  * `syncing` are the freshness counts, so the band keeps showing the queue under a freshness
@@ -30,19 +31,7 @@ export const readKeywordDirectoryFacets = async (
     const count = (name: string, condition: SQL) =>
         sql`count(*) filter (where ${condition})::int ${sql.identifier(name)}`;
     const [row] = await db.execute<Record<string, number | null>>(sql`
-        ${directorySource({
-            asOf,
-            sort: 'work',
-            search: input.search,
-            facet: input.facet,
-            shelf: true,
-            // Stage counts ignore the stage filter but honour the shelf, Merch and niche ones, so
-            // only those filters make every stage need measures.
-            measured:
-                input.shelfElite || input.merch || input.facet
-                    ? sql`true`
-                    : measuredStages(input.stage),
-        })}
+        ${directorySource({ asOf, search: input.search, facet: input.facet })}
         select ${count('total', all)},
             ${count('heat_hot', sql`${without('heat')} and heat='hot'`)},
             ${count('heat_warm', sql`${without('heat')} and heat='warm'`)},
@@ -82,7 +71,7 @@ export const readKeywordDirectoryFacets = async (
                 filter (where ${all} and median_bsr is not null))::int median_shelf_bsr
         -- OFFSET 0 evaluates each row's stage and freshness once; inlined, every FILTER above
         -- would recompute those CASE expressions per keyword.
-        from (select * from ordered offset 0) ordered`);
+        from (select * from classified offset 0) classified`);
     const value = (name: string) => Number(row?.[name] ?? 0);
     return {
         total: value('total'),

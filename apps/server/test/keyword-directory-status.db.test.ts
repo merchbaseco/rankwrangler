@@ -1,5 +1,5 @@
 import { listDueKeywordScans } from '@/db/keyword-work-due';
-import { syncKeywordScanDue } from '@/db/keyword-scan-due';
+import { syncKeywordTargets } from '@/db/keyword-target-sync';
 import { keywordDirectoryInput } from '@/api/keyword-directory-input';
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq } from 'drizzle-orm';
@@ -12,11 +12,18 @@ import { keywordExplorationPasses } from '@/db/keyword-collection-schema';
 import { brandAnalyticsSearchTerms } from '@/db/brand-analytics-schema';
 import { listKeywordDirectory } from '@/db/keyword-directory';
 import { countKeywordDirectoryStages } from '@/db/keyword-directory-counts';
-import { resetDiscoveryFixture, seedDiscoveryTarget } from './discovery-fixture';
+import {
+    resetDiscoveryFixture,
+    seedDiscoveryTarget,
+    syncDiscoveryFixture,
+} from './discovery-fixture';
 
 type DirectoryInput = z.input<typeof keywordDirectoryInput>;
-const read = (input: DirectoryInput = {}) =>
-    listKeywordDirectory(keywordDirectoryInput.parse(input));
+// Tests write targets and passes directly, so derive directory rows before each read.
+const read = async (input: DirectoryInput = {}) => {
+    await syncDiscoveryFixture();
+    return listKeywordDirectory(keywordDirectoryInput.parse(input));
+};
 const token = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const day = 86_400_000;
 describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword stage and freshness', () => {
@@ -69,12 +76,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword stage and 
             .update(discoveryTargets)
             .set({ tracking: 'dropped', enabled: false, headObservedAt: now })
             .where(eq(discoveryTargets.id, dropped.id));
-        await db.insert(catalogQueries).values({
-            source: 'keepa',
-            marketplaceId: 'ATVPDKIKX0DER',
-            normalizedTerm: 'old phrase',
-            displayTerm: 'Old phrase',
-        });
+        // A keyword whose target is disabled without being dropped is untracked.
+        const untracked = await seedDiscoveryTarget({ kind: 'keyword', term: 'old phrase' }, now);
+        await db
+            .update(discoveryTargets)
+            .set({ enabled: false })
+            .where(eq(discoveryTargets.id, untracked.id));
         expect((await read()).items.map(row => row.term)).toEqual(['fishing shirt']);
         expect((await read({ stage: 'trial' })).items[0]).toMatchObject({
             term: 'new niche shirt',
@@ -242,7 +249,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword stage and 
                 createdAt: now,
             }))
         );
-        await db.transaction(tx => syncKeywordScanDue(tx, [first, second]));
+        await db.transaction(tx => syncKeywordTargets(tx, [first, second]));
         const result = await read({ freshness: 'needsSync' });
         const [next] = await listDueKeywordScans(now, 1);
         const [scheduled] = await db

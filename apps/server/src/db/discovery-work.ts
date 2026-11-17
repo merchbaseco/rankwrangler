@@ -8,7 +8,7 @@ import { catalogQueries } from './catalog-search-schema';
 import { discoveryTargets } from './discovery-target-schema';
 import { db } from './index';
 import { keywordDiscoveryAttempts, keywordExplorationPasses } from './keyword-collection-schema';
-import { keywordScanLeaseMs, syncKeywordScanDue } from './keyword-scan-due';
+import { keywordScanLeaseMs, syncKeywordTargets } from './keyword-target-sync';
 
 const continuing = ['running', 'budget', 'jobCap'];
 
@@ -42,7 +42,7 @@ export const claimKeywordExploration = async (targetId: string, now = new Date()
                   )) > now ||
                 (latest.claimAt && latest.claimAt.getTime() > now.getTime() - keywordScanLeaseMs))
         ) {
-            await syncKeywordScanDue(tx, [target.id]);
+            await syncKeywordTargets(tx, [target.id]);
             return null;
         }
         let pass = latest;
@@ -69,7 +69,7 @@ export const claimKeywordExploration = async (targetId: string, now = new Date()
             .update(discoveryTargets)
             .set({ lastSelectedAt: now })
             .where(eq(discoveryTargets.id, target.id));
-        await syncKeywordScanDue(tx, [target.id]);
+        await syncKeywordTargets(tx, [target.id]);
         await notifyKeywordQueryRows(tx, [target.queryId]);
         let scope: DiscoveryScope;
         if (target.kind === 'brand') {
@@ -196,7 +196,7 @@ export const stopDiscoveryWork = async (input: Stop) =>
                     },
                 ]);
         }
-        await syncKeywordScanDue(tx, [pass.targetId]);
+        await syncKeywordTargets(tx, [pass.targetId]);
         const [target] = await tx
             .select({ queryId: discoveryTargets.queryId })
             .from(discoveryTargets)

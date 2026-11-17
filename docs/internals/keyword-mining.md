@@ -264,9 +264,8 @@ and targets due at the same instant (trials registered together) most searched f
 columns are the claim's readiness rule reduced to one instant: no pass is due from creation, a
 continuing pass at its resume time, a finished one at the earlier of its resume time and
 `next_check_at`, and a claimed one not before its five-minute lease ends. They are derived, not
-owned: `syncKeywordScanDue` rewrites them in the same transaction as every write to a target's
-latest pass, `next_check_at` or `enabled` (claim, checkpoint, stop, standing refresh, candidate
-registration). A claim refused as not due rewrites them too, so a value left early costs one job,
+owned: `syncKeywordTargets` rewrites them in the same transaction as every write to a target or
+its latest pass (claim, checkpoint, stop, standing refresh, candidate registration). A claim refused as not due rewrites them too, so a value left early costs one job,
 and a target inserted without them defaults to due. The claim stays authoritative.
 
 The scheduler also skips the listing while the scan queue already holds a full batch (1,000) and
@@ -284,7 +283,8 @@ Each keyword shows two separate dimensions, both derived from durable state with
 - **Stage** says whether the keyword is worth tracking. `trial` awaits or is undergoing its
   first-page qualification check; `graduated` is tracked (it passed, or a user asked for it);
   `dropped` is a trial whose first page had too little Merch (shown as not enough Merch on page 1);
-  `untracked` is a stored query with no enabled keyword target, such as a brand-only scope.
+  `untracked` is a keyword whose target is disabled. A stored query with no keyword target (a
+  brand-only scope) is not a keyword and is not listed.
 - **Freshness** says whether our data is current. `live` means the first page is fresh: deeper
   pages of a continuing pass and the one-time autocomplete expansion run in the background without
   holding it back. `needsSync` means the next check is due or the head was never observed.
@@ -329,12 +329,23 @@ over the filtered rows. `api.app.keyword.directoryFacets` takes the same filters
 sidebar counts and KPI band in one aggregate over the same directory source: each group counted
 under the other filters but not its own, a 20-bucket score histogram (bucket heat follows the
 75/35 score thresholds), keywords checked within 24 hours, the median of shelf median BSRs, and
-the needing-sync and syncing counts (freshness counts, so they hold under a freshness filter). It
-measures (Product and Merch counts, the shelf lateral of at most ten head Products by primary key,
-the dominant facet) only the keywords in the selected stages, since the other stages' counts need
-no measure; a shelf, Merch or niche filter narrows those counts too, so it measures every keyword.
+the needing-sync and syncing counts (freshness counts, so they hold under a freshness filter).
 A result is fresh per filter for 15 seconds; for ten minutes after that it is served at once while
-one background read replaces it. Discovery sources are display-only, so the page read fetches them for
+one background read replaces it.
+
+Directory reads (page, facets, stage counts) scan `keyword_directory`, a narrow projection with
+one row per keyword target: the target's stage, heat, score and schedule, its latest pass (claim,
+failures, whether it continues, resume and last page times) and its measures (retained Product and
+active Merch counts, the shelf's median BSR, Elite-tier count and first-available dates). It is
+derived, never owned: `syncKeywordTargets` rewrites a target's row in the same statement as its
+scan due time, so every write that already re-derives scan due keeps the row current. An accepted
+page recounts every measure, a Product turning Merch or not (or deleted) recounts the keywords
+that retain it, and the standing refresh rereads its batch's shelves (shelf ranks drift between
+checks). Freshness and the fresh count stay time-relative and are computed at read time. A read
+is one scan of a table small enough to stay in memory, with no per-keyword lookups; only the
+returned page reads its shelf detail, trend, sources and Brand Analytics rank, the work sort looks
+up trials' ranks, and a facet filter joins dominant facets from the faceted Products outward.
+Discovery sources are display-only, so the page read fetches them for
 its returned rows only.
 
 Track keyword explicitly records user interest; typing in the filter does not schedule work.

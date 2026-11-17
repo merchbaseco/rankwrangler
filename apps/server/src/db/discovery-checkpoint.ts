@@ -14,7 +14,7 @@ import { recordDiscoveryMembership } from './discovery-membership';
 import { discoveryTargets } from './discovery-target-schema';
 import { db } from './index';
 import { keywordDiscoveryAttempts, keywordExplorationPasses } from './keyword-collection-schema';
-import { syncKeywordScanDue } from './keyword-scan-due';
+import { syncKeywordTargets } from './keyword-target-sync';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -133,7 +133,8 @@ export const checkpointDiscoveryPage = async <T>(input: {
             })
             .where(eq(keywordExplorationPasses.id, pass.id))
             .returning();
-        await syncKeywordScanDue(tx, [target.id]);
+        // The page changed the keyword's Products and, on page one, its shelf.
+        await syncKeywordTargets(tx, [target.id], 'all');
         await tx
             .update(keywordDiscoveryAttempts)
             .set({

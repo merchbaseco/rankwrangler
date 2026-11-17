@@ -1,4 +1,4 @@
-import { notifyKeywordProductRows } from '@/db/keyword-directory-notifications';
+import { refreshKeywordProductRows } from '@/db/keyword-directory-notifications';
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { db } from '@/db/index';
 import { keepaHistoryRefreshQueue, productHistoryImports, products } from '@/db/schema';
@@ -111,7 +111,7 @@ export const persistKeepaProductRows = async (
     const changed = [...stored].flatMap(([asin, row]) =>
         previous.has(asin) && previous.get(asin) !== row.merch ? [row.id] : []
     );
-    if (changed.length) await notifyKeywordProductRows(transaction, changed);
+    if (changed.length) await refreshKeywordProductRows(transaction, changed);
     return familyAsins.map(asin => {
         const row = stored.get(asin);
         if (!row) throw new Error(`Failed to persist Keepa Product family ${asin}`);

@@ -29,8 +29,11 @@ a few minutes after a deploy (a fresh process has cold aggregate caches).
   independent reads with `Promise.all`.
 - Background jobs share the application pool and hold connections through multi-statement
   transactions. A growing `authP50` or `serverP50` with unchanged query plans means pool waits.
-- Explore and Keywords facets are whole-set aggregates (seconds when cold). They are served
+- Explore facets are whole-set aggregates (seconds when cold). They are served
   stale-while-revalidate and fetched on their own requests, so they never hold up the grid.
+  Keywords reads scan the small `keyword_directory` projection instead of joining every keyword's
+  pass and Products ([Keyword mining](../internals/keyword-mining.md)), so they stay well under a
+  second warm; never add a per-keyword lateral over the whole set to them.
 - The Product page opens on five reads that start together; each resolves the variant family inside
   its own statement or alongside its other reads, so none runs more than three sequential round
   trips. A row or Top 10 block the pointer rests on prefetches them, so a page opened from Explore

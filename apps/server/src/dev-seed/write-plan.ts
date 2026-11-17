@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db/index';
-import { syncKeywordScanDue } from '@/db/keyword-scan-due';
+import { syncKeywordTargets } from '@/db/keyword-target-sync';
 import {
     catalogQueries,
     catalogSearchResults,
@@ -132,10 +132,12 @@ export const writeDevSeedPlan = async (plan: DevSeedPlan): Promise<DevSeedWriteR
                 }
             }
         }
-        // Seeded passes are written directly, so derive the scheduler's scan due times from them.
-        await syncKeywordScanDue(
+        // Seeded targets, passes and Products are written directly, so derive the scheduler's scan
+        // due times and the directory rows with every measure from them.
+        await syncKeywordTargets(
             tx,
-            plan.discoveryTargets.map(target => target.id as string)
+            plan.discoveryTargets.map(target => target.id as string),
+            'all'
         );
 
         return { cleared, inserted };

@@ -20,6 +20,7 @@ import {
     acceptDiscoveryFixture,
     discoveryProduct,
     discoveryNow as now,
+    syncDiscoveryFixture,
 } from './discovery-fixture';
 
 describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
@@ -124,6 +125,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 ('second shirt','2026-10-26 12:00:00.123456'),
                 ('third shirt','2026-10-26 12:00:00.123455')) v(term,created_at)
             where q.normalized_term=v.term`);
+            await syncDiscoveryFixture();
             const first = await listKeywordDirectory(
                 keywordDirectoryInput.parse({ limit: 1, sort: 'newest' })
             );

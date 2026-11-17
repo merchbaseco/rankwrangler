@@ -11,7 +11,11 @@ import { notifyKeywordDirectoryRows } from '@/db/keyword-directory-notifications
 import { setAutomaticSyncPaused } from '@/db/automatic-sync';
 import { readKeywordDirectory } from '@/db/keyword-directory';
 import { keywordDirectoryInput } from '@/api/keyword-directory-input';
-import { resetDiscoveryFixture, seedDiscoveryTarget } from './discovery-fixture';
+import {
+    resetDiscoveryFixture,
+    seedDiscoveryTarget,
+    syncDiscoveryFixture,
+} from './discovery-fixture';
 
 describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('committed keyword realtime', () => {
     beforeEach(resetDiscoveryFixture);
@@ -54,6 +58,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('committed keyword 
             );
             // Row reads ignore the stage filter so the client can drop rows that left its view.
             await db.execute(sql`update discovery_targets set tracking='dropped',enabled=false`);
+            await syncDiscoveryFixture();
             const dropped = await readKeywordDirectory(keywordDirectoryInput.parse({}), {
                 terms: ['fishing'],
                 view: all.view,

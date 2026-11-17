@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { db } from './index';
+import { syncKeywordTargets } from './keyword-target-sync';
 
 type Transaction = Pick<Parameters<Parameters<typeof db.transaction>[0]>[0], 'execute'>;
 export const notifyKeywordDirectoryRows = async (tx: Transaction, terms: readonly string[]) => {
@@ -26,14 +27,25 @@ export const notifyKeywordQueryRows = async (tx: Transaction, queryIds: readonly
     );
 };
 
-export const notifyKeywordProductRows = async (tx: Transaction, productIds: readonly string[]) => {
+/**
+ * Some Products became or stopped being active Merch listings: recount the measures of every
+ * keyword that retains them (Merch count and shelf, see `syncKeywordTargets`) and push those rows.
+ */
+export const refreshKeywordProductRows = async (tx: Transaction, productIds: readonly string[]) => {
     if (!productIds.length) return;
-    const rows = await tx.execute<{ term: string }>(sql`select distinct q.normalized_term term
+    const rows = await tx.execute<{ term: string; target_id: string | null }>(sql`
+        select distinct q.normalized_term term,t.id target_id
         from keyword_products kp join catalog_queries q on q.id=kp.query_id
+        left join discovery_targets t on t.query_id=q.id and t.kind='keyword'
         where kp.product_id in (${sql.join(
             productIds.map(id => sql`${id}::uuid`),
             sql`,`
         )})`);
+    await syncKeywordTargets(
+        tx,
+        rows.flatMap(row => (row.target_id ? [row.target_id] : [])),
+        'all'
+    );
     await notifyKeywordDirectoryRows(
         tx,
         rows.map(row => row.term)

@@ -8,7 +8,7 @@ import { discoveryTargets } from '@/db/discovery-target-schema';
 import { claimKeywordExploration, stopDiscoveryWork } from '@/db/discovery-work';
 import { db } from '@/db/index';
 import { keywordExplorationPasses } from '@/db/keyword-collection-schema';
-import { syncKeywordScanDue } from '@/db/keyword-scan-due';
+import { syncKeywordTargets } from '@/db/keyword-target-sync';
 import { listDueKeywordScans } from '@/db/keyword-work-due';
 import { refreshKeywordStandings } from '@/db/refresh-keyword-standings';
 import {
@@ -69,7 +69,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword scan due i
         ];
         for (const item of cases) await insertCase(item, created, now);
         await db.transaction(async tx =>
-            syncKeywordScanDue(
+            syncKeywordTargets(
                 tx,
                 (await tx.select({ id: discoveryTargets.id }).from(discoveryTargets)).map(
                     row => row.id
@@ -155,7 +155,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword scan due i
             .update(discoveryTargets)
             .set({ createdAt: new Date(now.getTime() - day) })
             .where(eq(discoveryTargets.id, old.id));
-        await db.transaction(tx => syncKeywordScanDue(tx, [old.id]));
+        await db.transaction(tx => syncKeywordTargets(tx, [old.id]));
         await db.transaction(tx =>
             recordDiscoveryCandidates(
                 tx,
