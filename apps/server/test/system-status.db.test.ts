@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
+import { sql } from 'drizzle-orm';
 import { db } from '@/db/index';
+import { refreshProductStats } from '@/db/product-stats';
 import { products } from '@/db/schema';
 import { providerAttempts } from '@/db/provider-telemetry-schema';
-import { readProductIndex, readProviderCalls } from '@/db/system-status';
 import { SPAPI_US_MARKETPLACE_ID } from '@/services/spapi/marketplaces';
+import { getSystemStatus } from '@/services/system-status';
 import { resetDiscoveryFixture } from './discovery-fixture';
 
 const NOW = new Date('2026-08-15T12:00:00.000Z');
@@ -16,6 +18,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
         await db.delete(providerAttempts);
     });
 
+    it('reports nothing counted before the first snapshot', async () => {
+        await insertProduct({ asin: 'B0STAT0001', bsr: 40_000 });
+
+        const status = await getSystemStatus(NOW);
+
+        expect(status).toMatchObject({ countedAt: null, products: null, calls: [] });
+    });
+
     it('splits the Merch catalog by sales-history sync status', async () => {
         await insertProduct({ asin: 'B0STAT0001', keepaFetchedAt: hoursBefore(1), bsr: 40_000 });
         await insertProduct({
@@ -26,12 +36,26 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
         await insertProduct({ asin: 'B0STAT0003', keepaFetchedAt: null, bsr: 500_000 });
         await insertProduct({ asin: 'B0STAT0004', keepaFetchedAt: null, bsr: 2_000_000 });
         await insertProduct({ asin: 'B0STAT0005', bsr: 40_000, isMerchListing: false });
+        await insertProduct({ asin: 'B0STAT0006', bsr: 40_000, createdAt: hoursBefore(2) });
+        await insertProduct({
+            asin: 'B0STAT0007',
+            bsr: 90_000,
+            admitted: false,
+            amazonListingStatus: 'deleted',
+        });
+        await count();
 
-        const index = await readProductIndex(NOW);
+        const status = await getSystemStatus(NOW);
 
-        expect(index).toMatchObject({ total: 5, merch: 4 });
-        // History counts wherever it came from; only listings without it split by tier.
-        expect(index.history).toEqual({ withHistory: 2, awaitingFirst: 1, notTracked: 1 });
+        expect(status.countedAt).toBe(NOW.toISOString());
+        expect(status.products).toEqual({
+            total: 7,
+            merch: 5,
+            new24h: 1,
+            // History counts wherever it came from; only listings without it split by tier.
+            history: { withHistory: 2, awaitingFirst: 2, notTracked: 1 },
+        });
+        expect(status.products).toEqual(await readProductIndexDirectly());
     });
 
     it('counts throttles apart from other provider errors', async () => {
@@ -40,41 +64,83 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
         await insertAttempt({ statusCode: 429, isError: true });
         await insertAttempt({ statusCode: 500, isError: true });
         await insertAttempt({ statusCode: null, isError: true });
+        await insertAttempt({ statusCode: 200, isError: false, at: hoursBefore(3) });
+        await insertAttempt({ statusCode: 200, isError: false, at: hoursBefore(25) });
+        await insertAttempt({ statusCode: 200, isError: false, operation: 'spapi.token' });
+        await count();
 
-        const [calls] = await readProviderCalls(NOW);
+        const { calls } = await getSystemStatus(NOW);
 
-        expect(calls).toEqual({
-            provider: 'spapi',
-            operation: 'spapi.catalog.search',
-            calls1h: 5,
-            calls24h: 5,
-            throttled24h: 2,
-            errors24h: 2,
-        });
+        expect(calls).toEqual([
+            {
+                provider: 'spapi',
+                operation: 'spapi.catalog.search',
+                calls1h: 5,
+                calls24h: 6,
+                throttled24h: 2,
+                errors24h: 2,
+            },
+        ]);
     });
 });
 
+const count = () => db.transaction(tx => refreshProductStats(tx, NOW));
+
 const hoursBefore = (hours: number) => new Date(NOW.getTime() - hours * HOUR_MS);
+
+// The live count the snapshot replaced, kept as the reference.
+const readProductIndexDirectly = async () => {
+    const merch = sql`is_merch_listing and amazon_listing_status='active'`;
+    const tracked = sql`${merch} and history_admission_state='admitted'
+        and root_category_bsr is not null and root_category_bsr < 1000000`;
+    const [row] = await db.execute<Record<string, number>>(sql`
+        select count(*)::int total,
+            count(*) filter (where ${merch})::int merch,
+            count(*) filter (where created_at > ${NOW.toISOString()}::timestamp - interval '24 hours')::int new_24h,
+            count(*) filter (where ${merch} and keepa_fetched_at is not null)::int with_history,
+            count(*) filter (where ${tracked} and keepa_fetched_at is null)::int awaiting_first,
+            count(*) filter (where ${merch} and keepa_fetched_at is null and not (${tracked}))::int not_tracked
+        from products`);
+    return {
+        total: row.total,
+        merch: row.merch,
+        new24h: row.new_24h,
+        history: {
+            withHistory: row.with_history,
+            awaitingFirst: row.awaiting_first,
+            notTracked: row.not_tracked,
+        },
+    };
+};
 
 const insertProduct = async ({
     asin,
     bsr,
     isMerchListing = true,
     keepaFetchedAt = null,
+    createdAt = new Date(NOW.getTime() - 30 * DAY_MS),
+    admitted = true,
+    amazonListingStatus = 'active',
 }: {
     asin: string;
     bsr: number;
     isMerchListing?: boolean;
     keepaFetchedAt?: Date | null;
+    createdAt?: Date;
+    admitted?: boolean;
+    amazonListingStatus?: 'active' | 'deleted';
 }) => {
-    const createdAt = new Date(NOW.getTime() - 30 * DAY_MS);
     await db.insert(products).values({
-        amazonListingStatus: 'active',
+        amazonListingStatus,
         asin,
         createdAt,
-        historyAdmissionReason: 'legacy',
-        historyAdmissionState: 'admitted',
-        historyAdmittedAt: createdAt,
+        ...(admitted
+            ? {
+                  historyAdmissionReason: 'legacy' as const,
+                  historyAdmissionState: 'admitted' as const,
+                  historyAdmittedAt: createdAt,
+              }
+            : {}),
         isMerchListing,
         keepaFetchedAt,
         marketplaceId: SPAPI_US_MARKETPLACE_ID,
@@ -86,15 +152,19 @@ const insertProduct = async ({
 const insertAttempt = async ({
     isError,
     statusCode,
+    at = new Date(NOW.getTime() - 10 * 60 * 1000),
+    operation = 'spapi.catalog.search',
 }: {
     isError: boolean;
     statusCode: number | null;
+    at?: Date;
+    operation?: string;
 }) => {
     await db.insert(providerAttempts).values({
-        attemptedAt: new Date(NOW.getTime() - 10 * 60 * 1000),
+        attemptedAt: at,
         isError,
         latencyMs: 120,
-        operation: 'spapi.catalog.search',
+        operation,
         provider: 'spapi',
         statusCode,
     });

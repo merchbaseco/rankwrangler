@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
+import { readProductStats, refreshProductStats } from '@/db/product-stats';
 import { products } from '@/db/schema';
 import { admitProductHistory } from '@/services/product-history-admission';
-import { getHistoryAdmissionOverloadSnapshot } from '@/services/product-history-overload';
+import { getHistoryAdmissionOverload } from '@/services/product-history-overload';
 import { shouldKeepaHistoryRefreshAsin } from '@/services/product-history-eligibility';
 import { buildSpApiBlindspotRefreshCondition } from '@/services/spapi-blindspot-selection';
 
@@ -18,7 +19,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         ) {
             throw new Error('Collection tests require the private loopback database.');
         }
-        await db.execute(sql`truncate products cascade`);
+        await db.execute(sql`truncate products, product_stats cascade`);
     });
 
     it('defaults new identities to no standing history, including incidental fresh history', async () => {
@@ -34,11 +35,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
     it('admits only the affordable cohort and records capacity pauses', async () => {
         await insert('B000000001');
         await insert('B000000002', { createdAt: new Date('2026-10-02T12:00:00Z') });
-        const result = await admitProductHistory({
-            refillRate: 0.001,
-            productCost: 1,
-            newAdmissionsPaused: false,
-        });
+        await count(now);
+        const result = await admitProductHistory({ refillRate: 0.001, productCost: 1 }, now);
         expect(result.admitted).toBe(1);
         expect(result.paused).toBe(1);
         const rows = await db.select().from(products).orderBy(products.asin);
@@ -50,21 +48,19 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
 
     it('unknown capacity never admits and overload preserves existing admissions', async () => {
         await insert('B000000001');
-        expect((await admitProductHistory(null)).admitted).toBe(0);
+        await count(now);
+        expect((await admitProductHistory(null, now)).admitted).toBe(0);
         await db
             .update(products)
             .set({
                 historyAdmissionState: 'admitted',
                 historyAdmissionReason: 'legacy',
-                historyAdmittedAt: now,
+                historyAdmittedAt: new Date('2026-10-15T12:00:00Z'),
             })
             .where(eq(products.asin, 'B000000001'));
         await insert('B000000002');
-        const result = await admitProductHistory({
-            refillRate: 20,
-            productCost: 1,
-            newAdmissionsPaused: true,
-        });
+        await count(now);
+        const result = await admitProductHistory({ refillRate: 20, productCost: 1 }, now);
         expect(result.admitted).toBe(0);
         expect(result.paused).toBe(1);
         const rows = await db.select().from(products).orderBy(products.asin);
@@ -78,12 +74,21 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
             historyAdmittedAt: new Date('2026-10-01T12:00:00Z'),
             keepaFetchedAt: new Date('2026-10-15T12:00:00Z'),
         });
-        const snapshot = await getHistoryAdmissionOverloadSnapshot(now);
-        expect(snapshot).toEqual({
+        await insert('B000000002', {
+            historyAdmissionState: 'admitted',
+            historyAdmissionReason: 'legacy',
+            historyAdmittedAt: new Date('2026-10-20T12:00:00Z'),
+            keepaFetchedAt: new Date('2026-10-22T13:00:00Z'),
+        });
+        await count(now);
+        const stats = await readProductStats();
+        if (!stats) throw new Error('Expected a Product count');
+        expect(getHistoryAdmissionOverload(stats, now)).toEqual({
             overdueCount: 1,
             oldestOverdueAt: new Date('2026-10-16T12:00:00Z'),
             newAdmissionsPaused: true,
         });
+        expect(getHistoryAdmissionOverload(stats, now)).toEqual(await readOverloadDirectly(now));
     });
 
     it('observes no-BSR Merch on probation and cold intervals, and Keepa-only non-Merch once', async () => {
@@ -118,6 +123,27 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         expect(rows.map(row => row.asin)).toEqual(['B000000001', 'B000000005', 'B000000007']);
     });
 });
+
+const count = (at: Date) => db.transaction(tx => refreshProductStats(tx, at));
+
+// The live query the stored overload replaced, kept as the reference.
+const readOverloadDirectly = async (at: Date) => {
+    const [row] = await db.execute<{ overdue: number; oldest: string | null }>(sql`
+        with due as (
+            select coalesce(keepa_fetched_at + case when root_category_bsr < 300000
+                then interval '1 day' else interval '7 days' end, history_admitted_at, created_at) due_at
+            from products where history_admission_state='admitted' and amazon_listing_status='active'
+                and is_merch_listing and root_category_bsr < 1000000
+        ) select count(*) filter (where due_at <= ${at.toISOString()}::timestamp)::int overdue,
+            min(due_at) filter (where due_at <= ${at.toISOString()}::timestamp)::text oldest from due`);
+    const oldestOverdueAt = row.oldest ? new Date(`${row.oldest}Z`) : null;
+    return {
+        overdueCount: row.overdue,
+        oldestOverdueAt,
+        newAdmissionsPaused:
+            oldestOverdueAt !== null && at.getTime() - oldestOverdueAt.getTime() >= 7 * 86_400_000,
+    };
+};
 
 const insert = (asin: string, overrides: Partial<typeof products.$inferInsert> = {}) =>
     db.insert(products).values({

@@ -17,7 +17,7 @@ magical "find opportunities" score.
 - Discover Products while browsing Amazon with the Chrome or Safari extension.
 - Inspect structured activity, provider health, and bounded raw Provider-attempt telemetry through
   admin surfaces. Admins get a banner "Live" pill that opens System Status (`/status`): Products
-  by sales-history sync status, keywords by stage and freshness, Keepa and SP-API usage against
+  by sales-history sync status (a count stored every five minutes), keywords by stage and freshness, Keepa and SP-API usage against
   their limits (throttles counted apart from errors) above each provider's refresh tiers, and an
   event log explorer with a histogram, time range and filters.
 - Access the public Merchbase-credential surface from `rw` or `@rankwrangler/http-client`.

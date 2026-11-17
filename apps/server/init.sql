@@ -66,7 +66,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- that the Keywords directory scans),
 -- keyword_standing_observations (score history per standing observation), discovery_evidence,
 -- discovery_source_scans, brand_discovery_products,
--- keepa_capacity_state, keepa_capacity_attempts, history_admission_rollouts,
+-- keepa_capacity_state, keepa_capacity_attempts, keepa_measured_costs (per-operation p95 cost over
+-- the last settled calls), product_stats (the five-minute Product and provider-call count snapshot),
+-- history_admission_rollouts,
 -- catalog_search_runs (page and trigger provenance),
 -- catalog_search_results, official_brands (verified marketplace-specific brand exclusions)
 

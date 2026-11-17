@@ -133,8 +133,7 @@ in force once per day over the last thirty days, read in one bounded statement p
 brand in the marketplace, and the best main BSR recorded in history with its first time.
 `api.app.product.keywords` lists retained keyword memberships with placement from the newest run
 of each page (1-based page, null when absent from those runs), standing score and tier, and
-membership time; totals count all memberships and page-one placements. `api.app.stats.summary`
-returns footer counts for any signed-in user.
+membership time; totals count all memberships and page-one placements.
 
 ### Explore grid: paging, sidebar filters and facets
 

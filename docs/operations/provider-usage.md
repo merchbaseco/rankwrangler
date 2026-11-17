@@ -24,7 +24,7 @@ the provider is down; corroborate it with the activity log and job execution rec
 SP-API Catalog search is paced in the server process by one limiter (see
 [Catalog search](../internals/catalog-search.md)): live reads first, background work at most 75%
 of a rate capped at 2 a second (1.6 under Amazon's reported limit), halved on each 429 burst. Its state is not stored; System Status
-counts SP-API calls and 429s from `provider_attempts`, and a rising 429 count is the sign to lower
+counts SP-API calls and 429s from `provider_attempts` in the five-minute Product-count snapshot, and a rising 429 count is the sign to lower
 `CATALOG_MAX_RPS` (or not to raise it).
 
 Keep raw provider budget details internal. Public APIs expose RankWrangler product data and usage
@@ -44,4 +44,5 @@ For incident diagnosis, `api.app.providerTelemetry.get` returns a typed admin-on
 physical Keepa, SP-API, Gemini, and TypeSafe attempts. It defaults to 24 hours, accepts at most seven days, and returns
 totals, provider/operation/outcome breakdowns, and at most 100 recent attempts. Provider and
 operation filters use fixed code-owned names; payloads, URLs, headers, error text, and business
-correlation are never stored. A daily bounded job deletes attempts older than seven days.
+correlation are never stored. A daily bounded job deletes attempts, and Keepa capacity attempts,
+older than seven days.

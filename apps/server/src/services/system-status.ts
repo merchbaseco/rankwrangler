@@ -1,5 +1,5 @@
 import { readKeepaCapacitySnapshot } from '@/db/keepa-capacity-snapshot';
-import { readProductIndex, readProviderCalls } from '@/db/system-status';
+import { type ProductStats, readProductStats } from '@/db/product-stats';
 import { mapTelemetryOperation } from '@/services/providers/sp-api/sp-api-limiter-manager';
 import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 import { createDatabaseHealthReaders } from '@/services/service-health-queries';
@@ -9,21 +9,22 @@ const healthReaders = createDatabaseHealthReaders();
 /**
  * The admin system status: `/api/health`'s verdict, the Product index, the Keepa token
  * allowance, each provider's calls, and each SP-API operation's hourly rate limit. One read for
- * the banner indicator and the top of System Status.
+ * the banner indicator and the top of System Status. Product and provider-call counts come from
+ * the stored snapshot (`countedAt`); before its first pass `products` is null and `calls` empty.
  */
 export const getSystemStatus = async (now = new Date()) => {
-    const [health, products, keepa, calls, limiters] = await Promise.all([
+    const [health, stats, keepa, limiters] = await Promise.all([
         healthReaders.readServiceHealth(),
-        readProductIndex(now),
+        readProductStats(),
         readKeepaCapacitySnapshot(),
-        readProviderCalls(now),
         createSpApiProvider().getOperationRateLimiterStats(),
     ]);
     return {
         observedAt: now.toISOString(),
+        countedAt: stats?.observedAt.toISOString() ?? null,
         health,
-        products,
-        calls,
+        products: stats ? productIndex(stats) : null,
+        calls: stats?.providerCalls ?? [],
         keepa: {
             tokensLeft: keepa.estimatedTokensLeft,
             // Keepa drops tokens older than an hour, so the bucket holds an hour of refill.
@@ -43,3 +44,20 @@ export const getSystemStatus = async (now = new Date()) => {
         })),
     };
 };
+
+/**
+ * How much of the catalog is indexed, and the sales-history sync status of the active Merch
+ * listings. Every Merch listing sits in exactly one of: `withHistory` (Keepa history imported),
+ * `awaitingFirst` (inside the automatic Keepa tiers, first import still queued) or `notTracked`
+ * (no history and outside the automatic tiers, so Keepa only syncs it on demand).
+ */
+const productIndex = (stats: ProductStats) => ({
+    total: stats.products,
+    merch: stats.merch,
+    new24h: stats.new24h,
+    history: {
+        withHistory: stats.merchWithHistory,
+        awaitingFirst: stats.merchAwaitingFirst,
+        notTracked: stats.merchNotTracked,
+    },
+});

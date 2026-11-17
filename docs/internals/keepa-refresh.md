@@ -86,7 +86,12 @@ Migration 0040 locks Product writes, records a baseline receipt and admits every
 including unknown and non-Merch Products. Eligibility still applies at dispatch. New identities
 start `notAdmitted`; receiving incidental history does not create a recurring subscription.
 
-The minute admission job uses measured Product cost and observed refill rate. Forecast 12-hour,
+The minute admission job uses measured Product cost and observed refill rate. It plans on the
+standing population stored in `product_stats` (one pass over Products every five minutes) plus the
+admissions it has made since, which it adds to that row under the lock the pass also takes; BSR and
+listing changes since the pass are minutes stale, well inside the 10% margin. With no count, or one
+over thirty minutes old, it admits nothing. Its next candidates come from a partial index holding
+only the active Merch listings below 1,000,000 BSR that are not admitted. Forecast 12-hour,
 daily and weekly obligations must stay below 90% of the daily refill; the rest covers live requests,
 first-time history and keyword searches. Capacity pauses new
 admissions without revoking existing admissions. Existing eligible history seven days overdue also
@@ -96,8 +101,11 @@ Explicit history reads remain available outside standing admission.
 ## Protected capacity
 
 Every physical Keepa request reserves capacity durably just before dispatch. A batched product
-request reserves the measured per-product cost times its product count, and measured costs divide
-each attempt's tokens by its product count. Errors, empty results
+request reserves the measured per-product cost times its product count. The measured cost of each
+operation is the 95th percentile of its last 500 settled calls that reported spend, each attempt's
+tokens divided by its product count; settlement updates that window in `keepa_measured_costs`, so a
+reservation reads one row per operation and index ranges of the last hour and day of attempts, which
+are kept for seven days. Errors, empty results
 and ingestion failures retain their provider cost; missing accounting retains the reservation for
 its rolling window. Provider attempts are independent of Product import success.
 

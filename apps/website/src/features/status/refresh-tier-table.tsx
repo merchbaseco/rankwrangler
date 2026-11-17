@@ -24,7 +24,7 @@ export const RefreshTierTable = ({
         .reduce((sum, tier) => sum + tier.count, 0);
     return (
         <StatusBlock
-            aside={tiers ? `${formatCount(automatic)} refresh automatically` : null}
+            aside={tiers?.length ? `${formatCount(automatic)} refresh automatically` : null}
             title="Refresh tiers"
         >
             <DataGrid
@@ -33,7 +33,7 @@ export const RefreshTierTable = ({
                 columns={isPhone ? phoneColumns : columns}
                 data={[...(tiers ?? [])]}
                 getRowId={tier => tier.key}
-                renderEmptyState={() => (tiers ? 'No refresh tiers.' : 'Loading…')}
+                renderEmptyState={() => (tiers ? 'Not counted yet.' : 'Loading…')}
                 variant="secondary"
             />
         </StatusBlock>

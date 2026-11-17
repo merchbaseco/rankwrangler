@@ -212,7 +212,11 @@ export {
     keywordStandingObservations,
 } from './discovery-target-schema';
 export { historyAdmissionRollouts } from './history-admission-rollout-schema';
-export { keepaCapacityAttempts, keepaCapacityState } from './keepa-capacity-schema';
+export {
+    keepaCapacityAttempts,
+    keepaCapacityState,
+    keepaMeasuredCosts,
+} from './keepa-capacity-schema';
 export { keywordAutocomplete, keywordProviderCapacity } from './keyword-autocomplete-schema';
 export { keywordDirectory } from './keyword-directory-schema';
 export { keywordPrefixes } from './keyword-prefix-schema';
@@ -231,6 +235,7 @@ export {
 export { productCutoutThumbnails } from './product-cutout-thumbnail-schema';
 export { productAsinAliases } from './product-asin-alias-schema';
 export { products } from './product-schema';
+export { productStats } from './product-stats-schema';
 export { productShortNames } from './product-short-name-schema';
 export { providerAttempts } from './provider-telemetry-schema';
 export { rankwranglerServiceAccounts } from './service-account-schema';

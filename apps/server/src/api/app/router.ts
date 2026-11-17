@@ -24,11 +24,9 @@ import { productKeywords } from './product-keywords';
 import { productSalesCurve } from './product-sales-curve';
 import { productSearch } from './product-search';
 import { productSearchFacets } from './product-search-facets';
-import { productSearchMetadata } from './product-search-metadata';
 import { productSearchSeasonality } from './product-search-seasonality';
 import { productSyncCompleted } from './product-sync-completed';
 import { providerTelemetryGet } from './provider-telemetry-get';
-import { statsSummary } from './stats-summary';
 import { syncControlChanged } from './sync-control-changed';
 import { syncControlGet } from './sync-control-get';
 import { syncControlSet } from './sync-control-set';
@@ -66,9 +64,6 @@ export const appApiRouter = router({
     providerTelemetry: router({
         get: providerTelemetryGet,
     }),
-    stats: router({
-        summary: statsSummary,
-    }),
     system: router({
         status: systemStatus,
         refreshTiers: systemRefreshTiers,
@@ -80,7 +75,6 @@ export const appApiRouter = router({
         search: productSearch,
         salesCurve: productSalesCurve,
         searchFacets: productSearchFacets,
-        searchMetadata: productSearchMetadata,
         searchSeasonality: productSearchSeasonality,
         sync: router({
             completed: productSyncCompleted,

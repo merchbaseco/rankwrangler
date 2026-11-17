@@ -11,6 +11,7 @@ import {
     uniqueIndex,
     uuid,
 } from 'drizzle-orm/pg-core';
+import { KEEPA_WEEKLY_AUTO_BSR_THRESHOLD } from '@/services/keepa-refresh-policy';
 import type { AmazonListingStatus } from '@/types';
 import { productSearchDocument } from './product-search-document';
 
@@ -117,6 +118,15 @@ export const products = pgTable(
         variationsUncheckedIdx: index('products_variations_unchecked_idx')
             .on(table.createdAt)
             .where(sql`${table.variationsCheckedAt} IS NULL`),
+        // History admission's next candidates, best BSR first. Admitted rows leave the index, so
+        // the minute job reads only the waiting cohort instead of walking the admitted range.
+        historyAdmissionCandidateIdx: index('products_history_admission_candidate_idx')
+            .on(table.rootCategoryBsr, table.createdAt, table.id)
+            .where(
+                sql`${table.historyAdmissionState} <> 'admitted'
+                    AND ${table.amazonListingStatus} = 'active' AND ${table.isMerchListing}
+                    AND ${table.rootCategoryBsr} < ${sql.raw(String(KEEPA_WEEKLY_AUTO_BSR_THRESHOLD))}`
+            ),
         keepaRefreshCandidateIdx: index('products_keepa_refresh_candidate_idx').on(
             table.isMerchListing,
             table.rootCategoryBsr,

@@ -29,6 +29,8 @@ a few minutes after a deploy (a fresh process has cold aggregate caches).
   independent reads with `Promise.all`.
 - Background jobs share the application pool and hold connections through multi-statement
   transactions. A growing `authP50` or `serverP50` with unchanged query plans means pool waits.
+- System Status and history admission read stored counts (`product_stats`, Keepa measured costs)
+  instead of counting Products or import history, so the 30-second Status poll costs a few rows.
 - Explore facets are whole-set aggregates (seconds when cold). They are served
   stale-while-revalidate and fetched on their own requests, so they never hold up the grid.
   Keywords reads scan the small `keyword_directory` projection instead of joining every keyword's

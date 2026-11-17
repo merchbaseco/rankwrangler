@@ -28,7 +28,8 @@ where a second attempt would be redundant.
 | Catalog-search Operation | First-page Keepa search: interactive ones run in process at dispatch, scheduled ones on the queue; one-minute stale-pending recovery. |
 | Active Catalog keyword | One-minute due scan plus one startup scan; one current run, no backfill. |
 | Product facets | One-minute worker definition, currently disabled by policy. |
-| Provider-attempt retention | Daily bounded deletion of attempts older than seven days. |
+| Provider-attempt retention | Daily bounded deletion of Provider and Keepa capacity attempts older than seven days. |
+| Product counts | Five-minute exclusive snapshot (`refresh-product-stats`), sent once at startup while none exists. |
 | Job-execution retention | Daily bounded deletion of run history older than fourteen days. |
 | Keyword pipeline | One-minute scheduler feeding the scan and autocomplete queues and the weekly Brand Analytics import. |
 

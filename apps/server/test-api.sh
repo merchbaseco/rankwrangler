@@ -100,10 +100,6 @@ if [ -n "$RR_CLERK_TOKEN" ]; then
       -H "Authorization: Bearer $RR_CLERK_TOKEN" \
       --data-urlencode 'input={"sort":"medianBsr","limit":5}' | jq '.'
     echo ""
-    echo "🧮 Testing api.app.stats.summary..."
-    curl -s -G "$API_BASE/api/api.app.stats.summary" \
-      -H "Authorization: Bearer $RR_CLERK_TOKEN" | jq '.'
-
     echo ""
     echo "📈 Testing api.app.loadProductHistory..."
     curl -s -X POST "$API_BASE/api/api.app.loadProductHistory" \

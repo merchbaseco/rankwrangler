@@ -18,6 +18,10 @@ import { processSpApiSyncQueueJob } from '@/jobs/process-spapi-sync-queue.js';
 import { reclassifyMerchListingsJob } from '@/jobs/reclassify-merch-listings';
 import { pruneJobExecutionsJob } from '@/jobs/prune-job-executions';
 import { pruneProviderAttemptsJob } from '@/jobs/prune-provider-attempts';
+import {
+    refreshProductStatsJob,
+    sendMissingProductStatsRefresh,
+} from '@/jobs/refresh-product-stats';
 import { recoverStaleCatalogSearchOperationsJob } from '@/jobs/recover-stale-catalog-search-operations';
 import { recoverStaleProductHistoryOperationsJob } from '@/jobs/recover-stale-product-history-operations.js';
 import { refreshProductHistoryOperationJob } from '@/jobs/refresh-product-history-operation.js';
@@ -33,6 +37,7 @@ const registeredJobs = [
     scheduleBrandAnalyticsJob,
     catalogSearchJob,
     reconcileHistoryAdmissionJob,
+    refreshProductStatsJob,
     collectDueCatalogQueriesJob,
     enqueueScheduledKeepaHistoryRefreshJob,
     fetchKeepaHistoryBatchJob,
@@ -63,5 +68,7 @@ export const startJobs = async (boss: PgBoss) => {
     await boss.unschedule('sync-top-search-terms-datasets');
     await boss.unschedule('fetch-top-search-terms-dataset');
     await prepareJobQueues(boss);
-    return startRegisteredJobs(boss);
+    const runtime = await startRegisteredJobs(boss);
+    // Count once now when nothing has been counted, rather than waiting for the first tick.
+    return { ...runtime, productStatsStatus: await sendMissingProductStatsRefresh(boss) };
 };

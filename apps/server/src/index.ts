@@ -59,6 +59,7 @@ const createDisabledJobsRuntime = (): JobsRuntime => {
     return {
         stop: () => Promise.resolve(),
         startupSummary: [],
+        productStatsStatus: 'Not counted (job runner disabled)',
     };
 };
 
@@ -277,6 +278,7 @@ const startServer = async () => {
             productFacetSummary: env.RANKWRANGLER_GEMINI_API_KEY
                 ? 'Enabled (Gemini 2.5 Flash Lite)'
                 : 'Disabled (RANKWRANGLER_GEMINI_API_KEY not set)',
+            productStatsStatus: jobsRuntime.productStatsStatus,
             productHistoryOperations: getProductHistoryOperationsStatus(
                 serverRuntimeFlags.shouldStartJobRunner,
                 recoveredProductHistoryOperationsCount

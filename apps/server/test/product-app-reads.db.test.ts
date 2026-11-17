@@ -18,7 +18,6 @@ import {
     productShortNames,
     products,
 } from '@/db/schema';
-import { readStatsSummary } from '@/db/stats-summary';
 import {
     buildKeepaHistorySeries,
     dateToKeepaMinute,
@@ -177,18 +176,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('dashboard Product 
         expect(
             (await listProductKeywords({ marketplaceId: market, asin: 'B0APPNONE0' })).totals
         ).toEqual({ keywords: 0, pageOne: 0 });
-    });
-
-    it('summarizes catalog and keyword totals', async () => {
-        await insertProduct('B0APP00041');
-        await insertProduct('B0APP00042', { isMerchListing: false });
-        expect(await readStatsSummary(now)).toEqual({
-            totalProducts: 2,
-            totalMerchProducts: 1,
-            keywordsTracked: 0,
-            keywordsMinedLastDay: 0,
-            keywordsQueued: 0,
-        });
     });
 });
 

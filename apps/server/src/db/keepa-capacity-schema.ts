@@ -35,8 +35,35 @@ export const keepaCapacityAttempts = pgTable(
         reservedAt: timestamp('reserved_at', { mode: 'date' }),
         settledAt: timestamp('settled_at', { mode: 'date' }),
     },
+    // Reservation reads stay index range scans: the last hour's open spend by `reserved_at`, the
+    // day's pilot caps by class. A daily job deletes attempts over seven days old by `created_at`.
     table => ({
         recent: index('keepa_capacity_attempts_recent_idx').on(table.createdAt),
-        keyword: index('keepa_capacity_attempts_keyword_idx').on(table.keywordId, table.createdAt),
+        reserved: index('keepa_capacity_attempts_reserved_idx').on(table.reservedAt),
+        classReserved: index('keepa_capacity_attempts_class_reserved_idx').on(
+            table.workClass,
+            table.reservedAt
+        ),
+    })
+);
+
+/**
+ * The measured per-item cost of each priced Keepa operation: the 95th percentile of the last
+ * `KEEPA_MEASURED_COST_WINDOW` settled calls that reported spend, kept in `recent_costs` (oldest
+ * first) and recomputed in the settlement transaction, so reservations read one row.
+ */
+export const keepaMeasuredCosts = pgTable(
+    'keepa_measured_costs',
+    {
+        operation: text('operation').$type<'product' | 'search'>().primaryKey(),
+        recentCosts: integer('recent_costs').array().notNull(),
+        cost: integer('cost').notNull(),
+        updatedAt: timestamp('updated_at', { mode: 'date' }).notNull(),
+    },
+    table => ({
+        operationCheck: check(
+            'keepa_measured_costs_operation_check',
+            sql`${table.operation} in ('product', 'search')`
+        ),
     })
 );

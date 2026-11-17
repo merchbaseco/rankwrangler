@@ -6,7 +6,11 @@ import {
     catalogSearchRuns,
     catalogSearchResults,
 } from '@/db/catalog-search-schema';
-import { keepaCapacityAttempts, keepaCapacityState } from '@/db/keepa-capacity-schema';
+import {
+    keepaCapacityAttempts,
+    keepaCapacityState,
+    keepaMeasuredCosts,
+} from '@/db/keepa-capacity-schema';
 import { lockCatalogQueryForReconciliation } from '@/db/catalog-query-resolution';
 import { acceptKeywordObservation } from '@/db/keyword-observation';
 import { lockKeywordScheduling } from '@/db/keyword-scheduling-lock';
@@ -23,6 +27,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             await db.delete(catalogQueries);
             await db.delete(keepaCapacityAttempts);
             await db.delete(keepaCapacityState);
+            await db.delete(keepaMeasuredCosts);
             await db.insert(keepaCapacityState).values({
                 id: 1,
                 tokensLeft: 1200,
@@ -30,9 +35,9 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 refillInMs: 60_000,
                 observedAt: new Date(),
             });
-            await db.insert(keepaCapacityAttempts).values([
-                { operation: 'search', workClass: 'head', actualTokens: 10 },
-                { operation: 'product', workClass: 'history', actualTokens: 1 },
+            await db.insert(keepaMeasuredCosts).values([
+                { operation: 'search', recentCosts: [10], cost: 10, updatedAt: new Date() },
+                { operation: 'product', recentCosts: [1], cost: 1, updatedAt: new Date() },
             ]);
         });
         it('keeps an adaptive interval from exceeding the standing keyword allowance', async () => {

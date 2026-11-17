@@ -64,7 +64,10 @@ Do not expose Keepa token accounting through public RankWrangler APIs. It is an 
 budget.
 
 Admin System Status (`/status`) reports the Keepa token allowance: tokens left, refill rate, live
-reserve and the last hour's spend per work class. A budget deferral is not a provider failure and
+reserve and the last hour's spend per work class. Its Product counts and refresh tiers are the
+`product_stats` snapshot taken every five minutes (`countedAt`); a count that stops advancing means
+the `refresh-product-stats` job is failing, and history admission pauses once it is thirty minutes
+old. A budget deferral is not a provider failure and
 does not mark data fresh. See the protected-capacity policy in the internals reference. Keepa retains its pilot ceilings; SP-API acquisition uses the separate
 measured-rate budget described in [catalog search internals](../internals/catalog-search.md).
 

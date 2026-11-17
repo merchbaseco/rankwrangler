@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { persistedKeepaCapacity as capacity } from '@/db/keepa-capacity';
-import { keepaCapacityAttempts, keepaCapacityState } from '@/db/keepa-capacity-schema';
+import {
+    keepaCapacityAttempts,
+    keepaCapacityState,
+    keepaMeasuredCosts,
+} from '@/db/keepa-capacity-schema';
 import { readKeepaCapacitySnapshot } from '@/db/keepa-capacity-snapshot';
 
 const usage = { tokensConsumed: 10, tokensLeft: 1190, refillRate: 20, refillIn: 60_000 };
@@ -17,26 +21,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 throw new Error('Capacity tests require private loopback database');
             }
             await db.execute(
-                sql`truncate keepa_capacity_state, keepa_capacity_attempts, product_history_imports`
+                sql`truncate keepa_capacity_state, keepa_capacity_attempts, keepa_measured_costs`
             );
-            // Historical measurements are explicit test evidence, not synthesized provider usage.
-            await db.insert(keepaCapacityAttempts).values([
-                {
-                    operation: 'product',
-                    workClass: 'history',
-                    actualTokens: 1,
-                    reservedTokens: 1,
-                    reservedAt: new Date(Date.now() - 86_400_001),
-                    settledAt: new Date(),
-                },
-                {
-                    operation: 'search',
-                    workClass: 'head',
-                    actualTokens: 10,
-                    reservedTokens: 10,
-                    reservedAt: new Date(Date.now() - 86_400_001),
-                    settledAt: new Date(),
-                },
+            // Measured costs are explicit test evidence, not synthesized provider usage.
+            await db.insert(keepaMeasuredCosts).values([
+                { operation: 'product', recentCosts: [1], cost: 1, updatedAt: new Date() },
+                { operation: 'search', recentCosts: [10], cost: 10, updatedAt: new Date() },
             ]);
             await db.insert(keepaCapacityState).values({
                 id: 1,

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { syncKeywordTargets } from '@/db/keyword-target-sync';
+import { refreshProductStats } from '@/db/product-stats';
 import {
     catalogQueries,
     catalogSearchResults,
@@ -139,6 +140,9 @@ export const writeDevSeedPlan = async (plan: DevSeedPlan): Promise<DevSeedWriteR
             plan.discoveryTargets.map(target => target.id as string),
             'all'
         );
+        // Status and history admission read stored counts, which the job runner (off locally by
+        // default) would otherwise only take every five minutes.
+        await refreshProductStats(tx, new Date());
 
         return { cleared, inserted };
     });

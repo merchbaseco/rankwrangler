@@ -12,6 +12,7 @@ export interface StartupSummaryInput {
     port: number;
     productFacetSummary: string;
     productHistoryOperations: string;
+    productStatsStatus: string;
     realtimePath: string;
     shouldStartJobRunner: boolean;
     startupCatalogKeywordRefreshes: number;
@@ -51,6 +52,7 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
     console.log('  • User Event Logs: Enabled (dashboard logs page)');
 
     console.log(`  • Product History Operations: ${input.productHistoryOperations}`);
+    console.log(`  • Product Counts: ${input.productStatsStatus}`);
     console.log(`  • Catalog Search Operations: ${input.catalogSearchOperations}`);
     console.log(
         `  • Catalog Keyword Refresh: ${
