@@ -13,3 +13,4 @@ export const credentialHeaders = (credential: string): Record<string, string> =>
         return { 'CF-Access-Client-Id': parsed.clientId, 'CF-Access-Client-Secret': parsed.clientSecret };
     } catch { throw new Error('Invalid Merchbase machine credential.'); }
 };
+// throwaway: proves the bump guard fails without a version bump
