@@ -180,9 +180,10 @@ The rest is RankWrangler's:
   (GitHub Packages, Hugeicons, HeroUI Pro) from 1Password, and runs `scripts/setup-heroui.mjs`
   (frozen install plus the HeroUI Pro dist). It links `/usr/local/bin/bun` only to a Bun it finds
   under `$BUN_INSTALL`, so an image whose own Bun already matches the pin keeps it. Idempotent.
-- `.agents/cloud/env.sh` is sourced into every session shell and puts the PostgreSQL server
-  binaries (`/usr/lib/postgresql/<major>/bin`) on PATH, which `test:catalog-db` needs for its
-  private cluster.
+- `.agents/cloud/env.sh` puts the PostgreSQL server binaries (`/usr/lib/postgresql/<major>/bin`)
+  on PATH, which `test:catalog-db` needs for its private cluster. `bootstrap.sh` sources it, and
+  Claude sessions get it in every shell; elsewhere (a Cursor terminal) run
+  `. .agents/cloud/env.sh` before `test:catalog-db`.
 - `.agents/cloud/start.sh` starts the loopback cluster as the `postgres` account (Claude runs as
   root), provisions the role and database from the schema, and seeds synthetic development data.
   It returns; it never runs the dev servers.
