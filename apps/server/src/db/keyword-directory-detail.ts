@@ -107,7 +107,7 @@ export type DetailColumns = ShelfColumns & {
     detailScore7d: number | null;
 };
 
-interface ShelfRow {
+export interface ShelfRow {
     marketplaceId: string;
     asin: string;
     title: string | null;
