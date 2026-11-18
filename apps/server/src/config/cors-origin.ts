@@ -1,20 +1,26 @@
-const deployedWebOrigins = new Set([
-    'https://merchbase.co',
-    'https://rankwrangler.merchbase.co',
-]);
+import { isDashboardWebOrigin } from './dashboard-origin';
 
-const extensionOriginPrefixes = ['safari-web-extension://', 'chrome-extension://'];
-const loopbackHostnames = new Set(['localhost', '127.0.0.1', '[::1]']);
+// Safari Web Extensions get a per-install-generated origin UUID, not a
+// key-derived one, so unlike Chrome it cannot be pinned to an exact origin.
+const safariExtensionOriginPrefix = 'safari-web-extension://';
 
 type CorsOriginCallback = (error: Error | null, allowed: boolean) => void;
 
 type CorsOriginOptions = {
     isProduction: boolean;
+    allowedChromeExtensionIds: readonly string[];
 };
 
-export const createCorsOriginHandler = ({ isProduction }: CorsOriginOptions) => {
+export const createCorsOriginHandler = ({
+    isProduction,
+    allowedChromeExtensionIds,
+}: CorsOriginOptions) => {
+    const allowedChromeExtensionOrigins = new Set(
+        allowedChromeExtensionIds.map((id) => `chrome-extension://${id}`)
+    );
+
     return (origin: string | undefined, callback: CorsOriginCallback): void => {
-        if (isCorsOriginAllowed(origin, isProduction)) {
+        if (isCorsOriginAllowed(origin, isProduction, allowedChromeExtensionOrigins)) {
             callback(null, true);
             return;
         }
@@ -23,26 +29,22 @@ export const createCorsOriginHandler = ({ isProduction }: CorsOriginOptions) => 
     };
 };
 
-const isCorsOriginAllowed = (origin: string | undefined, isProduction: boolean): boolean => {
+const isCorsOriginAllowed = (
+    origin: string | undefined,
+    isProduction: boolean,
+    allowedChromeExtensionOrigins: ReadonlySet<string>
+): boolean => {
     if (!origin) {
         return true;
     }
 
     if (
-        deployedWebOrigins.has(origin) ||
-        extensionOriginPrefixes.some((prefix) => origin.startsWith(prefix))
+        allowedChromeExtensionOrigins.has(origin) ||
+        origin.startsWith(safariExtensionOriginPrefix) ||
+        isDashboardWebOrigin(origin, isProduction)
     ) {
         return true;
     }
 
-    return !isProduction && isHttpLoopbackOrigin(origin);
-};
-
-const isHttpLoopbackOrigin = (origin: string): boolean => {
-    try {
-        const url = new URL(origin);
-        return url.protocol === 'http:' && loopbackHostnames.has(url.hostname);
-    } catch {
-        return false;
-    }
+    return false;
 };

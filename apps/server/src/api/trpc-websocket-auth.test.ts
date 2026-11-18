@@ -33,7 +33,9 @@ for (const credentialKind of [null, 'oauth', 'session'] as const) {
         if (!address || typeof address === 'string') {
             throw new Error('Expected local TCP listener');
         }
-        const client = new WebSocket(`ws://127.0.0.1:${address.port}/api/trpc`);
+        const client = new WebSocket(`ws://127.0.0.1:${address.port}/api/trpc`, {
+            origin: 'https://rankwrangler.merchbase.co',
+        });
         try {
             const status = await new Promise<number>((resolve, reject) => {
                 client.on('error', reject);
