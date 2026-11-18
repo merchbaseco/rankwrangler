@@ -321,11 +321,14 @@ bun test \
     apps/server/test/interactive-requests.db.test.ts \
     apps/server/test/discovery-agent-research.db.test.ts \
     apps/server/test/keyword-scheduling-races.db.test.ts \
+    apps/server/test/keyword-scheduling-index.db.test.ts \
+    apps/server/test/keyword-target-indexes.db.test.ts \
     apps/server/test/keepa-capacity.db.test.ts \
     apps/server/test/keepa-measured-costs.db.test.ts \
     apps/server/test/history-admission.db.test.ts \
     apps/server/test/refresh-tiers.db.test.ts \
     apps/server/test/product-collection-policy.db.test.ts \
+    apps/server/test/product-refresh-due.db.test.ts \
     apps/server/test/product-search-document.db.test.ts \
     apps/server/test/product-search.db.test.ts \
     apps/server/test/product-search-grid.db.test.ts \

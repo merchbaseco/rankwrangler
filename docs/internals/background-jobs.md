@@ -21,8 +21,8 @@ where a second attempt would be redundant.
 | Workflow | Dispatch model |
 | --- | --- |
 | SP-API Product sync | Event-driven singleton wakeup, continuation wakeups, and startup kick. |
-| SP-API stale Product selection | Every 10 minutes for available Products using BSR-dependent freshness tiers. |
-| Keepa candidate selection | Hourly scan of eligible stale Products. |
+| SP-API stale Product selection | Every 10 minutes: up to 2,000 BSR-tier refreshes and 20 no-BSR checks, most overdue first, from due-at indexes. |
+| Keepa candidate selection | Five-minute top-up of tier-due Products from the Keepa due-at index. |
 | Keepa queue dispatch | Every minute, capacity-bounded, then one singleton fetch per ASIN. |
 | Product-history Operation | Event-driven worker plus one-minute stale-pending recovery. |
 | Catalog-search Operation | First-page Keepa search: interactive ones run in process at dispatch, scheduled ones on the queue; one-minute stale-pending recovery. |
@@ -45,8 +45,24 @@ slow run are dropped rather than queued behind it. pg-boss never changes a store
 startup recreates a scheduled job's queue (ticks only) when its declared policy differs; entity
 queues are never recreated. Recreation is one transaction: on failure startup logs the database
 error, keeps the old queue and policy, and tries again on the next start. The keyword pipeline is the first user; see
-[keyword jobs](keyword-mining.md#keyword-jobs). Retired `process-keyword-sync` and older keyword
+[keyword jobs](keyword-mining.md#keyword-jobs). Every one-minute tick queue (`collect-due-catalog-queries`,
+`reconcile-history-admission`, `backfill-product-variations`, `process-keepa-history-refresh-queue`,
+`process-product-facet-classification`, both stale-Operation recoveries,
+`enqueue-scheduled-keepa-history-refresh`) and `refresh-product-stats` are exclusive. Event-driven
+queues such as `process-spapi-sync-queue` keep their own policy. Retired `process-keyword-sync` and older keyword
 stage schedules are unscheduled at startup.
+
+## Retention And Connections
+
+pg-boss keeps a finished job row for one day (`JOB_RETENTION_SECONDS`), not its seven-day default:
+run history lives in `job_executions`, and a week of keyword scans was over half a million rows that
+pg-boss's once-a-minute monitor reads. Startup applies the retention to every registered queue and
+to pg-boss's cron queue (`__pgboss__send-it`); rows sent earlier keep theirs until they expire.
+Maintenance deletes expired rows hourly. Code that counts waiting jobs uses `countQueuedJobs`,
+which reads pg-boss's queued-job index, never `getQueueStats`, which counts the whole history.
+
+pg-boss connects directly with a pool of five (`createJobBoss`); see
+[PlanetScale](../operations/planetscale.md) for the connection budget.
 
 ## State Ownership
 

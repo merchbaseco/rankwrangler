@@ -70,8 +70,8 @@ export const backfillKeywordPrefixes = async (limit: number, now = new Date()) =
             .innerJoin(catalogQueries, eq(catalogQueries.id, discoveryTargets.queryId))
             .where(
                 and(
-                    eq(discoveryTargets.kind, 'keyword'),
-                    eq(discoveryTargets.tracking, 'tracked'),
+                    // Literal, to match discovery_targets_keyword_cursor_idx.
+                    sql`${discoveryTargets.kind} = 'keyword' and ${discoveryTargets.tracking} = 'tracked'`,
                     // The cursor columns are shared with other scans; here they hold a target's
                     // creation time and id. Compared in SQL to keep microsecond precision.
                     scan.cursorProductId

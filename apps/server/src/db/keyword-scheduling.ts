@@ -2,6 +2,7 @@ import { lockKeywordScheduling } from './keyword-scheduling-lock';
 import { and, asc, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from './index';
 import { catalogQueries } from './catalog-search-schema';
+import { readScheduledKeywordLoad, scheduledKeyword } from './keyword-scheduled-load';
 import { operations } from './ops-schema';
 import { lockCatalogQueryForReconciliation } from './catalog-query-resolution';
 import { mapOperationRecord } from './operations';
@@ -14,25 +15,13 @@ export const admitKeywordCandidates = async (now = new Date()) => {
     if (!capacity) return 0;
     return await db.transaction(async tx => {
         await lockKeywordScheduling(tx);
-        const [load] = await tx
-            .select({
-                daily: sql<number>`coalesce(sum(${capacity.headCost}::numeric / greatest(${catalogQueries.intervalDays}, 1)), 0)::float`,
-            })
-            .from(catalogQueries)
-            .where(sql`${catalogQueries.tier} <> 'stored'`);
+        const load = await readScheduledKeywordLoad(tx, capacity.headCost);
         const allowance = capacity.refillRate * 1440 * 0.2 * 0.9;
-        const [unobserved] = await tx
-            .select({ count: sql<number>`count(*)::int` })
-            .from(catalogQueries)
-            .where(
-                and(
-                    sql`${catalogQueries.tier} <> 'stored'`,
-                    isNull(catalogQueries.latestSuccessfulRunAt)
-                )
-            );
-        let initialSlots = Math.max(0, 20 - (unobserved?.count ?? 0));
-        let forecast = load?.daily ?? 0;
+        let initialSlots = Math.max(0, 20 - load.unobserved);
+        let forecast = load.daily;
         let count = 0;
+        // The last clause bounds the read to keywords with recent interest
+        // (`catalog_queries_requested_idx`) or a live lease (`..._active_refresh_due_idx`).
         const candidates = await tx
             .select()
             .from(catalogQueries)
@@ -106,67 +95,37 @@ export const admitKeywordCandidates = async (now = new Date()) => {
     });
 };
 
+// Applies, in one statement over the admitted rows, what were four ordered transitions: an
+// expired research lease turns cold; a probation that ended without Merch is stored, one with
+// Merch turns cold; then anything (including rows just turned cold) with no live lease and no
+// interest for 90 days is stored as inactive. Each flag is evaluated on the row as it stands, so a
+// concurrent write is re-checked by the update itself.
 export const retireKeywordAdmissions = async (now = new Date()) => {
+    const at = sql`${now.toISOString()}::timestamp`;
+    const q = catalogQueries;
+    const noLease = sql`(${q.activeUntil} is null or ${q.activeUntil} <= ${at})`;
+    const leaseExpired = sql`(${q.admissionReason} = 'researchLease' and ${q.activeUntil} <= ${at})`;
+    const probationOver = sql`(${q.tier} = 'probation' and ${q.probationUntil} <= ${at} and not coalesce(${leaseExpired}, false))`;
+    const drop = sql`(${probationOver} and ${q.merchObservedAt} is null and ${noLease})`;
+    const demote = sql`(${probationOver} and ${q.merchObservedAt} is not null)`;
+    const inactive = sql`(not coalesce(${drop}, false) and ${noLease} and (${q.lastRequestedAt} is null or ${q.lastRequestedAt} <= ${new Date(now.getTime() - 90 * KEYWORD_DAY_MS).toISOString()}::timestamp))`;
+    const stored = sql`coalesce(${drop} or ${inactive}, false)`;
+    const cold = sql`coalesce(${leaseExpired} or ${demote}, false)`;
     await db.transaction(async tx => {
         await lockKeywordScheduling(tx);
         await tx
-            .update(catalogQueries)
+            .update(q)
             .set({
-                tier: 'cold',
-                intervalDays: 30,
-                nextDueAt: now,
-                admissionReason: 'leaseExpired',
+                tier: sql`case when ${stored} then 'stored' when ${cold} then 'cold' else ${q.tier} end`,
+                intervalDays: sql`case when ${cold} then 30 else ${q.intervalDays} end`,
+                nextDueAt: sql`case when ${stored} then null when ${cold} then ${at} else ${q.nextDueAt} end`,
+                admissionReason: sql`case when coalesce(${inactive}, false) then 'inactive'
+                    when coalesce(${drop}, false) then 'probationExpired'
+                    when coalesce(${leaseExpired}, false) then 'leaseExpired'
+                    else ${q.admissionReason} end`,
                 updatedAt: now,
             })
-            .where(
-                and(
-                    eq(catalogQueries.admissionReason, 'researchLease'),
-                    lte(catalogQueries.activeUntil, now)
-                )
-            );
-
-        await tx
-            .update(catalogQueries)
-            .set({
-                tier: 'stored',
-                admissionReason: 'probationExpired',
-                nextDueAt: null,
-                updatedAt: now,
-            })
-            .where(
-                and(
-                    eq(catalogQueries.tier, 'probation'),
-                    lte(catalogQueries.probationUntil, now),
-                    isNull(catalogQueries.merchObservedAt),
-                    or(isNull(catalogQueries.activeUntil), lte(catalogQueries.activeUntil, now))
-                )
-            );
-        await tx
-            .update(catalogQueries)
-            .set({ tier: 'cold', intervalDays: 30, nextDueAt: now, updatedAt: now })
-            .where(
-                and(
-                    eq(catalogQueries.tier, 'probation'),
-                    lte(catalogQueries.probationUntil, now),
-                    sql`${catalogQueries.merchObservedAt} is not null`
-                )
-            );
-        await tx
-            .update(catalogQueries)
-            .set({ tier: 'stored', admissionReason: 'inactive', nextDueAt: null, updatedAt: now })
-            .where(
-                and(
-                    sql`${catalogQueries.tier} <> 'stored'`,
-                    or(isNull(catalogQueries.activeUntil), lte(catalogQueries.activeUntil, now)),
-                    or(
-                        isNull(catalogQueries.lastRequestedAt),
-                        lte(
-                            catalogQueries.lastRequestedAt,
-                            new Date(now.getTime() - 90 * KEYWORD_DAY_MS)
-                        )
-                    )
-                )
-            );
+            .where(and(scheduledKeyword, sql`(${stored} or ${cold})`));
     });
 };
 
@@ -176,7 +135,7 @@ export const listScheduledKeywordHeads = async (now = new Date(), limit = 20) =>
         .from(catalogQueries)
         .where(
             and(
-                sql`${catalogQueries.tier} <> 'stored'`,
+                scheduledKeyword,
                 lte(catalogQueries.nextDueAt, now),
                 or(
                     isNull(catalogQueries.nextRefreshAttemptAt),

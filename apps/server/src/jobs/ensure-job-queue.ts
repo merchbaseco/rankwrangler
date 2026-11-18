@@ -15,11 +15,13 @@ const pgBossSchema = 'pgboss';
 // queues hold real work and are never recreated here. A failed recreation is logged with its cause
 // and leaves the queue as it was; startup continues on the old policy.
 export const ensureJobQueue = async (boss: PgBoss, definition: QueueDefinition) => {
-    const { jobName, queueOptions, schedule } = definition;
+    const { jobName, schedule } = definition;
+    const queueOptions = { deleteAfterSeconds: JOB_RETENTION_SECONDS, ...definition.queueOptions };
     await boss.createQueue(jobName, queueOptions);
+    const current = await ensureJobRetention(boss, jobName, queueOptions.deleteAfterSeconds);
     if (!schedule) return;
     const declared = queueOptions.policy ?? 'standard';
-    const stored = (await boss.getQueue(jobName))?.policy;
+    const stored = current?.policy;
     if (stored === declared) return;
     console.log(`[Jobs] Recreating ${jobName} queue: policy ${stored} -> ${declared}`);
     try {
@@ -36,6 +38,28 @@ export const ensureJobQueue = async (boss: PgBoss, definition: QueueDefinition) 
     const recreated = (await boss.getQueue(jobName))?.policy;
     if (recreated !== declared)
         console.error(`[Jobs] ${jobName} queue still has policy ${recreated}, not ${declared}`);
+};
+
+/**
+ * How long pg-boss keeps a finished job row. pg-boss defaults to seven days, which at the keyword
+ * scan rate is over half a million rows that its once-a-minute monitor scans; run history lives in
+ * job_executions, so a day is enough to inspect a recent failure.
+ */
+export const JOB_RETENTION_SECONDS = 86_400;
+
+/**
+ * Applies a retention to an existing queue: `createQueue` keeps the stored one. Each job copies its
+ * queue's retention when sent, so rows sent earlier keep theirs until they expire.
+ */
+export const ensureJobRetention = async (
+    boss: PgBoss,
+    name: string,
+    deleteAfterSeconds = JOB_RETENTION_SECONDS
+) => {
+    const queue = await boss.getQueue(name);
+    if (!queue || queue.deleteAfterSeconds === deleteAfterSeconds) return queue;
+    await boss.updateQueue(name, { deleteAfterSeconds });
+    return { ...queue, deleteAfterSeconds };
 };
 
 // `PgBoss.deleteQueue` discards every error, so recreation runs pg-boss's own `delete_queue` and

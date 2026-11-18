@@ -47,7 +47,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Access projection aliases share a user with its canonical grant; migrations
 -- preserve issuer-and-subject uniqueness rather than one-row-per-user uniqueness.
 -- Key tables: access_projection, rankwrangler_service_accounts, products
--- (includes source-aware SP-API/Keepa freshness, Keepa metrics, and
+-- (includes source-aware SP-API/Keepa freshness, Keepa metrics, due-at expression indexes the
+-- SP-API and Keepa refresh listings read, and
 -- products.is_merch_listing, a NOT NULL boolean defaulting to false that the latest decided
 -- observation overwrites, and products.amazon_listing_status, whether the Amazon listing is
 -- active or deleted),
@@ -58,10 +59,12 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- keepa_categories,
 --
 -- operations, event_logs, job_executions, job_execution_logs, provider_attempts
--- catalog_queries (keyword admission, tiers, demand, due dates and research leases),
+-- catalog_queries (keyword admission, tiers, demand, due dates and research leases; partial
+-- indexes over admitted and requested keywords),
 -- keyword_products, keyword_exploration_passes (scoped discovery target and fenced claim),
 -- keyword_discovery_attempts (page requests and yield), discovery_targets (with scan_due_at and
--- scan_depth, derived from the latest pass for the scheduler's due-scan index), keyword_directory
+-- scan_depth, derived from the latest pass for the scheduler's due-scan index, and autocompleted,
+-- set when the one-time autocomplete expansion completes), keyword_directory
 -- (one narrow derived row per keyword target with stage, schedule, latest-pass state and measures
 -- that the Keywords directory scans),
 -- keyword_standing_observations (score history per standing observation), discovery_evidence,

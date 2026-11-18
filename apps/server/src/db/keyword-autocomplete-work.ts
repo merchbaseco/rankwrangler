@@ -8,14 +8,18 @@ import { catalogQueries } from './catalog-search-schema';
 import { discoveryTargets } from './discovery-target-schema';
 import { keywordAutocomplete as expansion } from './keyword-autocomplete-schema';
 import { recordDiscoveryCandidates } from './discovery-candidates';
+import { listDueAutocomplete } from './keyword-work-due';
 import { normalizeDiscoveryKeyword } from '@/services/discovery-candidate-policy';
 import { keywordRetryAt } from '@/services/keyword-collection-policy';
 
-// Claims a tracked seed whose one-time expansion is due. With a queryId, only that seed.
-export const claimKeywordAutocomplete = async (now = new Date(), queryId?: string) =>
+// Claims a tracked seed whose one-time expansion is due. With a queryId, only that seed;
+// without one, the first seed listDueAutocomplete offers.
+export const claimKeywordAutocomplete = async (now = new Date(), requested?: string) =>
     db.transaction(async tx => {
         if (await isAutomaticSyncPaused(tx)) return null;
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext('keyword-autocomplete'))`);
+        const queryId = requested ?? (await listDueAutocomplete(now, 1, tx))[0]?.id;
+        if (!queryId) return null;
         const [seed] = await tx
             .select({
                 queryId: catalogQueries.id,
@@ -31,16 +35,11 @@ export const claimKeywordAutocomplete = async (now = new Date(), queryId?: strin
                     eq(discoveryTargets.kind, 'keyword'),
                     eq(discoveryTargets.enabled, true),
                     eq(discoveryTargets.tracking, 'tracked'),
-                    queryId ? eq(catalogQueries.id, queryId) : undefined,
+                    eq(catalogQueries.id, queryId),
                     sql`(${expansion.queryId} is null or (${expansion.stage}<>'complete'
                 and ${expansion.nextDueAt}<=${now.toISOString()}::timestamp
                 and (${expansion.claimAt} is null or ${expansion.claimAt}<${new Date(now.getTime() - 300_000).toISOString()}::timestamp)))`
                 )
-            )
-            .orderBy(
-                sql`${expansion.nextDueAt} asc nulls last`,
-                sql`${discoveryTargets.popularityScore} desc nulls last`,
-                catalogQueries.id
             )
             .limit(1);
         if (!seed) return null;
@@ -90,6 +89,15 @@ export const finishKeywordAutocomplete = async (
                 },
             }))
         );
+        await tx
+            .update(discoveryTargets)
+            .set({ autocompleted: true })
+            .where(
+                and(
+                    eq(discoveryTargets.queryId, work.queryId),
+                    eq(discoveryTargets.kind, 'keyword')
+                )
+            );
         await tx
             .update(expansion)
             .set({

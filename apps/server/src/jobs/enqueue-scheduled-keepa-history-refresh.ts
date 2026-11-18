@@ -72,12 +72,13 @@ export const enqueueScheduledKeepaHistoryRefresh = async (
 export const enqueueScheduledKeepaHistoryRefreshJob = defineJob(
     'enqueue-scheduled-keepa-history-refresh',
     {
-        startupSummary:
-            'every 5 min top-up of tier-due Products to ~30 min of refill',
+        startupSummary: 'every 5 min top-up of tier-due Products to ~30 min of refill',
         persistSuccess: 'always',
     }
 )
     .input(z.record(z.string(), z.unknown()))
+    // One tick queued or running: ticks sent during a slow run are dropped, not stacked.
+    .queue({ policy: 'exclusive' })
     .options({
         singletonKey: 'enqueue-scheduled-keepa-history-refresh',
     })

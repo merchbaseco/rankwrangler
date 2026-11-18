@@ -38,9 +38,8 @@ export const refreshKeywordStandings = async (now = new Date()) =>
             .innerJoin(catalogQueries, eq(catalogQueries.id, discoveryTargets.queryId))
             .where(
                 and(
-                    eq(discoveryTargets.kind, 'keyword'),
-                    eq(discoveryTargets.enabled, true),
-                    sql`${discoveryTargets.headObservedAt} is not null`,
+                    // Literal, to match discovery_targets_keyword_cursor_idx.
+                    sql`${discoveryTargets.kind} = 'keyword' and ${discoveryTargets.enabled} and ${discoveryTargets.headObservedAt} is not null`,
                     scan.cursorCreatedAt && scan.cursorProductId
                         ? sql`(${discoveryTargets.createdAt},${discoveryTargets.id})>(${scan.cursorCreatedAt.toISOString()}::timestamp,${scan.cursorProductId}::uuid)`
                         : undefined

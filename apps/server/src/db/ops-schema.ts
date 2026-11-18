@@ -118,10 +118,8 @@ export const jobExecutions = pgTable(
             table.jobName,
             table.startedAt
         ),
-        statusStartedAtIdx: index('job_executions_status_started_at_idx').on(
-            table.status,
-            table.startedAt
-        ),
+        // Retention deletes the oldest runs by start time.
+        startedAtIdx: index('job_executions_started_at_idx').on(table.startedAt),
     })
 );
 

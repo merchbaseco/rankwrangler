@@ -16,11 +16,7 @@ export type ProcessProductFacetClassificationResult = {
     processedCount: number;
     successCount: number;
     failedCount: number;
-    reason:
-        | 'processed'
-        | 'no_pending_products'
-        | 'model_not_configured'
-        | 'disabled';
+    reason: 'processed' | 'no_pending_products' | 'model_not_configured' | 'disabled';
 };
 
 export const processProductFacetClassification = async () => {
@@ -44,9 +40,7 @@ export const processProductFacetClassification = async () => {
         } satisfies ProcessProductFacetClassificationResult;
     }
 
-    const pendingProducts = await getPendingProducts(
-        PRODUCT_FACET_CLASSIFICATION_BATCH_SIZE
-    );
+    const pendingProducts = await getPendingProducts(PRODUCT_FACET_CLASSIFICATION_BATCH_SIZE);
     if (pendingProducts.length === 0) {
         return {
             didWork: false,
@@ -97,6 +91,8 @@ export const processProductFacetClassificationJob = defineJob(
     { persistSuccess: 'didWork' }
 )
     .input(z.record(z.string(), z.unknown()))
+    // One tick queued or running: ticks sent during a slow run are dropped, not stacked.
+    .queue({ policy: 'exclusive' })
     .options({
         singletonKey: 'process-product-facet-classification',
         retryLimit: 0,

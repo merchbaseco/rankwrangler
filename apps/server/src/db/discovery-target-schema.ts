@@ -54,6 +54,10 @@ export const discoveryTargets = pgTable(
         // the latest pass and next_check_at by syncKeywordTargets for the scheduler's index.
         scanDueAt: timestamp('scan_due_at', { mode: 'date' }).notNull().defaultNow(),
         scanDepth: boolean('scan_depth').notNull().default(false),
+        // Whether the query's one-time autocomplete expansion has completed. Set when it completes,
+        // so the seeds still to expand are found from an index rather than a join over every
+        // tracked keyword. keyword_autocomplete stays the record; see listDueAutocomplete.
+        autocompleted: boolean('autocompleted').notNull().default(false),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
     },
     table => ({
@@ -66,6 +70,19 @@ export const discoveryTargets = pgTable(
         scanDue: index('discovery_targets_scan_due_idx')
             .on(table.scanDepth, table.scanDueAt)
             .where(sql`${table.enabled}`),
+        // Creation-order cursors: the standing refresh (enabled, observed) and the prefix backfill
+        // (tracked) page keyword targets by (created_at, id).
+        keywordCursor: index('discovery_targets_keyword_cursor_idx')
+            .on(table.createdAt, table.id)
+            .where(
+                sql`${table.kind} = 'keyword' and (${table.tracking} = 'tracked' or (${table.enabled} and ${table.headObservedAt} is not null))`
+            ),
+        // Tracked seeds not yet expanded, most popular first.
+        autocompleteDue: index('discovery_targets_autocomplete_due_idx')
+            .on(table.popularityScore.desc().nullsLast(), table.queryId)
+            .where(
+                sql`${table.kind} = 'keyword' and ${table.enabled} and ${table.tracking} = 'tracked' and not ${table.autocompleted}`
+            ),
         shape: check(
             'discovery_targets_shape_check',
             sql`

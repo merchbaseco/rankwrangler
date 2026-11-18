@@ -6,7 +6,7 @@ import { products } from '@/db/schema';
 import { admitProductHistory } from '@/services/product-history-admission';
 import { getHistoryAdmissionOverload } from '@/services/product-history-overload';
 import { shouldKeepaHistoryRefreshAsin } from '@/services/product-history-eligibility';
-import { buildSpApiBlindspotRefreshCondition } from '@/services/spapi-blindspot-selection';
+import { listDueSpApiBlindspots } from '@/services/spapi-refresh-selection';
 
 const market = 'ATVPDKIKX0DER';
 const now = new Date('2026-10-23T12:00:00Z');
@@ -115,12 +115,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         });
         await insert('B000000007', { isMerchListing: false, spApiFetchedAt: null });
         await insert('B000000008', { isMerchListing: false, spApiFetchedAt: daysAgo(60) });
-        const rows = await db
-            .select({ asin: products.asin })
-            .from(products)
-            .where(buildSpApiBlindspotRefreshCondition(now))
-            .orderBy(products.asin);
-        expect(rows.map(row => row.asin)).toEqual(['B000000001', 'B000000005', 'B000000007']);
+        const rows = await listDueSpApiBlindspots(now);
+        expect(rows.map(row => row.asin).sort()).toEqual([
+            'B000000001',
+            'B000000005',
+            'B000000007',
+        ]);
     });
 });
 

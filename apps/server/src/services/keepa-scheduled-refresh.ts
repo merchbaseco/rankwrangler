@@ -1,17 +1,12 @@
 import { count, lte, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { keepaCapacityState } from '@/db/keepa-capacity-schema';
-import { keepaHistoryRefreshQueue } from '@/db/schema';
+import { keepaHistoryRefreshQueue, products } from '@/db/schema';
+import { keepaRefreshDueAt, keepaRefreshTracked } from '@/db/product-refresh-due';
 import { KEEPA_DISPATCH_HOLD_MS } from '@/services/keepa-history-refresh';
 import {
-    KEEPA_DAILY_AUTO_BSR_THRESHOLD,
-    KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_REFRESH_QUEUE_FALLBACK_TARGET,
     KEEPA_REFRESH_QUEUE_TARGET_MINUTES,
-    KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD,
-    KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
-    KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
-    KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
 } from '@/services/keepa-refresh-policy';
 
 export type KeepaScheduledRefreshCandidate = {
@@ -19,69 +14,39 @@ export type KeepaScheduledRefreshCandidate = {
     asin: string;
 };
 
-/** Admitted Merch Products whose BSR tier makes them due, best BSR first. */
+/**
+ * Admitted Merch Products whose BSR tier makes them due, best BSR first. The due-at expression
+ * index (`products_keepa_refresh_due_idx`, see product-refresh-due) yields only due rows, so fresh
+ * Products are never read; the sort covers the due set alone, a few dozen rows between runs.
+ */
 export const getKeepaScheduledRefreshCandidates = async ({
     limit,
+    now = new Date(),
 }: {
     limit: number;
+    now?: Date;
 }): Promise<KeepaScheduledRefreshCandidate[]> => {
     if (limit <= 0) {
         return [];
     }
 
-    const rows = await db.execute<KeepaScheduledRefreshCandidate>(sql`
-        SELECT
-            p.marketplace_id AS "marketplaceId",
-            p.asin AS "asin"
-        FROM products p
-        WHERE p.is_merch_listing = true
-          AND p.amazon_listing_status = 'active'
-          AND p.history_admission_state = 'admitted'
-          AND p.root_category_bsr IS NOT NULL
-          AND NOT EXISTS (
-            SELECT 1
-            FROM keepa_history_refresh_queue q
-            WHERE q.marketplace_id = p.marketplace_id
-              AND q.asin = p.asin
-          )
-          AND (
-            (
-                p.root_category_bsr < ${KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD}
-                AND (
-                    p.keepa_fetched_at IS NULL
-                    OR p.keepa_fetched_at <= now() - (
-                        ${KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
-                    )
-                )
-            )
-            OR
-            (
-                p.root_category_bsr >= ${KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD}
-                AND p.root_category_bsr < ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
-                AND (
-                    p.keepa_fetched_at IS NULL
-                    OR p.keepa_fetched_at <= now() - (
-                        ${KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
-                    )
-                )
-            )
-            OR
-            (
-                p.root_category_bsr >= ${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
-                AND p.root_category_bsr < ${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}
-                AND (
-                    p.keepa_fetched_at IS NULL
-                    OR p.keepa_fetched_at <= now() - (
-                        ${KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS} * interval '1 millisecond'
-                    )
-                )
-            )
-          )
-        ORDER BY p.root_category_bsr ASC, p.created_at ASC
-        LIMIT ${limit}
-    `);
-
-    return rows;
+    // Materialized so the due set is read from its index first; ordering the whole query by BSR
+    // would invite a walk of the BSR range filtering out every fresh Product.
+    return await db.execute<KeepaScheduledRefreshCandidate>(sql`
+        with due as materialized (
+            select ${products.marketplaceId} "marketplaceId", ${products.asin} asin,
+                ${products.rootCategoryBsr} bsr, ${products.createdAt} created_at
+            from ${products}
+            where ${keepaRefreshTracked(products)}
+                and ${keepaRefreshDueAt(products)} <= ${now.toISOString()}::timestamp
+        )
+        select "marketplaceId", asin from due
+        where not exists (
+            select 1 from ${keepaHistoryRefreshQueue} q
+            where q.marketplace_id = due."marketplaceId" and q.asin = due.asin
+        )
+        order by bsr, created_at
+        limit ${limit}`);
 };
 
 /** How much work the scheduled top-up keeps queued: about half an hour of the plan's refill. */

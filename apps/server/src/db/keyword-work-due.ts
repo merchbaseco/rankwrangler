@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm';
 import { db } from './index';
 
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 // Read-only lists of keyword-pipeline entities whose next step is due. The scheduler enqueues them;
 // each job then re-checks and claims its entity, so a stale list never duplicates durable work.
 const lease = sql`interval '5 minutes'`;
@@ -15,18 +17,22 @@ export const listDueKeywordScans = async (now: Date, limit: number) => {
     return [...heads, ...depth];
 };
 
-// Tracked seeds whose one-time autocomplete expansion has not completed.
-export const listDueAutocomplete = async (now: Date, limit: number) =>
-    db.execute<{ id: string }>(sql`
-        select q.id from catalog_queries q
-        join discovery_targets t on t.query_id=q.id
-        left join keyword_autocomplete a on a.query_id=q.id
-        where q.marketplace_id='ATVPDKIKX0DER' and t.kind='keyword' and t.enabled and t.tracking='tracked'
-            and (a.query_id is null or a.stage<>'complete')
-            and (a.query_id is null or (a.next_due_at<=${now.toISOString()}::timestamp
-                and (a.claim_at is null or a.claim_at<=${now.toISOString()}::timestamp-${lease})))
-        order by a.next_due_at asc nulls last, t.popularity_score desc nulls last, q.id
-        limit ${limit}`);
+// Tracked seeds whose one-time autocomplete expansion has not completed. Seeds with a pending
+// expansion come first (a retry or deferral, oldest due first, unclaimed), from the
+// `keyword_autocomplete_due_idx`; seeds never attempted fill the rest, most popular first, from
+// `discovery_targets_autocomplete_due_idx`. Either read touches only the rows it returns.
+export const listDueAutocomplete = async (
+    now: Date,
+    limit: number,
+    executor: Pick<Transaction, 'execute'> = db
+) => {
+    const pending = await listPendingAutocomplete(executor, now, limit);
+    const fresh =
+        pending.length < limit
+            ? await listUnattemptedAutocomplete(executor, limit - pending.length)
+            : [];
+    return [...pending, ...fresh];
+};
 
 // Keyword prefixes whose one-time autocomplete expansion has not completed.
 export const listDuePrefixAutocomplete = async (now: Date, limit: number) =>
@@ -48,4 +54,26 @@ const listDue = (now: Date, depth: boolean, limit: number) =>
                 and ba.normalized_term=q.normalized_term
             where q.id=t.query_id
         ) nulls last,t.id
+        limit ${limit}`);
+
+const listPendingAutocomplete = (
+    executor: Pick<Transaction, 'execute'>,
+    now: Date,
+    limit: number
+) =>
+    executor.execute<{ id: string }>(sql`
+        select a.query_id id from keyword_autocomplete a
+        join discovery_targets t on t.query_id=a.query_id and t.kind='keyword'
+        where a.stage<>'complete' and a.next_due_at<=${now.toISOString()}::timestamp
+            and (a.claim_at is null or a.claim_at<=${now.toISOString()}::timestamp-${lease})
+            and t.enabled and t.tracking='tracked'
+        order by a.next_due_at, t.popularity_score desc nulls last, a.query_id
+        limit ${limit}`);
+
+const listUnattemptedAutocomplete = (executor: Pick<Transaction, 'execute'>, limit: number) =>
+    executor.execute<{ id: string }>(sql`
+        select t.query_id id from discovery_targets t
+        where t.kind='keyword' and t.enabled and t.tracking='tracked' and not t.autocompleted
+            and not exists (select 1 from keyword_autocomplete a where a.query_id=t.query_id)
+        order by t.popularity_score desc nulls last, t.query_id
         limit ${limit}`);

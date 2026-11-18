@@ -50,6 +50,14 @@ export const catalogQueries = pgTable(
             table.nextRefreshAttemptAt,
             table.latestSuccessfulRunAt
         ),
+        // Admitted keywords only (see keyword-scheduled-load): the minute scheduler reads these.
+        scheduledIdx: index('catalog_queries_scheduled_idx')
+            .on(table.nextDueAt)
+            .where(sql`${table.tier} <> 'stored'`),
+        // Keywords someone has asked for: the admission candidate read starts here.
+        requestedIdx: index('catalog_queries_requested_idx')
+            .on(table.lastRequestedAt)
+            .where(sql`${table.lastRequestedAt} is not null`),
         v1IdentityCheck: check(
             'catalog_queries_v1_identity_check',
             sql`${table.source} = 'keepa' AND ${table.marketplaceId} = 'ATVPDKIKX0DER'`

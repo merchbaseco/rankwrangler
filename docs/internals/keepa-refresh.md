@@ -44,8 +44,10 @@ Every five minutes the scheduled scan tops `keepa_history_refresh_queue` up to a
 of refill (`KEEPA_REFRESH_QUEUE_TARGET_MINUTES` × the observed refill rate, 600 when unknown),
 counting what is already queued, with tier-due Products, best BSR first. Only due Products are
 queued: refill left over once due work is done expires unspent rather than refreshing Products
-early. The read takes BSR and `keepaFetchedAt` directly from Products and excludes work already
-queued. The queue is unique by marketplace and ASIN.
+early. The read takes the due set from `products_keepa_refresh_due_idx`, a partial expression index
+over admitted active Merch Products under 1M BSR keyed by `keepaFetchedAt` plus the tier's interval
+(see `product-refresh-due.ts`), so fresh Products are never read; it then excludes work already
+queued and sorts the due set by BSR. The queue is unique by marketplace and ASIN.
 
 ## Dispatch And Retry
 

@@ -4,7 +4,6 @@ import { assertDevCloudflareAccessTarget } from '@merchbaseco/access/dev';
 import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
 import Fastify from 'fastify';
-import { PgBoss } from 'pg-boss';
 import { createContext } from '@/api/context.js';
 import { registerHealthRoutes } from '@/api/health-routes.js';
 import { registerInteractiveRequests } from '@/api/interactive-requests';
@@ -29,6 +28,7 @@ import {
 import { syncOfficialBrandRegistry } from '@/db/official-brand-registry';
 import { closeRealtimeConnection } from '@/db/realtime-connection';
 import { startCatalogSearchInProcess } from '@/jobs/catalog-search';
+import { createJobBoss, JOB_BOSS_POOL_SIZE } from '@/jobs/create-job-boss';
 import { prepareJobQueues, startJobs } from '@/jobs/index.js';
 import { registerRankWranglerMcp } from '@/mcp/register';
 import { registerInternalRouteBoundary } from '@/services/access/internal-access';
@@ -103,16 +103,15 @@ const startServer = async () => {
     });
     configureRankWranglerAccess(rankwranglerAccess);
 
-    const databaseUrl = buildDatabaseUrl();
     const serverRuntimeFlags = getServerRuntimeFlags({
         disableServerJobRunner: env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER,
     });
-    const boss = new PgBoss({ connectionString: databaseUrl });
+    const boss = createJobBoss();
     // pg-boss re-emits pool and maintenance failures; unheard, one refused connection ends
     // the process.
     boss.on('error', error => console.error('[pg-boss] Error:', error));
     await boss.start();
-    console.log('[Server] pg-boss initialized');
+    console.log(`[Server] pg-boss initialized (pool ${JOB_BOSS_POOL_SIZE})`);
     registerSpApiSyncQueueWakeups(boss);
     registerProductHistoryOperationWakeups(boss);
     registerCatalogSearchWakeups(boss);

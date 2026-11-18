@@ -7,6 +7,8 @@ export const collectDueCatalogQueriesJob = defineJob('collect-due-catalog-querie
     startupSummary: 'minute scan for admitted keyword heads and bounded discovery',
 })
     .input(z.object({}))
+    // One tick queued or running: ticks sent during a slow run are dropped, not stacked.
+    .queue({ policy: 'exclusive' })
     .options({
         singletonKey: 'collect-due-catalog-queries',
         retryLimit: 0,

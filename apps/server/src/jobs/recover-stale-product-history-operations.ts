@@ -10,6 +10,8 @@ export const recoverStaleProductHistoryOperationsJob = defineJob(
     }
 )
     .input(z.object({}))
+    // One tick queued or running: ticks sent during a slow run are dropped, not stacked.
+    .queue({ policy: 'exclusive' })
     .options({
         singletonKey: 'recover-stale-product-history-operations',
         retryLimit: 0,

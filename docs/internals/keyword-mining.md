@@ -117,8 +117,15 @@ KEYWORD suggestions are kept, including pluralization and inserted words; the se
 duplicates are excluded, and stray trailing commas are stripped.
 
 Suggestions become trials directly, with `autocomplete` evidence naming the seed, in the same
-transaction that saves them on `keyword_autocomplete` and completes the seed. The first-page check
-decides each one. Completed seeds are never expanded again, and new trials are not recursive seeds.
+transaction that saves them on `keyword_autocomplete` and completes the seed (and sets the target's
+`autocompleted`). The first-page check decides each one. Completed seeds are never expanded again,
+and new trials are not recursive seeds.
+
+Due seeds are listed in two index reads: pending expansions whose retry is due and unclaimed,
+oldest due first (`keyword_autocomplete_due_idx`), then tracked keywords never attempted, most
+popular first (`discovery_targets_autocomplete_due_idx`, over enabled tracked targets not yet
+`autocompleted`). `autocompleted` is derived, not owned: it only lets the second read skip expanded
+seeds, which it also excludes by their `keyword_autocomplete` row.
 
 Autocomplete has durable pacing in `keyword_mining_capacity` (the table keeps its earlier name):
 ten seconds between starts at base; each 429 or 5xx doubles the spacing (to at most fifteen
@@ -166,7 +173,8 @@ stationery), or null.
 registered in the same transaction that makes a keyword tracked: a trial graduating on its first
 page, or user interest tracking it. Keywords tracked before prefixes existed are backfilled by the
 keyword scheduler, 2,000 tracked targets per minute by a creation-order cursor (`discovery_source_scans`
-key `keyword-prefixes`); once caught up it looks again daily. The backfill is database-only and runs
+key `keyword-prefixes`); once caught up it looks again daily. This cursor and the standing refresh's
+both read `discovery_targets_keyword_cursor_idx` on `(created_at, id)`. The backfill is database-only and runs
 even while sync is paused.
 
 ### Prefix autocomplete

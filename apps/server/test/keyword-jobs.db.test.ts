@@ -6,6 +6,7 @@ import { brandAnalyticsSearchTerms } from '@/db/brand-analytics-schema';
 import { registerBrandAnalyticsTrials } from '@/db/brand-analytics-trials';
 import { claimKeywordExploration } from '@/db/discovery-work';
 import { discoveryEvidence, discoveryTargets } from '@/db/discovery-target-schema';
+import { countQueuedJobs } from '@/db/job-queue-status';
 import { listDueKeywordScans } from '@/db/keyword-work-due';
 import { prepareJobQueues } from '@/jobs/index';
 import { keywordQueues } from '@/jobs/keyword-job-queues';
@@ -73,7 +74,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('keyword pipeline j
             await seedDiscoveryTarget({ kind: 'keyword', term: 'fishing shirt' }, new Date());
             await addTerm('nurse shirt', 10);
             const queues = {
-                queued: async (name: string) => (await boss.getQueueStats(name)).queuedCount,
+                queued: countQueuedJobs,
                 insert: async (name: string, jobs: Parameters<typeof boss.insert>[1]) =>
                     jobs.length
                         ? ((await boss.insert(name, jobs, { returnId: true }))?.length ?? 0)

@@ -3,7 +3,6 @@ import { db } from '@/db/index.js';
 import { jobExecutions, keepaHistoryRefreshQueue } from '@/db/schema.js';
 import { KEEPA_HISTORY_BATCH_JOB_NAME } from '@/jobs/fetch-keepa-history-batch';
 
-
 type KeepaLogInput = {
     queueLimit: number;
     processedLimit: number;
@@ -77,7 +76,8 @@ export const getKeepaLogSnapshot = async ({
             })
             .from(jobExecutions)
             .where(eq(jobExecutions.jobName, KEEPA_HISTORY_BATCH_JOB_NAME))
-            .orderBy(desc(jobExecutions.finishedAt))
+            // Newest first by start, the order of job_executions_job_name_started_at_idx.
+            .orderBy(desc(jobExecutions.startedAt))
             .limit(processedLimit),
     ]);
 
@@ -107,8 +107,7 @@ export const getKeepaLogSnapshot = async ({
                 asin: payload?.asin ?? null,
                 startedAt: execution.startedAt.toISOString(),
                 finishedAt: execution.finishedAt.toISOString(),
-                durationMs:
-                    execution.finishedAt.getTime() - execution.startedAt.getTime(),
+                durationMs: execution.finishedAt.getTime() - execution.startedAt.getTime(),
                 errorMessage: execution.errorMessage,
             };
         }),
@@ -117,7 +116,11 @@ export const getKeepaLogSnapshot = async ({
 
 // One run is one Keepa request; a batch of several products is labelled by its size.
 const getKeepaJobPayload = (input: unknown) => {
-    if (!isRecord(input) || typeof input.marketplaceId !== 'string' || !Array.isArray(input.asins)) {
+    if (
+        !isRecord(input) ||
+        typeof input.marketplaceId !== 'string' ||
+        !Array.isArray(input.asins)
+    ) {
         return null;
     }
     const asins = input.asins.filter((asin): asin is string => typeof asin === 'string');

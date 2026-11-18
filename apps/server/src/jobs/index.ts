@@ -11,6 +11,7 @@ import { catalogSearchJob } from '@/jobs/catalog-search';
 import { collectDueCatalogQueriesJob } from '@/jobs/collect-due-catalog-queries';
 import { enqueueScheduledKeepaHistoryRefreshJob } from '@/jobs/enqueue-scheduled-keepa-history-refresh.js';
 import { fetchKeepaHistoryBatchJob } from '@/jobs/fetch-keepa-history-batch';
+import { ensureJobRetention, JOB_RETENTION_SECONDS } from '@/jobs/ensure-job-queue';
 import { startRegisteredJobs } from '@/jobs/job-router.js';
 import { processKeepaHistoryRefreshQueueJob } from '@/jobs/process-keepa-history-refresh-queue.js';
 import { processProductFacetClassificationJob } from '@/jobs/process-product-facet-classification.js';
@@ -56,7 +57,11 @@ const registeredJobs = [
 ];
 
 export const prepareJobQueues = async (boss: PgBoss) => {
-    for (const job of registeredJobs) await boss.createQueue(job.jobName, job.queueOptions);
+    for (const job of registeredJobs)
+        await boss.createQueue(job.jobName, {
+            deleteAfterSeconds: JOB_RETENTION_SECONDS,
+            ...job.queueOptions,
+        });
 };
 
 export const startJobs = async (boss: PgBoss) => {
@@ -69,6 +74,8 @@ export const startJobs = async (boss: PgBoss) => {
     await boss.unschedule('fetch-top-search-terms-dataset');
     await prepareJobQueues(boss);
     const runtime = await startRegisteredJobs(boss);
+    // pg-boss's own cron dispatch queue keeps one row per tick sent; same retention as ours.
+    await ensureJobRetention(boss, '__pgboss__send-it');
     // Count once now when nothing has been counted, rather than waiting for the first tick.
     return { ...runtime, productStatsStatus: await sendMissingProductStatsRefresh(boss) };
 };

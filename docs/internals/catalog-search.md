@@ -87,6 +87,10 @@ visible to callers or recovery and a concurrently completed reusable run does no
   twenty-four hours. Budget deferrals advance neither freshness nor failure counts.
 - Demotion requires two successful observations and fourteen days of grace. Unsupported probation
   ends after thirty days. Inactive terms retire after ninety days without interest.
+- The one-minute scheduler never reads the stored majority of Catalog queries: admitted keywords
+  (every tier but `stored`) come from `catalog_queries_scheduled_idx`, admission candidates from
+  `catalog_queries_requested_idx` and the lease index, and retirement is one statement over the
+  admitted rows. The daily-load forecast sums the admitted rows only.
 - Keepa observes the first page only. A live pilot showed page 1 repeats page 0 and charges again.
   SP-API acquisition uses real continuation tokens, one page per claim with due heads ahead of depth, independently
   of Keepa tier/admission. The former ten-per-term/twenty-global daily pilot caps are removed.

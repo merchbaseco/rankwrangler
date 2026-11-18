@@ -86,11 +86,12 @@ export async function processKeepaHistoryRefreshQueue(
     } satisfies ProcessKeepaHistoryRefreshQueueResult;
 }
 
-export const processKeepaHistoryRefreshQueueJob = defineJob(
-    'process-keepa-history-refresh-queue',
-    { persistSuccess: 'didWork' }
-)
+export const processKeepaHistoryRefreshQueueJob = defineJob('process-keepa-history-refresh-queue', {
+    persistSuccess: 'didWork',
+})
     .input(z.record(z.string(), z.unknown()))
+    // One tick queued or running: ticks sent during a slow run are dropped, not stacked.
+    .queue({ policy: 'exclusive' })
     .options({
         singletonKey: 'process-keepa-history-refresh-queue',
         retryLimit: 0,

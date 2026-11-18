@@ -1,12 +1,20 @@
 import { describe, expect, it, mock, spyOn } from 'bun:test';
 import type { PgBoss } from 'pg-boss';
-import { ensureJobQueue } from './ensure-job-queue';
+import { ensureJobQueue, JOB_RETENTION_SECONDS } from './ensure-job-queue';
 
 // Recreation itself runs against real pg-boss in test/ensure-job-queue.db.test.ts.
 describe('ensureJobQueue', () => {
     it('leaves a scheduled queue alone when its policy already matches', async () => {
         const boss = fakeBoss({ tick: 'standard' });
         await ensureJobQueue(boss.boss, { jobName: 'tick', queueOptions: {}, schedule: {} });
+        expect(boss.executeSql).not.toHaveBeenCalled();
+    });
+    it('shortens a stored retention to the declared one without recreating', async () => {
+        const boss = fakeBoss({ entity: 'standard' });
+        await ensureJobQueue(boss.boss, { jobName: 'entity', queueOptions: {} });
+        expect(boss.updateQueue).toHaveBeenCalledWith('entity', {
+            deleteAfterSeconds: JOB_RETENTION_SECONDS,
+        });
         expect(boss.executeSql).not.toHaveBeenCalled();
     });
     it('never recreates an unscheduled queue, which holds real work', async () => {
@@ -45,12 +53,15 @@ const fakeBoss = (stored: Record<string, string>, sqlError?: Error) => {
         if (sqlError) throw sqlError;
         return { rows: [] };
     });
+    const updateQueue = mock(async () => undefined);
     const boss = {
         createQueue: async (name: string, options: { policy?: string }) => {
             stored[name] ??= options.policy ?? 'standard';
         },
-        getQueue: async (name: string) => (name in stored ? { policy: stored[name] } : null),
+        getQueue: async (name: string) =>
+            name in stored ? { policy: stored[name], deleteAfterSeconds: 604_800 } : null,
+        updateQueue,
         getDb: () => ({ executeSql }),
     } as unknown as PgBoss;
-    return { boss, stored, executeSql };
+    return { boss, stored, executeSql, updateQueue };
 };

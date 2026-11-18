@@ -13,6 +13,14 @@ import {
 } from 'drizzle-orm/pg-core';
 import { KEEPA_WEEKLY_AUTO_BSR_THRESHOLD } from '@/services/keepa-refresh-policy';
 import type { AmazonListingStatus } from '@/types';
+import {
+    keepaRefreshDueAt,
+    keepaRefreshTracked,
+    spApiBlindspotDueAt,
+    spApiBlindspotTracked,
+    spApiRefreshDueAt,
+    spApiRefreshTracked,
+} from './product-refresh-due';
 import { productSearchDocument } from './product-search-document';
 
 export const products = pgTable(
@@ -127,6 +135,17 @@ export const products = pgTable(
                     AND ${table.amazonListingStatus} = 'active' AND ${table.isMerchListing}
                     AND ${table.rootCategoryBsr} < ${sql.raw(String(KEEPA_WEEKLY_AUTO_BSR_THRESHOLD))}`
             ),
+        // Due-at expression indexes (product-refresh-due): each refresh listing reads only due
+        // rows, most overdue first, however many Products are fresh.
+        spApiRefreshDueIdx: index('products_spapi_refresh_due_idx')
+            .on(spApiRefreshDueAt(table), table.id)
+            .where(spApiRefreshTracked(table)),
+        spApiBlindspotDueIdx: index('products_spapi_blindspot_due_idx')
+            .on(spApiBlindspotDueAt(table), table.createdAt, table.id)
+            .where(spApiBlindspotTracked(table)),
+        keepaRefreshDueIdx: index('products_keepa_refresh_due_idx')
+            .on(keepaRefreshDueAt(table))
+            .where(keepaRefreshTracked(table)),
         keepaRefreshCandidateIdx: index('products_keepa_refresh_candidate_idx').on(
             table.isMerchListing,
             table.rootCategoryBsr,

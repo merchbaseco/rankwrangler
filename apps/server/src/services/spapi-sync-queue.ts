@@ -16,27 +16,31 @@ export const registerSpApiSyncQueueWakeups = (boss: PgBoss) => {
     spApiSyncQueueBoss = boss;
 };
 
-export const enqueueSpApiSyncQueueItems = async (
-    queueItems: SpApiSyncQueueItem[]
-) => {
+export const enqueueSpApiSyncQueueItems = async (queueItems: SpApiSyncQueueItem[]) => {
     if (queueItems.length === 0) {
         return 0;
     }
 
-    const insertedItems = await db
-        .insert(spApiSyncQueue)
-        .values(queueItems)
-        .onConflictDoNothing()
-        .returning({
-            id: spApiSyncQueue.id,
-        });
+    // One statement per chunk keeps every insert far below Postgres's 65,535 bind parameters
+    // (two per row) however many items a caller passes.
+    let inserted = 0;
+    for (let start = 0; start < queueItems.length; start += INSERT_CHUNK) {
+        const rows = await db
+            .insert(spApiSyncQueue)
+            .values(queueItems.slice(start, start + INSERT_CHUNK))
+            .onConflictDoNothing()
+            .returning({ id: spApiSyncQueue.id });
+        inserted += rows.length;
+    }
 
-    if (insertedItems.length > 0) {
+    if (inserted > 0) {
         await sendProcessSpApiSyncQueueJob();
     }
 
-    return insertedItems.length;
+    return inserted;
 };
+
+const INSERT_CHUNK = 1000;
 
 export const enqueueSpApiSyncQueueItem = async (queueItem: SpApiSyncQueueItem) => {
     return await enqueueSpApiSyncQueueItems([queueItem]);
@@ -60,9 +64,5 @@ export const sendProcessSpApiSyncQueueJob = async ({
               retryLimit: 0,
           };
 
-    await spApiSyncQueueBoss.send(
-        SP_API_SYNC_QUEUE_JOB,
-        {},
-        sendOptions
-    );
+    await spApiSyncQueueBoss.send(SP_API_SYNC_QUEUE_JOB, {}, sendOptions);
 };

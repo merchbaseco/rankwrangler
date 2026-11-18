@@ -5,6 +5,7 @@ import { catalogQueries, catalogSearchResults, catalogSearchRuns } from './catal
 import type { db } from './index';
 import { products } from './product-schema';
 import { keywordProducts } from './keyword-collection-schema';
+import { readScheduledKeywordLoad } from './keyword-scheduled-load';
 import { nextKeywordObservation, type KeywordTier } from '@/services/keyword-collection-policy';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -99,14 +100,9 @@ export const acceptKeywordObservation = async (
         });
         if (query.tier !== 'stored' && schedule.intervalDays < query.intervalDays) {
             const capacity = await getKeepaAdmissionCapacity(transaction);
-            const [load] = capacity
-                ? await transaction
-                      .select({
-                          daily: sql<number>`coalesce(sum(${capacity.headCost}::numeric / greatest(${catalogQueries.intervalDays}, 1)), 0)::float`,
-                      })
-                      .from(catalogQueries)
-                      .where(sql`${catalogQueries.tier} <> 'stored'`)
-                : [];
+            const load = capacity
+                ? await readScheduledKeywordLoad(transaction, capacity.headCost)
+                : null;
             const extra = capacity
                 ? capacity.headCost / schedule.intervalDays - capacity.headCost / query.intervalDays
                 : Infinity;

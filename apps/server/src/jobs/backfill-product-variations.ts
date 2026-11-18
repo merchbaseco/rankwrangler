@@ -7,6 +7,8 @@ export const backfillProductVariationsJob = defineJob('backfill-product-variatio
     startupSummary: 'minute fold of unchecked Products into variation families (background SP-API)',
 })
     .input(z.object({}))
+    // One tick queued or running: ticks sent during a slow run are dropped, not stacked.
+    .queue({ policy: 'exclusive' })
     .options({ singletonKey: 'backfill-product-variations', retryLimit: 0 })
     .interval({ everyMs: 60 * 1000, payload: {} })
     .work(async () => await backfillProductVariations());

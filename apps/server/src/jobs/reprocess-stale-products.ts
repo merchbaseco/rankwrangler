@@ -1,26 +1,8 @@
-import { and, asc, gte, isNull, lt, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { db } from '@/db/index';
-import { products } from '@/db/schema';
 import { defineJob } from '@/jobs/job-router';
 import { createEventLogSafe } from '@/services/event-logs';
 import { getErrorMessage } from '@/services/job-executions-utils';
-import {
-    BSR_THRESHOLD_1M,
-    BSR_THRESHOLD_3M,
-    BSR_THRESHOLD_200K,
-    BSR_THRESHOLD_500K,
-    REFRESH_AFTER_3_DAYS_MS,
-    REFRESH_AFTER_7_DAYS_MS,
-    REFRESH_AFTER_14_DAYS_MS,
-    REFRESH_AFTER_24_HOURS_MS,
-    REFRESH_AFTER_30_DAYS_MS,
-} from '@/services/spapi-refresh-policy';
-import { buildAvailableMerchRefreshCondition } from '@/services/spapi-refresh-selection';
-import {
-    buildSpApiBlindspotRefreshCondition,
-    SPAPI_BLINDSPOT_SCAN_LIMIT,
-} from '@/services/spapi-blindspot-selection';
+import { listDueSpApiBlindspots, listDueSpApiRefreshes } from '@/services/spapi-refresh-selection';
 import { enqueueSpApiSyncQueueItems } from '@/services/spapi-sync-queue';
 
 export type ReprocessStaleProductsResult = {
@@ -34,58 +16,13 @@ const reprocessStaleProductsJobDeps = {
     createEventLogSafe,
 };
 
-export async function reprocessStaleProducts() {
-    const now = new Date();
-    const threshold24Hours = new Date(now.getTime() - REFRESH_AFTER_24_HOURS_MS);
-    const threshold3Days = new Date(now.getTime() - REFRESH_AFTER_3_DAYS_MS);
-    const threshold7Days = new Date(now.getTime() - REFRESH_AFTER_7_DAYS_MS);
-    const threshold14Days = new Date(now.getTime() - REFRESH_AFTER_14_DAYS_MS);
-    const threshold30Days = new Date(now.getTime() - REFRESH_AFTER_30_DAYS_MS);
-
-    const staleProducts = await db
-        .select({
-            marketplaceId: products.marketplaceId,
-            asin: products.asin,
-        })
-        .from(products)
-        .where(
-            buildAvailableMerchRefreshCondition(
-                or(
-                    isNull(products.spApiFetchedAt),
-                    and(
-                        lt(products.rootCategoryBsr, BSR_THRESHOLD_200K),
-                        lt(products.spApiFetchedAt, threshold24Hours)
-                    ),
-                    and(
-                        gte(products.rootCategoryBsr, BSR_THRESHOLD_200K),
-                        lt(products.rootCategoryBsr, BSR_THRESHOLD_500K),
-                        lt(products.spApiFetchedAt, threshold3Days)
-                    ),
-                    and(
-                        gte(products.rootCategoryBsr, BSR_THRESHOLD_500K),
-                        lt(products.rootCategoryBsr, BSR_THRESHOLD_1M),
-                        lt(products.spApiFetchedAt, threshold7Days)
-                    ),
-                    and(
-                        gte(products.rootCategoryBsr, BSR_THRESHOLD_1M),
-                        lt(products.rootCategoryBsr, BSR_THRESHOLD_3M),
-                        lt(products.spApiFetchedAt, threshold14Days)
-                    ),
-                    and(
-                        gte(products.rootCategoryBsr, BSR_THRESHOLD_3M),
-                        lt(products.spApiFetchedAt, threshold30Days)
-                    )
-                )
-            )
-        );
-
-    const blindspotProducts = await db
-        .select({ marketplaceId: products.marketplaceId, asin: products.asin })
-        .from(products)
-        .where(buildSpApiBlindspotRefreshCondition(now))
-        .orderBy(asc(products.spApiFetchedAt), asc(products.createdAt), asc(products.id))
-        .limit(SPAPI_BLINDSPOT_SCAN_LIMIT);
-    const dueProducts = [...staleProducts, ...blindspotProducts];
+// Both listings are bounded and index-backed (see product-refresh-due), so a long pause leaves a
+// backlog that drains over successive runs rather than one unbounded read and insert.
+export async function reprocessStaleProducts(now = new Date()) {
+    const dueProducts = [
+        ...(await listDueSpApiRefreshes(now)),
+        ...(await listDueSpApiBlindspots(now)),
+    ];
 
     if (dueProducts.length === 0) {
         return {

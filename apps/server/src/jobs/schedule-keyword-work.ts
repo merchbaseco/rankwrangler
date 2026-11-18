@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { countQueuedJobs } from '@/db/job-queue-status';
 import { scheduleKeywordWork } from '@/services/keyword-work-scheduler';
 import { defineJob } from './job-router';
 
@@ -15,7 +16,7 @@ export const scheduleKeywordWorkJob = defineJob('schedule-keyword-work', {
     .interval({ everyMs: 60_000, payload: {} })
     .work((_job, _signal, _log, { boss }) =>
         scheduleKeywordWork({
-            queued: async name => (await boss.getQueueStats(name)).queuedCount,
+            queued: countQueuedJobs,
             insert: async (name, jobs) =>
                 jobs.length
                     ? ((await boss.insert(name, jobs, { returnId: true }))?.length ?? 0)

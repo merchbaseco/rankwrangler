@@ -103,7 +103,7 @@ export const keywordDiscoveryAttempts = pgTable(
         acceptedPage: uniqueIndex('keyword_discovery_accepted_page_idx')
             .on(table.passId, table.page)
             .where(sql`${table.status}='accepted' and ${table.finishedAt} is not null`),
-        attemptedIdx: index('keyword_discovery_attempted_idx').on(table.attemptedAt),
+        // The only full index on the pass_id foreign key: a pass delete cascades through it.
         queryAttemptedIdx: index('keyword_discovery_pass_attempted_idx').on(
             table.passId,
             table.attemptedAt

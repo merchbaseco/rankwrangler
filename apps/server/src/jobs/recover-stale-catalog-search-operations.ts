@@ -10,6 +10,8 @@ export const recoverStaleCatalogSearchOperationsJob = defineJob(
     }
 )
     .input(z.object({}))
+    // One tick queued or running: ticks sent during a slow run are dropped, not stacked.
+    .queue({ policy: 'exclusive' })
     .options({
         singletonKey: 'recover-stale-catalog-search-operations',
         retryLimit: 0,

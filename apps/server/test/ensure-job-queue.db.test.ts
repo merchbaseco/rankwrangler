@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import { PgBoss } from 'pg-boss';
 import { buildDatabaseUrl } from '@/config/database-url';
-import { ensureJobQueue } from '@/jobs/ensure-job-queue';
+import { countQueuedJobs } from '@/db/job-queue-status';
+import { ensureJobQueue, JOB_RETENTION_SECONDS } from '@/jobs/ensure-job-queue';
 
 const tick = 'ensure-queue-test-tick';
 const holder = 'ensure-queue-test-holder';
@@ -66,6 +67,24 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('ensureJobQueue', (
         await ensureJobQueue(boss, { jobName: entity, queueOptions: { policy: 'exclusive' } });
         expect((await boss.getQueue(entity))?.policy).toBe('singleton');
         expect(await countJobs(boss, entity)).toBe(1);
+    });
+
+    it('shortens an existing queue to the one-day retention, policy untouched', async () => {
+        await boss.createQueue(entity, { policy: 'singleton' });
+        expect((await boss.getQueue(entity))?.deleteAfterSeconds).toBe(604_800);
+        await ensureJobQueue(boss, { jobName: entity, queueOptions: { policy: 'singleton' } });
+        const queue = await boss.getQueue(entity);
+        expect(queue?.deleteAfterSeconds).toBe(JOB_RETENTION_SECONDS);
+        expect(queue?.policy).toBe('singleton');
+    });
+
+    it('counts queued jobs from the queued-job index, as getQueueStats does', async () => {
+        await boss.createQueue(entity);
+        await boss.insert(entity, [{ data: {} }, { data: {} }, { data: {}, startAfter: 3600 }]);
+        await boss.send(entity, { active: true }, { priority: 1 });
+        await boss.fetch(entity);
+        expect(await countQueuedJobs(entity)).toBe((await boss.getQueueStats(entity)).queuedCount);
+        expect(await countQueuedJobs(entity)).toBe(3);
     });
 });
 
