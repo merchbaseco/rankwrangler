@@ -1,0 +1,123 @@
+language js
+
+// Generated from lint/stored-answer-owners.mjs by bun lint/stored-answer-owners.mjs; do not edit.
+// A table that feeds a stored answer is written only from its owner modules, which rewrite the
+// answer in the same transaction. Matches a Drizzle insert/update/delete on the table binding (or
+// <namespace>.<binding>) and SQL text in a template literal or a raw/execute/unsafe string.
+
+pattern drizzle_write($table) {
+    or { `$_.insert($table)`, `$_.update($table)`, `$_.delete($table)` }
+}
+
+pattern drizzle_insert_or_delete($table) {
+    or { `$_.insert($table)`, `$_.delete($table)` }
+}
+
+pattern sql_text() {
+    or {
+        JsTemplateExpression(),
+        JsStringLiteralExpression() as $text where {
+            $text <: within or { `$_.raw($text)`, `$_.execute($text)`, `$_.unsafe($text)` }
+        }
+    }
+}
+
+pattern column_update_products($table) {
+    `$_.update($table)` as $update where {
+        or {
+            not $update <: within `$update.set($_)`,
+            $update <: within `$update.set($values)` where {
+                $values <: or {
+                    and { not JsObjectExpression(), not JsConditionalExpression() },
+                    r"(?s).*(?:\.\.\.|\b(?:isMerchListing|amazonListingStatus|hasNiche)\b).*",
+                    `$_ ? $yes : $no` where {
+                        or { $yes <: not JsObjectExpression(), $no <: not JsObjectExpression() }
+                    }
+                }
+            }
+        }
+    }
+}
+
+or {
+    // discovery_targets
+    or {
+        drizzle_write(table=or { `discoveryTargets`, `$_.discoveryTargets` }),
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?discovery_targets\b.*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:db/keyword-target-sync|db/discovery-candidates|db/discovery-work|db/discovery-checkpoint|db/refresh-keyword-standings|db/keyword-directory-notifications)\.ts",
+        register_diagnostic(span=$write, message="discovery_targets feeds discovery_targets.scan_due_at/scan_depth/autocompleted and keyword_directory. Write it from an owner module (db/keyword-target-sync.ts, db/discovery-candidates.ts, db/discovery-work.ts, db/discovery-checkpoint.ts, db/refresh-keyword-standings.ts, db/keyword-directory-notifications.ts) or call syncKeywordTargets in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    },
+
+    // keyword_exploration_passes
+    or {
+        drizzle_write(table=or { `keywordExplorationPasses`, `$_.keywordExplorationPasses` }),
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?keyword_exploration_passes\b.*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:db/discovery-work|db/discovery-checkpoint)\.ts",
+        register_diagnostic(span=$write, message="keyword_exploration_passes feeds discovery_targets.scan_due_at/scan_depth and keyword_directory. Write it from an owner module (db/discovery-work.ts, db/discovery-checkpoint.ts) or call syncKeywordTargets in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    },
+
+    // keyword_products
+    or {
+        drizzle_write(table=or { `keywordProducts`, `$_.keywordProducts` }),
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?keyword_products\b.*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:db/discovery-checkpoint|db/keyword-observation|db/keyword-directory-notifications)\.ts",
+        register_diagnostic(span=$write, message="keyword_products feeds keyword_directory.product_count/merch_count. Write it from an owner module (db/discovery-checkpoint.ts, db/keyword-observation.ts, db/keyword-directory-notifications.ts) or call syncKeywordTargets(tx, ids, 'all') or refreshKeywordQueryRows in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    },
+
+    // keyword_autocomplete
+    or {
+        drizzle_write(table=or { `keywordAutocomplete`, `$_.keywordAutocomplete` }),
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?keyword_autocomplete\b.*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:db/keyword-autocomplete-work)\.ts",
+        register_diagnostic(span=$write, message="keyword_autocomplete feeds discovery_targets.autocompleted. Write it from an owner module (db/keyword-autocomplete-work.ts) or call refreshKeywordQueryRows in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    },
+
+    // keyword_directory
+    or {
+        drizzle_write(table=or { `keywordDirectory`, `$_.keywordDirectory` }),
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?keyword_directory\b.*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:db/keyword-target-sync)\.ts",
+        register_diagnostic(span=$write, message="keyword_directory feeds the Keywords directory (it is the stored answer). Write it from an owner module (db/keyword-target-sync.ts) or call syncKeywordTargets in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    },
+
+    // product_facets
+    or {
+        drizzle_write(table=or { `productFacets`, `$_.productFacets` }),
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?product_facets\b.*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:services/product-facet-store|db/product/merge-products)\.ts",
+        register_diagnostic(span=$write, message="product_facets feeds products.has_niche. Write it from an owner module (services/product-facet-store.ts, db/product/merge-products.ts) or call replaceProductFacetsByMarketplaceAsin in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    },
+
+    // product_facet_values
+    or {
+        drizzle_write(table=or { `productFacetValues`, `$_.productFacetValues` }),
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?product_facet_values\b.*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:services/product-facet-store)\.ts",
+        register_diagnostic(span=$write, message="product_facet_values feeds products.has_niche (through product_facets). Write it from an owner module (services/product-facet-store.ts) or call replaceProductFacetsByMarketplaceAsin in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    },
+
+    // product_history_series
+    or {
+        drizzle_write(table=or { `productHistorySeries`, `$_.productHistorySeries` }),
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|update|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?product_history_series\b.*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:db/product/product-history-series|db/product/merge-products)\.ts",
+        register_diagnostic(span=$write, message="product_history_series feeds product_history_series.lowest_point. Write it from an owner module (db/product/product-history-series.ts, db/product/merge-products.ts) or call writeProductHistorySeries in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    },
+
+    // products
+    or {
+        or { drizzle_insert_or_delete(table=or { `products`, `$_.products` }), column_update_products(table=or { `products`, `$_.products` }) },
+        and { sql_text(), or { r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:insert\s+into|delete\s+from)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?products\b.*", r"(?is)(?:.*\n)?(?:[^\n-]|-[^\n-])*?\b(?:update)\s+(?:only\s+)?(?:public\s*\.\s*)?\x22?products\b[^;]*?\bset\b[^;]*(?:is_merch_listing|amazon_listing_status|has_niche|\$\{).*" } }
+    } as $write where {
+        not $filename <: r".*/apps/server/src/(?:db/product/upsert-product|db/product/persist-normalized-keepa-product|db/product/get-products|db/product/merge-products|services/product-facet-store)\.ts",
+        register_diagnostic(span=$write, message="products feeds keyword_directory.merch_count and shelf, and products.has_niche. Write it from an owner module (db/product/upsert-product.ts, db/product/persist-normalized-keepa-product.ts, db/product/get-products.ts, db/product/merge-products.ts, services/product-facet-store.ts) or call refreshKeywordProductRows (replaceProductFacetsByMarketplaceAsin for has_niche) in the same transaction and add the module to lint/stored-answer-owners.mjs.", severity="error")
+    }
+}

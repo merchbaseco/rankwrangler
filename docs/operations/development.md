@@ -68,6 +68,7 @@ passes values as process environment. No command reads a `.env` file.
 | CLI build | `bun run cli:build` |
 | CLI end-to-end tests | `bun run cli:test:e2e` |
 | Documentation routes | `bun run docs:list` |
+| Lint (server stored-answer rule, then the extension) | `bun run lint` |
 | Full offline gate | `bun run check` |
 | Fast offline gate — what CI runs | `bun run check:fast` |
 
@@ -147,9 +148,11 @@ production host as `.env.schema` declares it. Both run in `bun run check:fast`.
 
 `bun run check` is split, and the split is deliberate — preserve it.
 
-`bun run check:fast` is the polite lane: `env:check`, `env:contract`, and
-`test` (the typed-client, extension-auth, server, and release suites — pure
-CPU, well under a second all together). It is what the Quality workflow's
+`bun run check:fast` is the polite lane: `env:check`, `env:contract`,
+`lint:server` (`biome lint` over `apps/server/src` with `lint/biome.json`,
+which turns Biome's rule set off and runs only the `stored-answer-owner.grit`
+GritQL plugin), and `test` (the typed-client, extension-auth, lint-rule,
+server, and release suites — pure CPU, a few seconds all together). It is what the Quality workflow's
 `Check` job runs on every push and pull request. `bun run check` is
 `check:fast` plus `bun run server:build`. Total coverage is unchanged; the
 build simply stops running on every commit, because the Deploy workflow builds
