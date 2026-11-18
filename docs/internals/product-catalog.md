@@ -119,10 +119,6 @@ cutout work.
 and `averages.last30Days`/`averages.last90Days`; demand drop windows use `last30Days`, `last90Days`,
 `last180Days`, and `last365Days`.
 
-The dashboard Product drawer remains source-aware. Its tooltips may expose SP-API and Keepa
-provenance, last attempt and success, source observation time, supplied categories, and the latest
-error or retry without changing the public Product projection.
-
 ## Dashboard Product Reads
 
 `api.app.product.search` adds three fields to the shared search items without changing the
@@ -130,7 +126,12 @@ public contract: the stored short name and cutout URL when their fingerprints ma
 title and image (null otherwise; reads never start generation), and `bsr30d`, the main BSR value
 in force once per day over the last thirty days, read in one bounded statement per page.
 `api.app.product.get` adds the same stored names, the count of Products sharing the normalized
-brand in the marketplace, and the best main BSR recorded in history with its first time.
+brand in the marketplace, and the best main BSR recorded in history with its first time. The brand
+count reads `products_marketplace_brand_key_idx` (an expression index on the same normalization
+Explore's brand filter and the official-brand exclusion use) and stops at 1,000, returned as
+`{ count, isCapped }` and shown as "1,000+"; the largest brand, Disney, has about 30,000 designs,
+and only a quarter of Products pages are all-visible, so an exact count would fetch most of them.
+The best rank reads `lowest_point` on the `bsr_main` series (see [Product history](product-history.md)).
 `api.app.product.keywords` lists retained keyword memberships with placement from the newest run
 of each page (1-based page, null when absent from those runs), standing score and tier, and
 membership time; totals count all memberships and page-one placements.
@@ -148,38 +149,55 @@ dashboard-only:
 - `published`: `last60d` or `lastYear` keeps Products first available on or after the start of
   the UTC day 59 or 364 days ago (60 or 365 calendar days, today included); undated Products only
   match `any`.
-- `niche`: `has` or `none` asks whether the Product carries any semantic facet. Unclassified
-  Products have none.
+- `niche`: `has` or `none` asks whether the Product carries any semantic facet, read from
+  `products.has_niche`, which the facet store and Product merges write with the facet links.
+  Unclassified Products have none.
 - `page` (1-based) with `pageSize` (default `limit`, max 100) reads by offset and ignores the
-  cursor; `nextCursor` still continues after the page. Deep offsets cost the skipped rows.
+  cursor; `nextCursor` still continues after the page. An offset skips at most 10,000 rows
+  (`MAX_SEARCH_OFFSET`); a deeper page is a bad request, and the pager stops there.
 
-The response adds `total` and `totalIsEstimate`. A bounded count stops after 10,001 matches, so
-narrow searches are exact; past that the total is the planner's row estimate for the same WHERE
-clause (`EXPLAIN`, from column statistics), flagged `totalIsEstimate: true`. Totals are fresh per
+A term is matched one of two ways. While the planner expects at most 10,000 matches
+(`TEXT_LOOKUP_LIMIT`), the search document's GIN index collects them, with the keyword's stored
+members, and `relevance` ranks them all. A commoner term is tested on each Product the read visits,
+so a page walks the sort index only until it fills; `relevance` then sorts by sales rank, since
+ranking would score every match.
+
+The response adds `total` and `totalIsEstimate`. The planner's plan comes first. When an index
+finds the matches, or the planner expects at least 100,000 so a sequential read reaches the bound
+quickly, a bounded count stops after 10,001 matches, so narrow searches are exact; past that, or
+when only a long sequential read could count, the total is the planner's row estimate for the same
+WHERE clause (`EXPLAIN`, from column statistics), flagged `totalIsEstimate: true`. Totals are fresh per
 filter for a minute, then served for up to 30 minutes while a background count replaces them, so
 paging does not recount.
 
 `api.app.product.searchFacets` takes the same filters without paging or sort and returns the
-sidebar counts and KPI bands from one scan of the Products matching every non-sidebar filter. The
-scan's inner select carries rank, monthly sold, first-available date and a niche `exists` probe
-per row; the outer aggregate counts with `FILTER` clauses, so there is no grouping, join fan-out
+sidebar counts and KPI bands from one read of the Products matching every non-sidebar filter. The
+read is bounded: it counts every match only when the planner reaches them through an index and
+expects at most 20,000 (and stops after 20,001, recounting from a sample if a wrong estimate let
+more through); otherwise it reads a repeatable 4,000-page `TABLESAMPLE SYSTEM` block sample (about
+5% of Products), scales its counts up, and returns `totalIsEstimate: true`, and Explore's pager then
+keeps the grid's own total. The default view (Merch, no other filter) is read instead from
+`product_search_facet_snapshot`, which `refresh-product-search-facets` counts exactly over every
+Product every fifteen minutes. The read's inner select carries rank, monthly sold, first-available
+date and `has_niche` per row; the outer aggregate counts with `FILTER` clauses, so there is no grouping, join fan-out
 or per-facet query. Each sidebar group (`tiers`, `published`, `niche`) is counted under the other
 groups' filters but not its own; `total`, the 24-bucket BSR histogram (log-spaced inside each
 tier, bounds aligned to tier edges, last bucket open-ended), median BSR, median monthly sold, the
 18-bucket monthly-sold histogram (on Amazon's "bought in past month" badge steps, under 100 through
-50K+) and the 60 daily first-available counts see every filter. Counts are exact
-(`totalIsEstimate` is always false here, so Explore's pager shows this total once it loads); the
-medians are the only sorts, over the filtered rank and sold columns.
-`improving7dShare` samples the first 2,000 matches in UUID order (uniform, since ids are random)
+50K+) and the 60 daily first-available counts see every filter. Counts are exact unless
+sampled; the medians are the only sorts, over the filtered rank and sold columns.
+`improving7dShare` samples the first 2,000 rows the read matched in UUID order (uniform, since ids
+are random, and drawn from the same rows rather than a walk of the primary key)
 and compares the main BSR in force now with the one in force seven days ago, read in one pass over
 the tail of each sampled Product's `bsr_main` series (the full series only when the last 256 points
 do not reach back a week); Products without a point on both sides are left out, and it is null
-when none compare. The sample runs alongside the aggregate. Results are fresh per filter for 60
+when none compare. The sample is part of the aggregate's statement. Results are fresh per filter for 60
 seconds per process, then served for up to 30 minutes while a background read replaces them.
 
 `api.app.product.searchSeasonality` takes the same input and returns Explore's seasonality chart:
 estimated units sold a week over the last 52 whole weeks, oldest first, the last ending at today's
-UTC midnight. It samples the first 1,000 matches in UUID order and reads each one's `bsr_main`
+UTC midnight. It samples the first 1,000 matches in UUID order, from the same bounded scope as the facets, and
+reads each one's `bsr_main`
 series, thinned in the database to the last point of each UTC day (weeks end at midnight, so
 nothing else can be in force at a week's end). Each week takes the rank in force at its end,
 converts it through the rank-to-sales curve below (monthly median ÷ 30.4375 × 7), and sums the
@@ -190,9 +208,9 @@ then served for up to six more while a background read replaces them.
 
 Indexes these reads lean on: `products_marketplace_bsr_idx` (tier ranges and rank sorts),
 `products_marketplace_first_available_idx` (published windows and first-available sorts),
-`products_search_document_idx` (text), and the `product_facets` primary key (niche probes). At
-millions of Products the facet scan is a sequential pass over the marketplace's Merch rows,
-bounded by the other filters; the stale-while-revalidate cache is what keeps it off the hot path.
+`products_search_document_idx` (text) and `products_marketplace_brand_key_idx` (brand filter). A
+sequential pass over the catalog runs only in the default-view snapshot job; requests read an index
+or a block sample.
 
 ### Sales estimate: the rank-to-sales curve
 

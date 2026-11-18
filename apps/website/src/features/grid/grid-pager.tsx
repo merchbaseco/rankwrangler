@@ -7,10 +7,12 @@ import { formatCount } from '@/features/bsr/bsr-format';
  * and next page around "Page 1 of 1,687" in the middle, and the page size
  * trailing, all on the stock Pagination and Select. `total` is the server's
  * count (or its estimate, marked `~`); `extra` sits before the page size.
+ * `maxPage` stops paging where the server stops reading by offset.
  */
 export const GridPager = <Size extends number>({
     extra,
     isEstimate = false,
+    maxPage,
     onPageChange,
     onPageSizeChange,
     page,
@@ -21,6 +23,7 @@ export const GridPager = <Size extends number>({
 }: {
     extra?: ReactNode;
     isEstimate?: boolean;
+    maxPage?: number;
     onPageChange: (page: number) => void;
     onPageSizeChange: (size: Size) => void;
     page: number;
@@ -30,7 +33,13 @@ export const GridPager = <Size extends number>({
     rowCount: number;
     total: number | null;
 }) => {
-    const pages = total === null ? null : Math.max(1, Math.ceil(total / pageSize));
+    const pages =
+        total === null
+            ? null
+            : Math.min(
+                  Math.max(1, Math.ceil(total / pageSize)),
+                  maxPage ?? Number.POSITIVE_INFINITY
+              );
     const first = rowCount > 0 ? (page - 1) * pageSize + 1 : 0;
     const last = rowCount > 0 ? first + rowCount - 1 : 0;
     const totalLabel = total === null ? '…' : `${isEstimate ? '~' : ''}${formatCount(total)}`;

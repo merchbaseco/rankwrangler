@@ -341,4 +341,8 @@ bun test \
     apps/server/test/product-variation-families.db.test.ts \
     apps/server/test/keepa-product-rows.db.test.ts \
     apps/server/test/system-status.db.test.ts \
-    apps/server/test/event-log-histogram.db.test.ts
+    apps/server/test/event-log-histogram.db.test.ts \
+    apps/server/test/event-log-counts.db.test.ts \
+    apps/server/test/stored-product-facts.db.test.ts \
+    apps/server/test/stored-answer-owners.db.test.ts \
+    apps/server/test/bounded-explore-reads.db.test.ts

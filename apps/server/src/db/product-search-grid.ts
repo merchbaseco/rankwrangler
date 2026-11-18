@@ -48,10 +48,6 @@ export const bsrTierCondition = (bsr: SQLWrapper, tier: BsrTier) => {
         : sql`(${bsr} >= ${sql.raw(String(min))} and ${bsr} <= ${sql.raw(String(max))})`;
 };
 
-/** Whether a Product carries any semantic facet (its niche); unclassified Products do not. */
-export const productHasNiche = (productId: SQLWrapper) =>
-    sql`exists (select 1 from product_facets pf where pf.product_id = ${productId})`;
-
 /** Start of the UTC calendar day `days - 1` days before `now`: a window of `days` days. */
 export const utcDayStart = (now: Date, daysBack: number) => {
     const day = new Date(now);

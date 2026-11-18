@@ -15,9 +15,11 @@ export const keywordScanLeaseMs = 300_000;
 export type KeywordMeasures = 'shelf' | 'all';
 
 /**
- * Rewrites what is derived from the given discovery targets and their latest pass, in one
- * statement: the scheduler's `scan_due_at`/`scan_depth`, and each keyword target's
- * `keyword_directory` row (with `measures`, its shelf or every measure too).
+ * Rewrites what is derived from the given discovery targets, their latest pass and their query's
+ * autocomplete record, in one statement: the scheduler's `scan_due_at`/`scan_depth`, the
+ * `autocompleted` flag, and each keyword target's `keyword_directory` row (with `measures`, its
+ * shelf or every measure too). The `stored-answer-owner` lint rule keeps writes to these inputs in
+ * modules that call this in the same transaction.
  *
  * `scan_due_at` is the claim's readiness rule (claimKeywordExploration) as one instant: a target
  * with no pass is due from its creation; a continuing pass at its resume time; a finished one at
@@ -47,24 +49,30 @@ export const syncKeywordTargets = async (
             select t.id,t.query_id,t.kind,t.created_at,t.tracking,t.enabled,t.standing_tier,
                 t.popularity_score,t.interval_days,t.next_check_at,t.head_observed_at,
                 t.head_product_ids,p.stop_reason,p.resume_at,p.claim_at,p.next_page,
-                p.failure_count,p.last_page_at
-            from discovery_targets t left join lateral (
+                p.failure_count,p.last_page_at,
+                coalesce(t.kind='keyword' and a.stage='complete',false) autocompleted
+            from discovery_targets t
+            left join keyword_autocomplete a on a.query_id=t.query_id
+            left join lateral (
                 select stop_reason,resume_at,claim_at,next_page,failure_count,last_page_at
                 from keyword_exploration_passes
                 where target_id=t.id order by created_at desc,id desc limit 1
             ) p on true
             where t.id=any(${`{${[...new Set(targetIds)].join(',')}}`}::uuid[])
         ), due as (
-            update discovery_targets t set scan_due_at=d.due_at,scan_depth=d.depth
+            update discovery_targets t
+            set scan_due_at=d.due_at,scan_depth=d.depth,autocompleted=d.autocompleted
             from (
                 select s.id,coalesce(greatest(
                         case when s.stop_reason in ${continuing} then s.resume_at
                             else least(s.resume_at,s.next_check_at) end,
                         s.claim_at+${lease}),s.created_at) due_at,
-                    coalesce(s.stop_reason in ${continuing} and s.next_page>0,false) depth
+                    coalesce(s.stop_reason in ${continuing} and s.next_page>0,false) depth,
+                    s.autocompleted
                 from s
             ) d
-            where t.id=d.id and (t.scan_due_at,t.scan_depth) is distinct from (d.due_at,d.depth)
+            where t.id=d.id and (t.scan_due_at,t.scan_depth,t.autocompleted)
+                is distinct from (d.due_at,d.depth,d.autocompleted)
         )
         insert into keyword_directory as k (${names})
         select ${sql.join(

@@ -108,7 +108,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('dashboard Product 
         expect(detail).toEqual({
             shortName: null,
             cutoutThumbnailUrl: null,
-            brandDesignCount: 2,
+            brandDesignCount: { count: 2, isCapped: false },
             bestEverBsr: { value: 612, at: new Date(now.getTime() - 200 * DAY).toISOString() },
         });
         expect((await getProductAppDetail(productInfo('B0APP00023', null))).brandDesignCount).toBe(

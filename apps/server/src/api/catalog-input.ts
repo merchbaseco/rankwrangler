@@ -23,11 +23,6 @@ export const catalogQueryGetInput = z.object({
     term: z.string().trim().min(1).max(200),
 });
 
-export const catalogQueryListInput = z.object({
-    search: z.string().trim().max(200).optional(),
-    limit: z.number().int().min(1).max(200).default(100),
-});
-
 export const catalogRunListInput = z.object({
     queryId: z.string().uuid(),
     limit: z.number().int().min(1).max(100).default(20),

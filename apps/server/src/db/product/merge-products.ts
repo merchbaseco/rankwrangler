@@ -1,5 +1,6 @@
 import { type SQL, sql } from 'drizzle-orm';
 import type { db } from '@/db/index';
+import { mergeKeywordProductRows } from '@/db/keyword-directory-notifications';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -7,7 +8,9 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * Moves everything that hangs off one Product onto another and deletes the first. Used when two
  * stored rows turn out to be the same variation family. Rows the survivor already has (the same
  * keyword, search run, facet or history series) keep the survivor's copy; listing fields the
- * survivor lacks are filled from the other row.
+ * survivor lacks are filled from the other row. The stored answers that read these rows are kept
+ * in the same transaction: `has_niche` is ORed below (the facet links move with it), a series
+ * carries its own `lowest_point`, and `mergeKeywordProductRows` recounts the keywords.
  */
 export const mergeProducts = async (
     transaction: Transaction,
@@ -28,16 +31,6 @@ export const mergeProducts = async (
     await transaction.execute(
         sql`update product_asin_aliases set product_id=${survivor} where product_id=${other}`
     );
-    await transaction.execute(sql`
-        update discovery_targets t set head_product_ids=(
-            select coalesce(jsonb_agg(v order by o), '[]'::jsonb) from (
-                select v, min(o) o from (
-                    select case when e=${otherId} then ${survivorId} else e end v, o
-                    from jsonb_array_elements_text(t.head_product_ids) with ordinality x(e, o)
-                ) replaced group by v
-            ) deduped
-        )
-        where t.head_product_ids ? ${otherId}`);
     await moveAsinKeyed(transaction, 'product_short_names', survivor, other);
     await moveAsinKeyed(transaction, 'product_cutout_thumbnails', survivor, other);
     for (const queue of ['product_ingest_queue', 'keepa_history_refresh_queue']) {
@@ -48,6 +41,7 @@ export const mergeProducts = async (
     await transaction.execute(sql`
         update products s set
             is_merch_listing=s.is_merch_listing or o.is_merch_listing,
+            has_niche=s.has_niche or o.has_niche,
             representative_asin=coalesce(s.representative_asin, o.representative_asin),
             date_first_available=least(s.date_first_available, o.date_first_available),
             created_at=least(s.created_at, o.created_at),
@@ -64,6 +58,9 @@ export const mergeProducts = async (
             history_admitted_at=case when s.history_admission_state='notAdmitted'
                 then o.history_admitted_at else s.history_admitted_at end
         from products o where s.id=${survivor} and o.id=${other}`);
+    // Keyword memberships and shelves move last, so the keyword recount reads the survivor's final
+    // Merch and listing status in this transaction.
+    await mergeKeywordProductRows(transaction, { survivorId, otherId });
     await transaction.execute(sql`delete from products where id=${other}`);
 };
 
@@ -73,7 +70,6 @@ const keyedTables: readonly [string, string][] = [
     ['product_history_series', 'source, metric, category_id'],
     ['catalog_search_results', 'run_id'],
     ['brand_discovery_products', 'target_id'],
-    ['keyword_products', 'query_id'],
 ];
 
 const moveUnlessPresent = async (
@@ -93,7 +89,12 @@ const moveUnlessPresent = async (
 };
 
 // Short names and cutouts are keyed by ASIN: keep the survivor's, else adopt the other's.
-const moveAsinKeyed = async (transaction: Transaction, table: string, survivor: SQL, other: SQL) => {
+const moveAsinKeyed = async (
+    transaction: Transaction,
+    table: string,
+    survivor: SQL,
+    other: SQL
+) => {
     const name = sql.identifier(table);
     await transaction.execute(sql`
         delete from ${name} t using products o

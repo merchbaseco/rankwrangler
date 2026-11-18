@@ -74,7 +74,8 @@ Search accepts these filters:
 
 `sort` accepts `relevance` (default), `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`,
 `firstAvailableAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `discoveredAtDesc`, `priceAsc`, `priceDesc`,
-and `monthlySoldDesc`. `limit` is 1–100 (default 50); pass `nextCursor` as `cursor` for the next
+and `monthlySoldDesc`; a term matching more than about 10,000 stored Products sorts `relevance` by
+sales rank. `limit` is 1–100 (default 50); pass `nextCursor` as `cursor` for the next
 page with the same filters and sort. Pages reflect current data and can move as listings change.
 Search items include compact screening metrics. Coverage reports dated keyword observations; it
 does not promise a complete catalog.

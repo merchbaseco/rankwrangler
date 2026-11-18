@@ -101,16 +101,23 @@ export const WeeksCell = ({ row }: { row: Pick<KeywordRow, 'scoreTrend12w'> }) =
 /**
  * The shelf's median BSR as Grid I's tier chip: a stock Meter in the tier's
  * fill, as long as the rank is strong (log scale, #600 full to #6M empty),
- * with a tier dot and the figure in the tier ink over it.
+ * with a tier dot and the figure in the tier ink over it. `asOfLastCheck`
+ * marks a dropped or untracked keyword, whose shelf is not refreshed.
  */
-export const MedianBsrCell = ({ medianBsr }: { medianBsr: number | null }) => {
+export const MedianBsrCell = ({
+    medianBsr,
+    asOfLastCheck = false,
+}: {
+    medianBsr: number | null;
+    asOfLastCheck?: boolean;
+}) => {
     if (medianBsr === null) {
         return <span className="text-muted">—</span>;
     }
     const tier = classifyBsr(medianBsr);
     return (
         <CursorTooltip
-            content={`${formatBsr(medianBsr)} median BSR of the top 10 · ${bsrTierDefinitions[tier].label}`}
+            content={`${formatBsr(medianBsr)} median BSR of the top 10 · ${bsrTierDefinitions[tier].label}${asOfLastCheck ? ' · as of the last check' : ''}`}
             triggerClassName="flex w-full"
         >
             <span className={cn('median-cell', tierClassName(tier))}>
@@ -129,13 +136,26 @@ export const MedianBsrCell = ({ medianBsr }: { medianBsr: number | null }) => {
     );
 };
 
-/** New designs on the shelf, out of its ten slots. */
-export const FreshCell = ({ value }: { value: number }) => (
-    <span className="grid-figure">
-        {value}
-        <span className="text-muted">/{SHELF_SIZE}</span>
-    </span>
-);
+/** New designs on the shelf, out of its ten slots; `asOfLastCheck` as for `MedianBsrCell`. */
+export const FreshCell = ({
+    value,
+    asOfLastCheck = false,
+}: {
+    value: number;
+    asOfLastCheck?: boolean;
+}) => {
+    const figure = (
+        <span className="grid-figure">
+            {value}
+            <span className="text-muted">/{SHELF_SIZE}</span>
+        </span>
+    );
+    return asOfLastCheck ? (
+        <CursorTooltip content="New designs on the shelf as of the last check">{figure}</CursorTooltip>
+    ) : (
+        figure
+    );
+};
 
 export const CountCell = ({ value }: { value: number }) => (
     <span className="grid-figure">{formatCount(value)}</span>

@@ -19,7 +19,8 @@ magical "find opportunities" score.
   admin surfaces. Admins get a banner "Live" pill that opens System Status (`/status`): Products
   by sales-history sync status (a count stored every five minutes), keywords by stage and freshness, Keepa and SP-API usage against
   their limits (throttles counted apart from errors) above each provider's refresh tiers, and an
-  event log explorer with a histogram, time range and filters.
+  event log explorer with a histogram (read from counts folded every minute), time range and
+  filters. Events are kept for thirty days.
 - Access the public Merchbase-credential surface from `rw` or `@rankwrangler/http-client`.
 - Explore Keepa-backed Catalog searches in the dashboard and retain source-ordered evidence in
   durable Search runs.

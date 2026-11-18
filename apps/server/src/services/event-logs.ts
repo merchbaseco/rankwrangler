@@ -1,5 +1,5 @@
 import { notifyEventLogCreated } from '@/db/event-log-notifications';
-import { and, desc, eq, lt, or, type SQL } from 'drizzle-orm';
+import { and, desc, eq, lt, or, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db/index.js';
 import { eventLogs } from '@/db/schema.js';
@@ -8,7 +8,11 @@ import {
     eventLogPrimitiveTypes,
     eventLogStatuses,
 } from '@/services/event-log-enums.js';
-import { eventLogFilterConditions, eventLogFiltersSchema } from '@/services/event-log-filters';
+import {
+    eventLogFiltersSchema,
+    eventLogIndexedConditions,
+    eventLogScanConditions,
+} from '@/services/event-log-filters';
 
 const eventLogLevelSchema = z.enum(eventLogLevels);
 const eventLogStatusSchema = z.enum(eventLogStatuses);
@@ -112,59 +116,105 @@ export const createEventLogsSafe = async (inputs: EventLogCreateInput[]) => {
     }
 };
 
+/** Rows a page examines at most when a filter no index answers is set; see listEventLogs. */
+export const EVENT_LOG_SCAN_ROWS = 10_000;
+
+/**
+ * Events newest first, one cursor page at a time. Account, time floor, type, ASIN and job run walk
+ * an `(account_id, X, occurred_at)` index. Level, status, action, marketplace and free-text
+ * filters are checked row by row over at most EVENT_LOG_SCAN_ROWS of those rows, so a rare match
+ * never walks the whole table: when the scan ends before the page fills, the page holds what it
+ * found and `nextCursor` continues from the last row examined.
+ */
 export const listEventLogs = async (input: EventLogListInput) => {
     const parsedInput = eventLogsListInputSchema.parse(input);
-    const whereConditions = eventLogFilterConditions(parsedInput.accountId, parsedInput);
+    const indexed = eventLogIndexedConditions(parsedInput.accountId, parsedInput);
     const cursorDate = parsedInput.cursor ? new Date(parsedInput.cursor.occurredAt) : null;
     if (cursorDate && !Number.isNaN(cursorDate.getTime()) && parsedInput.cursor) {
-        whereConditions.push(
+        indexed.push(
             or(
                 lt(eventLogs.occurredAt, cursorDate),
                 and(eq(eventLogs.occurredAt, cursorDate), lt(eventLogs.id, parsedInput.cursor.id))
             ) as SQL
         );
     }
-
-    const rows = await db
-        .select({
-            id: eventLogs.id,
-            occurredAt: eventLogs.occurredAt,
-            level: eventLogs.level,
-            status: eventLogs.status,
-            category: eventLogs.category,
-            action: eventLogs.action,
-            primitiveType: eventLogs.primitiveType,
-            message: eventLogs.message,
-            detailsJson: eventLogs.detailsJson,
-            primitiveId: eventLogs.primitiveId,
-            marketplaceId: eventLogs.marketplaceId,
-            asin: eventLogs.asin,
-            jobName: eventLogs.jobName,
-            jobRunId: eventLogs.jobRunId,
-            requestId: eventLogs.requestId,
-        })
-        .from(eventLogs)
-        .where(and(...whereConditions))
-        .orderBy(desc(eventLogs.occurredAt), desc(eventLogs.id))
-        .limit(parsedInput.limit + 1);
-
-    const hasMore = rows.length > parsedInput.limit;
-    const items = hasMore ? rows.slice(0, parsedInput.limit) : rows;
-    const nextCursor = hasMore
-        ? {
-              id: items[items.length - 1].id,
-              occurredAt: items[items.length - 1].occurredAt.toISOString(),
-          }
-        : null;
-
+    const scan = eventLogScanConditions(parsedInput);
+    const limit = parsedInput.limit;
+    const rows = scan.length
+        ? await readScannedPage(indexed, scan, limit)
+        : (
+              await db
+                  .select(listColumns)
+                  .from(eventLogs)
+                  .where(and(...indexed))
+                  .orderBy(desc(eventLogs.occurredAt), desc(eventLogs.id))
+                  .limit(limit + 1)
+          ).map(row => ({ ...row, matches: true, edge: false }));
+    const matched = rows.filter(row => row.matches);
+    const items = matched.slice(0, limit);
+    const edge = rows.find(row => row.edge);
+    const continueFrom = matched.length > limit ? items[items.length - 1] : edge;
     return {
-        items: items.map(item => ({
+        items: items.map(({ matches: _matches, edge: _edge, ...item }) => ({
             ...item,
             level: eventLogLevelSchema.parse(item.level),
             status: eventLogStatusSchema.parse(item.status),
             primitiveType: eventLogPrimitiveTypeSchema.parse(item.primitiveType),
             occurredAt: item.occurredAt.toISOString(),
         })),
-        nextCursor,
+        nextCursor: continueFrom
+            ? { id: continueFrom.id, occurredAt: continueFrom.occurredAt.toISOString() }
+            : null,
     };
+};
+
+const listColumns = {
+    id: eventLogs.id,
+    occurredAt: eventLogs.occurredAt,
+    level: eventLogs.level,
+    status: eventLogs.status,
+    category: eventLogs.category,
+    action: eventLogs.action,
+    primitiveType: eventLogs.primitiveType,
+    message: eventLogs.message,
+    detailsJson: eventLogs.detailsJson,
+    primitiveId: eventLogs.primitiveId,
+    marketplaceId: eventLogs.marketplaceId,
+    asin: eventLogs.asin,
+    jobName: eventLogs.jobName,
+    jobRunId: eventLogs.jobRunId,
+    requestId: eventLogs.requestId,
+};
+
+/**
+ * One statement: the newest EVENT_LOG_SCAN_ROWS rows the index selects, numbered as they are
+ * read, then the matching ones plus the last row examined when the scan used its whole budget
+ * (the `edge` a short page continues from). The edge is the oldest scanned row, so it can only
+ * follow the matches and never displaces one from the page.
+ */
+const readScannedPage = async (indexed: SQL[], scan: SQL[], limit: number) => {
+    const scanned = db.$with('scanned').as(
+        db
+            .select({
+                ...listColumns,
+                matches: sql<boolean>`(${and(...scan)})`.as('matches'),
+                position: sql<number>`row_number() over (
+                    order by ${eventLogs.occurredAt} desc, ${eventLogs.id} desc)`.as('position'),
+            })
+            .from(eventLogs)
+            .where(and(...indexed))
+            .orderBy(desc(eventLogs.occurredAt), desc(eventLogs.id))
+            .limit(EVENT_LOG_SCAN_ROWS)
+    );
+    const rows = await db
+        .with(scanned)
+        .select()
+        .from(scanned)
+        .where(or(sql`${scanned.matches}`, eq(scanned.position, EVENT_LOG_SCAN_ROWS)))
+        .orderBy(desc(scanned.occurredAt), desc(scanned.id))
+        .limit(limit + 2);
+    return rows.map(({ position, ...row }) => ({
+        ...row,
+        edge: Number(position) === EVENT_LOG_SCAN_ROWS,
+    }));
 };

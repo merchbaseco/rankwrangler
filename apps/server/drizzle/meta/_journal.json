@@ -519,6 +519,13 @@
       "when": 1794959454822,
       "tag": "0073_bounded_scheduler_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794961328734,
+      "tag": "0074_stored_read_facts",
+      "breakpoints": true
     }
   ]
 }

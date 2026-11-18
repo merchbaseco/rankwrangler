@@ -16,7 +16,12 @@ import { usePrefetchProduct } from '@/features/product/use-prefetch-product';
 import { useRowCursor } from '@/features/shell/use-row-cursor';
 import { exploreRowAttribute } from './explore-cells';
 import { exploreColumns, exploreSortDescriptor, exploreSortForColumn } from './explore-columns';
-import { clearedExploreFilters, isExploreFiltered, pageSizes } from './explore-filters';
+import {
+    clearedExploreFilters,
+    isExploreFiltered,
+    maxSearchOffset,
+    pageSizes,
+} from './explore-filters';
 import { ExploreKpis } from './explore-kpis';
 import { ExploreEmpty } from './explore-placeholders';
 import { toExploreRows } from './explore-rows';
@@ -47,8 +52,9 @@ export const ExplorePage = () => {
     const seasonality = useExploreSeasonality(filters);
     const keyword = filters.q.trim();
     const curve = useSalesCurve();
-    // The facets' total is an exact count of the same set; the page's own is an estimate past 10K.
-    const exactTotal = facets && !facetsStale ? facets.total : null;
+    // The facets' total counts the same set exactly when an index finds it (otherwise it is
+    // scaled from a sample, like the page's own estimate past 10K).
+    const exactTotal = facets && !facetsStale && !facets.totalIsEstimate ? facets.total : null;
     const [cursorAsin, setCursorAsin] = useState<string | null>(null);
 
     // Fixed per mount so ages do not tick between renders.
@@ -187,6 +193,7 @@ export const ExplorePage = () => {
             <GridPager
                 extra={<GridDensityToggle />}
                 isEstimate={exactTotal === null && products.totalIsEstimate}
+                maxPage={Math.floor(maxSearchOffset / filters.pageSize) + 1}
                 onPageChange={page => update({ page })}
                 onPageSizeChange={pageSize => update({ pageSize })}
                 page={filters.page}

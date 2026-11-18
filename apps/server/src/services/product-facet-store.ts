@@ -50,26 +50,27 @@ export const replaceProductFacetsByMarketplaceAsin = async ({
             .delete(productFacets)
             .where(eq(productFacets.productId, productId));
 
-        if (facetEntries.length > 0) {
-            const facetValueIds = await findOrCreateFacetValueIds(tx, facetEntries);
-            if (facetValueIds.length > 0) {
-                await tx
-                    .insert(productFacets)
-                    .values(
-                        facetValueIds.map((facetValueId) => ({
-                            productId,
-                            facetValueId,
-                        }))
-                    )
-                    .onConflictDoNothing();
-            }
+        const facetValueIds =
+            facetEntries.length > 0 ? await findOrCreateFacetValueIds(tx, facetEntries) : [];
+        if (facetValueIds.length > 0) {
+            await tx
+                .insert(productFacets)
+                .values(
+                    facetValueIds.map((facetValueId) => ({
+                        productId,
+                        facetValueId,
+                    }))
+                )
+                .onConflictDoNothing();
         }
 
+        // has_niche mirrors whether any facet link remains, in the same transaction as the links.
         await tx
             .update(products)
             .set({
                 facetsState: 'ready',
                 facetsUpdatedAt: new Date(),
+                hasNiche: facetValueIds.length > 0,
             })
             .where(eq(products.id, productId));
     });

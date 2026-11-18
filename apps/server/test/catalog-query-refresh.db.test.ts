@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { and, eq } from 'drizzle-orm';
-import { getCatalogQuery, listCatalogQueries } from '@/db/catalog-query-read-model';
+import { getCatalogQuery } from '@/db/catalog-query-read-model';
 import { listScheduledKeywordHeads, resolveScheduledKeywordHead } from '@/db/keyword-scheduling';
 import { resolveCatalogSearchRequest } from '@/db/catalog-search';
 import { getCatalogSearchRun } from '@/db/catalog-search-history';
@@ -160,14 +160,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 .where(eq(catalogQueries.id, dueId));
             expect(updated?.lastRefreshAttemptAt).toEqual(NOW);
             expect(updated?.nextRefreshAttemptAt).toBeNull();
-            const listed = await listCatalogQueries({ limit: 1, now: NOW });
-            expect(listed.items).toMatchObject([
-                {
-                    id: neverSuccessfulId,
-                    status: 'due',
-                },
-            ]);
-            expect(listed.summary.active).toBe(4);
+            expect(await getCatalogQuery('never successful', NOW)).toMatchObject({
+                id: neverSuccessfulId,
+                status: 'due',
+            });
         });
 
         it('retries failed automatic work after the durable backoff and keeps run provenance', async () => {
@@ -185,9 +181,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 error: { code: 'PROVIDER_UNAVAILABLE', message: 'Catalog search failed.' },
                 completedAt: NOW,
             });
-            expect((await listCatalogQueries({ limit: 1, now: NOW })).items[0]?.status).toBe(
-                'failed'
-            );
+            expect((await getCatalogQuery('retry keyword', NOW))?.status).toBe('failed');
             expect(
                 await resolveScheduledKeywordHead({
                     queryId,

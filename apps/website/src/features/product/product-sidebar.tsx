@@ -41,8 +41,8 @@ export const ProductSidebar = ({
 }: {
     art: string | null;
     brand: string | null;
-    /** The brand's designs in the catalog. */
-    brandDesignCount: number | null;
+    /** The brand's designs in the catalog, counted up to a cap (`isCapped` past it). */
+    brandDesignCount: { count: number; isCapped: boolean } | null;
     children: ReactNode;
     facets: readonly NicheFacet[];
     identity: ProductIdentity;
@@ -83,10 +83,13 @@ export const ProductSidebar = ({
                             >
                                 <span data-selectable-text>{brand}</span>
                             </Link>
-                            {brandDesignCount ? (
+                            {brandDesignCount?.count ? (
                                 <span className="shrink-0">
-                                    · {formatCount(brandDesignCount)}{' '}
-                                    {brandDesignCount === 1 ? 'design' : 'designs'}
+                                    · {formatCount(brandDesignCount.count)}
+                                    {brandDesignCount.isCapped ? '+' : ''}{' '}
+                                    {brandDesignCount.count === 1 && !brandDesignCount.isCapped
+                                        ? 'design'
+                                        : 'designs'}
                                 </span>
                             ) : null}
                         </span>
@@ -105,7 +108,11 @@ export const ProductSidebar = ({
             </div>
             <div className="product-sidebar__actions">
                 <a
-                    className={buttonVariants({ fullWidth: true, size: 'sm', variant: 'secondary' })}
+                    className={buttonVariants({
+                        fullWidth: true,
+                        size: 'sm',
+                        variant: 'secondary',
+                    })}
                     href={amazonUrl(identity)}
                     rel="noopener noreferrer"
                     target="_blank"

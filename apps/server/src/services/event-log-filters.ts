@@ -28,32 +28,44 @@ export const eventLogFiltersSchema = z.object({
 
 export type EventLogFilters = z.infer<typeof eventLogFiltersSchema>;
 
-/** The `where` conditions for one account's events under `filters`. */
-export const eventLogFilterConditions = (accountId: string, filters: EventLogFilters): SQL[] => {
+/**
+ * Conditions an `(account_id, X, occurred_at)` index answers: the account, the time floor, and
+ * the type, ASIN or job-run equality. A read walks one of those indexes newest first.
+ */
+export const eventLogIndexedConditions = (accountId: string, filters: EventLogFilters): SQL[] => {
     const conditions: SQL[] = [eq(eventLogs.accountId, accountId)];
-    if (filters.levels && filters.levels.length > 0) {
-        conditions.push(inArray(eventLogs.level, filters.levels));
-    }
-    if (filters.statuses && filters.statuses.length > 0) {
-        conditions.push(inArray(eventLogs.status, filters.statuses));
-    }
     if (filters.primitiveTypes && filters.primitiveTypes.length > 0) {
         conditions.push(inArray(eventLogs.primitiveType, filters.primitiveTypes));
     }
-    if (filters.actions && filters.actions.length > 0) {
-        conditions.push(inArray(eventLogs.action, filters.actions));
-    }
     if (filters.asin) {
         conditions.push(eq(eventLogs.asin, filters.asin.toUpperCase()));
-    }
-    if (filters.marketplaceId) {
-        conditions.push(eq(eventLogs.marketplaceId, filters.marketplaceId));
     }
     if (filters.jobRunId) {
         conditions.push(eq(eventLogs.jobRunId, filters.jobRunId));
     }
     if (filters.since) {
         conditions.push(gte(eventLogs.occurredAt, new Date(filters.since)));
+    }
+    return conditions;
+};
+
+/**
+ * Conditions no index answers (level, status, action, marketplace, free text). A read checks them
+ * row by row, so it bounds how many rows it examines (see listEventLogs).
+ */
+export const eventLogScanConditions = (filters: EventLogFilters): SQL[] => {
+    const conditions: SQL[] = [];
+    if (filters.levels && filters.levels.length > 0) {
+        conditions.push(inArray(eventLogs.level, filters.levels));
+    }
+    if (filters.statuses && filters.statuses.length > 0) {
+        conditions.push(inArray(eventLogs.status, filters.statuses));
+    }
+    if (filters.actions && filters.actions.length > 0) {
+        conditions.push(inArray(eventLogs.action, filters.actions));
+    }
+    if (filters.marketplaceId) {
+        conditions.push(eq(eventLogs.marketplaceId, filters.marketplaceId));
     }
     if (filters.search) {
         conditions.push(searchCondition(filters.search.trim()));

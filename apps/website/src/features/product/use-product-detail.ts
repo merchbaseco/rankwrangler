@@ -48,7 +48,6 @@ export const useProductDetail = ({ asin, marketplaceId }: ProductIdentity) => {
 /** The page's `product.get` input; prefetching builds the same key. */
 export const productDetailInput = ({ asin, marketplaceId }: ProductIdentity) => ({
     asin,
-    includeProvenance: false,
     marketplaceId,
     refresh: false,
 });

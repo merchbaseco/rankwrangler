@@ -9,7 +9,7 @@ import { useEventLogs } from '@/features/logs/use-event-logs';
 import { PaneFilters } from '@/features/shell/term-pane';
 import { useSearchDraft } from '@/features/shell/use-search-draft';
 import { EventHistogram } from './event-histogram';
-import { type EventRange, eventRangeStart, eventRanges } from './event-range';
+import { type EventRange, eventRangeStart, eventRanges, formatBucket } from './event-range';
 import { formatCount } from './status-model';
 import { StatusSection } from './status-panel';
 import { useEventHistogram } from './use-event-histogram';
@@ -50,11 +50,7 @@ export const StatusEvents = () => {
 
     return (
         <StatusSection
-            caption={
-                histogram.data
-                    ? `${formatCount(histogram.data.total)} events · last ${range}`
-                    : null
-            }
+            caption={histogram.data ? histogramCaption(histogram.data, range) : null}
             title="Event log"
         >
             <div className="status-explorer">
@@ -126,6 +122,8 @@ export const StatusEvents = () => {
                                 <Spinner size="sm" />
                             ) : query.error ? (
                                 'Events did not load. Refresh to try again.'
+                            ) : hasFilters && query.hasNextPage ? (
+                                'No matches among the newest events checked. Load older events to keep looking.'
                             ) : hasFilters ? (
                                 'Nothing matches these filters.'
                             ) : (
@@ -148,3 +146,14 @@ export const StatusEvents = () => {
         </StatusSection>
     );
 };
+
+/** "1,234 events · last 24h", or "· since 14:05" when the count stopped short of the range. */
+const histogramCaption = (
+    histogram: { total: number; coveredFrom: string | null },
+    range: EventRange
+) =>
+    `${formatCount(histogram.total)} events · ${
+        histogram.coveredFrom
+            ? `since ${formatBucket(histogram.coveredFrom, range)}`
+            : `last ${range}`
+    }`;

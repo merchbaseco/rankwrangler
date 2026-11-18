@@ -9,6 +9,7 @@ import {
     buildKeepaHistorySeries,
     dateToKeepaMinute,
     KEEPA_MISSING_VALUE,
+    lowestKeepaPoint,
 } from '@/services/keepa-history-series';
 
 /**
@@ -67,11 +68,7 @@ export const buildHistory = (
             Date.UTC(now.getUTCFullYear() - SEASON_YEARS_BACK, 0, 1)
         );
         const quarterStart = shiftMs(now, -QUARTER_DAYS * DAY_MS);
-        for (
-            let at = seasonStart;
-            at < quarterStart.getTime();
-            at += SEASON_STEP_DAYS * DAY_MS
-        ) {
+        for (let at = seasonStart; at < quarterStart.getTime(); at += SEASON_STEP_DAYS * DAY_MS) {
             rankPoint(
                 new Date(at),
                 seasonalRank({
@@ -156,6 +153,7 @@ export const buildHistory = (
                 categoryId: built.categoryId,
                 keepaMinutes: [...built.keepaMinutes],
                 keepaValues: [...built.values],
+                lowestPoint: lowestKeepaPoint(built),
             });
         }
 

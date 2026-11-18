@@ -164,6 +164,10 @@ export const productHistorySeries = pgTable(
         categoryId: bigint('category_id', { mode: 'number' }).notNull().default(-1),
         keepaMinutes: integer('keepa_minutes').array().notNull(),
         keepaValues: integer('keepa_values').array().notNull(),
+        // The lowest non-missing value and the first minute it was recorded, `{value, minute}`
+        // (best-ever rank for a BSR series), kept by every write; `{}` when no point is present.
+        // Null only on rows written before the column existed, filled on first read.
+        lowestPoint: integer('lowest_point').array(),
         updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
     },
     table => ({
@@ -211,6 +215,7 @@ export {
     discoveryTargets,
     keywordStandingObservations,
 } from './discovery-target-schema';
+export { eventLogCounts, eventLogCountState } from './event-log-count-schema';
 export { historyAdmissionRollouts } from './history-admission-rollout-schema';
 export {
     keepaCapacityAttempts,
@@ -235,6 +240,7 @@ export {
 export { productCutoutThumbnails } from './product-cutout-thumbnail-schema';
 export { productAsinAliases } from './product-asin-alias-schema';
 export { products } from './product-schema';
+export { productSearchFacetSnapshot } from './product-search-facet-snapshot-schema';
 export { productStats } from './product-stats-schema';
 export { productShortNames } from './product-short-name-schema';
 export { providerAttempts } from './provider-telemetry-schema';

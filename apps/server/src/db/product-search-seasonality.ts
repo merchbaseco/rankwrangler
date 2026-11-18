@@ -10,7 +10,7 @@ import { curveMedianSales } from '@/services/sales-curve-fit';
 import { bucketSeasonality, seasonalityStart } from '@/services/search-seasonality';
 import { db } from './index';
 import { products } from './product-schema';
-import { productSearchFilters } from './product-search-filters';
+import { chooseProductScope, scopeFilters, scopeLimit, scopeSource } from './product-search-scope';
 
 /** Designs sampled (uniformly, by random UUID order) for Explore's seasonality chart. */
 export const SEASONALITY_SAMPLE_SIZE = 1_000;
@@ -23,7 +23,8 @@ const WEEKS_PER_MONTH = 365.25 / 12 / 7;
  * Explore's seasonality: estimated units sold a week over the last 52 weeks, from the main BSR
  * history of a uniform sample of the designs matching
  * every Explore filter. The sample is the first SEASONALITY_SAMPLE_SIZE matches in UUID order, as
- * for the improvement share. Ranks become sales through the current rank-to-sales curve, so the
+ * for the improvement share, drawn from a bounded scope (see ProductScope): every match when an
+ * index finds at most EXACT_SCOPE_ROWS, else a block sample. Ranks become sales through the current rank-to-sales curve, so the
  * figures are orders of magnitude, not counts. Null while no curve is fitted or no sampled design
  * has history in the window. See docs/internals/product-catalog.md.
  */
@@ -44,15 +45,19 @@ export const readProductSearchSeasonality = async (
  * start. That leaves at most one point a day per design.
  */
 const readSampledBsrSeries = async (input: ProductSearchFacetsInput, now: Date) => {
-    const { where } = productSearchFilters(input, now);
+    const scope = await chooseProductScope(input, now, 'where');
+    const { where } = scopeFilters(input, now, scope);
     const start = dateToKeepaMinute(seasonalityStart(now));
     const end = lastKeepaMinuteAt(now);
     const day = sql.raw(String(DAY_MINUTES));
     const rows = await db.execute<{ minutes: number[]; vals: number[] }>(sql`
         select array_agg(h.m order by h.ord) minutes, array_agg(h.v order by h.ord) vals
         from (
-            select ${products.id} id from ${products}
-            where ${where} order by ${products.id} limit ${SEASONALITY_SAMPLE_SIZE}
+            select id from (
+                select ${products.id} id from ${scopeSource(scope)}
+                where ${where ?? sql`true`} ${scopeLimit(scope)}
+            ) matched
+            order by id limit ${SEASONALITY_SAMPLE_SIZE}
         ) sample
         join product_history_series s on s.product_id = sample.id and s.source = 'keepa'
             and s.metric = ${keepaHistoryMetricColumns.bsrMain}

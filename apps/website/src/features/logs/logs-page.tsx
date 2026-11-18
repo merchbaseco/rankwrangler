@@ -114,6 +114,7 @@ export const LogsPage = () => {
                                 <LogsEmptyState
                                     hasError={Boolean(query.error)}
                                     hasFilters={hasFilters}
+                                    hasMore={Boolean(query.hasNextPage)}
                                     isLoading={query.isLoading}
                                 />
                             )}
@@ -143,10 +144,12 @@ export const LogsPage = () => {
 const LogsEmptyState = ({
     hasError,
     hasFilters,
+    hasMore,
     isLoading,
 }: {
     hasError: boolean;
     hasFilters: boolean;
+    hasMore: boolean;
     isLoading: boolean;
 }) => {
     if (isLoading) {
@@ -157,16 +160,21 @@ const LogsEmptyState = ({
             <EmptyState.Header>
                 <EmptyState.Title>{hasError ? 'Logs did not load' : 'No events'}</EmptyState.Title>
                 <EmptyState.Description>
-                    {emptyDescription(hasError, hasFilters)}
+                    {emptyDescription(hasError, hasFilters, hasMore)}
                 </EmptyState.Description>
             </EmptyState.Header>
         </EmptyState>
     );
 };
 
-const emptyDescription = (hasError: boolean, hasFilters: boolean) => {
+// A filtered page checks a bounded number of the newest events, so an empty one may have older
+// matches: say so rather than "nothing matches".
+const emptyDescription = (hasError: boolean, hasFilters: boolean, hasMore: boolean) => {
     if (hasError) {
         return 'The server did not answer. Refresh to try again.';
+    }
+    if (hasFilters && hasMore) {
+        return 'No matches among the newest events checked. Load older events to keep looking.';
     }
     return hasFilters
         ? 'Nothing matches these filters.'

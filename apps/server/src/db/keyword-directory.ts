@@ -13,7 +13,7 @@ import {
     withKeywordDetail,
 } from './keyword-directory-detail';
 import { directoryFilters, directoryWhere } from './keyword-directory-filters';
-import { directorySortKey } from './keyword-directory-sort';
+import { directorySortKey, KEYWORD_FRESH_DAYS } from './keyword-directory-sort';
 import { directorySource, searchFrequencyRank } from './keyword-directory-source';
 
 type DirectoryRow = {
@@ -53,8 +53,20 @@ export const readKeywordDirectoryWithDetail = async (
     input: KeywordDirectoryReadInput,
     options?: ReadOptions
 ) => {
-    const result = await readDirectory<DirectoryRow & DetailColumns>(input, options, true);
-    const items = result.items.map(item => withKeywordDetail(item, result.view.asOf));
+    const result = await readDirectory<DirectoryRow & DetailColumns & StoredShelf>(
+        input,
+        options,
+        true
+    );
+    const items = result.items.map(({ storedMedianBsr, storedFreshCount, ...item }) => {
+        const row = withKeywordDetail(item, result.view.asOf);
+        // A dropped or untracked keyword (no freshness) keeps the shelf measures of its last check,
+        // which its sort, filters and facets read: show those, not live ones, so the row agrees
+        // with where it sorts. Live keywords' stored shelf trails the live one by under an hour.
+        return item.freshness === null
+            ? { ...row, medianBsr: storedMedianBsr, freshCount: storedFreshCount }
+            : row;
+    });
     return { ...result, items };
 };
 
@@ -67,6 +79,8 @@ export const listKeywordDirectory = async (
 };
 
 type ReadOptions = { terms?: readonly string[]; view?: KeywordDirectoryView };
+
+type StoredShelf = { storedMedianBsr: number | null; storedFreshCount: number };
 
 const readDirectory = async <Row extends DirectoryRow>(
     input: KeywordDirectoryReadInput,
@@ -92,7 +106,7 @@ const readDirectory = async <Row extends DirectoryRow>(
         ${source}
         select page.*,${searchFrequencyRank(sql`d`)} "searchFrequencyRank",
             coalesce(s.sources,'{}'::text[]) sources
-            ${detail ? sql`,${keywordDetailColumns(sql`page."queryId"`, asOf)}` : sql``} from (
+            ${detail ? sql`,${keywordDetailColumns(sql`page."queryId"`, asOf)},${storedShelfColumns(asOf)}` : sql``} from (
             select id,"queryId",term,"createdAt",stage,freshness,"retryScheduled",heat,score,products,merch,"lastCheckedAt","sortKey",total,
                 case when freshness is null then null else "nextCheckAt" end "nextCheckAt",
                 case when freshness is null then null else "intervalDays" end "intervalDays"
@@ -131,3 +145,8 @@ const readDirectory = async <Row extends DirectoryRow>(
 
 const utcTimestamp = (value: string | null) =>
     value === null ? null : new Date(`${value.replace(' ', 'T')}Z`).toISOString();
+
+// The stored shelf measures over the page's `keyword_directory d` row.
+const storedShelfColumns = (asOf: string) => sql`d.shelf_median_bsr "storedMedianBsr",
+    (select count(*)::int from unnest(d.shelf_first_available) fa
+        where fa>=${asOf}::timestamp-${KEYWORD_FRESH_DAYS}*interval '1 day') "storedFreshCount"`;

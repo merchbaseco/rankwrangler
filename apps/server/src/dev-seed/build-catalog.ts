@@ -123,10 +123,29 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
         const hasHistory = onTable || random.chance(OFF_TABLE_HISTORY_SHARE);
         const launchedAt = shiftMs(
             now,
-            -(index % RECENT_LAUNCH_EVERY === 0 ? random.int(0, 59) : random.int(60, 1100)) *
-                DAY_MS
+            -(index % RECENT_LAUNCH_EVERY === 0 ? random.int(0, 59) : random.int(60, 1100)) * DAY_MS
         );
         const facetsState = pickFacetsState(context, isMerchListing);
+
+        const facetLinks: PlanRows<'productFacets'> = [];
+        if (facetsState === 'ready') {
+            const attached = new Set([`${audience.facet}:${audience.name}`]);
+            if (random.chance(0.45)) {
+                attached.add(`${secondaryAudience.facet}:${secondaryAudience.name}`);
+            }
+            for (const key of attached) {
+                const facetValueId = facetValueIds.get(key);
+                if (!facetValueId) {
+                    continue;
+                }
+                facetLinks.push({
+                    productId: id,
+                    facetValueId,
+                    createdAt: shiftMs(now, -random.int(1, 72) * HOUR_MS),
+                });
+            }
+        }
+        productFacets.push(...facetLinks);
 
         products.push({
             id,
@@ -144,6 +163,7 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
             rootCategoryId: category.id,
             rootCategoryBsr,
             facetsState,
+            hasNiche: facetLinks.length > 0,
             facetsUpdatedAt:
                 facetsState === 'pending' ? null : shiftMs(now, -random.int(1, 72) * HOUR_MS),
             spApiFetchedAt,
@@ -165,24 +185,6 @@ export const buildCatalog = (context: BuilderContext): CatalogBuild => {
             keepaSalesRankDrops365: dropsForRank(context, rootCategoryBsr, 365),
             createdAt,
         });
-
-        if (facetsState === 'ready') {
-            const attached = new Set([`${audience.facet}:${audience.name}`]);
-            if (random.chance(0.45)) {
-                attached.add(`${secondaryAudience.facet}:${secondaryAudience.name}`);
-            }
-            for (const key of attached) {
-                const facetValueId = facetValueIds.get(key);
-                if (!facetValueId) {
-                    continue;
-                }
-                productFacets.push({
-                    productId: id,
-                    facetValueId,
-                    createdAt: shiftMs(now, -random.int(1, 72) * HOUR_MS),
-                });
-            }
-        }
 
         seedProducts.push({
             id,

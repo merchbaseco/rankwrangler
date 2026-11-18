@@ -207,7 +207,7 @@ answer and does not establish that Amazon has no matching Products.
 | `salesRank`, `price`, `monthlySold` | Inclusive integer `{ min?, max? }` ranges. Price uses minor currency units, with no currency conversion across marketplaces. |
 | `firstAvailableAt`, `discoveredAt`, `updatedAt` | Inclusive `{ after?, before? }` ranges using ISO dates or datetimes. A date means midnight, not the end of that day. |
 | `facets` | Matching `{ facet, name }` assignments. Any supplied assignment can match. |
-| `sort` | `relevance` by default. Also `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`, `firstAvailableAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `discoveredAtDesc`, `priceAsc`, `priceDesc`, or `monthlySoldDesc`. Without text, relevance falls back to newest discovered. |
+| `sort` | `relevance` by default. Also `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`, `firstAvailableAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `discoveredAtDesc`, `priceAsc`, `priceDesc`, or `monthlySoldDesc`. Without text, relevance falls back to newest discovered; a term matching more than about 10,000 stored Products sorts by sales rank instead, since ranking would score every match. |
 | `limit`, `cursor` | 1–100 items, default 50. Opaque keyset cursor scoped to the filters and sort. |
 
 All filters combine with AND. Unknown numeric values fail bounded numeric filters. All sort orders

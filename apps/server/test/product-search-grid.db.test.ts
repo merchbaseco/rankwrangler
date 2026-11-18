@@ -231,6 +231,8 @@ const attachFacet = async (asin: string, facet: string, name: string) => {
         sql`select id from products where asin=${asin}`
     );
     await db.insert(productFacets).values({ productId: product.id, facetValueId: value.id });
+    // The facet store keeps has_niche with the links; a fixture writing links directly does too.
+    await db.execute(sql`update products set has_niche=true where id=${product.id}`);
 };
 
 const insertRank = async (productId: string, at: Date, value: number) => {

@@ -21,6 +21,7 @@ import {
     spApiRefreshDueAt,
     spApiRefreshTracked,
 } from './product-refresh-due';
+import { productBrandKey } from './product-brand-key';
 import { productSearchDocument } from './product-search-document';
 
 export const products = pgTable(
@@ -51,6 +52,9 @@ export const products = pgTable(
         rootCategoryBsr: integer('root_category_bsr'),
         facetsState: text('facets_state').notNull().default('pending'),
         facetsUpdatedAt: timestamp('facets_updated_at', { mode: 'date' }),
+        // Whether the Product carries any semantic facet (its niche). Written with the facet links
+        // (product-facet-store, merge-products), so Explore reads a column, not a per-row probe.
+        hasNiche: boolean('has_niche').notNull().default(false),
         spApiFetchedAt: timestamp('sp_api_fetched_at', { mode: 'date' }),
         spApiResolvedAt: timestamp('sp_api_resolved_at', { mode: 'date' }),
         historyAdmissionState: text('history_admission_state')
@@ -122,6 +126,12 @@ export const products = pgTable(
             table.marketplaceId,
             table.dateFirstAvailable.desc().nullsLast(),
             table.id.asc()
+        ),
+        // Brand design counts and Explore's brand filter compare the normalized brand; this makes
+        // them index reads instead of a regexp over every Product.
+        brandKeyIdx: index('products_marketplace_brand_key_idx').on(
+            table.marketplaceId,
+            productBrandKey(table.brand)
         ),
         variationsUncheckedIdx: index('products_variations_unchecked_idx')
             .on(table.createdAt)

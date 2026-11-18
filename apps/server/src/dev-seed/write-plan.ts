@@ -143,6 +143,11 @@ export const writeDevSeedPlan = async (plan: DevSeedPlan): Promise<DevSeedWriteR
         // Status and history admission read stored counts, which the job runner (off locally by
         // default) would otherwise only take every five minutes.
         await refreshProductStats(tx, new Date());
+        // Seeded events are backdated and the catalog changed: drop the folded event counts and the
+        // default-facets snapshot, so reads count from the rows until the jobs recount them.
+        await tx.execute(sql`DELETE FROM event_log_count_state`);
+        await tx.execute(sql`DELETE FROM event_log_counts`);
+        await tx.execute(sql`DELETE FROM product_search_facet_snapshot`);
 
         return { cleared, inserted };
     });

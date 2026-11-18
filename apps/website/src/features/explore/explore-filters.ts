@@ -90,6 +90,8 @@ export const exploreSortInputs = {
 } as const satisfies Record<ExploreSort, string>;
 
 export const pageSizes = [25, 50, 100] as const;
+/** Rows the server skips at most by offset (`MAX_SEARCH_OFFSET`); the pager stops there. */
+export const maxSearchOffset = 10_000;
 export type PageSize = (typeof pageSizes)[number];
 
 export const defaultExploreFilters: ExploreFilters = {

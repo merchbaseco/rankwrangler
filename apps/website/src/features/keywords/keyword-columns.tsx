@@ -32,15 +32,20 @@ export const keywordColumns: DataGridColumn<Row>[] = [
         row => <TopTenShelf keyword={row.term} shelf={row.shelf} size="lg" />,
         { priority: 'secondary' }
     ),
-    gridColumn<Row>('median', 'Median BSR', row => <MedianBsrCell medianBsr={row.medianBsr} />, {
-        allowsSorting: true,
-        priority: 'secondary',
-    }),
-    gridColumn<Row>('new', 'New', row => <FreshCell value={row.freshCount} />, {
-        align: 'end',
-        allowsSorting: true,
-        priority: 'wide',
-    }),
+    gridColumn<Row>(
+        'median',
+        'Median BSR',
+        row => (
+            <MedianBsrCell asOfLastCheck={row.freshness === null} medianBsr={row.medianBsr} />
+        ),
+        { allowsSorting: true, priority: 'secondary' }
+    ),
+    gridColumn<Row>(
+        'new',
+        'New',
+        row => <FreshCell asOfLastCheck={row.freshness === null} value={row.freshCount} />,
+        { align: 'end', allowsSorting: true, priority: 'wide' }
+    ),
     gridColumn<Row>('merch', 'Merch', row => <CountCell value={row.merch} />, {
         align: 'end',
         allowsSorting: true,

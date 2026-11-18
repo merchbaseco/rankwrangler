@@ -4,7 +4,12 @@ import { db } from './index';
 import { getMarketplaceCurrencyCode } from './product/marketplace-currency';
 import { products } from './product-schema';
 import { productSearchFilters } from './product-search-filters';
-import { productSearchSort, productSearchUpdatedAt } from './product-search-sort';
+import {
+    InvalidProductSearchCursorError,
+    productSearchSort,
+    productSearchUpdatedAt,
+} from './product-search-sort';
+import { chooseTextForm } from './product-search-text-filter';
 
 /**
  * A caller-specific column selected for each returned Product in the same statement, from the
@@ -12,10 +17,15 @@ import { productSearchSort, productSearchUpdatedAt } from './product-search-sort
  */
 export type ProductExtraColumn<T> = (product: { id: SQL; marketplaceId: SQL; asin: SQL }) => SQL<T>;
 
+/** Offset paging skips at most this many rows; deeper pages continue with the cursor. */
+export const MAX_SEARCH_OFFSET = 10_000;
+
 /**
- * One page of stored Products. `page` reads by offset (deep pages cost the skipped rows) and
- * ignores the cursor; otherwise keyset paging continues from `cursor`. Either way `nextCursor`
- * continues after the returned page.
+ * One page of stored Products. `page` reads by offset, skipping at most MAX_SEARCH_OFFSET rows,
+ * and ignores the cursor; otherwise keyset paging continues from `cursor`. Either way
+ * `nextCursor` continues after the returned page. A term with more estimated matches than
+ * TEXT_LOOKUP_LIMIT is matched per row (see ProductTextForm), and its relevance order is sales
+ * rank, since ranking means scoring every match.
  */
 export const searchStoredProducts = async <Extra = never>(
     input: StoredProductSearchInput,
@@ -23,9 +33,17 @@ export const searchStoredProducts = async <Extra = never>(
     extra?: ProductExtraColumn<Extra>
 ) => {
     const size = input.pageSize ?? input.limit;
-    const filters = productSearchFilters(input, now);
+    const offset = input.page ? (input.page - 1) * size : 0;
+    if (offset > MAX_SEARCH_OFFSET) {
+        throw new InvalidProductSearchCursorError(
+            `Pages reach ${MAX_SEARCH_OFFSET.toLocaleString('en-US')} rows deep; narrow the search or continue with the cursor.`
+        );
+    }
+    const textForm = await chooseTextForm(input);
+    const filters = productSearchFilters(input, now, textForm);
+    const sorted = textForm === 'row' && input.sort === 'relevance' ? 'salesRankAsc' : input.sort;
     const sort = productSearchSort(
-        input.page ? { ...input, cursor: null } : input,
+        { ...input, sort: sorted, ...(input.page ? { cursor: null } : {}) },
         filters.relevance
     );
     const rows = await db
@@ -67,7 +85,7 @@ export const searchStoredProducts = async <Extra = never>(
         .where(and(filters.where, sort.after))
         .orderBy(...sort.order)
         .limit(size + 1)
-        .offset(input.page ? (input.page - 1) * size : 0);
+        .offset(offset);
     const page = rows.slice(0, size);
     const last = page.at(-1);
     return {

@@ -12,6 +12,13 @@ import { registerKeywordPrefixes } from './keyword-prefixes';
 import { products } from './product-schema';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Judges a keyword's page one: its standing, cadence, tracking and shelf. Records the standing
+ * observation, events and prefixes, and returns the target's new columns as `patch` for the
+ * checkpoint to write with its own target write, so the checkpoint that also re-syncs the
+ * keyword's directory row is the one module writing the target.
+ */
 export const observeKeywordStanding = async (
     tx: Transaction,
     input: {
@@ -73,29 +80,26 @@ export const observeKeywordStanding = async (
         tracking: target.tracking,
         merchOnFirstPage: rows.length,
     });
-    await tx
-        .update(discoveryTargets)
-        .set({
-            tracking,
-            enabled: tracking !== 'dropped',
-            standingTier: cadence.tier,
-            intervalDays: cadence.intervalDays,
-            demotionCount: cadence.demotionCount,
-            demotionObservedAt: cadence.demotionObservedAt,
-            popularityScore: popularity.score ?? target.popularityScore,
-            scoreComponents:
-                popularity.score === null
-                    ? target.scoreComponents
-                    : {
-                          best: popularity.best,
-                          breadth: popularity.breadth,
-                      },
-            headProductIds: rows.map(row => row.id),
-            headObservedAt: now,
-            firstObservedAt: target.firstObservedAt ?? now,
-            nextCheckAt: cadence.nextDueAt,
-        })
-        .where(eq(discoveryTargets.id, target.id));
+    const patch = {
+        tracking,
+        enabled: tracking !== 'dropped',
+        standingTier: cadence.tier,
+        intervalDays: cadence.intervalDays,
+        demotionCount: cadence.demotionCount,
+        demotionObservedAt: cadence.demotionObservedAt,
+        popularityScore: popularity.score ?? target.popularityScore,
+        scoreComponents:
+            popularity.score === null
+                ? target.scoreComponents
+                : {
+                      best: popularity.best,
+                      breadth: popularity.breadth,
+                  },
+        headProductIds: rows.map(row => row.id),
+        headObservedAt: now,
+        firstObservedAt: target.firstObservedAt ?? now,
+        nextCheckAt: cadence.nextDueAt,
+    } satisfies Partial<typeof discoveryTargets.$inferInsert>;
     if (target.kind === 'keyword' && target.tracking !== 'tracked' && tracking === 'tracked')
         await registerKeywordPrefixes(
             tx,
@@ -127,5 +131,5 @@ export const observeKeywordStanding = async (
                 },
             },
         ]);
-    return { nextCheckAt: cadence.nextDueAt, tracking };
+    return { nextCheckAt: cadence.nextDueAt, tracking, patch };
 };

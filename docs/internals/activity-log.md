@@ -23,6 +23,33 @@ The list query uses stable cursor pagination and can filter by level, status, pr
 action, ASIN, marketplace, or job run. Free-text search covers message and common identity fields.
 The current account scope is the global RankWrangler corpus.
 
+Account, time floor, type, ASIN and job run walk an `(account_id, X, occurred_at)` index newest
+first. Level, status, action, marketplace and text are checked row by row over at most 10,000 of
+those rows per page (`EVENT_LOG_SCAN_ROWS`), so a rare match never walks the table: a page can come
+back short, even empty, with a `nextCursor` that continues from the last row examined. There is no
+text index; a trigram index would add a GIN insert to every one of about 170,000 events a day and
+still could not bound a common word, which matches most rows.
+
+## Histogram
+
+The Status histogram reads `event_log_counts`: event counts per bucket (minute rows for the hour
+range, half-hour rows for the day and week) by account, type, level and status. The
+`fold-event-log-counts` job recounts them every minute from raw events, starting 15 minutes behind
+its watermark (`event_log_count_state.folded_through`) so events whose transactions commit late are
+still counted, and writes only counts that changed. Writers therefore take no extra lock: an
+upsert in their transactions would serialize the keyword workers on the current minute's row.
+Reads take the folded rows up to the watermark and count the raw events after it. Text, action,
+ASIN, marketplace and job-run filters count raw events. Either way a histogram reads at most
+50,000 raw events, newest first; when that bound stops it, `coveredFrom` says where counting began.
+The header total is the histogram's sum. While live, the dashboard refreshes the list at most once
+a second and the histogram at most every fifteen seconds.
+
+## Retention
+
+`prune-event-logs` deletes events and folded counts older than thirty days daily, in batches of
+10,000 and at most 30 batches a run. The Status page reads seven days at most; nothing else reads
+older events.
+
 ## Ownership Boundary
 
 - Canonical Product and dataset tables own current truth.

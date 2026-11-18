@@ -3,6 +3,7 @@ import { KEYWORD_DAY_MS } from '@/services/keyword-collection-policy';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { catalogQueries, catalogSearchResults, catalogSearchRuns } from './catalog-search-schema';
 import type { db } from './index';
+import { refreshKeywordQueryRows } from './keyword-directory-notifications';
 import { products } from './product-schema';
 import { keywordProducts } from './keyword-collection-schema';
 import { readScheduledKeywordLoad } from './keyword-scheduled-load';
@@ -55,6 +56,8 @@ export const acceptKeywordObservation = async (
                     inArray(keywordProducts.productId, input.productIds)
                 )
             );
+        // The query's keyword target, if it has one, counts these Products: recount it here.
+        await refreshKeywordQueryRows(transaction, [input.queryId], 'all');
     }
     if (input.page === 0) {
         const [previous] = await transaction

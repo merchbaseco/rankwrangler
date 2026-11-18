@@ -3,6 +3,8 @@ import { db } from '@/db/index';
 import { keepaHistoryMetricColumns } from '@/services/keepa-history-metrics';
 import { keepaMinuteToDate } from '@/services/keepa-history-series';
 import type { ProductInfo } from '@/types';
+import { productBrandKey } from '../product-brand-key';
+import { readLowestSeriesPoint } from './product-history-series';
 import { readStoredEnrichment } from './product-stored-enrichment';
 
 /**
@@ -36,10 +38,16 @@ export const getProductAppDetail = async (
 export interface ProductAppDetail {
     shortName: string | null;
     cutoutThumbnailUrl: string | null;
-    /** Null when the Product has no brand; otherwise includes the Product itself. */
-    brandDesignCount: number | null;
+    /**
+     * Null when the Product has no brand; otherwise includes the Product itself, counted up to
+     * BRAND_DESIGN_COUNT_LIMIT (`isCapped` when the brand has more).
+     */
+    brandDesignCount: { count: number; isCapped: boolean } | null;
     bestEverBsr: { value: number; at: string } | null;
 }
+
+/** Brand design counts stop here; the page shows "1,000+". */
+export const BRAND_DESIGN_COUNT_LIMIT = 1_000;
 
 const emptyDetail: ProductAppDetail = {
     shortName: null,
@@ -48,24 +56,29 @@ const emptyDetail: ProductAppDetail = {
     bestEverBsr: null,
 };
 
+/**
+ * Products sharing the brand key, counted through `products_marketplace_brand_key_idx` and
+ * stopping after BRAND_DESIGN_COUNT_LIMIT + 1: the largest brands (Disney, about 30,000) would
+ * otherwise fetch tens of thousands of heap rows per Product page.
+ */
 const countBrandDesigns = async (product: ProductInfo) => {
     if (!product.brand?.trim()) return null;
     const [row] = await db.execute<{ total: number }>(sql`
-        select count(*)::int total from products
-        where marketplace_id=${product.marketplaceId}
-            and lower(btrim(regexp_replace(brand,'[[:space:]]+',' ','g')))
-                =lower(btrim(regexp_replace(${product.brand},'[[:space:]]+',' ','g')))`);
-    return row?.total ?? 0;
+        select count(*)::int total from (
+            select 1 from products
+            where marketplace_id=${product.marketplaceId}
+                and ${productBrandKey(sql`brand`)}=${productBrandKey(sql`${product.brand}`)}
+            limit ${BRAND_DESIGN_COUNT_LIMIT + 1}
+        ) bounded`);
+    const total = row?.total ?? 0;
+    return {
+        count: Math.min(total, BRAND_DESIGN_COUNT_LIMIT),
+        isCapped: total > BRAND_DESIGN_COUNT_LIMIT,
+    };
 };
 
+/** The best main BSR Keepa history has recorded, from its series' stored lowest point. */
 const readBestEverBsr = async (product: ProductInfo) => {
-    const [row] = await db.execute<{ value: number; keepaMinutes: number }>(sql`
-        select h.v value, h.m "keepaMinutes"
-        from products p
-        join product_history_series s on s.product_id=p.id and s.source='keepa'
-            and s.metric=${keepaHistoryMetricColumns.bsrMain}
-        cross join lateral unnest(s.keepa_minutes, s.keepa_values) h(m,v)
-        where p.marketplace_id=${product.marketplaceId} and p.asin=${product.asin} and h.v>=0
-        order by h.v asc, h.m asc limit 1`);
-    return row ? { value: row.value, at: keepaMinuteToDate(row.keepaMinutes).toISOString() } : null;
+    const best = await readLowestSeriesPoint(product, keepaHistoryMetricColumns.bsrMain);
+    return best ? { value: best[0], at: keepaMinuteToDate(best[1]).toISOString() } : null;
 };

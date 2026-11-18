@@ -31,6 +31,9 @@ where a second attempt would be redundant.
 | Provider-attempt retention | Daily bounded deletion of Provider and Keepa capacity attempts older than seven days. |
 | Product counts | Five-minute exclusive snapshot (`refresh-product-stats`), sent once at startup while none exists. |
 | Job-execution retention | Daily bounded deletion of run history older than fourteen days. |
+| Event-log retention | Daily bounded deletion of events and folded counts older than thirty days (`prune-event-logs`). |
+| Event-log counts | Minute exclusive fold of new events into the Status histogram counts (`fold-event-log-counts`). |
+| Explore default facets | Fifteen-minute exclusive exact count of Explore's default view (`refresh-product-search-facets`), sent once at startup while none exists. |
 | Keyword pipeline | One-minute scheduler feeding the scan and autocomplete queues and the weekly Brand Analytics import. |
 
 New and changed jobs follow [background jobs](../decisions/background-jobs.md): one job per external
@@ -48,7 +51,8 @@ error, keeps the old queue and policy, and tries again on the next start. The ke
 [keyword jobs](keyword-mining.md#keyword-jobs). Every one-minute tick queue (`collect-due-catalog-queries`,
 `reconcile-history-admission`, `backfill-product-variations`, `process-keepa-history-refresh-queue`,
 `process-product-facet-classification`, both stale-Operation recoveries,
-`enqueue-scheduled-keepa-history-refresh`) and `refresh-product-stats` are exclusive. Event-driven
+`enqueue-scheduled-keepa-history-refresh`, `fold-event-log-counts`) and the snapshot and retention
+jobs (`refresh-product-stats`, `refresh-product-search-facets`, `prune-event-logs`) are exclusive. Event-driven
 queues such as `process-spapi-sync-queue` keep their own policy. Retired `process-keyword-sync` and older keyword
 stage schedules are unscheduled at startup.
 

@@ -30,10 +30,8 @@ counts SP-API calls and 429s from `provider_attempts` in the five-minute Product
 Keep raw provider budget details internal. Public APIs expose RankWrangler product data and usage
 limits, not Keepa tokens or SP-API throttling internals.
 
-Product-drawer tooltips are app observability, not public Product fields. They may expose SP-API and
-Keepa provenance, last attempt and success, source observation time, supplied data categories, and
-the latest error or retry. Public Product reads remain provider-neutral and never use this metadata
-as a caller-managed freshness protocol.
+Public Product reads remain provider-neutral and expose no SP-API or Keepa provenance, attempt
+times or errors; provider health is read from Provider-attempt telemetry on System Status.
 
 After changing short-name prompts, run `bun run --filter @rankwrangler/server test:short-name-live`
 with Development Varlock credentials. It calls Gemini and Jev for the eight labeled designs in

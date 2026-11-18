@@ -106,7 +106,9 @@ Facets describe reusable themes in listing text and, when available, the thumbna
 `place`, and `party-theme`.
 
 Gemini returns arrays under that fixed taxonomy. RankWrangler validates the response, normalizes
-facet values, replaces the Product's facet links, and records token/cost diagnostics.
+facet values, replaces the Product's facet links, and records token/cost diagnostics. The same
+transaction sets `products.has_niche` to whether any link remains; a Product merge keeps it if
+either row had it. Explore's niche filter and counts read that column.
 
 Product facet state is:
 

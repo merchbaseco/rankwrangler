@@ -1,7 +1,7 @@
 import { and, eq, type SQL, sql } from 'drizzle-orm';
 import { db } from '@/db/index';
 import { productHistorySeries, products } from '@/db/schema';
-import type { KeepaHistorySeries } from '@/services/keepa-history-series';
+import { type KeepaHistorySeries, lowestKeepaPoint } from '@/services/keepa-history-series';
 
 type Executor = Pick<typeof db, 'insert'>;
 
@@ -31,6 +31,7 @@ export const writeProductHistorySeries = async (
                 categoryId: entry.categoryId,
                 keepaMinutes: [...entry.keepaMinutes],
                 keepaValues: [...entry.values],
+                lowestPoint: lowestKeepaPoint(entry),
             }))
         )
         .onConflictDoUpdate({
@@ -48,8 +49,46 @@ export const writeProductHistorySeries = async (
 export const mergeSeriesOnConflict = (prefer: SeriesMergePrecedence) => ({
     keepaMinutes: mergedSeriesColumn('m', prefer),
     keepaValues: mergedSeriesColumn('v', prefer),
+    lowestPoint: sql.raw(`(
+        select coalesce(min(array[merged.v, merged.m]) filter (where merged.v >= 0), '{}'::int[])
+        from ${mergedPoints(prefer)} as merged
+    )`),
     updatedAt: sql`now()`,
 });
+
+/**
+ * The lowest `[value, minute]` across a Product family's stored Keepa series for one metric, or
+ * null. A series written before `lowest_point` existed has it null; this statement computes it from
+ * the arrays once and stores it, so later reads touch one small column. It lives here because this
+ * module owns every `product_history_series` write (the `stored-answer-owner` lint rule).
+ */
+export const readLowestSeriesPoint = async (
+    product: { marketplaceId: string; asin: string },
+    metric: string
+) => {
+    const [row] = await db.execute<{ best: number[] | null }>(sql`
+        with family as (
+            select id from products
+            where marketplace_id=${product.marketplaceId} and asin=${product.asin}
+        ),
+        filled as (
+            update product_history_series s
+            set lowest_point=${lowestPointOf(sql`s.keepa_minutes`, sql`s.keepa_values`)}
+            from family
+            where s.product_id=family.id and s.source='keepa' and s.metric=${metric}
+                and s.lowest_point is null
+            returning s.lowest_point
+        )
+        select min(point) best from (
+            select lowest_point point from filled
+            union all
+            select s.lowest_point from product_history_series s join family on s.product_id=family.id
+            where s.source='keepa' and s.metric=${metric} and s.lowest_point is not null
+        ) points
+        where cardinality(point)=2`);
+    const best = row?.best;
+    return best && best.length === 2 ? ([best[0], best[1]] as const) : null;
+};
 
 /** A Product's stored series for one metric, every category unless one is named. */
 export const readProductHistorySeries = async ({
@@ -111,11 +150,16 @@ export const countProductHistoryPoints = async (productId: string, source: strin
  * preferred side winning a shared minute, ordered by minute. Both columns order the same distinct
  * set the same way, so the arrays stay parallel.
  */
-const mergedSeriesColumn = (column: 'm' | 'v', prefer: SeriesMergePrecedence) => {
-    const incomingRank = prefer === 'incoming' ? 0 : 1;
-    return sql.raw(`(
+const mergedSeriesColumn = (column: 'm' | 'v', prefer: SeriesMergePrecedence) =>
+    sql.raw(`(
         select array_agg(merged.${column} order by merged.m)
-        from (
+        from ${mergedPoints(prefer)} as merged
+    )`);
+
+/** The merged point set as a derived table: one row per minute, the preferred side's value. */
+const mergedPoints = (prefer: SeriesMergePrecedence) => {
+    const incomingRank = prefer === 'incoming' ? 0 : 1;
+    return `(
             select distinct on (candidate.m) candidate.m, candidate.v
             from (
                 select incoming.m, incoming.v, ${incomingRank} as rank
@@ -128,6 +172,12 @@ const mergedSeriesColumn = (column: 'm' | 'v', prefer: SeriesMergePrecedence) =>
                 ) as stored(m, v)
             ) as candidate
             order by candidate.m, candidate.rank
-        ) as merged
-    )`);
+        )`;
 };
+
+// A stored series' lowest point from its arrays: the lowest non-missing value and its earliest
+// minute, `{}` when every point is missing.
+const lowestPointOf = (minutes: SQL, values: SQL) => sql`(
+    select coalesce(min(array[h.v, h.m]) filter (where h.v >= 0), '{}'::int[])
+    from unnest(${minutes}, ${values}) h(m, v)
+)`;

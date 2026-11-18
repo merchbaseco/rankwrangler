@@ -2,17 +2,22 @@ import { and, eq, gte, inArray, lte, type SQL, type SQLWrapper, sql } from 'driz
 import type { ProductCatalogFilterInput, ProductSearchInput } from '@/api/product-search-input';
 import { officialBrands } from './official-brand-schema';
 import { products } from './product-schema';
-import { productGridPredicates, productHasNiche } from './product-search-grid';
+import { productBrandKey } from './product-brand-key';
+import { productGridPredicates } from './product-search-grid';
 import { productSearchUpdatedAt } from './product-search-sort';
-import { productSearchTextFilter } from './product-search-text-filter';
+import { type ProductTextForm, productSearchTextFilter } from './product-search-text-filter';
 
 /**
  * The stored search's WHERE clause. `base` is every filter except Explore's sidebar groups, which
  * come back separately in `grid` so the facet aggregate can count each group without its own
- * filter; `where` is all of them.
+ * filter; `where` is all of them. `textForm` picks how a term is matched (see ProductTextForm).
  */
-export const productSearchFilters = (input: ProductCatalogFilterInput, now = new Date()) => {
-    const text = productSearchTextFilter(input);
+export const productSearchFilters = (
+    input: ProductCatalogFilterInput,
+    now = new Date(),
+    textForm: ProductTextForm = 'lookup'
+) => {
+    const text = productSearchTextFilter(input, textForm);
     const conditions: Array<SQL | undefined> = [text.where];
     if (input.marketplaceIds.length) {
         conditions.push(inArray(products.marketplaceId, input.marketplaceIds));
@@ -25,16 +30,16 @@ export const productSearchFilters = (input: ProductCatalogFilterInput, now = new
     }
     if (input.brands.length) {
         conditions.push(
-            sql`${normalizedBrand(products.brand)} in (${sql.join(
-                input.brands.map(brand => normalizedBrand(sql`${brand}`)),
+            sql`${productBrandKey(products.brand)} in (${sql.join(
+                input.brands.map(brand => productBrandKey(sql`${brand}`)),
                 sql`, `
             )})`
         );
     }
     if (input.excludeBrands.length) {
         conditions.push(
-            sql`(${products.brand} is null or ${normalizedBrand(products.brand)} not in (${sql.join(
-                input.excludeBrands.map(brand => normalizedBrand(sql`${brand}`)),
+            sql`(${products.brand} is null or ${productBrandKey(products.brand)} not in (${sql.join(
+                input.excludeBrands.map(brand => productBrandKey(sql`${brand}`)),
                 sql`, `
             )}))`
         );
@@ -42,7 +47,7 @@ export const productSearchFilters = (input: ProductCatalogFilterInput, now = new
     if (!input.includeOfficialBrands) {
         conditions.push(sql`not exists (
         select 1 from ${officialBrands} where ${officialBrands.marketplaceId} = ${products.marketplaceId}
-            and ${officialBrands.normalizedBrand} = ${normalizedBrand(products.brand)}
+            and ${officialBrands.normalizedBrand} = ${productBrandKey(products.brand)}
     )`);
     }
     if (input.categoryIds.length) {
@@ -72,8 +77,7 @@ export const productSearchFilters = (input: ProductCatalogFilterInput, now = new
         {
             bsr: products.rootCategoryBsr,
             firstAvailableAt: products.dateFirstAvailable,
-            // Qualified by hand: a single-table select renders a bare `"id"`.
-            hasNiche: productHasNiche(sql`${products}.${sql.identifier(products.id.name)}`),
+            hasNiche: products.hasNiche,
         },
         now
     );
@@ -85,9 +89,6 @@ export const productSearchFilters = (input: ProductCatalogFilterInput, now = new
         relevance: text.relevance,
     };
 };
-
-const normalizedBrand = (column: SQLWrapper) =>
-    sql`lower(btrim(regexp_replace(${column}, '[[:space:]]+', ' ', 'g')))`;
 
 const numericConditions = (column: SQLWrapper, range: ProductSearchInput['salesRank']) => [
     range?.min === undefined ? undefined : gte(sql`${column}`, range.min),

@@ -1,7 +1,7 @@
 import { notifyKeywordQueryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
 import { observeKeywordStanding } from './keyword-standing';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
     explorationCheckpoint,
     KEYWORD_DAY_MS,
@@ -10,10 +10,13 @@ import {
 import type { persistDiscoveredSpApiProducts } from '@/services/spapi-keyword-discovery';
 import { catalogQueries } from './catalog-search-schema';
 import { lockCatalogQueryForReconciliation } from './catalog-query-resolution';
-import { recordDiscoveryMembership } from './discovery-membership';
-import { discoveryTargets } from './discovery-target-schema';
+import { brandDiscoveryProducts, discoveryTargets } from './discovery-target-schema';
 import { db } from './index';
-import { keywordDiscoveryAttempts, keywordExplorationPasses } from './keyword-collection-schema';
+import {
+    keywordDiscoveryAttempts,
+    keywordExplorationPasses,
+    keywordProducts,
+} from './keyword-collection-schema';
 import { syncKeywordTargets } from './keyword-target-sync';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -110,7 +113,7 @@ export const checkpointDiscoveryPage = async <T>(input: {
         if (input.page === 0)
             await tx
                 .update(discoveryTargets)
-                .set({ emptyCount })
+                .set({ emptyCount, ...standing?.patch })
                 .where(eq(discoveryTargets.id, target.id));
         const [next] = await tx
             .update(keywordExplorationPasses)
@@ -184,4 +187,66 @@ const searchFrequencyRank = async (tx: Transaction, queryId: string) => {
             and ba.normalized_term=q.normalized_term
         where q.id=${queryId}`);
     return row?.rank ?? null;
+};
+
+// The page's Products join the target's retained set; returns how many Merch Products are new to it.
+const recordDiscoveryMembership = async (
+    tx: Transaction,
+    input: {
+        target: typeof discoveryTargets.$inferSelect;
+        productIds: string[];
+        merchProductIds: string[];
+        observedAt: Date;
+    }
+) => {
+    if (!input.productIds.length) return 0;
+    const { target, observedAt, productIds } = input;
+    const added =
+        target.kind === 'keyword'
+            ? await tx
+                  .insert(keywordProducts)
+                  .values(
+                      productIds.map(productId => ({
+                          queryId: target.queryId,
+                          productId,
+                          firstObservedAt: observedAt,
+                          lastObservedAt: observedAt,
+                      }))
+                  )
+                  .onConflictDoNothing()
+                  .returning({ productId: keywordProducts.productId })
+            : await tx
+                  .insert(brandDiscoveryProducts)
+                  .values(
+                      productIds.map(productId => ({
+                          targetId: target.id,
+                          productId,
+                          firstObservedAt: observedAt,
+                          lastObservedAt: observedAt,
+                      }))
+                  )
+                  .onConflictDoNothing()
+                  .returning({ productId: brandDiscoveryProducts.productId });
+    if (target.kind === 'keyword')
+        await tx
+            .update(keywordProducts)
+            .set({ lastObservedAt: observedAt })
+            .where(
+                and(
+                    eq(keywordProducts.queryId, target.queryId),
+                    inArray(keywordProducts.productId, productIds)
+                )
+            );
+    else
+        await tx
+            .update(brandDiscoveryProducts)
+            .set({ lastObservedAt: observedAt })
+            .where(
+                and(
+                    eq(brandDiscoveryProducts.targetId, target.id),
+                    inArray(brandDiscoveryProducts.productId, productIds)
+                )
+            );
+    const merch = new Set(input.merchProductIds);
+    return added.filter(row => merch.has(row.productId)).length;
 };

@@ -3,12 +3,17 @@ import type { ProductSearchFacetsInput } from '@/api/product-search-input';
 import { runBackground } from '@/db/index';
 import { readKeywordDirectoryFacets } from '@/db/keyword-directory-facets';
 import { readProductSearchFacets } from '@/db/product-search-facets';
+import {
+    isDefaultFacetsInput,
+    readProductSearchFacetSnapshot,
+} from '@/db/product-search-facet-snapshot';
 import { readProductSearchSeasonality } from '@/db/product-search-seasonality';
 import { createSwrCache } from '@/utils/swr-cache';
 
 /**
- * Explore's sidebar counts and KPI bands; one aggregate scan per filter. Fresh for a minute, then
- * served at once for up to half an hour while a background read replaces it.
+ * Explore's sidebar counts and KPI bands for filtered views; one bounded read per filter (exact
+ * through an index, else scaled from a block sample). Fresh for a minute, then served at once
+ * for up to half an hour while a background read replaces it.
  */
 const productFacets = createSwrCache<Awaited<ReturnType<typeof readProductSearchFacets>>>({
     freshMs: 60_000,
@@ -42,8 +47,17 @@ const keywordFacets = createSwrCache<Awaited<ReturnType<typeof readKeywordDirect
     runRefresh: runBackground,
 });
 
-export const readCachedProductSearchFacets = (input: ProductSearchFacetsInput) =>
-    productFacets(JSON.stringify(input), () => readProductSearchFacets(input));
+/**
+ * The default view reads the snapshot the `refresh-product-search-facets` job counts exactly
+ * (one row); until the first count exists it is read like any filtered view.
+ */
+export const readCachedProductSearchFacets = async (input: ProductSearchFacetsInput) => {
+    if (isDefaultFacetsInput(input)) {
+        const snapshot = await readProductSearchFacetSnapshot();
+        if (snapshot) return snapshot.facets;
+    }
+    return productFacets(JSON.stringify(input), () => readProductSearchFacets(input));
+};
 
 export const readCachedProductSearchSeasonality = (input: ProductSearchFacetsInput) =>
     productSeasonality(JSON.stringify(input), () => readProductSearchSeasonality(input));

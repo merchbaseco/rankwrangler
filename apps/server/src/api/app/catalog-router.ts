@@ -1,6 +1,5 @@
 import { router } from '@/api/trpc';
 import { catalogQueryGet } from './catalog-query-get';
-import { catalogQueryList } from './catalog-query-list';
 import { catalogRunGet } from './catalog-run-get';
 import { catalogRunList } from './catalog-run-list';
 import { catalogSearch } from './catalog-search';
@@ -13,7 +12,6 @@ export const catalogRouter = router({
     }),
     query: router({
         get: catalogQueryGet,
-        list: catalogQueryList,
     }),
     run: router({
         get: catalogRunGet,

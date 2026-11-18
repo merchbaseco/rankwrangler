@@ -96,18 +96,22 @@ export const markProductsDeleted = async (identities: ProductIdentity[], resolve
         return 0;
     }
 
-    const previous = await db
-        .select({ id: products.id, status: products.amazonListingStatus })
-        .from(products)
-        .where(identityCondition);
-    const updated = await db
-        .update(products)
-        .set({ amazonListingStatus: 'deleted', spApiResolvedAt: resolvedAt })
-        .where(identityCondition)
-        .returning({ id: products.id });
-    await refreshKeywordProductRows(
-        db,
-        previous.filter(row => row.status !== 'deleted').map(row => row.id)
-    );
-    return updated.length;
+    // The status change and the keyword recount it implies commit together.
+    return db.transaction(async tx => {
+        const previous = await tx
+            .select({ id: products.id, status: products.amazonListingStatus })
+            .from(products)
+            .where(identityCondition)
+            .for('update');
+        const updated = await tx
+            .update(products)
+            .set({ amazonListingStatus: 'deleted', spApiResolvedAt: resolvedAt })
+            .where(identityCondition)
+            .returning({ id: products.id });
+        await refreshKeywordProductRows(
+            tx,
+            previous.filter(row => row.status !== 'deleted').map(row => row.id)
+        );
+        return updated.length;
+    });
 };

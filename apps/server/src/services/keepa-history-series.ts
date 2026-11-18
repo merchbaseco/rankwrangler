@@ -142,3 +142,17 @@ export const keepaHistoryPointAt = <Point extends { keepaMinutes: number }>(
     }
     return low > 0 ? points[low - 1] : undefined;
 };
+
+/**
+ * A series' `lowest_point`: `[value, minute]` of its lowest non-missing value at the earliest
+ * minute it occurs (best-ever rank for a BSR series), `[]` when every point is missing.
+ */
+export const lowestKeepaPoint = (series: KeepaHistorySeries): number[] => {
+    let best: number[] = [];
+    for (const [index, value] of series.values.entries()) {
+        const minute = series.keepaMinutes[index];
+        if (value < 0 || minute === undefined) continue;
+        if (best.length === 0 || value < best[0]) best = [value, minute];
+    }
+    return best;
+};

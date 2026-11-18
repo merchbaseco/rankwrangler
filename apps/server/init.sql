@@ -47,7 +47,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Access projection aliases share a user with its canonical grant; migrations
 -- preserve issuer-and-subject uniqueness rather than one-row-per-user uniqueness.
 -- Key tables: access_projection, rankwrangler_service_accounts, products
--- (includes source-aware SP-API/Keepa freshness, Keepa metrics, due-at expression indexes the
+-- (includes source-aware SP-API/Keepa freshness, Keepa metrics, has_niche (written with the facet
+-- links), a brand-key expression index, due-at expression indexes the
 -- SP-API and Keepa refresh listings read, and
 -- products.is_merch_listing, a NOT NULL boolean defaulting to false that the latest decided
 -- observation overwrites, and products.amazon_listing_status, whether the Amazon listing is
@@ -55,10 +56,12 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- product_short_names, product_cutout_thumbnails,
 -- product_facet_values, product_facets,
 -- product_ingest_queue, keepa_history_refresh_queue, product_history_imports,
--- product_history_series (compact Keepa series),
+-- product_history_series (compact Keepa series, each with its stored lowest point),
 -- keepa_categories,
 --
--- operations, event_logs, job_executions, job_execution_logs, provider_attempts
+-- operations, event_logs (kept thirty days), event_log_counts and event_log_count_state (per-bucket
+-- event counts the Status histogram reads, folded every minute), job_executions,
+-- job_execution_logs, provider_attempts
 -- catalog_queries (keyword admission, tiers, demand, due dates and research leases; partial
 -- indexes over admitted and requested keywords),
 -- keyword_products, keyword_exploration_passes (scoped discovery target and fenced claim),
@@ -71,6 +74,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- discovery_source_scans, brand_discovery_products,
 -- keepa_capacity_state, keepa_capacity_attempts, keepa_measured_costs (per-operation p95 cost over
 -- the last settled calls), product_stats (the five-minute Product and provider-call count snapshot),
+-- product_search_facet_snapshot (Explore's default-view facets, counted every fifteen minutes),
 -- history_admission_rollouts,
 -- catalog_search_runs (page and trigger provenance),
 -- catalog_search_results, official_brands (verified marketplace-specific brand exclusions)

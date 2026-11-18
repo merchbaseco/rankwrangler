@@ -117,15 +117,16 @@ KEYWORD suggestions are kept, including pluralization and inserted words; the se
 duplicates are excluded, and stray trailing commas are stripped.
 
 Suggestions become trials directly, with `autocomplete` evidence naming the seed, in the same
-transaction that saves them on `keyword_autocomplete` and completes the seed (and sets the target's
-`autocompleted`). The first-page check decides each one. Completed seeds are never expanded again,
+transaction that saves them on `keyword_autocomplete`, completes the seed and re-syncs its target
+(which sets `autocompleted`). The first-page check decides each one. Completed seeds are never expanded again,
 and new trials are not recursive seeds.
 
 Due seeds are listed in two index reads: pending expansions whose retry is due and unclaimed,
 oldest due first (`keyword_autocomplete_due_idx`), then tracked keywords never attempted, most
 popular first (`discovery_targets_autocomplete_due_idx`, over enabled tracked targets not yet
-`autocompleted`). `autocompleted` is derived, not owned: it only lets the second read skip expanded
-seeds, which it also excludes by their `keyword_autocomplete` row.
+`autocompleted`). `autocompleted` is derived, not owned: `syncKeywordTargets` sets it from a
+complete `keyword_autocomplete` row, and it only lets the second read skip expanded seeds, which it
+also excludes by their `keyword_autocomplete` row.
 
 Autocomplete has durable pacing in `keyword_mining_capacity` (the table keeps its earlier name):
 ten seconds between starts at base; each 429 or 5xx doubles the spacing (to at most fifteen
@@ -273,7 +274,8 @@ columns are the claim's readiness rule reduced to one instant: no pass is due fr
 continuing pass at its resume time, a finished one at the earlier of its resume time and
 `next_check_at`, and a claimed one not before its five-minute lease ends. They are derived, not
 owned: `syncKeywordTargets` rewrites them in the same transaction as every write to a target or
-its latest pass (claim, checkpoint, stop, standing refresh, candidate registration). A claim refused as not due rewrites them too, so a value left early costs one job,
+its latest pass (claim, checkpoint, stop, standing refresh, candidate registration, Product
+merge). A claim refused as not due rewrites them too, so a value left early costs one job,
 and a target inserted without them defaults to due. The claim stays authoritative.
 
 The scheduler also skips the listing while the scan queue already holds a full batch (1,000) and
@@ -346,15 +348,43 @@ one row per keyword target: the target's stage, heat, score and schedule, its la
 failures, whether it continues, resume and last page times) and its measures (retained Product and
 active Merch counts, the shelf's median BSR, Elite-tier count and first-available dates). It is
 derived, never owned: `syncKeywordTargets` rewrites a target's row in the same statement as its
-scan due time, so every write that already re-derives scan due keeps the row current. An accepted
-page recounts every measure, a Product turning Merch or not (or deleted) recounts the keywords
-that retain it, and the standing refresh rereads its batch's shelves (shelf ranks drift between
-checks). Freshness and the fresh count stay time-relative and are computed at read time. A read
+scan due time, so every write that already re-derives scan due keeps the row current. Freshness and
+the fresh count stay time-relative and are computed at read time; the table below says when each
+stored value moves. A read
 is one scan of a table small enough to stay in memory, with no per-keyword lookups; only the
 returned page reads its shelf detail, trend, sources and Brand Analytics rank, the work sort looks
 up trials' ranks, and a facet filter joins dominant facets from the faceted Products outward.
 Discovery sources are display-only, so the page read fetches them for
 its returned rows only.
+
+### Stored keyword values
+
+Every stored keyword value is rewritten by its owner in the same transaction as the write that
+changes its inputs, except the shelf's drift with Product ranks, which is bounded as stated.
+
+| Value | Owner | When it changes | How stale it can be |
+| --- | --- | --- | --- |
+| `scan_due_at`, `scan_depth` | `syncKeywordTargets` | Every write to a target or its latest pass | Never; a value left early costs one refused claim |
+| `autocompleted` | `syncKeywordTargets` | Expansion completes (`finishKeywordAutocomplete`), any target sync | Never |
+| Directory target and pass columns | `syncKeywordTargets` | As `scan_due_at` | Never |
+| `product_count`, `merch_count` | `syncKeywordTargets` (`all`) | Accepted scan page, Catalog search adding Products to the query, a retained Product's Merch or listing status change, Product merge | Never |
+| Shelf (median BSR, Elite count, first-available dates), enabled keyword | `syncKeywordTargets` (`shelf`) | Page-one scan, the standing refresh (hourly sweep of enabled keywords with a head), the count triggers above | One standing sweep behind Product rank changes (about an hour once caught up) |
+| Shelf, dropped or untracked keyword | `syncKeywordTargets` (`shelf`) | Its last scan, or a Merch, listing status or merge change among its Products | Unbounded: as of its last check |
+
+The shelf does not follow every Product rank change: SP-API refresh alone writes up to 2,000 ranks
+every ten minutes (about 288,000 a day) plus every accepted scan page, and finding the shelves a
+Product heads would need an index on `head_product_ids` and a recount per change. Enabled keywords
+are swept instead. A dropped or untracked keyword is never swept, so its shelf is defined as of its
+last check: the grid shows those stored values (tooltip "as of the last check") so the row agrees
+with the sorts, filters and KPI that read them, while the shelf thumbnails show current ranks.
+
+The `stored-answer-owner` Biome plugin (`lint/stored-answer-owner.grit`, generated from the
+ownership map in `lint/stored-answer-owners.mjs`) keeps writes to these inputs in owner modules. It
+matches Drizzle `insert`/`update`/`delete` calls whose argument is a guarded table's schema binding
+name (or `<namespace>.<binding>`) and SQL text naming the table. GritQL matches syntax, not
+imports, so it misses a renamed import or a local alias of a binding, a binding passed through a
+parameter, a table named at runtime, a write made by a helper an owner calls that forgets to sync,
+and SQL run by hand against the database.
 
 Track keyword explicitly records user interest; typing in the filter does not schedule work.
 The public directory get/search share stage, freshness and ordering with the dashboard; get reads

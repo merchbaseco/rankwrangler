@@ -54,9 +54,9 @@ export const discoveryTargets = pgTable(
         // the latest pass and next_check_at by syncKeywordTargets for the scheduler's index.
         scanDueAt: timestamp('scan_due_at', { mode: 'date' }).notNull().defaultNow(),
         scanDepth: boolean('scan_depth').notNull().default(false),
-        // Whether the query's one-time autocomplete expansion has completed. Set when it completes,
-        // so the seeds still to expand are found from an index rather than a join over every
-        // tracked keyword. keyword_autocomplete stays the record; see listDueAutocomplete.
+        // Whether the query's one-time autocomplete expansion has completed, derived from
+        // keyword_autocomplete by syncKeywordTargets, so the seeds still to expand are found from an
+        // index rather than a join over every tracked keyword. See listDueAutocomplete.
         autocompleted: boolean('autocompleted').notNull().default(false),
         createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
     },

@@ -31,9 +31,16 @@ only index; every read starts from a Product id, joined from `(marketplace_id, a
 
 `apps/server/src/services/keepa-history-series.ts` owns the encoding: building series from Keepa
 pairs, decoding them to points, the bounded-window selection and the value-in-force lookup. The
-history API, the sparkline sampler and the seed decode through it. Three aggregate reads stay in SQL
+history API, the sparkline sampler and the seed decode through it. Two aggregate reads stay in SQL
 over `unnest(keepa_minutes, keepa_values)`, treating a negative value as missing: the improvement
-share, the sparkline window, and best-ever rank.
+share and the sparkline window.
+
+Each row also stores `lowest_point`, `{value, minute}` of its lowest non-missing value at the
+earliest minute it occurs (`{}` when every point is missing), so the Product page's best-ever rank
+reads one small column instead of unnesting the series. Every write recomputes it from the merged
+points. Rows written before the column have it null; the Product page's read computes and stores it
+for that Product's series in the same statement, so the 5 GB table is never backfilled in one pass,
+and Keepa refreshes fill the rest as they rewrite series.
 
 A write merges each incoming series into the stored one inside `ON CONFLICT DO UPDATE`: the union of
 points by minute, the incoming value winning a shared minute. A fetch with a shorter window never

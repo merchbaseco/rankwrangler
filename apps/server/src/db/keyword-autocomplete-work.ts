@@ -1,4 +1,4 @@
-import { notifyKeywordQueryRows } from './keyword-directory-notifications';
+import { notifyKeywordQueryRows, refreshKeywordQueryRows } from './keyword-directory-notifications';
 import { isAutomaticSyncPaused } from './automatic-sync';
 import { writeKeywordEvents } from './keyword-events';
 import { randomUUID } from 'node:crypto';
@@ -90,15 +90,6 @@ export const finishKeywordAutocomplete = async (
             }))
         );
         await tx
-            .update(discoveryTargets)
-            .set({ autocompleted: true })
-            .where(
-                and(
-                    eq(discoveryTargets.queryId, work.queryId),
-                    eq(discoveryTargets.kind, 'keyword')
-                )
-            );
-        await tx
             .update(expansion)
             .set({
                 stage: 'complete',
@@ -119,7 +110,8 @@ export const finishKeywordAutocomplete = async (
                 details: { suggestions: suggestions.length, trials: registered.targets },
             },
         ]);
-        await notifyKeywordQueryRows(tx, [work.queryId]);
+        // The completed expansion sets the target's `autocompleted` flag (syncKeywordTargets).
+        await refreshKeywordQueryRows(tx, [work.queryId]);
     });
 
 export const releaseKeywordAutocomplete = async (

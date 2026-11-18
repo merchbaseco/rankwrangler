@@ -92,7 +92,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('interactive reques
             caller.api.app.product.get({
                 marketplaceId: SPAPI_US_MARKETPLACE_ID,
                 asin,
-                includeProvenance: true,
             })
         );
         expect(product.interactive.product?.asin).toBe(asin);

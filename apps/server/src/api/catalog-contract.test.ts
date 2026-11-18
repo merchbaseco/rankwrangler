@@ -8,7 +8,7 @@ describe('Catalog query API contract', () => {
         const publicProcedures = Object.keys(publicAppRouter._def.procedures);
 
         expect(appProcedures).toContain('api.app.catalog.query.get');
-        expect(appProcedures).toContain('api.app.catalog.query.list');
+        expect(appProcedures).not.toContain('api.app.catalog.query.list');
         expect(appProcedures).not.toContain('api.app.catalog.query.track');
         expect(appProcedures).not.toContain('api.app.catalog.query.untrack');
         expect(publicProcedures).not.toContain('api.public.catalog.query.get');

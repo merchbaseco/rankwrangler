@@ -11,18 +11,24 @@ import { catalogSearchJob } from '@/jobs/catalog-search';
 import { collectDueCatalogQueriesJob } from '@/jobs/collect-due-catalog-queries';
 import { enqueueScheduledKeepaHistoryRefreshJob } from '@/jobs/enqueue-scheduled-keepa-history-refresh.js';
 import { fetchKeepaHistoryBatchJob } from '@/jobs/fetch-keepa-history-batch';
+import { foldEventLogCountsJob } from '@/jobs/fold-event-log-counts';
 import { ensureJobRetention, JOB_RETENTION_SECONDS } from '@/jobs/ensure-job-queue';
 import { startRegisteredJobs } from '@/jobs/job-router.js';
 import { processKeepaHistoryRefreshQueueJob } from '@/jobs/process-keepa-history-refresh-queue.js';
 import { processProductFacetClassificationJob } from '@/jobs/process-product-facet-classification.js';
 import { processSpApiSyncQueueJob } from '@/jobs/process-spapi-sync-queue.js';
 import { reclassifyMerchListingsJob } from '@/jobs/reclassify-merch-listings';
+import { pruneEventLogsJob } from '@/jobs/prune-event-logs';
 import { pruneJobExecutionsJob } from '@/jobs/prune-job-executions';
 import { pruneProviderAttemptsJob } from '@/jobs/prune-provider-attempts';
 import {
     refreshProductStatsJob,
     sendMissingProductStatsRefresh,
 } from '@/jobs/refresh-product-stats';
+import {
+    refreshProductSearchFacetsJob,
+    sendMissingProductSearchFacetsRefresh,
+} from '@/jobs/refresh-product-search-facets';
 import { recoverStaleCatalogSearchOperationsJob } from '@/jobs/recover-stale-catalog-search-operations';
 import { recoverStaleProductHistoryOperationsJob } from '@/jobs/recover-stale-product-history-operations.js';
 import { refreshProductHistoryOperationJob } from '@/jobs/refresh-product-history-operation.js';
@@ -39,6 +45,8 @@ const registeredJobs = [
     catalogSearchJob,
     reconcileHistoryAdmissionJob,
     refreshProductStatsJob,
+    refreshProductSearchFacetsJob,
+    foldEventLogCountsJob,
     collectDueCatalogQueriesJob,
     enqueueScheduledKeepaHistoryRefreshJob,
     fetchKeepaHistoryBatchJob,
@@ -49,6 +57,7 @@ const registeredJobs = [
     reclassifyMerchListingsJob,
     pruneProviderAttemptsJob,
     pruneJobExecutionsJob,
+    pruneEventLogsJob,
     reprocessStaleProductsJob,
     recoverStaleProductHistoryOperationsJob,
     recoverStaleCatalogSearchOperationsJob,
@@ -77,5 +86,9 @@ export const startJobs = async (boss: PgBoss) => {
     // pg-boss's own cron dispatch queue keeps one row per tick sent; same retention as ours.
     await ensureJobRetention(boss, '__pgboss__send-it');
     // Count once now when nothing has been counted, rather than waiting for the first tick.
-    return { ...runtime, productStatsStatus: await sendMissingProductStatsRefresh(boss) };
+    const productStatsStatus = [
+        await sendMissingProductStatsRefresh(boss),
+        await sendMissingProductSearchFacetsRefresh(boss),
+    ].join('; ');
+    return { ...runtime, productStatsStatus };
 };
