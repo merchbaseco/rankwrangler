@@ -81,8 +81,13 @@ else
     echo "[install] Bun ${BUN_VERSION} already present."
 fi
 # Shells and hooks that start without this PATH still find the pinned Bun.
-$SUDO ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun
-$SUDO ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bunx
+# Link only a Bun that lives under $BUN_INSTALL. An image whose own Bun already
+# matched the pin (Capy ships one at /usr/local/bin/bun) leaves $BUN_INSTALL
+# empty, and linking it would replace that Bun with a dangling symlink.
+if [ -x "$BUN_INSTALL/bin/bun" ]; then
+    $SUDO ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bun
+    $SUDO ln -sf "$BUN_INSTALL/bin/bun" /usr/local/bin/bunx
+fi
 
 # --- Install-time credentials ---
 # The private @merchbaseco/* scope needs a GitHub Packages read token, the
