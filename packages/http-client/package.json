@@ -1,6 +1,6 @@
 {
     "name": "@rankwrangler/http-client",
-    "version": "0.16.6",
+    "version": "0.17.0",
     "description": "Typed tRPC client for RankWrangler",
     "repository": {
         "type": "git",

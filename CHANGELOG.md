@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.17.0 - 2026-11-18
+
+### Changed
+
+- Dashboard reads and background schedulers no longer recompute whole-set answers. The Keywords
+  directory, Status counts, the Events chart, default Explore facets, Keepa cost estimates and due
+  listings are stored when the underlying data changes or by a short periodic snapshot, and read
+  back as a few rows.
+- **Breaking:** Product search with `sort: relevance` orders by sales rank when a term has more
+  than 10,000 estimated matches.
+- **Breaking:** Product search rejects pages that would skip more than 10,000 rows.
+- Filtered Explore facet counts and large grid totals can be estimates, marked as such.
+- Status shows when product counts were taken; a brand's design count stops at `1,000+`; a dropped
+  keyword shows its shelf as of its last check.
+- Event logs are kept for 30 days and Keepa capacity attempts for 7. Finished job records are kept
+  for one day.
+- Stale-product reprocessing enqueues at most 2,000 Products per run.
+
+### Fixed
+
+- Scheduler ticks no longer pile up behind a slow run.
+- Product merges, Catalog-search results and deleted Products update the keyword rows they feed.
+
 ## v0.16.6 - 2026-11-05
 
 ### Changed

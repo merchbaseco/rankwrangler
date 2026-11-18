@@ -450,18 +450,18 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 						keyword: string;
 						data: {
 							freshness: (typeof keywordFreshness)[number] | null;
+							createdAt: string;
 							products: number;
 							id: string;
-							createdAt: string;
 							searchFrequencyRank: number | null;
 							intervalDays: number | null;
 							queryId: string;
 							nextCheckAt: string | null;
 							stage: (typeof keywordStages)[number];
+							term: string;
+							merch: number;
 							heat: string;
 							score: number | null;
-							merch: number;
-							term: string;
 							retryScheduled: boolean;
 							sources: string[];
 							lastCheckedAt: string | null;
@@ -481,8 +481,8 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					input: {
 						text: string;
 						freshness?: "live" | "needsSync" | "syncing" | "all" | undefined;
-						limit?: number | undefined;
 						sort?: "work" | "newest" | undefined;
+						limit?: number | undefined;
 						stage?: "trial" | "dropped" | "graduated" | "untracked" | "all" | undefined;
 						heat?: "unrated" | "hot" | "warm" | "cold" | "all" | undefined;
 						cursor?: {
@@ -502,24 +502,24 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					output: {
 						items: {
 							freshness: (typeof keywordFreshness)[number] | null;
+							createdAt: string;
 							products: number;
 							id: string;
-							createdAt: string;
 							searchFrequencyRank: number | null;
 							intervalDays: number | null;
 							queryId: string;
 							nextCheckAt: string | null;
 							stage: (typeof keywordStages)[number];
+							term: string;
+							merch: number;
 							heat: string;
 							score: number | null;
-							merch: number;
-							term: string;
 							retryScheduled: boolean;
 							sources: string[];
 							lastCheckedAt: string | null;
 						}[];
 						nextCursor: {
-							sort: "fresh" | "work" | "newest" | "score" | "medianBsr" | "merch";
+							sort: "fresh" | "merch" | "work" | "newest" | "score" | "medianBsr";
 							asOf: string;
 							key: [
 								number,
