@@ -26,7 +26,10 @@ describe('CORS origin policy', () => {
         const server = Fastify();
         servers.push(server);
         await server.register(cors, {
-            origin: createCorsOriginHandler({ isProduction: false }),
+            origin: createCorsOriginHandler({
+                isProduction: false,
+                allowedChromeExtensionIds: ['hfoliiddbbblflnaakfggibiiphalbnc'],
+            }),
             credentials: true,
         });
         await server.register(fastifyTRPCPlugin, {
@@ -65,7 +68,10 @@ describe('CORS origin policy', () => {
     });
 
     it('rejects loopback origins in production', async () => {
-        const handler = createCorsOriginHandler({ isProduction: true });
+        const handler = createCorsOriginHandler({
+            isProduction: true,
+            allowedChromeExtensionIds: ['hfoliiddbbblflnaakfggibiiphalbnc'],
+        });
 
         const result = await new Promise<{ error: Error | null; allowed?: boolean }>((resolve) => {
             handler('http://127.0.0.1:21865', (error, allowed) => {
@@ -75,5 +81,58 @@ describe('CORS origin policy', () => {
 
         expect(result.error?.message).toBe('Not allowed by CORS');
         expect(result.allowed).toBe(false);
+    });
+
+    it('allows the shipped Chrome extension origin', async () => {
+        const handler = createCorsOriginHandler({
+            isProduction: true,
+            allowedChromeExtensionIds: ['hfoliiddbbblflnaakfggibiiphalbnc'],
+        });
+
+        const result = await new Promise<{ error: Error | null; allowed?: boolean }>((resolve) => {
+            handler('chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc', (error, allowed) => {
+                resolve({ error, allowed });
+            });
+        });
+
+        expect(result.allowed).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('rejects a chrome-extension origin that is not in the allowlist', async () => {
+        const handler = createCorsOriginHandler({
+            isProduction: true,
+            allowedChromeExtensionIds: ['hfoliiddbbblflnaakfggibiiphalbnc'],
+        });
+
+        const result = await new Promise<{ error: Error | null; allowed?: boolean }>((resolve) => {
+            handler('chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', (error, allowed) => {
+                resolve({ error, allowed });
+            });
+        });
+
+        expect(result.allowed).toBe(false);
+        expect(result.error?.message).toBe('Not allowed by CORS');
+    });
+
+    it('allows only the configured extension id, not the shipped default', async () => {
+        const handler = createCorsOriginHandler({
+            isProduction: true,
+            allowedChromeExtensionIds: ['bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'],
+        });
+
+        const configured = await new Promise<{ allowed?: boolean }>((resolve) => {
+            handler('chrome-extension://bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', (_error, allowed) => {
+                resolve({ allowed });
+            });
+        });
+        const shipped = await new Promise<{ allowed?: boolean }>((resolve) => {
+            handler('chrome-extension://hfoliiddbbblflnaakfggibiiphalbnc', (_error, allowed) => {
+                resolve({ allowed });
+            });
+        });
+
+        expect(configured.allowed).toBe(true);
+        expect(shipped.allowed).toBe(false);
     });
 });

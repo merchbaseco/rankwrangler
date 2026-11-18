@@ -5,6 +5,7 @@ import { WebSocketServer } from 'ws';
 import { createRequestContext } from '@/api/context';
 import { realtimeRouter } from '@/api/realtime-router';
 import { createWebSocketContext } from '@/api/websocket-context';
+import { isDashboardWebOrigin } from '@/config/dashboard-origin';
 import type { RankWranglerAccess } from '@/services/access/rankwrangler-access';
 
 export const TRPC_WEBSOCKET_PATH = '/api/trpc';
@@ -12,7 +13,8 @@ export const TRPC_WEBSOCKET_MAX_PAYLOAD_BYTES = 64 * 1024;
 
 export const registerTrpcWebsocketServer = (
     server: Server,
-    access: Pick<RankWranglerAccess, 'authorizeRequest' | 'grantDeadline'> | null = null
+    access: Pick<RankWranglerAccess, 'authorizeRequest' | 'grantDeadline'> | null = null,
+    { isProduction = true }: { isProduction?: boolean } = {}
 ) => {
     const websocketServer = new WebSocketServer({
         noServer: true,
@@ -39,6 +41,12 @@ export const registerTrpcWebsocketServer = (
         const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
         if (pathname !== TRPC_WEBSOCKET_PATH) {
             socket.destroy();
+            return;
+        }
+
+        const origin = request.headers.origin;
+        if (typeof origin !== 'string' || !isDashboardWebOrigin(origin, isProduction)) {
+            socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
             return;
         }
 

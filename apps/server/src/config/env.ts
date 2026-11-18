@@ -28,6 +28,10 @@ export const env = createEnv({
         RANKWRANGLER_R2_ACCESS_KEY_ID: z.string().optional(),
         RANKWRANGLER_R2_SECRET_ACCESS_KEY: z.string().optional(),
         RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER: z.stringbool().default(false),
+        RANKWRANGLER_CORS_CHROME_EXTENSION_IDS: z
+            .string()
+            .default('hfoliiddbbblflnaakfggibiiphalbnc')
+            .transform((value) => value.split(',').map((id) => id.trim()).filter(Boolean)),
         RANKWRANGLER_DATABASE_MIGRATION_TARGET: z.enum(['pre-cutover', 'latest']),
         RANKWRANGLER_DATABASE_HOST: databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_HOST,
         RANKWRANGLER_DATABASE_PORT: databaseConfigurationSchema.shape.RANKWRANGLER_DATABASE_PORT,
@@ -68,6 +72,8 @@ export const env = createEnv({
         RANKWRANGLER_R2_ACCESS_KEY_ID: process.env.RANKWRANGLER_R2_ACCESS_KEY_ID,
         RANKWRANGLER_R2_SECRET_ACCESS_KEY: process.env.RANKWRANGLER_R2_SECRET_ACCESS_KEY,
         RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER: process.env.RANKWRANGLER_DISABLE_SERVER_JOB_RUNNER,
+        RANKWRANGLER_CORS_CHROME_EXTENSION_IDS:
+            process.env.RANKWRANGLER_CORS_CHROME_EXTENSION_IDS,
         RANKWRANGLER_DATABASE_MIGRATION_TARGET: process.env.RANKWRANGLER_DATABASE_MIGRATION_TARGET,
         RANKWRANGLER_DATABASE_HOST: process.env.RANKWRANGLER_DATABASE_HOST,
         RANKWRANGLER_DATABASE_PORT: process.env.RANKWRANGLER_DATABASE_PORT,

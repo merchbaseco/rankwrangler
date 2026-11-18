@@ -157,11 +157,16 @@ const startServer = async () => {
     // Register Fastify plugins
     await fastify.register(helmet);
     await fastify.register(cors, {
-        origin: createCorsOriginHandler({ isProduction: process.env.NODE_ENV === 'production' }),
+        origin: createCorsOriginHandler({
+            isProduction: process.env.NODE_ENV === 'production',
+            allowedChromeExtensionIds: env.RANKWRANGLER_CORS_CHROME_EXTENSION_IDS,
+        }),
         credentials: true,
     });
     registerInteractiveRequests(fastify);
-    const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess);
+    const trpcWebsocketServer = registerTrpcWebsocketServer(fastify.server, rankwranglerAccess, {
+        isProduction: process.env.NODE_ENV === 'production',
+    });
     const handleSnapshot = rankwranglerAccess.projectionHandler(uid => {
         trpcWebsocketServer.disconnectUser(uid);
     });
