@@ -38,10 +38,9 @@ export async function handleFetchProductInfo(
 			marketplaceId: message.marketplaceId,
 		});
 		const updatedAt = new Date().toISOString();
-		const thumbnail =
-			response.listing.thumbnail.status === "available"
-				? response.listing.thumbnail
-				: { status: "unavailable" as const };
+		const thumbnail = response.listing.imageUrl
+			? { status: "available" as const, url: response.listing.imageUrl }
+			: { status: "unavailable" as const };
 
 		return {
 			success: true,
@@ -49,7 +48,7 @@ export async function handleFetchProductInfo(
 				asin: response.asin,
 				amazonListingStatus: response.listing.amazonListingStatus,
 				dateFirstAvailable: response.listing.firstAvailableAt,
-				rootCategoryBsr: response.salesRank.current,
+				rootCategoryBsr: response.salesRank,
 				rootCategoryDisplayName: response.category?.name ?? null,
 				thumbnail,
 				freshness: {

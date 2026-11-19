@@ -375,14 +375,12 @@ const insertHeadRun = async (
         })
         .returning();
     if (positions.length) {
-        await db
-            .insert(catalogSearchResults)
-            .values(
-                positions.map(([productId, sourcePosition]) => ({
-                    runId: run.id,
-                    productId,
-                    sourcePosition,
-                }))
-            );
+        await db.insert(catalogSearchResults).values(
+            positions.map(([productId, sourcePosition]) => ({
+                runId: run.id,
+                productId,
+                sourcePosition,
+            }))
+        );
     }
 };

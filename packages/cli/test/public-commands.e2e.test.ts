@@ -55,14 +55,14 @@ describe('final public CLI contract', () => {
                                         marketplaceId: 'ATVPDKIKX0DER',
                                         asin: 'B012345678',
                                         title: 'Garden shirt',
-                                        thumbnail: { status: 'unavailable' },
+                                        imageUrl: null,
                                         amazonListingStatus: 'active',
                                     },
                                     {
                                         marketplaceId: 'ATVPDKIKX0DER',
                                         asin: 'B087654321',
                                         title: null,
-                                        thumbnail: { status: 'unavailable' },
+                                        imageUrl: null,
                                         amazonListingStatus: 'deleted',
                                     },
                                 ],
@@ -84,38 +84,22 @@ describe('final public CLI contract', () => {
                                         brand: null,
                                         firstAvailableAt: null,
                                         bulletPoints: [],
-                                        thumbnail: { status: 'unavailable' },
+                                        imageUrl: null,
                                         isMerchListing: false,
                                         amazonListingStatus: 'active',
                                     },
                                     category: null,
-                                    salesRank: {
-                                        current: null,
-                                        averages: { last30Days: null, last90Days: null },
-                                    },
+                                    salesRank: null,
+                                    salesRankAverages: { last30Days: null, last90Days: null },
                                     price: null,
-                                    demand: {
-                                        boughtInPastMonth: null,
-                                        salesRankDrops: {
-                                            last30Days: null,
-                                            last90Days: null,
-                                            last180Days: null,
-                                            last365Days: null,
-                                        },
+                                    boughtInPastMonth: null,
+                                    estimatedMonthlySales: null,
+                                    salesRankDrops: {
+                                        last30Days: null,
+                                        last90Days: null,
+                                        last180Days: null,
+                                        last365Days: null,
                                     },
-                                },
-                            },
-                        },
-                    ]);
-                }
-                if (procedure === 'results') {
-                    return Response.json([
-                        {
-                            result: {
-                                data: {
-                                    keyword: 'retro gardening shirt',
-                                    searchedAt: '2026-08-06T12:00:00.000Z',
-                                    results: [],
                                 },
                             },
                         },
@@ -143,7 +127,6 @@ describe('final public CLI contract', () => {
 
         try {
             const baseArgs = ['--baseUrl', `http://127.0.0.1:${server.port}`];
-            const searchArgs = ['--refresh', ...baseArgs];
             const getResult = await spawnCliAsync(['product', 'get', 'B012345678', ...baseArgs], {
                 ...workspace,
                 env: { MERCHBASE_API_KEY: 'ak_test_value' },
@@ -159,10 +142,6 @@ describe('final public CLI contract', () => {
                     env: { MERCHBASE_API_KEY: 'ak_test_value' },
                 }
             );
-            const searchResult = await spawnCliAsync(
-                ['keyword', 'results', 'retro', 'gardening', 'shirt', ...searchArgs],
-                { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
-            );
             const historyResult = await spawnCliAsync(
                 ['product', 'history', 'B012345678', ...baseArgs],
                 { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
@@ -171,7 +150,6 @@ describe('final public CLI contract', () => {
             expect(getResult.status).toBe(0);
             expect(shortNameResult.status).toBe(0);
             expect(getManyResult.status).toBe(0);
-            expect(searchResult.status).toBe(0);
             expect(historyResult.status).toBe(0);
             expect(JSON.parse(getManyResult.stdout)).toMatchObject({
                 ok: true,
@@ -183,14 +161,6 @@ describe('final public CLI contract', () => {
                     },
                     { asin: 'B087654321', amazonListingStatus: 'deleted', title: null },
                 ],
-            });
-            expect(JSON.parse(searchResult.stdout)).toMatchObject({
-                ok: true,
-                data: {
-                    keyword: 'retro gardening shirt',
-                    searchedAt: '2026-08-06T12:00:00.000Z',
-                    results: [],
-                },
             });
             expect(requests).toEqual([
                 {
@@ -211,15 +181,9 @@ describe('final public CLI contract', () => {
                 {
                     procedure: 'getMany',
                     input: {
-                        products: [
-                            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
-                            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B087654321' },
-                        ],
+                        asins: ['B012345678', 'B087654321'],
+                        marketplaceId: 'ATVPDKIKX0DER',
                     },
-                },
-                {
-                    procedure: 'results',
-                    input: { term: 'retro gardening shirt', refresh: true },
                 },
                 {
                     procedure: 'history',
@@ -238,7 +202,7 @@ describe('final public CLI contract', () => {
         }
     });
 
-    test('runs keyword directory get and search with final output data', async () => {
+    test('runs keyword directory get and list with final output data', async () => {
         const requests: string[] = [];
         const inputs: unknown[] = [];
         const server = serve({
@@ -255,7 +219,7 @@ describe('final public CLI contract', () => {
                         status: 'empty',
                         current: null,
                     };
-                } else if (procedure === 'search') {
+                } else if (procedure === 'list') {
                     data = {
                         status: 'empty',
                         items: [],
@@ -278,7 +242,7 @@ describe('final public CLI contract', () => {
             const baseArgs = ['--baseUrl', `http://127.0.0.1:${server.port}`];
             for (const args of [
                 ['keyword', 'get', 'garden shirt', ...baseArgs],
-                ['keyword', 'search', 'garden shirt', '--stage', 'trial', ...baseArgs],
+                ['keyword', 'list', 'garden shirt', '--stage', 'trial', ...baseArgs],
             ]) {
                 const result = await spawnCliAsync(args, {
                     ...workspace,
@@ -286,10 +250,10 @@ describe('final public CLI contract', () => {
                 });
                 expect(result.status).toBe(0);
             }
-            expect(requests).toEqual(['get', 'search']);
-            expect(inputs[1]).toMatchObject({ text: 'garden shirt', stage: 'trial' });
+            expect(requests).toEqual(['get', 'list']);
+            expect(inputs[1]).toMatchObject({ term: 'garden shirt', stage: 'trial' });
             const invalid = await spawnCliAsync(
-                ['keyword', 'search', 'garden shirt', '--stage', 'queued', ...baseArgs],
+                ['keyword', 'list', 'garden shirt', '--stage', 'queued', ...baseArgs],
                 { ...workspace, env: { MERCHBASE_API_KEY: 'ak_test_value' } }
             );
             expect(invalid.status).not.toBe(0);
@@ -299,14 +263,13 @@ describe('final public CLI contract', () => {
         }
     });
 
-    test('rejects refresh on Product get/history and keyword reads', () => {
+    test('rejects removed options as invalid input', () => {
         const workspace = createCliWorkspace();
         const commands = [
             ['product', 'get', 'B012345678', '--refresh'],
-            ['product', 'get', 'B012345678', 'B087654321', '--refresh'],
-            ['product', 'history', 'B012345678', '--refresh'],
-            ['product', 'search', 'shirt', '--refresh'],
             ['keyword', 'get', 'garden shirt', '--refresh'],
+            ['product', 'search', 'shirt', '--textFields', 'title'],
+            ['product', 'search', 'shirt', '--minMonthlySold', '50'],
         ];
 
         for (const args of commands) {
@@ -347,9 +310,11 @@ describe('final public CLI contract', () => {
         }
     });
 
-    test('rejects superseded plural, Catalog, and Operation commands', () => {
+    test('rejects superseded plural, Catalog, Operation and keyword commands', () => {
         const workspace = createCliWorkspace();
         const commands = [
+            ['keyword', 'results', 'retro gardening shirt'],
+            ['keyword', 'search', 'retro gardening'],
             ['products', 'get', 'B012345678'],
             ['catalog', 'search', 'shirts'],
             ['operations', 'get', '11111111-1111-4111-8111-111111111111'],

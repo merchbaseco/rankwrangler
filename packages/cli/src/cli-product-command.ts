@@ -22,9 +22,6 @@ export const runProductCommand = async (
     options: CliOptionValues,
     fail: CliFail
 ): Promise<unknown> => {
-    if (options.refresh) {
-        fail('INVALID_INPUT', '--refresh is only supported for keyword results');
-    }
     if (command.verb !== 'get' && options.shortName) {
         fail('INVALID_INPUT', '--shortName is only supported for product get');
     }
@@ -66,7 +63,8 @@ const runProductGet = async (
     }
 
     return await client.product.getMany.mutate({
-        products: asins.map(asin => ({ marketplaceId, asin })),
+        asins,
+        marketplaceId,
     });
 };
 

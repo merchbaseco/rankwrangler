@@ -15,7 +15,7 @@ const DAY = 86_400_000;
 const daysAgo = (days: number) => new Date(now.getTime() - days * DAY);
 
 const page = (input: Parameters<typeof appProductSearchInput.parse>[0]) =>
-    searchStoredProducts(appProductSearchInput.parse(input), now);
+    searchStoredProducts(appProductSearchInput.parse(input), { now });
 const total = (input: Parameters<typeof appProductSearchInput.parse>[0]) =>
     countStoredProducts(appProductSearchInput.parse(input), now);
 const facets = (input: Parameters<typeof productSearchFacetsInput.parse>[0]) =>

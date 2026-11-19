@@ -15,8 +15,7 @@ export const runProductSearch = async (
     const merch = choice(options.merch, ['true', 'false', 'all'], 'merch', fail);
     return await client.product.search.query({
         ...(term ? { term } : {}),
-        marketplaceIds: [requireMarketplaceId(options, config)],
-        textFields: choice(options.textFields, ['all', 'title'], 'textFields', fail),
+        marketplaceId: requireMarketplaceId(options, config),
         excludeWords: options.excludeWord,
         brands: options.brand,
         excludeBrands: options.excludeBrand,
@@ -41,7 +40,12 @@ export const runProductSearch = async (
         ),
         salesRank: range(options.minBsr, options.maxBsr, 'Bsr', fail),
         price: range(options.minPrice, options.maxPrice, 'Price', fail),
-        monthlySold: range(options.minMonthlySold, options.maxMonthlySold, 'MonthlySold', fail),
+        boughtInPastMonth: range(
+            options.minBoughtInPastMonth,
+            options.maxBoughtInPastMonth,
+            'BoughtInPastMonth',
+            fail
+        ),
         firstAvailableAt: dates(options.availableAfter, options.availableBefore, 'available', fail),
         updatedAt: dates(options.updatedAfter, options.updatedBefore, 'updated', fail),
         discoveredAt: dates(options.discoveredAfter, options.discoveredBefore, 'discovered', fail),
@@ -58,7 +62,8 @@ export const runProductSearch = async (
                 'discoveredAtDesc',
                 'priceAsc',
                 'priceDesc',
-                'monthlySoldDesc',
+                'boughtInPastMonthDesc',
+                'estimatedMonthlySalesDesc',
             ],
             'sort',
             fail

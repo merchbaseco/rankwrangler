@@ -24,7 +24,7 @@ export type ProductProcedureContract = Assert<
     Equal<keyof PublicRouterInputs['product'], 'get' | 'getMany' | 'search' | 'history'>
 >;
 export type KeywordProcedureContract = Assert<
-    Equal<keyof PublicRouterInputs['keyword'], 'get' | 'search' | 'results'>
+    Equal<keyof PublicRouterInputs['keyword'], 'get' | 'list'>
 >;
 export type ProductSearchOutputContract = Assert<
     Equal<Awaited<ReturnType<ProductSearchMutation['query']>>, ProductSearchOutput>
@@ -32,20 +32,51 @@ export type ProductSearchOutputContract = Assert<
 export type ProductSearchOutputKeysContract = Assert<
     Equal<keyof ProductSearchOutput, 'items' | 'nextCursor' | 'coverage'>
 >;
-export type KeywordResultsOutputContract = Assert<
-    Equal<keyof PublicRouterOutputs['keyword']['results'], 'keyword' | 'searchedAt' | 'results'>
+export type ProductSearchItemKeysContract = Assert<
+    Equal<
+        keyof ProductSearchOutput['items'][number],
+        | 'marketplaceId'
+        | 'asin'
+        | 'title'
+        | 'brand'
+        | 'bullet1'
+        | 'bullet2'
+        | 'imageUrl'
+        | 'isMerchListing'
+        | 'amazonListingStatus'
+        | 'categoryId'
+        | 'salesRank'
+        | 'salesRankAverages'
+        | 'salesRankDrops'
+        | 'boughtInPastMonth'
+        | 'estimatedMonthlySales'
+        | 'keywordPosition'
+        | 'price'
+        | 'firstAvailableAt'
+        | 'discoveredAt'
+        | 'updatedAt'
+        | 'facets'
+    >
+>;
+export type KeywordListInputContract = Assert<
+    Equal<
+        keyof PublicRouterInputs['keyword']['list'],
+        'term' | 'stage' | 'freshness' | 'heat' | 'sort' | 'limit' | 'cursor'
+    >
 >;
 export type ProductGetInputContract = Assert<
     Equal<keyof ProductGetInput, 'marketplaceId' | 'asin' | 'include'>
 >;
-export type ProductGetManyInputContract = Assert<Equal<keyof ProductGetManyInput, 'products'>>;
+export type ProductGetManyInputContract = Assert<
+    Equal<keyof ProductGetManyInput, 'asins' | 'marketplaceId'>
+>;
 export type ProductGetManyOutputContract = Assert<
     Equal<Awaited<ReturnType<ProductGetManyMutation['mutate']>>, ProductGetManyOutput>
 >;
 export type ProductGetManyOutputKeysContract = Assert<
     Equal<
         keyof ProductGetManyOutput[number],
-        'marketplaceId' | 'asin' | 'title' | 'thumbnail' | 'amazonListingStatus'
+        'marketplaceId' | 'asin' | 'title' | 'imageUrl' | 'amazonListingStatus'
     >
 >;
 export type ProductOutputContract = Assert<
@@ -56,8 +87,11 @@ export type ProductOutputContract = Assert<
         | 'listing'
         | 'category'
         | 'salesRank'
+        | 'salesRankAverages'
+        | 'salesRankDrops'
         | 'price'
-        | 'demand'
+        | 'boughtInPastMonth'
+        | 'estimatedMonthlySales'
     >
 >;
 export type ProductHistoryInputContract = Assert<
@@ -69,12 +103,7 @@ export type ProductHistoryInputContract = Assert<
 export type ProductHistoryOutputContract = Assert<
     Equal<keyof ProductHistoryOutput, 'marketplaceId' | 'asin' | 'range' | 'series'>
 >;
-export type KeywordGetInputContract = Assert<
-    Equal<
-        keyof KeywordGetInput,
-        'keyword'
-    >
->;
+export type KeywordGetInputContract = Assert<Equal<keyof KeywordGetInput, 'keyword'>>;
 
 export const productSearchInput: ProductSearchInput = {
     term: 'retro gardening shirt',

@@ -10,21 +10,11 @@ export const runKeywordCommand = async (
     options: CliOptionValues,
     fail: CliFail
 ): Promise<unknown> => {
-    if (command.verb !== 'results' && options.refresh) {
-        fail('INVALID_INPUT', '--refresh is only supported for keyword results');
-    }
-
-    if (command.verb === 'results') {
-        return await client.keyword.results.mutate({
-            term: requireKeyword(command.args, fail, 'keyword results'),
-            refresh: Boolean(options.refresh),
-        });
-    }
     if (command.verb === 'get') {
         return await runKeywordGet(command.args, client, fail);
     }
-    if (command.verb === 'search') {
-        return await runKeywordSearch(command.args, client, options, fail);
+    if (command.verb === 'list') {
+        return await runKeywordList(command.args, client, options, fail);
     }
 
     fail('UNKNOWN_COMMAND', 'Unknown Keyword command', {
@@ -39,15 +29,15 @@ const runKeywordGet = async (args: string[], client: CliClient, fail: CliFail) =
     });
 };
 
-const runKeywordSearch = async (
+const runKeywordList = async (
     args: string[],
     client: CliClient,
     options: CliOptionValues,
     fail: CliFail
 ) => {
-    const text = requireKeyword(args, fail, 'keyword search');
-    return await client.keyword.search.query({
-        text,
+    const term = requireKeyword(args, fail, 'keyword list');
+    return await client.keyword.list.query({
+        term,
         stage: keywordChoice(options.stage, KEYWORD_STAGES, 'stage', fail),
         freshness: keywordChoice(options.freshness, KEYWORD_FRESHNESS, 'freshness', fail),
         cursor: options.cursor ? parseKeywordCursor(options.cursor, fail) : undefined,
@@ -72,10 +62,10 @@ const requireKeyword = (args: string[], fail: CliFail, commandName: string) => {
     return keyword;
 };
 
-type KeywordSearchInput = PublicRouterInputs['keyword']['search'];
+type KeywordListInput = PublicRouterInputs['keyword']['list'];
 const KEYWORD_STAGES = ['graduated', 'trial', 'dropped', 'untracked', 'all'] as const;
 const KEYWORD_FRESHNESS = ['live', 'needsSync', 'syncing', 'all'] as const;
-const keywordChoice = <T extends NonNullable<KeywordSearchInput['stage' | 'freshness']>>(
+const keywordChoice = <T extends NonNullable<KeywordListInput['stage' | 'freshness']>>(
     value: string | undefined,
     choices: readonly T[],
     name: string,
@@ -86,15 +76,26 @@ const keywordChoice = <T extends NonNullable<KeywordSearchInput['stage' | 'fresh
     return match ?? fail('INVALID_INPUT', `--${name} must be ${choices.join(', ')}`);
 };
 
-type KeywordCursor = NonNullable<PublicRouterInputs['keyword']['search']['cursor']>;
+type KeywordCursor = NonNullable<PublicRouterInputs['keyword']['list']['cursor']>;
 const parseKeywordCursor = (value: string, fail: CliFail): KeywordCursor => {
     try {
         const parsed = JSON.parse(value);
         const key = parsed?.key;
-        if (!Array.isArray(key) || key.length !== 7 || !key.slice(0, 6).every(part => typeof part === 'number' && Number.isFinite(part))
-            || typeof key[6] !== 'string' || typeof parsed.asOf !== 'string'
-            || (parsed.sort !== 'work' && parsed.sort !== 'newest'))
-            return fail('INVALID_INPUT', '--cursor must be the JSON nextCursor from keyword search');
-        return { key: [key[0], key[1], key[2], key[3], key[4], key[5], key[6]], asOf: parsed.asOf, sort: parsed.sort };
-    } catch { return fail('INVALID_INPUT', '--cursor must be valid JSON'); }
+        if (
+            !Array.isArray(key) ||
+            key.length !== 7 ||
+            !key.slice(0, 6).every(part => typeof part === 'number' && Number.isFinite(part)) ||
+            typeof key[6] !== 'string' ||
+            typeof parsed.asOf !== 'string' ||
+            (parsed.sort !== 'work' && parsed.sort !== 'newest')
+        )
+            return fail('INVALID_INPUT', '--cursor must be the JSON nextCursor from keyword list');
+        return {
+            key: [key[0], key[1], key[2], key[3], key[4], key[5], key[6]],
+            asOf: parsed.asOf,
+            sort: parsed.sort,
+        };
+    } catch {
+        return fail('INVALID_INPUT', '--cursor must be valid JSON');
+    }
 };

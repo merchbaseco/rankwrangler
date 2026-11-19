@@ -117,7 +117,7 @@ export const searchStoredProducts = async <Extra = never>(
     return {
         items: page.map(row => {
             const currencyCode = getMarketplaceCurrencyCode(row.marketplaceId);
-            return {
+            const item = {
                 marketplaceId: row.marketplaceId,
                 asin: row.asin,
                 title: row.title,
@@ -147,12 +147,16 @@ export const searchStoredProducts = async <Extra = never>(
                 discoveredAt: row.discoveredAt.toISOString(),
                 updatedAt: row.updatedAt.toISOString(),
                 facets: row.facets,
-                ...(extra ? { extra: row.extra as Extra } : {}),
             };
+            return (extra ? { ...item, extra: row.extra } : item) as SearchItem<typeof item, Extra>;
         }),
         nextCursor: rows.length > size && last ? sort.encode(last) : null,
     };
 };
+
+// The caller's extra column is typed only when one was asked for, so the public search's items
+// carry no `extra` key at all.
+type SearchItem<Item, Extra> = [Extra] extends [never] ? Item : Item & { extra: Extra };
 
 const qualifiedColumns = {
     id: sql`${products}.${sql.identifier(products.id.name)}`,

@@ -7,7 +7,7 @@ import { mapRetrievalError } from '@/services/retrieval-coordinator';
 import { searchProducts } from './product-search';
 
 export interface CollectingProductSearchDeps {
-    searchProducts: (input: ProductSearchInput) => ReturnType<typeof searchProducts>;
+    searchProducts: (input: ProductSearchInput) => ReturnType<typeof searchProducts<never>>;
     hasKeywordHeadRun: typeof hasKeywordHeadRun;
     collectKeywordHead: typeof awaitCatalogSearchRetrieval;
 }

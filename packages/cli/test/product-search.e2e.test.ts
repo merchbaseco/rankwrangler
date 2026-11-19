@@ -50,8 +50,6 @@ test('Product search uses database query filters and opaque pagination without p
                 'opaque-cursor',
                 '--availableAfter',
                 '2026-09-01',
-                '--textFields',
-                'title',
                 '--excludeWord',
                 'youth',
                 '--excludeWord',
@@ -76,8 +74,7 @@ test('Product search uses database query filters and opaque pagination without p
                 method: 'GET',
                 input: {
                     term: 'fishing',
-                    marketplaceIds: ['ATVPDKIKX0DER'],
-                    textFields: 'title',
+                    marketplaceId: 'ATVPDKIKX0DER',
                     excludeWords: ['youth', 'kids'],
                     brands: ['Fishing Co'],
                     facets: [{ facet: 'audience', name: 'adults' }],
@@ -109,7 +106,7 @@ test('Product search uses database query filters and opaque pagination without p
         expect(requests).toEqual([
             {
                 method: 'GET',
-                input: { marketplaceIds: ['TEST'], isMerchListing: 'all' },
+                input: { marketplaceId: 'TEST', isMerchListing: 'all' },
             },
         ]);
     } finally {

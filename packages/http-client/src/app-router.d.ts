@@ -230,12 +230,8 @@ export interface Product {
 		brand: string | null;
 		firstAvailableAt: string | null;
 		bulletPoints: string[];
-		thumbnail: {
-			status: "available";
-			url: string;
-		} | {
-			status: "unavailable";
-		};
+		/** Amazon's main product image; null when none is known. */
+		imageUrl: string | null;
 		isMerchListing: boolean;
 		amazonListingStatus: AmazonListingStatus;
 	};
@@ -243,69 +239,33 @@ export interface Product {
 		id: number;
 		name: string | null;
 	} | null;
-	salesRank: {
-		current: number | null;
-		averages: {
-			last30Days: number | null;
-			last90Days: number | null;
-		};
-	};
-	price: {
-		amountMinor: number;
-		currencyCode: string;
-	} | null;
-	demand: {
-		boughtInPastMonth: number | null;
-		salesRankDrops: {
-			last30Days: number | null;
-			last90Days: number | null;
-			last180Days: number | null;
-			last365Days: number | null;
-		};
-	};
-}
-export interface KeywordResultsProduct {
-	marketplaceId: string;
-	asin: string;
-	title: string | null;
-	brand: string | null;
-	thumbnail: {
-		status: "available";
-		url: string;
-	} | {
-		status: "unavailable";
-	};
-	isMerchListing: boolean;
-	amazonListingStatus: AmazonListingStatus;
-	category: {
-		id: number;
-		name: string | null;
-	} | null;
+	/** The current root-category best sellers rank. */
 	salesRank: number | null;
+	salesRankAverages: {
+		last30Days: number | null;
+		last90Days: number | null;
+	};
 	price: {
 		amountMinor: number;
 		currencyCode: string;
 	} | null;
+	/** Amazon's bought-in-past-month badge (50, 100, …); null when none was observed. */
 	boughtInPastMonth: number | null;
-}
-export interface KeywordResults {
-	keyword: string;
-	searchedAt: string;
-	results: Array<{
-		organicSearchPlacement: number;
-		product: KeywordResultsProduct;
-	}>;
+	/** The rank-to-sales curve's order-of-magnitude estimate; null without a rank or a curve. */
+	estimatedMonthlySales: number | null;
+	salesRankDrops: {
+		last30Days: number | null;
+		last90Days: number | null;
+		last180Days: number | null;
+		last365Days: number | null;
+	};
 }
 export interface BasicProduct {
 	marketplaceId: string;
 	asin: string;
 	title: string | null;
-	thumbnail: {
-		status: "available";
-		url: string;
-	} | {
-		status: "unavailable";
-	};
+	/** Amazon's main product image; null when none is known. */
+	imageUrl: string | null;
 	amazonListingStatus: AmazonListingStatus;
 }
 export interface ProductHistorySummary {
@@ -469,17 +429,9 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 					};
 					meta: object;
 				}>;
-				results: import("@trpc/server").TRPCMutationProcedure<{
+				list: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						term: string;
-						refresh?: boolean | undefined;
-					};
-					output: KeywordResults;
-					meta: object;
-				}>;
-				search: import("@trpc/server").TRPCQueryProcedure<{
-					input: {
-						text: string;
 						freshness?: "live" | "needsSync" | "syncing" | "all" | undefined;
 						sort?: "work" | "newest" | undefined;
 						limit?: number | undefined;
@@ -570,10 +522,8 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				}>;
 				getMany: import("@trpc/server").TRPCMutationProcedure<{
 					input: {
-						products: {
-							marketplaceId: string;
-							asin: string;
-						}[];
+						asins: string[];
+						marketplaceId?: string | undefined;
 					};
 					output: BasicProduct[];
 					meta: object;
@@ -595,9 +545,8 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				search: import("@trpc/server").TRPCQueryProcedure<{
 					input: {
 						term?: string | undefined;
-						textFields?: "title" | "all" | undefined;
 						excludeWords?: string[] | undefined;
-						marketplaceIds?: string[] | undefined;
+						marketplaceId?: string | undefined;
 						isMerchListing?: boolean | "all" | undefined;
 						amazonListingStatus?: "active" | "deleted" | "all" | undefined;
 						brands?: string[] | undefined;
@@ -612,7 +561,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							min?: number | undefined;
 							max?: number | undefined;
 						} | undefined;
-						monthlySold?: {
+						boughtInPastMonth?: {
 							min?: number | undefined;
 							max?: number | undefined;
 						} | undefined;
@@ -632,7 +581,7 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							facet: string;
 							name: string;
 						}[] | undefined;
-						sort?: "relevance" | "salesRankAsc" | "salesRankDesc" | "firstAvailableAtDesc" | "firstAvailableAtAsc" | "updatedAtAsc" | "updatedAtDesc" | "discoveredAtDesc" | "priceAsc" | "priceDesc" | "monthlySoldDesc" | undefined;
+						sort?: "relevance" | "salesRankAsc" | "salesRankDesc" | "firstAvailableAtDesc" | "firstAvailableAtAsc" | "updatedAtAsc" | "updatedAtDesc" | "discoveredAtDesc" | "priceAsc" | "priceDesc" | "boughtInPastMonthDesc" | "estimatedMonthlySalesDesc" | undefined;
 						cursor?: string | null | undefined;
 						limit?: number | undefined;
 					};
@@ -648,24 +597,30 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							} | null;
 						} | null;
 						items: {
-							extra?: undefined;
 							marketplaceId: string;
 							asin: string;
 							title: string | null;
 							brand: string | null;
 							bullet1: string | null;
 							bullet2: string | null;
-							thumbnail: {
-								status: "available";
-								url: string;
-							} | {
-								status: "unavailable";
-								url?: undefined;
-							};
+							imageUrl: string | null;
 							isMerchListing: boolean;
 							amazonListingStatus: AmazonListingStatus;
 							categoryId: number | null;
 							salesRank: number | null;
+							salesRankAverages: {
+								last30Days: number | null;
+								last90Days: number | null;
+							};
+							salesRankDrops: {
+								last30Days: number | null;
+								last90Days: number | null;
+								last180Days: number | null;
+								last365Days: number | null;
+							};
+							boughtInPastMonth: number | null;
+							estimatedMonthlySales: number | null;
+							keywordPosition: number | null;
 							price: {
 								amountMinor: number;
 								currencyCode: string;
@@ -673,19 +628,6 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 							firstAvailableAt: string | null;
 							discoveredAt: string;
 							updatedAt: string;
-							averages: {
-								last30Days: number | null;
-								last90Days: number | null;
-							};
-							demand: {
-								boughtInPastMonth: number | null;
-								salesRankDrops: {
-									last30Days: number | null;
-									last90Days: number | null;
-									last180Days: number | null;
-									last365Days: number | null;
-								};
-							};
 							facets: {
 								facet: string;
 								name: string;

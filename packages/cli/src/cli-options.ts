@@ -9,7 +9,6 @@ import {
 type CliFail = (code: string, message: string, details?: unknown) => never;
 
 export interface CliOptionValues {
-    textFields?: string;
     excludeWord?: string[];
     brand?: string[];
     excludeBrand?: string[];
@@ -25,8 +24,8 @@ export interface CliOptionValues {
     maxBsr?: string;
     minPrice?: string;
     maxPrice?: string;
-    minMonthlySold?: string;
-    maxMonthlySold?: string;
+    minBoughtInPastMonth?: string;
+    maxBoughtInPastMonth?: string;
     updatedAfter?: string;
     updatedBefore?: string;
     availableAfter?: string;
@@ -43,7 +42,6 @@ export interface CliOptionValues {
     limit?: string;
     bucket?: string;
     cursor?: string;
-    refresh?: boolean;
     shortName?: boolean;
     help?: boolean;
     version?: boolean;

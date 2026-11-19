@@ -27,8 +27,7 @@ const SUPPORTED_COMMANDS = new Set([
     'product:search',
     'product:history',
     'keyword:get',
-    'keyword:search',
-    'keyword:results',
+    'keyword:list',
     'auth:status',
     'auth:set',
     'auth:clear',
@@ -39,7 +38,16 @@ const SUPPORTED_COMMANDS = new Set([
     'config:set',
 ]);
 
-const { positionals, values } = parseArgs({
+// Unknown options (including removed ones) answer as INVALID_INPUT JSON like every other error.
+const parseCliArgs = () => {
+    try {
+        return parseArgs(cliArgs);
+    } catch (error) {
+        return fail('INVALID_INPUT', error instanceof Error ? error.message : 'Invalid options');
+    }
+};
+
+const cliArgs = {
     args: process.argv.slice(2),
     options: {
         help: { type: 'boolean', short: 'h' },
@@ -53,9 +61,7 @@ const { positionals, values } = parseArgs({
         limit: { type: 'string' },
         bucket: { type: 'string' },
         cursor: { type: 'string' },
-        refresh: { type: 'boolean' },
         shortName: { type: 'boolean' },
-        textFields: { type: 'string' },
         excludeWord: { type: 'string', multiple: true },
         brand: { type: 'string', multiple: true },
         excludeBrand: { type: 'string', multiple: true },
@@ -71,8 +77,8 @@ const { positionals, values } = parseArgs({
         maxBsr: { type: 'string' },
         minPrice: { type: 'string' },
         maxPrice: { type: 'string' },
-        minMonthlySold: { type: 'string' },
-        maxMonthlySold: { type: 'string' },
+        minBoughtInPastMonth: { type: 'string' },
+        maxBoughtInPastMonth: { type: 'string' },
         updatedAfter: { type: 'string' },
         updatedBefore: { type: 'string' },
         availableAfter: { type: 'string' },
@@ -82,7 +88,9 @@ const { positionals, values } = parseArgs({
         stdin: { type: 'boolean' },
     },
     allowPositionals: true,
-});
+} as const;
+
+const { positionals, values } = parseCliArgs();
 
 const main = async () => {
     const optionValues = values as CliOptionValues;
