@@ -30,14 +30,14 @@ observations, reconciles Products into the canonical catalog, and retains the Se
 creating an opaque recommendation engine.
 
 Canonical Product retrieval is shared across blocking ASIN reads and background bulk workflows.
-The public `product.getMany` procedure resolves up to 200 unique marketplace/ASIN pairs into compact
-fixed-shape title, thumbnail, and `amazonListingStatus` results, persists every identity, and batches
-cold SP-API work by marketplace. Status is `active` while the detail-page listing exists and
+The public `product.getMany` procedure resolves up to 200 unique ASINs in one marketplace into
+compact fixed-shape title, `imageUrl`, and `amazonListingStatus` results, persists every identity,
+and batches cold SP-API work. Status is `active` while the detail-page listing exists and
 `deleted` when Amazon has effectively removed it; RankWrangler retains last-known listing values.
 Catalog runs retain immutable search membership while their current Products resolve independently;
 cached and fresh runs use the same background path. Dashboard and internal Product records may retain
-`pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to
-`available` or `unavailable`. Product `isMerchListing` is always `true` or `false`. A listing is
+`pending`, `available`, or `unavailable` thumbnail state; public Product reads resolve that to a
+nullable `imageUrl`. Product `isMerchListing` is always `true` or `false`. A listing is
 Merch when a bullet matches Merch template text, or when it has no UPC, EAN or GTIN and the catalog
 attributes Merch sets, with a Merch package or none of the attributes sellers set; keyword scans
 store only Merch and already-stored Products, and the
@@ -62,10 +62,12 @@ rw product get B0XXXXXXXX B0YYYYYYYY
 rw product search "retro gardening shirt"
 rw product history B0XXXXXXXX --metrics salesRank,price --bucket auto
 rw keyword get "retro gardening shirt"
-rw keyword search "retro gardening"
+rw keyword list "retro gardening"
 ```
 
-Explicit `keyword.results` requests renew a 30-day research lease, including cached reuse.
+Public Product search matches titles and sorts by estimated monthly sales by default. A first page
+that finds nothing for a term Amazon's first page was never collected for waits while that
+collection runs, and the collection renews a 30-day research lease.
 General catalog searches record interest; the dashboard's as-you-type search does not, and records a
 phrase only when it is submitted. Background checks adapt to demand and observed change;
 continuous SP-API acquisition expands through user searches, weekly Amazon Brand Analytics search
@@ -76,7 +78,7 @@ successful observation. Freshness health allows that retry and its scheduler gra
 failures and abandoned retries still report unhealthy collection.
 
 Public Product get/getMany/history and keyword reads return final policy-current data without
-freshness envelopes or refresh controls. Product Search retains its separate search contract. When
+freshness envelopes or refresh controls. Product search has its own stored-catalog contract. When
 collection is needed, Product get/getMany return a known Product's last-known listing while a
 background refresh runs; otherwise the shared server retrieval service waits transparently for policy-compliant
 data or returns a provider-neutral retryable error with a hint. Public callers never receive
@@ -150,8 +152,8 @@ For the Cloudflare-billed PlanetScale migration, follow the
 
 The [research plan](plans/merch-research.md) separates immediate catalog search from scheduled
 keyword collection. The shared database query, dashboard, public API, CLI and MCP changes are
-deployed as the initial research/collection pilot. `keyword.results` preserves dated external
-search evidence. Search directly tracks its exact keyword for background SP-API checks; paid Keepa admission stays separate.
+deployed as the initial research/collection pilot. Product search exposes dated external search
+evidence as each item's `keywordPosition`. Search directly tracks its exact keyword for background SP-API checks; paid Keepa admission stays separate.
 Adaptive Keepa collection tiers, durable token reservations and explicit history admission are live.
 The [growth completion](plans/merch-growth-completion.md) adds independent continuous SP-API
 acquisition, weekly Brand Analytics keyword sources, once-per-tracked-keyword autocomplete,

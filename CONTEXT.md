@@ -79,6 +79,21 @@ The Product ordinal supplied for one Search run. It is evidence about that run, 
 exhaustive Amazon rank-tracking coverage.
 _Avoid_: Rank, position history
 
+**Keyword position**:
+A Product's Organic search placement in the newest stored first-page Search run of exactly the
+searched term. It is null when that run did not include the Product or the term was never collected.
+_Avoid_: Search rank, keyword rank
+
+**Bought in past month**:
+Amazon's bucketed "bought in past month" badge on a listing. Absence means no badge was observed,
+not zero sales.
+_Avoid_: Monthly sold, units sold
+
+**Estimated monthly sales**:
+An order-of-magnitude estimate read from the fitted rank-to-sales curve at a Product's sales rank.
+It is never a sales count.
+_Avoid_: Monthly sales, sold count
+
 **Sales-rank drop**:
 An observed numeric improvement in a Product's Best Sellers Rank. It is demand evidence, not a
 confirmed sale.

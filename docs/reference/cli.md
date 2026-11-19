@@ -7,9 +7,6 @@ read_when:
 
 # CLI
 
-**Status:** Authentication, configuration, and command families are shipped. Retrieval options and
-data shapes below are the accepted public target.
-
 The `rw` CLI is the agent-oriented interface to the public API. `rankwrangler` is an equivalent
 binary alias.
 
@@ -37,9 +34,8 @@ then `MISSING_CONFIG`. Auth commands never print the secret.
 | `rw product get <ASIN...>` | One full Product, or basic results when given 2–200 ASINs. |
 | `rw product search [text]` | Filtered, paginated Products from the collected database. |
 | `rw product history <ASIN>` | Compact bucketed Product history. |
-| `rw keyword results <keyword>` | Dated Amazon search results with placement. |
-| `rw keyword get <keyword>` | Current keyword evidence. |
-| `rw keyword search <text>` | Filtered keyword evidence. |
+| `rw keyword get <keyword>` | One keyword directory entry. |
+| `rw keyword list <term>` | Keyword directory entries filtered by term. |
 | `rw auth status\|set\|clear` | Inspect or update secure-store authentication. |
 | `rw config show\|get\|set\|unset\|reset` | Inspect or update non-secret local configuration. |
 | `rw --version` | Installed version as plain text. |
@@ -49,9 +45,9 @@ Catalog, Operation, plural `products`, summary, and polling commands are not par
 
 ## Options
 
-Public freshness policy is server-owned for Product `get/history` and keyword reads; those
-commands accept no `--refresh`. Only `keyword results` accepts `--refresh`. Common options
-are `--baseUrl`, `--marketplace`, and `--limit`.
+Public freshness policy is server-owned; no command accepts `--refresh`. Common options are
+`--baseUrl`, `--marketplace`, and `--limit`. An unknown or removed option fails with an
+`INVALID_INPUT` JSON envelope.
 
 Product history options:
 
@@ -63,13 +59,13 @@ rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 ```
 
 `product get` routes one ASIN to the full Product retrieval contract. With 2–200 unique ASINs it
-routes to the basic Product batch and returns a fixed-shape array in argument order. Each result
-contains identity, nullable title, resolved thumbnail, and `amazonListingStatus: active | deleted`.
-Active means the detail-page listing exists, not that an offer is in stock or buyable. Deleted means
-Amazon has effectively removed the listing from that marketplace. Retained title or thumbnail
-values are last-known data; an unavailable thumbnail alone means no usable image. Every ASIN uses
-the marketplace resolved from `--marketplace`, saved
-configuration, or the normal US default.
+sends `asins` and one `marketplaceId` to the basic Product batch and returns a fixed-shape array in
+argument order. Each result contains identity, nullable title, nullable `imageUrl`, and
+`amazonListingStatus: active | deleted`. Active means the detail-page listing exists, not that an
+offer is in stock or buyable. Deleted means Amazon has effectively removed the listing from that
+marketplace. Retained title or image values are last-known data; a null `imageUrl` alone means no
+usable image. Every ASIN uses the marketplace resolved from `--marketplace`, saved configuration, or
+the normal US default.
 For one ASIN, `--shortName` requests an image-informed `listing.shortName` while retaining the full
 Product response. It is nullable and applies only to known Merch listings with available images.
 The command waits up to 20 seconds for generation; a name still generating at that deadline, or
@@ -83,31 +79,30 @@ With several ASINs, `--shortName` fails with `INVALID_INPUT`; request each ASIN 
 | `--bucket <unit>` | `auto`, `day`, `week`, `month`; default `auto`. |
 | `--days <N>` | 30–3650; default 365. Cannot combine with explicit range bounds. |
 | `--startAt <ISO>` / `--endAt <ISO>` | Product history range bounds. |
-| `--limit <N>` | Product search 1–100, default 50; Product history max 10,000; keyword search max 100. |
-| `--cursor <value>` | Product search opaque cursor from `nextCursor`; keyword search JSON `nextCursor`. |
-| `--stage <value>` | Keyword search: `graduated` (default), `trial`, `dropped`, `untracked`, `all`. |
-| `--freshness <value>` | Keyword search: `all` (default), `live`, `needsSync`, `syncing`. |
-| `--refresh` | Keyword results only; requests a replacement Search run. |
+| `--limit <N>` | Product search 1–100, default 50; Product history max 10,000; keyword list 1–100, default 25. |
+| `--cursor <value>` | Product search opaque cursor from `nextCursor`; keyword list JSON `nextCursor`. |
+| `--stage <value>` | Keyword list: `graduated` (default), `trial`, `dropped`, `untracked`, `all`. |
+| `--freshness <value>` | Keyword list: `all` (default), `live`, `needsSync`, `syncing`. |
 | `-m, --marketplace <id>` | Marketplace override; Product defaults to US. |
 | `--baseUrl <origin>` | API-origin override; `/api` is normalized away. |
 
-Product search reads the collected database immediately, including when no text is supplied.
-It returns compact Product metrics and `nextCursor`, without waiting for Amazon or Keepa.
-Defaults are US marketplace, known Merch listings, active listings, and hidden known official brands.
-Unknown official-brand status remains visible. Text searches match all terms across searchable fields.
+Product search reads the collected database, including when no text is supplied, and returns flat
+Product items and `nextCursor`. Defaults are US marketplace, known Merch listings, active listings,
+hidden known official brands, and `estimatedMonthlySalesDesc` order. Unknown official-brand status
+remains visible. Text matches every term in the title. A first page that finds nothing for a term
+never collected waits for the [live fallback](public-api.md#live-fallback).
 
 ```bash
 rw product search fishing --maxBsr 300000 --availableAfter 2026-09-01 --sort firstAvailableAtDesc
 rw product search --sort salesRankAsc --limit 50
-rw keyword results "fishing shirt" --refresh
+rw keyword list "fishing shirt" --stage all
 ```
 
 Product search options:
 
 | Option | Values and default |
 | --- | --- |
-| `--textFields <scope>` | `all` or `title`; default `all`. |
-| `--excludeWord <word>` | Exclude a word; repeat for several words. |
+| `--excludeWord <word>` | Exclude a title word; repeat for several words. |
 | `--brand <name>` / `--excludeBrand <name>` | Exact brand filters; repeat for several brands. |
 | `--includeOfficialBrands` | Include brands in the official-brand registry. |
 | `--merch <value>` | `true`, `false`, or `all`; default `true`. |
@@ -116,15 +111,11 @@ Product search options:
 | `--facet <facet=name>` | Facet filter; repeat for several facets. |
 | `--minBsr <N>` / `--maxBsr <N>` | Inclusive current sales-rank bounds. |
 | `--minPrice <N>` / `--maxPrice <N>` | Inclusive price bounds in minor currency units. |
-| `--minMonthlySold <N>` / `--maxMonthlySold <N>` | Inclusive bought-in-the-past-month bounds. |
+| `--minBoughtInPastMonth <N>` / `--maxBoughtInPastMonth <N>` | Inclusive bounds on Amazon's bought-in-past-month badge. |
 | `--availableAfter <ISO>` / `--availableBefore <ISO>` | First-available date bounds. |
 | `--discoveredAfter <ISO>` / `--discoveredBefore <ISO>` | Discovery date bounds. |
 | `--updatedAfter <ISO>` / `--updatedBefore <ISO>` | Product update date bounds. |
-| `--sort <order>` | `relevance`, `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`, `firstAvailableAtDesc`, `discoveredAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `priceAsc`, `priceDesc`, or `monthlySoldDesc`; default `relevance`. |
-
-`keyword results` preserves the separate observed-search contract. It returns the keyword, search
-time, and compact Products with placement. It reuses a recent Search run or waits for collection;
-`--refresh` requests a replacement run. Keyword get/search instead read the stored keyword directory.
+| `--sort <order>` | `relevance`, `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`, `firstAvailableAtDesc`, `discoveredAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `priceAsc`, `priceDesc`, `boughtInPastMonthDesc`, or `estimatedMonthlySalesDesc`; default `estimatedMonthlySalesDesc`. |
 
 Product history reports its resolved range `interval`. Requested series always contain a summary;
 empty series return `points: []` with `first`, `latest`, `min`, and `max` all `null`. Price history
@@ -167,6 +158,8 @@ Failures go to stderr and exit with status 1:
 Help, version, and changelog output are plain text. The dispatcher is
 [`packages/cli/src/index.ts`](../../packages/cli/src/index.ts).
 
-Keyword get/search read the stored keyword directory. Keyword search returns graduated keywords
+Keyword get/list read the stored keyword directory. Keyword list returns graduated keywords
 unless `--stage` selects trials, dropped, untracked or all; `--freshness` narrows by data freshness.
-Keyword search `--cursor` accepts the JSON `nextCursor` object returned by the previous result. Brand Analytics inputs and history are removed.
+Keyword list `--cursor` accepts the JSON `nextCursor` object returned by the previous result. Brand
+Analytics inputs and history are removed. For the Products in a niche, run `rw product search` with
+the same term.

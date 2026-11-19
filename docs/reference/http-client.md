@@ -7,9 +7,6 @@ read_when:
 
 # HTTP Client
 
-**Status:** Unified search and `keyword.results` describe prepared source changes. Database
-migration, package release, and production deployment are pending.
-
 `@rankwrangler/http-client` is the typed TypeScript/JavaScript client for the public tRPC surface.
 It owns transport wiring and generated declarations; retrieval behavior remains on the server.
 
@@ -36,20 +33,14 @@ const product = await client.product.get.mutate({
 });
 
 const basicProducts = await client.product.getMany.mutate({
-    products: [
-        { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0DV53VS61' },
-        { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
-    ],
+    asins: ['B0DV53VS61', 'B012345678'],
+    marketplaceId: 'ATVPDKIKX0DER',
 });
 
 const search = await client.product.search.query({
     term: 'retro gardening shirt',
     salesRank: { max: 300_000 },
     sort: 'firstAvailableAtDesc',
-});
-
-const observedResults = await client.keyword.results.mutate({
-    term: 'retro gardening shirt',
 });
 
 const history = await client.product.history.mutate({
@@ -61,12 +52,16 @@ const history = await client.product.history.mutate({
 const keyword = await client.keyword.get.query({
     keyword: 'retro gardening shirt',
 });
+
+const keywords = await client.keyword.list.query({
+    term: 'retro gardening',
+});
 ```
 
-`search` contains compact `items`, an opaque `nextCursor`, and nullable keyword `coverage`. It reads
-stored Products without waiting for providers. `observedResults` contains `keyword`, `searchedAt`,
-and source-ordered `results` with `organicSearchPlacement` and compact current `product` values.
-See [Public API](public-api.md#product-search) for filters, text matching, paging, and coverage.
+`search` contains flat `items`, an opaque `nextCursor`, and nullable keyword `coverage`. It reads
+stored Products, except that a first page that finds nothing for a never-collected term waits for
+the live fallback. See [Public API](public-api.md#product-search) for filters, title matching,
+sorts, item fields, paging, and coverage.
 History output uses `range.interval`; every requested series has an always-present nullable summary,
 and price history has no scale field.
 
@@ -105,7 +100,7 @@ type ProductGetInput = PublicRouterInputs['product']['get'];
 type ProductGetManyOutput = PublicRouterOutputs['product']['getMany'];
 type ProductSearchOutput = PublicRouterOutputs['product']['search'];
 type ProductHistoryOutput = PublicRouterOutputs['product']['history'];
-type KeywordSearchOutput = PublicRouterOutputs['keyword']['search'];
+type KeywordListOutput = PublicRouterOutputs['keyword']['list'];
 ```
 
 The package also exports `RankWranglerClient`, `RankWranglerClientOptions`, `RouterInputs`,
@@ -129,19 +124,17 @@ missing data. `TIMEOUT` identifies provider-neutral temporary unavailability and
 `SERVICE_UNAVAILABLE`, or `TOO_MANY_REQUESTS`; allowance errors include a retry hint for the next
 daily reset.
 
-The client never polls. Product search returns stored data or a standard error. Other Product and keyword procedures
-apply their retrieval policies. Missing or policy-expired data may wait while durable work continues; Product
-`get`/`getMany` instead return a known Product's last-known listing and refresh it in the
-background. Product
-`get`/`getMany`/`history`, Product search, and keyword directory inputs expose no refresh
-control. `keyword.results` accepts `refresh` and retains the existing 24-hour run reuse and wait
-behavior. Product `get`/`getMany`/`history` and keyword outputs expose no pending
-data, freshness, Operations, provider status or schema version.
+The client never polls. Product search returns stored data or a standard error. Other Product and
+keyword procedures apply their retrieval policies. Missing or policy-expired data may wait while
+durable work continues; Product `get`/`getMany` instead return a known Product's last-known listing
+and refresh it in the background. No input is a refresh control. Product `get`/`getMany`/`history`
+and keyword outputs expose no pending data, freshness, Operations, provider status or schema
+version.
 Generated Product output carries a boolean `isMerchListing`; the search filter accepts `true`,
-`false`, or `all`. Basic `getMany` results always contain identity, nullable title, resolved
-thumbnail, and `amazonListingStatus: active | deleted`. Active means the detail-page listing exists,
-not that an offer is in stock or buyable. Deleted means Amazon has effectively removed the listing
-from that marketplace. Retained listing values remain last-known data, while an unavailable
-thumbnail alone only means no usable image.
+`false`, or `all`. Basic `getMany` results always contain identity, nullable title, nullable
+`imageUrl`, and `amazonListingStatus: active | deleted`. Active means the detail-page listing
+exists, not that an offer is in stock or buyable. Deleted means Amazon has effectively removed the
+listing from that marketplace. Retained listing values remain last-known data, while a null
+`imageUrl` alone only means no usable image.
 
 The implementation is [`packages/http-client/src/index.ts`](../../packages/http-client/src/index.ts).

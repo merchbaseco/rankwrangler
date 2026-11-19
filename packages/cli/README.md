@@ -9,17 +9,16 @@ rw auth set ak_...
 rw product get B0DV53VS61
 rw product get B0DV53VS61 --shortName
 rw product search "retro gardening shirt" --maxBsr 300000
-rw keyword results "retro gardening shirt"
 rw product history B0DV53VS61 --bucket week
 rw keyword get "retro gardening shirt"
-rw keyword search "retro gardening"
+rw keyword list "retro gardening"
 ```
 
-The public command surface is Product `get/search/history`, keyword `get/search/results`,
-auth, config, version, and changelog. Product search reads the collected database immediately and
-supports filters, sorting, and cursor pagination. Keyword results returns dated Amazon search
-results with placement and accepts `--refresh` to replace the observed Search run.
-Product `get/history` and other keyword reads use server-owned freshness policy.
+The public command surface is Product `get/search/history`, keyword `get/list`, auth, config,
+version, and changelog. Product search reads the collected database, matches titles, and supports
+filters, sorting (default `estimatedMonthlySalesDesc`), and cursor pagination. A first page that
+finds nothing for a never-collected term waits while RankWrangler collects it. Every read uses
+server-owned freshness policy, and unknown options fail with `INVALID_INPUT`.
 Output is a JSON `{ ok, data }` envelope; failures use `{ ok: false, error }` on stderr.
 The CLI does not expose Catalog, Operation, provider status, or polling commands.
 `--shortName` adds a nullable image-informed `listing.shortName` to a single Product get, waiting

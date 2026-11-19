@@ -1,7 +1,7 @@
 ---
 summary: Defines the local replay of Factory's recorded MCP bursts that measures how long agents wait on RankWrangler.
 read_when:
-  - a change may affect MCP latency for agents, keyword results, Keepa pacing, or catalog-search workers
+  - a change may affect MCP latency for agents, the Product search live fallback, Keepa pacing, or catalog-search workers
   - measuring before/after wall time for agent bursts without touching production
 ---
 
@@ -23,7 +23,7 @@ RW_REPLAY_DB_PORT=5433 apps/server/src/scripts/latency-replay/run.sh \
 | `--client factory` | Factory's runner today: a fresh MCP client per call, one call at a time per factory. |
 | `--client parallel` | Each burst at its recorded launch offsets, all calls in flight together. |
 | `--lanes N` | Bursts replayed side by side; keep it fixed when comparing runs. |
-| `--term-prefix P` | Keyword-results terms become `P <term>`; the default is unique per run, so a run starts cold. |
+| `--term-prefix P` | Recorded keyword `results` terms become `P <term>`; the default is unique per run, so a run starts cold. |
 | `--only OP`, `--limit N` | Replay only bursts containing an operation, or the first N bursts. |
 | `RW_REPLAY_AGE_TERM_PREFIX=P` | Before replaying, age stored runs for prefix `P` past the 24h window, as a backfill leaves them. |
 | `RW_REPLAY_KEEPA_SEARCH_MS` | Keepa search latency of the stand-in (default 14000; use 4000 with a database RTT). |
@@ -35,10 +35,14 @@ The dataset is `calls.jsonl` from Factory's handoff (`RW_REPLAY_DATASET`, defaul
 `~/.factory/handoff/rankwrangler-latency/calls.jsonl`). Recorded ASINs map onto fresh local Products,
 so the database needs `bun run db:seed:dev` within the last day.
 
+The recorded calls use the MCP contract before server version 0.7.0: keyword `results` and
+`getMany` `products`. The 0.7.0 server rejects both with `INVALID_INPUT`, so those calls fail fast
+until the replay maps them onto Product search and `asins`.
+
 ## Calibration
 
-Production holds Keepa about 4s for an interactive search and answers a live `keyword results` in
-about 16s; the rest is saving the run and SP-API enrichment of new result Products against a remote
+Production holds Keepa about 4s for an interactive search and answered a live keyword collection
+(then `keyword results`, now the Product search fallback) in about 16s; the rest is saving the run and SP-API enrichment of new result Products against a remote
 database. `RW_REPLAY_KEEPA_SEARCH_MS=4000 RW_REPLAY_DB_RTT_MS=20` reproduces that: a lone live call
 takes 5.0s at 0ms and 15.6s at 20ms, so it makes about 530 sequential database round trips. Without
 a database RTT, the 14s Keepa default folds all of that into Keepa time instead. With

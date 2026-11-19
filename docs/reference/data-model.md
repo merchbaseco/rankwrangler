@@ -86,14 +86,14 @@ one pending `catalogSearch` Operation exists per Catalog query. Product
 history, its successful import audit, Product freshness, and successful Operation completion commit
 atomically. A schema migration for the Operations table must be generated before deployment.
 Catalog-search success similarly commits Products, histories, the Search run/results, query
-watermark, and `catalogSearchRun` Operation resource atomically. An explicit `keyword.results`
-request renews the research lease even when reusing a run. General `product.search` records interest
-without extending that lease. Background scheduling uses admitted tiers and persisted due dates.
+watermark, and `catalogSearchRun` Operation resource atomically. A `product.search` live-fallback
+collection renews the research lease. Other `product.search` reads record interest without
+extending that lease. Background scheduling uses admitted tiers and persisted due dates.
 
 Catalog run reads never reconstruct observations from Product. Retained membership and placement
-remain independent from current canonical Product state. Public keyword-results retrieval waits for every
-result's compact current Search projection; dashboard run-history reads may expose unresolved
-current state separately.
+remain independent from current canonical Product state. The live fallback waits until every
+result Product has been resolved; dashboard run-history reads may expose unresolved current state
+separately.
 
 ## Product observations
 
@@ -114,21 +114,19 @@ remain `null`; they are not evidence of zero.
 
 ## Public Product Shape
 
-The following is the accepted public target; persisted provider observations above describe current
-storage.
-
-The public Product is one current provider-neutral projection:
+The public Product is one current provider-neutral projection; [Public API](public-api.md#product)
+owns its exact shape:
 
 - marketplace and ASIN identity;
-- `listing`: title, brand, first-available date, a bullet-point array, resolved available/unavailable
-  thumbnail, boolean `isMerchListing`, and `amazonListingStatus`;
+- `listing`: title, brand, first-available date, a bullet-point array, nullable `imageUrl`, boolean
+  `isMerchListing`, and `amazonListingStatus`;
 - `category`: current root-category identity and name;
-- `salesRank`: current rank plus `averages.last30Days` and `averages.last90Days`;
-- `price`: money in integer minor units with currency code; and
-- `demand`: `boughtInPastMonth` plus Sales-rank drops keyed as `last30Days`, `last90Days`,
-  `last180Days`, and `last365Days`.
+- `salesRank` (current rank) and `salesRankAverages` over `last30Days` and `last90Days`;
+- `price`: money in integer minor units with currency code;
+- `boughtInPastMonth` and the curve-based `estimatedMonthlySales`; and
+- `salesRankDrops` keyed as `last30Days`, `last90Days`, `last180Days`, and `last365Days`.
 
-Public callers never receive a pending thumbnail, provider block or timestamps,
+Public callers never receive a pending image state, provider block or timestamps,
 `trackingStartedAt`, freshness, status, Operations, or `schemaVersion`.
 
 `isMerchListing` is `true` when the latest decided observation had a Merch template bullet, or had
@@ -175,14 +173,12 @@ valid empty series has `points: []` and `null` for all four summary values; an u
 absent. Price history exposes `unit: "minorCurrency"`, `currencyCode`, points, and summary without a
 public scale field.
 
-## Public Product Search
+## Search runs in Product search
 
-Public Search returns `keyword`, `searchedAt`, and source-ordered `results`. Each result contains
-`organicSearchPlacement` plus a compact `product` with identity, title, brand, resolved thumbnail,
-boolean Merch classification, category, current sales rank, price, and bought-in-the-past-month
-evidence. It omits bullets, rank averages and drop windows, full demand, history, provider metadata,
-and freshness. Invalid or duplicate provider results preserve ordinal gaps. Search-run membership
-and placement are immutable; projected Product fields remain independent current state.
+Search runs are not returned publicly. Product search reads the newest stored Keepa first-page run
+of the normalized term as each item's `keywordPosition`. Invalid or duplicate provider results
+preserve ordinal gaps. Search-run membership and placement are immutable; Product fields remain
+independent current state.
 
 ## Facet lifecycle
 

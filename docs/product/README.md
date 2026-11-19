@@ -16,7 +16,7 @@ that humans and agents can inspect; it does not decide what a seller should crea
 | How does a product enter the catalog? | [Product ingestion](product-ingestion.md) |
 | How are Merch listings and niches identified? | [Product classification](product-classification.md) |
 | What historical BSR and price evidence is available? | [Product history](product-history.md) |
-| How does an agent retrieve current Products from an external Search run? | [Catalog search](catalog-search.md) |
+| What do `keywordPosition` and the Product search live fallback mean? | [Keyword search observations](catalog-search.md) |
 | How can a user inspect work and failures? | [Activity log](activity-log.md) |
 | How do agents and integrations access RankWrangler? | [API access](api-access.md) |
 

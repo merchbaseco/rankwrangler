@@ -24,7 +24,7 @@ judgments). An October eval against the owner's real Amazon ad search-term data 
 per-product phrases were the wrong direction, so the Ads and Jev keyword paths were deleted.
 
 User searches directly track normalized keywords. Product search records the exact supplied phrase
-on its first page; explicit keyword-results reads register the same identity. The dashboard's
+on its first page; its live-fallback collection registers the same identity. The dashboard's
 live as-you-type search reads with `recordInterest: false` and records a phrase only when the
 person submits it (⏎ in the banner search, or Track), so typed prefixes never become keywords. The extension records the Amazon US
 `k` search term once per content-page mount by calling Product search with limit one, using its

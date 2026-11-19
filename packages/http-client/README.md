@@ -2,9 +2,6 @@
 
 Typed tRPC client for the RankWrangler public agent API.
 
-Unified search and `keyword.results` below describe prepared source changes. Database migration,
-package release, and production deployment are pending.
-
 ```bash
 npm install @rankwrangler/http-client
 ```
@@ -26,10 +23,6 @@ const search = await client.product.search.query({
     term: 'retro gardening shirt',
 });
 
-const observedResults = await client.keyword.results.mutate({
-    term: 'retro gardening shirt',
-});
-
 const history = await client.product.history.mutate({
     marketplaceId: 'ATVPDKIKX0DER',
     asin: 'B0DV53VS61',
@@ -37,18 +30,20 @@ const history = await client.product.history.mutate({
     bucket: 'week',
 });
 
-const keywords = await client.keyword.search.query({
-    text: 'retro gardening',
+const keywords = await client.keyword.list.query({
+    term: 'retro gardening',
 });
 ```
 
 The client is scoped to `api.public.*`. Product `search` reads the stored catalog and returns
-`{ items, nextCursor, coverage }` without provider calls. Its optional term, filters, and sorting
-screen compact Products with market metrics. `keyword.results` preserves dated external search
-evidence and can wait for collection under the existing 24-hour reuse policy.
+`{ items, nextCursor, coverage }`. Its optional term matches titles; filters and sorts screen flat
+Products with market metrics, by default in `estimatedMonthlySalesDesc` order. A first page that
+finds nothing for a term Amazon's first page was never collected for waits while RankWrangler
+collects it.
 
-Product `get` returns the current Product. `getMany` returns basic listing data, and `history`
-returns compact rank and price series. Keyword `get` and `search` read the stored keyword directory, separately from observed search results. Retryable `TIMEOUT` errors preserve retry hints.
+Product `get` returns the current Product. `getMany` takes `asins` and an optional `marketplaceId`
+and returns basic listing data, and `history` returns compact rank and price series. Keyword `get`
+and `list` read the stored keyword directory. Retryable `TIMEOUT` errors preserve retry hints.
 
 ## Types
 
@@ -57,7 +52,7 @@ import type { PublicRouterInputs, PublicRouterOutputs } from '@rankwrangler/http
 
 type ProductGetInput = PublicRouterInputs['product']['get'];
 type ProductSearchOutput = PublicRouterOutputs['product']['search'];
-type KeywordSearchOutput = PublicRouterOutputs['keyword']['search'];
+type KeywordListOutput = PublicRouterOutputs['keyword']['list'];
 ```
 
 When the public router changes, regenerate and build the declarations:

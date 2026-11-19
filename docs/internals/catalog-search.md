@@ -7,22 +7,20 @@ read_when:
 
 # Catalog Search
 
-## Status
-
-Unified Product search, adaptive keyword collection, SP-API exploration and protected Keepa
-capacity are implemented in source. Generated migrations 0039 and 0040 and production deployment
-are pending. The local upgrade harness verifies preserved Products, histories and keyword evidence.
-
 ## Stored Product search
 
 The app and public Product-search procedures use one shared database query and projection. Text,
 filters, sorting, and keyset paging run in PostgreSQL. The query does not call Product retrieval,
 provider APIs, or image enrichment. The canonical root BSR drives the filter, sort, and projection.
 
-The weighted `simple` text document contains title, brand, and bullets. A title-only mode narrows
-matching. All-fields text also admits Products with retained keyword membership from an observation of the exact
-normalized keyword. Explicit exclusions still apply. An exact normalized marketplace-specific
-brand registry owns official-brand exclusions. An empty registry excludes nothing.
+The `simple` search document's GIN index (title, brand, bullets) finds text candidates, and the
+title must then match too, so only titles match. Excluded words are tested against the title. An
+exact ASIN also matches. Up to 10,000 estimated matches are looked up through the index and ranked;
+a commoner term is tested per visited row and `relevance` sorts by sales rank instead.
+`keywordPosition` joins the newest stored Keepa first-page run of the normalized term (US only),
+and `estimatedMonthlySales` evaluates the stored rank-to-sales curve in SQL, so both sort and page
+in the database. An exact normalized marketplace-specific brand registry owns official-brand
+exclusions. An empty registry excludes nothing.
 
 First-page text reads with US scope upsert a Catalog-query candidate and update request time.
 They preserve `activeUntil` rather than renewing the existing weekly subscription. The returned
@@ -36,8 +34,10 @@ Public contract details belong in [Public API](../reference/public-api.md#produc
 
 ## External keyword observations
 
-The public `keyword.results` procedure retains the former Product-search retrieval workflow below.
-The dashboard's explicit collection and retained-run reads use the same durable observations.
+The workflow below now serves the public Product search's live fallback, which runs it for a first
+page that finds nothing for a term with no stored Keepa first-page run, then searches again. The
+dashboard's explicit collection and retained-run reads use the same durable observations. No public
+procedure returns Search runs directly.
 
 ## Accepted Durable Model
 
@@ -62,9 +62,9 @@ record and history series follow in their own transactions after that commit, so
 and the caller never wait on history writes. A failed history save is logged and
 does not fail the search. The worker runs three searches at once, so a live search never waits
 behind a scheduled refresh still saving history; Keepa calls stay serialized, interactive first.
-Public keyword-results retrieval then passes retained canonical identities through shared Product retrieval and waits
-until every result has its compact current Search projection, including a resolved available or
-unavailable thumbnail.
+The fallback then passes a fresh run's canonical identities through shared Product retrieval and
+waits until every Product RankWrangler had never resolved is in the catalog; a stored run's Products
+answer last-known and refresh in the background.
 
 Request resolution is serialized per Catalog query. Fresh-run reuse, pending-work deduplication,
 mapped Service Account debit, and new Operation creation share one transaction, so unpaid work is never
@@ -75,10 +75,11 @@ visible to callers or recovery and a concurrently completed reusable run does no
 - A successful run satisfying the Search capability's server-owned policy is reusable. A
   policy-expired run remains immutable history but is not returned as the current public Search.
   Equivalent requests share the same canonical Search-run work.
-- Every external keyword-results request renews `lastRequestedAt` and `activeUntil` for 30 days, including
-  cached reuse. The request is recorded as a `requested` Search-run trigger when it produces a run.
-- Candidates enter bounded probation after measured capacity admission. Explicit keyword-results
-  requests carry a 30-day research lease; general Product searches record interest only.
+- Every requested collection (the live fallback or a dashboard request) renews `lastRequestedAt` and
+  `activeUntil` for 30 days, including cached reuse. It is recorded as a `requested` Search-run
+  trigger when it produces a run.
+- Candidates enter bounded probation after measured capacity admission. Requested collections
+  carry a 30-day research lease; other Product searches record interest only.
 - Successful observations choose the next interval: hot 1–7 days, warm 7–21 days, cold 30–60 days.
   Changed Merch membership halves the interval; quiet membership multiplies it by 1.5. Apply ±10%
   jitter. Keyword popularity uses current BSR strength and breadth.
@@ -129,13 +130,10 @@ autocomplete expansion, retry checkpoints, source evidence and provider budgets.
 independently disabled. It is not an acquisition source. Exact verified official-brand exclusions
 remain evidence-backed, without guessed aliases or whole-licensee exclusions.
 
-Provider tokens and durable Operation identifiers remain internal. Public keyword-results callers
-receive `keyword`, `searchedAt`, and compact `results`. Each result carries immutable
-`organicSearchPlacement` plus identity, title, brand, resolved thumbnail, classification, category,
-current sales rank, price, and bought-in-the-past-month evidence. It omits bullets, averages, drop
-windows, full demand, and history. Provider failure or deadline exhaustion returns a retryable
-error. The dashboard's existing request route may still show loading and invalidate durable reads
-on completion.
+Provider tokens and durable Operation identifiers remain internal. Public callers see stored
+placement only as `keywordPosition` on Product search items. Fallback provider failure or deadline
+exhaustion returns a retryable error. The dashboard's existing request route may still show loading
+and invalidate durable reads on completion.
 
 Keepa capacity is enforced at the physical request boundary; see
 [Keepa refresh internals](keepa-refresh.md#protected-capacity).

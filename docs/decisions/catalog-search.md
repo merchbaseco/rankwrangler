@@ -12,6 +12,11 @@ Date: 2026-07-22
 
 The current product contract is summarized in [Catalog search](../product/catalog-search.md).
 
+Update (2026-11-19): Search runs are no longer returned publicly. The `keyword.results` procedure
+that served them is removed. Product search reads the newest stored run as `keywordPosition`, and a
+first page that finds nothing for a never-collected term runs the workflow below as a live
+fallback. The decision about immutable runs and placement stands.
+
 ## Decision
 
 Catalog search persists four distinct nouns:

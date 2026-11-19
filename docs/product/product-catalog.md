@@ -26,35 +26,35 @@ converge on the same record.
   `last180Days`, and `last365Days`.
 - Links to historical observations; history is not embedded into the current Product record.
 
-Public Product responses group this state into provider-neutral `listing`, `category`, `salesRank`,
-`price`, and `demand` concepts. `listing.amazonListingStatus` is `active` while the marketplace
+Public Product responses group listing state under `listing` and expose rank, price, Amazon's
+bought-in-past-month badge, an estimate of monthly sales, and Sales-rank drops as flat
+provider-neutral fields. `listing.amazonListingStatus` is `active` while the marketplace
 detail-page listing exists and `deleted` when Amazon has effectively removed it. Active does not
-promise an in-stock or buyable offer. The thumbnail separately resolves as available with a URL or
-unavailable; thumbnail unavailability only means there is no usable image. A deleted listing keeps
-its last-known Product fields and image.
-Public callers never receive a pending thumbnail. `null` means a valid measurement is unavailable,
-not zero or retrieval failure.
+promise an in-stock or buyable offer. The image is a nullable Amazon image URL; a null image only
+means there is no usable image. A deleted listing keeps its last-known Product fields and image.
+`null` means a valid measurement is unavailable, not zero or retrieval failure.
 
 ## Using the catalog
 
 The dashboard and public `product.search` share a database query over collected Products. Text,
-BSR, dates, price, demand, marketplace, brands, and facets narrow the whole catalog before paging.
+BSR, dates, price, bought-in-past-month badge, marketplace, brands, and facets narrow the whole
+catalog before paging.
 Sorting also runs against the whole matching catalog. Default research results show active known
 Merch listings in the US and hide brands explicitly recorded as official. The initial registry is
 empty, so no brands are hidden until verified entries are added. Unknown brands remain visible.
 
-Text matches words across title, brand, and bullets, or title alone when requested. All entered
-words must match. Matching does not stem words or expand concepts. With all text fields enabled,
-a Product previously observed for that exact normalized keyword can also match. Explicit word
-and brand exclusions narrow the result further.
+Text matches words in the title only; brand and bullets never match. All entered words must match.
+Matching does not stem words or expand concepts. Explicit word and brand exclusions narrow the
+result further. Results default to the best estimated sellers first.
 
-Search returns immediately from stored data with compact market metrics. Current BSR uses the
-canonical root-category value consistently for filtering, ordering, and output. Search never waits
-for Amazon or Keepa. A dated keyword observation can explain collection coverage, but a small or
-empty result does not prove that Amazon has few matching Products. Initial gaps are accepted.
-Text searches register keyword candidates without granting a standing collection subscription.
-Background admission and adaptive checks grow coverage under measured provider budgets; the search
-request stays immediate.
+Search answers from stored data with flat market metrics. Current BSR uses the canonical
+root-category value consistently for filtering, ordering, and output. A public first page that
+finds nothing for a term Amazon's first page was never collected for waits while RankWrangler
+collects it (see [Keyword search observations](catalog-search.md)); every other search answers at
+once. A dated keyword observation can explain collection coverage, but a small or empty result
+does not prove that Amazon has few matching Products. Text searches register keyword candidates
+without granting a standing collection subscription. Background admission and adaptive checks grow
+coverage under measured provider budgets.
 
 Agents also read individual Products by marketplace and ASIN. Known listing data returns
 immediately and can refresh in the background. Only unresolved listings wait for retrieval.
@@ -72,8 +72,8 @@ the listing image changes. A chip can request both optional fields without `mark
 listing photo remains available for larger views and as a fallback when no cutout is available.
 
 Integrations that only need listing labels use the public basic Product batch. It accepts up to 200
-unique marketplace/ASIN pairs, preserves request order, and returns fixed-shape identity, title,
-thumbnail, and Amazon listing status. A deleted listing retains last-known Product values. Every
+unique ASINs in one marketplace, preserves request order, and returns fixed-shape identity, title,
+image URL, and Amazon listing status. A deleted listing retains last-known Product values. Every
 requested identity joins the canonical catalog. Active Merch Products can enter recurring Keepa
 history only after capacity admission; explicit history reads remain available independently.
 

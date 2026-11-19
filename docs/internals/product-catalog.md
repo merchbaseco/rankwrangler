@@ -77,8 +77,9 @@ refresh or a newer authoritative Catalog discovery rechecks them.
 The following public projection is the accepted target; persisted source state and dashboard
 observability above remain current.
 
-Public Product reads project the persisted sources into provider-neutral `listing`, `category`,
-`salesRank`, `price`, and `demand` groups. A policy-current Product returns immediately. Missing or
+Public Product reads project the persisted sources into a provider-neutral `listing` group plus
+flat category, rank, price and sales fields; [Public API](../reference/public-api.md#product) owns
+the shape. A policy-current Product returns immediately. Missing or
 policy-expired required data waits through the shared coordinator without creating a public
 Operation. Public responses omit source timestamps, freshness, status, and pending availability;
 temporary provider failure or deadline exhaustion uses the shared retryable error.
@@ -115,9 +116,9 @@ asset key, so the next requested read regenerates after either changes. Generati
 original thumbnail available and retry after a short cooldown. Other Product reads do not start
 cutout work.
 
-`listing.bulletPoints` is always an array, with `[]` for no bullets. `salesRank` contains `current`
-and `averages.last30Days`/`averages.last90Days`; demand drop windows use `last30Days`, `last90Days`,
-`last180Days`, and `last365Days`.
+`listing.bulletPoints` is always an array, with `[]` for no bullets. Keepa's `monthlySold` is
+published as `boughtInPastMonth`. `estimatedMonthlySales` comes from the rank-to-sales curve below,
+at the 30-day average rank or else the current rank.
 
 ## Dashboard Product Reads
 

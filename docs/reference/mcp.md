@@ -7,9 +7,6 @@ read_when:
 
 # Hosted MCP
 
-**Status:** Endpoint, OAuth, and tool families are shipped. Retrieval inputs and outputs below are
-the accepted public target.
-
 The hosted Model Context Protocol endpoint is `https://rankwrangler.merchbase.co/mcp`; the API host
 remains an alias at `https://rankwrangler-api.merchbase.co/mcp`. Both hosts expose three tools and
 require a person OAuth bearer token authorized through the suite Cloudflare API boundary.
@@ -26,78 +23,67 @@ The `initialize` server info advertises `websiteUrl` `https://rankwrangler.merch
 
 ## Tools
 
+The server advertises version `0.7.0`.
+
 | Tool | Input | Result |
 | --- | --- | --- |
-| `rankwrangler_status` | `{}` | Connection, authentication, and eight supported noun/verb capabilities. |
+| `rankwrangler_status` | `{}` | Connection, authentication, and capabilities: product `get`, `getMany`, `search`, `history`; keyword `get`, `list`. |
 | `rankwrangler_product` | `operation: get \| getMany \| search \| history` | Product data or a standard error. |
-| `rankwrangler_keyword` | `operation: get \| search \| history \| results` | Keyword data or a standard error. |
+| `rankwrangler_keyword` | `operation: get \| list` | Keyword data or a standard error. |
 
-`rankwrangler_product` uses `asin` and `marketplaceId` for `get`. It may also set
-`include: ['shortName', 'cutoutThumbnail']` to request an image-informed label or a transparent
-Product cutout in the full Product response. `get` waits up to 20 seconds for that generation and
+Each tool forwards to the matching [public procedure](public-api.md#procedures), which owns field
+meanings and response shapes. MCP-specific rules:
+
+| Operation | Fields |
+| --- | --- |
+| product `get` | `asin`, `marketplaceId`, optional `include` (`marketData`, `shortName`, `cutoutThumbnail`; default `['marketData']`). |
+| product `getMany` | `asins` (1–200 unique ASINs) and optional `marketplaceId` (default US). Rejects `include`. |
+| product `search` | Every [Product search](public-api.md#product-search) input, including singular `marketplaceId`, plus optional `contactSheet`. |
+| product `history` | `asin`, `marketplaceId`, and the range options `startAt`, `endAt`, `days`, `bucket`, `metrics`, `limit`. |
+| keyword `get` | `keyword`. |
+| keyword `list` | `term`, optional `stage`, `freshness`, `heat`, `sort`, `limit` (default 25), and `cursor`. |
+
+Product `get` waits up to 20 seconds for requested `shortName` or `cutoutThumbnail` generation and
 then returns any unfinished field as none (`shortName: null`, `cutoutThumbnail:
-{ status: 'unavailable' }`) while generation continues; it never returns
-`TEMPORARILY_UNAVAILABLE` just because enrichment is slow or failed. The default is
-`['marketData']`. `include` still accepts the removed `'variations'` token without error; it
-resolves to nothing, since owned-listing variant data now comes from merchbase-core.
-`getMany` accepts `products` with 1–200 unique
-`{ asin, marketplaceId }` pairs and returns a fixed-shape basic Product array without short names
-or cutouts; it rejects `include`.
-Every basic result includes identity, nullable title, resolved thumbnail, and
-`amazonListingStatus: active | deleted`. Active means the Amazon detail-page listing exists; it does
-not promise that an offer is in stock or buyable. Deleted means Amazon has effectively removed the
-listing from that marketplace. RankWrangler confirms deletion when a successful Amazon Catalog
-lookup does not return the ASIN; pending work and provider failures do not produce it. Retained
-title and thumbnail values are last-known listing data. `get` and `getMany` return a known
-Product's last-known listing immediately and refresh it in the background; they wait only for
-Products with no resolved listing. An unavailable thumbnail alone means no
-usable image, not a deleted listing. The tool adds only the documented Product-history range, metric,
-and bucket fields for `history`. Product `search` accepts an optional `term` and catalog filters.
-`rankwrangler_keyword` uses `keyword` for `get` and `history`, `text` for `search`, and accepts
-cursor/limit or range options. Keyword `results` uses `term` and optional `refresh` (default false).
-Product operations and keyword `get`, `search`, and `history` do not accept `refresh`.
-The keyword marketplace is the US marketplace (`ATVPDKIKX0DER`).
+{ status: 'unavailable' }`) while generation continues; it never returns `TEMPORARILY_UNAVAILABLE`
+just because enrichment is slow or failed. `include` still accepts the removed `'variations'` token
+without error; it resolves to nothing, since owned-listing variant data now comes from
+merchbase-core. `get` and `getMany` return a known Product's last-known listing immediately and
+refresh it in the background; they wait only for Products with no resolved listing.
 
-Product `search` immediately reads the collected catalog and returns `items`, `nextCursor`, and
-`coverage`. It never waits for collection. Empty results do not prove a niche is empty.
-Search accepts these filters:
+Product `search` returns `items`, `nextCursor`, and `coverage`. Text matches titles only, the
+default sort is `estimatedMonthlySalesDesc`, and a first page that finds nothing for a term never
+collected waits for the [live fallback](public-api.md#live-fallback). Empty results otherwise do
+not prove a niche is empty. Pass `nextCursor` as `cursor` for the next page with the same filters
+and sort.
 
-- `term`, `textFields: all | title`, and `excludeWords`.
-- `marketplaceIds` (defaults to US; an empty array selects all marketplaces).
-- `isMerchListing: true | false | all` (defaults to true).
-- `amazonListingStatus: active | deleted | all` (defaults to active).
-- `brands`, `excludeBrands`, `includeOfficialBrands` (defaults to false), and `categoryIds`.
-- `salesRank`, `price`, and `monthlySold` with optional integer `min` and `max`. Prices use minor
-  currency units. Unknown values do not match numeric bounds.
-- `firstAvailableAt`, `discoveredAt`, and `updatedAt` with optional ISO `after` and `before` dates.
-- `facets`, an array of `{ facet, name }` selections.
+`contactSheet: true` adds one MCP image content block after the JSON text: a base64 JPEG, about
+1 MB at most, showing the returned items' images in `items` order. Each cell is labelled with its
+1-based index in `items`; a missing or failed image is a grey cell. Only Amazon image hosts are
+fetched. The sheet never fails the search; when it cannot be built, the result carries the JSON
+alone.
 
-`sort` accepts `relevance` (default), `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`,
-`firstAvailableAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `discoveredAtDesc`, `priceAsc`, `priceDesc`,
-and `monthlySoldDesc`; a term matching more than about 10,000 stored Products sorts `relevance` by
-sales rank. `limit` is 1–100 (default 50); pass `nextCursor` as `cursor` for the next
-page with the same filters and sort. Pages reflect current data and can move as listings change.
-Search items include compact screening metrics. Coverage reports dated keyword observations; it
-does not promise a complete catalog.
+An `INVALID_INPUT` for an unknown field, or a field the operation does not take, names the field
+to use where one exists. These are hints only, never accepted aliases:
 
-Keyword `results` returns `keyword`, `searchedAt`, and compact `results`. It answers at once from
-the latest stored search evidence of any age (read its `searchedAt`), refreshing evidence older than
-24 hours in the background. It waits for collection only for a term with no stored evidence, or when
-`refresh` is true. Each result nests
-`organicSearchPlacement` and a compact Product projection with identity, title, brand, resolved
-thumbnail, classification, category, current sales rank, price, and bought-in-the-past-month
-evidence. It is not a full Product response.
+| Sent | Named replacement |
+| --- | --- |
+| `marketplaceIds` | `marketplaceId` |
+| `products`, or `asin` on `getMany` | `asins` |
+| `asins` on `get` | `asin` |
+| `text`, `query`, `q`, `search`, or `keyword` on keyword `list` or product `search` | `term` |
+| `term` on keyword `get` | `keyword` |
+| `monthlySold` | `boughtInPastMonth` |
 
-Product `history` returns `range.interval`. Every requested series has an always-present summary;
-valid empty series return `points: []` and `null` for `first`, `latest`, `min`, and `max`. Price
-history exposes minor-currency unit and currency code without a scale field.
+The keyword marketplace is the US marketplace (`ATVPDKIKX0DER`). For the Products in a niche, call
+product `search` with the same term.
 
 Every data tool call completes synchronously from the caller's perspective. It returns
-policy-current data, last-known Product listing data, or a structured error. MCP does not expose pending Product data,
-provider freshness, Catalog, Operation, polling, provider status, or provider-named frontend
-availability tools. Product search coverage and keyword results expose dated research evidence.
-Only keyword `results` accepts `refresh`. `isMerchListing` is always `true` or `false`; Product
-listing availability is exposed separately as `amazonListingStatus`.
+policy-current data, last-known Product listing data, or a structured error. MCP does not expose
+pending Product data, provider freshness, Catalog, Operation, polling, provider status, or
+provider-named frontend availability tools. No operation accepts `refresh`. `isMerchListing` is
+always `true` or `false`; Product listing availability is exposed separately as
+`amazonListingStatus`.
 
 `rankwrangler_status` does not report data or provider health, freshness, timestamps, or work state.
 

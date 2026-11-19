@@ -7,9 +7,6 @@ read_when:
 
 # Public API
 
-**Status:** Unified Product search and `keyword.results` describe prepared source changes.
-Their database migration and production deployment are pending.
-
 RankWrangler's external API is tRPC over HTTP, not REST. Prefer the
 [typed HTTP client](http-client.md) or [CLI](cli.md); use raw HTTP when integrating another runtime.
 The hosted agent-tool contract is documented in [Hosted MCP](mcp.md).
@@ -33,31 +30,31 @@ and retry hint. Dashboard `api.app.*` procedures are separate interactive Cloudf
 
 ## Retrieval Contract
 
-Product search reads the stored catalog without contacting or waiting for providers. Other
+Product search reads the stored catalog. Its one provider wait is the
+[live fallback](#live-fallback) for a term Amazon's first page was never collected for. Other
 retrieval capabilities own their freshness policies. Missing or policy-expired data can start or
 join durable work and wait. Caller deadline exhaustion does not cancel that work, and a
 retry coalesces with it.
 
 Product `get` and `getMany` serve last-known listing data for any Product with a resolved listing:
-a policy-expired read returns the stored title, thumbnail, and `amazonListingStatus` immediately and
+a policy-expired read returns the stored title, image, and `amazonListingStatus` immediately and
 queues a deduplicated background refresh. Only Products with no resolved listing wait, bounded by
 the caller deadline. See [Public Retrieval](../decisions/public-retrieval.md).
 
-Product `get`/`getMany`/`history`, Product search, and keyword directory inputs have no
-refresh control. `keyword.results` separately accepts `refresh`. Product `get`/`getMany`/`history` and keyword responses expose no
-pending data, freshness, Operations, polling state, provider status or response `schemaVersion`.
+No public input is a refresh control. Product `get`/`getMany`/`history` and keyword responses
+expose no pending data, freshness, Operations, polling state, provider status or response
+`schemaVersion`.
 
 ## Procedures
 
 | Procedure | Transport | Result |
 | --- | --- | --- |
 | `api.public.product.get` | mutation | One current Product. |
-| `api.public.product.getMany` | mutation | Basic listing results for up to 200 Product identities. |
+| `api.public.product.getMany` | mutation | Basic listing results for up to 200 ASINs in one marketplace. |
 | `api.public.product.search` | query | Paginated stored Products and keyword coverage. |
 | `api.public.product.history` | mutation | Product sales-rank and price series. |
 | `api.public.keyword.get` | query | One stored keyword directory entry. |
-| `api.public.keyword.search` | query | Paginated keyword directory entries and collection status. |
-| `api.public.keyword.results` | mutation | Dated external search results with retained placement. |
+| `api.public.keyword.list` | query | Paginated keyword directory entries and collection status. |
 
 There is no public Catalog, Operation, polling, or provider-health namespace.
 
@@ -81,29 +78,24 @@ type Product = {
         brand: string | null;
         firstAvailableAt: string | null;
         bulletPoints: string[];
-        thumbnail:
-            | { status: 'available'; url: string }
-            | { status: 'unavailable' };
+        imageUrl: string | null;
         isMerchListing: boolean;
         amazonListingStatus: 'active' | 'deleted';
     };
     category: { id: number; name: string | null } | null;
-    salesRank: {
-        current: number | null;
-        averages: {
-            last30Days: number | null;
-            last90Days: number | null;
-        };
+    salesRank: number | null;
+    salesRankAverages: {
+        last30Days: number | null;
+        last90Days: number | null;
     };
     price: { amountMinor: number; currencyCode: string } | null;
-    demand: {
-        boughtInPastMonth: number | null;
-        salesRankDrops: {
-            last30Days: number | null;
-            last90Days: number | null;
-            last180Days: number | null;
-            last365Days: number | null;
-        };
+    boughtInPastMonth: number | null;
+    estimatedMonthlySales: number | null;
+    salesRankDrops: {
+        last30Days: number | null;
+        last90Days: number | null;
+        last180Days: number | null;
+        last365Days: number | null;
     };
 };
 ```
@@ -122,8 +114,15 @@ always a boolean; a Product no
 provider has described yet is `false`. A Sales-rank drop is an
 observed numeric BSR improvement, not a confirmed sale.
 
-`marketData` checks current Keepa-backed rank, price, and demand data under the existing retrieval
-policy. Omitting it skips that Keepa history check and returns nullable rank, price, and demand
+`imageUrl` is Amazon's main listing image, or `null` when none is known; it never means the listing
+is deleted. `salesRank` is the current root-category BSR. `boughtInPastMonth` is Amazon's bucketed
+"bought in past month" badge (50, 100, 200, and so on up to 1K+); `null` means no badge was
+observed, not zero sales. `estimatedMonthlySales` is an order-of-magnitude estimate from the
+server's fitted rank-to-sales curve at the 30-day average rank, or the current rank without one.
+It is `null` without a rank or a fitted curve, and it is never a sales count.
+
+`marketData` checks current Keepa-backed rank, price, and sales data under the existing retrieval
+policy. Omitting it skips that Keepa history check and returns nullable rank, price, and sales
 measurements as `null`; `product.history` remains the separate parameterized history-series read.
 The default preserves existing single-Product behavior. `listing.shortName` is `null` unless the
 caller includes `shortName` and the Product is a known Merch listing with an available image.
@@ -137,7 +136,7 @@ stored per Product and reused while its title, image URL, and generator version 
 `cutoutThumbnail` independently requests a transparent 128×128 WebP of the Product photo. The visible
 subject is cropped to its alpha bounds, scaled to fit, and centered. It is `null` when omitted,
 available with a CDN URL when generated, and unavailable when the source image cannot be processed
-or generation fails. The original `thumbnail` remains the listing photo. A requested cutout is
+or generation fails. `imageUrl` remains the listing photo. A requested cutout is
 stored in R2 and reused while the source URL and generator version are unchanged;
 generation failures do not prevent the Product or a requested short name from returning. A caller
 displaying chips can request `include: ['shortName', 'cutoutThumbnail']` without Keepa market data.
@@ -154,18 +153,16 @@ the same Product share one generation.
 
 ## Basic Products
 
-`product.getMany` accepts one to 200 unique `{ marketplaceId, asin }` pairs and no `include`;
-request short names or cutouts with `get`. ASINs are normalized
-to uppercase. Results preserve request order and always contain the same keys:
+`product.getMany` accepts `{ asins, marketplaceId? }`: one to 200 ASINs, unique ignoring case and
+returned uppercase, in one marketplace (default `ATVPDKIKX0DER`). It accepts no `include`; request
+short names or cutouts with `get`. Results preserve request order and always contain the same keys:
 
 ```ts
 type BasicProduct = {
     marketplaceId: string;
     asin: string;
     title: string | null;
-    thumbnail:
-        | { status: 'available'; url: string }
-        | { status: 'unavailable' };
+    imageUrl: string | null;
     amazonListingStatus: 'active' | 'deleted';
 };
 ```
@@ -175,99 +172,113 @@ marketplace/ASIN. It does not promise an in-stock or buyable offer. `deleted` me
 effectively removed the listing and customers can no longer reach a purchasable detail page.
 RankWrangler confirms deletion when a successful Amazon Catalog lookup does not return the ASIN;
 pending work and provider failures do not produce it. RankWrangler preserves last-known title and
-thumbnail data and returns it immediately while a background refresh runs; `getMany` waits only for
-Products with no resolved listing. A Product never returned by Amazon has `title: null` and an
-unavailable thumbnail.
-`thumbnail.status: 'unavailable'` only means there is no usable image and does not make the Amazon
-listing deleted.
+image data and returns it immediately while a background refresh runs; `getMany` waits only for
+Products with no resolved listing. A Product never returned by Amazon has `title: null` and
+`imageUrl: null`. A null `imageUrl` only means there is no usable image and does not make the
+Amazon listing deleted.
 
-Cached listing data returns immediately. Cold identities are grouped by marketplace and fetched
-from SP-API in batches of 20. Every requested identity is persisted in the canonical catalog,
-including identities Amazon does not return. Each pair consumes one Service Account usage unit.
+Cached listing data returns immediately. Cold ASINs are fetched from SP-API in batches of 20.
+Every requested identity is persisted in the canonical catalog, including identities Amazon does
+not return. Each ASIN consumes one Service Account usage unit.
 Keepa history is not part of the synchronous response; newly classified eligible Products enter
 the existing asynchronous history-refresh policy.
 
 ## Product search
 
-`product.search` is a database query. It returns `{ items, nextCursor, coverage }` immediately
-without provider retrieval, Product enrichment, or history collection. An empty result is a valid
-answer and does not establish that Amazon has no matching Products.
+`product.search` is a database query over the stored catalog. It returns
+`{ items, nextCursor, coverage }` without Product enrichment or history collection. Apart from the
+[live fallback](#live-fallback), an empty result is a valid answer and does not establish that
+Amazon has no matching Products.
 
 | Input | Meaning and default |
 | --- | --- |
-| `term` | Optional text. Omit to browse. Maximum 200 characters. |
-| `textFields` | `all` by default, or `title`. Text uses case-insensitive word AND matching with PostgreSQL's `simple` dictionary, without stemming or semantic expansion. Exact ASINs also match. With `all`, retained membership in an observation of the normalized keyword also matches. |
-| `excludeWords` | Up to 20 excluded text expressions, tested against the selected text fields. |
-| `marketplaceIds` | US by default. An empty array includes all stored marketplaces. |
+| `term` | Optional text. Omit to browse. Maximum 200 characters. Matches the title only, with case-insensitive word AND matching in PostgreSQL's `simple` dictionary, without stemming or semantic expansion. Brand and bullets never match. An exact ASIN also matches. |
+| `excludeWords` | Up to 20 excluded text expressions, tested against the title. |
+| `marketplaceId` | One marketplace; `ATVPDKIKX0DER` (US) by default. |
 | `isMerchListing` | `true` by default, or `false` or `all`. |
 | `amazonListingStatus` | `active` by default, or `deleted` or `all`. |
 | `brands`, `excludeBrands` | Exact brand names after case and whitespace normalization. |
 | `includeOfficialBrands` | `false` excludes exact matches in the maintained marketplace-specific registry. The initial registry has no verified entries. Unknown brands remain visible. |
 | `categoryIds` | Root-category IDs. |
-| `salesRank`, `price`, `monthlySold` | Inclusive integer `{ min?, max? }` ranges. Price uses minor currency units, with no currency conversion across marketplaces. |
+| `salesRank`, `price`, `boughtInPastMonth` | Inclusive integer `{ min?, max? }` ranges. Price uses minor currency units. |
 | `firstAvailableAt`, `discoveredAt`, `updatedAt` | Inclusive `{ after?, before? }` ranges using ISO dates or datetimes. A date means midnight, not the end of that day. |
 | `facets` | Matching `{ facet, name }` assignments. Any supplied assignment can match. |
-| `sort` | `relevance` by default. Also `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`, `firstAvailableAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `discoveredAtDesc`, `priceAsc`, `priceDesc`, or `monthlySoldDesc`. Without text, relevance falls back to newest discovered; a term matching more than about 10,000 stored Products sorts by sales rank instead, since ranking would score every match. |
+| `sort` | `estimatedMonthlySalesDesc` by default. Also `relevance`, `salesRankAsc`, `salesRankDesc`, `firstAvailableAtAsc`, `firstAvailableAtDesc`, `updatedAtAsc`, `updatedAtDesc`, `discoveredAtDesc`, `priceAsc`, `priceDesc`, or `boughtInPastMonthDesc`. |
 | `limit`, `cursor` | 1–100 items, default 50. Opaque keyset cursor scoped to the filters and sort. |
 
 All filters combine with AND. Unknown numeric values fail bounded numeric filters. All sort orders
 put nulls last and use Product identity as a tie breaker. Invalid or mismatched cursors produce
 `BAD_REQUEST`. Pagination reads live data, so changing Products can move between pages.
 
-Each item contains identity, title, brand, bullets, resolved thumbnail availability, classification,
-listing status, root category ID, current `salesRank`, price, first-available, discovered, and updated
-timestamps, facets, rank `averages`, and `demand` with monthly evidence and drop windows. Null
-measurements remain unknown. The current canonical root BSR drives the filter, ordering, and
-returned `salesRank`; an older Keepa current-BSR copy does not override it.
+`estimatedMonthlySalesDesc` orders by the larger of `estimatedMonthlySales` and
+`boughtInPastMonth`, so a strong seller without a badge still ranks and a badge outranks a curve
+that undersells it. `relevance` orders by `keywordPosition` ascending, then title text rank. Without
+a term it falls back to `discoveredAtDesc`. A term with more than about 10,000 estimated matches
+orders `relevance` by sales rank instead, since ranking would score every match.
 
-On a first page with text and a scope that includes the US, `coverage` contains `{ keyword,
-headCheckedAt, exploration }`. The head timestamp is the latest retained successful Keepa keyword
-observation or null. Exploration is null or `{ source: 'spapi', pages, observedAt, budgetLimited }`:
-contiguous observed pages, oldest page time and whether the pass stopped for budget. It does not
-claim Amazon organic ordering or exhaustive results. Other reads return `coverage: null`.
-
-The read records normalized keyword interest without renewing an explicit research lease. Background
-admission, checks and exploration run independently. An empty result can reflect an early coverage
-gap; the request does not wait for discovery. Source timestamps remain separate from Product counts.
-
-## Keyword results
-
-`keyword.results` preserves the former external Product-search behavior. It accepts `{ term,
-refresh? }` and answers at once from the latest stored run of any age, queueing a background
-replacement when that run is older than 24 hours. It waits for collection and Product enrichment only
-for a term with no stored run, or when `refresh: true` requests a replacement run. Equivalent requests share
-work. Provider failure and deadline errors retain the existing retryable error contract.
+Each item is flat:
 
 ```ts
-type KeywordResults = {
-    keyword: string;
-    searchedAt: string;
-    results: Array<{
-        organicSearchPlacement: number;
-        product: {
-            marketplaceId: string;
-            asin: string;
-            title: string | null;
-            brand: string | null;
-            thumbnail:
-                | { status: 'available'; url: string }
-                | { status: 'unavailable' };
-            isMerchListing: boolean;
-            amazonListingStatus: 'active' | 'deleted';
-            category: { id: number; name: string | null } | null;
-            salesRank: number | null;
-            price: { amountMinor: number; currencyCode: string } | null;
-            boughtInPastMonth: number | null;
-        };
-    }>;
+type ProductSearchItem = {
+    marketplaceId: string;
+    asin: string;
+    title: string | null;
+    brand: string | null;
+    bullet1: string | null;
+    bullet2: string | null;
+    imageUrl: string | null;
+    isMerchListing: boolean;
+    amazonListingStatus: 'active' | 'deleted';
+    categoryId: number | null;
+    salesRank: number | null;
+    salesRankAverages: { last30Days: number | null; last90Days: number | null };
+    salesRankDrops: {
+        last30Days: number | null;
+        last90Days: number | null;
+        last180Days: number | null;
+        last365Days: number | null;
+    };
+    boughtInPastMonth: number | null;
+    estimatedMonthlySales: number | null;
+    keywordPosition: number | null;
+    price: { amountMinor: number; currencyCode: string } | null;
+    firstAvailableAt: string | null;
+    discoveredAt: string;
+    updatedAt: string;
+    facets: Array<{ facet: string; name: string }>;
 };
 ```
 
-Results contain up to 20 Products from a US first-page observation. `organicSearchPlacement` is the
-source-supplied ordinal. Invalid or duplicate rows leave gaps. Membership and placement remain
-immutable, while the nested compact Product projection reflects current state. Placement is useful
-source evidence rather than a guaranteed Amazon organic rank. This capability is separate from
-stored keyword directory entries.
+`imageUrl`, `boughtInPastMonth`, and `estimatedMonthlySales` mean what they mean on
+[Product](#product). `keywordPosition` is the Product's position (1–20) in Amazon's last observed
+first page of organic results for exactly this term: the newest stored Keepa first-page search of
+the normalized term, US only. It is `null` when that search did not return the Product, the term
+was never collected, or there is no term. Null measurements remain unknown. The current canonical
+root BSR drives the filter, ordering, and returned `salesRank`; an older Keepa current-BSR copy
+does not override it.
+
+On a first page with text in the US marketplace, `coverage` contains `{ keyword, headCheckedAt,
+exploration }`. The head timestamp is the latest retained successful Keepa keyword observation or
+null. Exploration is null or `{ source: 'spapi', pages, observedAt, budgetLimited }`: contiguous
+observed pages, oldest page time and whether the pass stopped for budget. It does not claim
+exhaustive results. Other reads return `coverage: null`.
+
+The read records normalized keyword interest without renewing an explicit research lease. Background
+admission, checks and exploration run independently. Source timestamps remain separate from Product
+counts.
+
+### Live fallback
+
+A first page (no `cursor`) with a `term` in the US marketplace that finds nothing, for a term with
+no stored Keepa first-page search of its normalized form, starts or joins that collection, waits
+for it, and searches the stored catalog again. Products the collection surfaces that RankWrangler
+has never resolved are resolved before the second search. Equivalent requests share the work, and
+the collection renews the term's 30-day research lease. Later pages, searches that found something,
+and terms already collected answer from the stored catalog alone.
+
+An exceeded usage limit produces `TOO_MANY_REQUESTS`; other billing refusals produce
+`SERVICE_UNAVAILABLE`. Missing collection capacity, provider failure, and deadline exhaustion
+produce a retryable `TIMEOUT`. The dashboard's Product search has no fallback.
 
 ## Product History
 
@@ -316,7 +327,7 @@ omit count and point dates already represented by the series.
 
 `keyword.get({ keyword })` reads one normalized US keyword and returns `{ keyword, data }`;
 `data` is null when absent, and any stage is returned.
-`keyword.search({ text, stage?, freshness?, heat?, sort?, limit?, cursor? })` returns `items` and
+`keyword.list({ term, stage?, freshness?, heat?, sort?, limit?, cursor? })` returns `items` and
 `nextCursor`. Pass the returned cursor object unchanged. Stage filters are graduated (default),
 trial, dropped, untracked and all. Freshness filters are all (default), live, needsSync and
 syncing. Heat filters are all, hot, warm, cold and unrated. Sort defaults to work priority:
@@ -332,7 +343,8 @@ scheduled). Freshness is live (first page current), needsSync (check due or neve
 syncing (a check is running); trials are only needsSync or syncing, and dropped or untracked
 entries have null freshness, interval and next check. Stage, freshness and score describe our
 collection progress and priority, not organic search volume.
-Weekly Brand Analytics history is not exposed. `keyword.results` still provides dated Amazon product-search evidence.
+Weekly Brand Analytics history is not exposed. For the Products in a niche, call `product.search`
+with the same term.
 
 ## Raw Request
 
