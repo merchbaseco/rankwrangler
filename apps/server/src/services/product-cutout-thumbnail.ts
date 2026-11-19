@@ -11,11 +11,8 @@ import {
 import type { ProductThumbnail } from '@/types';
 import { createConcurrencyLimit } from './concurrency-limit';
 import { createEventLogSafe } from './event-logs';
-import {
-    createCutoutObject,
-    getCutoutPublicUrl,
-    isCutoutSourceSupported,
-} from './product-cutout-thumbnail-media';
+import { isAmazonImageUrl } from '@/utils/amazon-image-url';
+import { createCutoutObject, getCutoutPublicUrl } from './product-cutout-thumbnail-media';
 import { waitForProductEnrichment } from './product-enrichment-wait';
 
 const POLL_MS = 250;
@@ -68,7 +65,7 @@ const prepareCutoutRequest = ({
     asin,
     thumbnail,
 }: CutoutSource): CutoutRequest | null => {
-    if (thumbnail.status !== 'available' || !isCutoutSourceSupported(thumbnail.url)) {
+    if (thumbnail.status !== 'available' || !isAmazonImageUrl(thumbnail.url)) {
         return null;
     }
     return {

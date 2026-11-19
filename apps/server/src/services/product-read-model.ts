@@ -25,17 +25,17 @@ export interface Product {
         brand: string | null;
         firstAvailableAt: string | null;
         bulletPoints: string[];
-        thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
+        /** Amazon's main product image; null when none is known. */
+        imageUrl: string | null;
         isMerchListing: boolean;
         amazonListingStatus: AmazonListingStatus;
     };
     category: { id: number; name: string | null } | null;
-    salesRank: {
-        current: number | null;
-        averages: {
-            last30Days: number | null;
-            last90Days: number | null;
-        };
+    /** The current root-category best sellers rank. */
+    salesRank: number | null;
+    salesRankAverages: {
+        last30Days: number | null;
+        last90Days: number | null;
     };
     price: { amountMinor: number; currencyCode: string } | null;
     /** Amazon's bought-in-past-month badge (50, 100, …); null when none was observed. */
@@ -204,10 +204,7 @@ export const mapProductToPublicProduct = (
             bulletPoints: [product.bullet1, product.bullet2].filter(
                 (bullet): bullet is string => bullet !== null
             ),
-            thumbnail:
-                product.thumbnail.status === 'available'
-                    ? product.thumbnail
-                    : { status: 'unavailable' },
+            imageUrl: product.thumbnail.status === 'available' ? product.thumbnail.url : null,
             isMerchListing: product.isMerchListing,
             amazonListingStatus: product.amazonListingStatus,
         },
@@ -218,12 +215,10 @@ export const mapProductToPublicProduct = (
                       id: product.rootCategoryId,
                       name: product.rootCategoryDisplayName,
                   },
-        salesRank: {
-            current: salesRank,
-            averages: {
-                last30Days: average30,
-                last90Days: keepa?.averageRootCategoryBsr90 ?? null,
-            },
+        salesRank,
+        salesRankAverages: {
+            last30Days: average30,
+            last90Days: keepa?.averageRootCategoryBsr90 ?? null,
         },
         price: keepa?.currentNewPrice ?? null,
         boughtInPastMonth: keepa?.monthlySold ?? null,

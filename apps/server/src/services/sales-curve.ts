@@ -2,7 +2,7 @@ import { runBackground } from '@/db/index';
 import type { SalesCurveParameters } from '@/db/product-search-ranking';
 import { readSalesCurveObservations } from '@/db/sales-curve-observations';
 import { createSwrCache } from '@/utils/swr-cache';
-import { curveMedianSales, fitSalesCurve, REFERENCE_BSR } from './sales-curve-fit';
+import { fitSalesCurve, REFERENCE_BSR } from './sales-curve-fit';
 import { buildSalesCurveReport } from './sales-curve-report';
 
 const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';
@@ -39,13 +39,18 @@ export const readSalesCurve = async (marketplaceId = US_MARKETPLACE_ID) => {
  * The curve's median monthly sales at a rank, rounded and at least 1: an order of magnitude,
  * never a count. Null without a positive rank or a curve. Pass the 30-day average rank where
  * there is one (the curve is fitted against it). estimatedMonthlySalesColumn is the same
- * estimate in SQL.
+ * estimate in SQL, and the website's estimateMonthlySales the same in the browser.
  */
-export const estimateMonthlySales = (
-    curve: Pick<SalesCurveParameters, 'intercept' | 'headSlope' | 'tailSlope'> | null,
-    rank: number | null
-) =>
-    curve && rank !== null && rank > 0 ? Math.max(1, Math.round(curveMedianSales(curve, rank))) : null;
+export const estimateMonthlySales = (curve: SalesCurveParameters | null, rank: number | null) => {
+    if (!curve || rank === null || rank <= 0) {
+        return null;
+    }
+    const slope = rank < curve.referenceBsr ? curve.headSlope : curve.tailSlope;
+    return Math.max(
+        1,
+        Math.round(Math.exp(curve.intercept + slope * Math.log(rank / curve.referenceBsr)))
+    );
+};
 
 const fitCurrentSalesCurve = async (marketplaceId: string) => {
     const observations = await readSalesCurveObservations(marketplaceId);

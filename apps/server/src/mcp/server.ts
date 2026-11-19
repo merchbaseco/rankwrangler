@@ -53,7 +53,7 @@ const PRODUCT_TOOL_DESCRIPTION = [
     'a field still generating then returns as none (shortName null, cutoutThumbnail',
     '{status:unavailable}) for a later get to fill, so never retry get just for enrichment.',
     'operation=getMany uses asins (1-200 unique ASINs) and optional marketplaceId and returns',
-    'title, imageUrl and amazonListingStatus each. get and getMany return a known Product\'s',
+    "title, imageUrl and amazonListingStatus each. get and getMany return a known Product's",
     'last-known listing data at once and refresh it in the background; they wait only for',
     'Products RankWrangler has never resolved. amazonListingStatus is active or deleted: active',
     'means the Amazon detail page exists, not that an offer is in stock or buyable; deleted means',

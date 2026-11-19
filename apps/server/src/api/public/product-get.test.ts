@@ -18,24 +18,21 @@ describe('public Product tRPC boundary', () => {
                 brand: 'Example brand',
                 firstAvailableAt: '2026-01-01T00:00:00.000Z',
                 bulletPoints: ['Made for gardeners'],
-                thumbnail: { status: 'available' as const, url: 'https://example.com/image.jpg' },
+                imageUrl: 'https://m.media-amazon.com/images/I/garden.jpg',
                 isMerchListing: false,
                 amazonListingStatus: 'active',
             },
             category: { id: 12_345, name: 'Clothing' },
-            salesRank: {
-                current: 12_345,
-                averages: { last30Days: 15_000, last90Days: 18_000 },
-            },
+            salesRank: 12_345,
+            salesRankAverages: { last30Days: 15_000, last90Days: 18_000 },
             price: { amountMinor: 1999, currencyCode: 'USD' },
-            demand: {
-                boughtInPastMonth: 200,
-                salesRankDrops: {
-                    last30Days: 4,
-                    last90Days: 11,
-                    last180Days: 19,
-                    last365Days: 31,
-                },
+            boughtInPastMonth: 200,
+            estimatedMonthlySales: 240,
+            salesRankDrops: {
+                last30Days: 4,
+                last90Days: 11,
+                last180Days: 19,
+                last365Days: 31,
             },
         } satisfies Product;
         const getProductReadModel = mock(async () => product);
@@ -149,24 +146,21 @@ const createProduct = (): Product => ({
         brand: null,
         firstAvailableAt: null,
         bulletPoints: [],
-        thumbnail: { status: 'unavailable' },
+        imageUrl: null,
         isMerchListing: false,
         amazonListingStatus: 'deleted',
     },
     category: null,
-    salesRank: {
-        current: null,
-        averages: { last30Days: null, last90Days: null },
-    },
+    salesRank: null,
+    salesRankAverages: { last30Days: null, last90Days: null },
     price: null,
-    demand: {
-        boughtInPastMonth: null,
-        salesRankDrops: {
-            last30Days: null,
-            last90Days: null,
-            last180Days: null,
-            last365Days: null,
-        },
+    boughtInPastMonth: null,
+    estimatedMonthlySales: null,
+    salesRankDrops: {
+        last30Days: null,
+        last90Days: null,
+        last180Days: null,
+        last365Days: null,
     },
 });
 

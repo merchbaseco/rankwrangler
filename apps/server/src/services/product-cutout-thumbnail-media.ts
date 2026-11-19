@@ -9,8 +9,6 @@ const TRANSFORM_TIMEOUT_MS = 20_000;
 const TRANSFORM_OPTIONS =
     'width=512,height=512,fit=contain,format=webp,quality=90,segment=foreground';
 
-export const isCutoutSourceSupported = isAmazonImageUrl;
-
 export const createCutoutObject = async ({
     sourceUrl,
     objectKey,
@@ -30,7 +28,7 @@ export const createCutoutObject = async ({
     fetcher?: typeof fetch;
     createClient?: () => S3Client;
 }) => {
-    if (!isCutoutSourceSupported(sourceUrl)) {
+    if (!isAmazonImageUrl(sourceUrl)) {
         throw new Error('Unsupported Product cutout source image URL.');
     }
     if (!(env.RANKWRANGLER_R2_ACCESS_KEY_ID && env.RANKWRANGLER_R2_SECRET_ACCESS_KEY)) {

@@ -12,7 +12,7 @@ describe('MCP contact sheet', () => {
         })
             .png()
             .toBuffer();
-        const fetchImage = mock(async (url: string) => {
+        const fetchImage = mock(async (url: string, _signal: AbortSignal) => {
             if (url === BROKEN_URL) throw new Error('timed out');
             return red;
         });
@@ -23,7 +23,10 @@ describe('MCP contact sheet', () => {
         );
 
         expect(sheet?.mimeType).toBe('image/jpeg');
-        expect(fetchImage.mock.calls.map(([url]) => url)).toEqual([AMAZON_URL, BROKEN_URL]);
+        expect(fetchImage.mock.calls.map(([url]: readonly unknown[]) => url)).toEqual([
+            AMAZON_URL,
+            BROKEN_URL,
+        ]);
         const image = sharp(Buffer.from(sheet?.data ?? '', 'base64'));
         const { width, height, format } = await image.metadata();
         // Four images: a 2 x 2 grid of 320px cells with 6px gaps.

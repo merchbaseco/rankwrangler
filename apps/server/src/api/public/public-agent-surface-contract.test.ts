@@ -16,5 +16,4 @@ describe('public agent surface', () => {
             ].sort()
         );
     });
-
 });

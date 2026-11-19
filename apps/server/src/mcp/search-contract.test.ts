@@ -154,11 +154,7 @@ describe('MCP catalog search and keyword evidence', () => {
                     { operation: 'list', keyword: 'bruh' },
                     'keyword is not accepted for list; use term',
                 ],
-                [
-                    'rankwrangler_keyword',
-                    { operation: 'results', term: 'bruh' },
-                    'Invalid option',
-                ],
+                ['rankwrangler_keyword', { operation: 'results', term: 'bruh' }, 'Invalid option'],
             ] as const;
             for (const [name, args, message] of cases) {
                 const result = await client.callTool({ name, arguments: args });

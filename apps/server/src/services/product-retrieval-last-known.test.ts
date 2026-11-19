@@ -67,7 +67,7 @@ describe('Product retrieval with last-known policy', () => {
             {
                 ...identity,
                 title: 'Known title',
-                thumbnail: { status: 'unavailable' },
+                imageUrl: null,
                 amazonListingStatus: 'active',
             },
         ]);

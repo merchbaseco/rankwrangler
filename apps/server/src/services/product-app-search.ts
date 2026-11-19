@@ -1,10 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { runBackground } from '@/db/index';
-import {
-    bsrSparklinePointsColumn,
-    sampleBsrSparkline,
-} from '@/db/product/product-bsr-sparklines';
+import { bsrSparklinePointsColumn, sampleBsrSparkline } from '@/db/product/product-bsr-sparklines';
 import {
     type StoredEnrichmentRow,
     storedEnrichment,
@@ -53,7 +50,7 @@ export const searchAppProducts = async (
                 marketplaceId: item.marketplaceId,
                 asin: item.asin,
                 title: item.title,
-                thumbnailUrl: item.thumbnail.status === 'available' ? item.thumbnail.url : null,
+                thumbnailUrl: item.imageUrl,
             };
             const stored = storedEnrichment(source, columns?.stored ?? null);
             return {

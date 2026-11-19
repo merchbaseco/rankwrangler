@@ -83,7 +83,13 @@ const page = (asins: string[]) =>
         coverage: null,
     }) as unknown as Awaited<ReturnType<CollectingProductSearchDeps['searchProducts']>>;
 
-const createDeps = ({ pages, collected }: { pages: ReturnType<typeof page>[]; collected: boolean }) => {
+const createDeps = ({
+    pages,
+    collected,
+}: {
+    pages: ReturnType<typeof page>[];
+    collected: boolean;
+}) => {
     let call = 0;
     return {
         searchProducts: mock(async (_input: unknown) => {

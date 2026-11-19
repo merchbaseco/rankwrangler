@@ -3,7 +3,6 @@ import type { ProductInfo } from '@/types';
 import { PRODUCT_ENRICHMENT_DEADLINE_MS } from './product-enrichment-wait';
 import {
     getProductReadModel,
-    mapProductToKeywordResultsProduct,
     mapProductToPublicProduct,
     type ProductReadModelDeps,
 } from './product-read-model';
@@ -29,6 +28,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface,
                 getProductShortName,
                 getProductCutoutThumbnail,
+                readSalesCurve: noCurve,
             } satisfies ProductReadModelDeps
         );
 
@@ -77,6 +77,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName,
                 getProductCutoutThumbnail: mock(async () => null),
+                readSalesCurve: noCurve,
             }
         );
 
@@ -117,6 +118,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface,
                 getProductShortName,
                 getProductCutoutThumbnail,
+                readSalesCurve: noCurve,
             }
         );
 
@@ -156,6 +158,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName: mock(async () => null),
                 getProductCutoutThumbnail,
+                readSalesCurve: noCurve,
             }
         );
 
@@ -193,6 +196,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName,
                 getProductCutoutThumbnail: mock(async () => null),
+                readSalesCurve: noCurve,
             }
         );
 
@@ -229,6 +233,7 @@ describe('public Product read model', () => {
                 getProductHistorySurface: mock(async () => ({}) as never),
                 getProductShortName: getProductShortName as never,
                 getProductCutoutThumbnail: mock(async () => null),
+                readSalesCurve: noCurve,
             }
         );
 
@@ -252,13 +257,15 @@ describe('public Product read model', () => {
                 getProductHistorySurface,
                 getProductShortName: mock(async () => null),
                 getProductCutoutThumbnail: mock(async () => null),
+                readSalesCurve: noCurve,
             }
         );
 
         expect(getProductHistorySurface).not.toHaveBeenCalled();
-        expect(result.salesRank.current).toBeNull();
+        expect(result.salesRank).toBeNull();
         expect(result.price).toBeNull();
-        expect(result.demand.boughtInPastMonth).toBeNull();
+        expect(result.boughtInPastMonth).toBeNull();
+        expect(result.estimatedMonthlySales).toBeNull();
     });
 
     it('projects current source observations into the provider-neutral Product shape', () => {
@@ -274,24 +281,21 @@ describe('public Product read model', () => {
                 brand: 'Example brand',
                 firstAvailableAt: '2026-01-01T00:00:00.000Z',
                 bulletPoints: ['Made for gardeners'],
-                thumbnail: { status: 'unavailable' },
+                imageUrl: null,
                 isMerchListing: false,
                 amazonListingStatus: 'active',
             },
             category: { id: 12_345, name: 'Clothing' },
-            salesRank: {
-                current: 12_345,
-                averages: { last30Days: 15_000, last90Days: 18_000 },
-            },
+            salesRank: 12_345,
+            salesRankAverages: { last30Days: 15_000, last90Days: 18_000 },
             price: { amountMinor: 1999, currencyCode: 'USD' },
-            demand: {
-                boughtInPastMonth: 200,
-                salesRankDrops: {
-                    last30Days: 4,
-                    last90Days: 11,
-                    last180Days: 19,
-                    last365Days: 31,
-                },
+            boughtInPastMonth: 200,
+            estimatedMonthlySales: null,
+            salesRankDrops: {
+                last30Days: 4,
+                last90Days: 11,
+                last180Days: 19,
+                last365Days: 31,
             },
         });
     });
@@ -325,44 +329,47 @@ describe('public Product read model', () => {
                 brand: null,
                 firstAvailableAt: null,
                 bulletPoints: [],
-                thumbnail: { status: 'unavailable' },
+                imageUrl: null,
                 isMerchListing: false,
                 amazonListingStatus: 'deleted',
             },
             category: null,
-            salesRank: {
-                current: null,
-                averages: { last30Days: null, last90Days: null },
-            },
+            salesRank: null,
+            salesRankAverages: { last30Days: null, last90Days: null },
             price: null,
-            demand: {
-                boughtInPastMonth: null,
-                salesRankDrops: {
-                    last30Days: null,
-                    last90Days: null,
-                    last180Days: null,
-                    last365Days: null,
-                },
+            boughtInPastMonth: null,
+            estimatedMonthlySales: null,
+            salesRankDrops: {
+                last30Days: null,
+                last90Days: null,
+                last180Days: null,
+                last365Days: null,
             },
         });
     });
 
-    it('maps a current Product to the compact Search projection', () => {
-        const product = mapProductToPublicProduct(createProductInfo());
+    it('estimates monthly sales from the 30-day average rank and exposes the main image', () => {
+        const curve = {
+            referenceBsr: 100_000,
+            intercept: Math.log(40),
+            headSlope: -1,
+            tailSlope: -2,
+        };
+        const result = mapProductToPublicProduct(
+            {
+                ...createProductInfo(),
+                thumbnail: {
+                    status: 'available',
+                    url: 'https://m.media-amazon.com/images/I/a.jpg',
+                },
+            },
+            true,
+            curve
+        );
 
-        expect(mapProductToKeywordResultsProduct(product)).toEqual({
-            marketplaceId: 'ATVPDKIKX0DER',
-            asin: 'B012345678',
-            title: 'Garden shirt',
-            brand: 'Example brand',
-            thumbnail: { status: 'unavailable' },
-            isMerchListing: false,
-            amazonListingStatus: 'active',
-            category: { id: 12_345, name: 'Clothing' },
-            salesRank: 12_345,
-            price: { amountMinor: 1999, currencyCode: 'USD' },
-            boughtInPastMonth: 200,
-        });
+        // 40 · (15,000 / 100,000)^-1 ≈ 266.67 at the 30-day average, not the current 12,345.
+        expect(result.estimatedMonthlySales).toBe(267);
+        expect(result.listing.imageUrl).toBe('https://m.media-amazon.com/images/I/a.jpg');
     });
 });
 
@@ -399,5 +406,12 @@ const createProductInfo = (): ProductInfo => ({
     },
     freshness: { stale: false, updatedAt: '2026-08-06T12:00:00.000Z' },
 });
+
+const noCurve = mock(async () => ({
+    curve: null,
+    fittedAt: '2026-08-06T12:00:00.000Z',
+    products: 0,
+    badged: 0,
+}));
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));

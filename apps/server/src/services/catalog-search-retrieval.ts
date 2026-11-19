@@ -135,7 +135,13 @@ export const awaitCatalogSearchRetrieval = async (
     // Stored evidence of any age answers at once with its searchedAt; resolution has already
     // queued its refresh as background work.
     if (prepared.staleRunId) {
-        return await buildSearchResponse(prepared.staleRunId, 'last-known', signal, timeoutMs, deps);
+        return await buildSearchResponse(
+            prepared.staleRunId,
+            'last-known',
+            signal,
+            timeoutMs,
+            deps
+        );
     }
     if (prepared.kind === 'cooldown') {
         throw new RetrievalRetryableError(

@@ -36,12 +36,15 @@ describe('public Product getMany boundary', () => {
     it('rejects duplicate ASINs (in any case), batches larger than 200 and the old products list', async () => {
         const caller = createCaller();
 
-        await expect(
-            caller.getMany({ asins: ['B000000001', 'b000000001'] })
-        ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: expect.stringContaining('unique') });
+        await expect(caller.getMany({ asins: ['B000000001', 'b000000001'] })).rejects.toMatchObject(
+            { code: 'BAD_REQUEST', message: expect.stringContaining('unique') }
+        );
         await expect(
             caller.getMany({
-                asins: Array.from({ length: 201 }, (_, index) => `B${String(index).padStart(9, '0')}`),
+                asins: Array.from(
+                    { length: 201 },
+                    (_, index) => `B${String(index).padStart(9, '0')}`
+                ),
             })
         ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
         await expect(

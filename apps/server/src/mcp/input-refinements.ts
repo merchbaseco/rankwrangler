@@ -30,7 +30,9 @@ export const unknownFieldError =
     (issue: { code?: string; keys?: string[]; input?: unknown }) => {
         if (issue.code !== 'unrecognized_keys' || !issue.keys) return undefined;
         const allowed = allowedFields(fieldsByOperation, issue.input);
-        return issue.keys.map(key => `${key} is not a recognized field${hint(key, allowed)}`).join('. ');
+        return issue.keys
+            .map(key => `${key} is not a recognized field${hint(key, allowed)}`)
+            .join('. ');
     };
 
 /** Rejects declared fields the input's operation does not take, naming a replacement if any. */

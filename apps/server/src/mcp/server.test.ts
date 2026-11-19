@@ -230,7 +230,10 @@ describe('RankWrangler MCP server', () => {
                 search: async () => ({
                     operation: 'search',
                     data: {
-                        items: [{ imageUrl: 'https://m.media-amazon.com/a.jpg' }, { imageUrl: null }],
+                        items: [
+                            { imageUrl: 'https://m.media-amazon.com/a.jpg' },
+                            { imageUrl: null },
+                        ],
                     },
                 }),
                 contactSheet: async urls => {
@@ -261,9 +264,9 @@ describe('RankWrangler MCP server', () => {
             data: 'c2hlZXQ=',
             mimeType: 'image/jpeg',
         });
-        expect((withoutSheet.content as Array<{ type: string }>).map(block => block.type)).toEqual(
-            ['text']
-        );
+        expect((withoutSheet.content as Array<{ type: string }>).map(block => block.type)).toEqual([
+            'text',
+        ]);
         await client.close();
         await server.close();
     });

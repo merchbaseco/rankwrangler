@@ -29,8 +29,9 @@ export const estimatedMonthlySalesColumn = (
     const slope = sql`(case when ${rank} < ${reference} then ${curve.headSlope}::float8 else ${curve.tailSlope}::float8 end)`;
     // The exponent is capped so an extreme fit cannot overflow exp(); real fits stay far below.
     const exponent = sql`least(${MAX_EXPONENT}::float8, ${curve.intercept}::float8 + ${slope} * ln(${rank} / ${reference}))`;
+    // floor(x + 0.5) rounds halves up like Math.round; Postgres round() on float8 rounds to even.
     return sql<number | null>`(case when ${rank} > 0
-        then greatest(1, round(exp(${exponent})))::integer end)`;
+        then greatest(1, floor(exp(${exponent}) + 0.5))::integer end)`;
 };
 
 /**
@@ -77,17 +78,16 @@ export const hasKeywordHeadRun = async (term: string) => {
  * The stored form of a search term: Keepa searches are stored under the trimmed, single-spaced,
  * lower-cased term.
  */
-export const normalizeKeywordTerm = (term: string) => term.trim().replace(/\s+/g, ' ').toLowerCase();
+export const normalizeKeywordTerm = (term: string) =>
+    term.trim().replace(/\s+/g, ' ').toLowerCase();
 
 /**
  * The `relevance` sort value: placement tiers above text rank. A placed Product scores
  * PLACEMENT_TIERS - position, an unplaced one 0, plus the title's text rank in [0, 1), so the
  * best placement comes first, unplaced Products last, and text rank orders within a tier.
  */
-export const relevanceColumn = (
-    position: SQL<number | null>,
-    textRank: SQL<number>
-): SQL<number> => sql<number>`(coalesce(${PLACEMENT_TIERS} - ${position}, 0) + ${textRank})::float8`;
+export const relevanceColumn = (position: SQL<number | null>, textRank: SQL<number>): SQL<number> =>
+    sql<number>`(coalesce(${PLACEMENT_TIERS} - ${position}, 0) + ${textRank})::float8`;
 
 const headRuns = (term: string) => sql`
     select run.id from catalog_search_runs run

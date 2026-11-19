@@ -85,7 +85,9 @@ const rowMatch = (input: ProductCatalogFilterInput, query: SQL) => {
         sql`${productSearchDocument(products)} @@ ${query}`,
         sql`${titleVector(products.title)} @@ ${query}`
     );
-    return asinPattern.test(term) ? sql`(${or(textMatch, eq(products.asin, term))})` : sql`(${textMatch})`;
+    return asinPattern.test(term)
+        ? sql`(${or(textMatch, eq(products.asin, term))})`
+        : sql`(${textMatch})`;
 };
 
 const titleVector = (title: SQLWrapper) => sql`to_tsvector('simple', coalesce(${title}, ''))`;
