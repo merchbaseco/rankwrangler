@@ -14,8 +14,7 @@ export interface ProductGetMcpInput {
 }
 
 export interface ProductGetManyMcpInput {
-    asins: string[];
-    marketplaceId: string;
+    products: { marketplaceId: string; asin: string }[];
 }
 
 export type ProductSearchMcpInput = ProductSearchInput;

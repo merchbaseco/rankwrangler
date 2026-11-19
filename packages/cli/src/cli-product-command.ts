@@ -63,8 +63,7 @@ const runProductGet = async (
     }
 
     return await client.product.getMany.mutate({
-        asins,
-        marketplaceId,
+        products: asins.map(asin => ({ marketplaceId, asin })),
     });
 };
 

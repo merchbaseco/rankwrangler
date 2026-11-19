@@ -33,8 +33,10 @@ const product = await client.product.get.mutate({
 });
 
 const basicProducts = await client.product.getMany.mutate({
-    asins: ['B0DV53VS61', 'B012345678'],
-    marketplaceId: 'ATVPDKIKX0DER',
+    products: [
+        { marketplaceId: 'ATVPDKIKX0DER', asin: 'B0DV53VS61' },
+        { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+    ],
 });
 
 const search = await client.product.search.query({

@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { productSearchInput } from '@/api/product-search-input';
-import { productGetIncludeInput, productGetManyInput } from '@/api/public/product-input';
+import { productGetIncludeInput } from '@/api/public/product-input';
 import { rejectFieldsOutsideOperation, unknownFieldError } from './input-refinements';
 import type { ProductGetManyMcpInput, ProductGetMcpInput, ProductHistoryMcpInput } from './types';
 
@@ -72,17 +72,12 @@ export const productInputSchema = z
     )
     .superRefine((input, context) => {
         rejectFieldsOutsideOperation(input, context, fieldsByOperation);
-        // The public procedures' own rules (range order, unique ASINs) apply here too, so they
-        // surface as input errors before any read.
-        const parsed =
-            input.operation === 'search'
-                ? productSearchInput.safeParse(input)
-                : input.operation === 'getMany' && input.asins
-                  ? productGetManyInput.safeParse({
-                        asins: input.asins,
-                        marketplaceId: input.marketplaceId,
-                    })
-                  : null;
+        if (input.operation === 'getMany' && input.asins) {
+            rejectDuplicateAsins(input.asins, context);
+        }
+        // The public search procedure's own rules (range order) apply here too, so they surface
+        // as input errors before any read.
+        const parsed = input.operation === 'search' ? productSearchInput.safeParse(input) : null;
         for (const issue of parsed?.success === false ? parsed.error.issues : []) {
             context.addIssue({ code: 'custom', message: issue.message, path: issue.path });
         }
@@ -96,10 +91,15 @@ export const toProductGetInput = (input: ProductInput): ProductGetMcpInput => ({
     ...(input.include ? { include: input.include } : {}),
 });
 
-export const toProductGetManyInput = (input: ProductInput): ProductGetManyMcpInput => ({
-    asins: requireValue(input.asins, 'asins').map(asin => asin.toUpperCase()),
-    marketplaceId: input.marketplaceId ?? 'ATVPDKIKX0DER',
-});
+export const toProductGetManyInput = (input: ProductInput): ProductGetManyMcpInput => {
+    const marketplaceId = input.marketplaceId ?? 'ATVPDKIKX0DER';
+    return {
+        products: requireValue(input.asins, 'asins').map(asin => ({
+            marketplaceId,
+            asin: asin.toUpperCase(),
+        })),
+    };
+};
 
 export const toProductHistoryInput = (input: ProductInput): ProductHistoryMcpInput => ({
     asin: requireValue(input.asin, 'asin'),
@@ -123,4 +123,19 @@ const requireValue = <Value>(value: Value | undefined, name: string): Value => {
         });
     }
     return value;
+};
+
+const rejectDuplicateAsins = (asins: readonly string[], context: z.RefinementCtx) => {
+    const seen = new Set<string>();
+    asins.forEach((asin, index) => {
+        const key = asin.toUpperCase();
+        if (seen.has(key)) {
+            context.addIssue({
+                code: 'custom',
+                message: 'ASINs must be unique',
+                path: ['asins', index],
+            });
+        }
+        seen.add(key);
+    });
 };

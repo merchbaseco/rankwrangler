@@ -41,9 +41,9 @@ Products with market metrics, by default in `estimatedMonthlySalesDesc` order. A
 finds nothing for a term Amazon's first page was never collected for waits while RankWrangler
 collects it.
 
-Product `get` returns the current Product. `getMany` takes `asins` and an optional `marketplaceId`
-and returns basic listing data, and `history` returns compact rank and price series. Keyword `get`
-and `list` read the stored keyword directory. Retryable `TIMEOUT` errors preserve retry hints.
+Product `get` returns the current Product. `getMany` takes `products`, unique
+`{ marketplaceId, asin }` pairs, and returns basic listing data. `history` returns compact rank and
+price series. Keyword `get` and `list` read the stored keyword directory. Retryable `TIMEOUT` errors preserve retry hints.
 
 ## Types
 

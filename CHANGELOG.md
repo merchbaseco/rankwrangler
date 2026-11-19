@@ -30,7 +30,8 @@ All notable changes to this project will be documented in this file.
   instead of `averages` and `demand`. Product `get` carries `listing.imageUrl`, a numeric
   `salesRank`, `salesRankAverages`, `boughtInPastMonth`, `estimatedMonthlySales` and
   `salesRankDrops`.
-- **Breaking:** `product.getMany` takes `{ asins, marketplaceId? }` instead of `products`.
+- **Breaking:** MCP Product `getMany` takes `asins` and an optional `marketplaceId` instead of
+  `products`. The tRPC `product.getMany` input is unchanged.
 - **Breaking:** `keyword.search` is `keyword.list` with `term`; MCP keyword `search` is `list`.
   The CLI's `rw keyword search` is `rw keyword list`, and `--minMonthlySold/--maxMonthlySold` are
   `--minBoughtInPastMonth/--maxBoughtInPastMonth`.

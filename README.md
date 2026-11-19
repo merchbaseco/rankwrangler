@@ -30,9 +30,9 @@ observations, reconciles Products into the canonical catalog, and retains the Se
 creating an opaque recommendation engine.
 
 Canonical Product retrieval is shared across blocking ASIN reads and background bulk workflows.
-The public `product.getMany` procedure resolves up to 200 unique ASINs in one marketplace into
+The public `product.getMany` procedure resolves up to 200 unique marketplace/ASIN pairs into
 compact fixed-shape title, `imageUrl`, and `amazonListingStatus` results, persists every identity,
-and batches cold SP-API work. Status is `active` while the detail-page listing exists and
+and batches cold SP-API work by marketplace. Status is `active` while the detail-page listing exists and
 `deleted` when Amazon has effectively removed it; RankWrangler retains last-known listing values.
 Catalog runs retain immutable search membership while their current Products resolve independently;
 cached and fresh runs use the same background path. Dashboard and internal Product records may retain

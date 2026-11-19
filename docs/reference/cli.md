@@ -59,13 +59,13 @@ rw product history B0DV53VS61 --metrics salesRank,price --bucket week --days 365
 ```
 
 `product get` routes one ASIN to the full Product retrieval contract. With 2–200 unique ASINs it
-sends `asins` and one `marketplaceId` to the basic Product batch and returns a fixed-shape array in
-argument order. Each result contains identity, nullable title, nullable `imageUrl`, and
-`amazonListingStatus: active | deleted`. Active means the detail-page listing exists, not that an
-offer is in stock or buyable. Deleted means Amazon has effectively removed the listing from that
-marketplace. Retained title or image values are last-known data; a null `imageUrl` alone means no
-usable image. Every ASIN uses the marketplace resolved from `--marketplace`, saved configuration, or
-the normal US default.
+sends one `{ marketplaceId, asin }` pair per ASIN to the basic Product batch and returns a
+fixed-shape array in argument order. Each result contains identity, nullable title, nullable
+`imageUrl`, and `amazonListingStatus: active | deleted`. Active means the detail-page listing
+exists, not that an offer is in stock or buyable. Deleted means Amazon has effectively removed the
+listing from that marketplace. Retained title or image values are last-known data; a null
+`imageUrl` alone means no usable image. Every ASIN uses the marketplace resolved from
+`--marketplace`, saved configuration, or the normal US default.
 For one ASIN, `--shortName` requests an image-informed `listing.shortName` while retaining the full
 Product response. It is nullable and applies only to known Merch listings with available images.
 The command waits up to 20 seconds for generation; a name still generating at that deadline, or

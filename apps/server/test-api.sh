@@ -66,7 +66,7 @@ if [ -n "$MERCHBASE_API_KEY" ]; then
     curl -s -X POST "$API_BASE/api/api.public.product.getMany" \
       -H "Content-Type: application/json" \
       -H "Authorization: Bearer $MERCHBASE_API_KEY" \
-      -d '{"asins":["B0DV53VS61"]}' | jq '.'
+      -d '{"products":[{"marketplaceId":"ATVPDKIKX0DER","asin":"B0DV53VS61"}]}' | jq '.'
     echo ""
     echo "🗂️ Testing api.public.keyword.list..."
     curl -s -G "$API_BASE/api/api.public.keyword.list" \

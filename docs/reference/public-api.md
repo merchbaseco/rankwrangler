@@ -153,9 +153,9 @@ the same Product share one generation.
 
 ## Basic Products
 
-`product.getMany` accepts `{ asins, marketplaceId? }`: one to 200 ASINs, unique ignoring case and
-returned uppercase, in one marketplace (default `ATVPDKIKX0DER`). It accepts no `include`; request
-short names or cutouts with `get`. Results preserve request order and always contain the same keys:
+`product.getMany` accepts `{ products }`: one to 200 unique `{ marketplaceId, asin }` pairs, with
+ASINs normalized to uppercase. It accepts no `include`; request short names or cutouts with `get`.
+The MCP Product tool's `getMany` takes `asins` in one marketplace instead and maps them to pairs. Results preserve request order and always contain the same keys:
 
 ```ts
 type BasicProduct = {

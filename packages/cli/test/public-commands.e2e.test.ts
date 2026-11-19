@@ -181,8 +181,10 @@ describe('final public CLI contract', () => {
                 {
                     procedure: 'getMany',
                     input: {
-                        asins: ['B012345678', 'B087654321'],
-                        marketplaceId: 'ATVPDKIKX0DER',
+                        products: [
+                            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+                            { marketplaceId: 'ATVPDKIKX0DER', asin: 'B087654321' },
+                        ],
                     },
                 },
                 {

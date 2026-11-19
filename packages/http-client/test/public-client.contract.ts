@@ -67,9 +67,7 @@ export type KeywordListInputContract = Assert<
 export type ProductGetInputContract = Assert<
     Equal<keyof ProductGetInput, 'marketplaceId' | 'asin' | 'include'>
 >;
-export type ProductGetManyInputContract = Assert<
-    Equal<keyof ProductGetManyInput, 'asins' | 'marketplaceId'>
->;
+export type ProductGetManyInputContract = Assert<Equal<keyof ProductGetManyInput, 'products'>>;
 export type ProductGetManyOutputContract = Assert<
     Equal<Awaited<ReturnType<ProductGetManyMutation['mutate']>>, ProductGetManyOutput>
 >;

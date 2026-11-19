@@ -522,8 +522,10 @@ export declare const publicAppRouter: import("@trpc/server").TRPCBuiltRouter<{
 				}>;
 				getMany: import("@trpc/server").TRPCMutationProcedure<{
 					input: {
-						asins: string[];
-						marketplaceId?: string | undefined;
+						products: {
+							marketplaceId: string;
+							asin: string;
+						}[];
 					};
 					output: BasicProduct[];
 					meta: object;

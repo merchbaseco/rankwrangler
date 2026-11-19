@@ -122,7 +122,12 @@ describe('RankWrangler MCP server', () => {
             { operation: 'get', data: { asin: 'B012345678' } },
             {
                 operation: 'getMany',
-                data: { asins: ['B012345678', 'B087654321'], marketplaceId: 'ATVPDKIKX0DER' },
+                data: {
+                    products: [
+                        { marketplaceId: 'ATVPDKIKX0DER', asin: 'B012345678' },
+                        { marketplaceId: 'ATVPDKIKX0DER', asin: 'B087654321' },
+                    ],
+                },
             },
             { operation: 'search', data: { term: 'shirts' } },
             { operation: 'history', data: { asin: 'B012345678' } },
