@@ -17,7 +17,7 @@ export const searchProducts = async <Extra = never>(
     }: { recordInterest?: boolean; extra?: ProductExtraColumn<Extra> } = {}
 ) => {
     try {
-        const results = await searchStoredProducts(input, new Date(), extra);
+        const results = await searchStoredProducts(input, { extra });
         const coverage =
             input.cursor || (input.page ?? 1) > 1 || !recordInterest
                 ? null

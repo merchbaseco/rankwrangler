@@ -1,7 +1,8 @@
 import type { z } from 'zod';
-import type { keywordSearchInput } from '@/api/public/keyword-input';
+import type { keywordListInput } from '@/api/public/keyword-input';
 import type { ProductSearchInput } from '@/api/product-search-input';
 import type { ProductGetInclude } from '@/api/public/product-input';
+import type { ContactSheet } from './contact-sheet';
 
 export type ProductHistoryMetric = 'salesRank' | 'price';
 export type ProductHistoryBucket = 'auto' | 'day' | 'week' | 'month';
@@ -13,15 +14,11 @@ export interface ProductGetMcpInput {
 }
 
 export interface ProductGetManyMcpInput {
-    products: Pick<ProductGetMcpInput, 'marketplaceId' | 'asin'>[];
+    asins: string[];
+    marketplaceId: string;
 }
 
 export type ProductSearchMcpInput = ProductSearchInput;
-
-export interface KeywordResultsMcpInput {
-    term: string;
-    refresh: boolean;
-}
 
 export interface ProductHistoryMcpInput {
     marketplaceId: string;
@@ -38,7 +35,7 @@ export interface KeywordGetMcpInput {
     keyword: string;
 }
 
-export type KeywordSearchMcpInput = z.input<typeof keywordSearchInput>;
+export type KeywordListMcpInput = z.input<typeof keywordListInput>;
 
 export interface RankWranglerMcpStatus {
     [key: string]: unknown;
@@ -46,7 +43,7 @@ export interface RankWranglerMcpStatus {
     status: 'ready';
     capabilities: {
         product: ['get', 'getMany', 'search', 'history'];
-        keyword: ['get', 'search', 'results'];
+        keyword: ['get', 'list'];
     };
 }
 
@@ -57,11 +54,12 @@ export interface RankWranglerMcpDataSource {
         getMany(input: ProductGetManyMcpInput): Promise<Record<string, unknown>>;
         search(input: ProductSearchMcpInput): Promise<Record<string, unknown>>;
         history(input: ProductHistoryMcpInput): Promise<Record<string, unknown>>;
+        /** A contact sheet of these images in order; null when none can be built. */
+        contactSheet(imageUrls: ReadonlyArray<string | null>): Promise<ContactSheet | null>;
     };
     keyword: {
-        results(input: KeywordResultsMcpInput): Promise<Record<string, unknown>>;
         get(input: KeywordGetMcpInput): Promise<Record<string, unknown>>;
-        search(input: KeywordSearchMcpInput): Promise<Record<string, unknown>>;
+        list(input: KeywordListMcpInput): Promise<Record<string, unknown>>;
     };
 }
 
@@ -70,6 +68,6 @@ export const RANKWRANGLER_MCP_STATUS: RankWranglerMcpStatus = {
     status: 'ready',
     capabilities: {
         product: ['get', 'getMany', 'search', 'history'],
-        keyword: ['get', 'search', 'results'],
+        keyword: ['get', 'list'],
     },
 };

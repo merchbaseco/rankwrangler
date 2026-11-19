@@ -16,22 +16,21 @@ export const productIdentityInput = z.object({
 
 export const productGetManyInput = z
     .object({
-        products: z.array(productIdentityInput.strict()).min(1).max(200),
+        asins: z.array(asinInput).min(1).max(200),
+        marketplaceId: z.string().trim().min(1).default('ATVPDKIKX0DER'),
     })
     .strict()
-    .superRefine(({ products }, context) => {
-        const identities = new Set<string>();
-
-        products.forEach((product, index) => {
-            const key = `${product.marketplaceId}:${product.asin}`;
-            if (identities.has(key)) {
+    .superRefine(({ asins }, context) => {
+        const seen = new Set<string>();
+        asins.forEach((asin, index) => {
+            if (seen.has(asin)) {
                 context.addIssue({
                     code: 'custom',
-                    message: 'Product pairs must be unique',
-                    path: ['products', index],
+                    message: 'ASINs must be unique',
+                    path: ['asins', index],
                 });
             }
-            identities.add(key);
+            seen.add(asin);
         });
     });
 

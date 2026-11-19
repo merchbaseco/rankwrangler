@@ -11,10 +11,7 @@ import { catalogQueries } from './catalog-search-schema';
 import { db } from './index';
 
 export const recordProductSearchInterest = async (input: ProductSearchInput) => {
-    if (
-        !input.term ||
-        (input.marketplaceIds.length && !input.marketplaceIds.includes('ATVPDKIKX0DER'))
-    ) {
+    if (!input.term || input.marketplaceId !== 'ATVPDKIKX0DER') {
         return null;
     }
     const displayTerm = normalizeDiscoveryKeyword(input.term);

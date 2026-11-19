@@ -15,7 +15,7 @@ import { z } from 'zod';
 import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { products } from './product-schema';
 
-type CursorCast = 'real' | 'integer' | 'timestamp';
+type CursorCast = 'float8' | 'integer' | 'timestamp';
 interface SortDefinition {
     column: SQLWrapper;
     ascending: boolean;
@@ -35,10 +35,18 @@ const cursorSchema = z.object({
 });
 export class InvalidProductSearchCursorError extends Error {}
 
-export const productSearchSort = (input: StoredProductSearchInput, relevance: SQL<number>) => {
+/**
+ * Keyset paging for one sort. `ranking` carries the computed sort values: `relevance` (see
+ * relevanceColumn) and `monthlySales` (see monthlySalesSortColumn). Every order ends with the
+ * Product id, and the cursor holds the last row's sort value and id.
+ */
+export const productSearchSort = (
+    input: StoredProductSearchInput,
+    ranking: { relevance: SQL<number>; monthlySales: SQL<number | null> }
+) => {
     const sort = input.sort === 'relevance' && !input.term ? 'discoveredAtDesc' : input.sort;
     const definitions = {
-        relevance: { column: relevance, ascending: false, cast: 'real' },
+        relevance: { column: ranking.relevance, ascending: false, cast: 'float8' },
         salesRankAsc: { column: products.rootCategoryBsr, ascending: true, cast: 'integer' },
         salesRankDesc: { column: products.rootCategoryBsr, ascending: false, cast: 'integer' },
         firstAvailableAtAsc: {
@@ -56,7 +64,16 @@ export const productSearchSort = (input: StoredProductSearchInput, relevance: SQ
         updatedAtDesc: { column: productSearchUpdatedAt, ascending: false, cast: 'timestamp' },
         priceAsc: { column: products.keepaCurrentNewPrice, ascending: true, cast: 'integer' },
         priceDesc: { column: products.keepaCurrentNewPrice, ascending: false, cast: 'integer' },
-        monthlySoldDesc: { column: products.keepaMonthlySold, ascending: false, cast: 'integer' },
+        boughtInPastMonthDesc: {
+            column: products.keepaMonthlySold,
+            ascending: false,
+            cast: 'integer',
+        },
+        estimatedMonthlySalesDesc: {
+            column: ranking.monthlySales,
+            ascending: false,
+            cast: 'integer',
+        },
     } satisfies Record<StoredProductSearchInput['sort'], SortDefinition>;
     const definition = definitions[sort];
     // Paging fields stay out of the scope so a cursor survives page-size and offset changes.

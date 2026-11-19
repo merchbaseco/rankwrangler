@@ -1,4 +1,5 @@
 import { and, type SQL, sql } from 'drizzle-orm';
+import { readSalesCurve } from '@/services/sales-curve';
 import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { db } from './index';
 import { getMarketplaceCurrencyCode } from './product/marketplace-currency';
@@ -9,6 +10,13 @@ import {
     productSearchSort,
     productSearchUpdatedAt,
 } from './product-search-sort';
+import {
+    estimatedMonthlySalesColumn,
+    keywordPositionColumn,
+    monthlySalesSortColumn,
+    relevanceColumn,
+    type SalesCurveParameters,
+} from './product-search-ranking';
 import { chooseTextForm } from './product-search-text-filter';
 
 /**
@@ -25,12 +33,20 @@ export const MAX_SEARCH_OFFSET = 10_000;
  * and ignores the cursor; otherwise keyset paging continues from `cursor`. Either way
  * `nextCursor` continues after the returned page. A term with more estimated matches than
  * TEXT_LOOKUP_LIMIT is matched per row (see ProductTextForm), and its relevance order is sales
- * rank, since ranking means scoring every match.
+ * rank, since ranking means scoring every match. `curve` is the rank-to-sales fit the estimates
+ * use; omitted, the server's current fit for the marketplace is read.
  */
 export const searchStoredProducts = async <Extra = never>(
     input: StoredProductSearchInput,
-    now = new Date(),
-    extra?: ProductExtraColumn<Extra>
+    {
+        now = new Date(),
+        extra,
+        curve,
+    }: {
+        now?: Date;
+        extra?: ProductExtraColumn<Extra>;
+        curve?: SalesCurveParameters | null;
+    } = {}
 ) => {
     const size = input.pageSize ?? input.limit;
     const offset = input.page ? (input.page - 1) * size : 0;
@@ -39,12 +55,20 @@ export const searchStoredProducts = async <Extra = never>(
             `Pages reach ${MAX_SEARCH_OFFSET.toLocaleString('en-US')} rows deep; narrow the search or continue with the cursor.`
         );
     }
-    const textForm = await chooseTextForm(input);
+    const [textForm, fit] = await Promise.all([
+        chooseTextForm(input),
+        curve === undefined ? readSalesCurve(input.marketplaceId).then(read => read.curve) : curve,
+    ]);
     const filters = productSearchFilters(input, now, textForm);
+    const position = keywordPositionColumn(input);
+    const estimate = estimatedMonthlySalesColumn(fit);
     const sorted = textForm === 'row' && input.sort === 'relevance' ? 'salesRankAsc' : input.sort;
     const sort = productSearchSort(
         { ...input, sort: sorted, ...(input.page ? { cursor: null } : {}) },
-        filters.relevance
+        {
+            relevance: relevanceColumn(position, filters.relevance),
+            monthlySales: monthlySalesSortColumn(estimate),
+        }
     );
     const rows = await db
         .select({
@@ -56,22 +80,24 @@ export const searchStoredProducts = async <Extra = never>(
             brand: products.brand,
             bullet1: products.bullet1,
             bullet2: products.bullet2,
-            thumbnailUrl: products.thumbnailUrl,
+            imageUrl: products.thumbnailUrl,
             isMerchListing: products.isMerchListing,
             amazonListingStatus: products.amazonListingStatus,
             categoryId: products.rootCategoryId,
             salesRank: products.rootCategoryBsr,
-            priceMinor: products.keepaCurrentNewPrice,
-            firstAvailableAt: products.dateFirstAvailable,
-            discoveredAt: products.createdAt,
-            updatedAt: productSearchUpdatedAt,
             average30: products.keepaBsrAverage30,
             average90: products.keepaBsrAverage90,
-            monthlySold: products.keepaMonthlySold,
             drops30: products.keepaSalesRankDrops30,
             drops90: products.keepaSalesRankDrops90,
             drops180: products.keepaSalesRankDrops180,
             drops365: products.keepaSalesRankDrops365,
+            boughtInPastMonth: products.keepaMonthlySold,
+            estimatedMonthlySales: estimate,
+            keywordPosition: position,
+            priceMinor: products.keepaCurrentNewPrice,
+            firstAvailableAt: products.dateFirstAvailable,
+            discoveredAt: products.createdAt,
+            updatedAt: productSearchUpdatedAt,
             // Qualified by hand: Drizzle renders a bare `"id"` in a single-table select, which
             // this subquery would bind to `pfv.id`.
             facets: sql<Array<{ facet: string; name: string }>>`coalesce((
@@ -89,43 +115,41 @@ export const searchStoredProducts = async <Extra = never>(
     const page = rows.slice(0, size);
     const last = page.at(-1);
     return {
-        items: page.map(row => ({
-            marketplaceId: row.marketplaceId,
-            asin: row.asin,
-            title: row.title,
-            brand: row.brand,
-            bullet1: row.bullet1,
-            bullet2: row.bullet2,
-            thumbnail: row.thumbnailUrl
-                ? { status: 'available' as const, url: row.thumbnailUrl }
-                : { status: 'unavailable' as const },
-            isMerchListing: row.isMerchListing,
-            amazonListingStatus: row.amazonListingStatus,
-            categoryId: row.categoryId,
-            salesRank: row.salesRank,
-            price:
-                row.priceMinor !== null && getMarketplaceCurrencyCode(row.marketplaceId)
-                    ? {
-                          amountMinor: row.priceMinor,
-                          currencyCode: getMarketplaceCurrencyCode(row.marketplaceId),
-                      }
-                    : null,
-            firstAvailableAt: row.firstAvailableAt?.toISOString() ?? null,
-            discoveredAt: row.discoveredAt.toISOString(),
-            updatedAt: row.updatedAt.toISOString(),
-            averages: { last30Days: row.average30, last90Days: row.average90 },
-            demand: {
-                boughtInPastMonth: row.monthlySold,
+        items: page.map(row => {
+            const currencyCode = getMarketplaceCurrencyCode(row.marketplaceId);
+            return {
+                marketplaceId: row.marketplaceId,
+                asin: row.asin,
+                title: row.title,
+                brand: row.brand,
+                bullet1: row.bullet1,
+                bullet2: row.bullet2,
+                imageUrl: row.imageUrl,
+                isMerchListing: row.isMerchListing,
+                amazonListingStatus: row.amazonListingStatus,
+                categoryId: row.categoryId,
+                salesRank: row.salesRank,
+                salesRankAverages: { last30Days: row.average30, last90Days: row.average90 },
                 salesRankDrops: {
                     last30Days: row.drops30,
                     last90Days: row.drops90,
                     last180Days: row.drops180,
                     last365Days: row.drops365,
                 },
-            },
-            facets: row.facets,
-            ...(extra ? { extra: row.extra as Extra } : {}),
-        })),
+                boughtInPastMonth: row.boughtInPastMonth,
+                estimatedMonthlySales: row.estimatedMonthlySales,
+                keywordPosition: row.keywordPosition,
+                price:
+                    row.priceMinor !== null && currencyCode
+                        ? { amountMinor: row.priceMinor, currencyCode }
+                        : null,
+                firstAvailableAt: row.firstAvailableAt?.toISOString() ?? null,
+                discoveredAt: row.discoveredAt.toISOString(),
+                updatedAt: row.updatedAt.toISOString(),
+                facets: row.facets,
+                ...(extra ? { extra: row.extra as Extra } : {}),
+            };
+        }),
         nextCursor: rows.length > size && last ? sort.encode(last) : null,
     };
 };

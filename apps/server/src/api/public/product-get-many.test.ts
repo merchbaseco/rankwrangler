@@ -4,7 +4,7 @@ import { router } from '@/api/trpc';
 import { createProductGetManyProcedure, type ProductGetManyDeps } from './product-get-many';
 
 describe('public Product getMany boundary', () => {
-    it('normalizes ASINs and charges one usage unit per Product pair', async () => {
+    it('normalizes ASINs, defaults the marketplace and charges one usage unit per ASIN', async () => {
         const products = [
             { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' },
             { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000002' },
@@ -16,28 +16,38 @@ describe('public Product getMany boundary', () => {
             consumeServiceAccountUsageForRequest,
         });
 
-        await caller.getMany({
-            products: products.map(product => ({ ...product, asin: product.asin.toLowerCase() })),
-        });
+        await caller.getMany({ asins: ['b000000001', 'B000000002'] });
 
         expect(consumeServiceAccountUsageForRequest).toHaveBeenCalledWith(expect.anything(), 2);
         expect(getBasicProductReadModels.mock.calls[0]?.[0].products).toEqual(products);
     });
 
-    it('rejects duplicate Product pairs and batches larger than 200', async () => {
-        const caller = createCaller();
-        const product = { marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' };
+    it('reads every ASIN in the requested marketplace', async () => {
+        const getBasicProductReadModels = mock(() => Promise.resolve([]));
+        const caller = createCaller({ getBasicProductReadModels });
 
-        await expect(caller.getMany({ products: [product, product] })).rejects.toMatchObject({
-            code: 'BAD_REQUEST',
-        });
+        await caller.getMany({ asins: ['B000000001'], marketplaceId: 'A1F83G8C2ARO7P' });
+
+        expect(getBasicProductReadModels.mock.calls[0]?.[0].products).toEqual([
+            { marketplaceId: 'A1F83G8C2ARO7P', asin: 'B000000001' },
+        ]);
+    });
+
+    it('rejects duplicate ASINs (in any case), batches larger than 200 and the old products list', async () => {
+        const caller = createCaller();
+
+        await expect(
+            caller.getMany({ asins: ['B000000001', 'b000000001'] })
+        ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: expect.stringContaining('unique') });
         await expect(
             caller.getMany({
-                products: Array.from({ length: 201 }, (_, index) => ({
-                    marketplaceId: 'ATVPDKIKX0DER',
-                    asin: `B${String(index).padStart(9, '0')}`,
-                })),
+                asins: Array.from({ length: 201 }, (_, index) => `B${String(index).padStart(9, '0')}`),
             })
+        ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+        await expect(
+            caller.getMany({
+                products: [{ marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' }],
+            } as never)
         ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
     });
 
@@ -46,7 +56,7 @@ describe('public Product getMany boundary', () => {
 
         await expect(
             caller.getMany({
-                products: [{ marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' }],
+                asins: ['B000000001'],
                 include: ['shortName'],
             } as never)
         ).rejects.toMatchObject({ code: 'BAD_REQUEST' });

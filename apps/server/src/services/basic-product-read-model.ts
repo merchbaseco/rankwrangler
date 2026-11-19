@@ -7,7 +7,8 @@ export interface BasicProduct {
     marketplaceId: string;
     asin: string;
     title: string | null;
-    thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
+    /** Amazon's main product image; null when none is known. */
+    imageUrl: string | null;
     amazonListingStatus: AmazonListingStatus;
 }
 
@@ -47,10 +48,10 @@ const mapBasicProduct = (retrieval: ProductRetrieval): BasicProduct => {
     return {
         ...retrieval.identity,
         title: retrieval.product?.title ?? null,
-        thumbnail:
+        imageUrl:
             retrieval.product?.thumbnail.status === 'available'
-                ? retrieval.product.thumbnail
-                : { status: 'unavailable' },
+                ? retrieval.product.thumbnail.url
+                : null,
         amazonListingStatus:
             retrieval.amazonListingStatus === 'deleted' ||
             retrieval.product?.amazonListingStatus === 'deleted'

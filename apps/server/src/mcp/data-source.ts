@@ -1,9 +1,9 @@
 import type { Context } from '@/api/context';
 import { publicAppRouter } from '@/api/router-public';
+import { buildContactSheet } from './contact-sheet-images';
 import {
     type KeywordGetMcpInput,
-    type KeywordResultsMcpInput,
-    type KeywordSearchMcpInput,
+    type KeywordListMcpInput,
     type ProductGetManyMcpInput,
     type ProductGetMcpInput,
     type ProductHistoryMcpInput,
@@ -34,19 +34,16 @@ export const createRankWranglerMcpDataSource = (ctx: Context): RankWranglerMcpDa
                 data: await caller.product.history(toProductHistoryInput(input)),
                 operation: 'history',
             }),
+            contactSheet: buildContactSheet,
         },
         keyword: {
-            results: async (input: KeywordResultsMcpInput) => ({
-                data: await caller.keyword.results(input),
-                operation: 'results',
-            }),
             get: async (input: KeywordGetMcpInput) => ({
                 data: await caller.keyword.get(input),
                 operation: 'get',
             }),
-            search: async (input: KeywordSearchMcpInput) => ({
-                data: await caller.keyword.search(input),
-                operation: 'search',
+            list: async (input: KeywordListMcpInput) => ({
+                data: await caller.keyword.list(input),
+                operation: 'list',
             }),
         },
     };

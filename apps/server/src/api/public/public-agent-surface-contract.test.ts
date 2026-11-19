@@ -12,8 +12,7 @@ describe('public agent surface', () => {
                 'api.public.product.search',
                 'api.public.product.history',
                 'api.public.keyword.get',
-                'api.public.keyword.results',
-                'api.public.keyword.search',
+                'api.public.keyword.list',
             ].sort()
         );
     });

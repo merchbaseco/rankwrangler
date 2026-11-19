@@ -31,9 +31,28 @@ export const toToolResult = (structuredContent: Record<string, unknown>) => ({
     structuredContent,
 });
 
-export const runReadOnlyTool = async (read: () => Promise<Record<string, unknown>>) => {
+/** An image content block a tool result carries after its JSON text. */
+export interface ToolImage {
+    data: string;
+    mimeType: string;
+}
+
+/**
+ * Runs a read and returns its result as a tool result, or a standard error. `attach` adds image
+ * blocks built from a successful result; it never fails the read, so an image that cannot be
+ * built is simply left out.
+ */
+export const runReadOnlyTool = async (
+    read: () => Promise<Record<string, unknown>>,
+    attach?: (result: Record<string, unknown>) => Promise<ToolImage | null>
+) => {
     try {
-        return toToolResult(await read());
+        const structuredContent = await read();
+        const image = attach ? await attach(structuredContent).catch(() => null) : null;
+        const result = toToolResult(structuredContent);
+        return image
+            ? { ...result, content: [...result.content, { type: 'image' as const, ...image }] }
+            : result;
     } catch (error) {
         console.error('RankWrangler MCP read failed.', summarizeError(error));
         return toToolResultWithError(

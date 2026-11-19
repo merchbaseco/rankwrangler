@@ -11,11 +11,6 @@ import {
 import { subscribeToCatalogSearchCompleted } from '@/services/catalog-search-events';
 import type { OperationRecord } from '@/services/operations';
 import {
-    type KeywordResults,
-    mapProductToKeywordResultsProduct,
-    mapProductToPublicProduct,
-} from '@/services/product-read-model';
-import {
     coordinateRetrieval,
     RETRIEVAL_DEFAULT_CALLER_TIMEOUT_MS,
     RetrievalRetryableError,
@@ -27,6 +22,13 @@ const CATALOG_SEARCH_POLL_INTERVAL_MS = 2 * 1000;
 
 type CatalogSearchResolution = Awaited<ReturnType<typeof resolveCatalogSearchRequest>>;
 type CatalogSearchRun = NonNullable<Awaited<ReturnType<typeof getCatalogSearchRun>>>;
+
+/** The Amazon search run that answered: which run, when Amazon was searched, and how many hits. */
+export interface CollectedKeywordHead {
+    runId: string;
+    searchedAt: string;
+    resultCount: number;
+}
 
 // Polling is the fallback; the worker runs in this process and announces completion, which ends the
 // wait at once.
@@ -67,7 +69,6 @@ const defaultDeps: CatalogSearchRetrievalDeps = {
 export const awaitCatalogSearchRetrieval = async (
     {
         term,
-        refresh = false,
         serviceAccountId,
         ownerMerchbaseUserId,
         signal,
@@ -75,7 +76,6 @@ export const awaitCatalogSearchRetrieval = async (
         now = new Date(),
     }: {
         term: string;
-        refresh?: boolean;
         serviceAccountId: string;
         ownerMerchbaseUserId: string;
         signal?: AbortSignal;
@@ -95,8 +95,8 @@ export const awaitCatalogSearchRetrieval = async (
                 normalizedTerm: displayTerm.toLowerCase(),
                 displayTerm,
                 page: 0,
-                maxAgeSeconds: refresh ? 0 : CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS,
-                serveStale: !refresh,
+                maxAgeSeconds: CATALOG_SEARCH_DEFAULT_MAX_AGE_SECONDS,
+                serveStale: true,
                 trigger: 'requested',
                 serviceAccountId,
                 ownerMerchbaseUserId,
@@ -133,8 +133,8 @@ export const awaitCatalogSearchRetrieval = async (
         return await buildSearchResponse(prepared.runId, 'last-known', signal, timeoutMs, deps);
     }
     // Stored evidence of any age answers at once with its searchedAt; resolution has already
-    // queued its refresh as background work. Only refresh: true waits for a live search.
-    if (!refresh && prepared.staleRunId) {
+    // queued its refresh as background work.
+    if (prepared.staleRunId) {
         return await buildSearchResponse(prepared.staleRunId, 'last-known', signal, timeoutMs, deps);
     }
     if (prepared.kind === 'cooldown') {
@@ -162,14 +162,15 @@ export const awaitCatalogSearchRetrieval = async (
 };
 
 // A stored run's Products are known, so they answer last-known and refresh in the background; a
-// fresh search may surface Products RankWrangler has never resolved, which it waits for.
+// fresh search may surface Products RankWrangler has never resolved, which it waits for, so the
+// stored catalog holds them once this returns.
 const buildSearchResponse = async (
     runId: string,
     fetchPolicy: 'blocking' | 'last-known',
     signal: AbortSignal | undefined,
     timeoutMs: number,
     deps: CatalogSearchRetrievalDeps
-): Promise<KeywordResults> => {
+): Promise<CollectedKeywordHead> => {
     const run = await deps.getRun(runId, {
         fetchPolicy,
         signal,
@@ -181,32 +182,8 @@ const buildSearchResponse = async (
             { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
         );
     }
-    return mapCatalogSearchRun(run);
+    return { runId: run.id, searchedAt: run.sourceCompletedAt, resultCount: run.resultCount };
 };
-
-const mapCatalogSearchRun = (run: CatalogSearchRun): KeywordResults => ({
-    keyword: run.query.displayTerm,
-    searchedAt: run.sourceCompletedAt,
-    results: run.results.map(result => {
-        if (
-            !result.currentProduct ||
-            result.currentAmazonListingStatus === 'pending' ||
-            result.currentProduct.thumbnail.status === 'pending'
-        ) {
-            throw new RetrievalRetryableError(
-                'Keyword results are temporarily unavailable. Retry shortly.',
-                { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
-            );
-        }
-
-        return {
-            organicSearchPlacement: result.position.value,
-            product: mapProductToKeywordResultsProduct(
-                mapProductToPublicProduct(result.currentProduct)
-            ),
-        };
-    }),
-});
 
 const waitForCatalogSearchRun = async (
     { id: operationId, input: { queryId } }: CatalogSearchOperation,

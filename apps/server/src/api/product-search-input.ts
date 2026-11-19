@@ -21,9 +21,8 @@ const dateRange = z
 
 export const productSearchInput = z.object({
     term: z.string().trim().min(1).max(200).optional(),
-    textFields: z.enum(['all', 'title']).default('all'),
     excludeWords: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
-    marketplaceIds: z.array(z.string().trim().min(1).max(30)).max(20).default(['ATVPDKIKX0DER']),
+    marketplaceId: z.string().trim().min(1).max(30).default('ATVPDKIKX0DER'),
     isMerchListing: z.union([z.boolean(), z.literal('all')]).default(true),
     amazonListingStatus: z.enum(['active', 'deleted', 'all']).default('active'),
     brands: z.array(z.string().trim().min(1).max(200)).max(50).default([]),
@@ -32,7 +31,7 @@ export const productSearchInput = z.object({
     categoryIds: z.array(z.number().int().positive()).max(50).default([]),
     salesRank: numericRange.optional(),
     price: numericRange.optional(),
-    monthlySold: numericRange.optional(),
+    boughtInPastMonth: numericRange.optional(),
     firstAvailableAt: dateRange.optional(),
     discoveredAt: dateRange.optional(),
     updatedAt: dateRange.optional(),
@@ -52,9 +51,10 @@ export const productSearchInput = z.object({
             'discoveredAtDesc',
             'priceAsc',
             'priceDesc',
-            'monthlySoldDesc',
+            'boughtInPastMonthDesc',
+            'estimatedMonthlySalesDesc',
         ])
-        .default('relevance'),
+        .default('estimatedMonthlySalesDesc'),
     cursor: z.string().min(1).max(4000).nullish(),
     limit: z.number().int().min(1).max(100).default(50),
 });

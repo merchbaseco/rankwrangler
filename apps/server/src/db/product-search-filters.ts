@@ -18,10 +18,10 @@ export const productSearchFilters = (
     textForm: ProductTextForm = 'lookup'
 ) => {
     const text = productSearchTextFilter(input, textForm);
-    const conditions: Array<SQL | undefined> = [text.where];
-    if (input.marketplaceIds.length) {
-        conditions.push(inArray(products.marketplaceId, input.marketplaceIds));
-    }
+    const conditions: Array<SQL | undefined> = [
+        text.where,
+        eq(products.marketplaceId, input.marketplaceId),
+    ];
     if (input.isMerchListing !== 'all') {
         conditions.push(eq(products.isMerchListing, input.isMerchListing));
     }
@@ -56,7 +56,7 @@ export const productSearchFilters = (
     conditions.push(
         ...numericConditions(products.rootCategoryBsr, input.salesRank),
         ...numericConditions(products.keepaCurrentNewPrice, input.price),
-        ...numericConditions(products.keepaMonthlySold, input.monthlySold),
+        ...numericConditions(products.keepaMonthlySold, input.boughtInPastMonth),
         ...dateConditions(products.dateFirstAvailable, input.firstAvailableAt),
         ...dateConditions(products.createdAt, input.discoveredAt),
         ...dateConditions(productSearchUpdatedAt, input.updatedAt)

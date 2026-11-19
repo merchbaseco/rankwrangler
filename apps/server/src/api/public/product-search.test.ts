@@ -6,7 +6,7 @@ import { createProductSearchProcedure } from './product-search';
 describe('public stored Product search', () => {
     it('returns stored matches with defaults and one usage debit', async () => {
         const response = { items: [], nextCursor: null, coverage: null };
-        const searchProducts = mock(async () => response);
+        const searchProducts = mock(async (_input: unknown, _caller: unknown) => response);
         const consumeServiceAccountUsageForRequest = mock(async () => undefined);
         const caller = router({
             search: createProductSearchProcedure({
@@ -17,11 +17,16 @@ describe('public stored Product search', () => {
         expect(await caller.search({ term: 'fishing' })).toEqual(response);
         expect(searchProducts.mock.calls[0]?.[0]).toMatchObject({
             term: 'fishing',
-            marketplaceIds: ['ATVPDKIKX0DER'],
+            marketplaceId: 'ATVPDKIKX0DER',
             isMerchListing: true,
             amazonListingStatus: 'active',
             includeOfficialBrands: false,
+            sort: 'estimatedMonthlySalesDesc',
             limit: 50,
+        });
+        expect(searchProducts.mock.calls[0]?.[1]).toMatchObject({
+            serviceAccountId: '11111111-1111-4111-8111-111111111111',
+            ownerMerchbaseUserId: 'mbu_test',
         });
         expect(consumeServiceAccountUsageForRequest.mock.calls).toHaveLength(1);
     });

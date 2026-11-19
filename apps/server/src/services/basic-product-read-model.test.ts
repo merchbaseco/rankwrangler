@@ -50,19 +50,13 @@ describe('basic Product read model', () => {
                 ...availableIdentity,
                 title: 'Garden shirt',
                 amazonListingStatus: 'active',
-                thumbnail: {
-                    status: 'available',
-                    url: 'https://example.com/garden.jpg',
-                },
+                imageUrl: 'https://example.com/garden.jpg',
             },
             {
                 ...unavailableIdentity,
                 title: 'Archived shirt',
                 amazonListingStatus: 'deleted',
-                thumbnail: {
-                    status: 'available',
-                    url: 'https://example.com/archived.jpg',
-                },
+                imageUrl: 'https://example.com/archived.jpg',
             },
         ]);
         expect(getProducts).toHaveBeenCalledWith({
@@ -72,7 +66,7 @@ describe('basic Product read model', () => {
         });
     });
 
-    it('uses null and an unavailable thumbnail when Amazon never returned listing data', async () => {
+    it('uses a null title and image when Amazon never returned listing data', async () => {
         const identity = {
             marketplaceId: 'ATVPDKIKX0DER',
             asin: 'B000000003',
@@ -95,7 +89,7 @@ describe('basic Product read model', () => {
             {
                 ...identity,
                 title: null,
-                thumbnail: { status: 'unavailable' },
+                imageUrl: null,
                 amazonListingStatus: 'deleted',
             },
         ]);
@@ -123,7 +117,7 @@ describe('basic Product read model', () => {
 
         expect(JSON.stringify(result)).toBe(
             '[{"marketplaceId":"ATVPDKIKX0DER","asin":"B000000006","title":"Garden shirt",' +
-                '"thumbnail":{"status":"available","url":"https://x.test/a.jpg"},' +
+                '"imageUrl":"https://x.test/a.jpg",' +
                 '"amazonListingStatus":"active"}]'
         );
     });

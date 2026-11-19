@@ -10,7 +10,7 @@ import {
 } from './catalog-search-retrieval-test-fixtures';
 
 describe('Product-search retrieval policy', () => {
-    it('returns the exact compact projection from a reusable Search run', async () => {
+    it('answers from a reusable Search run without waiting for Products', async () => {
         const run = createRun('2026-08-06T12:00:00.000Z', [
             createSearchResult({
                 asin: 'B012345678',
@@ -50,7 +50,6 @@ describe('Product-search retrieval policy', () => {
         const result = await awaitCatalogSearchRetrieval(
             {
                 term: ' Retro   Gardening Shirt ',
-                refresh: false,
                 ownerMerchbaseUserId: 'mbu_test',
                 serviceAccountId: 'account-1',
                 now: new Date('2026-08-06T12:00:01.000Z'),
@@ -59,45 +58,9 @@ describe('Product-search retrieval policy', () => {
         );
 
         expect(result).toEqual({
-            keyword: 'shirts',
+            runId: run.id,
             searchedAt: '2026-08-06T12:00:00.000Z',
-            results: [
-                {
-                    organicSearchPlacement: 3,
-                    product: {
-                        marketplaceId: 'ATVPDKIKX0DER',
-                        asin: 'B012345678',
-                        title: 'Garden shirt',
-                        brand: 'Example brand',
-                        thumbnail: {
-                            status: 'available',
-                            url: 'https://example.com/image.jpg',
-                        },
-                        amazonListingStatus: 'active',
-                        isMerchListing: true,
-                        category: { id: 12_345, name: 'Clothing' },
-                        salesRank: 12_345,
-                        price: { amountMinor: 1999, currencyCode: 'USD' },
-                        boughtInPastMonth: 200,
-                    },
-                },
-                {
-                    organicSearchPlacement: 7,
-                    product: {
-                        marketplaceId: 'ATVPDKIKX0DER',
-                        asin: 'B087654321',
-                        title: null,
-                        brand: null,
-                        thumbnail: { status: 'unavailable' },
-                        amazonListingStatus: 'active',
-                        isMerchListing: false,
-                        category: null,
-                        salesRank: null,
-                        price: null,
-                        boughtInPastMonth: null,
-                    },
-                },
-            ],
+            resultCount: 2,
         });
         expect(deps.resolveRequest.mock.calls[0]?.[0].maxAgeSeconds).toBe(86_400);
     });
@@ -126,7 +89,6 @@ describe('Product-search retrieval policy', () => {
         const result = await awaitCatalogSearchRetrieval(
             {
                 term: 'shirts',
-                refresh: false,
                 ownerMerchbaseUserId: 'mbu_test',
                 serviceAccountId: 'account-1',
                 now: new Date('2026-08-06T12:00:00.000Z'),
@@ -139,7 +101,7 @@ describe('Product-search retrieval policy', () => {
         expect(deps.getOperationById.mock.calls).toHaveLength(0);
     });
 
-    it('waits for a missing Search run and maps the completed result', async () => {
+    it('waits for a missing Search run and answers with the completed run', async () => {
         const operation = createPendingOperation();
         const run = createRun('2026-08-06T12:00:02.000Z');
         let operationReads = 0;
@@ -163,7 +125,6 @@ describe('Product-search retrieval policy', () => {
         const result = await awaitCatalogSearchRetrieval(
             {
                 term: 'missing shirts',
-                refresh: false,
                 ownerMerchbaseUserId: 'mbu_test',
                 serviceAccountId: 'account-1',
                 now: new Date('2026-08-06T12:00:00.000Z'),
@@ -171,10 +132,11 @@ describe('Product-search retrieval policy', () => {
             deps
         );
 
-        expect(result.keyword).toBe('shirts');
-        expect(result.results).toHaveLength(1);
-        expect(result).not.toHaveProperty('run');
-        expect(result).not.toHaveProperty('freshness');
+        expect(result).toEqual({
+            runId: run.id,
+            searchedAt: '2026-08-06T12:00:02.000Z',
+            resultCount: 1,
+        });
         expect(operationReads).toBe(2);
     });
 
@@ -192,7 +154,6 @@ describe('Product-search retrieval policy', () => {
         const result = await awaitCatalogSearchRetrieval(
             {
                 term: 'cooldown shirts',
-                refresh: false,
                 ownerMerchbaseUserId: 'mbu_test',
                 serviceAccountId: 'account-1',
             },

@@ -1,10 +1,12 @@
 import type { ProductGetInclude } from '@/api/public/product-input';
+import type { SalesCurveParameters } from '@/db/product-search-ranking';
 import type { ProductHistorySurfaceInput } from '@/services/product-history-surface.js';
 import { getProductHistorySurface } from '@/services/product-history-surface.js';
 import type { AmazonListingStatus, ProductInfo } from '@/types/index.js';
 import { getProductCutoutThumbnail } from './product-cutout-thumbnail';
 import { PRODUCT_ENRICHMENT_DEADLINE_MS } from './product-enrichment-wait';
 import { getRequiredProduct } from './product-retrieval';
+import { estimateMonthlySales, readSalesCurve } from './sales-curve';
 import { getProductShortName } from './product-short-name';
 
 const PRODUCT_READ_KEEP_A_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
@@ -36,38 +38,16 @@ export interface Product {
         };
     };
     price: { amountMinor: number; currencyCode: string } | null;
-    demand: {
-        boughtInPastMonth: number | null;
-        salesRankDrops: {
-            last30Days: number | null;
-            last90Days: number | null;
-            last180Days: number | null;
-            last365Days: number | null;
-        };
-    };
-}
-
-export interface KeywordResultsProduct {
-    marketplaceId: string;
-    asin: string;
-    title: string | null;
-    brand: string | null;
-    thumbnail: { status: 'available'; url: string } | { status: 'unavailable' };
-    isMerchListing: boolean;
-    amazonListingStatus: AmazonListingStatus;
-    category: { id: number; name: string | null } | null;
-    salesRank: number | null;
-    price: { amountMinor: number; currencyCode: string } | null;
+    /** Amazon's bought-in-past-month badge (50, 100, …); null when none was observed. */
     boughtInPastMonth: number | null;
-}
-
-export interface KeywordResults {
-    keyword: string;
-    searchedAt: string;
-    results: Array<{
-        organicSearchPlacement: number;
-        product: KeywordResultsProduct;
-    }>;
+    /** The rank-to-sales curve's order-of-magnitude estimate; null without a rank or a curve. */
+    estimatedMonthlySales: number | null;
+    salesRankDrops: {
+        last30Days: number | null;
+        last90Days: number | null;
+        last180Days: number | null;
+        last365Days: number | null;
+    };
 }
 
 interface ProductReadInput {
@@ -82,6 +62,7 @@ interface ProductReadInput {
 
 export interface ProductReadModelDeps {
     getRequiredProduct: typeof getRequiredProduct;
+    readSalesCurve: typeof readSalesCurve;
     getProductHistorySurface: typeof getProductHistorySurface;
     getProductShortName: typeof getProductShortName;
     getProductCutoutThumbnail: typeof getProductCutoutThumbnail;
@@ -89,6 +70,7 @@ export interface ProductReadModelDeps {
 
 const defaultDeps: ProductReadModelDeps = {
     getRequiredProduct,
+    readSalesCurve,
     getProductHistorySurface,
     getProductShortName,
     getProductCutoutThumbnail,
@@ -132,7 +114,7 @@ export const getProductReadModel = async (
           })
         : Promise.resolve(null);
 
-    const [, initialShortName, initialCutout] = await Promise.all([
+    const [, initialShortName, initialCutout, { curve }] = await Promise.all([
         includes.includes('marketData')
             ? deps.getProductHistorySurface({
                   ...identity,
@@ -148,6 +130,7 @@ export const getProductReadModel = async (
             : Promise.resolve(null),
         shortNamePromise,
         cutoutPromise,
+        deps.readSalesCurve(identity.marketplaceId),
     ]);
 
     const current = await deps.getRequiredProduct({
@@ -155,7 +138,7 @@ export const getProductReadModel = async (
         maxAgeMs: PRODUCT_READ_KEEP_A_MAX_AGE_MS,
         signal: input.signal,
     });
-    const product = mapProductToPublicProduct(current, includes.includes('marketData'));
+    const product = mapProductToPublicProduct(current, includes.includes('marketData'), curve);
     const sourceUnchanged =
         current.thumbnail.status === initial.thumbnail.status &&
         (current.thumbnail.status !== 'available' ||
@@ -201,68 +184,55 @@ const toPublicCutoutThumbnail = (url: string | null): PublicCutoutThumbnail =>
 
 export const mapProductToPublicProduct = (
     product: ProductInfo,
-    includeMarketData = true
-): Product => ({
-    marketplaceId: product.marketplaceId,
-    asin: product.asin,
-    listing: {
-        title: product.title,
-        shortName: null,
-        cutoutThumbnail: null,
-        brand: product.brand,
-        firstAvailableAt: product.dateFirstAvailable,
-        bulletPoints: [product.bullet1, product.bullet2].filter(
-            (bullet): bullet is string => bullet !== null
-        ),
-        thumbnail:
-            product.thumbnail.status === 'available'
-                ? product.thumbnail
-                : { status: 'unavailable' },
-        isMerchListing: product.isMerchListing,
-        amazonListingStatus: product.amazonListingStatus,
-    },
-    category:
-        product.rootCategoryId === null
-            ? null
-            : {
-                  id: product.rootCategoryId,
-                  name: product.rootCategoryDisplayName,
-              },
-    salesRank: {
-        current: includeMarketData
-            ? (product.keepa?.currentRootCategoryBsr ?? product.rootCategoryBsr)
-            : null,
-        averages: {
-            last30Days: includeMarketData
-                ? (product.keepa?.averageRootCategoryBsr30 ?? null)
-                : null,
-            last90Days: includeMarketData
-                ? (product.keepa?.averageRootCategoryBsr90 ?? null)
-                : null,
+    includeMarketData = true,
+    curve: SalesCurveParameters | null = null
+): Product => {
+    const keepa = includeMarketData ? product.keepa : null;
+    const salesRank = includeMarketData
+        ? (product.keepa?.currentRootCategoryBsr ?? product.rootCategoryBsr)
+        : null;
+    const average30 = keepa?.averageRootCategoryBsr30 ?? null;
+    return {
+        marketplaceId: product.marketplaceId,
+        asin: product.asin,
+        listing: {
+            title: product.title,
+            shortName: null,
+            cutoutThumbnail: null,
+            brand: product.brand,
+            firstAvailableAt: product.dateFirstAvailable,
+            bulletPoints: [product.bullet1, product.bullet2].filter(
+                (bullet): bullet is string => bullet !== null
+            ),
+            thumbnail:
+                product.thumbnail.status === 'available'
+                    ? product.thumbnail
+                    : { status: 'unavailable' },
+            isMerchListing: product.isMerchListing,
+            amazonListingStatus: product.amazonListingStatus,
         },
-    },
-    price: includeMarketData ? (product.keepa?.currentNewPrice ?? null) : null,
-    demand: {
-        boughtInPastMonth: includeMarketData ? (product.keepa?.monthlySold ?? null) : null,
+        category:
+            product.rootCategoryId === null
+                ? null
+                : {
+                      id: product.rootCategoryId,
+                      name: product.rootCategoryDisplayName,
+                  },
+        salesRank: {
+            current: salesRank,
+            averages: {
+                last30Days: average30,
+                last90Days: keepa?.averageRootCategoryBsr90 ?? null,
+            },
+        },
+        price: keepa?.currentNewPrice ?? null,
+        boughtInPastMonth: keepa?.monthlySold ?? null,
+        estimatedMonthlySales: estimateMonthlySales(curve, average30 ?? salesRank),
         salesRankDrops: {
-            last30Days: includeMarketData ? (product.keepa?.salesRankDrops.days30 ?? null) : null,
-            last90Days: includeMarketData ? (product.keepa?.salesRankDrops.days90 ?? null) : null,
-            last180Days: includeMarketData ? (product.keepa?.salesRankDrops.days180 ?? null) : null,
-            last365Days: includeMarketData ? (product.keepa?.salesRankDrops.days365 ?? null) : null,
+            last30Days: keepa?.salesRankDrops.days30 ?? null,
+            last90Days: keepa?.salesRankDrops.days90 ?? null,
+            last180Days: keepa?.salesRankDrops.days180 ?? null,
+            last365Days: keepa?.salesRankDrops.days365 ?? null,
         },
-    },
-});
-
-export const mapProductToKeywordResultsProduct = (product: Product): KeywordResultsProduct => ({
-    marketplaceId: product.marketplaceId,
-    asin: product.asin,
-    title: product.listing.title,
-    brand: product.listing.brand,
-    thumbnail: product.listing.thumbnail,
-    isMerchListing: product.listing.isMerchListing,
-    amazonListingStatus: product.listing.amazonListingStatus,
-    category: product.category,
-    salesRank: product.salesRank.current,
-    price: product.price,
-    boughtInPastMonth: product.demand.boughtInPastMonth,
-});
+    };
+};

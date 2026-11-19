@@ -16,11 +16,11 @@ const defaultDeps: ProductGetManyDeps = {
 
 export const createProductGetManyProcedure = (deps: ProductGetManyDeps = defaultDeps) =>
     publicApiProcedure.input(productGetManyInput).mutation(async ({ input, ctx, signal }) => {
-        await deps.consumeServiceAccountUsageForRequest(ctx, input.products.length);
+        await deps.consumeServiceAccountUsageForRequest(ctx, input.asins.length);
 
         try {
             return await deps.getBasicProductReadModels({
-                products: input.products,
+                products: input.asins.map(asin => ({ marketplaceId: input.marketplaceId, asin })),
                 signal,
             });
         } catch (error) {

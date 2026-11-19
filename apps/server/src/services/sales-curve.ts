@@ -1,7 +1,8 @@
 import { runBackground } from '@/db/index';
+import type { SalesCurveParameters } from '@/db/product-search-ranking';
 import { readSalesCurveObservations } from '@/db/sales-curve-observations';
 import { createSwrCache } from '@/utils/swr-cache';
-import { fitSalesCurve, REFERENCE_BSR } from './sales-curve-fit';
+import { curveMedianSales, fitSalesCurve, REFERENCE_BSR } from './sales-curve-fit';
 import { buildSalesCurveReport } from './sales-curve-report';
 
 const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';
@@ -33,6 +34,18 @@ export const readSalesCurve = async (marketplaceId = US_MARKETPLACE_ID) => {
     const { report: _report, ...curve } = await readSalesCurveFit(marketplaceId);
     return curve;
 };
+
+/**
+ * The curve's median monthly sales at a rank, rounded and at least 1: an order of magnitude,
+ * never a count. Null without a positive rank or a curve. Pass the 30-day average rank where
+ * there is one (the curve is fitted against it). estimatedMonthlySalesColumn is the same
+ * estimate in SQL.
+ */
+export const estimateMonthlySales = (
+    curve: Pick<SalesCurveParameters, 'intercept' | 'headSlope' | 'tailSlope'> | null,
+    rank: number | null
+) =>
+    curve && rank !== null && rank > 0 ? Math.max(1, Math.round(curveMedianSales(curve, rank))) : null;
 
 const fitCurrentSalesCurve = async (marketplaceId: string) => {
     const observations = await readSalesCurveObservations(marketplaceId);

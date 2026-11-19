@@ -27,7 +27,6 @@ describe('Product-search dispatch boundary', () => {
             awaitCatalogSearchRetrieval(
                 {
                     term: 'dispatch failure shirts',
-                    refresh: false,
                     ownerMerchbaseUserId: 'mbu_test',
                     serviceAccountId: 'account-1',
                 },

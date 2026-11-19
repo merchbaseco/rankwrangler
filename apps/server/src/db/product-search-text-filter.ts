@@ -1,4 +1,4 @@
-import { and, eq, inArray, or, type SQL, sql } from 'drizzle-orm';
+import { and, eq, or, type SQL, type SQLWrapper, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { ProductCatalogFilterInput } from '@/api/product-search-input';
 import { db } from './index';
@@ -14,30 +14,35 @@ const asinPattern = /^[A-Z0-9]{10}$/i;
 export const TEXT_LOOKUP_LIMIT = 10_000;
 
 /**
- * How a term narrows the search. `lookup` collects every match through the GIN index (plus the
- * keyword's stored members) and is right for a rare term: it touches only the matches. `row`
- * tests each Product the read visits, so a common term costs only the rows a page or sample
- * walks instead of fetching hundreds of thousands of matches first; it cannot rank by relevance
- * without ranking every match, so relevance sorts by sales rank in that form.
+ * How a term narrows the search. Matching is on the title alone; the search document's GIN index
+ * (title, brand, bullets) finds the candidates, and the title must then match too. `lookup`
+ * collects every match through that index and is right for a rare term: it touches only the
+ * matches. `row` tests each Product the read visits, so a common term costs only the rows a page
+ * or sample walks instead of fetching hundreds of thousands of matches first; it cannot rank by
+ * relevance without ranking every match, so relevance sorts by sales rank in that form.
  */
 export type ProductTextForm = 'lookup' | 'row';
 
+/**
+ * The term's WHERE condition plus `relevance`, the title's text rank in [0, 1) (normalization 32,
+ * rank / (rank + 1)), so a caller can add whole-number ranking tiers above it. Excluded words are
+ * tested against the title too.
+ */
 export const productSearchTextFilter = (
     input: ProductCatalogFilterInput,
     form: ProductTextForm = 'lookup'
 ) => {
-    const document =
-        input.textFields === 'title'
-            ? sql`to_tsvector('simple', coalesce(${products.title}, ''))`
-            : productSearchDocument(products);
+    const title = titleVector(products.title);
     const query = input.term ? sql`plainto_tsquery('simple', ${input.term})` : null;
-    const relevance = query ? sql<number>`ts_rank(${document}, ${query})` : sql<number>`0::real`;
+    const relevance = query
+        ? sql<number>`ts_rank(${title}, ${query}, 32)::float8`
+        : sql<number>`0::float8`;
     const conditions: Array<SQL | undefined> = [];
     if (query) {
         conditions.push(form === 'row' ? rowMatch(input, query) : lookupMatch(input, query));
     }
     for (const word of input.excludeWords) {
-        conditions.push(sql`not (${document} @@ plainto_tsquery('simple', ${word}))`);
+        conditions.push(sql`not (${title} @@ plainto_tsquery('simple', ${word}))`);
     }
     return { where: and(...conditions), relevance };
 };
@@ -62,44 +67,25 @@ export const chooseTextForm = async (input: ProductCatalogFilterInput) => {
 
 const lookupMatch = (input: ProductCatalogFilterInput, query: SQL) => {
     const lexical = alias(products, 'lexical');
-    const lexicalDocument = productSearchDocument(lexical);
-    const lexicalMatch = asinPattern.test(input.term ?? '')
-        ? or(sql`${lexicalDocument} @@ ${query}`, eq(lexical.asin, input.term?.toUpperCase() ?? ''))
-        : sql`${lexicalDocument} @@ ${query}`;
-    const lexicalMarkets = input.marketplaceIds.length
-        ? inArray(lexical.marketplaceId, input.marketplaceIds)
-        : sql`true`;
-    const membership = input.textFields === 'all' ? sql`union ${keywordMembers(input)}` : sql``;
+    const term = input.term?.toUpperCase() ?? '';
+    const asin = asinPattern.test(term);
+    const candidate = sql`${productSearchDocument(lexical)} @@ ${query}`;
+    const titleMatch = sql`${titleVector(lexical.title)} @@ ${query}`;
     return sql`${products.id} in (
-            select ${lexical.id} from ${products} as lexical where ${lexicalMarkets} and (${lexicalMatch})
-                ${input.textFields === 'title' ? sql`and (to_tsvector('simple', coalesce(${lexical.title}, '')) @@ ${query} or ${lexical.asin} = ${input.term?.toUpperCase() ?? ''})` : sql``}
-            ${membership}
+            select ${lexical.id} from ${products} as lexical
+            where ${eq(lexical.marketplaceId, input.marketplaceId)}
+                and ${asin ? or(and(candidate, titleMatch), eq(lexical.asin, term)) : and(candidate, titleMatch)}
         )`;
 };
 
 /** The same Products as `lookupMatch`, tested on the row itself. */
 const rowMatch = (input: ProductCatalogFilterInput, query: SQL) => {
     const term = input.term?.toUpperCase() ?? '';
-    const asin = asinPattern.test(input.term ?? '');
-    const documentMatch = asin
-        ? or(sql`${productSearchDocument(products)} @@ ${query}`, eq(products.asin, term))
-        : sql`${productSearchDocument(products)} @@ ${query}`;
-    const textMatch =
-        input.textFields === 'title'
-            ? and(
-                  documentMatch,
-                  sql`(to_tsvector('simple', coalesce(${products.title}, '')) @@ ${query} or ${products.asin} = ${term})`
-              )
-            : documentMatch;
-    return input.textFields === 'all'
-        ? sql`(${textMatch} or ${products.id} in (${keywordMembers(input)}))`
-        : sql`(${textMatch})`;
+    const textMatch = and(
+        sql`${productSearchDocument(products)} @@ ${query}`,
+        sql`${titleVector(products.title)} @@ ${query}`
+    );
+    return asinPattern.test(term) ? sql`(${or(textMatch, eq(products.asin, term))})` : sql`(${textMatch})`;
 };
 
-// The keyword's stored members: Products a Keepa scan of exactly this term returned.
-const keywordMembers = (input: ProductCatalogFilterInput) => sql`
-            select kp.product_id from keyword_products kp
-            join catalog_queries cq on cq.id = kp.query_id
-            where cq.source = 'keepa' and cq.marketplace_id = 'ATVPDKIKX0DER'
-                and cq.normalized_term = ${input.term?.trim().replace(/\s+/g, ' ').toLowerCase()}
-        `;
+const titleVector = (title: SQLWrapper) => sql`to_tsvector('simple', coalesce(${title}, ''))`;

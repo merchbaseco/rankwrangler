@@ -9,19 +9,19 @@ const dataSource: RankWranglerMcpDataSource = {
         status: 'ready',
         capabilities: {
             product: ['get', 'getMany', 'search', 'history'],
-            keyword: ['get', 'search', 'results'],
+            keyword: ['get', 'list'],
         },
     }),
     product: {
         get: async input => ({ operation: 'get', data: { asin: input.asin } }),
-        getMany: async input => ({ operation: 'getMany', data: { products: input.products } }),
+        getMany: async input => ({ operation: 'getMany', data: input }),
         search: async input => ({ operation: 'search', data: { term: input.term } }),
         history: async input => ({ operation: 'history', data: { asin: input.asin } }),
+        contactSheet: async () => null,
     },
     keyword: {
-        results: async input => ({ operation: 'results', data: { term: input.term } }),
         get: async input => ({ operation: 'get', data: { keyword: input.keyword } }),
-        search: async input => ({ operation: 'search', data: { text: input.text } }),
+        list: async input => ({ operation: 'list', data: { term: input.term } }),
     },
 };
 
@@ -60,7 +60,8 @@ describe('RankWrangler MCP server', () => {
             type: 'object',
         });
         const productTool = result.tools.find(tool => tool.name === 'rankwrangler_product');
-        expect(productTool?.description).toContain('getMany uses products');
+        expect(productTool?.description).toContain('getMany uses asins');
+        expect(productTool?.description).toContain('default sort is estimatedMonthlySalesDesc');
         expect(productTool?.description).toContain('amazonListingStatus is active or deleted');
         expect(productTool?.description).toContain('deleted means the listing no longer exists');
         expect(productTool?.description).toContain('not that an offer is in stock or buyable');
@@ -95,13 +96,7 @@ describe('RankWrangler MCP server', () => {
             }),
             client.callTool({
                 name: 'rankwrangler_product',
-                arguments: {
-                    operation: 'getMany',
-                    products: [
-                        { asin: 'b012345678', marketplaceId: 'ATVPDKIKX0DER' },
-                        { asin: 'B087654321', marketplaceId: 'ATVPDKIKX0DER' },
-                    ],
-                },
+                arguments: { operation: 'getMany', asins: ['b012345678', 'B087654321'] },
             }),
             client.callTool({
                 name: 'rankwrangler_product',
@@ -117,7 +112,7 @@ describe('RankWrangler MCP server', () => {
             }),
             client.callTool({
                 name: 'rankwrangler_keyword',
-                arguments: { operation: 'search', text: 'shirt' },
+                arguments: { operation: 'list', term: 'shirt' },
             }),
         ]);
 
@@ -127,17 +122,12 @@ describe('RankWrangler MCP server', () => {
             { operation: 'get', data: { asin: 'B012345678' } },
             {
                 operation: 'getMany',
-                data: {
-                    products: [
-                        { asin: 'B012345678', marketplaceId: 'ATVPDKIKX0DER' },
-                        { asin: 'B087654321', marketplaceId: 'ATVPDKIKX0DER' },
-                    ],
-                },
+                data: { asins: ['B012345678', 'B087654321'], marketplaceId: 'ATVPDKIKX0DER' },
             },
             { operation: 'search', data: { term: 'shirts' } },
             { operation: 'history', data: { asin: 'B012345678' } },
             { operation: 'get', data: { keyword: 'shirts' } },
-            { operation: 'search', data: { text: 'shirt' } },
+            { operation: 'list', data: { term: 'shirt' } },
         ]);
 
         await client.close();
@@ -171,7 +161,7 @@ describe('RankWrangler MCP server', () => {
             }),
             client.callTool({
                 name: 'rankwrangler_keyword',
-                arguments: { operation: 'search' },
+                arguments: { operation: 'list' },
             }),
         ]);
 
@@ -198,21 +188,15 @@ describe('RankWrangler MCP server', () => {
         await server.close();
     });
 
-    it('rejects duplicate Product pairs in getMany', async () => {
+    it('rejects duplicate ASINs in getMany', async () => {
         const { client, server } = await connect(dataSource);
         const result = await client.callTool({
             name: 'rankwrangler_product',
-            arguments: {
-                operation: 'getMany',
-                products: [
-                    { asin: 'B012345678', marketplaceId: 'ATVPDKIKX0DER' },
-                    { asin: 'b012345678', marketplaceId: 'ATVPDKIKX0DER' },
-                ],
-            },
+            arguments: { operation: 'getMany', asins: ['B012345678', 'b012345678'] },
         });
 
         expect(result.isError).toBe(true);
-        expect(JSON.stringify(result.content)).toContain('Product pairs must be unique');
+        expect(JSON.stringify(result.content)).toContain('ASINs must be unique');
 
         await client.close();
         await server.close();
@@ -225,7 +209,7 @@ describe('RankWrangler MCP server', () => {
             name: 'rankwrangler_product',
             arguments: {
                 operation: 'getMany',
-                products: [{ asin: 'B012345678', marketplaceId: 'ATVPDKIKX0DER' }],
+                asins: ['B012345678'],
                 include: ['shortName'],
             },
         });
@@ -233,6 +217,75 @@ describe('RankWrangler MCP server', () => {
         expect(result.isError).toBe(true);
         expect(JSON.stringify(result.content)).toContain('include is not accepted for getMany');
 
+        await client.close();
+        await server.close();
+    });
+
+    it('attaches a contact sheet image only when search asks for one', async () => {
+        const sheets: Array<ReadonlyArray<string | null>> = [];
+        const { client, server } = await connect({
+            ...dataSource,
+            product: {
+                ...dataSource.product,
+                search: async () => ({
+                    operation: 'search',
+                    data: {
+                        items: [{ imageUrl: 'https://m.media-amazon.com/a.jpg' }, { imageUrl: null }],
+                    },
+                }),
+                contactSheet: async urls => {
+                    sheets.push(urls);
+                    return { data: 'c2hlZXQ=', mimeType: 'image/jpeg' };
+                },
+            },
+        });
+
+        const [withSheet, withoutSheet] = await Promise.all([
+            client.callTool({
+                name: 'rankwrangler_product',
+                arguments: { operation: 'search', term: 'bruh', contactSheet: true },
+            }),
+            client.callTool({
+                name: 'rankwrangler_product',
+                arguments: { operation: 'search', term: 'bruh' },
+            }),
+        ]);
+
+        expect(sheets).toEqual([['https://m.media-amazon.com/a.jpg', null]]);
+        expect((withSheet.content as Array<{ type: string }>).map(block => block.type)).toEqual([
+            'text',
+            'image',
+        ]);
+        expect((withSheet.content as unknown[])[1]).toEqual({
+            type: 'image',
+            data: 'c2hlZXQ=',
+            mimeType: 'image/jpeg',
+        });
+        expect((withoutSheet.content as Array<{ type: string }>).map(block => block.type)).toEqual(
+            ['text']
+        );
+        await client.close();
+        await server.close();
+    });
+
+    it('returns the search when its contact sheet fails', async () => {
+        const { client, server } = await connect({
+            ...dataSource,
+            product: {
+                ...dataSource.product,
+                contactSheet: async () => {
+                    throw new Error('sharp exploded');
+                },
+            },
+        });
+
+        const result = await client.callTool({
+            name: 'rankwrangler_product',
+            arguments: { operation: 'search', term: 'bruh', contactSheet: true },
+        });
+
+        expect(result.isError).not.toBe(true);
+        expect(result.structuredContent).toEqual({ operation: 'search', data: { term: 'bruh' } });
         await client.close();
         await server.close();
     });

@@ -1,25 +1,15 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { env } from '@/config/env';
+import { isAmazonImageUrl } from '@/utils/amazon-image-url';
 import { normalizeCutoutThumbnail } from './product-cutout-thumbnail-normalize';
 import { captureProviderAttempt } from './providers/provider-telemetry';
 
 const IMAGE_MAX_BYTES = 512_000;
 const TRANSFORM_TIMEOUT_MS = 20_000;
-const AMAZON_IMAGE_HOST_RE = /^images-[a-z]+\.ssl-images-amazon\.com$/u;
 const TRANSFORM_OPTIONS =
     'width=512,height=512,fit=contain,format=webp,quality=90,segment=foreground';
 
-export const isCutoutSourceSupported = (sourceUrl: string) => {
-    try {
-        const url = new URL(sourceUrl);
-        return (
-            url.protocol === 'https:' &&
-            (url.hostname === 'm.media-amazon.com' || AMAZON_IMAGE_HOST_RE.test(url.hostname))
-        );
-    } catch {
-        return false;
-    }
-};
+export const isCutoutSourceSupported = isAmazonImageUrl;
 
 export const createCutoutObject = async ({
     sourceUrl,
