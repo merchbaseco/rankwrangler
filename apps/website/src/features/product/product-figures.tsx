@@ -123,7 +123,7 @@ export const ProductFigures = ({
                     <KpiFigure
                         value={
                             reportedSold ??
-                            estimateMonthlySales(keepa?.averageRootCategoryBsr30 ?? bsr, curve)
+                            estimateMonthlySales(bsr ?? keepa?.averageRootCategoryBsr30, curve)
                         }
                     />
                 }

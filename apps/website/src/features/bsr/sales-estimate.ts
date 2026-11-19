@@ -5,9 +5,9 @@ export type SalesCurve = NonNullable<RouterOutputs['api']['app']['product']['sal
 /**
  * Estimated units sold a month at a rank, for when Amazon's "bought in past
  * month" badge is absent: the median of the server's current curve, refitted
- * from Merch shirts' badges so it follows the season. Pass the 30-day average
- * rank where there is one (the curve is fitted against it). An order of
- * magnitude, never a count; null without a rank or a curve.
+ * from Merch shirts' badges so it follows the season. Pass the current rank
+ * (the curve is fitted against Keepa's current rank). An order of magnitude,
+ * never a count; null without a rank or a curve.
  */
 export const estimateMonthlySales = (
     salesRank: number | null | undefined,

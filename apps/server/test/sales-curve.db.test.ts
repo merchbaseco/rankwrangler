@@ -19,7 +19,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Sales curve observ
         await db.execute(sql`truncate products cascade`);
     });
 
-    it('counts badges against the 30-day rank for recently read Merch shirts only', async () => {
+    it('counts badges against the Keepa current rank for recently read Merch shirts only', async () => {
         await insertProduct('B0CURVE001', { keepaMonthlySold: 100 });
         await insertProduct('B0CURVE002', { keepaMonthlySold: null });
         await insertProduct('B0CURVE003', { keepaMonthlySold: 100 });
@@ -27,7 +27,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('Sales curve observ
         await insertProduct('B0UNREAD01', { keepaFetchedAt: null });
         await insertProduct('B0NOTMERCH', { isMerchListing: false });
         await insertProduct('B0TOYS0001', { rootCategoryId: 165_793_011 });
-        await insertProduct('B0NOAVG001', { keepaBsrAverage30: null });
+        await insertProduct('B0NORANK01', { keepaCurrentBsr: null });
         await insertProduct('B0DELETED1', { amazonListingStatus: 'deleted' });
 
         const observations = await readSalesCurveObservations(market, now);
@@ -48,7 +48,8 @@ const insertProduct = async (asin: string, extra: Partial<typeof products.$infer
         isMerchListing: true,
         rootCategoryId: MERCH_ROOT_CATEGORY_ID,
         rootCategoryBsr: 280_000,
-        keepaBsrAverage30: 300_000,
+        keepaCurrentBsr: 300_000,
+        keepaBsrAverage30: 900_000,
         keepaFetchedAt: new Date(now.getTime() - 2 * DAY),
         keepaMonthlySold: 50,
         ...extra,

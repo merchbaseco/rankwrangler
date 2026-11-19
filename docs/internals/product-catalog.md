@@ -220,9 +220,12 @@ and otherwise `~N`, the search item's `estimatedMonthlySales`: the curve's media
 rank (or the 30-day average without one), for Clothing listings only. The current rank leads
 because a seasonal seller's 30-day average lags its surge by an order of magnitude; a Thanksgiving
 shirt at 28,719 today averaged 834,826 over the month. The curve is fitted from the catalog, not fixed: active US Merch listings in Clothing
-(root category 7141123011) whose Keepa read is under 30 days old, counted per log-rank bin of the
-30-day average BSR and badge value. The badge and that average cover the same trailing month,
-and a Product Keepa has not read says nothing about its badge, so unread Products are left out.
+(root category 7141123011) whose Keepa read is under 30 days old, counted per log-rank bin of
+Keepa's current BSR and badge value from the same read. The curve answers "what does a listing
+ranked here now sell", which is what the estimate is asked; fitted against the 30-day average it
+overstated in-season sellers' current ranks by up to 9x (November 2026: a current BSR near 10k
+carried a median badge of 1,000, against 9,000 for a 30-day average near 10k). A Product Keepa has
+not read says nothing about its badge, so unread Products are left out.
 
 The badge is a floor on a step scale (50+, 100+ … 900+, 1K+ …) and absent under 50 a month, so
 each Product only bounds its sales. Log sales are modelled as normal around a power law that

@@ -12,10 +12,12 @@ const BINS_PER_LOG = 8;
 const DAY_MS = 86_400_000;
 
 /**
- * The sold badge against the 30-day average rank, counted per log-rank bin, over active Merch
- * listings in Clothing whose Keepa read is under SALES_CURVE_WINDOW_DAYS old. Both figures cover
- * the same trailing month, and a Product Keepa has not read says nothing about its badge, so only
- * Keepa-read Products count; a missing badge on one of them means under 50 a month.
+ * The sold badge against Keepa's current rank from the same read, counted per log-rank bin, over
+ * active Merch listings in Clothing whose Keepa read is under SALES_CURVE_WINDOW_DAYS old. The
+ * estimate is asked what a listing ranked here now sells; the 30-day average lags an in-season
+ * surge and overstated current ranks by up to 9x. A Product Keepa has not read says nothing about
+ * its badge, so only Keepa-read Products count; a missing badge on one of them means under 50 a
+ * month.
  */
 export const readSalesCurveObservations = async (
     marketplaceId: string,
@@ -23,7 +25,7 @@ export const readSalesCurveObservations = async (
 ): Promise<SalesObservation[]> => {
     const since = new Date(now.getTime() - SALES_CURVE_WINDOW_DAYS * DAY_MS).toISOString();
     const rows = await db.execute<{ bin: number; sold: number | null; count: number }>(sql`
-        select round(ln(${products.keepaBsrAverage30}) * ${sql.raw(String(BINS_PER_LOG))})::int bin,
+        select round(ln(${products.keepaCurrentBsr}) * ${sql.raw(String(BINS_PER_LOG))})::int bin,
             ${products.keepaMonthlySold} sold, count(*)::int count
         from ${products}
         where ${products.marketplaceId} = ${marketplaceId}
@@ -31,7 +33,7 @@ export const readSalesCurveObservations = async (
             and ${products.amazonListingStatus} = 'active'
             and ${products.rootCategoryId} = ${MERCH_ROOT_CATEGORY_ID}
             and ${products.keepaFetchedAt} >= ${since}::timestamp
-            and ${products.keepaBsrAverage30} > 0
+            and ${products.keepaCurrentBsr} > 0
         group by 1, 2`);
     return rows.map(row => ({
         bsr: Math.exp(row.bin / BINS_PER_LOG),
