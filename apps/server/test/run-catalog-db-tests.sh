@@ -331,6 +331,7 @@ bun test \
     apps/server/test/product-refresh-due.db.test.ts \
     apps/server/test/product-search-document.db.test.ts \
     apps/server/test/product-search.db.test.ts \
+    apps/server/test/product-search-ranking.db.test.ts \
     apps/server/test/product-search-grid.db.test.ts \
     apps/server/test/product-app-reads.db.test.ts \
     apps/server/test/product-history-series.db.test.ts \
