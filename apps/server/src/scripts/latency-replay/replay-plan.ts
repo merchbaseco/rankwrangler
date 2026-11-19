@@ -68,9 +68,7 @@ export const loadReplayPlan = ({
                 stack: current[0].stack,
                 recordedWallMs: Math.max(...current.map(row => Date.parse(row.end))) - first,
                 calls: current.map(row => ({
-                    tool: row.tool,
-                    operation: row.operation,
-                    input: rewriteInput(JSON.parse(row.input), asins, termPrefix),
+                    ...rewriteCall(row, asins, termPrefix),
                     offsetMs: Date.parse(row.start) - first,
                     recordedMs: row.duration_s * 1000,
                 })),
@@ -78,7 +76,10 @@ export const loadReplayPlan = ({
             current = [];
         };
         for (const row of agentRows) {
-            if (current.length > 0 && Date.parse(row.start) - Date.parse(current[0].start) > BURST_WINDOW_MS) {
+            if (
+                current.length > 0 &&
+                Date.parse(row.start) - Date.parse(current[0].start) > BURST_WINDOW_MS
+            ) {
                 flush();
             }
             current.push(row);
@@ -88,37 +89,50 @@ export const loadReplayPlan = ({
     return bursts.sort((a, b) => a.id.localeCompare(b.id));
 };
 
-// Recorded ASINs become seeded local ones (stable per ASIN), and keyword-results terms gain a
-// per-run prefix so each run starts cold while repeats within a run still reuse evidence.
-const rewriteInput = (
-    input: Record<string, unknown>,
+// Recorded calls are replayed in the current MCP contract. Recorded ASINs become seeded local
+// ones (stable per ASIN). A recorded keyword `results` call becomes the Product search that now
+// collects an uncollected term, its term prefixed per run so each run starts cold while repeats
+// within a run still reuse evidence.
+const rewriteCall = (
+    row: { tool: string; operation: string; input: string },
     asins: readonly string[],
     termPrefix: string
-): Record<string, unknown> => {
+) => {
     const localAsin = (asin: unknown) =>
         typeof asin === 'string' ? asins[hash(asin) % asins.length] : asin;
-    const next = { ...input };
-    if ('asin' in next) next.asin = localAsin(next.asin);
-    if (Array.isArray(next.products)) {
-        // Many recorded ASINs map onto one local ASIN; getMany requires unique identities.
-        const seen = new Set<string>();
-        next.products = next.products
-            .map(product =>
-                product && typeof product === 'object'
-                    ? { ...product, asin: localAsin((product as { asin?: unknown }).asin) }
-                    : product
-            )
-            .filter(product => {
-                const key = JSON.stringify(product);
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
+    const {
+        products,
+        text,
+        refresh: _refresh,
+        ...input
+    } = JSON.parse(row.input) as Record<string, unknown>;
+    if ('asin' in input) input.asin = localAsin(input.asin);
+    if (Array.isArray(products)) {
+        // Many recorded ASINs map onto one local ASIN; getMany requires unique ASINs.
+        input.asins = [
+            ...new Set(products.map(product => localAsin((product as { asin?: unknown })?.asin))),
+        ];
     }
-    if (next.operation === 'results' && typeof next.term === 'string') {
-        next.term = `${termPrefix} ${next.term}`;
+    if (row.operation === 'results' && typeof input.term === 'string') {
+        return {
+            tool: 'rankwrangler_product',
+            operation: 'search',
+            input: {
+                ...input,
+                operation: 'search',
+                term: `${termPrefix} ${input.term}`,
+                limit: 20,
+            },
+        };
     }
-    return next;
+    if (row.operation === 'search' && typeof text === 'string') {
+        return {
+            tool: row.tool,
+            operation: 'list',
+            input: { ...input, operation: 'list', term: text },
+        };
+    }
+    return { tool: row.tool, operation: row.operation, input };
 };
 
 const hash = (value: string) => {

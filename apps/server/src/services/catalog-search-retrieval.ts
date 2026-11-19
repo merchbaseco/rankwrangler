@@ -117,7 +117,7 @@ export const awaitCatalogSearchRetrieval = async (
                 const dispatched = await deps.dispatchOperation(resolution.operation);
                 if (!dispatched) {
                     throw new RetrievalRetryableError(
-                        'Keyword results are temporarily unavailable. Retry shortly.',
+                        'The Amazon search for this term is still being collected. Retry shortly.',
                         {
                             retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
                             reason: 'capacity',
@@ -145,7 +145,7 @@ export const awaitCatalogSearchRetrieval = async (
     }
     if (prepared.kind === 'cooldown') {
         throw new RetrievalRetryableError(
-            'Keyword results are temporarily unavailable. Retry shortly.',
+            'The Amazon search for this term is still being collected. Retry shortly.',
             {
                 retryAfterSeconds: prepared.retryAfterSeconds,
                 reason: 'capacity',
@@ -161,7 +161,7 @@ export const awaitCatalogSearchRetrieval = async (
         signal,
         timeoutMs,
         retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
-        retryMessage: 'Keyword results are temporarily unavailable. Retry shortly.',
+        retryMessage: 'The Amazon search for this term is still being collected. Retry shortly.',
         work: async () => await waitForCatalogSearchRun(prepared.operation, deps),
     });
     return await buildSearchResponse(runId, 'blocking', signal, timeoutMs, deps);
@@ -184,7 +184,7 @@ const buildSearchResponse = async (
     });
     if (!run) {
         throw new RetrievalRetryableError(
-            'Keyword results are temporarily unavailable. Retry shortly.',
+            'The Amazon search for this term is still being collected. Retry shortly.',
             { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
         );
     }
@@ -201,7 +201,7 @@ const waitForCatalogSearchRun = async (
         const operation = await deps.getOperationById(operationId);
         if (!operation || operation.type !== 'catalogSearch') {
             throw new RetrievalRetryableError(
-                'Keyword results are temporarily unavailable. Retry shortly.',
+                'The Amazon search for this term is still being collected. Retry shortly.',
                 { retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS, reason: 'capacity' }
             );
         }
@@ -212,7 +212,7 @@ const waitForCatalogSearchRun = async (
     }
 
     throw new RetrievalRetryableError(
-        'Keyword results are temporarily unavailable. Retry shortly.',
+        'The Amazon search for this term is still being collected. Retry shortly.',
         {
             retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
             reason: 'deadline',
@@ -227,7 +227,7 @@ const resolveCompletedCatalogSearch = (
         return operation.resource.runId;
     }
     throw new RetrievalRetryableError(
-        'Keyword results are temporarily unavailable. Retry shortly.',
+        'The Amazon search for this term is still being collected. Retry shortly.',
         {
             retryAfterSeconds: CATALOG_SEARCH_RETRY_AFTER_SECONDS,
             reason: 'capacity',

@@ -35,15 +35,15 @@ The dataset is `calls.jsonl` from Factory's handoff (`RW_REPLAY_DATASET`, defaul
 `~/.factory/handoff/rankwrangler-latency/calls.jsonl`). Recorded ASINs map onto fresh local Products,
 so the database needs `bun run db:seed:dev` within the last day.
 
-The recorded calls use the MCP contract before server version 0.7.0: keyword `results` and
-`getMany` `products`. The 0.7.0 server rejects both with `INVALID_INPUT`, so those calls fail fast
-until the replay maps them onto Product search and `asins`.
+The recorded calls predate MCP server version 0.7.0. The replay translates them: keyword `results`
+becomes a Product `search` of the prefixed term (which collects a cold term through the live
+fallback), keyword `search` becomes `list` with `term`, and `getMany` `products` become `asins`.
 
 ## Calibration
 
 Production holds Keepa about 4s for an interactive search and answered a live keyword collection
-(then `keyword results`, now the Product search fallback) in about 16s; the rest is saving the run and SP-API enrichment of new result Products against a remote
-database. `RW_REPLAY_KEEPA_SEARCH_MS=4000 RW_REPLAY_DB_RTT_MS=20` reproduces that: a lone live call
+(then `keyword results`, now the Product search fallback) in about 16s; the rest is saving the run
+and SP-API enrichment of new result Products against a remote database. `RW_REPLAY_KEEPA_SEARCH_MS=4000 RW_REPLAY_DB_RTT_MS=20` reproduces that: a lone live call
 takes 5.0s at 0ms and 15.6s at 20ms, so it makes about 530 sequential database round trips. Without
 a database RTT, the 14s Keepa default folds all of that into Keepa time instead. With
 `--client factory` the replay reproduces the recorded total burst wall time to within about 10%.

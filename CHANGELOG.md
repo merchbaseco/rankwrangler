@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.18.0 - 2026-11-19
+
+### Added
+
+- Product search items carry `estimatedMonthlySales`, an order-of-magnitude estimate from the
+  rank-to-sales curve, and `keywordPosition`, Amazon's last observed top-20 position for exactly
+  the searched term.
+- Product search sorts by `estimatedMonthlySalesDesc`, the larger of the estimate and Amazon's
+  bought-in-past-month badge, and uses it as the default sort.
+- A first Product search page that finds nothing for a term Amazon was never searched for collects
+  that search, waits for it, and answers from the refreshed catalog.
+- MCP Product `search` takes `contactSheet: true` and adds one JPEG grid of the returned items'
+  images, each labelled with its index.
+- An MCP `INVALID_INPUT` for an unknown or misplaced field names the field to use instead.
+
+### Changed
+
+- **Breaking:** Product search matches the title only; brand, bullets and keyword membership no
+  longer add Products. `textFields` is removed and `excludeWords` test the title.
+- **Breaking:** `relevance` orders by `keywordPosition`, then title match.
+- **Breaking:** Product search takes one `marketplaceId` instead of `marketplaceIds`; the
+  `monthlySold` filter and `monthlySoldDesc` sort are `boughtInPastMonth` and
+  `boughtInPastMonthDesc`.
+- **Breaking:** Product fields are flat. Search items and `getMany` carry `imageUrl` instead of
+  `thumbnail`; search items carry `salesRankAverages`, `salesRankDrops` and `boughtInPastMonth`
+  instead of `averages` and `demand`. Product `get` carries `listing.imageUrl`, a numeric
+  `salesRank`, `salesRankAverages`, `boughtInPastMonth`, `estimatedMonthlySales` and
+  `salesRankDrops`.
+- **Breaking:** `product.getMany` takes `{ asins, marketplaceId? }` instead of `products`.
+- **Breaking:** `keyword.search` is `keyword.list` with `term`; MCP keyword `search` is `list`.
+  The CLI's `rw keyword search` is `rw keyword list`, and `--minMonthlySold/--maxMonthlySold` are
+  `--minBoughtInPastMonth/--maxBoughtInPastMonth`.
+- MCP server version 0.7.0.
+
+### Removed
+
+- **Breaking:** `keyword.results`, the MCP keyword `results` operation, and the CLI's
+  `rw keyword results`, `--refresh` and `--textFields`.
+
 ## v0.17.0 - 2026-11-18
 
 ### Changed

@@ -62,6 +62,17 @@ if [ -n "$MERCHBASE_API_KEY" ]; then
       -H "Authorization: Bearer $MERCHBASE_API_KEY" \
       --data-urlencode 'input={"term":"fishing","salesRank":{"max":300000},"limit":5}' | jq '.'
     echo ""
+    echo "📦 Testing api.public.product.getMany..."
+    curl -s -X POST "$API_BASE/api/api.public.product.getMany" \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $MERCHBASE_API_KEY" \
+      -d '{"asins":["B0DV53VS61"]}' | jq '.'
+    echo ""
+    echo "🗂️ Testing api.public.keyword.list..."
+    curl -s -G "$API_BASE/api/api.public.keyword.list" \
+      -H "Authorization: Bearer $MERCHBASE_API_KEY" \
+      --data-urlencode 'input={"term":"fishing","limit":5}' | jq '.'
+    echo ""
     echo "📈 Testing api.public.product.history..."
     curl -s -X POST "$API_BASE/api/api.public.product.history" \
       -H "Content-Type: application/json" \
