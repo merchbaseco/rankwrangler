@@ -118,8 +118,9 @@ observed numeric BSR improvement, not a confirmed sale.
 is deleted. `salesRank` is the current root-category BSR. `boughtInPastMonth` is Amazon's bucketed
 "bought in past month" badge (50, 100, 200, and so on up to 1K+); `null` means no badge was
 observed, not zero sales. `estimatedMonthlySales` is an order-of-magnitude estimate from the
-server's fitted rank-to-sales curve at the 30-day average rank, or the current rank without one.
-It is `null` without a rank or a fitted curve, and it is never a sales count.
+server's fitted rank-to-sales curve at the current rank, or the 30-day average rank without one.
+It is `null` without a rank or a fitted curve, and outside Clothing (root category 7141123011),
+the only category the curve is fitted on. It is never a sales count.
 
 `marketData` checks current Keepa-backed rank, price, and sales data under the existing retrieval
 policy. Omitting it skips that Keepa history check and returns nullable rank, price, and sales

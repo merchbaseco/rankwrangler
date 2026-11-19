@@ -118,7 +118,7 @@ cutout work.
 
 `listing.bulletPoints` is always an array, with `[]` for no bullets. Keepa's `monthlySold` is
 published as `boughtInPastMonth`. `estimatedMonthlySales` comes from the rank-to-sales curve below,
-at the 30-day average rank or else the current rank.
+at the current rank or else the 30-day average rank, for Clothing listings only.
 
 ## Dashboard Product Reads
 
@@ -216,8 +216,10 @@ or a block sample.
 ### Sales estimate: the rank-to-sales curve
 
 Sold/mo shows Amazon's "bought in past month" badge (Keepa `monthlySold`) when a Product has one,
-and otherwise `~N`, the median of `api.app.product.salesCurve` at the Product's 30-day average
-rank. The curve is fitted from the catalog, not fixed: active US Merch listings in Clothing
+and otherwise `~N`, the search item's `estimatedMonthlySales`: the curve's median at the current
+rank (or the 30-day average without one), for Clothing listings only. The current rank leads
+because a seasonal seller's 30-day average lags its surge by an order of magnitude; a Thanksgiving
+shirt at 28,719 today averaged 834,826 over the month. The curve is fitted from the catalog, not fixed: active US Merch listings in Clothing
 (root category 7141123011) whose Keepa read is under 30 days old, counted per log-rank bin of the
 30-day average BSR and badge value. The badge and that average cover the same trailing month,
 and a Product Keepa has not read says nothing about its badge, so unread Products are left out.

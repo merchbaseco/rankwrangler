@@ -348,16 +348,11 @@ describe('public Product read model', () => {
         });
     });
 
-    it('estimates monthly sales from the 30-day average rank and exposes the main image', () => {
-        const curve = {
-            referenceBsr: 100_000,
-            intercept: Math.log(40),
-            headSlope: -1,
-            tailSlope: -2,
-        };
+    it('estimates Clothing monthly sales from the current rank and exposes the main image', () => {
         const result = mapProductToPublicProduct(
             {
                 ...createProductInfo(),
+                rootCategoryId: 7_141_123_011,
                 thumbnail: {
                     status: 'available',
                     url: 'https://m.media-amazon.com/images/I/a.jpg',
@@ -367,11 +362,24 @@ describe('public Product read model', () => {
             curve
         );
 
-        // 40 · (15,000 / 100,000)^-1 ≈ 266.67 at the 30-day average, not the current 12,345.
-        expect(result.estimatedMonthlySales).toBe(267);
+        // 40 · (12,345 / 100,000)^-1 ≈ 324.02 at the current rank, not the 30-day average 15,000.
+        expect(result.estimatedMonthlySales).toBe(324);
         expect(result.listing.imageUrl).toBe('https://m.media-amazon.com/images/I/a.jpg');
     });
+
+    it('does not estimate outside Clothing, where the curve was not fitted', () => {
+        const result = mapProductToPublicProduct(createProductInfo(), true, curve);
+
+        expect(result.estimatedMonthlySales).toBeNull();
+    });
 });
+
+const curve = {
+    referenceBsr: 100_000,
+    intercept: Math.log(40),
+    headSlope: -1,
+    tailSlope: -2,
+};
 
 const createProductInfo = (): ProductInfo => ({
     asin: 'B012345678',

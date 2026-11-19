@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { productSearchInput } from '@/api/product-search-input';
 import { db } from '@/db/index';
 import { searchStoredProducts } from '@/db/product-search';
+import { MERCH_ROOT_CATEGORY_ID } from '@/db/sales-curve-observations';
 import {
     catalogQueries,
     catalogSearchResults,
@@ -77,14 +78,17 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 tailSlope: -1,
             };
             await insertProduct('B0STRONG01', { rootCategoryBsr: 3_000 });
+            // Seasonal surges: the current rank leads, not the lagging 30-day average.
             await insertProduct('B0AVERAGE1', {
-                rootCategoryBsr: 30_000,
-                keepaBsrAverage30: 60_000,
+                rootCategoryBsr: 60_000,
+                keepaBsrAverage30: 900_000,
             });
             await insertProduct('B0AVERAGE2', {
-                rootCategoryBsr: 30_000,
-                keepaBsrAverage30: 60_000,
+                rootCategoryBsr: 60_000,
+                keepaBsrAverage30: 900_000,
             });
+            // Outside Clothing the curve says nothing, whatever the rank.
+            await insertProduct('B0PHONECAS', { rootCategoryBsr: 1_000, rootCategoryId: 2_335_752_011 });
             await insertProduct('B0BADGE200', { rootCategoryBsr: null, keepaMonthlySold: 200 });
             await insertProduct('B0BADGE100', { rootCategoryBsr: 600_000, keepaMonthlySold: 100 });
             await insertProduct('B0BADGE050', { rootCategoryBsr: 1_000_000, keepaMonthlySold: 50 });
@@ -111,12 +115,15 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 new Set(['B0AVERAGE1', 'B0AVERAGE2'])
             );
             expect(items.slice(1, 3).map(item => item.estimatedMonthlySales)).toEqual([500, 500]);
-            expect(items.slice(3)).toEqual([
+            expect(items.slice(3, 6)).toEqual([
                 { asin: 'B0BADGE200', estimatedMonthlySales: null },
                 { asin: 'B0BADGE100', estimatedMonthlySales: 50 },
                 { asin: 'B0BADGE050', estimatedMonthlySales: 30 },
-                { asin: 'B0NOTHING1', estimatedMonthlySales: null },
             ]);
+            expect(new Set(items.slice(6).map(item => item.asin))).toEqual(
+                new Set(['B0PHONECAS', 'B0NOTHING1'])
+            );
+            expect(items.slice(6).map(item => item.estimatedMonthlySales)).toEqual([null, null]);
         });
 
         it('falls back to the badge when no curve is fitted', async () => {
@@ -143,6 +150,7 @@ const insertProduct = async (asin: string, extra: Partial<typeof products.$infer
             asin,
             title: 'Fishing shirt',
             isMerchListing: true,
+            rootCategoryId: MERCH_ROOT_CATEGORY_ID,
             rootCategoryBsr: 100,
             ...extra,
         })

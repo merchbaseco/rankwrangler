@@ -37,9 +37,9 @@ export const readSalesCurve = async (marketplaceId = US_MARKETPLACE_ID) => {
 
 /**
  * The curve's median monthly sales at a rank, rounded and at least 1: an order of magnitude,
- * never a count. Null without a positive rank or a curve. Pass the 30-day average rank where
- * there is one (the curve is fitted against it). estimatedMonthlySalesColumn is the same
- * estimate in SQL, and the website's estimateMonthlySales the same in the browser.
+ * never a count. Null without a positive rank or a curve. Callers pass the current rank (the
+ * 30-day average lags a seasonal surge) and only for Clothing, the category the curve is fitted
+ * on. estimatedMonthlySalesColumn is the same estimate in SQL.
  */
 export const estimateMonthlySales = (curve: SalesCurveParameters | null, rank: number | null) => {
     if (!curve || rank === null || rank <= 0) {

@@ -1,5 +1,6 @@
 import type { ProductGetInclude } from '@/api/public/product-input';
 import type { SalesCurveParameters } from '@/db/product-search-ranking';
+import { MERCH_ROOT_CATEGORY_ID } from '@/db/sales-curve-observations';
 import type { ProductHistorySurfaceInput } from '@/services/product-history-surface.js';
 import { getProductHistorySurface } from '@/services/product-history-surface.js';
 import type { AmazonListingStatus, ProductInfo } from '@/types/index.js';
@@ -222,7 +223,10 @@ export const mapProductToPublicProduct = (
         },
         price: keepa?.currentNewPrice ?? null,
         boughtInPastMonth: keepa?.monthlySold ?? null,
-        estimatedMonthlySales: estimateMonthlySales(curve, average30 ?? salesRank),
+        estimatedMonthlySales:
+            product.rootCategoryId === MERCH_ROOT_CATEGORY_ID
+                ? estimateMonthlySales(curve, salesRank ?? average30)
+                : null,
         salesRankDrops: {
             last30Days: keepa?.salesRankDrops.days30 ?? null,
             last90Days: keepa?.salesRankDrops.days90 ?? null,

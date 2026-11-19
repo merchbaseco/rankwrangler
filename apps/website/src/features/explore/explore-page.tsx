@@ -2,7 +2,6 @@ import type { Selection } from '@heroui/react';
 import { DataGrid, type DataGridSortDescriptor } from '@heroui-pro/react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSalesCurve } from '@/features/bsr/use-sales-curve';
 import { GridDensityToggle } from '@/features/grid/grid-density-toggle';
 import { GridPager } from '@/features/grid/grid-pager';
 import {
@@ -51,7 +50,6 @@ export const ExplorePage = () => {
     const { facets, isStale: facetsStale } = useExploreFacets(filters);
     const seasonality = useExploreSeasonality(filters);
     const keyword = filters.q.trim();
-    const curve = useSalesCurve();
     // The facets' total counts the same set exactly when an index finds it (otherwise it is
     // scaled from a sample, like the page's own estimate past 10K).
     const exactTotal = facets && !facetsStale && !facets.totalIsEstimate ? facets.total : null;
@@ -61,8 +59,8 @@ export const ExplorePage = () => {
     const [now] = useState(() => Date.now());
     const offset = (filters.page - 1) * filters.pageSize;
     const rows = useMemo(
-        () => toExploreRows(products.products, { curve, now, offset }),
-        [products.products, curve, now, offset]
+        () => toExploreRows(products.products, { now, offset }),
+        [products.products, now, offset]
     );
     const ids = useMemo(() => rows.map(row => row.asin), [rows]);
     const cursor = rows.some(row => row.asin === cursorAsin) ? cursorAsin : null;
