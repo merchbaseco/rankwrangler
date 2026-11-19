@@ -8,7 +8,7 @@ import {
 
 const caller = { serviceAccountId: 'account-1', ownerMerchbaseUserId: 'mbu_test' };
 
-describe('public Product search collection fallback', () => {
+describe('MCP Product search collection fallback', () => {
     it('collects an uncollected term once when its first page is empty, then searches again', async () => {
         const deps = createDeps({ pages: [page([]), page(['B000000001'])], collected: false });
 

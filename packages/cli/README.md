@@ -16,8 +16,8 @@ rw keyword list "retro gardening"
 
 The public command surface is Product `get/search/history`, keyword `get/list`, auth, config,
 version, and changelog. Product search reads the collected database, matches titles, and supports
-filters, sorting (default `estimatedMonthlySalesDesc`), and cursor pagination. A first page that
-finds nothing for a never-collected term waits while RankWrangler collects it. Every read uses
+filters, sorting (default `estimatedMonthlySalesDesc`), and cursor pagination. It never waits to
+collect a new term. Every read uses
 server-owned freshness policy, and unknown options fail with `INVALID_INPUT`.
 Output is a JSON `{ ok, data }` envelope; failures use `{ ok: false, error }` on stderr.
 The CLI does not expose Catalog, Operation, provider status, or polling commands.

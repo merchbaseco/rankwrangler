@@ -89,8 +89,8 @@ With several ASINs, `--shortName` fails with `INVALID_INPUT`; request each ASIN 
 Product search reads the collected database, including when no text is supplied, and returns flat
 Product items and `nextCursor`. Defaults are US marketplace, known Merch listings, active listings,
 hidden known official brands, and `estimatedMonthlySalesDesc` order. Unknown official-brand status
-remains visible. Text matches every term in the title. A first page that finds nothing for a term
-never collected waits for the [live fallback](public-api.md#live-fallback).
+remains visible. Text matches every term in the title. Search never collects a new term; the
+[live fallback](mcp.md#live-fallback) belongs to the MCP Product tool.
 
 ```bash
 rw product search fishing --maxBsr 300000 --availableAfter 2026-09-01 --sort firstAvailableAtDesc

@@ -65,9 +65,9 @@ rw keyword get "retro gardening shirt"
 rw keyword list "retro gardening"
 ```
 
-Public Product search matches titles and sorts by estimated monthly sales by default. A first page
-that finds nothing for a term Amazon's first page was never collected for waits while that
-collection runs, and the collection renews a 30-day research lease.
+Public Product search matches titles and sorts by estimated monthly sales by default. On the MCP
+Product tool, a first page that finds nothing for a term Amazon's first page was never collected
+for waits while that collection runs, and the collection renews a 30-day research lease.
 General catalog searches record interest; the dashboard's as-you-type search does not, and records a
 phrase only when it is submitted. Background checks adapt to demand and observed change;
 continuous SP-API acquisition expands through user searches, weekly Amazon Brand Analytics search

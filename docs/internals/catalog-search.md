@@ -34,8 +34,9 @@ Public contract details belong in [Public API](../reference/public-api.md#produc
 
 ## External keyword observations
 
-The workflow below now serves the public Product search's live fallback, which runs it for a first
-page that finds nothing for a term with no stored Keepa first-page run, then searches again. The
+The workflow below now serves the MCP Product search's live fallback, which runs it for a first
+page that finds nothing for a term with no stored Keepa first-page run, then searches again. Public
+tRPC Product search never runs it; the extension calls that search on every Amazon search. The
 dashboard's explicit collection and retained-run reads use the same durable observations. No public
 procedure returns Search runs directly.
 

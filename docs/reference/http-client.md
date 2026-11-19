@@ -61,8 +61,7 @@ const keywords = await client.keyword.list.query({
 ```
 
 `search` contains flat `items`, an opaque `nextCursor`, and nullable keyword `coverage`. It reads
-stored Products, except that a first page that finds nothing for a never-collected term waits for
-the live fallback. See [Public API](public-api.md#product-search) for filters, title matching,
+stored Products only; the [live fallback](mcp.md#live-fallback) belongs to the MCP Product tool. See [Public API](public-api.md#product-search) for filters, title matching,
 sorts, item fields, paging, and coverage.
 History output uses `range.interval`; every requested series has an always-present nullable summary,
 and price history has no scale field.

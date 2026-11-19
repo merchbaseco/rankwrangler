@@ -1,25 +1,21 @@
 import { productSearchInput } from '@/api/product-search-input';
 import { publicApiProcedure } from '@/api/trpc';
-import { searchProductsCollectingTerm } from '@/services/product-search-collection';
+import { searchProducts } from '@/services/product-search';
 import { consumeServiceAccountUsageForRequest } from './consume-service-account-usage';
 
 export interface ProductSearchProcedureDeps {
-    searchProducts: typeof searchProductsCollectingTerm;
+    searchProducts: typeof searchProducts;
     consumeServiceAccountUsageForRequest: typeof consumeServiceAccountUsageForRequest;
 }
 const defaultDeps: ProductSearchProcedureDeps = {
-    searchProducts: searchProductsCollectingTerm,
+    searchProducts,
     consumeServiceAccountUsageForRequest,
 };
 
 export const createProductSearchProcedure = (deps: ProductSearchProcedureDeps = defaultDeps) =>
-    publicApiProcedure.input(productSearchInput).query(async ({ input, ctx, signal }) => {
+    publicApiProcedure.input(productSearchInput).query(async ({ input, ctx }) => {
         await deps.consumeServiceAccountUsageForRequest(ctx, 1);
-        return await deps.searchProducts(input, {
-            serviceAccountId: ctx.accessPrincipal.id,
-            ownerMerchbaseUserId: ctx.accessPrincipal.merchbaseUserId,
-            signal,
-        });
+        return await deps.searchProducts(input);
     });
 
 export const productSearch = createProductSearchProcedure();

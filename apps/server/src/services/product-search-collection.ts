@@ -19,11 +19,12 @@ const defaultDeps: CollectingProductSearchDeps = {
 };
 
 /**
- * The public Product search. When a first page with a term finds nothing and Amazon's search for
+ * The MCP Product search. When a first page with a term finds nothing and Amazon's search for
  * that exact term has never been collected, it starts (or joins) that collection, waits for it,
  * and searches again, so a niche the catalog has not seen yet answers on the first call. Pages
  * after the first, searches that found something, and terms already collected answer from the
- * stored catalog alone. Collection is US-only.
+ * stored catalog alone. Collection is US-only. Public tRPC search never collects: the extension
+ * calls it on every Amazon search to record keyword interest.
  */
 export const searchProductsCollectingTerm = async (
     input: ProductSearchInput,

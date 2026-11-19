@@ -30,11 +30,11 @@ and retry hint. Dashboard `api.app.*` procedures are separate interactive Cloudf
 
 ## Retrieval Contract
 
-Product search reads the stored catalog. Its one provider wait is the
-[live fallback](#live-fallback) for a term Amazon's first page was never collected for. Other
-retrieval capabilities own their freshness policies. Missing or policy-expired data can start or
-join durable work and wait. Caller deadline exhaustion does not cancel that work, and a
-retry coalesces with it.
+Public Product search reads the stored catalog and never waits on a provider; the MCP Product
+tool's search adds a [live fallback](mcp.md#live-fallback) for a term Amazon's first page was never
+collected for. Other retrieval capabilities own their freshness policies. Missing or
+policy-expired data can start or join durable work and wait. Caller deadline exhaustion does not
+cancel that work, and a retry coalesces with it.
 
 Product `get` and `getMany` serve last-known listing data for any Product with a resolved listing:
 a policy-expired read returns the stored title, image, and `amazonListingStatus` immediately and
@@ -186,9 +186,10 @@ the existing asynchronous history-refresh policy.
 ## Product search
 
 `product.search` is a database query over the stored catalog. It returns
-`{ items, nextCursor, coverage }` without Product enrichment or history collection. Apart from the
-[live fallback](#live-fallback), an empty result is a valid answer and does not establish that
-Amazon has no matching Products.
+`{ items, nextCursor, coverage }` without Product enrichment, history collection, or keyword
+collection, so the extension can call it on every Amazon search to record keyword interest. An
+empty result is a valid answer and does not establish that Amazon has no matching Products. The MCP
+Product tool's search adds a [live fallback](mcp.md#live-fallback) for a never-collected term.
 
 | Input | Meaning and default |
 | --- | --- |
@@ -266,19 +267,6 @@ exhaustive results. Other reads return `coverage: null`.
 The read records normalized keyword interest without renewing an explicit research lease. Background
 admission, checks and exploration run independently. Source timestamps remain separate from Product
 counts.
-
-### Live fallback
-
-A first page (no `cursor`) with a `term` in the US marketplace that finds nothing, for a term with
-no stored Keepa first-page search of its normalized form, starts or joins that collection, waits
-for it, and searches the stored catalog again. Products the collection surfaces that RankWrangler
-has never resolved are resolved before the second search. Equivalent requests share the work, and
-the collection renews the term's 30-day research lease. Later pages, searches that found something,
-and terms already collected answer from the stored catalog alone.
-
-An exceeded usage limit produces `TOO_MANY_REQUESTS`; other billing refusals produce
-`SERVICE_UNAVAILABLE`. Missing collection capacity, provider failure, and deadline exhaustion
-produce a retryable `TIMEOUT`. The dashboard's Product search has no fallback.
 
 ## Product History
 

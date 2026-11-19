@@ -11,8 +11,9 @@ All notable changes to this project will be documented in this file.
   the searched term.
 - Product search sorts by `estimatedMonthlySalesDesc`, the larger of the estimate and Amazon's
   bought-in-past-month badge, and uses it as the default sort.
-- A first Product search page that finds nothing for a term Amazon was never searched for collects
-  that search, waits for it, and answers from the refreshed catalog.
+- A first MCP Product search page that finds nothing for a term Amazon was never searched for
+  collects that search, waits for it, and answers from the refreshed catalog. Public tRPC
+  `product.search` stays a stored read.
 - MCP Product `search` takes `contactSheet: true` and adds one JPEG grid of the returned items'
   images, each labelled with its index.
 - An MCP `INVALID_INPUT` for an unknown or misplaced field names the field to use instead.

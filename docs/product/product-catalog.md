@@ -48,7 +48,7 @@ Matching does not stem words or expand concepts. Explicit word and brand exclusi
 result further. Results default to the best estimated sellers first.
 
 Search answers from stored data with flat market metrics. Current BSR uses the canonical
-root-category value consistently for filtering, ordering, and output. A public first page that
+root-category value consistently for filtering, ordering, and output. An MCP first page that
 finds nothing for a term Amazon's first page was never collected for waits while RankWrangler
 collects it (see [Keyword search observations](catalog-search.md)); every other search answers at
 once. A dated keyword observation can explain collection coverage, but a small or empty result

@@ -4,9 +4,9 @@ import { router } from '@/api/trpc';
 import { createProductSearchProcedure } from './product-search';
 
 describe('public stored Product search', () => {
-    it('returns stored matches with defaults and one usage debit', async () => {
+    it('returns stored matches with defaults and one usage debit, never collecting', async () => {
         const response = { items: [], nextCursor: null, coverage: null };
-        const searchProducts = mock(async (_input: unknown, _caller: unknown) => response);
+        const searchProducts = mock(async (..._args: unknown[]) => response);
         const consumeServiceAccountUsageForRequest = mock(async () => undefined);
         const caller = router({
             search: createProductSearchProcedure({
@@ -24,10 +24,8 @@ describe('public stored Product search', () => {
             sort: 'estimatedMonthlySalesDesc',
             limit: 50,
         });
-        expect(searchProducts.mock.calls[0]?.[1]).toMatchObject({
-            serviceAccountId: '11111111-1111-4111-8111-111111111111',
-            ownerMerchbaseUserId: 'mbu_test',
-        });
+        // Collection needs the caller's identity; the stored search receives only the input.
+        expect(searchProducts.mock.calls[0]).toHaveLength(1);
         expect(consumeServiceAccountUsageForRequest.mock.calls).toHaveLength(1);
     });
     it('rejects inverted ranges before querying or debiting', async () => {

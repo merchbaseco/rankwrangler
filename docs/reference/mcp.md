@@ -53,7 +53,7 @@ refresh it in the background; they wait only for Products with no resolved listi
 
 Product `search` returns `items`, `nextCursor`, and `coverage`. Text matches titles only, the
 default sort is `estimatedMonthlySalesDesc`, and a first page that finds nothing for a term never
-collected waits for the [live fallback](public-api.md#live-fallback). Empty results otherwise do
+collected waits for the [live fallback](#live-fallback). Empty results otherwise do
 not prove a niche is empty. Pass `nextCursor` as `cursor` for the next page with the same filters
 and sort.
 
@@ -86,6 +86,21 @@ always `true` or `false`; Product listing availability is exposed separately as
 `amazonListingStatus`.
 
 `rankwrangler_status` does not report data or provider health, freshness, timestamps, or work state.
+
+### Live fallback
+
+MCP Product `search` collects a never-seen term; public tRPC `product.search` never does, because
+the extension calls it on every Amazon search. A first page (no `cursor`) with a `term` in the US
+marketplace that finds nothing, for a term with no stored Keepa first-page search of its normalized
+form, starts or joins that collection, waits for it, and searches the stored catalog again.
+Products the collection surfaces that RankWrangler has never resolved are resolved before the
+second search. Equivalent requests share the work, and the collection renews the term's 30-day
+research lease. Later pages, searches that found something, and terms already collected answer
+from the stored catalog alone.
+
+An exceeded usage limit produces `RATE_LIMITED`. Other billing refusals, missing collection
+capacity, provider failure, and deadline exhaustion produce a retryable `TEMPORARILY_UNAVAILABLE`.
+The dashboard's Product search has no fallback.
 
 ## Errors
 

@@ -37,9 +37,8 @@ const keywords = await client.keyword.list.query({
 
 The client is scoped to `api.public.*`. Product `search` reads the stored catalog and returns
 `{ items, nextCursor, coverage }`. Its optional term matches titles; filters and sorts screen flat
-Products with market metrics, by default in `estimatedMonthlySalesDesc` order. A first page that
-finds nothing for a term Amazon's first page was never collected for waits while RankWrangler
-collects it.
+Products with market metrics, by default in `estimatedMonthlySalesDesc` order. It answers from
+stored data only and never waits to collect a new term.
 
 Product `get` returns the current Product. `getMany` takes `products`, unique
 `{ marketplaceId, asin }` pairs, and returns basic listing data. `history` returns compact rank and

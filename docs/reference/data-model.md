@@ -86,8 +86,8 @@ one pending `catalogSearch` Operation exists per Catalog query. Product
 history, its successful import audit, Product freshness, and successful Operation completion commit
 atomically. A schema migration for the Operations table must be generated before deployment.
 Catalog-search success similarly commits Products, histories, the Search run/results, query
-watermark, and `catalogSearchRun` Operation resource atomically. A `product.search` live-fallback
-collection renews the research lease. Other `product.search` reads record interest without
+watermark, and `catalogSearchRun` Operation resource atomically. An MCP Product search live-fallback
+collection renews the research lease. Other Product search reads record interest without
 extending that lease. Background scheduling uses admitted tiers and persisted due dates.
 
 Catalog run reads never reconstruct observations from Product. Retained membership and placement

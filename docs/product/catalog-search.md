@@ -22,11 +22,13 @@ first.
 
 ## Live fallback
 
-A first page that finds nothing for a term with no stored observation starts or joins that
+An MCP Product search first page that finds nothing for a term with no stored observation starts
+or joins that
 term's collection, waits for it and for resolution of Products RankWrangler has never seen, then
 searches the stored catalog again. A niche the catalog has not seen yet therefore answers on the
 first call. Every other search answers from stored data at once. Provider failures and caller
-deadlines produce the shared retryable error. The dashboard's search never collects.
+deadlines produce the shared retryable error. Public tRPC search, which the extension and CLI use,
+and the dashboard's search never collect.
 
 The Keywords dashboard shows the stored directory and its collection lifecycle.
 
