@@ -70,6 +70,10 @@ const herouiStyleAllowlist: Record<string, string> = {
         "cover's full-height floor would override the sheet's max-height cap",
     'overrides.css .navbar.app-banner color':
         "the banner's graphite ink; the body's light-theme ink would vanish on it",
+    'grid-overrides.css .kpi-group.grid-kpis .grid-kpi--results .kpi__header min-height':
+        'the label line holds the height of a filter control, so filtering never shifts the grid',
+    'grid-overrides.css .kpi-group.grid-kpis .grid-kpi--results .active-filters scrollbar-width':
+        'overflowing filter tags scroll sideways without a bar adding height',
     'grid-overrides.css .data-grid.hairline-grid--fixed .table__content table-layout':
         'columns take their width tokens, so the KPI cells above span exact column groups',
     'grid-overrides.css .data-grid.hairline-grid--fixed .table__scroll-container scrollbar-gutter':

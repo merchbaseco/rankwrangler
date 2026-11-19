@@ -124,9 +124,38 @@
         border-bottom: 1px solid var(--border);
     }
 
-    /* The first cell's active-filter tags wrap onto a second line rather than clip. */
+    /*
+     * The first cell's label line swaps the mix summary for filter tags and a small Clear button,
+     * so it holds one small control's height (stock `button--sm`: 9, 8 from md) on one line
+     * whatever it shows; extra tags scroll sideways instead of wrapping, so filtering never
+     * moves the bar or the grid.
+     */
     .kpi-group.grid-kpis .grid-kpi--results .kpi__header {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        align-items: center;
+        min-height: calc(var(--spacing) * 9);
+    }
+
+    @media (min-width: 48rem) {
+        .kpi-group.grid-kpis .grid-kpi--results .kpi__header {
+            min-height: calc(var(--spacing) * 8);
+        }
+    }
+
+    .kpi-group.grid-kpis .grid-kpi--results .active-filters {
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+        white-space: nowrap;
+    }
+
+    .kpi-group.grid-kpis .grid-kpi--results .active-filters > .tag-group__list {
+        flex-wrap: nowrap;
+    }
+
+    .kpi-group.grid-kpis .grid-kpi--results .active-filters .tag {
+        flex-shrink: 0;
     }
 
     /* Stat labels at the body size and regular weight, muted (Grid J). */
