@@ -19,10 +19,24 @@ export const estimateMonthlySales = (
     return Math.max(1, Math.round(curveMonthlySales(curve, salesRank)));
 };
 
-/** The curve's median monthly sales at a positive rank, unrounded (for drawing it). */
+/**
+ * The curve's median monthly sales at a positive rank, unrounded (for drawing
+ * it): linear in log rank on three segments, `headSlope` before the first
+ * fitted bend, a straight line between the bends, `tailSlope` past the second.
+ * The server's curveMedianSales is the same math.
+ */
 export const curveMonthlySales = (curve: SalesCurve, salesRank: number) => {
-    const slope = salesRank < curve.referenceBsr ? curve.headSlope : curve.tailSlope;
-    return Math.exp(curve.intercept + slope * Math.log(salesRank / curve.referenceBsr));
+    const first = Math.log(curve.knots[0]);
+    const second = Math.log(curve.knots[1]);
+    const [atFirst, atSecond] = curve.logSalesAtKnots;
+    const x = Math.log(salesRank);
+    if (x < first) {
+        return Math.exp(atFirst + curve.headSlope * (x - first));
+    }
+    if (x > second) {
+        return Math.exp(atSecond + curve.tailSlope * (x - second));
+    }
+    return Math.exp(atFirst + ((atSecond - atFirst) * (x - first)) / (second - first));
 };
 
 /**

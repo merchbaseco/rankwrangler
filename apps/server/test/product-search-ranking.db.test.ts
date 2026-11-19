@@ -70,13 +70,14 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
         });
 
         it('ranks estimated monthly sales above sparse badges and pages without gaps or repeats', async () => {
-            // 100 · (300,000 / rank): rank 3,000 → 10,000; 60,000 → 500; 600,000 → 50; 1M → 30.
+            // 100 · (300,000 / rank) on all three segments: rank 3,000 → 10,000 (head);
+            // 60,000 → 500 (between the bends); 600,000 → 50 and 1M → 30 (tail).
             const curve = {
-                referenceBsr: 300_000,
-                intercept: Math.log(100),
+                knots: [30_000, 300_000],
+                logSalesAtKnots: [Math.log(1_000), Math.log(100)],
                 headSlope: -1,
                 tailSlope: -1,
-            };
+            } as const;
             await insertProduct('B0STRONG01', { rootCategoryBsr: 3_000 });
             // Seasonal surges: the current rank leads, not the lagging 30-day average.
             await insertProduct('B0AVERAGE1', {
@@ -88,7 +89,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 keepaBsrAverage30: 900_000,
             });
             // Outside Clothing the curve says nothing, whatever the rank.
-            await insertProduct('B0PHONECAS', { rootCategoryBsr: 1_000, rootCategoryId: 2_335_752_011 });
+            await insertProduct('B0PHONECAS', {
+                rootCategoryBsr: 1_000,
+                rootCategoryId: 2_335_752_011,
+            });
             await insertProduct('B0BADGE200', { rootCategoryBsr: null, keepaMonthlySold: 200 });
             await insertProduct('B0BADGE100', { rootCategoryBsr: 600_000, keepaMonthlySold: 100 });
             await insertProduct('B0BADGE050', { rootCategoryBsr: 1_000_000, keepaMonthlySold: 50 });

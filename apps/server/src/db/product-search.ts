@@ -1,5 +1,6 @@
 import { and, type SQL, sql } from 'drizzle-orm';
 import { readSalesCurve } from '@/services/sales-curve';
+import type { SalesCurveShape } from '@/services/sales-curve-fit';
 import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { db } from './index';
 import { getMarketplaceCurrencyCode } from './product/marketplace-currency';
@@ -15,7 +16,6 @@ import {
     keywordPositionColumn,
     monthlySalesSortColumn,
     relevanceColumn,
-    type SalesCurveParameters,
 } from './product-search-ranking';
 import { chooseTextForm } from './product-search-text-filter';
 
@@ -45,7 +45,7 @@ export const searchStoredProducts = async <Extra = never>(
     }: {
         now?: Date;
         extra?: ProductExtraColumn<Extra>;
-        curve?: SalesCurveParameters | null;
+        curve?: SalesCurveShape | null;
     } = {}
 ) => {
     const size = input.pageSize ?? input.limit;

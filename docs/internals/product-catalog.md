@@ -228,17 +228,24 @@ carried a median badge of 1,000, against 9,000 for a 30-day average near 10k). A
 not read says nothing about its badge, so unread Products are left out.
 
 The badge is a floor on a step scale (50+, 100+ … 900+, 1K+ …) and absent under 50 a month, so
-each Product only bounds its sales. Log sales are modelled as normal around a power law that
-bends at #300K (`headSlope` above, `tailSlope` below, where badges thin out much faster), plus a
-share of Products missing the badge whatever they sell; the interval likelihood is maximised
-(`services/sales-curve-fit.ts`). Rank drops are not used: Keepa counts at most one per sample,
+each Product only bounds its sales. Log sales are modelled as normal around a curve that is linear
+in log rank on three segments: `headSlope` before the first bend, a straight line between the two
+bends, `tailSlope` past the second. The curve is `knots` (the two bend ranks) and
+`logSalesAtKnots`, plus the two slopes, a spread `sigma`, and a share `missing` of Products lacking
+the badge whatever they sell; the interval likelihood is maximised (`services/sales-curve-fit.ts`).
+Both slopes are negative and the first bend sells more than the second by construction, so sales
+never fall as rank improves. The bends are fitted, not fixed: every pair of candidate ranks (×1.5
+steps from #20K to #1.15M) at least ×2 apart, with at least 10 badged shirts on each of the three
+segments, gets its own fit, and the likeliest pair wins. A single hand-picked bend at #300K
+overstated the head 3–6x on the November 2026 catalog (5,328 a month at #10K, where badged shirts
+show 1K–2K); fitted bends land near #150K and #510K and put #10K at about 1,640. Rank drops are not used: Keepa counts at most one per sample,
 so they plateau near the sampling rate and undercount anything selling daily.
 
 BSR is relative to everything else selling, so the same rank means more sales in Q4 than in
 spring. The fit reads only the trailing month, so the curve follows the season with about a
 month's lag: it is refitted every six hours (served stale for a day while a background fit
-replaces it) and warmed after a restart. A fit at November 2026 put #100K near 400 a month,
-#300K near 150 and #1M near 14.
+replaces it) and warmed after a restart. A fit at November 2026 put #100K near 200 a month,
+#300K near 40 and #1M near 8.
 
 Each fit also builds the System Status report in the same pass (`services/sales-curve-report.ts`):
 the typical badged shirt per log-rank bin, kept where most of the bin shows a badge, and per rank

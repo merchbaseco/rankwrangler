@@ -375,11 +375,11 @@ describe('public Product read model', () => {
 });
 
 const curve = {
-    referenceBsr: 100_000,
-    intercept: Math.log(40),
+    knots: [100_000, 300_000],
+    logSalesAtKnots: [Math.log(40), Math.log(40) - 2 * Math.log(3)],
     headSlope: -1,
     tailSlope: -2,
-};
+} as const;
 
 const createProductInfo = (): ProductInfo => ({
     asin: 'B012345678',

@@ -2,12 +2,13 @@ import { describe, expect, test } from 'bun:test';
 import { accuracyBarsGeometry, salesCurveGeometry } from './sales-curve-geometry';
 
 const curve = {
-    headSlope: -0.9,
-    intercept: Math.log(150),
-    referenceBsr: 300_000,
+    headSlope: -0.6,
+    knots: [50_000, 300_000],
+    logSalesAtKnots: [Math.log(150) + 0.9 * Math.log(6), Math.log(150)],
+    missing: 0.1,
     sigma: 0.75,
     tailSlope: -2,
-};
+} as const;
 
 describe('sales curve geometry', () => {
     const geometry = salesCurveGeometry(

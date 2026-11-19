@@ -1,8 +1,7 @@
 import { runBackground } from '@/db/index';
-import type { SalesCurveParameters } from '@/db/product-search-ranking';
 import { readSalesCurveObservations } from '@/db/sales-curve-observations';
 import { createSwrCache } from '@/utils/swr-cache';
-import { fitSalesCurve, REFERENCE_BSR } from './sales-curve-fit';
+import { curveMedianSales, fitSalesCurve, type SalesCurveShape } from './sales-curve-fit';
 import { buildSalesCurveReport } from './sales-curve-report';
 
 const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';
@@ -20,11 +19,9 @@ const cachedFit = createSwrCache<Awaited<ReturnType<typeof fitCurrentSalesCurve>
 });
 
 /**
- * The current fit and its Status report. The curve's median monthly sales at a rank are
- * `exp(intercept + slope · ln(bsr / referenceBsr))`, with `headSlope` above the reference rank
- * and `tailSlope` below it, fitted from Amazon's sold badges on the marketplace's Merch shirts;
- * `curve` and `report` are null while too few badges exist to fit. `products` and `badged` say
- * how much evidence it rests on.
+ * The current fit and its Status report. The curve (see SalesCurve) is fitted from Amazon's sold
+ * badges on the marketplace's Merch shirts; `curve` and `report` are null while too few badges
+ * exist to fit. `products` and `badged` say how much evidence it rests on.
  */
 export const readSalesCurveFit = (marketplaceId = US_MARKETPLACE_ID) =>
     cachedFit(marketplaceId, () => fitCurrentSalesCurve(marketplaceId));
@@ -41,15 +38,11 @@ export const readSalesCurve = async (marketplaceId = US_MARKETPLACE_ID) => {
  * 30-day average lags a seasonal surge) and only for Clothing, the category the curve is fitted
  * on. estimatedMonthlySalesColumn is the same estimate in SQL.
  */
-export const estimateMonthlySales = (curve: SalesCurveParameters | null, rank: number | null) => {
+export const estimateMonthlySales = (curve: SalesCurveShape | null, rank: number | null) => {
     if (!curve || rank === null || rank <= 0) {
         return null;
     }
-    const slope = rank < curve.referenceBsr ? curve.headSlope : curve.tailSlope;
-    return Math.max(
-        1,
-        Math.round(Math.exp(curve.intercept + slope * Math.log(rank / curve.referenceBsr)))
-    );
+    return Math.max(1, Math.round(curveMedianSales(curve, rank)));
 };
 
 const fitCurrentSalesCurve = async (marketplaceId: string) => {
@@ -61,13 +54,7 @@ const fitCurrentSalesCurve = async (marketplaceId: string) => {
             0
         );
     return {
-        curve: curve && {
-            referenceBsr: REFERENCE_BSR,
-            intercept: curve.intercept,
-            headSlope: curve.headSlope,
-            tailSlope: curve.tailSlope,
-            sigma: curve.sigma,
-        },
+        curve,
         report: curve && buildSalesCurveReport(observations, curve),
         fittedAt: new Date().toISOString(),
         products: count(true) + count(false),

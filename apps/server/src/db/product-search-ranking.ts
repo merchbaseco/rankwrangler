@@ -3,35 +3,33 @@ import type { StoredProductSearchInput } from '@/api/product-search-input';
 import { db } from './index';
 import { products } from './product-schema';
 import { MERCH_ROOT_CATEGORY_ID } from './sales-curve-observations';
-
-/** The fitted rank-to-sales curve's parameters (see readSalesCurve). */
-export interface SalesCurveParameters {
-    readonly referenceBsr: number;
-    readonly intercept: number;
-    readonly headSlope: number;
-    readonly tailSlope: number;
-}
+import type { SalesCurveShape } from '@/services/sales-curve-fit';
 
 const US_MARKETPLACE_ID = 'ATVPDKIKX0DER';
 
 /**
  * The curve's median monthly sales at the Product's current rank, or its 30-day average rank
- * without one: `exp(intercept + slope · ln(bsr / referenceBsr))` with `headSlope` above the
- * reference rank and `tailSlope` below it, rounded and at least 1, as estimateMonthlySales
- * computes it. The current rank leads because a seasonal seller's 30-day average lags its surge
- * by an order of magnitude. Null without a rank or a curve, and outside Clothing, the only root
- * category the curve is fitted on. The curve's parameters are bound, so the estimate sorts and
- * pages in the database.
+ * without one, rounded and at least 1, as estimateMonthlySales computes it: linear in log rank on
+ * each of the curve's three segments (see curveMedianSales). The current rank leads because a
+ * seasonal seller's 30-day average lags its surge by an order of magnitude. Null without a rank or
+ * a curve, and outside Clothing, the only root category the curve is fitted on. The curve's
+ * parameters are bound, so the estimate sorts and pages in the database.
  */
-export const estimatedMonthlySalesColumn = (
-    curve: SalesCurveParameters | null
-): SQL<number | null> => {
+export const estimatedMonthlySalesColumn = (curve: SalesCurveShape | null): SQL<number | null> => {
     if (!curve) return sql<number | null>`null::integer`;
     const rank = sql`coalesce(${column('rootCategoryBsr')}, ${column('keepaBsrAverage30')})::float8`;
-    const reference = sql`${curve.referenceBsr}::float8`;
-    const slope = sql`(case when ${rank} < ${reference} then ${curve.headSlope}::float8 else ${curve.tailSlope}::float8 end)`;
+    const [first, second] = curve.knots;
+    const [atFirst, atSecond] = curve.logSalesAtKnots;
+    const middleSlope = (atSecond - atFirst) / Math.log(second / first);
+    const segment = (at: number, slope: number, knot: number) =>
+        sql`${at}::float8 + ${slope}::float8 * ln(${rank} / ${knot}::float8)`;
+    const head = segment(atFirst, curve.headSlope, first);
+    const tail = segment(atSecond, curve.tailSlope, second);
+    const logSales = sql`(case when ${rank} < ${first}::float8 then ${head}
+        when ${rank} > ${second}::float8 then ${tail}
+        else ${segment(atFirst, middleSlope, first)} end)`;
     // The exponent is capped so an extreme fit cannot overflow exp(); real fits stay far below.
-    const exponent = sql`least(${MAX_EXPONENT}::float8, ${curve.intercept}::float8 + ${slope} * ln(${rank} / ${reference}))`;
+    const exponent = sql`least(${MAX_EXPONENT}::float8, ${logSales})`;
     // floor(x + 0.5) rounds halves up like Math.round; Postgres round() on float8 rounds to even.
     return sql<number | null>`(case when ${rank} > 0
             and ${column('rootCategoryId')} = ${MERCH_ROOT_CATEGORY_ID}

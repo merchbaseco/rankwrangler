@@ -1,5 +1,4 @@
 import type { ProductGetInclude } from '@/api/public/product-input';
-import type { SalesCurveParameters } from '@/db/product-search-ranking';
 import { MERCH_ROOT_CATEGORY_ID } from '@/db/sales-curve-observations';
 import type { ProductHistorySurfaceInput } from '@/services/product-history-surface.js';
 import { getProductHistorySurface } from '@/services/product-history-surface.js';
@@ -8,6 +7,7 @@ import { getProductCutoutThumbnail } from './product-cutout-thumbnail';
 import { PRODUCT_ENRICHMENT_DEADLINE_MS } from './product-enrichment-wait';
 import { getRequiredProduct } from './product-retrieval';
 import { estimateMonthlySales, readSalesCurve } from './sales-curve';
+import type { SalesCurveShape } from './sales-curve-fit';
 import { getProductShortName } from './product-short-name';
 
 const PRODUCT_READ_KEEP_A_MAX_AGE_MS = 100 * 365 * 24 * 60 * 60 * 1000;
@@ -186,7 +186,7 @@ const toPublicCutoutThumbnail = (url: string | null): PublicCutoutThumbnail =>
 export const mapProductToPublicProduct = (
     product: ProductInfo,
     includeMarketData = true,
-    curve: SalesCurveParameters | null = null
+    curve: SalesCurveShape | null = null
 ): Product => {
     const keepa = includeMarketData ? product.keepa : null;
     const salesRank = includeMarketData

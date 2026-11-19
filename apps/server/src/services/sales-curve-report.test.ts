@@ -3,7 +3,8 @@ import { curveBadgeShare, type SalesCurve } from './sales-curve-fit';
 import { buildSalesCurveReport } from './sales-curve-report';
 
 const curve: SalesCurve = {
-    intercept: Math.log(150),
+    knots: [300_000, 600_000],
+    logSalesAtKnots: [Math.log(150), Math.log(150) - 2 * Math.log(2)],
     headSlope: -0.9,
     tailSlope: -2,
     sigma: 0.75,
