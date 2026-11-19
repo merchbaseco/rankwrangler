@@ -53,13 +53,11 @@ export const ProductThumb = ({
     );
 };
 
-/** The cutout when one is stored, else Amazon's thumbnail. */
+/** The cutout when one is stored, else Amazon's main image. */
 export const productArtUrl = (product: {
     cutoutThumbnailUrl?: string | null;
-    thumbnail?: { status: string; url?: string | null } | null;
-}) =>
-    product.cutoutThumbnailUrl ??
-    (product.thumbnail?.status === 'available' ? (product.thumbnail.url ?? null) : null);
+    imageUrl?: string | null;
+}) => product.cutoutThumbnailUrl ?? product.imageUrl ?? null;
 
 /** Whether the art `productArtUrl` picks is a background-removed cutout. */
 export const hasCutoutArt = (product: { cutoutThumbnailUrl?: string | null }) =>

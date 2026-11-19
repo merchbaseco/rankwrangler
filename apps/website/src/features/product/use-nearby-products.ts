@@ -21,7 +21,7 @@ export const useNearbyProducts = (
         () => ({
             facets: niche ? [{ facet: niche.facet, name: niche.name }] : [],
             limit: NEARBY_LIMIT + 1,
-            marketplaceIds: [identity.marketplaceId],
+            marketplaceId: identity.marketplaceId,
             sort: 'salesRankAsc' as const,
         }),
         [identity.marketplaceId, niche]

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from 'bun:test';
 import { sql } from 'drizzle-orm';
 import { productSearchInput } from '@/api/product-search-input';
 import { db } from '@/db/index';
-import { keywordProducts } from '@/db/keyword-collection-schema';
 import { searchStoredProducts } from '@/db/product-search';
 import { InvalidProductSearchCursorError } from '@/db/product-search-sort';
 import {
@@ -58,8 +57,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('stored Merch resea
         expect(result.items[0]).toMatchObject({
             salesRank: 250_000,
             price: { amountMinor: 1999, currencyCode: 'USD' },
-            averages: { last30Days: 270_000, last90Days: null },
-            demand: { boughtInPastMonth: 50, salesRankDrops: { last30Days: 12 } },
+            salesRankAverages: { last30Days: 270_000, last90Days: null },
+            salesRankDrops: { last30Days: 12 },
+            boughtInPastMonth: 50,
+            keywordPosition: null,
         });
         expect(result.coverage).toEqual({
             keyword: 'fishing',
@@ -170,7 +171,6 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('stored Merch resea
         });
         const page = await search({
             term: 'fishing',
-            textFields: 'title',
             excludeWords: ['bass'],
             salesRank: { max: 50 },
             firstAvailableAt: { after: '2026-07-01' },
@@ -211,47 +211,113 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('stored Merch resea
         expect((await search({ facets, salesRank: { min: 500 } })).items).toHaveLength(0);
     });
 
-    it('finds observed keyword membership even when listing text does not contain the phrase', async () => {
-        const product = await insertProduct('B000000001', { title: 'Weekend lake club' });
-        const [query] = await db
-            .insert(catalogQueries)
-            .values({
-                source: 'keepa',
-                marketplaceId: market,
-                normalizedTerm: 'fishing',
-                displayTerm: 'fishing',
-            })
-            .returning();
-        const [operation] = await db
-            .insert(operations)
-            .values({ type: 'catalogSearch', targetKey: query.id, input: {} })
-            .returning();
-        const [run] = await db
-            .insert(catalogSearchRuns)
-            .values({
-                queryId: query.id,
-                operationId: operation.id,
-                sourceStartedAt: new Date(),
-                sourceCompletedAt: new Date(),
-                trigger: 'requested',
-                resultCount: 1,
-                normalizerVersion: 1,
-            })
-            .returning();
-        await db
-            .insert(catalogSearchResults)
-            .values({ runId: run.id, productId: product.id, sourcePosition: 1 });
-        await db.insert(keywordProducts).values({
-            queryId: query.id,
-            productId: product.id,
-            firstObservedAt: new Date(),
-            lastObservedAt: new Date(),
+    it('matches titles only: bullet, brand and keyword-member matches stay out', async () => {
+        await insertProduct('B000000001', { title: 'Bruh thanksgiving shirt' });
+        await insertProduct('B000000002', {
+            title: 'Glowing era shirt',
+            bullet1: 'Great gift for bruh thanksgiving, Christmas and Halloween',
         });
-        expect((await search({ term: 'fishing' })).items.map(item => item.asin)).toEqual([
-            'B000000001',
-        ]);
-        expect((await search({ term: 'fishing', textFields: 'title' })).items).toHaveLength(0);
+        await insertProduct('B000000003', { title: 'Fall shirt', brand: 'Bruh Thanksgiving Co' });
+        const member = await insertProduct('B000000004', { title: 'Weekend lake club' });
+        await insertHeadRun('bruh thanksgiving', [[member.id, 1]]);
+
+        const result = await search({ term: 'Bruh   Thanksgiving' });
+
+        expect(result.items.map(item => item.asin)).toEqual(['B000000001']);
         expect((await search({ term: 'fishing', salesRank: { max: 1 } })).items).toHaveLength(0);
+    });
+
+    it('orders relevance by the newest head run position, then title match, paging by cursor', async () => {
+        const placedThird = await insertProduct('B000000001', { title: 'Bruh thanksgiving tee' });
+        const unplaced = await insertProduct('B000000002', {
+            title: 'Bruh thanksgiving bruh thanksgiving shirt',
+        });
+        const placedFirst = await insertProduct('B000000003', { title: 'Thanksgiving bruh' });
+        await insertHeadRun('bruh thanksgiving', [[unplaced.id, 1]], new Date('2026-01-01'));
+        await insertHeadRun('bruh thanksgiving', [
+            [placedFirst.id, 1],
+            [placedThird.id, 3],
+        ]);
+
+        const items: Array<{ asin: string; keywordPosition: number | null }> = [];
+        let cursor: string | null = null;
+        do {
+            const page = await search({
+                term: 'bruh thanksgiving',
+                sort: 'relevance',
+                limit: 1,
+                cursor,
+            });
+            items.push(
+                ...page.items.map(({ asin, keywordPosition }) => ({ asin, keywordPosition }))
+            );
+            cursor = page.nextCursor;
+        } while (cursor);
+
+        expect(items).toEqual([
+            { asin: 'B000000003', keywordPosition: 1 },
+            { asin: 'B000000001', keywordPosition: 3 },
+            { asin: 'B000000002', keywordPosition: null },
+        ]);
+    });
+
+    it('ranks estimated monthly sales above sparse badges and pages without gaps or repeats', async () => {
+        // 100 · (300,000 / rank): rank 3,000 → 10,000; 60,000 → 500; 600,000 → 50; 1M → 30.
+        const curve = {
+            referenceBsr: 300_000,
+            intercept: Math.log(100),
+            headSlope: -1,
+            tailSlope: -1,
+        };
+        await insertProduct('B0STRONG01', { rootCategoryBsr: 3_000 });
+        await insertProduct('B0AVERAGE1', { rootCategoryBsr: 30_000, keepaBsrAverage30: 60_000 });
+        await insertProduct('B0AVERAGE2', { rootCategoryBsr: 30_000, keepaBsrAverage30: 60_000 });
+        await insertProduct('B0BADGE200', { rootCategoryBsr: null, keepaMonthlySold: 200 });
+        await insertProduct('B0BADGE100', { rootCategoryBsr: 600_000, keepaMonthlySold: 100 });
+        await insertProduct('B0BADGE050', { rootCategoryBsr: 1_000_000, keepaMonthlySold: 50 });
+        await insertProduct('B0NOTHING1', { rootCategoryBsr: null });
+
+        const items: Array<{ asin: string; estimatedMonthlySales: number | null }> = [];
+        let cursor: string | null = null;
+        do {
+            const page = await searchStoredProducts(
+                productSearchInput.parse({ limit: 2, cursor }),
+                { curve }
+            );
+            items.push(
+                ...page.items.map(({ asin, estimatedMonthlySales }) => ({
+                    asin,
+                    estimatedMonthlySales,
+                }))
+            );
+            cursor = page.nextCursor;
+        } while (cursor);
+
+        expect(items[0]).toEqual({ asin: 'B0STRONG01', estimatedMonthlySales: 10_000 });
+        expect(new Set(items.slice(1, 3).map(item => item.asin))).toEqual(
+            new Set(['B0AVERAGE1', 'B0AVERAGE2'])
+        );
+        expect(items.slice(1, 3).map(item => item.estimatedMonthlySales)).toEqual([500, 500]);
+        expect(items.slice(3)).toEqual([
+            { asin: 'B0BADGE200', estimatedMonthlySales: null },
+            { asin: 'B0BADGE100', estimatedMonthlySales: 50 },
+            { asin: 'B0BADGE050', estimatedMonthlySales: 30 },
+            { asin: 'B0NOTHING1', estimatedMonthlySales: null },
+        ]);
+    });
+
+    it('falls back to the badge when no curve is fitted', async () => {
+        await insertProduct('B000000001', { rootCategoryBsr: 10, keepaMonthlySold: null });
+        await insertProduct('B000000002', { rootCategoryBsr: 900_000, keepaMonthlySold: 50 });
+
+        const page = await searchStoredProducts(productSearchInput.parse({}), { curve: null });
+
+        expect(
+            page.items.map(({ asin, estimatedMonthlySales }) => [asin, estimatedMonthlySales])
+        ).toEqual([
+            ['B000000002', null],
+            ['B000000001', null],
+        ]);
     });
 });
 
@@ -268,4 +334,55 @@ const insertProduct = async (asin: string, extra: Partial<typeof products.$infer
         })
         .returning();
     return product;
+};
+
+const insertHeadRun = async (
+    term: string,
+    positions: ReadonlyArray<readonly [string, number]>,
+    createdAt = new Date()
+) => {
+    const [query] = await db
+        .insert(catalogQueries)
+        .values({ source: 'keepa', marketplaceId: market, normalizedTerm: term, displayTerm: term })
+        .onConflictDoUpdate({
+            target: [
+                catalogQueries.source,
+                catalogQueries.marketplaceId,
+                catalogQueries.normalizedTerm,
+            ],
+            set: { displayTerm: term },
+        })
+        .returning();
+    const [operation] = await db
+        .insert(operations)
+        .values({
+            type: 'catalogSearch',
+            targetKey: `${query.id}:${createdAt.getTime()}`,
+            input: {},
+        })
+        .returning();
+    const [run] = await db
+        .insert(catalogSearchRuns)
+        .values({
+            queryId: query.id,
+            operationId: operation.id,
+            sourceStartedAt: createdAt,
+            sourceCompletedAt: createdAt,
+            createdAt,
+            trigger: 'requested',
+            resultCount: positions.length,
+            normalizerVersion: 1,
+        })
+        .returning();
+    if (positions.length) {
+        await db
+            .insert(catalogSearchResults)
+            .values(
+                positions.map(([productId, sourcePosition]) => ({
+                    runId: run.id,
+                    productId,
+                    sourcePosition,
+                }))
+            );
+    }
 };

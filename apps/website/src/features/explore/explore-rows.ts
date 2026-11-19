@@ -49,7 +49,7 @@ export const toExploreRows = (
             ...product,
             ageDays: daysSince(product.firstAvailableAt, now),
             delta7d: weekMove(product.bsr30d),
-            drops: product.demand.salesRankDrops?.last30Days ?? null,
+            drops: product.salesRankDrops.last30Days,
             position: offset + index + 1,
             sold: figure ? { ...figure, share: most > 0 ? figure.value / most : 0 } : null,
             tier: classifyBsr(product.salesRank),
@@ -112,10 +112,13 @@ export const formatAge = (days: number | null) => {
 };
 
 const soldPerMonth = (product: ExploreProduct, curve: SalesCurve | null) => {
-    const reported = product.demand.boughtInPastMonth;
+    const reported = product.boughtInPastMonth;
     if (reported !== null && reported !== undefined) {
         return { isEstimate: false, value: reported };
     }
-    const estimate = estimateMonthlySales(product.averages.last30Days ?? product.salesRank, curve);
+    const estimate = estimateMonthlySales(
+        product.salesRankAverages.last30Days ?? product.salesRank,
+        curve
+    );
     return estimate === null ? null : { isEstimate: true, value: estimate };
 };

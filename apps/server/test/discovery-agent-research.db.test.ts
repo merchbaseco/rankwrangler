@@ -11,6 +11,12 @@ import { db } from '@/db/index';
 import { products, operations } from '@/db/schema';
 import { searchProducts } from '@/services/product-search';
 import { productSearchFilters } from '@/db/product-search-filters';
+import {
+    estimatedMonthlySalesColumn,
+    keywordPositionColumn,
+    monthlySalesSortColumn,
+    relevanceColumn,
+} from '@/db/product-search-ranking';
 import { productSearchSort } from '@/db/product-search-sort';
 import { resetDiscoveryFixture } from './discovery-fixture';
 
@@ -66,7 +72,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             ).toEqual([]);
             expect(await db.select().from(operations)).toHaveLength(0);
             const filters = productSearchFilters(input);
-            const sort = productSearchSort(input, filters.relevance);
+            const sort = productSearchSort(input, {
+                relevance: relevanceColumn(keywordPositionColumn(input), filters.relevance),
+                monthlySales: monthlySalesSortColumn(estimatedMonthlySalesColumn(null)),
+            });
             const query = db
                 .select({ id: products.id })
                 .from(products)
@@ -116,6 +125,17 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                     })
                 )
             );
+            // Amazon was already searched for the empty niche, so its empty page starts no collection.
+            await db.execute(sql`with query as (
+                insert into catalog_queries(source,marketplace_id,normalized_term,display_term)
+                values ('keepa','ATVPDKIKX0DER','nonexistentplatypusniche','nonexistentplatypusniche')
+                returning id
+            ), operation as (
+                insert into operations(type,target_key,input)
+                select 'catalogSearch',id::text,'{}'::jsonb from query returning id
+            )
+            insert into catalog_search_runs(query_id,operation_id,source_started_at,source_completed_at,trigger,result_count,normalizer_version)
+            select query.id,operation.id,now(),now(),'requested',0,1 from query,operation`);
             const server = createRankWranglerMcpServer(createRankWranglerMcpDataSource(context));
             const client = new Client({ name: 'merch-research-proof', version: '1.0.0' });
             const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -136,7 +156,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                     const result = response.structuredContent as {
                         operation: string;
                         data: {
-                            items: Array<{ salesRank: number; price: unknown; demand: unknown }>;
+                            items: Array<Record<string, unknown>>;
                             coverage: unknown;
                         };
                     };
@@ -148,10 +168,10 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                         expect(result.data.items[0]).toMatchObject({
                             salesRank: 100_000,
                             price: { amountMinor: 1999, currencyCode: 'USD' },
-                            demand: { boughtInPastMonth: 25 },
+                            boughtInPastMonth: 25,
                         });
                 }
-                expect(await db.select().from(operations)).toHaveLength(0);
+                expect(await db.select().from(operations)).toHaveLength(1);
                 const [usage] = await db
                     .select()
                     .from(rankwranglerServiceAccounts)

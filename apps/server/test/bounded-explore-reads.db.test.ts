@@ -25,8 +25,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('bounded Explore re
         await db.execute(sql`delete from product_search_facet_snapshot`);
     });
 
-    it('matches a term per row exactly as the index lookup does', async () => {
-        await insertProduct('B0TEXT0001', { title: 'Fishing grandpa shirt' });
+    it('matches a term on titles per row exactly as the index lookup does', async () => {
+        const title = await insertProduct('B0TEXT0001', { title: 'Fishing grandpa shirt' });
         await insertProduct('B0TEXT0002', { title: 'Golf shirt', bullet1: 'for fishing fans' });
         await insertProduct('B0TEXT0003', { title: 'Unrelated', brand: 'Fishing Co' });
         const member = await insertProduct('B0TEXT0004', { title: 'Nothing textual' });
@@ -46,18 +46,19 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('bounded Explore re
             firstObservedAt: NOW,
             lastObservedAt: NOW,
         });
+        const ids = async (input: object, form: 'lookup' | 'row') =>
+            db.execute<{ id: string }>(sql`select id from products
+                where ${productSearchFilters(productSearchFacetsInput.parse(input), NOW, form).where}
+                order by id`);
         for (const input of [
             { term: 'fishing' },
-            { term: 'fishing', textFields: 'title' as const },
             { term: 'B0TEXT0005' },
-            { term: 'fishing', excludeWords: ['golf'] },
+            { term: 'fishing', excludeWords: ['grandpa'] },
         ]) {
-            const parsed = productSearchFacetsInput.parse(input);
-            const ids = async (form: 'lookup' | 'row') =>
-                db.execute<{ id: string }>(sql`select id from products
-                    where ${productSearchFilters(parsed, NOW, form).where} order by id`);
-            expect(await ids('row')).toEqual(await ids('lookup'));
+            expect(await ids(input, 'row')).toEqual(await ids(input, 'lookup'));
         }
+        // Bullet, brand and keyword-member matches stay out; only the title match is found.
+        expect(await ids({ term: 'fishing' }, 'lookup')).toEqual([{ id: title }]);
     });
 
     it('serves the default facets from the snapshot and bounds deep pages', async () => {

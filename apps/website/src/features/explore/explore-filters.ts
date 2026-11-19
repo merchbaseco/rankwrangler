@@ -85,7 +85,7 @@ export const exploreSortLabels: Readonly<Record<ExploreSort, string>> = {
 export const exploreSortInputs = {
     bsr: 'salesRankAsc',
     newest: 'firstAvailableAtDesc',
-    sold: 'monthlySoldDesc',
+    sold: 'estimatedMonthlySalesDesc',
     updated: 'updatedAtDesc',
 } as const satisfies Record<ExploreSort, string>;
 

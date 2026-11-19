@@ -75,7 +75,17 @@ const ProductView = ({ identity }: { identity: ProductIdentity }) => {
     return (
         <section aria-busy={detail.isLoading} aria-label="Product" className="product-screen">
             <ProductSidebar
-                art={product ? productArtUrl(product) : null}
+                art={
+                    product
+                        ? productArtUrl({
+                              cutoutThumbnailUrl: product.cutoutThumbnailUrl,
+                              imageUrl:
+                                  product.thumbnail.status === 'available'
+                                      ? product.thumbnail.url
+                                      : null,
+                          })
+                        : null
+                }
                 brand={product?.brand ?? null}
                 brandDesignCount={product?.brandDesignCount ?? null}
                 facets={facets.facets}

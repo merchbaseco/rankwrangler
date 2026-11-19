@@ -118,7 +118,7 @@ describe.skipIf(!dedicated)('Delegated product lookup', () => {
                     ),
             },
         });
-        const products = [{ marketplaceId: 'ATVPDKIKX0DER', asin: 'B000000001' }];
+        const asins = ['B000000001'];
         const request = (
             options: {
                 url?: string;
@@ -138,7 +138,7 @@ describe.skipIf(!dedicated)('Delegated product lookup', () => {
                     'cf-access-jwt-assertion': options.token ?? assertion(),
                     'x-merchbase-user-id': options.user ?? uid,
                 },
-                ...(options.method === 'GET' ? {} : { payload: options.body ?? { products } }),
+                ...(options.method === 'GET' ? {} : { payload: options.body ?? { asins } }),
             });
         try {
             const response = await request();
@@ -183,8 +183,8 @@ describe.skipIf(!dedicated)('Delegated product lookup', () => {
             ]) {
                 expect((await request(bad)).statusCode).toBe(404);
             }
-            expect((await request({ body: { '0': { products } } })).statusCode).toBe(400);
-            expect((await request({ body: [{ products }] })).statusCode).toBe(400);
+            expect((await request({ body: { '0': { asins } } })).statusCode).toBe(400);
+            expect((await request({ body: [{ asins }] })).statusCode).toBe(400);
             expect(businessCalls).toBe(1);
             await db.execute(
                 sql`ALTER TABLE access_delegation_audit RENAME TO access_delegation_audit_offline`
