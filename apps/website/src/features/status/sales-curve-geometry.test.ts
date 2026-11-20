@@ -16,12 +16,13 @@ describe('sales curve geometry', () => {
         [
             { bsr: 120_000, typicalSales: 400 },
             { bsr: 10_000, typicalSales: 5_000 },
+            { bsr: 1_000, typicalSales: 20_000 },
         ],
         { height: 320, width: 800 }
     );
 
     test('tier bands tile the rank axis without gaps', () => {
-        expect(geometry.bands.map(band => band.tier)).toEqual(['hot', 'strong', 'steady', 'slow']);
+        expect(geometry.bands.map(band => band.tier)).toEqual(['elite', 'hot', 'strong', 'steady', 'slow']);
         const [first, ...rest] = geometry.bands;
         expect(first?.x).toBe(geometry.plot.left);
         rest.reduce((previous, band) => {
@@ -44,8 +45,7 @@ describe('sales curve geometry', () => {
     });
 
     test('evidence outside the rank axis is left off', () => {
-        expect(geometry.evidence).toHaveLength(1);
-        expect(geometry.evidence[0]?.tier).toBe('strong');
+        expect(geometry.evidence.map(dot => dot.tier)).toEqual(['strong', 'elite']);
     });
 
     test('the line is solid to the last badged rank and projects past it', () => {

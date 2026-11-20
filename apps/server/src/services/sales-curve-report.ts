@@ -7,7 +7,7 @@ import {
 
 /** The rank ranges the accuracy check groups Products into, best rank first. */
 export const ACCURACY_RANGE_EDGES = [
-    40_000, 60_000, 100_000, 150_000, 200_000, 300_000, 400_000, 500_000, 700_000, 1_000_000,
+    10_000, 20_000, 40_000, 60_000, 100_000, 150_000, 200_000, 300_000, 400_000, 500_000, 700_000, 1_000_000,
     3_000_000,
 ] as const;
 /** Fewest Products a rank bin needs before its badges are drawn as evidence. */
@@ -24,13 +24,7 @@ export const buildSalesCurveReport = (
     observations: readonly SalesObservation[],
     curve: SalesCurve
 ) => {
-    const bins = new Map<number, SalesObservation[]>();
-    for (const row of observations) {
-        bins.set(row.bsr, [...(bins.get(row.bsr) ?? []), row]);
-    }
-    const evidence = [...bins]
-        .sort(([a], [b]) => a - b)
-        .flatMap(([bsr, rows]) => {
+    const evidence = evidenceBins(observations).flatMap(({ bsr, rows }) => {
             const products = sum(rows);
             const badged = rows.filter(row => row.sold !== null);
             const badge = medianBadge(badged);
@@ -83,3 +77,31 @@ const medianBadge = (rows: readonly SalesObservation[]) => {
     }
     return null;
 };
+
+/**
+ * The fit's log-rank bins, best rank first, with neighbouring bins merged until each holds
+ * MIN_BIN_PRODUCTS: the best ranks hold a few shirts per bin, so without merging they would draw
+ * no evidence where the curve bends hardest. A merged bin sits at its Products' mean log rank.
+ */
+const evidenceBins = (observations: readonly SalesObservation[]) => {
+    const byRank = new Map<number, SalesObservation[]>();
+    for (const row of observations) {
+        byRank.set(row.bsr, [...(byRank.get(row.bsr) ?? []), row]);
+    }
+    const merged: Array<{ bsr: number; rows: SalesObservation[] }> = [];
+    let pending: SalesObservation[] = [];
+    for (const [, rows] of [...byRank].sort(([a], [b]) => a - b)) {
+        pending = [...pending, ...rows];
+        if (sum(pending) >= MIN_BIN_PRODUCTS) {
+            merged.push({ bsr: meanRank(pending), rows: pending });
+            pending = [];
+        }
+    }
+    if (pending.length > 0) {
+        merged.push({ bsr: meanRank(pending), rows: pending });
+    }
+    return merged;
+};
+
+const meanRank = (rows: readonly SalesObservation[]) =>
+    Math.exp(rows.reduce((total, row) => total + row.count * Math.log(row.bsr), 0) / sum(rows));

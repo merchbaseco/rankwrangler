@@ -3,11 +3,11 @@ import { type BsrTier, bsrTiers, classifyBsr, tierRankRange } from '@/features/b
 import { curveMonthlySales, type SalesCurve } from '@/features/bsr/sales-estimate';
 
 /** The ranks the chart spans, on a log scale (best on the left). */
-export const RANK_DOMAIN = [30_000, 3_000_000] as const;
+export const RANK_DOMAIN = [3_000, 3_000_000] as const;
 /** Monthly sales up the chart, on a log scale. */
-const SALES_TOP = 3_000;
-const SALES_TICKS = [1, 10, 100, 1_000] as const;
-const RANK_TICKS = [50_000, 100_000, 300_000, 1_000_000, 2_000_000] as const;
+const SALES_TOP = 10_000;
+const SALES_TICKS = [1, 10, 100, 1_000, 10_000] as const;
+const RANK_TICKS = [10_000, 30_000, 100_000, 300_000, 1_000_000] as const;
 /** Under this plot width the rank axis keeps only the tier edges, so labels never touch. */
 const NARROW_PLOT = 480;
 const NARROW_TICKS = [100_000, 300_000, 1_000_000] as const;

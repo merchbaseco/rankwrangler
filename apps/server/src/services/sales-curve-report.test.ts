@@ -30,6 +30,27 @@ describe('buildSalesCurveReport', () => {
         ]);
     });
 
+    it('merges sparse best-rank bins so the head still draws evidence', () => {
+        const { evidence } = buildSalesCurveReport(
+            [
+                { bsr: 8_000, sold: 1_000, count: 3 },
+                { bsr: 12_500, sold: 1_000, count: 3 },
+                { bsr: 20_000, sold: 600, count: 2 },
+                { bsr: 120_000, sold: 100, count: 9 },
+            ],
+            curve
+        );
+        // 8 shirts across three bins, at their mean log rank: (8K·12.5K)^(3/8) · 20K^(2/8).
+        expect(evidence).toEqual([
+            {
+                bsr: Math.round(Math.exp((3 * Math.log(8_000 * 12_500) + 2 * Math.log(20_000)) / 8)),
+                products: 8,
+                typicalSales: Math.sqrt(1_000 * 2_000),
+            },
+            { bsr: 120_000, products: 9, typicalSales: Math.sqrt(100 * 200) },
+        ]);
+    });
+
     it('sets each rank range against the share the curve expects', () => {
         const { ranges } = buildSalesCurveReport(
             [
