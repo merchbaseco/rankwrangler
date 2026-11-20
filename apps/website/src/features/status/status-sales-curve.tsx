@@ -76,7 +76,7 @@ const SalesCurvePanel = ({ fit }: { fit: SalesCurveFit }) => {
                     title="Badged shirts"
                 />
             </KPIGroup>
-            <ProductSection context="Median sold a month by 30-day BSR" title="Curve">
+            <ProductSection context="Median sold a month by current BSR" title="Curve">
                 <div className="sales-curve-frame">
                     <SalesCurveChart
                         curve={curve}
