@@ -29,4 +29,37 @@ describe('scanKeywordPage', () => {
             reason: 'budget',
         });
     });
+
+    it('returns a retry followup when a dropped-trial depth pass fails transiently', async () => {
+        const retryAt = new Date('2026-11-21T18:00:00Z');
+        const stop = mock((_input: unknown) => Promise.resolve(retryAt));
+        const result = await scanKeywordPage('target-2', {
+            claim: mock(() =>
+                Promise.resolve({
+                    target: { enabled: false, tracking: 'dropped' },
+                    pass: { id: 'pass-2', claimToken: 'claim-2', nextPage: 2, nextPageToken: 'p3' },
+                    scope: { kind: 'keyword', term: 'teacher shirt' },
+                    marketplaceId: 'ATVPDKIKX0DER',
+                })
+            ),
+            reserve: mock(() => Promise.resolve('attempt-2')),
+            discover: mock(() => Promise.reject(new Error('transient SP-API 503'))),
+            persist: mock(),
+            checkpoint: mock(),
+            stop,
+        } as unknown as Parameters<typeof scanKeywordPage>[1]);
+        expect(result).toEqual({
+            kind: 'retry',
+            didWork: false,
+            term: 'teacher shirt',
+            page: 2,
+            retryAt,
+        });
+        expect(stop.mock.calls[0]?.[0]).toMatchObject({
+            passId: 'pass-2',
+            claimToken: 'claim-2',
+            attemptId: 'attempt-2',
+            reason: 'failure',
+        });
+    });
 });

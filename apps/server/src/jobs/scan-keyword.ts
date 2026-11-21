@@ -27,6 +27,8 @@ export const scanKeywordJob = defineJob(keywordQueues.scan, {
             // Paused mid-wait: back in the queue at the same priority, fetched once sync resumes.
             case 'paused':
                 return { ...result, followup: { at: new Date() } };
+            case 'retry':
+                return { ...result, followup: { at: result.retryAt, priority: scanPriority.depth } };
             case 'notDue':
             case 'lostClaim':
                 return result;
