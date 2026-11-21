@@ -99,6 +99,32 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         expect(getHistoryAdmissionOverload(stats, now)).toEqual(await readOverloadDirectly(now));
     });
 
+    it('does not pause when a few old stuck rows coincide with freshly admitted rows awaiting first fetch', async () => {
+        await seedOverdueAdmitted(5, {
+            historyAdmittedAt: new Date('2026-10-01T12:00:00Z'),
+            keepaFetchedAt: new Date('2026-10-10T12:00:00Z'),
+        });
+        await db.insert(products).values(
+            Array.from({ length: KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE + 20 }, (_, index) => ({
+                marketplaceId: market,
+                asin: `B0NEW${String(index).padStart(5, '0')}`,
+                isMerchListing: true,
+                rootCategoryBsr: 100_000,
+                createdAt: new Date('2026-10-01T12:00:00Z'),
+                historyAdmissionState: 'admitted' as const,
+                historyAdmissionReason: 'capacity' as const,
+                historyAdmittedAt: new Date(now.getTime() - 5 * 60_000),
+                keepaFetchedAt: null,
+            }))
+        );
+        await count(now);
+        const stats = await readProductStats();
+        if (!stats) throw new Error('Expected a Product count');
+        const overload = getHistoryAdmissionOverload(stats, now);
+        expect(overload.overdueCount).toBe(KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE + 25);
+        expect(overload.newAdmissionsPaused).toBe(false);
+    });
+
     it('observes no-BSR Merch on probation and cold intervals, and Keepa-only non-Merch once', async () => {
         const daysAgo = (days: number) => new Date(now.getTime() - days * 86400000);
         await insert('B000000001', {
