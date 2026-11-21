@@ -29,7 +29,7 @@ export const StatusProducts = ({ status }: { status: SystemStatus }) => {
         },
         {
             key: 'admission',
-            label: 'Waiting for admission',
+            label: 'Not yet tracked (<1M)',
             tone:
                 admissionState === 'paused'
                     ? 'alert'
@@ -40,7 +40,7 @@ export const StatusProducts = ({ status }: { status: SystemStatus }) => {
         },
         {
             key: 'untracked',
-            label: 'Outside Keepa tiers',
+            label: 'Outside auto-tracking',
             tone: 'idle',
             value: history.notTracked,
         },
