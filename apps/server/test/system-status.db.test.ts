@@ -35,6 +35,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
         });
         await insertProduct({ asin: 'B0STAT0003', keepaFetchedAt: null, bsr: 500_000 });
         await insertProduct({ asin: 'B0STAT0004', keepaFetchedAt: null, bsr: 2_000_000 });
+        await insertProduct({ asin: 'B0STAT0008', keepaFetchedAt: null, bsr: null, admitted: false });
+        await insertProduct({ asin: 'B0STAT0009', keepaFetchedAt: null, bsr: 200_000, admitted: false });
         await insertProduct({ asin: 'B0STAT0005', bsr: 40_000, isMerchListing: false });
         await insertProduct({ asin: 'B0STAT0006', bsr: 40_000, createdAt: hoursBefore(2) });
         await insertProduct({
@@ -49,16 +51,16 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
 
         expect(status.countedAt).toBe(NOW.toISOString());
         expect(status.products).toEqual({
-            total: 7,
-            merch: 5,
+            total: 9,
+            merch: 7,
             new24h: 1,
-            // History counts wherever it came from; only listings without it split by tier.
-            history: { withHistory: 2, awaitingFirst: 2, awaitingAdmission: 0, notTracked: 1 },
+            // Active Merch partitions cleanly across all four buckets, including NULL-BSR rows.
+            history: { withHistory: 2, awaitingFirst: 2, awaitingAdmission: 1, notTracked: 2 },
         });
         expect(status.products).toEqual(await readProductIndexDirectly());
         expect(status.keepa.admission).toEqual({
-            state: 'open',
-            waiting: 0,
+            state: 'capacity',
+            waiting: 1,
             overdue: 2,
             oldestOverdueAt: expect.any(String),
         });
@@ -133,7 +135,7 @@ const insertProduct = async ({
     amazonListingStatus = 'active',
 }: {
     asin: string;
-    bsr: number;
+    bsr: number | null;
     isMerchListing?: boolean;
     keepaFetchedAt?: Date | null;
     createdAt?: Date;

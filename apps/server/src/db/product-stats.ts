@@ -6,6 +6,7 @@ import {
     KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
 } from '@/services/keepa-refresh-policy';
+import { KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE } from '@/services/product-history-overload';
 import {
     BSR_THRESHOLD_1M,
     BSR_THRESHOLD_3M,
@@ -79,16 +80,21 @@ export const refreshProductStats = async (
             count(*) filter (where is_merch_listing and bsr is null),
             count(*) filter (where not is_merch_listing),
             count(*) filter (where tracked and due_at<=${at}),
-            min(due_at) filter (where tracked and due_at<=${at}),
+            coalesce(
+                (array_agg(due_at order by due_at) filter (where tracked and due_at<=${at}))[${sql.raw(String(KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE))}],
+                min(due_at) filter (where tracked and due_at<=${at})
+            ),
             (${providerCalls(at)})
         from (
             select is_merch_listing, root_category_bsr bsr, keepa_fetched_at, created_at,
                 is_merch_listing and amazon_listing_status='active' merch,
                 is_merch_listing and amazon_listing_status='active'
                     and history_admission_state='admitted'
+                    and root_category_bsr is not null
                     and root_category_bsr<${KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD} tracked,
                 is_merch_listing and amazon_listing_status='active'
                     and history_admission_state<>'admitted'
+                    and root_category_bsr is not null
                     and root_category_bsr<${KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD} waiting,
                 coalesce(keepa_fetched_at + ${keepaRefreshInterval(sql.raw('root_category_bsr'))},
                     history_admitted_at, created_at) due_at
