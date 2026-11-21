@@ -5,7 +5,13 @@ import {
     type BrandAnalyticsTerm,
     latestBrandAnalyticsWeek,
 } from '@/services/brand-analytics-terms';
+import {
+    isBrandAnalyticsRankSurge,
+    SEASONAL_SURGE_COOLDOWN_DAYS,
+    SEASONAL_SURGE_MAX_RANK,
+} from '@/services/keyword-collection-policy';
 import { brandAnalyticsImports, brandAnalyticsSearchTerms } from './brand-analytics-schema';
+import { retrialDroppedKeywords } from './discovery-work';
 import { db } from './index';
 
 const active = ['pending', 'requested', 'ready'] as const;
@@ -108,11 +114,46 @@ export const saveBrandAnalyticsImport = async (
             .for('update');
         if (!owned) throw new Error('Brand Analytics import claim expired');
         let newTerms = 0;
+        const surgingTerms: string[] = [];
         for (let start = 0; start < result.kept.length; start += upsertBatch) {
+            const batch = result.kept.slice(start, start + upsertBatch);
+            const popular = batch.filter(term => term.rank <= SEASONAL_SURGE_MAX_RANK);
+            if (popular.length) {
+                const existing = await tx
+                    .select({
+                        term: brandAnalyticsSearchTerms.normalizedTerm,
+                        rank: brandAnalyticsSearchTerms.searchFrequencyRank,
+                        lastSeenWeek: brandAnalyticsSearchTerms.lastSeenWeek,
+                    })
+                    .from(brandAnalyticsSearchTerms)
+                    .where(
+                        and(
+                            eq(brandAnalyticsSearchTerms.marketplaceId, work.marketplaceId),
+                            inArray(
+                                brandAnalyticsSearchTerms.normalizedTerm,
+                                popular.map(term => term.term)
+                            )
+                        )
+                    );
+                const previousByTerm = new Map(existing.map(row => [row.term, row]));
+                for (const term of popular) {
+                    const previous = previousByTerm.get(term.term);
+                    if (
+                        previous &&
+                        isBrandAnalyticsRankSurge({
+                            previousRank: previous.rank,
+                            newRank: term.rank,
+                            previousWeek: previous.lastSeenWeek,
+                            newWeek: work.weekStart,
+                        })
+                    )
+                        surgingTerms.push(term.term);
+                }
+            }
             const inserted = await tx
                 .insert(brandAnalyticsSearchTerms)
                 .values(
-                    result.kept.slice(start, start + upsertBatch).map(term => ({
+                    batch.map(term => ({
                         marketplaceId: work.marketplaceId,
                         normalizedTerm: term.term,
                         searchFrequencyRank: term.rank,
@@ -149,6 +190,14 @@ export const saveBrandAnalyticsImport = async (
                 .returning({ inserted: sql<boolean>`(xmax=0)` });
             newTerms += inserted.filter(row => row.inserted).length;
         }
+        const retriedTerms = await retrialDroppedKeywords(tx, {
+            marketplaceId: work.marketplaceId,
+            terms: surgingTerms,
+            now,
+            cooldownDays: SEASONAL_SURGE_COOLDOWN_DAYS,
+            reason: 'brandAnalyticsSurge',
+            week: work.weekStart,
+        });
         await tx
             .update(brandAnalyticsImports)
             .set({
@@ -165,7 +214,7 @@ export const saveBrandAnalyticsImport = async (
                 updatedAt: now,
             })
             .where(eq(brandAnalyticsImports.id, work.id));
-        return { newTerms };
+        return { newTerms, retriedTerms };
     });
 
 const unclaimed = (now: Date) =>

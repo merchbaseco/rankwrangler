@@ -33,9 +33,10 @@ Automatic Keepa collection requires an admitted, active Product classified as Me
 
 | Current root-category BSR | Schedule |
 | --- | --- |
-| Below 50,000 | Stale after 12 hours; automatic collection twice a day. |
-| 50,000 through 299,999 | Stale after 24 hours; automatic daily collection. |
-| 300,000 through 999,999 | Stale after seven days; automatic weekly collection. |
+| Below 50,000 | Stale after 24 hours; automatic daily collection. |
+| 50,000 through 299,999 | Stale after 48 hours; automatic every-2-day collection. |
+| 300,000 through 599,999 | Stale after 7 days; automatic weekly collection. |
+| 600,000 through 999,999 | Stale after 14 days; automatic biweekly collection. |
 | 1,000,000 or higher | On demand only. |
 | Missing BSR | No automatic Keepa collection. |
 | Classification unknown or non-Merch | No automatic Keepa collection; unknown remains distinct from known non-Merch. |
@@ -93,11 +94,12 @@ standing population stored in `product_stats` (one pass over Products every five
 admissions it has made since, which it adds to that row under the lock the pass also takes; BSR and
 listing changes since the pass are minutes stale, well inside the 10% margin. With no count, or one
 over thirty minutes old, it admits nothing. Its next candidates come from a partial index holding
-only the active Merch listings below 1,000,000 BSR that are not admitted. Forecast 12-hour,
-daily and weekly obligations must stay below 90% of the daily refill; the rest covers live requests,
+only the active Merch listings below 1,000,000 BSR that are not admitted. Forecast daily,
+two-day, weekly and 14-day obligations must stay below 90% of the daily refill; the rest covers live requests,
 first-time history and keyword searches. Capacity pauses new
-admissions without revoking existing admissions. Existing eligible history seven days overdue also
-pauses new admissions; this conservative observation is not proof of a continuous seven-day deficit.
+admissions without revoking existing admissions. Existing eligible history also
+pauses new admissions once at least 100 standing listings are overdue and the oldest is seven days
+past due (isolated stuck rows stay visible on `oldestOverdueAt` without freezing healthy admission).
 Explicit history reads remain available outside standing admission.
 
 ## Protected capacity

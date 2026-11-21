@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { isAutocompleteRelayConfigured } from '@/services/keyword-autocomplete-provider';
 import { isAutomaticSyncPaused } from './automatic-sync';
 import { db } from './index';
 import { autocompleteReadyAt } from './keyword-autocomplete-capacity';
@@ -19,7 +20,7 @@ export const syncRunningGate: ProviderGate = async (now = new Date()) =>
     (await isAutomaticSyncPaused()) ? null : now;
 
 export const autocompleteGate: ProviderGate = async (now = new Date()) => {
-    if (await isAutomaticSyncPaused()) return null;
+    if (!isAutocompleteRelayConfigured() || (await isAutomaticSyncPaused())) return null;
     const [row] = await db
         .select()
         .from(keywordProviderCapacity)

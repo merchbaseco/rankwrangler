@@ -17,8 +17,10 @@ import rows provide provenance and diagnostics but do not schedule refreshes.
 
 | Product state | Scheduled cadence |
 | --- | --- |
-| Merch, root BSR below `300,000` | Daily |
-| Merch, root BSR `300,000` through `999,999` | Weekly |
+| Merch, root BSR below `50,000` | Daily |
+| Merch, root BSR `50,000` through `299,999` | Every 2 days |
+| Merch, root BSR `300,000` through `599,999` | Weekly |
+| Merch, root BSR `600,000` through `999,999` | Every 14 days |
 | Merch, root BSR at least `1,000,000` | On demand |
 | Non-Merch | Not scheduled |
 | Merch with missing numeric BSR | Not scheduled |

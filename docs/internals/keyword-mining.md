@@ -100,10 +100,13 @@ tracked keyword stays tracked and a dropped one stays dropped. Due trial heads a
 searched first.
 
 A trial's first-page head scan decides admission. At least `MIN_MERCH_ON_FIRST_PAGE` (3) confirmed
-active Merch listings on page one graduates it to tracked; anything less drops it. One check decides:
-a keyword with real Merch demand shows it right away, so a dropped keyword is never re-checked on a
-schedule. The pass of a dropped trial stops there (`dropped`), so no deeper page is
-queued for it. Three is a starting point, to be calibrated from real first-page scans. No model judges
+active Merch listings on page one graduates it to tracked; anything less drops it. Ordinary dropped
+trials stop on page one (`dropped`); high-volume dropped trials (Brand Analytics search frequency
+rank up to 100k) get a one-time deeper look (up to five pages, still bounded by low yield) while
+remaining dropped/disabled so Merch hidden below brand-heavy first pages is still captured. Weekly
+Brand Analytics imports also re-open dropped keywords as trials when their rank surges into the
+top 100k (at least a 2× rank improvement or reappearance after 60+ days, with a 30-day cooldown).
+Three is a starting point, to be calibrated from real first-page scans. No model judges
 keyword fit.
 
 ## Autocomplete
@@ -129,10 +132,19 @@ complete `keyword_autocomplete` row, and it only lets the second read skip expan
 also excludes by their `keyword_autocomplete` row.
 
 Autocomplete has durable pacing in `keyword_mining_capacity` (the table keeps its earlier name):
-ten seconds between starts at base; each 429 or 5xx doubles the spacing (to at most fifteen
-minutes) and waits the longer of Retry-After and a backoff of one minute doubling to thirty; each
-success clears the streak and eases spacing 10% toward base. 403 pauses it for an hour. A daily
-ceiling (`daily_limit`, 1,000 by default, UTC day) applies. Failures back off per seed.
+ten seconds between starts at base with ±20% jitter; each 429 or repeated 5xx doubles the spacing
+(to at most fifteen minutes) and waits the longer of Retry-After and a backoff of one minute
+doubling to thirty; an isolated 5xx backs off briefly without doubling spacing; each success clears
+the streak and eases spacing 20% toward base. 403 pauses it for an hour. A daily ceiling
+(`daily_limit`, 1,000 by default, UTC day) applies. Failures back off per seed.
+
+All autocomplete requests route through the Cloudflare Worker relay (`apps/autocomplete-worker`),
+configured by `RANKWRANGLER_AUTOCOMPLETE_RELAY_URL` and `RANKWRANGLER_AUTOCOMPLETE_RELAY_TOKEN`.
+The Worker enforces Bearer token authentication, restricts outbound requests strictly to
+`https://www.amazon.com/suggestions`, and attaches desktop browser headers. When either variable is
+unset, `autocompleteGate` returns `null` and `fetchKeywordAutocomplete` fails closed so the server's
+local IP is never used. Smoke-test the relay without touching the database via
+`RANKWRANGLER_AUTOCOMPLETE_RELAY_URL=... RANKWRANGLER_AUTOCOMPLETE_RELAY_TOKEN=... bun run --filter @rankwrangler/server test:autocomplete-relay`.
 
 ## Keyword prefixes
 
@@ -223,9 +235,9 @@ page. Due heads (a first head, or a recurring check that has come due) are claim
 continuing depth, except on every fourth claim, which prefers depth so deep passes keep moving
 under a steady head load. Either kind borrows the other's unused turn.
 
-Brand Analytics popularity sets a pass's page limit: rank up to 100k gets ten pages, up to 1M five,
-anything rarer three. Keywords Amazon does not rank keep ten (`passPageLimit`). Two consecutive
-pages that each add fewer than three Merch products new to the whole catalog also stop the pass;
+Tracked and trial passes share a single yield-driven ceiling of 20 pages (`PASS_MAX_PAGES`), while
+popular dropped trials (Brand Analytics rank up to 100k) cap at five pages (`DROPPED_POPULAR_MAX_PAGES`). Two consecutive
+pages that each add fewer than three Merch products new to the whole catalog still stop any pass early;
 later passes restart from the first page. Novelty is catalog-wide, so a pass stops paying for
 pages of products already stored. Low yield cannot demote a strong niche. An expired continuation
 preserves old evidence and starts a new pass.
@@ -278,9 +290,10 @@ its latest pass (claim, checkpoint, stop, standing refresh, candidate registrati
 merge). A claim refused as not due rewrites them too, so a value left early costs one job,
 and a target inserted without them defaults to due. The claim stays authoritative.
 
-The scheduler also skips the listing while the scan queue already holds a full batch (1,000) and
-reports `scanQueueFull`; the queue drains at SP-API pace and would deduplicate most of a fresh
-listing anyway. Depth promotion and the autocomplete top-up still run.
+The scheduler also skips general scan listing while the scan queue already holds a full batch (1,000) and
+reports `scanQueueFull`, while still listing due tracked re-checks (`discovery_targets_tracked_scan_due_idx`,
+up to 500 per tick) so a weekly Brand Analytics trial burst never delays tracked freshness. Depth
+promotion and the autocomplete top-up still run.
 
 Job runs are recorded in `job_executions` when they did work or failed.
 

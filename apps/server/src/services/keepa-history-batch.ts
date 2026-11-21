@@ -102,11 +102,12 @@ export const loadKeepaHistoryBatch = async ({
             continue;
         }
         try {
+            const fetchedAt = new Date();
             const ingestion = await ingestKeepaProduct({
                 marketplaceId,
                 asin: requestAsin(asin),
                 product,
-                fetchedAt: new Date(),
+                fetchedAt,
                 import: {
                     requestParams: { ...requestParams, asin },
                     responsePayload: { ...response, products: [product] } as unknown as Record<
@@ -116,6 +117,20 @@ export const loadKeepaHistoryBatch = async ({
                     ...usage,
                 },
             });
+            // Guard against alias-shadowed rows that never advance their own watermark and would
+            // otherwise re-enqueue every five minutes. A row merged into its family disappears.
+            const [remaining] = await db
+                .select({ keepaFetchedAt: products.keepaFetchedAt })
+                .from(products)
+                .where(eq(products.id, productId));
+            if (remaining && (!remaining.keepaFetchedAt || remaining.keepaFetchedAt < fetchedAt)) {
+                outcomes.push({
+                    asin,
+                    status: 'failed',
+                    message: `Keepa ingestion did not advance keepaFetchedAt for ${asin}`,
+                });
+                continue;
+            }
             categoryIds.push(...ingestion.normalized.historySeries.map(series => series.categoryId));
             outcomes.push({ asin, status: 'success' });
         } catch (error) {

@@ -22,7 +22,7 @@ export const reserveAutocompleteCall = async (now = new Date()) =>
         await tx
             .update(capacity)
             .set({
-                nextStartAt: new Date(now.getTime() + spacing(state)),
+                nextStartAt: new Date(now.getTime() + jitteredSpacingMs(spacing(state))),
                 starts: state.starts + 1,
                 day,
                 dayStarts: dayStarts + 1,
@@ -30,35 +30,72 @@ export const reserveAutocompleteCall = async (now = new Date()) =>
             .where(eq(capacity.provider, provider));
     });
 
-// A 429 or 5xx: double the spacing (to at most fifteen minutes) and wait the longer of
-// Retry-After and an exponential backoff of one minute doubling to thirty.
-export const throttleAutocomplete = async (retryAfterMs: number | null, now = new Date()) =>
+// A 429 or repeated 5xx doubles spacing (up to 15m) and backs off exponentially (1m to 30m).
+// An isolated 5xx without Retry-After backs off briefly without doubling standing spacing so a
+// single flaky residential proxy exit does not permanently throttle the queue.
+export const computeThrottlePlan = ({
+    currentSpacingMs,
+    consecutiveThrottles,
+    retryAfterMs: headerRetryAfterMs,
+    statusCode,
+}: {
+    currentSpacingMs: number;
+    consecutiveThrottles: number;
+    retryAfterMs: number | null;
+    statusCode?: number;
+}) => {
+    const throttles = consecutiveThrottles + 1;
+    const isIsolated5xx =
+        statusCode !== undefined &&
+        statusCode >= 500 &&
+        throttles === 1 &&
+        headerRetryAfterMs === null;
+    const backoffMs = isIsolated5xx ? 60_000 : Math.min(1_800_000, 60_000 * 2 ** (throttles - 1));
+    const waitMs = Math.max(headerRetryAfterMs ?? 0, backoffMs);
+    const nextSpacingMs = isIsolated5xx
+        ? Math.max(baseSpacingMs, currentSpacingMs)
+        : Math.min(900_000, Math.max(baseSpacingMs, currentSpacingMs) * 2);
+    return { throttles, waitMs, nextSpacingMs };
+};
+
+export const throttleAutocomplete = async (
+    headerRetryAfterMs: number | null,
+    now = new Date(),
+    statusCode?: number
+) =>
     db.transaction(async tx => {
         const state = await lockProvider(tx, now);
-        const throttles = state.consecutiveThrottles + 1;
-        const backoff = Math.min(1_800_000, 60_000 * 2 ** (throttles - 1));
-        const retryAt = new Date(now.getTime() + Math.max(retryAfterMs ?? 0, backoff));
+        const plan = computeThrottlePlan({
+            currentSpacingMs: spacing(state),
+            consecutiveThrottles: state.consecutiveThrottles,
+            retryAfterMs: headerRetryAfterMs,
+            statusCode,
+        });
+        const retryAt = new Date(now.getTime() + plan.waitMs);
         await tx
             .update(capacity)
             .set({
-                consecutiveThrottles: throttles,
-                spacingMs: Math.min(900_000, spacing(state) * 2),
+                consecutiveThrottles: plan.throttles,
+                spacingMs: plan.nextSpacingMs,
                 nextStartAt: sql`greatest(${capacity.nextStartAt},${retryAt.toISOString()}::timestamp)`,
             })
             .where(eq(capacity.provider, provider));
         return retryAt;
     });
 
-// A successful response clears the throttle streak and eases spacing 10% back toward its base.
+// A successful response clears the throttle streak and eases spacing 20% back toward its base.
 export const relaxAutocomplete = async () => {
     await db
         .update(capacity)
         .set({
             consecutiveThrottles: 0,
-            spacingMs: sql`greatest(${baseSpacingMs},round(coalesce(${capacity.spacingMs},${baseSpacingMs})*0.9))`,
+            spacingMs: sql`greatest(${baseSpacingMs},round(coalesce(${capacity.spacingMs},${baseSpacingMs})*0.8))`,
         })
         .where(eq(capacity.provider, provider));
 };
+
+export const jitteredSpacingMs = (ms: number, random = Math.random()) =>
+    Math.max(1_000, Math.round(ms * (0.8 + random * 0.4)));
 
 export const deferAutocomplete = async (retryAt: Date) => {
     await db

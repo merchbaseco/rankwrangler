@@ -98,7 +98,11 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('refresh tiers', ()
             count(*) filter (where is_merch_listing and root_category_bsr >= 3000000)::int gte_3m,
             count(*) filter (where is_merch_listing = false or root_category_bsr is null)::int non_auto,
             count(*) filter (where is_merch_listing and amazon_listing_status='active' and history_admission_state='admitted' and root_category_bsr < 300000)::int daily,
-            count(*) filter (where is_merch_listing and amazon_listing_status='active' and history_admission_state='admitted' and root_category_bsr >= 300000 and root_category_bsr < 1000000)::int weekly,
+            count(*) filter (where is_merch_listing and amazon_listing_status='active' and history_admission_state='admitted' and root_category_bsr >= 300000 and root_category_bsr < 600000)::int weekly,
+            count(*) filter (where is_merch_listing and amazon_listing_status='active' and history_admission_state='admitted' and root_category_bsr >= 600000 and root_category_bsr < 1000000)::int biweekly,
+            count(*) filter (where is_merch_listing and amazon_listing_status='active' and history_admission_state<>'admitted' and root_category_bsr < 300000)::int wait_daily,
+            count(*) filter (where is_merch_listing and amazon_listing_status='active' and history_admission_state<>'admitted' and root_category_bsr >= 300000 and root_category_bsr < 600000)::int wait_weekly,
+            count(*) filter (where is_merch_listing and amazon_listing_status='active' and history_admission_state<>'admitted' and root_category_bsr >= 600000 and root_category_bsr < 1000000)::int wait_biweekly,
             count(*) filter (where is_merch_listing and root_category_bsr >= 1000000)::int on_demand,
             count(*) filter (where is_merch_listing and root_category_bsr is null)::int missing_bsr,
             count(*) filter (where is_merch_listing = false)::int non_merch
@@ -113,12 +117,22 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('refresh tiers', ()
             gte3m: direct.gte_3m,
             nonAutoRefresh: direct.non_auto,
         });
-        expect(counts(getKeepaRefreshPolicyBuckets(stats))).toEqual({
+        const keepaBuckets = getKeepaRefreshPolicyBuckets(stats);
+        expect(counts(keepaBuckets)).toEqual({
             daily: direct.daily,
             weekly: direct.weekly,
+            biweekly: direct.biweekly,
             onDemand: direct.on_demand,
             merchMissingBsr: direct.missing_bsr,
             nonMerch: direct.non_merch,
+        });
+        expect(Object.fromEntries(keepaBuckets.map(bucket => [bucket.key, bucket.waiting]))).toEqual({
+            daily: direct.wait_daily,
+            weekly: direct.wait_weekly,
+            biweekly: direct.wait_biweekly,
+            onDemand: 0,
+            merchMissingBsr: 0,
+            nonMerch: 0,
         });
         expect(direct.daily).toBe(3);
     });

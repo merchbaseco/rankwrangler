@@ -526,6 +526,13 @@
       "when": 1794961328734,
       "tag": "0074_stored_read_facts",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1795294971585,
+      "tag": "0075_lumpy_corsair",
+      "breakpoints": true
     }
   ]
 }

@@ -34,9 +34,17 @@ interface ProcessSpApiSyncQueueDeps {
     batchDeadlineMs?: number;
 }
 
+// Scheduled Product refreshes share the background Catalog limiter lane so they yield to live
+// reads, while staying outside Pause sync (which gates only the keyword pipeline).
+export const searchCatalogItemsForSyncQueue = (marketplaceId: string, asins: string[]) =>
+    searchCatalogItemsByAsins(marketplaceId, asins, {
+        priority: 'background',
+        respectSyncPause: false,
+    });
+
 const defaultProcessSpApiSyncQueueDeps: ProcessSpApiSyncQueueDeps = {
     getSpApiSyncQueueItems,
-    searchCatalogItemsByAsins,
+    searchCatalogItemsByAsins: searchCatalogItemsForSyncQueue,
     persistProductSyncResults,
     deleteSpApiSyncQueueItems,
     createEventLogsSafe,

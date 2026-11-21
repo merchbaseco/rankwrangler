@@ -1,5 +1,7 @@
 import { eq, type SQL, sql } from 'drizzle-orm';
+import { keepaRefreshInterval } from '@/db/product-refresh-due';
 import {
+    KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD,
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_WEEKLY_AUTO_BSR_THRESHOLD,
@@ -45,14 +47,15 @@ export const refreshProductStats = async (
         insert into product_stats (id, observed_at, products, merch, new_24h, merch_with_history,
             merch_awaiting_first, merch_not_tracked, sp_api_lt_200k, sp_api_200k_to_500k,
             sp_api_500k_to_1m, sp_api_1m_to_3m, sp_api_gte_3m, sp_api_non_auto,
-            history_twice_daily, history_daily, history_weekly, keepa_on_demand,
+            history_twice_daily, history_daily, history_weekly, history_biweekly,
+            keepa_waiting_daily, keepa_waiting_weekly, keepa_waiting_biweekly, keepa_on_demand,
             keepa_merch_missing_bsr, keepa_non_merch, history_overdue, history_oldest_overdue_at,
             provider_calls)
         select 1, ${at}, count(*), count(*) filter (where merch),
             count(*) filter (where created_at>${at}-interval '24 hours'),
-            count(*) filter (where merch and keepa_fetched_at is not null),
+            count(*) filter (where merch and keepa_fetched_at is not null and not waiting),
             count(*) filter (where tracked and keepa_fetched_at is null),
-            count(*) filter (where merch and keepa_fetched_at is null and not tracked),
+            count(*) filter (where merch and keepa_fetched_at is null and not tracked and not waiting),
             count(*) filter (where is_merch_listing and bsr<${BSR_THRESHOLD_200K}),
             count(*) filter (where is_merch_listing and bsr>=${BSR_THRESHOLD_200K}
                 and bsr<${BSR_THRESHOLD_500K}),
@@ -65,8 +68,14 @@ export const refreshProductStats = async (
             count(*) filter (where tracked and bsr<${KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD}),
             count(*) filter (where tracked and bsr>=${KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD}
                 and bsr<${KEEPA_DAILY_AUTO_BSR_THRESHOLD}),
-            count(*) filter (where tracked and bsr>=${KEEPA_DAILY_AUTO_BSR_THRESHOLD}),
-            count(*) filter (where is_merch_listing and bsr>=${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}),
+            count(*) filter (where tracked and bsr>=${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
+                and bsr<${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}),
+            count(*) filter (where tracked and bsr>=${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}),
+            count(*) filter (where waiting and bsr<${KEEPA_DAILY_AUTO_BSR_THRESHOLD}),
+            count(*) filter (where waiting and bsr>=${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
+                and bsr<${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}),
+            count(*) filter (where waiting and bsr>=${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD}),
+            count(*) filter (where is_merch_listing and bsr>=${KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD}),
             count(*) filter (where is_merch_listing and bsr is null),
             count(*) filter (where not is_merch_listing),
             count(*) filter (where tracked and due_at<=${at}),
@@ -77,9 +86,11 @@ export const refreshProductStats = async (
                 is_merch_listing and amazon_listing_status='active' merch,
                 is_merch_listing and amazon_listing_status='active'
                     and history_admission_state='admitted'
-                    and root_category_bsr<${KEEPA_WEEKLY_AUTO_BSR_THRESHOLD} tracked,
-                coalesce(keepa_fetched_at + case when root_category_bsr<${KEEPA_DAILY_AUTO_BSR_THRESHOLD}
-                    then interval '1 day' else interval '7 days' end,
+                    and root_category_bsr<${KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD} tracked,
+                is_merch_listing and amazon_listing_status='active'
+                    and history_admission_state<>'admitted'
+                    and root_category_bsr<${KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD} waiting,
+                coalesce(keepa_fetched_at + ${keepaRefreshInterval(sql.raw('root_category_bsr'))},
                     history_admitted_at, created_at) due_at
             from products
         ) p

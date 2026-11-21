@@ -1,5 +1,6 @@
 export interface StartupSummaryInput {
     authSummary: string;
+    autocompleteRelaySummary: string;
     catalogSearchOperations: string;
     databaseConnected: boolean;
     developmentIdentityStatus: string;
@@ -47,6 +48,7 @@ export const printStartupSummary = (input: StartupSummaryInput) => {
             input.keepaConfigured ? 'Configured' : 'Disabled (RANKWRANGLER_KEEPA_API_KEY not set)'
         }`
     );
+    console.log(`  • Keyword Autocomplete: ${input.autocompleteRelaySummary}`);
     console.log('  • Job Execution Tracking: Enabled (admin dashboard)');
     console.log('  • Keepa Queue Log: Enabled (admin dashboard)');
     console.log('  • User Event Logs: Enabled (dashboard logs page)');

@@ -29,6 +29,9 @@ describe('product refresh due expressions', () => {
         );
         const keepa = render(keepaRefreshDueAt(products));
         expect(keepa.params).toEqual([]);
-        expect(keepa.sql).toContain(`< 50000 THEN interval '43200 seconds'`);
+        expect(keepa.sql).toContain(`< 50000 THEN interval '86400 seconds'`);
+        expect(keepa.sql).toContain(`< 300000 THEN interval '172800 seconds'`);
+        expect(keepa.sql).toContain(`< 600000 THEN interval '604800 seconds'`);
+        expect(keepa.sql).toContain(`ELSE interval '1209600 seconds'`);
     });
 });

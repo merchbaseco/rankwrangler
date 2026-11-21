@@ -1,5 +1,6 @@
-import { Chip } from '@heroui/react';
+import { Chip, Tooltip } from '@heroui/react';
 import {
+    formatCount,
     formatPercent,
     fraction,
     type Provider,
@@ -23,6 +24,35 @@ export const ProviderVerdictChip = ({
         <Chip color={verdictColor[verdict]} size="sm" variant="soft">
             {verdictLabel[verdict]}
         </Chip>
+    );
+};
+
+/**
+ * Secondary Keepa header chip when eligible `<1M` BSR listings are waiting for admission (either
+ * paused on an overdue backlog or throttled by daily token headroom). Renders nothing when open.
+ */
+export const KeepaAdmissionChip = ({
+    admission,
+}: {
+    admission: SystemStatus['keepa']['admission'];
+}) => {
+    if (!admission || admission.state === 'open') {
+        return null;
+    }
+    const isPaused = admission.state === 'paused';
+    const label = isPaused ? 'Admission paused' : `${formatCount(admission.waiting)} waiting`;
+    const tooltip = isPaused
+        ? formatPausedTooltip(admission.overdue, admission.oldestOverdueAt)
+        : `${formatCount(admission.waiting)} eligible listings under 1M BSR are waiting for Keepa daily token headroom.`;
+    return (
+        <Tooltip closeDelay={0} delay={150}>
+            <Tooltip.Trigger<'span'> render={props => <span {...props} />}>
+                <Chip color={isPaused ? 'warning' : 'default'} size="sm" variant="soft">
+                    {label}
+                </Chip>
+            </Tooltip.Trigger>
+            <Tooltip.Content className="max-w-72">{tooltip}</Tooltip.Content>
+        </Tooltip>
     );
 };
 
@@ -63,4 +93,14 @@ const verdictColor: Readonly<Record<ProviderVerdict, 'success' | 'warning' | 'da
     healthy: 'success',
     throttled: 'warning',
     unreachable: 'danger',
+};
+
+const formatPausedTooltip = (overdue: number, oldestOverdueAt: string | null) => {
+    const ageDays = oldestOverdueAt
+        ? Math.max(1, Math.round((Date.now() - Date.parse(oldestOverdueAt)) / 86_400_000))
+        : null;
+    const prefix = ageDays
+        ? `Backlog ${ageDays} ${ageDays === 1 ? 'day' : 'days'} overdue`
+        : 'Backlog overdue';
+    return `${prefix} · ${formatCount(overdue)} late. New listings resume once it clears.`;
 };

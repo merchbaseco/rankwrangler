@@ -53,25 +53,47 @@ export const keywordRetryAt = (failures: number, now: Date, retryAfterMs = 0) =>
             Math.max(retryAfterMs, Math.min(KEYWORD_DAY_MS, 300_000 * 2 ** Math.min(failures, 9)))
     );
 
-// A pass stops at this many pages even while pages keep finding new Merch. Later checks start a
-// new pass from the first page, so results beyond this depth are not collected.
-export const PASS_MAX_PAGES = 10;
-// Brand Analytics popularity sets how deep a pass may go: the most searched terms get the full
-// depth, rarer ones fewer pages. Keywords Amazon does not rank keep the full depth.
+// A pass stops at this many pages even while pages keep finding new Merch; lowYield stops
+// unproductive passes much earlier. Later checks start a new pass from the first page.
+export const PASS_MAX_PAGES = 20;
+// Popular Brand Analytics terms (top 100k) get a one-time deeper look even when page 1 is
+// brand-heavy and drops the trial, and can re-trial when their weekly BA rank surges.
 export const POPULAR_RANK_MAX = 100_000;
-export const COMMON_RANK_MAX = 1_000_000;
-export const POPULAR_PASS_PAGES = 10;
-export const COMMON_PASS_PAGES = 5;
-export const RARE_PASS_PAGES = 3;
+export const DROPPED_POPULAR_MAX_PAGES = 5;
+export const SEASONAL_SURGE_MAX_RANK = POPULAR_RANK_MAX;
+export const SEASONAL_SURGE_RANK_FACTOR = 2;
+export const SEASONAL_SURGE_ABSENCE_DAYS = 60;
+export const SEASONAL_SURGE_COOLDOWN_DAYS = 30;
 
-export const passPageLimit = (searchFrequencyRank: number | null) =>
-    searchFrequencyRank === null
-        ? PASS_MAX_PAGES
-        : searchFrequencyRank <= POPULAR_RANK_MAX
-          ? POPULAR_PASS_PAGES
-          : searchFrequencyRank <= COMMON_RANK_MAX
-            ? COMMON_PASS_PAGES
-            : RARE_PASS_PAGES;
+export const isPopularBrandAnalyticsRank = (searchFrequencyRank: number | null) =>
+    searchFrequencyRank !== null && searchFrequencyRank <= POPULAR_RANK_MAX;
+
+export const passPageLimit = (
+    tracking: 'trial' | 'tracked' | 'dropped' = 'tracked',
+    searchFrequencyRank: number | null = null
+) =>
+    tracking === 'dropped'
+        ? isPopularBrandAnalyticsRank(searchFrequencyRank)
+            ? DROPPED_POPULAR_MAX_PAGES
+            : 1
+        : PASS_MAX_PAGES;
+
+export const isBrandAnalyticsRankSurge = ({
+    previousRank,
+    newRank,
+    previousWeek,
+    newWeek,
+}: {
+    previousRank: number;
+    newRank: number;
+    previousWeek: string;
+    newWeek: string;
+}) => {
+    if (newRank > SEASONAL_SURGE_MAX_RANK || newWeek <= previousWeek) return false;
+    if (newRank * SEASONAL_SURGE_RANK_FACTOR <= previousRank) return true;
+    const gapDays = (Date.parse(newWeek) - Date.parse(previousWeek)) / KEYWORD_DAY_MS;
+    return Number.isFinite(gapDays) && gapDays >= SEASONAL_SURGE_ABSENCE_DAYS;
+};
 
 // newMerchCount is Merch new to the whole catalog on this page: once a niche's products are
 // already stored, deeper pages stop paying for themselves even if they are new to this keyword.

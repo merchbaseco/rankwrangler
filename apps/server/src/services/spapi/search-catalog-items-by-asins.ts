@@ -10,7 +10,7 @@ const spApiProvider = createSpApiProvider();
 export const searchCatalogItemsByAsins = async (
     marketplaceId: string,
     asins: string[],
-    options: { priority?: 'foreground' | 'background' } = {}
+    options: { priority?: 'foreground' | 'background'; respectSyncPause?: boolean } = {}
 ): Promise<SpApiProduct[]> => {
     if (!marketplaceId || typeof marketplaceId !== 'string') {
         throw new Error('Marketplace ID is required');
@@ -25,12 +25,14 @@ export const searchCatalogItemsByAsins = async (
             asins,
             marketplaceId,
             priority: options.priority,
+            respectSyncPause: options.respectSyncPause,
         })
     );
     const classified = await classifyCatalogItems({
         items: response.items.filter(item => asins.includes(item.asin)),
         marketplaceId,
         priority: options.priority,
+        respectSyncPause: options.respectSyncPause,
         provider: spApiProvider,
     });
     const fetchedAt = new Date().toISOString();

@@ -67,12 +67,17 @@ export const scanKeywordPage = async (targetId: string, deps = defaultDeps) => {
             });
             return { kind: 'paused' as const, didWork: false, term, page };
         }
-        await deps.stop({
+        const retryAt = await deps.stop({
             passId: pass.id,
             claimToken,
             attemptId: attemptId ?? undefined,
             reason: 'failure',
         });
+        // Disabled dropped-trial depth passes aren't listed by `listDueKeywordScans`, so return a
+        // retry followup at the recorded backoff instead of stranding the continuation.
+        if (work.target?.enabled === false && page > 0 && retryAt) {
+            return { kind: 'retry' as const, didWork: false, term, page, retryAt };
+        }
         throw error;
     }
 };

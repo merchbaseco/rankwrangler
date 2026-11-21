@@ -1,5 +1,7 @@
 import { type SQLWrapper, sql } from 'drizzle-orm';
 import {
+    KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD,
+    KEEPA_BIWEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_DAILY_AUTO_BSR_THRESHOLD,
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD,
@@ -59,13 +61,17 @@ export const spApiBlindspotDueAt = (c: ProductRefreshColumns) => {
     return sql`(CASE WHEN ${latest} IS NULL THEN '-infinity'::timestamp WHEN ${probationDue} < ${c.createdAt} + ${interval(30 * day)} THEN ${probationDue} ELSE ${latest} + ${interval(30 * day)} END)`;
 };
 
-/** History-admitted active Merch listings under the weekly BSR ceiling: Keepa's scheduled tiers. */
+/** History-admitted active Merch listings under the automatic BSR ceiling: Keepa's scheduled tiers. */
 export const keepaRefreshTracked = (c: ProductRefreshColumns) =>
-    sql`(${c.isMerchListing} AND ${c.amazonListingStatus} = 'active' AND ${c.historyAdmissionState} = 'admitted' AND ${c.rootCategoryBsr} < ${sql.raw(String(KEEPA_WEEKLY_AUTO_BSR_THRESHOLD))})`;
+    sql`(${c.isMerchListing} AND ${c.amazonListingStatus} = 'active' AND ${c.historyAdmissionState} = 'admitted' AND ${c.rootCategoryBsr} < ${sql.raw(String(KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD))})`;
+
+/** BSR-tier refresh interval for Keepa automatic history, shared by dispatch and product_stats. */
+export const keepaRefreshInterval = (bsr: SQLWrapper) =>
+    sql`(CASE WHEN ${bsr} < ${sql.raw(String(KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD))} THEN ${interval(KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS)} WHEN ${bsr} < ${sql.raw(String(KEEPA_DAILY_AUTO_BSR_THRESHOLD))} THEN ${interval(KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS)} WHEN ${bsr} < ${sql.raw(String(KEEPA_WEEKLY_AUTO_BSR_THRESHOLD))} THEN ${interval(KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS)} ELSE ${interval(KEEPA_BIWEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS)} END)`;
 
 /** Last Keepa fetch plus the BSR tier's interval; never fetched is due at once. */
 export const keepaRefreshDueAt = (c: ProductRefreshColumns) =>
-    sql`(COALESCE(${c.keepaFetchedAt}, '-infinity'::timestamp) + (CASE WHEN ${c.rootCategoryBsr} < ${sql.raw(String(KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD))} THEN ${interval(KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS)} WHEN ${c.rootCategoryBsr} < ${sql.raw(String(KEEPA_DAILY_AUTO_BSR_THRESHOLD))} THEN ${interval(KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS)} ELSE ${interval(KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS)} END))`;
+    sql`(COALESCE(${c.keepaFetchedAt}, '-infinity'::timestamp) + ${keepaRefreshInterval(c.rootCategoryBsr)})`;
 
 const day = 86_400_000;
 

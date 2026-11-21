@@ -1,4 +1,4 @@
-import { failureFigures, ProviderVerdictChip } from './provider-verdict';
+import { failureFigures, KeepaAdmissionChip, ProviderVerdictChip } from './provider-verdict';
 import { RefreshTierTable } from './refresh-tier-table';
 import {
     formatCount,
@@ -42,7 +42,12 @@ const KeepaSection = ({
     const used = work.reduce((sum, row) => sum + row.tokens, 0);
     return (
         <StatusSection
-            caption={<ProviderVerdictChip provider="keepa" status={status} />}
+            caption={
+                <span className="inline-flex items-center gap-1.5">
+                    <ProviderVerdictChip provider="keepa" status={status} />
+                    <KeepaAdmissionChip admission={keepa.admission} />
+                </span>
+            }
             title="Keepa"
         >
             <StatusCard>

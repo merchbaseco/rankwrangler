@@ -59,10 +59,11 @@ All Catalog calls share one in-process Bottleneck limiter whose reservoir is ret
 `patches/bottleneck@2.19.5.patch` keeps the reservoir heartbeat alive across `updateSettings()`;
 without it one throttle retune drains the reservoir permanently and every Catalog call queues
 forever. Drop the patch only for a Bottleneck release that fixes `_startHeartbeat`.
-Scheduled SP-API refresh runs every ten minutes and lists at most 2,000 BSR-tier refreshes and 20
+Scheduled SP-API refresh runs every ten minutes and lists at most 2,000 BSR-tier refreshes and 350
 no-BSR or Keepa-only checks, most overdue first, from partial expression indexes on each rule's
 due instant (`product-refresh-due.ts`); a backlog after a pause drains over successive runs, and
-queue inserts go 1,000 rows per statement. A no-BSR Merch listing whose probation re-check was not
+queue inserts go 1,000 rows per statement. The SP-API sync queue runs in the Catalog limiter's
+background lane (yielding to live reads) while staying outside keyword Pause sync. A no-BSR Merch listing whose probation re-check was not
 taken before its first thirty days ended stays due rather than waiting for the thirty-day check.
 Deleted Amazon listings do not age back into automatic or scheduled SP-API work. A newer authoritative
 Catalog discovery or an explicit refresh can recheck them; a cached or older discovery cannot.

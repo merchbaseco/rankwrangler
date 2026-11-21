@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'bun:test';
 import { getHistoryAdmissionForecast } from '@/services/product-history-admission';
 import { getAutomaticHistoryDecision } from '@/services/product-history-eligibility';
+import {
+    getHistoryAdmissionOverload,
+    KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE,
+} from '@/services/product-history-overload';
 
 const now = new Date('2026-10-23T12:00:00Z');
 const product = {
@@ -49,15 +53,38 @@ describe('standing history admission', () => {
             getAutomaticHistoryDecision({ ...product, rootCategoryBsr: 1_000_000 }, now)
         ).toEqual({ shouldRefresh: false, reason: 'not_eligible' });
     });
-    it('forecasts 12-hour, daily and weekly cohorts against 90% of the daily refill', () => {
+    it('forecasts daily, two-day, weekly and 14-day cohorts against 90% of the daily refill', () => {
         expect(
             getHistoryAdmissionForecast({
                 twiceDaily: 10,
-                daily: 121,
-                weekly: 448,
+                daily: 120,
+                weekly: 70,
+                biweekly: 280,
                 productCost: 2,
                 refillRate: 20,
             })
-        ).toEqual({ projectedDailyTokens: 410, protectedDailyTokens: 25920 });
+        ).toEqual({ projectedDailyTokens: 200, protectedDailyTokens: 25920 });
+    });
+    it('does not pause admission for isolated stuck rows, but pauses on a real 7-day backlog', () => {
+        const eightDaysAgo = new Date(now.getTime() - 8 * 86_400_000);
+        expect(
+            getHistoryAdmissionOverload(
+                { historyOverdue: 6, historyOldestOverdueAt: eightDaysAgo },
+                now
+            )
+        ).toEqual({
+            overdueCount: 6,
+            oldestOverdueAt: eightDaysAgo,
+            newAdmissionsPaused: false,
+        });
+        expect(
+            getHistoryAdmissionOverload(
+                {
+                    historyOverdue: KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE,
+                    historyOldestOverdueAt: eightDaysAgo,
+                },
+                now
+            ).newAdmissionsPaused
+        ).toBe(true);
     });
 });

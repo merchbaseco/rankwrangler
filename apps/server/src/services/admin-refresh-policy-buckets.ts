@@ -25,6 +25,8 @@ export interface KeepaRefreshPolicyBucketStat {
     /** The long explanation the short label leaves out, shown on hover. */
     hint: string | null;
     count: number;
+    /** Active Merch listings in this band eligible for auto-refresh but not yet admitted. */
+    waiting: number;
     isAutoRefresh: boolean;
 }
 
@@ -68,9 +70,18 @@ export const getKeepaRefreshPolicyBuckets = (
     const countByKey: Record<KeepaRefreshPolicyBucketKey, number> = {
         daily: stats.historyTwiceDaily + stats.historyDaily,
         weekly: stats.historyWeekly,
+        biweekly: stats.historyBiweekly,
         onDemand: stats.keepaOnDemand,
         merchMissingBsr: stats.keepaMerchMissingBsr,
         nonMerch: stats.keepaNonMerch,
+    };
+    const waitingByKey: Record<KeepaRefreshPolicyBucketKey, number> = {
+        daily: stats.keepaWaitingDaily,
+        weekly: stats.keepaWaitingWeekly,
+        biweekly: stats.keepaWaitingBiweekly,
+        onDemand: 0,
+        merchMissingBsr: 0,
+        nonMerch: 0,
     };
 
     return KEEPA_REFRESH_POLICY_BUCKETS.map(bucket => ({
@@ -79,6 +90,7 @@ export const getKeepaRefreshPolicyBuckets = (
         refreshEveryLabel: bucket.refreshEveryLabel,
         hint: bucket.hint,
         count: countByKey[bucket.key],
+        waiting: waitingByKey[bucket.key],
         isAutoRefresh: bucket.isAutoRefresh,
     }));
 };
