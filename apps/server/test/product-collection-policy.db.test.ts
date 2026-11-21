@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { db } from '@/db/index';
+import { keepaRefreshInterval } from '@/db/product-refresh-due';
 import { readProductStats, refreshProductStats } from '@/db/product-stats';
 import { products } from '@/db/schema';
 import { admitProductHistory } from '@/services/product-history-admission';
-import { getHistoryAdmissionOverload } from '@/services/product-history-overload';
+import {
+    getHistoryAdmissionOverload,
+    KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE,
+} from '@/services/product-history-overload';
 import { shouldKeepaHistoryRefreshAsin } from '@/services/product-history-eligibility';
 import { listDueSpApiBlindspots } from '@/services/spapi-refresh-selection';
 
@@ -36,7 +40,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         await insert('B000000001');
         await insert('B000000002', { createdAt: new Date('2026-10-02T12:00:00Z') });
         await count(now);
-        const result = await admitProductHistory({ refillRate: 0.001, productCost: 1 }, now);
+        // 100k BSR is every-2-days (0.5 tokens/day); 0.0005/min -> 0.648 protected/day fits one.
+        const result = await admitProductHistory({ refillRate: 0.0005, productCost: 1 }, now);
         expect(result.admitted).toBe(1);
         expect(result.paused).toBe(1);
         const rows = await db.select().from(products).orderBy(products.asin);
@@ -50,31 +55,34 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         await insert('B000000001');
         await count(now);
         expect((await admitProductHistory(null, now)).admitted).toBe(0);
-        await db
-            .update(products)
-            .set({
-                historyAdmissionState: 'admitted',
-                historyAdmissionReason: 'legacy',
-                historyAdmittedAt: new Date('2026-10-15T12:00:00Z'),
-            })
-            .where(eq(products.asin, 'B000000001'));
-        await insert('B000000002');
+        await db.execute(sql`truncate products, product_stats cascade`);
+        await seedOverdueAdmitted(KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE, {
+            historyAdmittedAt: new Date('2026-10-15T12:00:00Z'),
+            keepaFetchedAt: null,
+        });
+        await insert('B099999999');
         await count(now);
         const result = await admitProductHistory({ refillRate: 20, productCost: 1 }, now);
         expect(result.admitted).toBe(0);
         expect(result.paused).toBe(1);
-        const rows = await db.select().from(products).orderBy(products.asin);
-        expect(rows.map(row => row.historyAdmissionState)).toEqual(['admitted', 'paused']);
+        const [candidate] = await db
+            .select()
+            .from(products)
+            .where(sql`${products.asin} = 'B099999999'`);
+        expect(candidate.historyAdmissionState).toBe('paused');
+        const [{ admittedCount }] = await db.execute<{ admittedCount: number }>(
+            sql`select count(*)::int "admittedCount" from products where history_admission_state = 'admitted'`
+        );
+        expect(admittedCount).toBe(KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE);
     });
 
-    it('pauses new admissions when existing eligible history is seven days overdue', async () => {
-        await insert('B000000001', {
-            historyAdmissionState: 'admitted',
-            historyAdmissionReason: 'legacy',
+    it('pauses new admissions when a real backlog of eligible history is seven days overdue', async () => {
+        await seedOverdueAdmitted(KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE, {
             historyAdmittedAt: new Date('2026-10-01T12:00:00Z'),
-            keepaFetchedAt: new Date('2026-10-15T12:00:00Z'),
+            // 100k BSR refreshes every 2 days: fetched Oct 14 -> due Oct 16 (7 days before Oct 23).
+            keepaFetchedAt: new Date('2026-10-14T12:00:00Z'),
         });
-        await insert('B000000002', {
+        await insert('B0FRESH001', {
             historyAdmissionState: 'admitted',
             historyAdmissionReason: 'legacy',
             historyAdmittedAt: new Date('2026-10-20T12:00:00Z'),
@@ -84,7 +92,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product collection
         const stats = await readProductStats();
         if (!stats) throw new Error('Expected a Product count');
         expect(getHistoryAdmissionOverload(stats, now)).toEqual({
-            overdueCount: 1,
+            overdueCount: KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE,
             oldestOverdueAt: new Date('2026-10-16T12:00:00Z'),
             newAdmissionsPaused: true,
         });
@@ -130,8 +138,8 @@ const count = (at: Date) => db.transaction(tx => refreshProductStats(tx, at));
 const readOverloadDirectly = async (at: Date) => {
     const [row] = await db.execute<{ overdue: number; oldest: string | null }>(sql`
         with due as (
-            select coalesce(keepa_fetched_at + case when root_category_bsr < 300000
-                then interval '1 day' else interval '7 days' end, history_admitted_at, created_at) due_at
+            select coalesce(keepa_fetched_at + ${keepaRefreshInterval(sql.raw('root_category_bsr'))},
+                history_admitted_at, created_at) due_at
             from products where history_admission_state='admitted' and amazon_listing_status='active'
                 and is_merch_listing and root_category_bsr < 1000000
         ) select count(*) filter (where due_at <= ${at.toISOString()}::timestamp)::int overdue,
@@ -141,9 +149,28 @@ const readOverloadDirectly = async (at: Date) => {
         overdueCount: row.overdue,
         oldestOverdueAt,
         newAdmissionsPaused:
-            oldestOverdueAt !== null && at.getTime() - oldestOverdueAt.getTime() >= 7 * 86_400_000,
+            row.overdue >= KEEPA_ADMISSION_OVERLOAD_MIN_OVERDUE &&
+            oldestOverdueAt !== null &&
+            at.getTime() - oldestOverdueAt.getTime() >= 7 * 86_400_000,
     };
 };
+
+const seedOverdueAdmitted = (
+    total: number,
+    overrides: Partial<typeof products.$inferInsert>
+) =>
+    db.insert(products).values(
+        Array.from({ length: total }, (_, index) => ({
+            marketplaceId: market,
+            asin: `B0OVER${String(index).padStart(4, '0')}`,
+            isMerchListing: true,
+            rootCategoryBsr: 100_000,
+            createdAt: new Date('2026-10-01T12:00:00Z'),
+            historyAdmissionState: 'admitted' as const,
+            historyAdmissionReason: 'legacy' as const,
+            ...overrides,
+        }))
+    );
 
 const insert = (asin: string, overrides: Partial<typeof products.$inferInsert> = {}) =>
     db.insert(products).values({
