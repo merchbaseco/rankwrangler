@@ -4,7 +4,12 @@ import { db } from '@/db/index';
 import { products, spApiSyncQueue } from '@/db/schema';
 import { sendProcessSpApiSyncQueueJob } from '@/services/spapi-sync-queue';
 import type { SpApiProduct } from '@/types';
-import { claimProductFamily, recordVariantAliases } from './product-family';
+import {
+    claimProductFamily,
+    familyIdentityKey,
+    recordVariantAliases,
+    resolveFamilyIdentities,
+} from './product-family';
 
 type ProductWriteDatabase = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -43,8 +48,30 @@ const writeFamilies = async (
     marketplaceId: string,
     infos: readonly SpApiProduct[]
 ) => {
+    // An observation omitting parentAsin still resolves through an existing variant alias so
+    // SP-API never recreates a shadowed standalone row alongside its family.
+    const plain = infos.filter(info => !info.parentAsin);
+    const knownAliases = plain.length
+        ? await resolveFamilyIdentities(
+              transaction,
+              plain.map(info => ({ marketplaceId, asin: info.asin }))
+          )
+        : new Map();
     const familyOf = new Map<string, string>();
-    for (const info of infos) familyOf.set(info.asin, await claimProductFamily(transaction, info));
+    for (const info of infos) {
+        const parentAsin =
+            info.parentAsin ??
+            knownAliases.get(familyIdentityKey({ marketplaceId, asin: info.asin }))?.asin ??
+            null;
+        familyOf.set(
+            info.asin,
+            await claimProductFamily(transaction, {
+                marketplaceId,
+                asin: info.asin,
+                parentAsin: parentAsin === info.asin ? null : parentAsin,
+            })
+        );
+    }
     const own = infos.filter(info => familyOf.get(info.asin) === info.asin);
     const ownFamilies = new Set(own.map(info => info.asin));
     const variants = [

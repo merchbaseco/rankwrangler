@@ -17,6 +17,16 @@ export const listDueKeywordScans = async (now: Date, limit: number) => {
     return [...heads, ...depth];
 };
 
+// Tracked keyword heads due for recheck, read from `discovery_targets_tracked_scan_due_idx` so a
+// weekly Brand Analytics trial burst cannot bury due tracked checks behind older trial timestamps.
+export const listDueTrackedHeadScans = (now: Date, limit: number) =>
+    db.execute<{ id: string; depth: boolean; tracked: boolean }>(sql`
+        select t.id,false depth,true tracked from discovery_targets t
+        where t.enabled and t.tracking='tracked' and not t.scan_depth
+            and t.scan_due_at<=${now.toISOString()}::timestamp
+        order by t.scan_due_at,t.id
+        limit ${limit}`);
+
 // Tracked seeds whose one-time autocomplete expansion has not completed. Seeds with a pending
 // expansion come first (a retry or deferral, oldest due first, unclaimed), from the
 // `keyword_autocomplete_due_idx`; seeds never attempted fill the rest, most popular first, from

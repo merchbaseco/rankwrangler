@@ -11,7 +11,7 @@ import {
     uniqueIndex,
     uuid,
 } from 'drizzle-orm/pg-core';
-import { KEEPA_WEEKLY_AUTO_BSR_THRESHOLD } from '@/services/keepa-refresh-policy';
+import { KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD } from '@/services/keepa-refresh-policy';
 import type { AmazonListingStatus } from '@/types';
 import {
     keepaRefreshDueAt,
@@ -143,7 +143,7 @@ export const products = pgTable(
             .where(
                 sql`${table.historyAdmissionState} <> 'admitted'
                     AND ${table.amazonListingStatus} = 'active' AND ${table.isMerchListing}
-                    AND ${table.rootCategoryBsr} < ${sql.raw(String(KEEPA_WEEKLY_AUTO_BSR_THRESHOLD))}`
+                    AND ${table.rootCategoryBsr} < ${sql.raw(String(KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD))}`
             ),
         // Due-at expression indexes (product-refresh-due): each refresh listing reads only due
         // rows, most overdue first, however many Products are fresh.

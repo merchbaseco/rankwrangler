@@ -11,8 +11,10 @@ import { products } from '@/db/schema';
 // One ten-minute run lists at most this many BSR-tier refreshes, most overdue first: about six
 // times the steady-state due count, and roughly what the SP-API queue drains in that time, so a
 // backlog after a pause drains over successive runs instead of in one unbounded statement.
+// Blindspots (NULL-BSR active Merch + Keepa-only non-Merch) scale to ~13k/day in steady state,
+// so 350/run (~18 batched background calls every 10 min) keeps probation and 30-day checks current.
 export const SPAPI_REFRESH_BATCH = 2000;
-export const SPAPI_BLINDSPOT_BATCH = 20;
+export const SPAPI_BLINDSPOT_BATCH = 350;
 
 type DueProduct = { marketplaceId: string; asin: string };
 

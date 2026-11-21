@@ -19,14 +19,16 @@ export const RefreshTierTable = ({
 }) => {
     // A phone drops the Sync column: the cadence already says which tiers run on their own.
     const isPhone = !useMediaQuery('(min-width: 48rem)', { initializeWithValue: true });
-    const automatic = (tiers ?? [])
-        .filter(tier => tier.isAutoRefresh)
-        .reduce((sum, tier) => sum + tier.count, 0);
+    const autoTiers = (tiers ?? []).filter(tier => tier.isAutoRefresh);
+    const automatic = autoTiers.reduce((sum, tier) => sum + tier.count, 0);
+    const waiting = autoTiers.reduce((sum, tier) => sum + tierWaiting(tier), 0);
+    const aside = tiers?.length
+        ? waiting > 0
+            ? `${formatCount(automatic)} of ${formatCount(automatic + waiting)} refresh automatically`
+            : `${formatCount(automatic)} refresh automatically`
+        : null;
     return (
-        <StatusBlock
-            aside={tiers?.length ? `${formatCount(automatic)} refresh automatically` : null}
-            title="Refresh tiers"
-        >
+        <StatusBlock aside={aside} title="Refresh tiers">
             <DataGrid
                 aria-label={label}
                 className="hairline-grid"
@@ -60,7 +62,20 @@ const columns: DataGridColumn<RefreshTier>[] = [
     },
     {
         align: 'end',
-        cell: tier => <span className="font-mono tabular-nums">{formatCount(tier.count)}</span>,
+        cell: tier => {
+            const waiting = tierWaiting(tier);
+            return (
+                <span className="font-mono tabular-nums">
+                    {formatCount(tier.count)}
+                    {waiting > 0 ? (
+                        <span className="text-muted">
+                            {' '}
+                            / {formatCount(tier.count + waiting)}
+                        </span>
+                    ) : null}
+                </span>
+            );
+        },
         header: 'Products',
         id: 'count',
     },
@@ -83,6 +98,8 @@ const columns: DataGridColumn<RefreshTier>[] = [
 ];
 
 const phoneColumns = columns.filter(column => column.id !== 'auto');
+
+const tierWaiting = (tier: RefreshTier) => ('waiting' in tier ? tier.waiting : 0);
 
 const TierHint = ({ hint }: { hint: string }) => (
     <Tooltip closeDelay={0} delay={150}>

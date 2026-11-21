@@ -18,6 +18,7 @@ export const StatusProducts = ({ status }: { status: SystemStatus }) => {
         );
     }
     const { history } = products;
+    const admissionState = status.keepa.admission?.state ?? 'open';
     const segments: Segment[] = [
         { key: 'history', label: 'Has sales history', tone: 'current', value: history.withHistory },
         {
@@ -27,8 +28,19 @@ export const StatusProducts = ({ status }: { status: SystemStatus }) => {
             value: history.awaitingFirst,
         },
         {
+            key: 'admission',
+            label: 'Waiting for admission',
+            tone:
+                admissionState === 'paused'
+                    ? 'alert'
+                    : admissionState === 'capacity'
+                      ? 'accent'
+                      : 'idle',
+            value: history.awaitingAdmission,
+        },
+        {
             key: 'untracked',
-            label: 'Not tracked by Keepa',
+            label: 'Outside Keepa tiers',
             tone: 'idle',
             value: history.notTracked,
         },

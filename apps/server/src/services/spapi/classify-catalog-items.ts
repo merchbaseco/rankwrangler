@@ -28,11 +28,13 @@ export const classifyCatalogItems = async ({
     items,
     marketplaceId,
     priority,
+    respectSyncPause,
     provider,
 }: {
     items: readonly CatalogItem[];
     marketplaceId: string;
     priority?: 'foreground' | 'background';
+    respectSyncPause?: boolean;
     provider: Pick<SpApiProvider, 'searchCatalogItemsByAsins'>;
 }): Promise<ClassifiedCatalogItem[]> => {
     const observed = items.map(item => ({ item, ...classifyOwnEvidence(item, marketplaceId) }));
@@ -50,6 +52,7 @@ export const classifyCatalogItems = async ({
                 asins: missingChildren.slice(index, index + MAX_ASINS_PER_REQUEST),
                 marketplaceId,
                 priority,
+                respectSyncPause,
             })
         );
         for (const child of response.items) {

@@ -264,6 +264,11 @@ const startServer = async () => {
 
         printStartupSummary({
             authSummary: 'Merchbase centralized access (session, OAuth, API key)',
+            autocompleteRelaySummary:
+                env.RANKWRANGLER_AUTOCOMPLETE_RELAY_URL &&
+                env.RANKWRANGLER_AUTOCOMPLETE_RELAY_TOKEN
+                    ? `Enabled (${new URL(env.RANKWRANGLER_AUTOCOMPLETE_RELAY_URL).origin})`
+                    : 'Disabled (autocomplete relay not configured; local IP protected)',
             catalogSearchOperations: serverRuntimeFlags.shouldStartJobRunner
                 ? `Enabled, live in process (${recoveredCatalogSearchOperationsCount} recovered)`
                 : 'Disabled at runtime (job runner disabled)',

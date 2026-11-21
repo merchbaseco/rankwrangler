@@ -1,5 +1,6 @@
 import { readKeepaCapacitySnapshot } from '@/db/keepa-capacity-snapshot';
 import { type ProductStats, readProductStats } from '@/db/product-stats';
+import { getHistoryAdmissionOverload } from '@/services/product-history-overload';
 import { mapTelemetryOperation } from '@/services/providers/sp-api/sp-api-limiter-manager';
 import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
 import { createDatabaseHealthReaders } from '@/services/service-health-queries';
@@ -36,6 +37,7 @@ export const getSystemStatus = async (now = new Date()) => {
                 workClass: row.workClass,
                 tokens: row.actualTokens + row.reservedUnknownTokens,
             })),
+            admission: stats ? keepaAdmissionStatus(stats, now) : null,
         },
         // Each operation's configured rate over an hour: the ceiling its calls are measured on.
         spApiLimits: limiters.map(limiter => ({
@@ -48,7 +50,8 @@ export const getSystemStatus = async (now = new Date()) => {
 /**
  * How much of the catalog is indexed, and the sales-history sync status of the active Merch
  * listings. Every Merch listing sits in exactly one of: `withHistory` (Keepa history imported),
- * `awaitingFirst` (inside the automatic Keepa tiers, first import still queued) or `notTracked`
+ * `awaitingFirst` (admitted inside the automatic Keepa tiers, first import still queued),
+ * `awaitingAdmission` (under 1M BSR and waiting/paused for Keepa admission) or `notTracked`
  * (no history and outside the automatic tiers, so Keepa only syncs it on demand).
  */
 const productIndex = (stats: ProductStats) => ({
@@ -58,6 +61,26 @@ const productIndex = (stats: ProductStats) => ({
     history: {
         withHistory: stats.merchWithHistory,
         awaitingFirst: stats.merchAwaitingFirst,
+        awaitingAdmission: totalKeepaWaiting(stats),
         notTracked: stats.merchNotTracked,
     },
 });
+
+const totalKeepaWaiting = (stats: ProductStats) =>
+    stats.keepaWaitingDaily + stats.keepaWaitingWeekly + stats.keepaWaitingBiweekly;
+
+const keepaAdmissionStatus = (stats: ProductStats, now: Date) => {
+    const waiting = totalKeepaWaiting(stats);
+    const overload = getHistoryAdmissionOverload(stats, now);
+    const state: 'open' | 'capacity' | 'paused' = overload.newAdmissionsPaused
+        ? 'paused'
+        : waiting > 0
+          ? 'capacity'
+          : 'open';
+    return {
+        state,
+        waiting,
+        overdue: overload.overdueCount,
+        oldestOverdueAt: overload.oldestOverdueAt?.toISOString() ?? null,
+    };
+};

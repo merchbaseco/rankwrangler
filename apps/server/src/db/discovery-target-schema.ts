@@ -70,6 +70,10 @@ export const discoveryTargets = pgTable(
         scanDue: index('discovery_targets_scan_due_idx')
             .on(table.scanDepth, table.scanDueAt)
             .where(sql`${table.enabled}`),
+        // Dedicated due-tracked-head index so weekly trial bursts never starve tracked rechecks.
+        trackedScanDue: index('discovery_targets_tracked_scan_due_idx')
+            .on(table.scanDueAt, table.id)
+            .where(sql`${table.enabled} and ${table.tracking} = 'tracked' and not ${table.scanDepth}`),
         // Creation-order cursors: the standing refresh (enabled, observed) and the prefix backfill
         // (tracked) page keyword targets by (created_at, id).
         keywordCursor: index('discovery_targets_keyword_cursor_idx')

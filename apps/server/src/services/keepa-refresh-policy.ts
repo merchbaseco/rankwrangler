@@ -3,10 +3,14 @@ const MINUTE_IN_MS = 60 * 1000;
 
 export const KEEPA_TWICE_DAILY_AUTO_BSR_THRESHOLD = 50000;
 export const KEEPA_DAILY_AUTO_BSR_THRESHOLD = 300000;
-export const KEEPA_WEEKLY_AUTO_BSR_THRESHOLD = 1000000;
-export const KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = DAY_IN_MS / 2;
-export const KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = DAY_IN_MS;
+export const KEEPA_WEEKLY_AUTO_BSR_THRESHOLD = 600000;
+export const KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD = 1000000;
+// Four-tier cadence (<50k daily, 50k–300k every 2 days, 300k–600k weekly, 600k–1M every 14 days)
+// preserves weekly coverage for mid-tier sellers while keeping standing load well under refill.
+export const KEEPA_TWICE_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = DAY_IN_MS;
+export const KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 2 * DAY_IN_MS;
 export const KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 7 * DAY_IN_MS;
+export const KEEPA_BIWEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS = 14 * DAY_IN_MS;
 export const KEEPA_FETCH_SUCCESS_GUARD_INTERVAL_MS = DAY_IN_MS / 2;
 export const KEEPA_FAILURE_RETRY_BASE_MS = 5 * MINUTE_IN_MS;
 export const KEEPA_FAILURE_RETRY_MAX_MS = DAY_IN_MS;
@@ -27,14 +31,21 @@ export const KEEPA_REFRESH_POLICY_BUCKETS = [
     {
         key: 'daily',
         label: '< 300k',
-        refreshEveryLabel: '12–24h',
-        hint: 'Every 12 hours under 50k BSR, daily otherwise.',
+        refreshEveryLabel: '1–2 days',
+        hint: 'Daily under 50k BSR, every 2 days otherwise.',
         isAutoRefresh: true,
     },
     {
         key: 'weekly',
-        label: '300k – 1M',
+        label: '300k – 600k',
         refreshEveryLabel: 'Weekly',
+        hint: null,
+        isAutoRefresh: true,
+    },
+    {
+        key: 'biweekly',
+        label: '600k – 1M',
+        refreshEveryLabel: '14 days',
         hint: null,
         isAutoRefresh: true,
     },
@@ -83,6 +94,10 @@ export const getKeepaRefreshPolicyBucketKey = (
         return 'weekly' as const;
     }
 
+    if (rootCategoryBsr < KEEPA_BIWEEKLY_AUTO_BSR_THRESHOLD) {
+        return 'biweekly' as const;
+    }
+
     return 'onDemand' as const;
 };
 
@@ -91,7 +106,7 @@ export const isEligibleForKeepaHistoryRefresh = (
     rootCategoryBsr: number | null
 ) => {
     const policyBucket = getKeepaRefreshPolicyBucketKey(isMerchListing, rootCategoryBsr);
-    return policyBucket === 'daily' || policyBucket === 'weekly';
+    return policyBucket === 'daily' || policyBucket === 'weekly' || policyBucket === 'biweekly';
 };
 
 export const getKeepaEnqueueMinRefreshIntervalMs = (
@@ -106,6 +121,8 @@ export const getKeepaEnqueueMinRefreshIntervalMs = (
                 : KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
         case 'weekly':
             return KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
+        case 'biweekly':
+            return KEEPA_BIWEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS;
         case 'onDemand':
         case 'merchMissingBsr':
         case 'nonMerch':

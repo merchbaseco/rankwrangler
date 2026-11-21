@@ -72,7 +72,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('product refresh du
             const listed = await getKeepaScheduledRefreshCandidates({ limit, now });
             expect(listed.map(row => row.asin)).toEqual(reference.map(row => row.asin));
         }
-        expect((await getKeepaScheduledRefreshCandidates({ limit: 1000, now })).length).toBe(5);
+        expect((await getKeepaScheduledRefreshCandidates({ limit: 1000, now })).length).toBe(6);
     });
 
     it('reads each listing from its due-at index', async () => {
@@ -155,11 +155,13 @@ const referenceKeepa = (limit: number) => sql`select p.asin from products p
         and p.history_admission_state = 'admitted' and p.root_category_bsr is not null
         and not exists (select 1 from keepa_history_refresh_queue q
             where q.marketplace_id = p.marketplace_id and q.asin = p.asin)
-        and ((p.root_category_bsr < 50000 and (p.keepa_fetched_at is null or p.keepa_fetched_at <= ${at(ago(12 * hour))}))
+        and ((p.root_category_bsr < 50000 and (p.keepa_fetched_at is null or p.keepa_fetched_at <= ${at(ago(day))}))
             or (p.root_category_bsr >= 50000 and p.root_category_bsr < 300000
-                and (p.keepa_fetched_at is null or p.keepa_fetched_at <= ${at(ago(day))}))
-            or (p.root_category_bsr >= 300000 and p.root_category_bsr < 1000000
-                and (p.keepa_fetched_at is null or p.keepa_fetched_at <= ${at(ago(7 * day))})))
+                and (p.keepa_fetched_at is null or p.keepa_fetched_at <= ${at(ago(2 * day))}))
+            or (p.root_category_bsr >= 300000 and p.root_category_bsr < 600000
+                and (p.keepa_fetched_at is null or p.keepa_fetched_at <= ${at(ago(7 * day))}))
+            or (p.root_category_bsr >= 600000 and p.root_category_bsr < 1000000
+                and (p.keepa_fetched_at is null or p.keepa_fetched_at <= ${at(ago(14 * day))})))
     order by p.root_category_bsr asc, p.created_at asc limit ${limit}`;
 
 const explainAll = async (statements: SQL[]) =>
@@ -244,14 +246,16 @@ const seedVaried = async () => {
         spApiFetchedAt: ago(hour),
     };
     const keepa: [string, number, number | null][] = [
-        ['K-TWICE-DUE', 10_000, 13 * hour],
-        ['K-TWICE-FRESH', 20_000, 11 * hour],
-        ['K-TWICE-EDGE', 49_999, 12 * hour],
-        ['K-DAILY-DUE', 50_000, 25 * hour],
-        ['K-DAILY-FRESH', 60_000, 23 * hour],
+        ['K-TWICE-DUE', 10_000, 25 * hour],
+        ['K-TWICE-FRESH', 20_000, 23 * hour],
+        ['K-TWICE-EDGE', 49_999, 24 * hour],
+        ['K-DAILY-DUE', 50_000, 49 * hour],
+        ['K-DAILY-FRESH', 60_000, 47 * hour],
         ['K-NEVER', 299_999, null],
         ['K-WEEKLY-DUE', 300_000, 8 * day],
-        ['K-WEEKLY-FRESH', 999_999, 6 * day],
+        ['K-WEEKLY-FRESH', 599_999, 6 * day],
+        ['K-BIWEEKLY-DUE', 600_000, 15 * day],
+        ['K-BIWEEKLY-FRESH', 999_999, 13 * day],
         ['K-TOO-RARE', 1_000_000, 30 * day],
         ['K-QUEUED', 30_000, 2 * day],
     ];

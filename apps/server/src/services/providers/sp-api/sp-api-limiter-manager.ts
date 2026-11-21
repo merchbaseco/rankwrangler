@@ -75,6 +75,7 @@ export class SpApiLimiterManager {
         run,
         maxAttempts,
         priority = 'foreground',
+        respectSyncPause = true,
     }: {
         ensureAccessTokenFreshness: () => Promise<void>;
         operation: string;
@@ -82,13 +83,19 @@ export class SpApiLimiterManager {
         run: () => Promise<T>;
         maxAttempts?: number;
         priority?: CatalogPriority;
+        respectSyncPause?: boolean;
     }) =>
         await runWithSpApiBackoff({
             operation,
             maxAttempts,
             run: async () =>
                 operationId === 'catalog.searchCatalogItems'
-                    ? await this.runCatalog({ ensureAccessTokenFreshness, priority, run })
+                    ? await this.runCatalog({
+                          ensureAccessTokenFreshness,
+                          priority,
+                          respectSyncPause,
+                          run,
+                      })
                     : await this.runReports({ ensureAccessTokenFreshness, operationId, run }),
         });
 
@@ -115,16 +122,19 @@ export class SpApiLimiterManager {
     private readonly runCatalog = async <T>({
         ensureAccessTokenFreshness,
         priority,
+        respectSyncPause,
         run,
     }: {
         ensureAccessTokenFreshness: () => Promise<void>;
         priority: CatalogPriority;
+        respectSyncPause: boolean;
         run: () => Promise<T>;
     }) => {
         const { limiter } = this.catalog;
         await limiter.acquire(priority);
-        // Checked at the start, after any wait, so a pause stops background requests at once.
-        if (priority === 'background' && (await this.catalog.isBackgroundPaused()))
+        // Checked at the start, after any wait, so a pause stops keyword-pipeline requests at once
+        // while scheduled Product refreshes (respectSyncPause: false) stay outside Pause sync.
+        if (priority === 'background' && respectSyncPause && (await this.catalog.isBackgroundPaused()))
             throw new SyncPausedError();
         await ensureAccessTokenFreshness();
         try {

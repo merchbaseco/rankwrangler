@@ -1,7 +1,7 @@
 import { notifyKeywordQueryRows } from './keyword-directory-notifications';
 import { writeKeywordEvents } from './keyword-events';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { DiscoveryScope } from '@/services/discovery-types';
 import { KEYWORD_DAY_MS, keywordRetryAt } from '@/services/keyword-collection-policy';
 import { catalogQueries } from './catalog-search-schema';
@@ -22,7 +22,12 @@ export const claimKeywordExploration = async (targetId: string, now = new Date()
             .select({ target: discoveryTargets, query: catalogQueries })
             .from(discoveryTargets)
             .innerJoin(catalogQueries, eq(catalogQueries.id, discoveryTargets.queryId))
-            .where(and(eq(discoveryTargets.id, targetId), eq(discoveryTargets.enabled, true)))
+            .where(
+                and(
+                    eq(discoveryTargets.id, targetId),
+                    or(eq(discoveryTargets.enabled, true), eq(discoveryTargets.tracking, 'dropped'))
+                )
+            )
             .for('update', { of: discoveryTargets });
         if (!candidate) return null;
         const { target, query } = candidate;
@@ -33,6 +38,11 @@ export const claimKeywordExploration = async (targetId: string, now = new Date()
             .orderBy(desc(keywordExplorationPasses.createdAt), desc(keywordExplorationPasses.id))
             .limit(1)
             .for('update');
+        // A dropped target may only finish an in-progress one-time depth pass, never start a new one.
+        const continuingDepth = Boolean(
+            latest && continuing.includes(latest.stopReason) && latest.nextPage > 0
+        );
+        if (!target.enabled && !continuingDepth) return null;
         if (
             latest &&
             ((continuing.includes(latest.stopReason)
@@ -53,6 +63,11 @@ export const claimKeywordExploration = async (targetId: string, now = new Date()
                 .update(keywordExplorationPasses)
                 .set({ stopReason: 'cursorExpired', claimAt: null, claimToken: null })
                 .where(eq(keywordExplorationPasses.id, pass.id));
+            if (!target.enabled) {
+                await syncKeywordTargets(tx, [target.id]);
+                await notifyKeywordQueryRows(tx, [target.queryId]);
+                return null;
+            }
         }
         if (!pass || stale || !continuing.includes(pass.stopReason)) {
             [pass] = await tx
@@ -204,3 +219,78 @@ export const stopDiscoveryWork = async (input: Stop) =>
         if (target) await notifyKeywordQueryRows(tx, [target.queryId]);
         return resumeAt;
     });
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Re-opens dropped keyword targets as trials on seasonal Brand Analytics surges (with cooldown).
+export const retrialDroppedKeywords = async (
+    tx: Transaction,
+    input: {
+        marketplaceId: string;
+        terms: readonly string[];
+        now: Date;
+        cooldownDays: number;
+        reason: string;
+        week: string;
+    }
+) => {
+    const unique = [...new Set(input.terms)];
+    if (!unique.length) return 0;
+    const cooldownBefore = new Date(input.now.getTime() - input.cooldownDays * KEYWORD_DAY_MS);
+    let retried = 0;
+    for (let start = 0; start < unique.length; start += 1000) {
+        const rows = await tx
+            .select({
+                id: discoveryTargets.id,
+                queryId: catalogQueries.id,
+                term: catalogQueries.normalizedTerm,
+            })
+            .from(discoveryTargets)
+            .innerJoin(catalogQueries, eq(catalogQueries.id, discoveryTargets.queryId))
+            .where(
+                and(
+                    eq(catalogQueries.source, 'keepa'),
+                    eq(catalogQueries.marketplaceId, input.marketplaceId),
+                    inArray(catalogQueries.normalizedTerm, unique.slice(start, start + 1000)),
+                    eq(discoveryTargets.kind, 'keyword'),
+                    eq(discoveryTargets.tracking, 'dropped'),
+                    or(
+                        isNull(discoveryTargets.headObservedAt),
+                        lt(discoveryTargets.headObservedAt, cooldownBefore)
+                    )
+                )
+            )
+            .orderBy(discoveryTargets.id)
+            .for('update', { of: discoveryTargets });
+        if (!rows.length) continue;
+        const targetIds = rows.map(row => row.id);
+        const queryIds = rows.map(row => row.queryId);
+        await tx
+            .update(discoveryTargets)
+            .set({ tracking: 'trial', enabled: true, nextCheckAt: input.now })
+            .where(inArray(discoveryTargets.id, targetIds));
+        await tx
+            .update(keywordExplorationPasses)
+            .set({ stopReason: 'cursorExpired', claimAt: null, claimToken: null })
+            .where(
+                and(
+                    inArray(keywordExplorationPasses.targetId, targetIds),
+                    inArray(keywordExplorationPasses.stopReason, continuing)
+                )
+            );
+        await syncKeywordTargets(tx, targetIds);
+        await writeKeywordEvents(
+            tx,
+            rows.map(row => ({
+                id: row.queryId,
+                term: row.term,
+                action: 'keyword.tracking.changed' as const,
+                occurredAt: input.now,
+                details: { previousTracking: 'dropped', tracking: 'trial', reason: input.reason, week: input.week },
+            }))
+        );
+        await notifyKeywordQueryRows(tx, queryIds);
+        retried += rows.length;
+    }
+    return retried;
+};

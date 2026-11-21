@@ -39,8 +39,10 @@ export const persistKeepaProductRow = async (
 // Product.
 export const persistKeepaProductRows = async (
     transaction: DatabaseTransaction,
-    normalizedProducts: readonly NormalizedKeepaProduct[]
+    normalizedProducts: readonly NormalizedKeepaProduct[],
+    options: { advanceKeepaFetchedAt?: boolean } = {}
 ) => {
+    const advanceKeepaFetchedAt = options.advanceKeepaFetchedAt ?? true;
     const items = normalizedProducts.map(normalized => normalized.product);
     if (!items.length) return [];
     const marketplaceId = items[0].marketplaceId;
@@ -73,7 +75,7 @@ export const persistKeepaProductRows = async (
         if (!rows.length) continue;
         const written = await transaction
             .insert(products)
-            .values(rows.map(([asin, item]) => productRowValues(asin, item)))
+            .values(rows.map(([asin, item]) => productRowValues(asin, item, advanceKeepaFetchedAt)))
             .onConflictDoUpdate({
                 target: [products.marketplaceId, products.asin],
                 set: {
@@ -97,7 +99,9 @@ export const persistKeepaProductRows = async (
                     keepaSalesRankDrops90: preserveExistingOnNull(products.keepaSalesRankDrops90),
                     keepaSalesRankDrops180: preserveExistingOnNull(products.keepaSalesRankDrops180),
                     keepaSalesRankDrops365: preserveExistingOnNull(products.keepaSalesRankDrops365),
-                    keepaFetchedAt: sql.raw(`excluded.${products.keepaFetchedAt.name}`),
+                    ...(advanceKeepaFetchedAt
+                        ? { keepaFetchedAt: sql.raw(`excluded.${products.keepaFetchedAt.name}`) }
+                        : {}),
                 },
             })
             .returning({ id: products.id, asin: products.asin, merch: products.isMerchListing });
@@ -165,6 +169,13 @@ export const persistKeepaProductHistory = async (
     });
 
     await transaction
+        .update(products)
+        .set({
+            keepaFetchedAt: sql`GREATEST(COALESCE(${products.keepaFetchedAt}, '-infinity'::timestamp), ${product.keepaFetchedAt.toISOString()}::timestamp)`,
+        })
+        .where(eq(products.id, productId));
+
+    await transaction
         .delete(productHistoryImports)
         .where(
             and(
@@ -191,7 +202,8 @@ export const persistKeepaProductHistory = async (
 };
 
 // Keepa answers for a variant: write under its parent, or under a family the variant already maps to.
-// Claiming a parent writes, so variants claim one at a time; the rest resolve in one read.
+// When an aliased ASIN also has a shadowed standalone row, claiming its resolved family folds them
+// together so the standalone row cannot keep re-enqueueing forever.
 const keepaFamilyAsins = async (
     transaction: DatabaseTransaction,
     items: readonly NormalizedKeepaProduct['product'][]
@@ -202,14 +214,26 @@ const keepaFamilyAsins = async (
     }
     const plain = items.filter(item => !item.parentAsin);
     const families = plain.length ? await resolveFamilyIdentities(transaction, plain) : new Map();
-    items.forEach((item, index) => {
-        if (!item.parentAsin)
-            familyAsins[index] = families.get(familyIdentityKey(item))?.asin ?? item.asin;
-    });
+    for (const [index, item] of items.entries()) {
+        if (item.parentAsin) continue;
+        const resolvedAsin = families.get(familyIdentityKey(item))?.asin ?? item.asin;
+        familyAsins[index] =
+            resolvedAsin !== item.asin
+                ? await claimProductFamily(transaction, {
+                      marketplaceId: item.marketplaceId,
+                      asin: item.asin,
+                      parentAsin: resolvedAsin,
+                  })
+                : resolvedAsin;
+    }
     return familyAsins;
 };
 
-const productRowValues = (asin: string, product: NormalizedKeepaProduct['product']) => {
+const productRowValues = (
+    asin: string,
+    product: NormalizedKeepaProduct['product'],
+    advanceKeepaFetchedAt = true
+) => {
     const merch =
         product.merch.kind === 'decided'
             ? product.merch
@@ -227,7 +251,7 @@ const productRowValues = (asin: string, product: NormalizedKeepaProduct['product
         dateFirstAvailable: product.dateFirstAvailable,
         rootCategoryId: product.rootCategoryId,
         rootCategoryBsr: product.rootCategoryBsr,
-        keepaFetchedAt: product.keepaFetchedAt,
+        keepaFetchedAt: advanceKeepaFetchedAt ? product.keepaFetchedAt : null,
         keepaSourceUpdatedAt: product.keepaSourceUpdatedAt,
         keepaFirstTrackedAt: product.keepaFirstTrackedAt,
         keepaRootCategoryId: product.keepaRootCategoryId,

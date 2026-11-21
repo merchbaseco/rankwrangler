@@ -54,7 +54,8 @@ export const persistCatalogSearchSuccess = async ({
     const productIds = await db.transaction(transaction =>
         persistKeepaProductRows(
             transaction,
-            orderedResults.map(result => result.normalized)
+            orderedResults.map(result => result.normalized),
+            { advanceKeepaFetchedAt: false }
         )
     );
     const saved = await db.transaction(async transaction => {

@@ -1,0 +1,7 @@
+DROP INDEX "products_keepa_refresh_due_idx";--> statement-breakpoint
+ALTER TABLE "product_stats" ADD COLUMN "history_biweekly" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "product_stats" ADD COLUMN "keepa_waiting_daily" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "product_stats" ADD COLUMN "keepa_waiting_weekly" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "product_stats" ADD COLUMN "keepa_waiting_biweekly" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+CREATE INDEX "discovery_targets_tracked_scan_due_idx" ON "discovery_targets" USING btree ("scan_due_at","id") WHERE "discovery_targets"."enabled" and "discovery_targets"."tracking" = 'tracked' and not "discovery_targets"."scan_depth";--> statement-breakpoint
+CREATE INDEX "products_keepa_refresh_due_idx" ON "products" USING btree ((COALESCE("keepa_fetched_at", '-infinity'::timestamp) + (CASE WHEN "root_category_bsr" < 50000 THEN interval '86400 seconds' WHEN "root_category_bsr" < 300000 THEN interval '172800 seconds' WHEN "root_category_bsr" < 600000 THEN interval '604800 seconds' ELSE interval '1209600 seconds' END))) WHERE ("products"."is_merch_listing" AND "products"."amazon_listing_status" = 'active' AND "products"."history_admission_state" = 'admitted' AND "products"."root_category_bsr" < 1000000);

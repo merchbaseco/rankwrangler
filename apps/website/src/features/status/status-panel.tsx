@@ -171,7 +171,14 @@ export const Legend = ({ segments }: { segments: readonly Segment[] }) => (
             <li className="status-legend__item" key={segment.key}>
                 <span aria-hidden className={cn('status-swatch', `status-tone--${segment.tone}`)} />
                 {segment.label}
-                <span className="status-legend__value">{formatCount(segment.value)}</span>
+                <span
+                    className={cn(
+                        'status-legend__value',
+                        segment.value === 0 && 'text-muted'
+                    )}
+                >
+                    {formatCount(segment.value)}
+                </span>
             </li>
         ))}
     </ul>

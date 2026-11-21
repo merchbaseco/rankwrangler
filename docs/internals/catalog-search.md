@@ -106,8 +106,8 @@ visible to callers or recovery and a concurrently completed reusable run does no
   when their turn comes; the page is kept and the `scan-keyword` job re-queues itself.
   Background calls get one physical attempt; failures retry through durable backoff.
 - Exploration retains source, contiguous observed depth, oldest page time and stop reason. Two
-  pages each adding fewer than three catalog-new Merch products, or the pass's page limit (ten,
-  five or three pages by Brand Analytics popularity), stop a pass; repeated pages, provider exhaustion and stale continuation each
+  pages each adding fewer than three catalog-new Merch products, or the pass's page limit (20 pages
+  for tracked/trial passes, 5 pages for popular top-100k dropped trials), stop a pass; repeated pages, provider exhaustion and stale continuation each
   have bounded handling. These facts do not claim complete Amazon coverage or organic placement.
 
 Acquisition targets own tracked/trial/dropped state, the latest page-one Merch membership,

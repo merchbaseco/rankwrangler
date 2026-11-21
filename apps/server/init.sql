@@ -66,14 +66,15 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- indexes over admitted and requested keywords),
 -- keyword_products, keyword_exploration_passes (scoped discovery target and fenced claim),
 -- keyword_discovery_attempts (page requests and yield), discovery_targets (with scan_due_at and
--- scan_depth, derived from the latest pass for the scheduler's due-scan index, and autocompleted,
--- set when the one-time autocomplete expansion completes), keyword_directory
+-- scan_depth, derived from the latest pass for the scheduler's due-scan and tracked-head indexes,
+-- and autocompleted, set when the one-time autocomplete expansion completes), keyword_directory
 -- (one narrow derived row per keyword target with stage, schedule, latest-pass state and measures
 -- that the Keywords directory scans),
 -- keyword_standing_observations (score history per standing observation), discovery_evidence,
 -- discovery_source_scans, brand_discovery_products,
 -- keepa_capacity_state, keepa_capacity_attempts, keepa_measured_costs (per-operation p95 cost over
--- the last settled calls), product_stats (the five-minute Product and provider-call count snapshot),
+-- the last settled calls), product_stats (the five-minute Product, 4-tier Keepa cadence/waiting
+-- and provider-call count snapshot),
 -- product_search_facet_snapshot (Explore's default-view facets, counted every fifteen minutes),
 -- history_admission_rollouts,
 -- catalog_search_runs (page and trigger provenance),

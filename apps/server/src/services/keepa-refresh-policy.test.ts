@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
+    KEEPA_BIWEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS,
     KEEPA_FAILURE_RETRY_BASE_MS,
     KEEPA_FAILURE_RETRY_MAX_MS,
@@ -16,9 +17,14 @@ describe('getKeepaRefreshPolicyBucketKey', () => {
         expect(getKeepaRefreshPolicyBucketKey(true, 299999)).toBe('daily');
     });
 
-    it('classifies merch BSR 300k to under 1M as weekly', () => {
+    it('classifies merch BSR 300k to under 600k as weekly', () => {
         expect(getKeepaRefreshPolicyBucketKey(true, 300000)).toBe('weekly');
-        expect(getKeepaRefreshPolicyBucketKey(true, 999999)).toBe('weekly');
+        expect(getKeepaRefreshPolicyBucketKey(true, 599999)).toBe('weekly');
+    });
+
+    it('classifies merch BSR 600k to under 1M as biweekly', () => {
+        expect(getKeepaRefreshPolicyBucketKey(true, 600000)).toBe('biweekly');
+        expect(getKeepaRefreshPolicyBucketKey(true, 999999)).toBe('biweekly');
     });
 
     it('classifies merch BSR at or above 1M as on-demand', () => {
@@ -58,7 +64,7 @@ describe('getKeepaRefreshDecision', () => {
             getKeepaRefreshDecision({
                 isMerchListing: true,
                 rootCategoryBsr: 500_000,
-                keepaFetchedAt: new Date('2026-07-15T13:59:59.000Z'),
+                keepaFetchedAt: new Date('2026-07-08T13:59:59.000Z'),
                 now,
             })
         ).toEqual({ shouldRefresh: true, reason: 'stale_product' });
@@ -115,17 +121,23 @@ describe('getKeepaEnqueueMinRefreshIntervalMs', () => {
         );
     });
 
-    it('returns a 12-hour interval below 50k', () => {
-        expect(getKeepaEnqueueMinRefreshIntervalMs(true, 49_999)).toBe(12 * 60 * 60 * 1000);
+    it('returns a daily interval below 50k and two-day interval for 50k to <300k', () => {
+        expect(getKeepaEnqueueMinRefreshIntervalMs(true, 49_999)).toBe(24 * 60 * 60 * 1000);
         expect(getKeepaEnqueueMinRefreshIntervalMs(true, 50_000)).toBe(
             KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS
         );
+        expect(KEEPA_DAILY_ENQUEUE_MIN_REFRESH_INTERVAL_MS).toBe(48 * 60 * 60 * 1000);
     });
 
-    it('returns a weekly interval for 300k to <1M bucket', () => {
+    it('returns a 7-day interval for 300k to <600k and a 14-day interval for 600k to <1M', () => {
         expect(getKeepaEnqueueMinRefreshIntervalMs(true, 500000)).toBe(
             KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS
         );
+        expect(KEEPA_WEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS).toBe(7 * 24 * 60 * 60 * 1000);
+        expect(getKeepaEnqueueMinRefreshIntervalMs(true, 600000)).toBe(
+            KEEPA_BIWEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS
+        );
+        expect(KEEPA_BIWEEKLY_ENQUEUE_MIN_REFRESH_INTERVAL_MS).toBe(14 * 24 * 60 * 60 * 1000);
     });
 
     it('returns null for on-demand, non-merch, or missing-BSR Products', () => {

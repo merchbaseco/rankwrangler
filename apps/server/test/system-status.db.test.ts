@@ -53,9 +53,15 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
             merch: 5,
             new24h: 1,
             // History counts wherever it came from; only listings without it split by tier.
-            history: { withHistory: 2, awaitingFirst: 2, notTracked: 1 },
+            history: { withHistory: 2, awaitingFirst: 2, awaitingAdmission: 0, notTracked: 1 },
         });
         expect(status.products).toEqual(await readProductIndexDirectly());
+        expect(status.keepa.admission).toEqual({
+            state: 'open',
+            waiting: 0,
+            overdue: 2,
+            oldestOverdueAt: expect.any(String),
+        });
     });
 
     it('counts throttles apart from other provider errors', async () => {
@@ -93,13 +99,16 @@ const readProductIndexDirectly = async () => {
     const merch = sql`is_merch_listing and amazon_listing_status='active'`;
     const tracked = sql`${merch} and history_admission_state='admitted'
         and root_category_bsr is not null and root_category_bsr < 1000000`;
+    const waiting = sql`${merch} and history_admission_state<>'admitted'
+        and root_category_bsr is not null and root_category_bsr < 1000000`;
     const [row] = await db.execute<Record<string, number>>(sql`
         select count(*)::int total,
             count(*) filter (where ${merch})::int merch,
             count(*) filter (where created_at > ${NOW.toISOString()}::timestamp - interval '24 hours')::int new_24h,
-            count(*) filter (where ${merch} and keepa_fetched_at is not null)::int with_history,
+            count(*) filter (where ${merch} and keepa_fetched_at is not null and not (${waiting}))::int with_history,
             count(*) filter (where ${tracked} and keepa_fetched_at is null)::int awaiting_first,
-            count(*) filter (where ${merch} and keepa_fetched_at is null and not (${tracked}))::int not_tracked
+            count(*) filter (where ${waiting})::int awaiting_admission,
+            count(*) filter (where ${merch} and keepa_fetched_at is null and not (${tracked}) and not (${waiting}))::int not_tracked
         from products`);
     return {
         total: row.total,
@@ -108,6 +117,7 @@ const readProductIndexDirectly = async () => {
         history: {
             withHistory: row.with_history,
             awaitingFirst: row.awaiting_first,
+            awaitingAdmission: row.awaiting_admission,
             notTracked: row.not_tracked,
         },
     };

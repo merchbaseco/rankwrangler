@@ -18,6 +18,7 @@ const setup = (queued: Partial<Record<string, number>> = {}) => {
             { id: 'recheck', depth: false, tracked: true },
             { id: 'deep', depth: true, tracked: true },
         ]),
+        dueTrackedHeads: mock(async () => [{ id: 'recheck', depth: false, tracked: true }]),
         dueAutocomplete: mock(async () => [{ id: 'seed' }, { id: 'seed-2' }]) as never,
         duePrefixes: mock(async () => [{ id: 'prefix' }]) as never,
         backfillPrefixes: mock(async () => ({ scanned: 0, registered: 0 })),
@@ -40,8 +41,8 @@ describe('keyword work scheduler', () => {
         const { queues, overrides, inserted } = setup();
         const result = await scheduleKeywordWork(queues, overrides);
         expect(inserted['scan-keyword']).toEqual([
-            { data: { targetId: 'head' }, singletonKey: 'head', priority: 1 },
             { data: { targetId: 'recheck' }, singletonKey: 'recheck', priority: 2 },
+            { data: { targetId: 'head' }, singletonKey: 'head', priority: 1 },
             { data: { targetId: 'deep' }, singletonKey: 'deep', priority: 0 },
         ]);
         expect(inserted['autocomplete-keyword']).toEqual([
@@ -52,17 +53,20 @@ describe('keyword work scheduler', () => {
         expect(result.didWork).toBe(true);
         expect(result).toMatchObject({ scanQueueFull: false });
     });
-    it('lists no due scans while a full batch waits, but still tops up and promotes', async () => {
+    it('skips general due scans while full, but still enqueues tracked re-checks, tops up and promotes', async () => {
         const { queues, overrides, inserted } = setup({ 'scan-keyword': 1000 });
         const result = await scheduleKeywordWork(queues, overrides);
         expect(overrides.dueScans).not.toHaveBeenCalled();
-        expect(inserted['scan-keyword'] ?? []).toEqual([]);
+        expect(overrides.dueTrackedHeads).toHaveBeenCalledWith(expect.any(Date), 500);
+        expect(inserted['scan-keyword']).toEqual([
+            { data: { targetId: 'recheck' }, singletonKey: 'recheck', priority: 2 },
+        ]);
         expect(overrides.promote).toHaveBeenCalled();
         expect(inserted['autocomplete-keyword']).toHaveLength(3);
         expect(result).toMatchObject({
             didWork: true,
             scanQueueFull: true,
-            enqueued: { scanHeads: 0, scanDepth: 0, autocomplete: 3, depthPromoted: 4 },
+            enqueued: { scanHeads: 1, scanDepth: 0, autocomplete: 3, depthPromoted: 4 },
         });
     });
     it('lists due scans while the scan queue is below a batch', async () => {

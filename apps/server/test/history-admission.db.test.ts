@@ -44,18 +44,26 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
             await insert('B0ADMIT001', { rootCategoryBsr: 10_000 });
             await insert('B0ADMIT002', { rootCategoryBsr: 100_000 });
             await insert('B0ADMIT003', { rootCategoryBsr: 500_000 });
+            await insert('B0ADMIT004', { rootCategoryBsr: 800_000 });
             await count(now);
-            expect(await admitProductHistory(ample, now)).toMatchObject({ admitted: 3 });
+            expect(await admitProductHistory(ample, now)).toMatchObject({ admitted: 4 });
             const after = await readProductStats();
             expect(after).toMatchObject({
                 historyTwiceDaily: 1,
                 historyDaily: 1,
                 historyWeekly: 1,
+                historyBiweekly: 1,
+                keepaWaitingDaily: 0,
+                keepaWaitingWeekly: 0,
+                keepaWaitingBiweekly: 0,
             });
 
-            // A later run plans with them: twice-daily 2 + daily 1 + weekly 1/7 tokens a day.
-            await insert('B0ADMIT004', { rootCategoryBsr: 20_000 });
-            const tight = { refillRate: (3 + 1 / 7 + 1.5) / (60 * 24 * 0.9), productCost: 1 };
+            // A later run plans with them: daily 1 + two-day 0.5 + weekly 1/7 + 14-day 1/14 tokens/day.
+            await insert('B0ADMIT005', { rootCategoryBsr: 20_000 });
+            const tight = {
+                refillRate: (1.5 + 1 / 7 + 1 / 14 + 0.5) / (60 * 24 * 0.9),
+                productCost: 1,
+            };
             expect(await admitProductHistory(tight, now)).toMatchObject({ admitted: 0, paused: 1 });
 
             await count(now);
@@ -63,6 +71,7 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')(
                 historyTwiceDaily: 1,
                 historyDaily: 1,
                 historyWeekly: 1,
+                historyBiweekly: 1,
             });
         });
 

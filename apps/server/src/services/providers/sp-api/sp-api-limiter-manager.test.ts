@@ -17,6 +17,22 @@ describe('SpApiLimiterManager', () => {
         expect(attempts).toEqual(['spapi.catalog.search']);
     });
 
+    it('lets background Product sync bypass Pause sync while staying in the background lane', async () => {
+        const { manager, attempts } = createManager({ paused: true });
+        const run = mock(() => Promise.resolve('products'));
+        await expect(
+            manager.runOperation({
+                ensureAccessTokenFreshness: () => Promise.resolve(),
+                operation: 'scheduled product sync',
+                operationId: 'catalog.searchCatalogItems',
+                priority: 'background',
+                respectSyncPause: false,
+                run,
+            })
+        ).resolves.toBe('products');
+        expect(attempts).toEqual(['spapi.catalog.search']);
+    });
+
     it('records a 429 attempt and slows the Catalog limiter by its Retry-After', async () => {
         const { manager, limiter, attempts } = createManager({ paused: false });
         const throttle = { status: 429, response: { headers: { 'retry-after': '120' } } };

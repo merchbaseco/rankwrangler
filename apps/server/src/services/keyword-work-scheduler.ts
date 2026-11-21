@@ -5,6 +5,7 @@ import {
     listDueAutocomplete,
     listDueKeywordScans,
     listDuePrefixAutocomplete,
+    listDueTrackedHeadScans,
 } from '@/db/keyword-work-due';
 import { promoteWaitingJobs } from '@/db/job-queue-status';
 import { keywordQueues, scanPriority } from '@/jobs/keyword-job-queues';
@@ -13,6 +14,7 @@ type QueueName = (typeof keywordQueues)[keyof typeof keywordQueues];
 type Deps = {
     isPaused: () => Promise<boolean>;
     dueScans: typeof listDueKeywordScans;
+    dueTrackedHeads: typeof listDueTrackedHeadScans;
     dueAutocomplete: typeof listDueAutocomplete;
     duePrefixes: typeof listDuePrefixAutocomplete;
     backfillPrefixes: typeof backfillKeywordPrefixes;
@@ -41,9 +43,15 @@ export const scheduleKeywordWork = async (queues: QueueAccess, overrides: Partia
         };
     const now = new Date();
     const scanQueueFull = (await deps.queued(keywordQueues.scan)) >= scanBatch;
+    // Tracked re-checks always enqueue into priority 2 even when a trial/depth backlog fills the queue.
+    const trackedHeads = await deps.dueTrackedHeads(now, trackedHeadBatch);
     const scans = scanQueueFull ? [] : await deps.dueScans(now, scanBatch);
+    const headRows = mergeUniqueById(
+        trackedHeads,
+        scans.filter(row => !row.depth)
+    );
     const enqueued = {
-        scanHeads: await deps.insert(keywordQueues.scan, scanJobs(scans, false)),
+        scanHeads: await deps.insert(keywordQueues.scan, scanJobs(headRows, false)),
         scanDepth: await deps.insert(keywordQueues.scan, scanJobs(scans, true)),
         autocomplete: 0,
         // Depth waiting six hours joins the heads, well before its SP-API cursor expires at a day.
@@ -82,9 +90,11 @@ const autocompleteDepth = 30;
 const depthAgingMs = 6 * 60 * 60 * 1000;
 const prefixBackfillBatch = 2000;
 const scanBatch = 1000;
+const trackedHeadBatch = 500;
 const defaults: Omit<Deps, keyof QueueAccess> = {
     isPaused: () => isAutomaticSyncPaused(),
     dueScans: listDueKeywordScans,
+    dueTrackedHeads: listDueTrackedHeadScans,
     dueAutocomplete: listDueAutocomplete,
     duePrefixes: listDuePrefixAutocomplete,
     backfillPrefixes: backfillKeywordPrefixes,
@@ -111,3 +121,8 @@ const interleave = <T>(a: readonly T[], b: readonly T[]) =>
     Array.from({ length: Math.max(a.length, b.length) }, (_, index) => [a[index], b[index]])
         .flat()
         .filter((job): job is T => job !== undefined);
+
+const mergeUniqueById = <T extends { id: string }>(first: readonly T[], second: readonly T[]) => {
+    const seen = new Set(first.map(row => row.id));
+    return [...first, ...second.filter(row => !seen.has(row.id))];
+};

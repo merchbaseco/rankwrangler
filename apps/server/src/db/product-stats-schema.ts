@@ -39,10 +39,15 @@ export const productStats = pgTable(
         spApiGte3m: integer('sp_api_gte_3m').notNull(),
         spApiNonAuto: integer('sp_api_non_auto').notNull(),
         // Standing history: admitted active Merch listings by Keepa cadence (BSR under 50k, under
-        // 300k, under 1M), then the Products the automatic Keepa tiers leave out.
+        // 300k, under 600k, under 1M), eligible <1M Merch listings waiting for admission by band,
+        // then the Products the automatic Keepa tiers leave out.
         historyTwiceDaily: integer('history_twice_daily').notNull(),
         historyDaily: integer('history_daily').notNull(),
         historyWeekly: integer('history_weekly').notNull(),
+        historyBiweekly: integer('history_biweekly').notNull().default(0),
+        keepaWaitingDaily: integer('keepa_waiting_daily').notNull().default(0),
+        keepaWaitingWeekly: integer('keepa_waiting_weekly').notNull().default(0),
+        keepaWaitingBiweekly: integer('keepa_waiting_biweekly').notNull().default(0),
         keepaOnDemand: integer('keepa_on_demand').notNull(),
         keepaMerchMissingBsr: integer('keepa_merch_missing_bsr').notNull(),
         keepaNonMerch: integer('keepa_non_merch').notNull(),
