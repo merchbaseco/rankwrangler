@@ -40,10 +40,12 @@ export const KeepaAdmissionChip = ({
         return null;
     }
     const isPaused = admission.state === 'paused';
-    const label = isPaused ? 'Admission paused' : `${formatCount(admission.waiting)} waiting`;
+    const label = isPaused
+        ? 'New tracking paused'
+        : `${formatCount(admission.waiting)} queued to track`;
     const tooltip = isPaused
         ? formatPausedTooltip(admission.overdue, admission.oldestOverdueAt)
-        : `${formatCount(admission.waiting)} eligible listings under 1M BSR are waiting for Keepa daily token headroom.`;
+        : `${formatCount(admission.waiting)} eligible listings under 1M BSR are queued for automatic tracking as daily capacity allows.`;
     return (
         <Tooltip closeDelay={0} delay={150}>
             <Tooltip.Trigger<'span'> render={props => <span {...props} />}>
@@ -102,5 +104,5 @@ const formatPausedTooltip = (overdue: number, oldestOverdueAt: string | null) =>
     const prefix = ageDays
         ? `Backlog ${ageDays} ${ageDays === 1 ? 'day' : 'days'} overdue`
         : 'Backlog overdue';
-    return `${prefix} · ${formatCount(overdue)} late. New listings resume once it clears.`;
+    return `${prefix} · ${formatCount(overdue)} late. New tracking resumes once it clears.`;
 };
