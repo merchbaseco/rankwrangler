@@ -57,9 +57,12 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('refresh tiers', ()
                 .reduce((sum, bucket) => sum + bucket.count, 0)
         ).toBe(1);
         expect(
-            getSpApiRefreshPolicyBuckets(stats).find(bucket => bucket.key === 'nonAutoRefresh')
+            getSpApiRefreshPolicyBuckets(stats).find(bucket => bucket.key === 'merchMissingBsr')
                 ?.hint
         ).toContain('bounded checks');
+        expect(
+            getSpApiRefreshPolicyBuckets(stats).find(bucket => bucket.key === 'nonMerch')?.label
+        ).toBe('Non-Merch');
     });
 
     it('matches the live tier counts it replaced, tier by tier', async () => {
@@ -115,7 +118,8 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('refresh tiers', ()
             '500kTo1m': direct.r500_1m,
             '1mTo3m': direct.r1m_3m,
             gte3m: direct.gte_3m,
-            nonAutoRefresh: direct.non_auto,
+            merchMissingBsr: direct.missing_bsr,
+            nonMerch: direct.non_merch,
         });
         const keepaBuckets = getKeepaRefreshPolicyBuckets(stats);
         expect(counts(keepaBuckets)).toEqual({

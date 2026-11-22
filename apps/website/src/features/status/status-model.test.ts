@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { eventRangeStart } from './event-range';
 import {
+    dailyLoadTone,
     formatPercent,
     fraction,
     keepaWorkUsage,
@@ -10,6 +11,18 @@ import {
     spApiOperationUsage,
     systemTone,
 } from './status-model';
+
+describe('dailyLoadTone', () => {
+    it('moves from success to warning at 80% and danger at 90%', () => {
+        expect(dailyLoadTone(null)).toBeUndefined();
+        expect(dailyLoadTone(0.62)).toBe('success');
+        expect(dailyLoadTone(0.799)).toBe('success');
+        expect(dailyLoadTone(0.8)).toBe('warning');
+        expect(dailyLoadTone(0.899)).toBe('warning');
+        expect(dailyLoadTone(0.9)).toBe('danger');
+        expect(dailyLoadTone(1.05)).toBe('danger');
+    });
+});
 
 describe('fraction', () => {
     it('clamps to the whole and treats an unknown whole as empty', () => {

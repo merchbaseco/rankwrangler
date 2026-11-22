@@ -31,6 +31,7 @@ export const productStats = pgTable(
         merchWithHistory: integer('merch_with_history').notNull(),
         merchAwaitingFirst: integer('merch_awaiting_first').notNull(),
         merchNotTracked: integer('merch_not_tracked').notNull(),
+        merchMissingBsr: integer('merch_missing_bsr').notNull().default(0),
         // SP-API refresh tiers: Merch listings by BSR band, then non-Merch or BSR-less Products.
         spApiLt200k: integer('sp_api_lt_200k').notNull(),
         spApi200kTo500k: integer('sp_api_200k_to_500k').notNull(),

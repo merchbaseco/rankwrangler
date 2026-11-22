@@ -1,12 +1,19 @@
 import { formatRelativeTime } from '@/lib/utils';
-import type { SystemStatus } from './status-model';
-import { Headline, Legend, type Segment, SegmentedBar, StatusSection } from './status-panel';
+import { formatCount, formatPercent, fraction, type SystemStatus } from './status-model';
+import {
+    Headline,
+    Legend,
+    type Segment,
+    SegmentedBar,
+    StatusBlock,
+    StatusCard,
+    StatusSection,
+} from './status-panel';
 
 /**
- * Products: how many are indexed, then the sales-history sync status of the Merch listings.
- * Every Merch listing sits in one segment: it has Keepa sales history, it is waiting for its first
- * history download, or it sits outside the automatic Keepa tiers and is synced only on demand.
- * The counts are a snapshot the server takes every few minutes; the caption says how old it is.
+ * Products: how many are indexed, how active Merch listings divide between automatic tracking
+ * (`<1M` BSR), on-demand (`≥1M`), and listings with no BSR, then sales-history coverage zoomed
+ * into the `<1M` auto-tracked set.
  */
 export const StatusProducts = ({ status }: { status: SystemStatus }) => {
     const { products } = status;
@@ -17,48 +24,97 @@ export const StatusProducts = ({ status }: { status: SystemStatus }) => {
             </StatusSection>
         );
     }
-    const { history } = products;
-    const admissionState = status.keepa.admission?.state ?? 'open';
-    const segments: Segment[] = [
-        { key: 'history', label: 'Has sales history', tone: 'current', value: history.withHistory },
+    const { breakdown, history } = products;
+    const isPaused = status.keepa.admission?.state === 'paused';
+    const catalogSegments: Segment[] = [
         {
-            key: 'awaiting',
-            label: 'Waiting for first history',
-            tone: 'pending',
-            value: history.awaitingFirst,
+            key: 'auto',
+            label: 'Auto-tracked (<1M)',
+            tone: 'current',
+            value: breakdown.autoTracked,
         },
         {
-            key: 'admission',
-            label: 'Not yet tracked (<1M)',
-            tone:
-                admissionState === 'paused'
-                    ? 'alert'
-                    : admissionState === 'capacity'
-                      ? 'accent'
-                      : 'idle',
-            value: history.awaitingAdmission,
-        },
-        {
-            key: 'untracked',
-            label: 'Outside auto-tracking',
+            key: 'on-demand',
+            label: 'On demand (≥1M)',
             tone: 'idle',
-            value: history.notTracked,
+            value: breakdown.onDemand,
+        },
+        {
+            key: 'no-bsr',
+            label: 'No BSR',
+            tone: 'faint',
+            value: breakdown.noBsr,
         },
     ];
+    const historySegments: Segment[] =
+        isPaused && history.awaitingAdmission > 0
+            ? [
+                  {
+                      key: 'synced',
+                      label: 'Has history',
+                      tone: 'current',
+                      value: history.autoSynced,
+                  },
+                  {
+                      key: 'pending',
+                      label: 'Pending',
+                      tone: 'pending',
+                      value: history.awaitingFirst,
+                  },
+                  {
+                      key: 'paused',
+                      label: 'Paused',
+                      tone: 'alert',
+                      value: history.awaitingAdmission,
+                  },
+              ]
+            : [
+                  {
+                      key: 'synced',
+                      label: 'Has history',
+                      tone: 'current',
+                      value: history.autoSynced,
+                  },
+                  {
+                      key: 'pending',
+                      label: 'Pending',
+                      tone: 'pending',
+                      value: history.awaitingFirst + history.awaitingAdmission,
+                  },
+              ];
+    const syncedShare = formatPercent(fraction(history.autoSynced, breakdown.autoTracked));
+
     return (
         <StatusSection
             caption={`Sync status of Merch Products · counted ${formatRelativeTime(status.countedAt)}`}
             title="Products"
         >
-            <Headline
-                figures={[
-                    { label: 'Products indexed', value: products.total },
-                    { label: 'Merch', value: products.merch },
-                    { label: 'New · 24h', prefix: '+', value: products.new24h },
-                ]}
-            />
-            <SegmentedBar label="Merch Products" segments={segments} />
-            <Legend segments={segments} />
+            <StatusCard>
+                <Headline
+                    figures={[
+                        { label: 'Products indexed', value: products.total },
+                        { label: 'Merch', value: products.merch },
+                        { label: 'New · 24h', prefix: '+', value: products.new24h },
+                    ]}
+                />
+                <StatusBlock
+                    aside={`${formatCount(products.merch)} active Merch`}
+                    title="Catalog breakdown"
+                >
+                    <SegmentedBar label="Merch catalog breakdown" segments={catalogSegments} />
+                    <Legend segments={catalogSegments} showShare />
+                </StatusBlock>
+                <StatusBlock
+                    aside={`${syncedShare} synced · ${formatCount(history.withHistory)} total with history`}
+                    title="Sales history · <1M BSR"
+                >
+                    <SegmentedBar
+                        label="Auto-tracked sales history coverage"
+                        segments={historySegments}
+                    />
+                    <Legend segments={historySegments} showShare />
+                </StatusBlock>
+            </StatusCard>
         </StatusSection>
     );
 };

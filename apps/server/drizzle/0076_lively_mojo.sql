@@ -1,0 +1,1 @@
+ALTER TABLE "product_stats" ADD COLUMN "merch_missing_bsr" integer DEFAULT 0 NOT NULL;
