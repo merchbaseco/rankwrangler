@@ -2,6 +2,7 @@ import { Alert, Spinner } from '@heroui/react';
 import { Navigate } from 'react-router-dom';
 import { useAdminAccess } from '@/hooks/use-admin-access';
 import { StatusEvents } from './status-events';
+import { StatusKeywordDiscovery } from './status-keyword-discovery';
 import { StatusKeywords } from './status-keywords';
 import { failingChecks, healthCheckLabels, type SystemStatus } from './status-model';
 import { StatusProducts } from './status-products';
@@ -12,10 +13,10 @@ import { useSystemStatus } from './use-system-status';
 
 /**
  * System Status (`/status`, admins only): one top-down read of the system, what says it works
- * first. Products and their sync status, keywords by stage and freshness, Keepa and SP-API usage
- * each above its refresh tiers, the sales curve and whether it still matches Amazon, then the
- * event log explorer. A failing health check adds one alert at the top. Everyone else goes to
- * Explore.
+ * first. Products and Keywords side-by-side (one health bar each), Keepa and SP-API usage above
+ * their refresh tiers, the sales curve, keyword discovery pipelines (funnel and search
+ * suggestions), then the event log explorer. A failing health check adds one alert at the top.
+ * Everyone else goes to Explore.
  */
 export const StatusPage = () => {
     const access = useAdminAccess();
@@ -35,10 +36,13 @@ const StatusOverview = () => {
                 {status.data ? (
                     <>
                         <HealthAlert status={status.data} />
-                        <StatusProducts status={status.data} />
-                        <StatusKeywords status={status.data} />
+                        <div className="status-pair status-pair--aligned">
+                            <StatusProducts status={status.data} />
+                            <StatusKeywords />
+                        </div>
                         <StatusProviders status={status.data} tiers={tiers.data} />
                         <StatusSalesCurve />
+                        <StatusKeywordDiscovery status={status.data} />
                     </>
                 ) : status.error ? (
                     <p className="text-danger">
