@@ -11,6 +11,7 @@ const sampleStats = (overrides: Partial<ProductStats> = {}): ProductStats => ({
     merchWithHistory: 137_488,
     merchAwaitingFirst: 3_804,
     merchNotTracked: 791_858,
+    merchMissingBsr: 397_000,
     spApiLt200k: 8_510,
     spApi200kTo500k: 25_426,
     spApi500kTo1m: 60_406,
@@ -38,8 +39,8 @@ describe('buildProductIndex', () => {
         const index = buildProductIndex(sampleStats());
         expect(index.breakdown).toEqual({
             autoTracked: 93_312,
-            onDemand: 458_153,
-            noBsr: 397_878,
+            onDemand: 459_031,
+            noBsr: 397_000,
         });
         expect(
             index.breakdown.autoTracked + index.breakdown.onDemand + index.breakdown.noBsr
@@ -56,6 +57,28 @@ describe('buildProductIndex', () => {
                 index.history.awaitingFirst +
                 index.history.awaitingAdmission
         ).toBe(index.breakdown.autoTracked);
+    });
+
+    it('keeps deleted null-BSR Merch rows out of active catalog breakdown', () => {
+        const index = buildProductIndex(
+            sampleStats({
+                merch: 1,
+                historyTwiceDaily: 0,
+                historyDaily: 0,
+                historyWeekly: 0,
+                historyBiweekly: 0,
+                keepaWaitingDaily: 0,
+                keepaWaitingWeekly: 0,
+                keepaWaitingBiweekly: 0,
+                merchMissingBsr: 0,
+                keepaMerchMissingBsr: 1,
+            })
+        );
+        expect(index.breakdown).toEqual({
+            autoTracked: 0,
+            onDemand: 1,
+            noBsr: 0,
+        });
     });
 });
 

@@ -14,6 +14,7 @@ const stats: ProductStats = {
     merchWithHistory: 137_488,
     merchAwaitingFirst: 3_804,
     merchNotTracked: 791_858,
+    merchMissingBsr: 397_000,
     spApiLt200k: 8_510,
     spApi200kTo500k: 25_426,
     spApi500kTo1m: 60_406,

@@ -45,13 +45,19 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
             admitted: false,
             amazonListingStatus: 'deleted',
         });
+        await insertProduct({
+            asin: 'B0STAT0010',
+            bsr: null,
+            admitted: false,
+            amazonListingStatus: 'deleted',
+        });
         await count();
 
         const status = await getSystemStatus(NOW);
 
         expect(status.countedAt).toBe(NOW.toISOString());
         expect(status.products).toEqual({
-            total: 9,
+            total: 10,
             merch: 7,
             new24h: 1,
             breakdown: { autoTracked: 4, onDemand: 2, noBsr: 1 },

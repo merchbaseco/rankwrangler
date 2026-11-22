@@ -533,6 +533,13 @@
       "when": 1795294971585,
       "tag": "0075_lumpy_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1795323799165,
+      "tag": "0076_lively_mojo",
+      "breakpoints": true
     }
   ]
 }

@@ -64,7 +64,7 @@ export const buildProductIndex = (stats: ProductStats) => {
     const waiting = totalKeepaWaiting(stats);
     const autoTracked = tracked + waiting;
     const outsideAuto = Math.max(0, stats.merch - autoTracked);
-    const noBsr = Math.min(outsideAuto, stats.keepaMerchMissingBsr);
+    const noBsr = Math.min(outsideAuto, stats.merchMissingBsr);
     const onDemand = Math.max(0, outsideAuto - noBsr);
     return {
         total: stats.products,

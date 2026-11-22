@@ -46,8 +46,8 @@ export const refreshProductStats = async (
     await tx.execute(sql`delete from product_stats`);
     await tx.execute(sql`
         insert into product_stats (id, observed_at, products, merch, new_24h, merch_with_history,
-            merch_awaiting_first, merch_not_tracked, sp_api_lt_200k, sp_api_200k_to_500k,
-            sp_api_500k_to_1m, sp_api_1m_to_3m, sp_api_gte_3m, sp_api_non_auto,
+            merch_awaiting_first, merch_not_tracked, merch_missing_bsr, sp_api_lt_200k,
+            sp_api_200k_to_500k, sp_api_500k_to_1m, sp_api_1m_to_3m, sp_api_gte_3m, sp_api_non_auto,
             history_twice_daily, history_daily, history_weekly, history_biweekly,
             keepa_waiting_daily, keepa_waiting_weekly, keepa_waiting_biweekly, keepa_on_demand,
             keepa_merch_missing_bsr, keepa_non_merch, history_overdue, history_oldest_overdue_at,
@@ -57,6 +57,7 @@ export const refreshProductStats = async (
             count(*) filter (where merch and keepa_fetched_at is not null and not waiting),
             count(*) filter (where tracked and keepa_fetched_at is null),
             count(*) filter (where merch and keepa_fetched_at is null and not tracked and not waiting),
+            count(*) filter (where merch and bsr is null),
             count(*) filter (where is_merch_listing and bsr<${BSR_THRESHOLD_200K}),
             count(*) filter (where is_merch_listing and bsr>=${BSR_THRESHOLD_200K}
                 and bsr<${BSR_THRESHOLD_500K}),
