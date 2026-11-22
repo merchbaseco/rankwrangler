@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { formatCount } from './status-model';
+import { formatCount, formatPercent, fraction } from './status-model';
 
 /** One data series' colour on the status page; `status.css` maps each to a theme token. */
 export type SeriesTone = 'current' | 'due' | 'pending' | 'idle' | 'faint' | 'accent' | 'alert';
@@ -105,7 +105,7 @@ export interface HeadlineFigure {
     readonly note?: string;
     readonly of?: number | null;
     readonly prefix?: string;
-    readonly tone?: 'warning' | 'danger';
+    readonly tone?: 'success' | 'warning' | 'danger';
     readonly value: number | null;
 }
 
@@ -165,26 +165,47 @@ export const SegmentedBar = ({
 };
 
 /** The bar's key: a swatch, the series name and its count, wrapping on narrow widths. */
-export const Legend = ({ segments }: { segments: readonly Segment[] }) => (
-    <ul className="status-legend">
-        {segments.map(segment => (
-            <li className="status-legend__item" key={segment.key}>
-                <span aria-hidden className={cn('status-swatch', `status-tone--${segment.tone}`)} />
-                {segment.label}
-                <span
-                    className={cn(
-                        'status-legend__value',
-                        segment.value === 0 && 'text-muted'
-                    )}
-                >
-                    {formatCount(segment.value)}
-                </span>
-            </li>
-        ))}
-    </ul>
-);
+export const Legend = ({
+    segments,
+    showShare = false,
+}: {
+    segments: readonly Segment[];
+    showShare?: boolean;
+}) => {
+    const total = showShare ? segments.reduce((sum, segment) => sum + segment.value, 0) : 0;
+    return (
+        <ul className="status-legend">
+            {segments.map(segment => (
+                <li className="status-legend__item" key={segment.key}>
+                    <span
+                        aria-hidden
+                        className={cn('status-swatch', `status-tone--${segment.tone}`)}
+                    />
+                    {segment.label}
+                    <span
+                        className={cn(
+                            'status-legend__value',
+                            segment.value === 0 && 'text-muted'
+                        )}
+                    >
+                        {formatCount(segment.value)}
+                    </span>
+                    {showShare && total > 0 ? (
+                        <span className="font-mono tabular-nums text-muted">
+                            {formatPercent(fraction(segment.value, total))}
+                        </span>
+                    ) : null}
+                </li>
+            ))}
+        </ul>
+    );
+};
 
-const toneInk = { danger: 'text-danger', warning: 'text-warning' } as const;
+const toneInk = {
+    danger: 'text-danger',
+    success: 'text-success',
+    warning: 'text-warning',
+} as const;
 
 const describe = (segments: readonly Segment[]) =>
     segments.map(segment => `${segment.label} ${formatCount(segment.value)}`).join(', ');

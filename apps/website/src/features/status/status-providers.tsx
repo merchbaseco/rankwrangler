@@ -1,6 +1,7 @@
 import { failureFigures, KeepaAdmissionChip, ProviderVerdictChip } from './provider-verdict';
 import { RefreshTierTable } from './refresh-tier-table';
 import {
+    dailyLoadTone,
     formatCount,
     formatPercent,
     fraction,
@@ -61,6 +62,15 @@ const KeepaSection = ({
                                         : formatPercent(fraction(used, keepa.capacity)),
                                 label: 'Used',
                                 value: used,
+                            },
+                            {
+                                display:
+                                    keepa.dailyPlanLoad === null
+                                        ? '—'
+                                        : formatPercent(keepa.dailyPlanLoad.share),
+                                label: 'Daily plan load',
+                                tone: dailyLoadTone(keepa.dailyPlanLoad?.share ?? null),
+                                value: keepa.dailyPlanLoad?.projectedDailyTokens ?? null,
                             },
                             ...failureFigures(status, 'keepa'),
                         ]}

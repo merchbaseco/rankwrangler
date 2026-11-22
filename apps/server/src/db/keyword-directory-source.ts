@@ -35,6 +35,7 @@ export const directorySource = (input: {
                 ${keywordStageSql} stage,d.standing_tier heat,d.popularity_score score,
                 case when a.stage='complete' then 'complete' when a.claim_at>${asOf}::timestamp-interval '5 minutes' then 'running'
                     when a.failure_count>0 then 'retrying' when d.tracking='tracked' and d.enabled then 'queued' else 'not eligible' end expansion,
+                a.completed_at "expandedAt",
                 case when d.pass_claimed_at>${asOf}::timestamp-interval '5 minutes' then 'running'
                     when not d.enabled then 'paused' when d.pass_failures>0 then 'retrying'
                     when d.pass_continuing and (d.head_observed_at is null

@@ -95,6 +95,22 @@ export const spApiOperationUsage = (status: SystemStatus): OperationUsage[] => {
     return [...limited, ...unlimited];
 };
 
+/** Daily standing-load ink: green with headroom, amber near the 90% ceiling, red at/above it. */
+export const dailyLoadTone = (
+    share: number | null
+): 'success' | 'warning' | 'danger' | undefined => {
+    if (share === null) {
+        return undefined;
+    }
+    if (share >= 0.9) {
+        return 'danger';
+    }
+    if (share >= 0.8) {
+        return 'warning';
+    }
+    return 'success';
+};
+
 /** A share of a whole, clamped to 0–1; an unknown or empty whole is 0. */
 export const fraction = (part: number, whole: number | null) =>
     whole && whole > 0 ? Math.min(1, Math.max(0, part / whole)) : 0;

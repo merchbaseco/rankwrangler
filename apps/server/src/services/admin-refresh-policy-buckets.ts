@@ -9,7 +9,7 @@ import {
 } from '@/services/spapi-refresh-policy';
 
 export interface SpApiRefreshPolicyBucketStat {
-    key: SpApiRefreshPolicyBucketKey | 'nonAutoRefresh';
+    key: SpApiRefreshPolicyBucketKey | 'merchMissingBsr' | 'nonMerch';
     label: string;
     refreshEveryLabel: string;
     /** The long explanation the short label leaves out, shown on hover. */
@@ -51,13 +51,19 @@ export const getSpApiRefreshPolicyBuckets = (
             isAutoRefresh: true,
         })),
         {
-            key: 'nonAutoRefresh',
+            key: 'merchMissingBsr',
             label: 'No BSR',
             refreshEveryLabel: 'Bounded',
-            hint:
-                'Merch listings without a BSR get bounded checks; ' +
-                'non-Merch listings are never refreshed.',
-            count: stats.spApiNonAuto,
+            hint: 'Merch listings Amazon reports without a BSR get bounded checks.',
+            count: stats.keepaMerchMissingBsr,
+            isAutoRefresh: false,
+        },
+        {
+            key: 'nonMerch',
+            label: 'Non-Merch',
+            refreshEveryLabel: 'Never',
+            hint: 'Non-Merch listings are never refreshed.',
+            count: stats.keepaNonMerch,
             isAutoRefresh: false,
         },
     ];

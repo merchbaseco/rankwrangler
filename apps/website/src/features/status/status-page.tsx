@@ -36,7 +36,7 @@ const StatusOverview = () => {
                     <>
                         <HealthAlert status={status.data} />
                         <StatusProducts status={status.data} />
-                        <StatusKeywords />
+                        <StatusKeywords status={status.data} />
                         <StatusProviders status={status.data} tiers={tiers.data} />
                         <StatusSalesCurve />
                     </>

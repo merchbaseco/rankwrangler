@@ -54,8 +54,15 @@ describe.skipIf(process.env.RUN_CATALOG_DB_TESTS !== 'true')('system status read
             total: 9,
             merch: 7,
             new24h: 1,
+            breakdown: { autoTracked: 4, onDemand: 2, noBsr: 1 },
             // Active Merch partitions cleanly across all four buckets, including NULL-BSR rows.
-            history: { withHistory: 2, awaitingFirst: 2, awaitingAdmission: 1, notTracked: 2 },
+            history: {
+                withHistory: 2,
+                autoSynced: 1,
+                awaitingFirst: 2,
+                awaitingAdmission: 1,
+                notTracked: 2,
+            },
         });
         expect(status.products).toEqual(await readProductIndexDirectly());
         expect(status.keepa.admission).toEqual({
@@ -107,7 +114,11 @@ const readProductIndexDirectly = async () => {
         select count(*)::int total,
             count(*) filter (where ${merch})::int merch,
             count(*) filter (where created_at > ${NOW.toISOString()}::timestamp - interval '24 hours')::int new_24h,
+            count(*) filter (where ${tracked} or ${waiting})::int auto_tracked,
+            count(*) filter (where ${merch} and root_category_bsr >= 1000000)::int on_demand,
+            count(*) filter (where ${merch} and root_category_bsr is null)::int no_bsr,
             count(*) filter (where ${merch} and keepa_fetched_at is not null and not (${waiting}))::int with_history,
+            count(*) filter (where ${tracked} and keepa_fetched_at is not null)::int auto_synced,
             count(*) filter (where ${tracked} and keepa_fetched_at is null)::int awaiting_first,
             count(*) filter (where ${waiting})::int awaiting_admission,
             count(*) filter (where ${merch} and keepa_fetched_at is null and not (${tracked}) and not (${waiting}))::int not_tracked
@@ -116,8 +127,14 @@ const readProductIndexDirectly = async () => {
         total: row.total,
         merch: row.merch,
         new24h: row.new_24h,
+        breakdown: {
+            autoTracked: row.auto_tracked,
+            onDemand: row.on_demand,
+            noBsr: row.no_bsr,
+        },
         history: {
             withHistory: row.with_history,
+            autoSynced: row.auto_synced,
             awaitingFirst: row.awaiting_first,
             awaitingAdmission: row.awaiting_admission,
             notTracked: row.not_tracked,

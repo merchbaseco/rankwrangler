@@ -67,6 +67,10 @@ export const readKeywordDirectoryFacets = async (
                 sql`, `
             )},
             ${count('mined_last_24h', sql`${all} and "lastCheckedAt">=${asOf}::timestamp-interval '24 hours'`)},
+            ${count('new_last_24h', sql`${without('stage')} and "createdAt">=${asOf}::timestamp-interval '24 hours'`)},
+            ${count('expansion_complete', sql`${all} and expansion='complete'`)},
+            ${count('expansion_remaining', sql`${all} and expansion in ('queued','running','retrying')`)},
+            ${count('expanded_last_24h', sql`${all} and "expandedAt">=${asOf}::timestamp-interval '24 hours'`)},
             round(percentile_cont(0.5) within group (order by median_bsr)
                 filter (where ${all} and median_bsr is not null))::int median_shelf_bsr
         -- OFFSET 0 evaluates each row's stage and freshness once; inlined, every FILTER above
@@ -86,6 +90,12 @@ export const readKeywordDirectoryFacets = async (
             heat: scoreHeat(index * SCORE_BUCKET_WIDTH),
         })),
         minedLast24h: value('mined_last_24h'),
+        newLast24h: value('new_last_24h'),
+        expansion: {
+            complete: value('expansion_complete'),
+            remaining: value('expansion_remaining'),
+            expandedLast24h: value('expanded_last_24h'),
+        },
         medianShelfBsr: row?.median_shelf_bsr ?? null,
         needsSync: value('freshness_needsSync'),
         syncing: value('freshness_syncing'),

@@ -1,5 +1,7 @@
 import { readKeepaCapacitySnapshot } from '@/db/keepa-capacity-snapshot';
 import { type ProductStats, readProductStats } from '@/db/product-stats';
+import { isAutocompleteRelayConfigured } from '@/services/keyword-autocomplete-provider';
+import { getHistoryAdmissionForecast } from '@/services/product-history-admission';
 import { getHistoryAdmissionOverload } from '@/services/product-history-overload';
 import { mapTelemetryOperation } from '@/services/providers/sp-api/sp-api-limiter-manager';
 import { createSpApiProvider } from '@/services/providers/sp-api/sp-api-provider';
@@ -24,7 +26,10 @@ export const getSystemStatus = async (now = new Date()) => {
         observedAt: now.toISOString(),
         countedAt: stats?.observedAt.toISOString() ?? null,
         health,
-        products: stats ? productIndex(stats) : null,
+        products: stats ? buildProductIndex(stats) : null,
+        autocomplete: {
+            configured: isAutocompleteRelayConfigured(),
+        },
         calls: stats?.providerCalls ?? [],
         keepa: {
             tokensLeft: keepa.estimatedTokensLeft,
@@ -37,6 +42,9 @@ export const getSystemStatus = async (now = new Date()) => {
                 workClass: row.workClass,
                 tokens: row.actualTokens + row.reservedUnknownTokens,
             })),
+            dailyPlanLoad: stats
+                ? computeKeepaDailyPlanLoad(stats, keepa.refillRate, keepa.productCost)
+                : null,
             admission: stats ? keepaAdmissionStatus(stats, now) : null,
         },
         // Each operation's configured rate over an hour: the ceiling its calls are measured on.
@@ -48,23 +56,62 @@ export const getSystemStatus = async (now = new Date()) => {
 };
 
 /**
- * How much of the catalog is indexed, and the sales-history sync status of the active Merch
- * listings. Every Merch listing sits in exactly one of: `withHistory` (Keepa history imported),
- * `awaitingFirst` (admitted inside the automatic Keepa tiers, first import still queued),
- * `awaitingAdmission` (under 1M BSR and waiting/paused for Keepa admission) or `notTracked`
- * (no history and outside the automatic tiers, so Keepa only syncs it on demand).
+ * How much of the catalog is indexed, its active Merch breakdown (auto-tracked `<1M`, on-demand
+ * `≥1M`, and listings with no BSR), and sales-history coverage within the `<1M` auto-tracked set.
  */
-const productIndex = (stats: ProductStats) => ({
-    total: stats.products,
-    merch: stats.merch,
-    new24h: stats.new24h,
-    history: {
-        withHistory: stats.merchWithHistory,
-        awaitingFirst: stats.merchAwaitingFirst,
-        awaitingAdmission: totalKeepaWaiting(stats),
-        notTracked: stats.merchNotTracked,
-    },
-});
+export const buildProductIndex = (stats: ProductStats) => {
+    const tracked = totalKeepaTracked(stats);
+    const waiting = totalKeepaWaiting(stats);
+    const autoTracked = tracked + waiting;
+    const outsideAuto = Math.max(0, stats.merch - autoTracked);
+    const noBsr = Math.min(outsideAuto, stats.keepaMerchMissingBsr);
+    const onDemand = Math.max(0, outsideAuto - noBsr);
+    return {
+        total: stats.products,
+        merch: stats.merch,
+        new24h: stats.new24h,
+        breakdown: {
+            autoTracked,
+            onDemand,
+            noBsr,
+        },
+        history: {
+            withHistory: stats.merchWithHistory,
+            autoSynced: Math.max(0, tracked - stats.merchAwaitingFirst),
+            awaitingFirst: stats.merchAwaitingFirst,
+            awaitingAdmission: waiting,
+            notTracked: stats.merchNotTracked,
+        },
+    };
+};
+
+/** Standing daily refresh spend across enrolled `<1M` tiers as a share of total daily refill. */
+export const computeKeepaDailyPlanLoad = (
+    stats: ProductStats,
+    refillRate: number | null,
+    productCost: number | null
+) => {
+    if (refillRate === null || refillRate <= 0 || productCost === null || productCost <= 0) {
+        return null;
+    }
+    const { projectedDailyTokens } = getHistoryAdmissionForecast({
+        twiceDaily: stats.historyTwiceDaily,
+        daily: stats.historyDaily,
+        weekly: stats.historyWeekly,
+        biweekly: stats.historyBiweekly,
+        productCost,
+        refillRate,
+    });
+    const dailyTokens = refillRate * 60 * 24;
+    return {
+        projectedDailyTokens: Math.round(projectedDailyTokens),
+        dailyTokens: Math.round(dailyTokens),
+        share: projectedDailyTokens / dailyTokens,
+    };
+};
+
+const totalKeepaTracked = (stats: ProductStats) =>
+    stats.historyTwiceDaily + stats.historyDaily + stats.historyWeekly + stats.historyBiweekly;
 
 const totalKeepaWaiting = (stats: ProductStats) =>
     stats.keepaWaitingDaily + stats.keepaWaitingWeekly + stats.keepaWaitingBiweekly;
