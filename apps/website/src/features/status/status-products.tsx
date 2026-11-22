@@ -11,41 +11,24 @@ import {
 } from './status-panel';
 
 /**
- * Products: how many are indexed, how active Merch listings divide between automatic tracking
- * (`<1M` BSR), on-demand (`≥1M`), and listings with no BSR, then sales-history coverage zoomed
- * into the `<1M` auto-tracked set.
+ * Products: active Merch count, 24h growth, auto-tracked `<1M` BSR slice, and sales-history
+ * coverage zoomed into that `<1M` set. Full BSR tier counts live in the provider cards below.
  */
 export const StatusProducts = ({ status }: { status: SystemStatus }) => {
     const { products } = status;
     if (!products) {
         return (
             <StatusSection caption="Not counted yet" title="Products">
-                <p className="text-muted">The first count runs shortly after the server starts.</p>
+                <StatusCard>
+                    <p className="text-muted">
+                        The first count runs shortly after the server starts.
+                    </p>
+                </StatusCard>
             </StatusSection>
         );
     }
     const { breakdown, history } = products;
     const isPaused = status.keepa.admission?.state === 'paused';
-    const catalogSegments: Segment[] = [
-        {
-            key: 'auto',
-            label: 'Auto-tracked (<1M)',
-            tone: 'current',
-            value: breakdown.autoTracked,
-        },
-        {
-            key: 'on-demand',
-            label: 'On demand (≥1M)',
-            tone: 'idle',
-            value: breakdown.onDemand,
-        },
-        {
-            key: 'no-bsr',
-            label: 'No BSR',
-            tone: 'faint',
-            value: breakdown.noBsr,
-        },
-    ];
     const historySegments: Segment[] =
         isPaused && history.awaitingAdmission > 0
             ? [
@@ -86,26 +69,19 @@ export const StatusProducts = ({ status }: { status: SystemStatus }) => {
 
     return (
         <StatusSection
-            caption={`Sync status of Merch Products · counted ${formatRelativeTime(status.countedAt)}`}
+            caption={`${formatCount(products.total)} indexed · counted ${formatRelativeTime(status.countedAt)}`}
             title="Products"
         >
             <StatusCard>
                 <Headline
                     figures={[
-                        { label: 'Products indexed', value: products.total },
                         { label: 'Merch', value: products.merch },
                         { label: 'New · 24h', prefix: '+', value: products.new24h },
+                        { label: 'Auto-tracked', value: breakdown.autoTracked },
                     ]}
                 />
                 <StatusBlock
-                    aside={`${formatCount(products.merch)} active Merch`}
-                    title="Catalog breakdown"
-                >
-                    <SegmentedBar label="Merch catalog breakdown" segments={catalogSegments} />
-                    <Legend segments={catalogSegments} showShare />
-                </StatusBlock>
-                <StatusBlock
-                    aside={`${syncedShare} synced · ${formatCount(history.withHistory)} total with history`}
+                    aside={`${syncedShare} synced · ${formatCount(history.withHistory)} total`}
                     title="Sales history · <1M BSR"
                 >
                     <SegmentedBar
