@@ -30,8 +30,9 @@ jobs:
           bun-version: '1.4.4'
 
       # Private @merchbaseco/* packages install with the workflow's own
-      # repository-scoped token, and the licensed @hugeicons-pro scope with its
-      # repository secret; no 1Password access is involved. The licensed
+      # repository-scoped token, and the licensed @hugeicons-pro scope with a
+      # key resolved from the Development vault through the CI development
+      # 1Password identity, never the production one. The licensed
       # HeroUI Pro dist download is deliberately NOT done here: nothing in the
       # fast lane imports it (the website's tests are static), and the image
       # build on the Mac mini is the website build's proof.
@@ -39,7 +40,7 @@ jobs:
         timeout-minutes: 5
         env:
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-          CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+          CI_OP_TOKEN: ${{ secrets.GH_CI_DEVELOPMENT_OP_TOKEN }}
         run: |
           set -euo pipefail
           MERCHBASE_HUGEICONS_LICENSE_KEY="$(
@@ -99,7 +100,7 @@ jobs:
         timeout-minutes: 5
         env:
           MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-          CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+          CI_OP_TOKEN: ${{ secrets.GH_CI_DEVELOPMENT_OP_TOKEN }}
         run: |
           set -euo pipefail
           MERCHBASE_HUGEICONS_LICENSE_KEY="$(

@@ -28,8 +28,9 @@ jobs:
             - name: Install dependencies
               env:
                   MERCHBASE_GITHUB_NPM_TOKEN: ${{ github.token }}
-                  # The workspace install resolves the website's licensed scope.
-                  CI_OP_TOKEN: ${{ secrets.GH_DEPLOY_AGENT_PRODUCTION_OP_TOKEN }}
+                  # The workspace install resolves the website's licensed scope from the
+                  # Development vault with the CI development 1Password identity.
+                  CI_OP_TOKEN: ${{ secrets.GH_CI_DEVELOPMENT_OP_TOKEN }}
               run: |
                 set -euo pipefail
                 MERCHBASE_HUGEICONS_LICENSE_KEY="$(
